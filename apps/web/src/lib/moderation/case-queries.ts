@@ -5,6 +5,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const ACTIVE_STATUSES: ModerationCaseStatus[] = ["OPEN", "IN_REVIEW", "APPEALED"];
 const RESOLVED_STATUSES: ModerationCaseStatus[] = ["ACTIONED", "DISMISSED", "CLOSED"];
 const QUEUE_PAGE_SIZE = 25;
+const CASE_FILE_RELATION_PAGE_SIZE = 50;
 
 /** A case older than this without a first look is called out in the queue. */
 export const CASE_STALE_AFTER_MS = DAY_MS;
@@ -169,13 +170,38 @@ export async function countOpenModerationCases(client: ModerationCaseStore = pri
   return client.moderationCase.count({ where: { status: "OPEN" } });
 }
 
-export async function getModerationCaseFile(caseId: string, client: ModerationCaseStore = prisma) {
+export type ModerationCaseFilePages = {
+  evidencePage?: number;
+  eventPage?: number;
+  reportPage?: number;
+};
+
+function normalizeRelationPage(page: number | undefined) {
+  if (page === undefined || !Number.isFinite(page)) {
+    return 1;
+  }
+
+  return Math.max(1, Math.trunc(page));
+}
+
+export async function getModerationCaseFile(
+  caseId: string,
+  pages: ModerationCaseFilePages = {},
+  client: ModerationCaseStore = prisma,
+) {
+  const evidencePage = normalizeRelationPage(pages.evidencePage);
+  const eventPage = normalizeRelationPage(pages.eventPage);
+  const reportPage = normalizeRelationPage(pages.reportPage);
   const moderationCase = await client.moderationCase.findUnique({
     where: { id: caseId },
     select: {
       assignee: { select: { displayName: true, id: true, username: true } },
       evidence: {
-        orderBy: { capturedAt: "asc" },
+        orderBy: { capturedAt: "desc" },
+        skip: (evidencePage - 1) * CASE_FILE_RELATION_PAGE_SIZE,
+        // One sentinel row tells the caller whether an older page exists without
+        // loading the unbounded case relation or issuing three count queries.
+        take: CASE_FILE_RELATION_PAGE_SIZE + 1,
         select: {
           capturedAt: true,
           dmMessageId: true,
@@ -185,7 +211,9 @@ export async function getModerationCaseFile(caseId: string, client: ModerationCa
         },
       },
       events: {
-        orderBy: { createdAt: "asc" },
+        orderBy: { createdAt: "desc" },
+        skip: (eventPage - 1) * CASE_FILE_RELATION_PAGE_SIZE,
+        take: CASE_FILE_RELATION_PAGE_SIZE + 1,
         select: {
           actor: { select: { displayName: true, id: true, username: true } },
           body: true,
@@ -202,7 +230,9 @@ export async function getModerationCaseFile(caseId: string, client: ModerationCa
       publicNumber: true,
       reportCount: true,
       reports: {
-        orderBy: { createdAt: "asc" },
+        orderBy: { createdAt: "desc" },
+        skip: (reportPage - 1) * CASE_FILE_RELATION_PAGE_SIZE,
+        take: CASE_FILE_RELATION_PAGE_SIZE + 1,
         select: {
           createdAt: true,
           details: true,
@@ -232,16 +262,23 @@ export async function getModerationCaseFile(caseId: string, client: ModerationCa
     return null;
   }
 
+  const evidenceHasOlderRecords = moderationCase.evidence.length > CASE_FILE_RELATION_PAGE_SIZE;
+  const eventHasOlderRecords = moderationCase.events.length > CASE_FILE_RELATION_PAGE_SIZE;
+  const reportHasOlderRecords = moderationCase.reports.length > CASE_FILE_RELATION_PAGE_SIZE;
+  const evidencePageRows = moderationCase.evidence.slice(0, CASE_FILE_RELATION_PAGE_SIZE);
+  const eventPageRows = moderationCase.events.slice(0, CASE_FILE_RELATION_PAGE_SIZE);
+  const reportPageRows = moderationCase.reports.slice(0, CASE_FILE_RELATION_PAGE_SIZE);
+
   const priorCaseCount = moderationCase.subjectId
     ? await client.moderationCase.count({
         where: { id: { not: moderationCase.id }, subjectId: moderationCase.subjectId },
       })
     : 0;
 
-  const evidenceMessageIds = moderationCase.evidence.flatMap((entry) =>
+  const evidenceMessageIds = evidencePageRows.flatMap((entry) =>
     entry.messageId ? [entry.messageId] : [],
   );
-  const evidenceDmIds = moderationCase.evidence.flatMap((entry) =>
+  const evidenceDmIds = evidencePageRows.flatMap((entry) =>
     entry.dmMessageId ? [entry.dmMessageId] : [],
   );
   const [liveMessages, liveDmMessages] = await Promise.all([
@@ -291,7 +328,7 @@ export async function getModerationCaseFile(caseId: string, client: ModerationCa
         }
       : null,
     /** The snapshot outlives its source: a deleted message still shows here. */
-    evidence: moderationCase.evidence.map((entry) => ({
+    evidence: evidencePageRows.map((entry) => ({
       capturedAt: entry.capturedAt.toISOString(),
       dmMessageId: entry.dmMessageId,
       id: entry.id,
@@ -308,8 +345,13 @@ export async function getModerationCaseFile(caseId: string, client: ModerationCa
     })),
     subjectDeleted: moderationCase.subjectId === null,
     subjectHandle: moderationCase.subjectHandle,
+    pagination: {
+      evidence: { hasOlderRecords: evidenceHasOlderRecords, page: evidencePage },
+      events: { hasOlderRecords: eventHasOlderRecords, page: eventPage },
+      reports: { hasOlderRecords: reportHasOlderRecords, page: reportPage },
+    },
     timeline: [
-      ...moderationCase.reports.map((report) => ({
+      ...reportPageRows.map((report) => ({
         actor: {
           displayName: report.reporter.displayName ?? report.reporter.username,
           id: report.reporter.id,
@@ -321,7 +363,7 @@ export async function getModerationCaseFile(caseId: string, client: ModerationCa
         kind: "REPORT_ADDED" as const,
         reason: report.reason as string | null,
       })),
-      ...moderationCase.events
+      ...eventPageRows
         .filter((event) => event.kind !== "REPORT_ADDED")
         .map((event) => ({
           actor: event.actor

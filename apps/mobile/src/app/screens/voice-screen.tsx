@@ -1,5 +1,5 @@
 import { VideoTrack } from "@livekit/react-native";
-import { useLayoutEffect } from "react";
+import { createContext, useContext, useLayoutEffect } from "react";
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -47,6 +47,7 @@ import type { MobileVoiceAudioProcessing } from "../../voice/mobile-voice-device
 import { useToast } from "../components/kit/toast";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import {
+  formatMobileVoiceRoomDuration,
   getMobileActiveVoiceRoomModel,
   shouldTickMobileVoiceRoomDuration,
 } from "./active-voice-room-model";
@@ -105,6 +106,12 @@ import {
   OverlaySurface,
   useOverlayPhase,
 } from "../components/kit/overlay-surface";
+
+const MobileVoiceVideoQualityModeContext = createContext<"AUTO" | "FULL">("AUTO");
+
+function useMobileVoiceVideoQualityMode() {
+  return useContext(MobileVoiceVideoQualityModeContext);
+}
 
 export function VoiceScreen({
   voiceRoomState,
@@ -166,10 +173,9 @@ export function VoiceScreen({
   const theme = useVoiceRoomTheme();
   const { selection } = useMobileHaptics();
   const { showToast } = useToast();
-  const [now, setNow] = useState(() => Date.now());
   const [inviteSheetVisible, setInviteSheetVisible] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const model = getMobileActiveVoiceRoomModel(voiceRoomState, serverName, now);
+  const model = getMobileActiveVoiceRoomModel(voiceRoomState, serverName, Date.now());
   // Same gate the DM call uses: the device lists the sheet reads only exist once
   // the room is up.
   const isConnected = voiceRoomState.status === "connected";
@@ -183,18 +189,6 @@ export function VoiceScreen({
     selectedAudioOutputId: voiceRoomState.selectedAudioOutputId,
     selfAudioOutput: voiceRoomState.selfAudioOutput,
   });
-  const durationRunning = shouldTickMobileVoiceRoomDuration(model.connectionStatus);
-
-  useEffect(() => {
-    if (!durationRunning) {
-      return;
-    }
-
-    setNow(Date.now());
-    const interval = setInterval(() => setNow(Date.now()), 1_000);
-    return () => clearInterval(interval);
-  }, [durationRunning]);
-
   const handleMute = () => {
     void onToggleVoiceMute().then(selection);
   };
@@ -238,203 +232,205 @@ export function VoiceScreen({
   const stageMode = getMobileVoiceStageMode(model.participants);
 
   return (
-    <View style={styles.activeVoiceRoomScreen} testID={testID}>
-      <View style={styles.activeVoiceRoomHeader}>
-        <Pressable
-          accessibilityLabel={copy.voiceRoomMinimizeAction}
-          accessibilityRole="button"
-          disabled={!model.canMinimize}
-          hitSlop={6}
-          onPress={onMinimize}
-          style={({ pressed }) => [
-            styles.activeVoiceRoomBackButton,
-            !model.canMinimize && styles.activeVoiceRoomControlDisabled,
-            pressed && model.canMinimize && styles.actionButtonPressed,
-          ]}
-          testID="mobile-voice-minimize"
-        >
-          <Ionicons color={theme.voiceRoom.text} name="chevron-back" size={17} />
-        </Pressable>
-        <View style={styles.activeVoiceRoomHeaderText}>
-          <View style={styles.activeVoiceRoomTitleRow}>
-            <Ionicons color={theme.voiceRoom.success} name="volume-high" size={16} />
-            <Text numberOfLines={1} style={styles.activeVoiceRoomTitle}>
-              {model.channelName ?? ""}
+    <MobileVoiceVideoQualityModeContext.Provider value={voiceRoomState.videoQualityMode}>
+      <View style={styles.activeVoiceRoomScreen} testID={testID}>
+        <View style={styles.activeVoiceRoomHeader}>
+          <Pressable
+            accessibilityLabel={copy.voiceRoomMinimizeAction}
+            accessibilityRole="button"
+            disabled={!model.canMinimize}
+            hitSlop={6}
+            onPress={onMinimize}
+            style={({ pressed }) => [
+              styles.activeVoiceRoomBackButton,
+              !model.canMinimize && styles.activeVoiceRoomControlDisabled,
+              pressed && model.canMinimize && styles.actionButtonPressed,
+            ]}
+            testID="mobile-voice-minimize"
+          >
+            <Ionicons color={theme.voiceRoom.text} name="chevron-back" size={17} />
+          </Pressable>
+          <View style={styles.activeVoiceRoomHeaderText}>
+            <View style={styles.activeVoiceRoomTitleRow}>
+              <Ionicons color={theme.voiceRoom.success} name="volume-high" size={16} />
+              <Text numberOfLines={1} style={styles.activeVoiceRoomTitle}>
+                {model.channelName ?? ""}
+              </Text>
+            </View>
+            <Text numberOfLines={1} style={styles.activeVoiceRoomSubtitle}>
+              {[model.serverName, copy.voiceRoomChannelTypeLabel].filter(Boolean).join(" · ")}
             </Text>
           </View>
-          <Text numberOfLines={1} style={styles.activeVoiceRoomSubtitle}>
-            {[model.serverName, copy.voiceRoomChannelTypeLabel].filter(Boolean).join(" · ")}
+          <Pressable
+            accessibilityLabel={copy.voiceRoomInviteFriends}
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={handleOpenInvite}
+            style={({ pressed }) => [
+              styles.activeVoiceRoomInviteButton,
+              pressed && styles.actionButtonPressed,
+            ]}
+            testID="mobile-voice-invite"
+          >
+            <Ionicons color={theme.voiceRoom.accent} name="person-add-outline" size={15} />
+            <Text style={styles.activeVoiceRoomInviteButtonText}>{copy.voiceRoomInviteAction}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityLabel={copy.voiceSettingsAction}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !isConnected }}
+            disabled={!isConnected}
+            hitSlop={8}
+            onPress={handleOpenSettings}
+            style={({ pressed }) => [
+              styles.activeVoiceRoomHeaderIconButton,
+              !isConnected && styles.activeVoiceRoomControlDisabled,
+              pressed && isConnected && styles.actionButtonPressed,
+            ]}
+            testID="mobile-voice-settings"
+          >
+            <Ionicons color={theme.voiceRoom.accent} name="options-outline" size={15} />
+          </Pressable>
+        </View>
+
+        <ActiveVoiceRoomSessionStrip
+          connectionStatus={model.connectionStatus}
+          connectedAt={voiceRoomState.connectedAt}
+          noiseSuppressionEnabled={voiceRoomState.noiseSuppressionEnabled}
+          onToggleNoiseSuppression={handleNoiseSuppression}
+        />
+
+        {voiceRoomState.errorMessage ? (
+          <Text style={styles.activeVoiceRoomError} numberOfLines={2}>
+            {voiceRoomState.errorMessage}
           </Text>
+        ) : null}
+
+        {stageMode === "video" ? (
+          <ActiveVoiceRoomStage
+            cameraFacingMode={voiceRoomState.cameraFacingMode}
+            onFlipCamera={handleFlipCamera}
+            {...(onSelectVoiceScreenShareAudioMuted
+              ? { onToggleScreenShareAudioMuted: onSelectVoiceScreenShareAudioMuted }
+              : {})}
+            participants={model.participants}
+            screenShareAudioMuted={voiceScreenShareAudioMuted}
+          />
+        ) : (
+          <ActiveVoiceRoomAudience
+            audioRoute={audioRoute}
+            cameraFacingMode={voiceRoomState.cameraFacingMode}
+            onFlipCamera={handleFlipCamera}
+            participants={model.participants}
+          />
+        )}
+
+        <View
+          style={[styles.activeVoiceRoomDock, { paddingBottom: dockBottomInset }]}
+          testID="mobile-voice-dock"
+        >
+          <View style={styles.activeVoiceRoomControls}>
+            <ActiveVoiceRoomControl
+              disabled={!model.canToggleMute}
+              icon={voiceRoomState.selfMuted ? "mic-off-outline" : "mic-outline"}
+              label={voiceRoomState.selfMuted ? copy.voiceUnmuteAction : copy.voiceMuteAction}
+              muted={voiceRoomState.selfMuted}
+              onPress={handleMute}
+              testID="mobile-voice-mute-toggle"
+            />
+            <ActiveVoiceRoomControl
+              // The icon names the route the platform actually reports, so the
+              // button never claims the speaker while a headset is plugged in.
+              accessibilityLabel={getVoiceAudioRouteAccessibilityLabel(audioRoute)}
+              icon={getMobileVoiceAudioRouteIcon(audioRoute)}
+              label={copy.voiceRoomAudioOutputAction}
+              onPress={handleAudioOutput}
+              ringOnSelected={false}
+              selected={voiceRoomState.selfAudioOutput === "speaker"}
+              testID="mobile-voice-audio-output"
+            />
+            <ActiveVoiceRoomControl
+              disabled={!model.canToggleMute}
+              icon={voiceRoomState.selfCameraEnabled ? "videocam-outline" : "videocam-off-outline"}
+              inactive={!voiceRoomState.selfCameraEnabled}
+              label={
+                voiceRoomState.selfCameraEnabled
+                  ? copy.voiceCameraOffAction
+                  : copy.voiceCameraOnAction
+              }
+              onPress={handleCamera}
+              selected={voiceRoomState.selfCameraEnabled}
+              testID="mobile-voice-camera"
+            />
+            <ActiveVoiceRoomControl
+              disabled={!model.canToggleMute || screenShareBusy}
+              icon="tv-outline"
+              inactive={!voiceRoomState.selfScreenShareEnabled}
+              label={
+                voiceRoomState.selfScreenShareEnabled
+                  ? copy.voiceScreenShareStopShortAction
+                  : copy.voiceScreenShareAction
+              }
+              onPress={handleScreenShare}
+              selected={voiceRoomState.selfScreenShareEnabled}
+              testID="mobile-voice-screen-share"
+            />
+            <ActiveVoiceRoomControl
+              danger
+              disabled={!model.canLeave}
+              icon="call-outline"
+              label={copy.voiceLeaveAction}
+              onPress={handleLeave}
+              testID="mobile-voice-leave"
+            />
+          </View>
         </View>
-        <Pressable
-          accessibilityLabel={copy.voiceRoomInviteFriends}
-          accessibilityRole="button"
-          hitSlop={8}
-          onPress={handleOpenInvite}
-          style={({ pressed }) => [
-            styles.activeVoiceRoomInviteButton,
-            pressed && styles.actionButtonPressed,
-          ]}
-          testID="mobile-voice-invite"
-        >
-          <Ionicons color={theme.voiceRoom.accent} name="person-add-outline" size={15} />
-          <Text style={styles.activeVoiceRoomInviteButtonText}>{copy.voiceRoomInviteAction}</Text>
-        </Pressable>
-        <Pressable
-          accessibilityLabel={copy.voiceSettingsAction}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !isConnected }}
-          disabled={!isConnected}
-          hitSlop={8}
-          onPress={handleOpenSettings}
-          style={({ pressed }) => [
-            styles.activeVoiceRoomHeaderIconButton,
-            !isConnected && styles.activeVoiceRoomControlDisabled,
-            pressed && isConnected && styles.actionButtonPressed,
-          ]}
-          testID="mobile-voice-settings"
-        >
-          <Ionicons color={theme.voiceRoom.accent} name="options-outline" size={15} />
-        </Pressable>
-      </View>
 
-      <ActiveVoiceRoomSessionStrip
-        connectionStatus={model.connectionStatus}
-        durationLabel={model.durationLabel}
-        noiseSuppressionEnabled={voiceRoomState.noiseSuppressionEnabled}
-        onToggleNoiseSuppression={handleNoiseSuppression}
-      />
+        <MobileVoiceInviteSheet
+          candidates={inviteCandidates}
+          onClose={() => setInviteSheetVisible(false)}
+          onSendInvite={onSendInvite}
+          open={inviteSheetVisible}
+          sendStates={inviteSendStates}
+        />
 
-      {voiceRoomState.errorMessage ? (
-        <Text style={styles.activeVoiceRoomError} numberOfLines={2}>
-          {voiceRoomState.errorMessage}
-        </Text>
-      ) : null}
-
-      {stageMode === "video" ? (
-        <ActiveVoiceRoomStage
-          cameraFacingMode={voiceRoomState.cameraFacingMode}
-          onFlipCamera={handleFlipCamera}
-          {...(onSelectVoiceScreenShareAudioMuted
-            ? { onToggleScreenShareAudioMuted: onSelectVoiceScreenShareAudioMuted }
+        <MobileVoiceSettingsSheet
+          audioInputs={voiceRoomState.availableAudioInputs}
+          audioOutputs={voiceRoomState.availableAudioOutputs}
+          connectionStatus={voiceRoomState.status}
+          durationLabel={model.durationLabel}
+          inputLevel={
+            voiceRoomState.participants.find((participant) => participant.isSelf)?.audioLevel ?? 0
+          }
+          inputMode={voiceInputMode}
+          micMuted={voiceRoomState.selfMuted}
+          noiseSuppressionEnabled={voiceRoomState.noiseSuppressionEnabled}
+          onClose={() => setSettingsOpen(false)}
+          onRefresh={onRefreshVoiceDevices}
+          onSelectAudioInput={onSelectVoiceAudioInput}
+          onSelectAudioOutput={onSelectVoiceAudioOutputDevice}
+          onSelectNoiseSuppression={onSelectVoiceNoiseSuppression}
+          onToggleMic={onToggleVoiceMute}
+          participantCount={voiceRoomState.participants.length}
+          {...(onSelectVoiceAudioProcessing
+            ? { onSelectAudioProcessing: onSelectVoiceAudioProcessing }
             : {})}
-          participants={model.participants}
+          {...(onSelectVoiceInputMode ? { onSelectInputMode: onSelectVoiceInputMode } : {})}
+          {...(onSelectVoiceScreenShareAudioMuted
+            ? { onSelectScreenShareAudioMuted: onSelectVoiceScreenShareAudioMuted }
+            : {})}
+          {...(onSelectVoiceScreenShareQuality
+            ? { onSelectScreenShareQuality: onSelectVoiceScreenShareQuality }
+            : {})}
+          {...(voiceAudioProcessing ? { audioProcessing: voiceAudioProcessing } : {})}
+          open={settingsOpen}
           screenShareAudioMuted={voiceScreenShareAudioMuted}
+          screenShareQualityId={voiceScreenShareQualityId}
+          selectedAudioInputId={voiceRoomState.selectedAudioInputId}
+          selectedAudioOutputId={voiceRoomState.selectedAudioOutputId}
         />
-      ) : (
-        <ActiveVoiceRoomAudience
-          audioRoute={audioRoute}
-          cameraFacingMode={voiceRoomState.cameraFacingMode}
-          onFlipCamera={handleFlipCamera}
-          participants={model.participants}
-        />
-      )}
-
-      <View
-        style={[styles.activeVoiceRoomDock, { paddingBottom: dockBottomInset }]}
-        testID="mobile-voice-dock"
-      >
-        <View style={styles.activeVoiceRoomControls}>
-          <ActiveVoiceRoomControl
-            disabled={!model.canToggleMute}
-            icon={voiceRoomState.selfMuted ? "mic-off-outline" : "mic-outline"}
-            label={voiceRoomState.selfMuted ? copy.voiceUnmuteAction : copy.voiceMuteAction}
-            muted={voiceRoomState.selfMuted}
-            onPress={handleMute}
-            testID="mobile-voice-mute-toggle"
-          />
-          <ActiveVoiceRoomControl
-            // The icon names the route the platform actually reports, so the
-            // button never claims the speaker while a headset is plugged in.
-            accessibilityLabel={getVoiceAudioRouteAccessibilityLabel(audioRoute)}
-            icon={getMobileVoiceAudioRouteIcon(audioRoute)}
-            label={copy.voiceRoomAudioOutputAction}
-            onPress={handleAudioOutput}
-            ringOnSelected={false}
-            selected={voiceRoomState.selfAudioOutput === "speaker"}
-            testID="mobile-voice-audio-output"
-          />
-          <ActiveVoiceRoomControl
-            disabled={!model.canToggleMute}
-            icon={voiceRoomState.selfCameraEnabled ? "videocam-outline" : "videocam-off-outline"}
-            inactive={!voiceRoomState.selfCameraEnabled}
-            label={
-              voiceRoomState.selfCameraEnabled
-                ? copy.voiceCameraOffAction
-                : copy.voiceCameraOnAction
-            }
-            onPress={handleCamera}
-            selected={voiceRoomState.selfCameraEnabled}
-            testID="mobile-voice-camera"
-          />
-          <ActiveVoiceRoomControl
-            disabled={!model.canToggleMute || screenShareBusy}
-            icon="tv-outline"
-            inactive={!voiceRoomState.selfScreenShareEnabled}
-            label={
-              voiceRoomState.selfScreenShareEnabled
-                ? copy.voiceScreenShareStopShortAction
-                : copy.voiceScreenShareAction
-            }
-            onPress={handleScreenShare}
-            selected={voiceRoomState.selfScreenShareEnabled}
-            testID="mobile-voice-screen-share"
-          />
-          <ActiveVoiceRoomControl
-            danger
-            disabled={!model.canLeave}
-            icon="call-outline"
-            label={copy.voiceLeaveAction}
-            onPress={handleLeave}
-            testID="mobile-voice-leave"
-          />
-        </View>
       </View>
-
-      <MobileVoiceInviteSheet
-        candidates={inviteCandidates}
-        onClose={() => setInviteSheetVisible(false)}
-        onSendInvite={onSendInvite}
-        open={inviteSheetVisible}
-        sendStates={inviteSendStates}
-      />
-
-      <MobileVoiceSettingsSheet
-        audioInputs={voiceRoomState.availableAudioInputs}
-        audioOutputs={voiceRoomState.availableAudioOutputs}
-        connectionStatus={voiceRoomState.status}
-        durationLabel={model.durationLabel}
-        inputLevel={
-          voiceRoomState.participants.find((participant) => participant.isSelf)?.audioLevel ?? 0
-        }
-        inputMode={voiceInputMode}
-        micMuted={voiceRoomState.selfMuted}
-        noiseSuppressionEnabled={voiceRoomState.noiseSuppressionEnabled}
-        onClose={() => setSettingsOpen(false)}
-        onRefresh={onRefreshVoiceDevices}
-        onSelectAudioInput={onSelectVoiceAudioInput}
-        onSelectAudioOutput={onSelectVoiceAudioOutputDevice}
-        onSelectNoiseSuppression={onSelectVoiceNoiseSuppression}
-        onToggleMic={onToggleVoiceMute}
-        participantCount={voiceRoomState.participants.length}
-        {...(onSelectVoiceAudioProcessing
-          ? { onSelectAudioProcessing: onSelectVoiceAudioProcessing }
-          : {})}
-        {...(onSelectVoiceInputMode ? { onSelectInputMode: onSelectVoiceInputMode } : {})}
-        {...(onSelectVoiceScreenShareAudioMuted
-          ? { onSelectScreenShareAudioMuted: onSelectVoiceScreenShareAudioMuted }
-          : {})}
-        {...(onSelectVoiceScreenShareQuality
-          ? { onSelectScreenShareQuality: onSelectVoiceScreenShareQuality }
-          : {})}
-        {...(voiceAudioProcessing ? { audioProcessing: voiceAudioProcessing } : {})}
-        open={settingsOpen}
-        screenShareAudioMuted={voiceScreenShareAudioMuted}
-        screenShareQualityId={voiceScreenShareQualityId}
-        selectedAudioInputId={voiceRoomState.selectedAudioInputId}
-        selectedAudioOutputId={voiceRoomState.selectedAudioOutputId}
-      />
-    </View>
+    </MobileVoiceVideoQualityModeContext.Provider>
   );
 }
 
@@ -453,6 +449,7 @@ const VOICE_RECONNECT_PULSE_MIN_OPACITY = 0.32;
  * and drop the noise block until there is a session to process.
  */
 export function ActiveVoiceRoomSessionStrip({
+  connectedAt,
   connectionStatus,
   durationLabel,
   label: labelOverride,
@@ -461,8 +458,9 @@ export function ActiveVoiceRoomSessionStrip({
   pulsing: pulsingOverride,
   tone: toneOverride,
 }: {
+  connectedAt?: number | null | undefined;
   connectionStatus: MobileVoiceRoomState["status"];
-  durationLabel: string | null;
+  durationLabel?: string | null | undefined;
   /** Ringing states name themselves; everything else reads from the status. */
   label?: string | undefined;
   noiseSuppressionEnabled?: boolean | undefined;
@@ -535,7 +533,12 @@ export function ActiveVoiceRoomSessionStrip({
         >
           {label}
         </Text>
-        {durationLabel ? (
+        {connectedAt !== undefined ? (
+          <ActiveVoiceRoomDurationLabel
+            connectedAt={connectedAt}
+            connectionStatus={connectionStatus}
+          />
+        ) : durationLabel ? (
           <Text style={styles.activeVoiceRoomSessionDuration}>{durationLabel}</Text>
         ) : null}
       </View>
@@ -554,6 +557,33 @@ export function ActiveVoiceRoomSessionStrip({
       ) : null}
     </View>
   );
+}
+
+function ActiveVoiceRoomDurationLabel({
+  connectedAt,
+  connectionStatus,
+}: {
+  connectedAt: number | null;
+  connectionStatus: MobileVoiceRoomState["status"];
+}) {
+  const styles = useVoiceScreenStyles();
+  const [now, setNow] = useState(() => Date.now());
+  const durationRunning = shouldTickMobileVoiceRoomDuration(connectionStatus);
+
+  useEffect(() => {
+    if (!durationRunning) {
+      return;
+    }
+
+    setNow(Date.now());
+    const interval = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(interval);
+  }, [durationRunning]);
+
+  const durationLabel = formatMobileVoiceRoomDuration(connectedAt, now);
+  return durationLabel ? (
+    <Text style={styles.activeVoiceRoomSessionDuration}>{durationLabel}</Text>
+  ) : null;
 }
 
 /**
@@ -919,12 +949,17 @@ function VoiceStageTile({
   // room never pays for streams the user cannot see.
   const showVideo = isActive && Boolean(trackRef);
   const publication = trackRef?.publication;
+  const videoQualityMode = useMobileVoiceVideoQualityMode();
 
   // The tile on the visible page is the stage: it asks for the top layer and
   // gives it back when the pager moves it off screen.
   useEffect(() => {
-    setVoiceVideoQualityCeiling(publication, { isStage: showVideo });
-  }, [publication, showVideo]);
+    setVoiceVideoQualityCeiling(publication, {
+      isStage: showVideo,
+      isVisible: showVideo,
+      videoQualityMode: isScreen ? "AUTO" : videoQualityMode,
+    });
+  }, [isScreen, publication, showVideo, videoQualityMode]);
 
   const surface = showVideo ? (
     <VideoTrack
@@ -1342,12 +1377,16 @@ function ActiveVoiceRoomParticipantCard({
   );
   const cameraFit = resolveVideoFit({ sizeClass });
   const cameraPublication = participant.cameraTrackRef?.publication;
+  const videoQualityMode = useMobileVoiceVideoQualityMode();
 
   // The audience grid asks for the layer its own tile size justifies, so a
   // twelve-person room never pulls twelve top layers.
   useEffect(() => {
-    setVoiceVideoQualityCeiling(cameraPublication, { isStage: sizeClass === "stage" });
-  }, [cameraPublication, sizeClass]);
+    setVoiceVideoQualityCeiling(cameraPublication, {
+      isStage: sizeClass === "stage",
+      videoQualityMode,
+    });
+  }, [cameraPublication, sizeClass, videoQualityMode]);
 
   if (showCamera) {
     return (
@@ -1813,7 +1852,9 @@ function ScreenShareVideoSurface({
   // A shared screen is read as text: the fullscreen viewer takes the top layer,
   // the inline preview hands it back.
   useEffect(() => {
-    setVoiceVideoQualityCeiling(publication, { isStage: variant === "fullscreen" });
+    setVoiceVideoQualityCeiling(publication, {
+      isStage: variant === "fullscreen",
+    });
   }, [publication, variant]);
 
   if (!participant.screenShareTrackRef) {

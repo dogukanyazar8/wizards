@@ -134,7 +134,10 @@ describe("mobile bug report model", () => {
       ],
       platform: "ios",
       releaseChannel: "uat",
-      screenshotUploadKey: "claim-safe-123",
+      // `MobileMediaUpload.id` is `@default(uuid())`, and the request schema
+      // pins that shape so the admin console never renders an attacker-chosen
+      // string as a link. The fixture has to be a real claim id.
+      screenshotUploadKey: "6f1b2a4c-9d3e-4f58-8a71-2c5d0e7b4a19",
     });
     const serialized = JSON.stringify(request);
 

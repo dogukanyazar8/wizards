@@ -19,8 +19,16 @@ export async function GET(request: Request, context: RouteContext) {
     const userId = await requireApiUserId();
     await enforceApiRateLimit(userId, "server:events:list");
     const { serverId } = await context.params;
-    const includePast = new URL(request.url).searchParams.get("includePast") === "true";
-    const events = await listServerScheduledEvents(serverId, userId, { includePast });
+    const searchParams = new URL(request.url).searchParams;
+    const includePast = searchParams.get("includePast") === "true";
+    const cursor = searchParams.get("cursor") ?? undefined;
+    const parsedLimit = Number.parseInt(searchParams.get("limit") ?? "50", 10);
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 50;
+    const events = await listServerScheduledEvents(serverId, userId, {
+      ...(cursor ? { cursor } : {}),
+      includePast,
+      limit,
+    });
 
     return Response.json({ events });
   } catch (error) {

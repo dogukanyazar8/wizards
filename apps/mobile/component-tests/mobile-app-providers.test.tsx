@@ -13,6 +13,39 @@ const mockRequestMicrophone = jest.fn();
 const mockCompleteAuthHandoff = jest.fn(async () => true);
 const mockGetAccessToken = jest.fn(async () => null);
 let mockVoiceRoomOptions: Record<string, unknown> | null = null;
+let mockUpdateVoiceRoomState:
+  | ((
+      updater: (current: typeof mockInitialVoiceRoomState) => typeof mockInitialVoiceRoomState,
+    ) => void)
+  | null = null;
+const mockInitialVoiceRoomState = {
+  availableAudioInputs: [],
+  availableAudioOutputs: [],
+  cameraFacingMode: "user" as const,
+  channelId: null,
+  channelName: null,
+  errorMessage: null,
+  noiseSuppressionEnabled: true,
+  participants: [] as Array<{
+    audioLevel: number;
+    id: string;
+    isMuted: boolean;
+    isSelf: boolean;
+    isSpeaking: boolean;
+    userId: string;
+  }>,
+  screenShareStatus: "off" as const,
+  selectedAudioInputId: null,
+  selectedAudioOutputId: null,
+  selfAudioOutput: "default" as const,
+  selfCameraEnabled: false,
+  selfMuted: false,
+  selfScreenShareEnabled: false,
+  serverId: null,
+  sessionId: null,
+  status: "idle" as const,
+  updatedAt: null,
+};
 
 jest.mock("../src/auth/mobile-auth-context", () => ({
   useMobileAuth: () => ({
@@ -58,10 +91,17 @@ jest.mock("../src/voice/expo-mobile-voice-preferences", () => ({
 
 jest.mock("../src/voice/use-mobile-voice-room", () => ({
   useMobileVoiceRoom: (options: Record<string, unknown>) => {
+    const ReactModule = jest.requireActual<typeof import("react")>("react");
+    const [roomState, setRoomState] = ReactModule.useState(mockInitialVoiceRoomState);
     mockVoiceRoomOptions = options;
+    mockUpdateVoiceRoomState = (updater) => setRoomState(updater);
     return {
+      beginCaptureConsentGuard: jest.fn(),
       beginPushToTalk: jest.fn(),
+      endCaptureConsentGuard: jest.fn(),
       endPushToTalk: jest.fn(),
+      flipCamera: jest.fn(),
+      joinDirectCall: jest.fn(),
       joinVoiceChannel: jest.fn(),
       leaveVoiceChannel: jest.fn(),
       permissionState: {
@@ -76,34 +116,28 @@ jest.mock("../src/voice/use-mobile-voice-room", () => ({
         restoreMuted: false,
         startedAt: null,
       },
+      refreshVoiceDevices: jest.fn(),
       requestMicrophonePermission: mockRequestMicrophone,
-      roomState: {
-        availableAudioInputs: [],
-        availableAudioOutputs: [],
-        cameraFacingMode: "user",
-        channelId: null,
-        channelName: null,
-        errorMessage: null,
-        noiseSuppressionEnabled: true,
-        participants: [],
-        screenShareStatus: "off",
-        selectedAudioInputId: null,
-        selectedAudioOutputId: null,
-        selfAudioOutput: "default",
-        selfCameraEnabled: false,
-        selfMuted: false,
-        selfScreenShareEnabled: false,
-        serverId: null,
-        sessionId: null,
-        status: "idle",
-        updatedAt: null,
-      },
+      roomState,
+      screenShareAudioMuted: false,
+      screenShareQualityId: "balanced",
+      selectAudioDeviceOutput: jest.fn(),
+      selectAudioInput: jest.fn(),
       selectAudioOutput: jest.fn(),
+      selectAudioProcessing: jest.fn(),
+      selectNoiseSuppression: jest.fn(),
+      selectScreenShareAudioMuted: jest.fn(),
+      selectScreenShareQuality: jest.fn(),
       syncParticipantAudioLevelFromServer: jest.fn(),
       syncParticipantsFromServer: jest.fn(),
       toggleCamera: jest.fn(),
       toggleMute: jest.fn(),
       toggleScreenShare: jest.fn(),
+      voiceAudioProcessing: {
+        automaticGainControlEnabled: true,
+        echoCancellationEnabled: true,
+        noiseSuppressionEnabled: true,
+      },
     };
   },
 }));
@@ -141,6 +175,16 @@ function ProviderConsumer() {
       <Text testID="provider-deep-link">{deepLink.lastDeepLink ? "received" : "idle"}</Text>
     </View>
   );
+}
+
+let voiceIdentityRenders = 0;
+const voiceIdentityValues: Array<ReturnType<typeof useMobileVoiceRuntime>> = [];
+
+function VoiceIdentityConsumer() {
+  const voice = useMobileVoiceRuntime();
+  voiceIdentityRenders += 1;
+  voiceIdentityValues.push(voice);
+  return <Text testID="voice-identity-probe">ready</Text>;
 }
 
 describe("mobile app providers", () => {
@@ -218,5 +262,45 @@ describe("mobile app providers", () => {
 
     expect(mockRequestCamera).toHaveBeenCalledTimes(1);
     expect(result).toEqual(cameraState);
+  });
+
+  it("does not republish stable voice actions for participant level ticks", async () => {
+    voiceIdentityRenders = 0;
+    voiceIdentityValues.length = 0;
+    const view = await render(
+      <MobileQueryProvider>
+        <MobileThemeProvider>
+          <MobileAppProviders>
+            <VoiceIdentityConsumer />
+          </MobileAppProviders>
+        </MobileThemeProvider>
+      </MobileQueryProvider>,
+    );
+    await waitFor(() => expect(view.getByTestId("voice-identity-probe")).toBeTruthy());
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const rendersBeforeTick = voiceIdentityRenders;
+    const valueBeforeTick = voiceIdentityValues.at(-1);
+
+    await act(async () => {
+      mockUpdateVoiceRoomState?.((current) => ({
+        ...current,
+        participants: [
+          {
+            audioLevel: 0.7,
+            id: "participant-1",
+            isMuted: false,
+            isSelf: false,
+            isSpeaking: true,
+            userId: "user-1",
+          },
+        ],
+        updatedAt: 2_000,
+      }));
+    });
+
+    expect(voiceIdentityRenders).toBe(rendersBeforeTick);
+    expect(voiceIdentityValues.at(-1)).toBe(valueBeforeTick);
   });
 });

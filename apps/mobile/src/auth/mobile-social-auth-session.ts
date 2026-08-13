@@ -18,6 +18,7 @@ export type MobileSocialAuthSessionOutcome =
   | {
       readonly callbackPath: string;
       readonly handoffToken: string;
+      readonly state: string;
       readonly type: "completed";
     }
   | { readonly type: "cancelled" }
@@ -73,6 +74,7 @@ export async function runMobileSocialAuthSession({
   return {
     callbackPath: parsed.intent.callbackPath,
     handoffToken: parsed.intent.token,
+    state: parsed.intent.state,
     type: "completed",
   };
 }

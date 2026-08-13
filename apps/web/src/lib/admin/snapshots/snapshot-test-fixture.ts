@@ -15,6 +15,7 @@ type QueryArgs = {
   distinct?: string[];
   where?: {
     OR?: unknown[];
+    date?: { gte?: Date; lt?: Date };
     id?: { in?: string[] };
     isBanned?: boolean;
     isPublic?: boolean;
@@ -90,6 +91,50 @@ const METRIC_ROWS = [
     voiceSeconds: 60,
   }),
 ];
+
+function sumMetricFixtureRows(rows: typeof METRIC_ROWS) {
+  return rows.reduce(
+    (sum, row) => ({
+      appSeconds: sum.appSeconds + row.appSeconds,
+      cameraSeconds: sum.cameraSeconds + row.cameraSeconds,
+      dmMessageCount: sum.dmMessageCount + row.dmMessageCount,
+      fileUploadCount: sum.fileUploadCount + row.fileUploadCount,
+      messageCount: sum.messageCount + row.messageCount,
+      screenShareSeconds: sum.screenShareSeconds + row.screenShareSeconds,
+      sessionCount: sum.sessionCount + row.sessionCount,
+      uploadedBytes: sum.uploadedBytes + row.uploadedBytes,
+      voiceSeconds: sum.voiceSeconds + row.voiceSeconds,
+    }),
+    {
+      appSeconds: 0,
+      cameraSeconds: 0,
+      dmMessageCount: 0,
+      fileUploadCount: 0,
+      messageCount: 0,
+      screenShareSeconds: 0,
+      sessionCount: 0,
+      uploadedBytes: 0n,
+      voiceSeconds: 0,
+    },
+  );
+}
+
+function groupMetricFixtureRows(by: "date" | "userId", where?: QueryArgs["where"]) {
+  const groups = new Map<string, typeof METRIC_ROWS>();
+  const rowsInRange = METRIC_ROWS.filter(
+    (row) =>
+      (!where?.date?.gte || row.date >= where.date.gte) &&
+      (!where?.date?.lt || row.date < where.date.lt),
+  );
+  for (const row of rowsInRange) {
+    const key = by === "date" ? row.date.toISOString() : row.userId;
+    groups.set(key, [...(groups.get(key) ?? []), row]);
+  }
+  return Array.from(groups, ([key, rows]) => ({
+    _sum: sumMetricFixtureRows(rows),
+    ...(by === "date" ? { date: new Date(key) } : { userId: key }),
+  }));
+}
 
 const SESSION_USERS = {
   "user-1": {
@@ -420,7 +465,10 @@ export function createSnapshotTestClient(): SnapshotTestClient {
         ]),
     },
     userDailyMetric: {
-      findMany: () => record("userDailyMetric.findMany", METRIC_ROWS),
+      groupBy: (args?: QueryArgs) => {
+        const by = args?.by?.[0] === "userId" ? "userId" : "date";
+        return record(`userDailyMetric.groupBy:${by}`, groupMetricFixtureRows(by, args?.where));
+      },
     },
   } as unknown as AdminSnapshotClient;
 

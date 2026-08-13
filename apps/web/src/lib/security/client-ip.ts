@@ -42,21 +42,41 @@ export function normalizeIpAddress(value: string | null | undefined) {
   }
 }
 
-export function getTrustedClientIp(headers: ClientIpHeaderSource) {
-  return normalizeIpAddress(headers.get("x-real-ip"));
+export function resolveTrustedProxyClientIp(
+  headers: ClientIpHeaderSource,
+  env: Record<string, string | undefined> = process.env,
+) {
+  const configuredHops = env.TRUSTED_PROXY_HOPS?.trim();
+  if (!configuredHops || !/^[1-9]\d*$/u.test(configuredHops)) {
+    return null;
+  }
+
+  const trustedProxyHops = Number.parseInt(configuredHops, 10);
+  const forwardedFor = headers.get("x-forwarded-for");
+  if (!forwardedFor || trustedProxyHops > 32) {
+    return null;
+  }
+
+  const chain = forwardedFor.split(",").map((value) => value.trim());
+  if (chain.length < trustedProxyHops || chain.length > 32) {
+    return null;
+  }
+
+  return normalizeIpAddress(chain[chain.length - trustedProxyHops]);
 }
 
-export function createClientRateLimitIdentity(input: {
-  fallbackNamespace: string;
-  fallbackValue: string;
+export function createNetworkRateLimitIdentity(input: {
+  env?: Record<string, string | undefined>;
   headers: ClientIpHeaderSource;
 }) {
-  const trustedIp = getTrustedClientIp(input.headers);
+  const trustedIp = resolveTrustedProxyClientIp(input.headers, input.env);
   if (trustedIp) {
     return `ip:${hashIdentity("ip", trustedIp)}`;
   }
 
-  return `fallback:${hashIdentity(input.fallbackNamespace, input.fallbackValue)}`;
+  // Fail closed: unresolved callers share one constrained bucket instead of
+  // silently collapsing the network layer into an attacker-chosen subject.
+  return "untrusted";
 }
 
 export function createSubjectRateLimitIdentity(namespace: string, value: string) {

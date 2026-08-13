@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { ExternalLink, Loader2, ShieldCheck } from "lucide-react";
+import { defaultUrlTransform } from "react-markdown";
 import { Button } from "@wizards/ui";
 
 import {
@@ -26,6 +27,11 @@ const STATUS_TRANSITIONS: Record<BugReportStatus, BugReportStatus[]> = {
 
 export function getAllowedBugReportStatuses(status: BugReportStatus) {
   return STATUS_TRANSITIONS[status];
+}
+
+export function getSafeSupportScreenshotUrl(url: string) {
+  const transformed = defaultUrlTransform(url);
+  return transformed.startsWith("https://") ? transformed : null;
 }
 
 function formatDate(value: string) {
@@ -200,10 +206,10 @@ export function AdminSupportReports({ reports }: { reports: AdminSupportReport[]
               )}
             </div>
 
-            {detail.screenshotUrl ? (
+            {detail.screenshotUrl && getSafeSupportScreenshotUrl(detail.screenshotUrl) ? (
               <a
                 className="text-[hsl(var(--primary))] inline-flex items-center gap-2 text-sm font-semibold"
-                href={detail.screenshotUrl}
+                href={getSafeSupportScreenshotUrl(detail.screenshotUrl) ?? undefined}
                 rel="noreferrer"
                 target="_blank"
               >

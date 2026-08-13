@@ -29,6 +29,47 @@ import { cn } from "@/lib/utils";
 const COMPACT_NOTIFICATION_LIMIT = 6;
 const NOTIFICATION_POPUP_WIDTH = 304;
 
+export function prependIncomingNotification(
+  current: NotificationDTO[] | undefined,
+  notification: NotificationSocketPayload,
+  limit: number,
+): NotificationDTO[] {
+  const meta = notification.metadata
+    ? Object.fromEntries(
+        Object.entries(notification.metadata).filter(
+          (entry): entry is [string, string] => typeof entry[1] === "string",
+        ),
+      )
+    : undefined;
+  const incoming: NotificationDTO = {
+    actionUrl: notification.actionUrl,
+    actor: notification.actor ?? null,
+    createdAt: notification.createdAt,
+    id: notification.id,
+    message: notification.body,
+    readAt: notification.readAt,
+    type: notification.type,
+    ...(meta && Object.keys(meta).length > 0 ? { meta } : {}),
+  };
+
+  return [incoming, ...(current ?? []).filter((item) => item.id !== incoming.id)].slice(0, limit);
+}
+
+export function applyIncomingNotification(
+  notification: NotificationSocketPayload,
+  dependencies: {
+    invalidateBadgeQuery: (queryKey: readonly unknown[]) => void;
+    updateUnreadCount: (update: (current: number) => number) => void;
+  },
+) {
+  dependencies.updateUnreadCount((current) => current + 1);
+
+  if (notification?.type === "BADGE") {
+    dependencies.invalidateBadgeQuery(badgeQueryKeys.own());
+    dependencies.invalidateBadgeQuery(badgeQueryKeys.user(notification.userId));
+  }
+}
+
 function formatNotificationDate(locale: string, createdAt: string) {
   return new Intl.DateTimeFormat(locale, {
     dateStyle: "short",
@@ -179,16 +220,23 @@ export function NotificationBell({
 
   useEffect(() => {
     const handleIncomingNotification = (notification: NotificationSocketPayload) => {
-      updateUnreadCount((current) => current + 1);
-      syncNotificationQueries();
+      // Socket delivery already carries enough information for the unread count.
+      // Invalidating here caused one GET per notification despite staleTime.
+      applyIncomingNotification(notification, {
+        invalidateBadgeQuery: (queryKey) => {
+          void queryClient.invalidateQueries({ queryKey });
+        },
+        updateUnreadCount,
+      });
 
-      // 07 §4: a badge landed, so both badge reads for this account are stale —
-      // the settings list and the chip row on your own profile. Invalidated
-      // rather than patched: the row it changes is a tier, not a list entry.
-      if (notification?.type === "BADGE") {
-        void queryClient.invalidateQueries({ queryKey: badgeQueryKeys.own() });
-        void queryClient.invalidateQueries({
-          queryKey: badgeQueryKeys.user(notification.userId),
+      if (open) {
+        const listKey = notificationsQueryKeys.list(popupNotificationLimit);
+        // Opening starts a GET. Stop it before seeding the socket event, otherwise
+        // an older in-flight response can overwrite the newer notification.
+        void queryClient.cancelQueries({ queryKey: listKey }).then(() => {
+          queryClient.setQueryData<NotificationDTO[] | undefined>(listKey, (current) =>
+            prependIncomingNotification(current, notification, popupNotificationLimit),
+          );
         });
       }
     };
@@ -204,7 +252,22 @@ export function NotificationBell({
       socket.off("notification:new", handleIncomingNotification);
       socket.off("friends:updated", handleFriendsUpdated);
     };
-  }, [queryClient, socket, syncNotificationQueries, updateUnreadCount]);
+  }, [
+    open,
+    popupNotificationLimit,
+    queryClient,
+    socket,
+    syncNotificationQueries,
+    updateUnreadCount,
+  ]);
+
+  useEffect(() => {
+    if (open) {
+      // Reconcile optimistic socket state when the user asks to see the popup,
+      // not on every incoming event in every open tab.
+      syncNotificationQueries();
+    }
+  }, [open, syncNotificationQueries]);
 
   useEffect(() => {
     if (!open) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import type {
   ChatMessage,
@@ -12,6 +12,7 @@ import type {
 } from "@wizards/types";
 import { fetchDMMessages } from "@/lib/dm/client";
 import type { FriendPresenceUpdateDto } from "@/lib/friends/types";
+import type { UserProfileUpdatedPayload } from "@/lib/socket/events";
 import { useSocket } from "./use-socket";
 
 export type MessageMode = "channel" | "dm";
@@ -26,6 +27,45 @@ export type MessagePages = InfiniteData<MessagePageResponse, string | undefined>
 
 export function getMessagesQueryKey(mode: MessageMode, conversationId: string) {
   return ["messages", mode, conversationId] as const;
+}
+
+export function patchMessageAuthors(
+  current: MessagePages | undefined,
+  profile: UserProfileUpdatedPayload,
+): MessagePages | undefined {
+  if (!current) {
+    return current;
+  }
+
+  let changed = false;
+  const pages = current.pages.map((page) => {
+    let pageChanged = false;
+    const messages = page.messages.map((message) => {
+      if (message.author.id !== profile.userId) {
+        return message;
+      }
+
+      changed = true;
+      pageChanged = true;
+      return {
+        ...message,
+        author: {
+          ...message.author,
+          avatarUrl: profile.avatarUrl,
+          customStatus: profile.customStatus,
+          displayName: profile.displayName ?? profile.username,
+          status: profile.status,
+          username: profile.username,
+        },
+      };
+    });
+
+    return pageChanged ? { ...page, messages } : page;
+  });
+
+  // Most profile events touch no cached message in most open conversations.
+  // Preserve the root identity so unrelated lists do not rerender and autoscroll.
+  return changed ? { ...current, pages } : current;
 }
 
 function mapDMReplyTo(replyTo: DMMessagePayload | null): ReplyTo | undefined {
@@ -327,7 +367,7 @@ function updateThreadSummary(
   };
 }
 
-function updateAuthorPresence(
+export function updateAuthorPresence(
   old: MessagePages | undefined,
   data: FriendPresenceUpdateDto,
 ): MessagePages | undefined {
@@ -335,24 +375,32 @@ function updateAuthorPresence(
     return old;
   }
 
-  return {
-    ...old,
-    pages: old.pages.map((page) => ({
-      ...page,
-      messages: page.messages.map((message) =>
-        message.author.id === data.userId
-          ? {
-              ...message,
-              author: {
-                ...message.author,
-                customStatus: data.customStatus,
-                status: data.status,
-              },
-            }
-          : message,
-      ),
-    })),
-  };
+  let changed = false;
+  const pages = old.pages.map((page) => {
+    let pageChanged = false;
+    const messages = page.messages.map((message) => {
+      if (message.author.id !== data.userId) {
+        return message;
+      }
+
+      changed = true;
+      pageChanged = true;
+      return {
+        ...message,
+        author: {
+          ...message.author,
+          customStatus: data.customStatus,
+          status: data.status,
+        },
+      };
+    });
+
+    return pageChanged ? { ...page, messages } : page;
+  });
+
+  // A presence event commonly targets nobody in this conversation. Returning a
+  // new page tree in that case wakes every downstream message derivation.
+  return changed ? { ...old, pages } : old;
 }
 
 async function fetchChannelMessages(channelId: string, cursor?: string) {
@@ -372,7 +420,9 @@ async function fetchChannelMessages(channelId: string, cursor?: string) {
 export function useMessages(mode: MessageMode, conversationId: string) {
   const socket = useSocket();
   const queryClient = useQueryClient();
-  const queryKey = getMessagesQueryKey(mode, conversationId);
+  // Effects subscribe with this key. A fresh array per render tears down and
+  // reattaches every message listener even when the conversation is unchanged.
+  const queryKey = useMemo(() => getMessagesQueryKey(mode, conversationId), [mode, conversationId]);
 
   const query = useInfiniteQuery({
     queryKey,

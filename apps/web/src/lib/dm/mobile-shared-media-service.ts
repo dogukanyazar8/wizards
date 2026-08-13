@@ -36,7 +36,7 @@ export async function listMobileDMAttachments(
 ): Promise<MobileDMAttachmentsResponse> {
   const membership = await requireDMParticipant(input.userId, input.conversationId);
 
-  const cursorCreatedAt = await resolveCursorCreatedAt(input.conversationId, input.cursor);
+  const cursor = await resolveCursor(input.conversationId, input.cursor);
   const messages = await prisma.dMMessage.findMany({
     where: {
       conversationId: input.conversationId,
@@ -46,7 +46,7 @@ export async function listMobileDMAttachments(
       // 2c §7. The media grid is a read path into the same rows the message list
       // serves, so it obeys the same floor — otherwise "Yeni üyeler geçmişi
       // görür: Hiç" would hide the messages and hand over their attachments.
-      ...toHistoryWindowFilter(membership.historyFromAt, cursorCreatedAt ?? null),
+      ...toHistoryWindowFilter(membership.historyFromAt, cursor),
       // C4. Same reason the reader filters: the sweep can be a minute behind, and
       // an expired attachment must not outlive its message here either.
       ...toUnexpiredFilter(new Date()),
@@ -96,19 +96,19 @@ function buildTabFilter(tab: MobileDMAttachmentsTab): Prisma.DMMessageWhereInput
   };
 }
 
-async function resolveCursorCreatedAt(conversationId: string, cursor: string | undefined) {
+async function resolveCursor(conversationId: string, cursor: string | undefined) {
   if (!cursor) {
     return null;
   }
 
   const cursorMessage = await prisma.dMMessage.findFirst({
     where: { conversationId, id: cursor },
-    select: { createdAt: true },
+    select: { createdAt: true, id: true },
   });
 
   if (!cursorMessage) {
     throw new ApiError("Message not found", 404, "NOT_FOUND");
   }
 
-  return cursorMessage.createdAt;
+  return cursorMessage;
 }

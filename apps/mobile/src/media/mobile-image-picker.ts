@@ -8,6 +8,7 @@ import {
 import {
   MobileImageUploadError,
   resolveMobilePickedImageSize,
+  prepareMobileImageAssetsSequentially,
   toMobilePickedImageBatch,
   type MobilePickedImage,
   type MobilePickedImageBatch,
@@ -18,6 +19,7 @@ import {
   getExpoImageManipulatorModule,
   getExpoImagePickerModule,
 } from "./expo-mobile-media-modules";
+import { deleteMobileTemporaryFile } from "./mobile-temporary-file";
 
 /**
  * Measures the asset on disk when the picker did not say how large it is. The
@@ -117,6 +119,9 @@ export async function prepareMobileImageAsset(
           width,
         }),
       measure: dependencies.measure,
+      remove: async (uri) => {
+        await deleteMobileTemporaryFile(uri);
+      },
     },
     limits,
   );
@@ -128,6 +133,7 @@ export async function prepareMobileImageAsset(
   return {
     fileSize: optimized.sizeBytes,
     mimeType: toMobileImageMimeType(optimized.format),
+    temporaryFileUri: optimized.uri,
     uri: optimized.uri,
   };
 }
@@ -170,8 +176,9 @@ export async function pickMobileImages(limit: number): Promise<MobilePickedImage
     return { failures: [], picked: [] };
   }
 
-  const prepared = await Promise.all(
-    result.assets.slice(0, allowed).map((asset) => prepareMobileImageAsset(asset)),
+  const prepared = await prepareMobileImageAssetsSequentially(
+    result.assets.slice(0, allowed),
+    prepareMobileImageAsset,
   );
 
   return toMobilePickedImageBatch(prepared, measureMobileImageSize);

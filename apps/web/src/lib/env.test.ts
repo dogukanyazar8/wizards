@@ -39,6 +39,7 @@ describe("web environment validation", () => {
         NEXTAUTH_URL: "https://app.example.test",
         REDIS_URL: "rediss://default:pass@redis.example.test:6379/0",
         SOCKET_ALLOWED_ORIGINS: "https://app.example.test",
+        TRUSTED_PROXY_HOPS: "1",
       },
       "production",
     );
@@ -132,6 +133,7 @@ describe("web environment validation", () => {
         WHISPR_READY_CACHE_MS: "none",
         WORKSPACE_PERFORMANCE_METRICS: "TRUE",
         WORKSPACE_PERFORMANCE_METRICS_INTERVAL_MS: "30s",
+        TRUSTED_PROXY_HOPS: "zero",
       },
       "production",
     );
@@ -143,6 +145,7 @@ describe("web environment validation", () => {
       "VOICE_PERFORMANCE_METRICS",
       "WHISPR_OUTBOX_WORKER",
       "WORKSPACE_PERFORMANCE_METRICS",
+      "TRUSTED_PROXY_HOPS",
       "WHISPR_ADMIN_DASHBOARD_CACHE_MS",
       "WHISPR_OUTBOX_BATCH_SIZE",
       "WHISPR_OUTBOX_INTERVAL_MS",

@@ -8,9 +8,11 @@ import {
   deleteDMMessage,
   editDMMessage,
   listDirectMessageMutualServers,
+  markDirectMessageRead,
   markDirectMessageUnread,
   setDirectMessageMuted,
 } from "./service";
+import * as dmService from "./service";
 
 type Restore = () => void;
 type UnknownRecord = Record<string, unknown>;
@@ -124,6 +126,48 @@ describe("DM service mutual servers", () => {
 });
 
 describe("DM participant preferences", () => {
+  it("masks another participant's private counters while preserving the viewer's own values", () => {
+    type ParticipantMapper = (
+      participant: never,
+      presence: { customStatus: string | null; status: "OFFLINE" },
+      lastSeenAt: string | null,
+      viewerId: string,
+    ) => { mentionCount: number; muted: boolean; unreadCount: number };
+    const mapper = (dmService as unknown as { mapDMParticipantWithPresence?: ParticipantMapper })
+      .mapDMParticipantWithPresence;
+
+    assert.equal(typeof mapper, "function");
+
+    const participant = {
+      joinedAt: new Date("2026-08-12T09:00:00.000Z"),
+      mentionCount: 4,
+      muted: true,
+      nameColor: null,
+      role: "MEMBER",
+      unreadCount: 9,
+      user: {
+        avatarUrl: null,
+        customStatus: null,
+        displayName: "Ada",
+        username: "ada",
+      },
+      userId: "user-2",
+    };
+    const presence = { customStatus: null, status: "OFFLINE" as const };
+
+    const other = mapper?.(participant as never, presence, null, "user-1");
+    const self = mapper?.({ ...participant, userId: "user-1" } as never, presence, null, "user-1");
+
+    assert.deepEqual(
+      { mentionCount: other?.mentionCount, muted: other?.muted, unreadCount: other?.unreadCount },
+      { mentionCount: 0, muted: false, unreadCount: 0 },
+    );
+    assert.deepEqual(
+      { mentionCount: self?.mentionCount, muted: self?.muted, unreadCount: self?.unreadCount },
+      { mentionCount: 4, muted: true, unreadCount: 9 },
+    );
+  });
+
   it("marks only the current participant unread after membership verification", async () => {
     const restores: Restore[] = [];
     const calls: Array<{ key: string; value: unknown }> = [];
@@ -185,6 +229,49 @@ describe("DM participant preferences", () => {
         restore();
       }
     }
+  });
+
+  it("clears unread and mention badges when the conversation is read", async () => {
+    const restores: Restore[] = [];
+    let updateArgs: unknown;
+
+    patchMethod(
+      prisma.dMConversation,
+      "findUnique",
+      async () => ({ participants: [{ historyFromAt: null }], type: "GROUP_DM" }),
+      restores,
+    );
+    patchMethod(
+      prisma.dMParticipant,
+      "update",
+      async (args: unknown) => {
+        updateArgs = args;
+        return {};
+      },
+      restores,
+    );
+
+    try {
+      await markDirectMessageRead("user-1", "conversation-1");
+    } finally {
+      for (const restore of restores.reverse()) {
+        restore();
+      }
+    }
+
+    assert.deepEqual(updateArgs, {
+      data: {
+        lastReadAt: (updateArgs as { data: { lastReadAt: Date } }).data.lastReadAt,
+        mentionCount: 0,
+        unreadCount: 0,
+      },
+      where: {
+        conversationId_userId: {
+          conversationId: "conversation-1",
+          userId: "user-1",
+        },
+      },
+    });
   });
 
   it("persists DM mute state only for the current participant", async () => {

@@ -59,14 +59,19 @@ type PermissionCacheChannelSnapshot = {
   cachedAt: number;
   channel: {
     id: string;
+    bitrate: number;
     locked: boolean;
     name: string;
+    rtcRegion: string | null;
+    slowModeDelay: number;
     server: {
       features: string[];
       messageCharacterLimit: number;
     };
     serverId: string;
     type: ChannelType;
+    userLimit: number;
+    videoQualityMode: "AUTO" | "FULL";
   };
   context: PermissionCacheContext;
   explicitAllowPermissions: string;
@@ -85,18 +90,28 @@ type PermissionCacheChannelList = {
 export type CachedChannelPermissionSnapshot = {
   channel: {
     id: string;
+    bitrate: number;
     locked: boolean;
     name: string;
+    rtcRegion: string | null;
+    slowModeDelay: number;
     server: {
       features: string[];
       messageCharacterLimit: number;
     };
     serverId: string;
     type: ChannelType;
+    userLimit: number;
+    videoQualityMode: "AUTO" | "FULL";
   };
   context: ChannelPermissionResolutionContext;
   explicitAllowPermissions: bigint;
   permissions: bigint;
+};
+
+export type PermissionCacheRevisions = {
+  memberVersion: string;
+  serverVersion: string;
 };
 
 let permissionCacheRedisForTest: PermissionCacheRedis | null = null;
@@ -267,8 +282,9 @@ function parseContext(context: PermissionCacheContext): ChannelPermissionResolut
     hydratedContext.memberId = context.memberId;
   }
   if (overrides !== undefined) {
-    hydratedContext.overrides =
-      overrides as NonNullable<ChannelPermissionResolutionContext["overrides"]>;
+    hydratedContext.overrides = overrides as NonNullable<
+      ChannelPermissionResolutionContext["overrides"]
+    >;
   }
 
   return hydratedContext;
@@ -295,14 +311,19 @@ function parseSnapshot(raw: string): PermissionCacheChannelSnapshot | null {
     if (
       !parsed.channel ||
       typeof parsed.channel.id !== "string" ||
+      typeof parsed.channel.bitrate !== "number" ||
       typeof parsed.channel.locked !== "boolean" ||
       typeof parsed.channel.name !== "string" ||
+      (parsed.channel.rtcRegion !== null && typeof parsed.channel.rtcRegion !== "string") ||
+      typeof parsed.channel.slowModeDelay !== "number" ||
       !parsed.channel.server ||
       !Array.isArray(parsed.channel.server.features) ||
       parsed.channel.server.features.some((feature) => typeof feature !== "string") ||
       typeof parsed.channel.server.messageCharacterLimit !== "number" ||
       typeof parsed.channel.serverId !== "string" ||
       typeof parsed.channel.type !== "string" ||
+      typeof parsed.channel.userLimit !== "number" ||
+      (parsed.channel.videoQualityMode !== "AUTO" && parsed.channel.videoQualityMode !== "FULL") ||
       !parsed.context ||
       typeof parsed.explicitAllowPermissions !== "string" ||
       typeof parsed.memberVersion !== "string" ||
@@ -369,6 +390,31 @@ async function readRevisionMap(keys: string[]) {
 
   const values = await redis.mget(...keys);
   return new Map(keys.map((key, index) => [key, parseVersion(values[index] ?? null)]));
+}
+
+export async function samplePermissionCacheRevisions(serverId: string, userId: string) {
+  const revisions = await samplePermissionCacheRevisionsForUsers(serverId, [userId]);
+  return revisions.get(userId) ?? { memberVersion: "0", serverVersion: "0" };
+}
+
+export async function samplePermissionCacheRevisionsForUsers(serverId: string, userIds: string[]) {
+  const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
+  const serverKey = serverVersionKey(serverId);
+  const revisions = await readRevisionMap([
+    serverKey,
+    ...uniqueUserIds.map((userId) => memberVersionKey(serverId, userId)),
+  ]);
+  const serverVersion = revisions.get(serverKey) ?? "0";
+
+  return new Map<string, PermissionCacheRevisions>(
+    uniqueUserIds.map((userId) => [
+      userId,
+      {
+        memberVersion: revisions.get(memberVersionKey(serverId, userId)) ?? "0",
+        serverVersion,
+      },
+    ]),
+  );
 }
 
 export async function readCachedChannelPermissionSnapshot(
@@ -494,6 +540,7 @@ export async function readCachedChannelPermissionSnapshots(
 
 export async function writeCachedChannelPermissionSnapshot(args: {
   channelId: string;
+  revisions: PermissionCacheRevisions;
   snapshot: CachedChannelPermissionSnapshot;
   userId: string;
 }) {
@@ -503,6 +550,7 @@ export async function writeCachedChannelPermissionSnapshot(args: {
 export async function writeCachedChannelPermissionSnapshots(
   entries: Array<{
     channelId: string;
+    revisions: PermissionCacheRevisions;
     snapshot: CachedChannelPermissionSnapshot;
     userId: string;
   }>,
@@ -520,13 +568,25 @@ export async function writeCachedChannelPermissionSnapshots(
     }
     const revisions = await readRevisionMap([...revisionKeys]);
     const pipeline = redis.pipeline();
+    let writeCount = 0;
 
     for (const entry of entries) {
       const serverId = entry.snapshot.channel.serverId;
-      const payload = serializeSnapshot(entry.snapshot, {
+      const currentRevisions = {
         memberVersion: revisions.get(memberVersionKey(serverId, entry.userId)) ?? "0",
         serverVersion: revisions.get(serverVersionKey(serverId)) ?? "0",
-      });
+      };
+
+      // A revocation between the permission read and this write must win. The
+      // old code stamped the stale snapshot with the newer revision instead.
+      if (
+        entry.revisions.memberVersion !== currentRevisions.memberVersion ||
+        entry.revisions.serverVersion !== currentRevisions.serverVersion
+      ) {
+        continue;
+      }
+
+      const payload = serializeSnapshot(entry.snapshot, entry.revisions);
 
       pipeline.set(
         channelPermissionSnapshotKey(entry.channelId, entry.userId),
@@ -534,14 +594,17 @@ export async function writeCachedChannelPermissionSnapshots(
         "EX",
         PERMISSION_CACHE_TTL_SECONDS,
       );
+      writeCount += 1;
     }
 
-    await pipeline.exec();
-    recordPermissionCacheMetric({
-      area: "channelSnapshot",
-      count: entries.length,
-      event: "write",
-    });
+    if (writeCount > 0) {
+      await pipeline.exec();
+      recordPermissionCacheMetric({
+        area: "channelSnapshot",
+        count: writeCount,
+        event: "write",
+      });
+    }
   } catch (error) {
     recordPermissionCacheMetric({
       area: "channelSnapshot",
@@ -691,6 +754,93 @@ export async function readCachedVisibleChannelIdsBatch(args: {
   }
 
   return channelIdsByUser;
+}
+
+/** Same cache contract as the user batch above, transposed for cold bootstrap. */
+export async function readCachedVisibleChannelIdsByServerBatch(args: {
+  maxAgeSeconds?: number;
+  permission: PermissionKey | PermissionValue;
+  serverIds: string[];
+  type?: ChannelType;
+  userId: string;
+}) {
+  const channelIdsByServer = new Map<string, string[]>();
+  const uniqueServerIds = Array.from(new Set(args.serverIds.filter(Boolean)));
+  const redis = getReadyRedis();
+  if (!redis || uniqueServerIds.length === 0) {
+    if (uniqueServerIds.length > 0) {
+      recordPermissionCacheMetric({
+        area: "visibleChannelList",
+        count: uniqueServerIds.length,
+        event: "bypass",
+      });
+    }
+    return channelIdsByServer;
+  }
+
+  try {
+    const keys = uniqueServerIds.map((serverId) =>
+      visibleChannelListKey({
+        permission: args.permission,
+        serverId,
+        userId: args.userId,
+        ...(args.type !== undefined ? { type: args.type } : {}),
+      }),
+    );
+    const values = await redis.mget(...keys);
+    const revisionKeys = uniqueServerIds.flatMap((serverId) => [
+      serverVersionKey(serverId),
+      memberVersionKey(serverId, args.userId),
+    ]);
+    const revisions = await readRevisionMap(revisionKeys);
+    let hitCount = 0;
+    let missCount = 0;
+    let staleCount = 0;
+
+    values.forEach((value, index) => {
+      const serverId = uniqueServerIds[index];
+      const parsed = value ? parseChannelList(value) : null;
+      if (!serverId || !parsed) {
+        missCount += 1;
+        return;
+      }
+      const currentServerVersion = revisions.get(serverVersionKey(serverId)) ?? "0";
+      const currentMemberVersion = revisions.get(memberVersionKey(serverId, args.userId)) ?? "0";
+      if (
+        parsed.serverVersion !== currentServerVersion ||
+        parsed.memberVersion !== currentMemberVersion ||
+        !isFreshEnough(parsed.cachedAt, args)
+      ) {
+        staleCount += 1;
+        return;
+      }
+      channelIdsByServer.set(serverId, parsed.channelIds);
+      hitCount += 1;
+    });
+
+    if (hitCount > 0) {
+      recordPermissionCacheMetric({ area: "visibleChannelList", count: hitCount, event: "hit" });
+    }
+    if (missCount > 0) {
+      recordPermissionCacheMetric({ area: "visibleChannelList", count: missCount, event: "miss" });
+    }
+    if (staleCount > 0) {
+      recordPermissionCacheMetric({
+        area: "visibleChannelList",
+        count: staleCount,
+        event: "stale",
+      });
+    }
+  } catch (error) {
+    recordPermissionCacheMetric({
+      area: "visibleChannelList",
+      count: uniqueServerIds.length,
+      event: "error",
+    });
+    logError("[permission-cache] Failed to read visible channel lists by server", error);
+  }
+
+  return channelIdsByServer;
 }
 
 export async function writeCachedVisibleChannelIds(args: {

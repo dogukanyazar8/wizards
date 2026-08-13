@@ -1,6 +1,11 @@
 export type MobileDeepLinkIntent =
   | {
+      readonly token: string;
+      readonly type: "account-delete-reauth";
+    }
+  | {
       readonly callbackPath: string;
+      readonly state: string;
       readonly token: string;
       readonly type: "auth-handoff";
     }
@@ -58,6 +63,8 @@ interface ParseMobileDeepLinkOptions {
 const WHISPR_SCHEME = "whispr:";
 export const MOBILE_WEB_OAUTH_START_PATH = "/mobile/oauth/start";
 const AUTH_HANDOFF_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,128}$/;
+const ACCOUNT_DELETE_REAUTH_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,128}$/;
+const AUTH_HANDOFF_STATE_PATTERN = /^[0-9a-f]{64}$/u;
 const INVITE_CODE_PATTERN = /^[A-Za-z0-9_-]{1,96}$/;
 const PERFORMANCE_RUN_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const PERFORMANCE_TARGET_ID_PATTERN = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/iu;
@@ -101,12 +108,20 @@ const SAFE_ROUTE_PREFIXES = [
 ] as const;
 const URL_SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 
-export function buildMobileWebSignInUrl(webUrl: string, callbackPath = "/channels/@me"): string {
-  return buildMobileWebAuthUrl(webUrl, "/login", callbackPath);
+export function buildMobileWebSignInUrl(
+  webUrl: string,
+  state: string,
+  callbackPath = "/channels/@me",
+): string {
+  return buildMobileWebAuthUrl(webUrl, "/login", state, callbackPath);
 }
 
-export function buildMobileWebRegisterUrl(webUrl: string, callbackPath = "/channels/@me"): string {
-  return buildMobileWebAuthUrl(webUrl, "/register", callbackPath);
+export function buildMobileWebRegisterUrl(
+  webUrl: string,
+  state: string,
+  callbackPath = "/channels/@me",
+): string {
+  return buildMobileWebAuthUrl(webUrl, "/register", state, callbackPath);
 }
 
 /**
@@ -119,27 +134,40 @@ export function buildMobileWebRegisterUrl(webUrl: string, callbackPath = "/chann
 export function buildMobileWebSocialSignInUrl(
   webUrl: string,
   provider: "google",
+  state: string,
   callbackPath = "/channels/@me",
 ): string {
+  if (!AUTH_HANDOFF_STATE_PATTERN.test(state)) {
+    throw new Error("Mobile OAuth state must be a 32-byte lowercase hexadecimal value.");
+  }
+
   const safeCallbackPath =
     normalizeSafeMobileRoutePath(callbackPath, "/channels/@me") ?? "/channels/@me";
   const url = new URL(MOBILE_WEB_OAUTH_START_PATH, webUrl);
   url.searchParams.set("callbackUrl", safeCallbackPath);
   url.searchParams.set("provider", provider);
   url.searchParams.set("client", "mobile");
+  // The custom URL scheme has no origin ownership. This nonce binds the
+  // eventual handoff to the browser flow this app instance started.
+  url.searchParams.set("state", state);
   return url.toString();
 }
 
 function buildMobileWebAuthUrl(
   webUrl: string,
   pathname: "/login" | "/register",
+  state: string,
   callbackPath = "/channels/@me",
 ): string {
+  if (!AUTH_HANDOFF_STATE_PATTERN.test(state)) {
+    throw new Error("Mobile OAuth state must be a 32-byte lowercase hexadecimal value.");
+  }
+
   const safeCallbackPath =
     normalizeSafeMobileRoutePath(callbackPath, "/channels/@me") ?? "/channels/@me";
   const mobileCompletePath = `/mobile/oauth/complete?callbackUrl=${encodeURIComponent(
     safeCallbackPath,
-  )}`;
+  )}&state=${state}`;
   const url = new URL(pathname, webUrl);
   url.searchParams.set("callbackUrl", mobileCompletePath);
   url.searchParams.set("client", "mobile");
@@ -174,6 +202,11 @@ export function parseMobileDeepLink(
   const authHandoff = parseAuthHandoffIntent(path, parsedUrl.searchParams);
   if (authHandoff) {
     return { intent: authHandoff, ok: true };
+  }
+
+  const accountDeleteReauth = parseAccountDeleteReauthIntent(path, parsedUrl.searchParams);
+  if (accountDeleteReauth) {
+    return { intent: accountDeleteReauth, ok: true };
   }
 
   if (isAuthLikePath(path)) {
@@ -305,11 +338,17 @@ function parseAuthHandoffIntent(
         ? (segments[3] ?? segments[2])
         : null;
   const queryToken = searchParams.get("handoff");
+  const state = searchParams.get("state");
   const token = [pathToken, queryToken].find(
     (value): value is string => typeof value === "string" && AUTH_HANDOFF_TOKEN_PATTERN.test(value),
   );
 
-  if (!token) {
+  if (
+    !token ||
+    !state ||
+    !AUTH_HANDOFF_STATE_PATTERN.test(state) ||
+    searchParams.getAll("state").length !== 1
+  ) {
     return null;
   }
 
@@ -324,9 +363,29 @@ function parseAuthHandoffIntent(
 
   return {
     callbackPath,
+    state,
     token,
     type: "auth-handoff",
   };
+}
+
+function parseAccountDeleteReauthIntent(
+  path: string,
+  searchParams: URLSearchParams,
+): MobileDeepLinkIntent | null {
+  const segments = path.split("/").filter(Boolean);
+  if (
+    segments.length !== 3 ||
+    segments[0] !== "reauth" ||
+    segments[1] !== "account-delete" ||
+    !segments[2] ||
+    !ACCOUNT_DELETE_REAUTH_TOKEN_PATTERN.test(segments[2]) ||
+    [...searchParams.keys()].length > 0
+  ) {
+    return null;
+  }
+
+  return { token: segments[2], type: "account-delete-reauth" };
 }
 
 /**

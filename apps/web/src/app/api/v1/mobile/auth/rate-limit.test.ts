@@ -16,6 +16,8 @@ function subjectKey(keys: string[]) {
 }
 
 describe("mobile auth rate limit", () => {
+  process.env.TRUSTED_PROXY_HOPS = "1";
+
   it("creates deterministic opaque credential subjects", () => {
     const first = createMobileAuthCredentialSubject("refresh-token", "secret-token-a");
     const same = createMobileAuthCredentialSubject("refresh-token", "secret-token-a");
@@ -34,8 +36,7 @@ describe("mobile auth rate limit", () => {
         headers: {
           "cf-connecting-ip": "192.0.2.10",
           "user-agent": "agent-a",
-          "x-forwarded-for": "192.0.2.11",
-          "x-real-ip": "198.51.100.9",
+          "x-forwarded-for": "192.0.2.11, 198.51.100.9",
         },
       }),
       { namespace: "email", value: "alice@example.com" },
@@ -45,8 +46,7 @@ describe("mobile auth rate limit", () => {
         headers: {
           "cf-connecting-ip": "203.0.113.10",
           "user-agent": "agent-b",
-          "x-forwarded-for": "203.0.113.11",
-          "x-real-ip": "198.51.100.9",
+          "x-forwarded-for": "203.0.113.11, 198.51.100.9",
         },
       }),
       { namespace: "email", value: "alice@example.com" },
@@ -56,7 +56,7 @@ describe("mobile auth rate limit", () => {
   });
 
   it("shares the network bucket but separates accounts on the same IP", () => {
-    const headers = { "x-real-ip": "198.51.100.9" };
+    const headers = { "x-forwarded-for": "198.51.100.9" };
     const alice = collectKeys(new Request("http://localhost", { headers }), {
       namespace: "email",
       value: "alice@example.com",
@@ -72,11 +72,11 @@ describe("mobile auth rate limit", () => {
 
   it("separates network buckets but shares the account bucket across IPs", () => {
     const alice = collectKeys(
-      new Request("http://localhost", { headers: { "x-real-ip": "198.51.100.9" } }),
+      new Request("http://localhost", { headers: { "x-forwarded-for": "198.51.100.9" } }),
       { namespace: "email", value: "alice@example.com" },
     );
     const otherIp = collectKeys(
-      new Request("http://localhost", { headers: { "x-real-ip": "203.0.113.9" } }),
+      new Request("http://localhost", { headers: { "x-forwarded-for": "203.0.113.9" } }),
       { namespace: "email", value: "alice@example.com" },
     );
 
@@ -84,25 +84,25 @@ describe("mobile auth rate limit", () => {
     assert.equal(subjectKey(alice), subjectKey(otherIp));
   });
 
-  it("uses deterministic subject fallback for invalid or missing trusted IP", () => {
+  it("uses one untrusted bucket for invalid or missing trusted IP", () => {
     const invalid = collectKeys(
-      new Request("http://localhost", { headers: { "x-real-ip": "invalid" } }),
+      new Request("http://localhost", { headers: { "x-forwarded-for": "invalid" } }),
       { namespace: "email", value: "alice@example.com" },
     );
     const missing = collectKeys(
       new Request("http://localhost", {
-        headers: { "x-forwarded-for": "198.51.100.99" },
+        headers: {},
       }),
       { namespace: "email", value: "alice@example.com" },
     );
 
     assert.equal(networkKey(invalid), networkKey(missing));
-    assert.match(networkKey(invalid), /:network:fallback:/);
+    assert.match(networkKey(invalid), /:network:untrusted$/);
   });
 
   it("never stores raw security identity in Redis keys", () => {
     const keys = collectKeys(
-      new Request("http://localhost", { headers: { "x-real-ip": "198.51.100.9" } }),
+      new Request("http://localhost", { headers: { "x-forwarded-for": "198.51.100.9" } }),
       { namespace: "email", value: "alice@example.com" },
     );
     const serialized = keys.join("\n");

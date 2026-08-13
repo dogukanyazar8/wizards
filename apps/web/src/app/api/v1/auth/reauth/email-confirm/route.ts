@@ -5,10 +5,16 @@ import { requireApiUserId } from "@/lib/auth/api";
 import { ACCOUNT_DELETION_REAUTH_PURPOSE } from "@/lib/auth/reauth";
 import { confirmAccountDeletionReauthEmail } from "@/lib/auth/reauth-email";
 
-const EmailReauthConfirmBodySchema = z.object({
-  purpose: z.literal(ACCOUNT_DELETION_REAUTH_PURPOSE),
-  token: z.string().min(1),
-});
+const EmailReauthConfirmBodySchema = z
+  .object({
+    purpose: z.literal(ACCOUNT_DELETION_REAUTH_PURPOSE),
+    token: z
+      .string()
+      .min(32)
+      .max(128)
+      .regex(/^[A-Za-z0-9_-]+$/u),
+  })
+  .strict();
 
 export async function POST(request: Request) {
   try {

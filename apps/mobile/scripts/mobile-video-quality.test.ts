@@ -16,6 +16,7 @@ import {
   getMobileScreenSharePublishOptions,
 } from "../src/voice/mobile-screen-share";
 import {
+  applyMobileVoiceAudioBitrate,
   DEFAULT_MOBILE_CAMERA_QUALITY_TIER,
   MOBILE_CAMERA_FALLBACK_CODEC,
   MOBILE_CAMERA_VIDEO_CODEC,
@@ -30,6 +31,17 @@ import {
   isMobileCameraQualityTier,
   normalizeMobileCameraQualityTier,
 } from "../src/voice/mobile-video-quality";
+
+it("applies the channel audio bitrate without dropping camera publish defaults", () => {
+  const publishDefaults = applyMobileVoiceAudioBitrate(
+    { simulcast: true, videoCodec: "h264" },
+    128_000,
+  );
+
+  assert.equal(publishDefaults.audioPreset?.maxBitrate, 128_000);
+  assert.equal(publishDefaults.simulcast, true);
+  assert.equal(publishDefaults.videoCodec, "h264");
+});
 
 type PublishCall = {
   enabled: boolean;

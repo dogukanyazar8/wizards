@@ -81,7 +81,22 @@ describe("detachUserFromServerSocketRoom", { concurrency: false }, () => {
     setSocketServer(io);
 
     try {
-      await detachUserFromServerSocketRoom("user-1", "server-1", { redis });
+      const detachedVoiceUsers: string[] = [];
+      await (
+        detachUserFromServerSocketRoom as unknown as (
+          userId: string,
+          serverId: string,
+          options: {
+            detachVoice(userId: string): Promise<unknown>;
+            redis: ServerOnlinePresenceRedis;
+          },
+        ) => Promise<unknown>
+      )("user-1", "server-1", {
+        async detachVoice(userId) {
+          detachedVoiceUsers.push(userId);
+        },
+        redis,
+      });
 
       // The kicked/banned/departed user must no longer count as online for
       // the server they left, even though user-2 still does.
@@ -93,6 +108,7 @@ describe("detachUserFromServerSocketRoom", { concurrency: false }, () => {
       // belong to.
       assert.deepEqual(socket.data.onlineServerIds, ["server-2"]);
       assert.deepEqual(leftRooms, ["server:server-1"]);
+      assert.deepEqual(detachedVoiceUsers, ["user-1"]);
     } finally {
       setSocketServer(null as unknown as AppSocketServer);
       for (const restore of restores.reverse()) {
@@ -114,7 +130,10 @@ describe("detachUserFromServerSocketRoom", { concurrency: false }, () => {
     setSocketServer(io);
 
     try {
-      await detachUserFromServerSocketRoom("user-1", "server-1", { redis });
+      await detachUserFromServerSocketRoom("user-1", "server-1", {
+        detachVoice: async () => null,
+        redis,
+      });
 
       assert.equal(await countServerOnlineMembers(redis, "server-1"), 0);
     } finally {

@@ -25,6 +25,36 @@ let mockNotifications: readonly MobileNotificationItem[] = [];
 let mockAllFeedNotifications: readonly MobileNotificationItem[] | null = null;
 let mockQueryState = { isError: false, isLoading: false, isRefetching: false };
 
+jest.mock("@shopify/flash-list", () => {
+  const ReactRuntime = jest.requireActual<typeof import("react")>("react");
+  const ReactNative = jest.requireActual<typeof import("react-native")>("react-native");
+  const renderSlot = (slot: any) =>
+    typeof slot === "function" ? ReactRuntime.createElement(slot) : slot;
+  return {
+    FlashList: ({
+      data = [],
+      keyExtractor,
+      ListEmptyComponent,
+      ListFooterComponent,
+      ListHeaderComponent,
+      renderItem,
+      ...props
+    }: any) => (
+      <ReactNative.View {...props} data={data}>
+        {renderSlot(ListHeaderComponent)}
+        {data.length === 0
+          ? renderSlot(ListEmptyComponent)
+          : data.map((item: unknown, index: number) => (
+              <ReactRuntime.Fragment key={keyExtractor?.(item, index) ?? index}>
+                {renderItem?.({ index, item })}
+              </ReactRuntime.Fragment>
+            ))}
+        {renderSlot(ListFooterComponent)}
+      </ReactNative.View>
+    ),
+  };
+});
+
 jest.mock("react-native-gesture-handler", () => {
   const ReactRuntime = require("react");
   const ReactNative = require("react-native");
@@ -214,6 +244,20 @@ describe("1d notifications screen", () => {
     expect(view.getByText("DÜN")).toBeTruthy();
   });
 
+  it("virtualizes day headings and notifications as separate typed cells", async () => {
+    mockNotifications = [mention, yesterdayInvite];
+    const view = await renderScreen();
+    const feed = view.getByTestId("mobile-notifications-feed");
+
+    expect(feed.props.data).toHaveLength(4);
+    expect(feed.props.data.map((item: unknown) => feed.props.getItemType(item))).toEqual([
+      "day-heading",
+      "notification",
+      "day-heading",
+      "notification",
+    ]);
+  });
+
   it("marks an unread notification read before opening its safe route", async () => {
     const onOpenNotification = jest.fn();
     mockNotifications = [mention];
@@ -221,7 +265,7 @@ describe("1d notifications screen", () => {
 
     await fireEvent.press(view.getByTestId(`mobile-notification-${mention.id}`));
 
-    expect(mockMarkRead).toHaveBeenCalledWith(mention.id);
+    expect(mockMarkRead).toHaveBeenCalledWith(mention);
     // The row hands the whole notification over: a BADGE row has a destination
     // even without an action URL (07 §4).
     expect(onOpenNotification).toHaveBeenCalledWith(mention);
@@ -382,7 +426,7 @@ describe("1d notifications screen", () => {
       view.getByTestId(`mobile-notification-friend-accept-${friendRequest.id}`),
     );
     expect(mockAcceptRequest).toHaveBeenCalledWith({ requestId: "request-1" });
-    expect(mockMarkRead).toHaveBeenCalledWith(friendRequest.id);
+    expect(mockMarkRead).toHaveBeenCalledWith(friendRequest);
 
     await fireEvent.press(
       view.getByTestId(`mobile-notification-friend-decline-${friendRequest.id}`),

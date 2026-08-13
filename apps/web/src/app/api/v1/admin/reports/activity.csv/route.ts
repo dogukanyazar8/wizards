@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     await enforceApiRateLimit(admin.id, "admin:report:export");
 
     const url = new URL(request.url);
-    const csv = await exportAdminActivityCsv(url.searchParams.get("days"));
+    const csv = await exportAdminActivityCsv(url.searchParams.get("days"), admin.role);
 
     return new Response(csv, {
       headers: {

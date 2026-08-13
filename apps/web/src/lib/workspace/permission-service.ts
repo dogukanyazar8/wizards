@@ -6,6 +6,9 @@ import {
   readCachedChannelPermissionSnapshots,
   readCachedVisibleChannelIds,
   readCachedVisibleChannelIdsBatch,
+  readCachedVisibleChannelIdsByServerBatch,
+  samplePermissionCacheRevisions,
+  samplePermissionCacheRevisionsForUsers,
   writeCachedChannelPermissionSnapshot,
   writeCachedChannelPermissionSnapshots,
   writeCachedVisibleChannelIds,
@@ -267,12 +270,19 @@ export async function getChannelPermissionContext(
     requiredType?: ChannelType;
   } = {},
 ) {
+  const serverId = await getChannelPermissionServerId(channelId);
+
+  // Sample before reading overrides and membership roles. Otherwise a
+  // concurrent revocation can be cached under the revision that revoked it.
+  const revisions = await samplePermissionCacheRevisions(serverId, userId);
   const channel = await prisma.channel.findUnique({
     where: { id: channelId },
     select: {
+      bitrate: true,
       id: true,
       locked: true,
       name: true,
+      slowModeDelay: true,
       permissionOverrides: {
         select: channelOverrideSelect,
       },
@@ -283,7 +293,10 @@ export async function getChannelPermissionContext(
         },
       },
       serverId: true,
+      rtcRegion: true,
       type: true,
+      userLimit: true,
+      videoQualityMode: true,
     },
   });
 
@@ -307,17 +320,23 @@ export async function getChannelPermissionContext(
 
   return {
     channel: {
+      bitrate: channel.bitrate,
       id: channel.id,
       locked: channel.locked,
       name: channel.name,
+      slowModeDelay: channel.slowModeDelay,
       server: {
         features: channel.server.features,
         messageCharacterLimit: channel.server.messageCharacterLimit,
       },
       serverId: channel.serverId,
+      rtcRegion: channel.rtcRegion,
       type: channel.type,
+      userLimit: channel.userLimit,
+      videoQualityMode: channel.videoQualityMode,
     },
     context,
+    revisions,
   };
 }
 
@@ -352,10 +371,7 @@ export async function requireChannelPermissionForUser(
     respectLocked?: boolean;
   } = {},
 ) {
-  const cacheReadOptions = getPermissionCacheReadOptions(
-    permission,
-    options.cacheMaxAgeSeconds,
-  );
+  const cacheReadOptions = getPermissionCacheReadOptions(permission, options.cacheMaxAgeSeconds);
   const cachedSnapshot = await readCachedChannelPermissionSnapshot(
     userId,
     channelId,
@@ -378,7 +394,11 @@ export async function requireChannelPermissionForUser(
   if (options.requiredType !== undefined) {
     contextOptions.requiredType = options.requiredType;
   }
-  const { channel, context } = await getChannelPermissionContext(userId, channelId, contextOptions);
+  const { channel, context, revisions } = await getChannelPermissionContext(
+    userId,
+    channelId,
+    contextOptions,
+  );
 
   let permissions: bigint;
   try {
@@ -408,6 +428,7 @@ export async function requireChannelPermissionForUser(
 
   await writeCachedChannelPermissionSnapshot({
     channelId,
+    revisions,
     snapshot: createChannelPermissionSnapshot({ channel, context, permissions }),
     userId,
   });
@@ -423,9 +444,11 @@ async function getChannelPermissionTarget(channelId: string) {
   const channel = await prisma.channel.findUnique({
     where: { id: channelId },
     select: {
+      bitrate: true,
       id: true,
       locked: true,
       name: true,
+      slowModeDelay: true,
       permissionOverrides: {
         select: channelOverrideSelect,
       },
@@ -441,7 +464,10 @@ async function getChannelPermissionTarget(channelId: string) {
         },
       },
       serverId: true,
+      rtcRegion: true,
       type: true,
+      userLimit: true,
+      videoQualityMode: true,
     },
   });
 
@@ -450,10 +476,12 @@ async function getChannelPermissionTarget(channelId: string) {
   }
 
   return {
+    bitrate: channel.bitrate,
     id: channel.id,
     defaultRoles: channel.server.roles,
     locked: channel.locked,
     name: channel.name,
+    slowModeDelay: channel.slowModeDelay,
     ownerId: channel.server.ownerId,
     permissionOverrides: channel.permissionOverrides,
     server: {
@@ -461,8 +489,24 @@ async function getChannelPermissionTarget(channelId: string) {
       messageCharacterLimit: channel.server.messageCharacterLimit,
     },
     serverId: channel.serverId,
+    rtcRegion: channel.rtcRegion,
     type: channel.type,
+    userLimit: channel.userLimit,
+    videoQualityMode: channel.videoQualityMode,
   };
+}
+
+async function getChannelPermissionServerId(channelId: string) {
+  const target = await prisma.channel.findUnique({
+    where: { id: channelId },
+    select: { serverId: true },
+  });
+
+  if (!target?.serverId) {
+    throw new ApiError("Channel not found", 404, "CHANNEL_NOT_FOUND");
+  }
+
+  return target.serverId;
 }
 
 export async function filterUserIdsByChannelPermission(
@@ -477,11 +521,8 @@ export async function filterUserIdsByChannelPermission(
   }
 
   const allowedUserIds = new Set<string>();
-  const cacheReadOptions = getPermissionCacheReadOptions(
-    permission,
-    options.cacheMaxAgeSeconds,
-  );
-  let channel: Awaited<ReturnType<typeof getChannelPermissionTarget>> | null = null;
+  const cacheReadOptions = getPermissionCacheReadOptions(permission, options.cacheMaxAgeSeconds);
+  const uncachedUserIds: string[] = [];
 
   for (const batchUserIds of chunkChannelPermissionUserIds(uniqueUserIds)) {
     const cachedSnapshots = await readCachedChannelPermissionSnapshots(
@@ -489,8 +530,6 @@ export async function filterUserIdsByChannelPermission(
       batchUserIds,
       cacheReadOptions,
     );
-    const uncachedUserIds: string[] = [];
-
     for (const userId of batchUserIds) {
       const snapshot = cachedSnapshots.get(userId);
       if (!snapshot) {
@@ -502,17 +541,31 @@ export async function filterUserIdsByChannelPermission(
         allowedUserIds.add(userId);
       }
     }
+  }
 
-    if (uncachedUserIds.length === 0) {
-      continue;
-    }
+  if (uncachedUserIds.length === 0) {
+    return uniqueUserIds.filter((userId) => allowedUserIds.has(userId));
+  }
 
-    channel ??= await getChannelPermissionTarget(channelId);
+  const serverId = await getChannelPermissionServerId(channelId);
+  // Sample every uncached member before reading channel/default roles or member
+  // roles; batch fanout must obey the same revocation ordering as single-user checks.
+  const sampledRevisions = await samplePermissionCacheRevisionsForUsers(serverId, uncachedUserIds);
+  const channel = await getChannelPermissionTarget(channelId);
+  if (channel.serverId !== serverId) {
+    throw new ApiError(
+      "Channel changed servers during permission resolution",
+      409,
+      "STALE_CHANNEL",
+    );
+  }
+
+  for (const batchUserIds of chunkChannelPermissionUserIds(uncachedUserIds)) {
     const [memberships, bans] = await Promise.all([
       prisma.serverMember.findMany({
         where: {
           serverId: channel.serverId,
-          userId: { in: uncachedUserIds },
+          userId: { in: batchUserIds },
         },
         select: {
           id: true,
@@ -529,7 +582,7 @@ export async function filterUserIdsByChannelPermission(
       prisma.serverBan.findMany({
         where: {
           serverId: channel.serverId,
-          userId: { in: uncachedUserIds },
+          userId: { in: batchUserIds },
         },
         select: { userId: true },
       }),
@@ -537,6 +590,7 @@ export async function filterUserIdsByChannelPermission(
     const bannedUserIds = new Set(bans.map((ban) => ban.userId));
     const snapshotsToCache: Array<{
       channelId: string;
+      revisions: Awaited<ReturnType<typeof samplePermissionCacheRevisions>>;
       snapshot: CachedChannelPermissionSnapshot;
       userId: string;
     }> = [];
@@ -559,18 +613,28 @@ export async function filterUserIdsByChannelPermission(
       const permissions = resolveChannelPermissions(context);
       const snapshot = createChannelPermissionSnapshot({
         channel: {
+          bitrate: channel.bitrate,
           id: channel.id,
           locked: channel.locked,
           name: channel.name,
+          slowModeDelay: channel.slowModeDelay,
           server: channel.server,
           serverId: channel.serverId,
+          rtcRegion: channel.rtcRegion,
           type: channel.type,
+          userLimit: channel.userLimit,
+          videoQualityMode: channel.videoQualityMode,
         },
         context,
         permissions,
       });
+      const revisions = sampledRevisions.get(membership.userId);
+      if (!revisions) {
+        throw new Error(`Missing sampled permission-cache revision for ${membership.userId}`);
+      }
       snapshotsToCache.push({
         channelId,
+        revisions,
         snapshot,
         userId: membership.userId,
       });
@@ -614,9 +678,7 @@ export async function listChannelIdsForUsersWithPermission(
   type?: ChannelType,
 ) {
   const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
-  const channelIdsByUser = new Map<string, string[]>(
-    uniqueUserIds.map((userId) => [userId, []]),
-  );
+  const channelIdsByUser = new Map<string, string[]>(uniqueUserIds.map((userId) => [userId, []]));
   if (uniqueUserIds.length === 0) {
     return channelIdsByUser;
   }
@@ -811,20 +873,19 @@ export async function listChannelIdsByServerForUserWithPermission(
     return channelIdsByServer;
   }
 
-  const cachedEntries = await Promise.all(
-    uniqueServerIds.map(async (serverId) => [
-      serverId,
-      await readCachedVisibleChannelIds({
-        ...getPermissionCacheReadOptions(permission),
-        permission,
-        serverId,
-        userId,
-        ...(type !== undefined ? { type } : {}),
-      }),
-    ] as const),
-  );
+  // Cold bootstrap can contain 50 servers. Read every visibility key and both
+  // revision families in batched Redis commands instead of one command set per
+  // server.
+  const cachedChannelIdsByServer = await readCachedVisibleChannelIdsByServerBatch({
+    ...getPermissionCacheReadOptions(permission),
+    permission,
+    serverIds: uniqueServerIds,
+    userId,
+    ...(type !== undefined ? { type } : {}),
+  });
   const uncachedServerIds: string[] = [];
-  for (const [serverId, cachedChannelIds] of cachedEntries) {
+  for (const serverId of uniqueServerIds) {
+    const cachedChannelIds = cachedChannelIdsByServer.get(serverId) ?? null;
     if (cachedChannelIds) {
       channelIdsByServer.set(serverId, cachedChannelIds);
     } else {
@@ -892,7 +953,9 @@ export async function listChannelIdsByServerForUserWithPermission(
     }),
   ]);
   const bannedServerIds = new Set(bans.map((ban) => ban.serverId));
-  const membershipsByServerId = new Map(memberships.map((membership) => [membership.serverId, membership]));
+  const membershipsByServerId = new Map(
+    memberships.map((membership) => [membership.serverId, membership]),
+  );
   const defaultRolesByServerId = new Map<string, PermissionRole[]>();
   for (const role of defaultRoles) {
     const { serverId, ...permissionRole } = role;

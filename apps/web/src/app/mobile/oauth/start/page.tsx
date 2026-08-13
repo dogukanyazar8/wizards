@@ -1,4 +1,6 @@
-import { getSafeMobileOAuthProvider } from "@/lib/auth/mobile-oauth-start";
+import { notFound } from "next/navigation";
+
+import { getSafeMobileOAuthProvider, getSafeMobileOAuthState } from "@/lib/auth/mobile-oauth-start";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
 import { MobileOAuthStartClient } from "./mobile-oauth-start-client";
 
@@ -17,6 +19,10 @@ export default async function MobileOAuthStartPage({ searchParams }: MobileOAuth
     "/channels/@me",
   );
   const provider = getSafeMobileOAuthProvider(readSingleParam(queryParams?.provider));
+  const state = getSafeMobileOAuthState(queryParams?.state);
+  if (!state) {
+    notFound();
+  }
 
-  return <MobileOAuthStartClient callbackUrl={callbackUrl} provider={provider} />;
+  return <MobileOAuthStartClient callbackUrl={callbackUrl} provider={provider} state={state} />;
 }

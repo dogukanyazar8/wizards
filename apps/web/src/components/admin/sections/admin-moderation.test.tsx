@@ -130,6 +130,11 @@ const caseFile = {
   openedAt: "2026-07-27T11:00:00.000Z",
   priority: "HIGH" as const,
   publicNumber: 42,
+  pagination: {
+    evidence: { hasOlderRecords: false, page: 1 },
+    events: { hasOlderRecords: false, page: 1 },
+    reports: { hasOlderRecords: false, page: 1 },
+  },
   reportCount: 2,
   resolution: null,
   resolvedAt: null,
@@ -175,6 +180,30 @@ describe("moderation case file", () => {
     // D2 added the evidence card; the timeline itself still carries no evidence
     // entries, so the two stay separate sections.
     assert.match(markup, /Zaman çizelgesi/u);
+  });
+
+  it("links each bounded relation to its next older-record page", () => {
+    const markup = renderToStaticMarkup(
+      <AdminCaseFile
+        canAct
+        caseFile={{
+          ...caseFile,
+          pagination: {
+            evidence: { hasOlderRecords: true, page: 2 },
+            events: { hasOlderRecords: true, page: 3 },
+            reports: { hasOlderRecords: true, page: 4 },
+          },
+        }}
+        now={NOW}
+      />,
+    );
+
+    assert.match(markup, /Daha eski raporlar/u);
+    assert.match(markup, /reportPage=5/u);
+    assert.match(markup, /Daha eski olaylar/u);
+    assert.match(markup, /eventPage=4/u);
+    assert.match(markup, /Daha eski deliller/u);
+    assert.match(markup, /evidencePage=3/u);
   });
 
   it("marks a deleted subject instead of showing empty account facts", () => {

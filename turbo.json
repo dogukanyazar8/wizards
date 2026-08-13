@@ -32,6 +32,7 @@
         "SENTRY_URL",
         "TAURI_APP_NAME",
         "TAURI_WEB_URL",
+        "TRUSTED_PROXY_HOPS",
         "UPLOADTHING_TOKEN",
         "VERCEL_DEPLOYMENT_ID",
         "VERCEL_ENV",

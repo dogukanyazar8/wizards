@@ -343,6 +343,7 @@ describe("mobile display model", () => {
         sessionId: "session-1",
         status: "connected",
         updatedAt: 1,
+        videoQualityMode: "AUTO",
       },
       {
         channelName: "live-room",
@@ -393,6 +394,7 @@ describe("mobile display model", () => {
         sessionId: "session-1",
         status: "connected",
         updatedAt: 1,
+        videoQualityMode: "AUTO",
       },
       {
         channelName: "live-room",

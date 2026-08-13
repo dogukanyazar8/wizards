@@ -3,7 +3,7 @@ import { ServerDiscoveryPageSchema, ServerDiscoveryQuerySchema } from "@wizards/
 import { auth } from "@/auth";
 import { jsonError } from "@/lib/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
-import { createClientRateLimitIdentity } from "@/lib/security/client-ip";
+import { createNetworkRateLimitIdentity } from "@/lib/security/client-ip";
 import { listDiscoverableServers } from "@/lib/servers/server-discovery-service";
 
 export type ServerDiscoverRouteDependencies = {
@@ -39,9 +39,7 @@ export async function serverDiscoverRoute(
     const viewerId = await dependencies.resolveViewerId(request);
     const rateLimitKey =
       viewerId ??
-      createClientRateLimitIdentity({
-        fallbackNamespace: "server-discover",
-        fallbackValue: "anonymous",
+      createNetworkRateLimitIdentity({
         headers: request.headers,
       });
     await dependencies.enforceRateLimit(rateLimitKey, "server:discover");

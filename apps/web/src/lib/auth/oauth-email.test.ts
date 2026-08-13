@@ -3,11 +3,64 @@ import { describe, it } from "node:test";
 
 import {
   canOAuthUserSignIn,
+  canOAuthIdentityUseTwoFactorStepUp,
   findVerifiedPrimaryGitHubEmail,
   isGitHubOAuthEmailVerified,
+  resolveOAuthPolicyUser,
 } from "./oauth-email";
 
 describe("OAuth email verification", () => {
+  it("steps up linked GitHub identities without enabling GitHub email auto-linking", () => {
+    assert.equal(canOAuthIdentityUseTwoFactorStepUp("github", true), true);
+    assert.equal(canOAuthIdentityUseTwoFactorStepUp("github", false), false);
+    assert.equal(canOAuthIdentityUseTwoFactorStepUp("google", false), true);
+  });
+
+  it("uses the linked provider account before a conflicting profile email", async () => {
+    const linkedUser = { id: "linked", twoFactorEnabled: true };
+    const emailUser = { id: "email-owner", twoFactorEnabled: false };
+    const calls: string[] = [];
+
+    assert.deepEqual(
+      await resolveOAuthPolicyUser({
+        account: { provider: "google", providerAccountId: "google-123" },
+        email: "email-owner@example.com",
+        findByAccount: async () => {
+          calls.push("account");
+          return linkedUser;
+        },
+        findByEmail: async () => {
+          calls.push("email");
+          return emailUser;
+        },
+      }),
+      { linked: true, user: linkedUser },
+    );
+    assert.deepEqual(calls, ["account"]);
+  });
+
+  it("falls back to email only when the provider account is not linked", async () => {
+    const emailUser = { id: "email-owner", twoFactorEnabled: true };
+    const calls: string[] = [];
+
+    assert.deepEqual(
+      await resolveOAuthPolicyUser({
+        account: { provider: "google", providerAccountId: "google-123" },
+        email: "email-owner@example.com",
+        findByAccount: async () => {
+          calls.push("account");
+          return null;
+        },
+        findByEmail: async () => {
+          calls.push("email");
+          return emailUser;
+        },
+      }),
+      { linked: false, user: emailUser },
+    );
+    assert.deepEqual(calls, ["account", "email"]);
+  });
+
   it("requires GitHub primary email to be verified and match the claimed profile email", async () => {
     assert.equal(
       await isGitHubOAuthEmailVerified({
@@ -84,5 +137,37 @@ describe("OAuth email verification", () => {
       }),
       false,
     );
+  });
+
+  it("blocks verified Google sign-in when the existing account requires local two-factor", async () => {
+    const input = {
+      account: { provider: "google" },
+      profile: { email: "ada@example.com", email_verified: true },
+      user: { email: "ada@example.com" },
+    };
+
+    assert.equal(
+      await canOAuthUserSignIn({
+        ...input,
+        existingUser: { twoFactorEnabled: true },
+        twoFactorVerified: true,
+      }),
+      true,
+    );
+    assert.equal(
+      await canOAuthUserSignIn({
+        ...input,
+        existingUser: { twoFactorEnabled: true },
+      }),
+      false,
+    );
+    assert.equal(
+      await canOAuthUserSignIn({
+        ...input,
+        existingUser: { twoFactorEnabled: false },
+      }),
+      true,
+    );
+    assert.equal(await canOAuthUserSignIn(input), true);
   });
 });

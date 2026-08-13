@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { FlashList } from "@shopify/flash-list";
+import { useCallback, useMemo, useState } from "react";
+import { Pressable, Text, TextInput, View } from "react-native";
 import {
   GROUP_DM_MAX_PARTICIPANTS,
   canAdvanceToIdentity,
@@ -38,6 +39,22 @@ export interface MobileGroupCreateConversation {
   readonly type: "DM" | "GROUP_DM";
 }
 
+type MobileGroupMemberListItem =
+  | {
+      readonly friend: MobileGroupCreateFriend;
+      readonly id: string;
+      readonly kind: "friend";
+      readonly section: "all" | "frequent";
+    }
+  | {
+      readonly count?: number;
+      readonly id: string;
+      readonly kind: "section";
+      readonly section: "all" | "frequent";
+    };
+
+const getMobileGroupMemberItemType = (item: MobileGroupMemberListItem) => item.kind;
+
 export function getFriendLabel(friend: MobileGroupCreateFriend): string {
   return friend.displayName ?? friend.username;
 }
@@ -60,12 +77,14 @@ function matchesQuery(friend: MobileGroupCreateFriend, needle: string): boolean 
 export function MobileGroupMemberStep({
   conversations,
   friends,
+  friendsById,
   now,
   onToggleMember,
   state,
 }: {
   readonly conversations: readonly MobileGroupCreateConversation[];
   readonly friends: readonly MobileGroupCreateFriend[];
+  readonly friendsById: ReadonlyMap<string, MobileGroupCreateFriend>;
   /** Injected so V9's 30-day window is testable without freezing the clock. */
   readonly now?: Date;
   onToggleMember(userId: string): void;
@@ -80,10 +99,6 @@ export function MobileGroupMemberStep({
   const needle = search.trim().toLocaleLowerCase("tr");
   const isFull = isGroupSelectionFull(state);
 
-  const friendsById = useMemo(
-    () => new Map(friends.map((friend) => [friend.id, friend] as const)),
-    [friends],
-  );
   /**
    * V9. Derived from the inbox the reader already has — no counting endpoint —
    * and hidden entirely while searching: a shortcut to the people you talk to
@@ -108,99 +123,154 @@ export function MobileGroupMemberStep({
     () => friends.filter((friend) => matchesQuery(friend, needle)),
     [friends, needle],
   );
-  const selectedFriends = state.selectedUserIds
-    .map((userId) => friendsById.get(userId))
-    .filter((friend): friend is MobileGroupCreateFriend => Boolean(friend));
+  const selectedUserIds = useMemo(() => new Set(state.selectedUserIds), [state.selectedUserIds]);
+  const selectedFriends = useMemo(
+    () =>
+      state.selectedUserIds
+        .map((userId) => friendsById.get(userId))
+        .filter((friend): friend is MobileGroupCreateFriend => Boolean(friend)),
+    [friendsById, state.selectedUserIds],
+  );
+  const items = useMemo<MobileGroupMemberListItem[]>(
+    () => [
+      ...(frequent.length > 0
+        ? [
+            { id: "section:frequent", kind: "section" as const, section: "frequent" as const },
+            ...frequent.map((friend) => ({
+              friend,
+              id: `frequent:${friend.id}`,
+              kind: "friend" as const,
+              section: "frequent" as const,
+            })),
+          ]
+        : []),
+      { id: "section:all", kind: "section", section: "all", count: allFriends.length },
+      ...allFriends.map((friend) => ({
+        friend,
+        id: `all:${friend.id}`,
+        kind: "friend" as const,
+        section: "all" as const,
+      })),
+    ],
+    [allFriends, frequent],
+  );
 
   /**
    * `section` keys and names the row: the same friend can appear once as a
    * shortcut and once in the roster, and the two must stay separately
    * addressable — for React and for a test naming one of them.
    */
-  const renderRow = (friend: MobileGroupCreateFriend, section: "all" | "frequent") => {
-    const selected = state.selectedUserIds.includes(friend.id);
-    // A full selection freezes the rows that are not part of it; the picked
-    // ones stay live so the ceiling is never a dead end.
-    const capped = isFull && !selected;
-    const disabled = capped || !friend.allowsGroupInvites;
+  const renderRow = useCallback(
+    (friend: MobileGroupCreateFriend, section: "all" | "frequent") => {
+      const selected = selectedUserIds.has(friend.id);
+      // A full selection freezes the rows that are not part of it; the picked
+      // ones stay live so the ceiling is never a dead end.
+      const capped = isFull && !selected;
+      const disabled = capped || !friend.allowsGroupInvites;
 
-    return (
-      <Pressable
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: selected, disabled }}
-        disabled={disabled}
-        key={`${section}-${friend.id}`}
-        onPress={() => onToggleMember(friend.id)}
-        style={({ pressed }) => [
-          styles.pickerRow,
-          friend.allowsGroupInvites ? null : styles.pickerRowBlocked,
-          capped ? styles.pickerRowCapped : null,
-          pressed && !disabled ? pressedStyle : null,
-        ]}
-        testID={
-          section === "frequent"
-            ? `mobile-group-create-frequent-friend-${friend.id}`
-            : `mobile-group-create-friend-${friend.id}`
-        }
-      >
-        <View style={styles.pickerRowAvatarWrap}>
-          <AvatarMark
-            avatarBorderRadius={groupTokens.pickerRow.avatarRadius}
-            dimension={groupTokens.pickerRow.avatarSize}
-            fallbackTextStyle={styles.pickerRowAvatarText}
-            identityId={friend.id}
-            imageUrl={friend.avatarUrl}
-            label={getFriendLabel(friend)}
-          />
-          {friend.online && friend.allowsGroupInvites ? (
-            <View
-              style={styles.pickerRowDot}
-              testID={
-                section === "frequent"
-                  ? `mobile-group-create-frequent-dot-${friend.id}`
-                  : `mobile-group-create-dot-${friend.id}`
-              }
+      return (
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: selected, disabled }}
+          disabled={disabled}
+          key={`${section}-${friend.id}`}
+          onPress={() => onToggleMember(friend.id)}
+          style={({ pressed }) => [
+            styles.pickerRow,
+            friend.allowsGroupInvites ? null : styles.pickerRowBlocked,
+            capped ? styles.pickerRowCapped : null,
+            pressed && !disabled ? pressedStyle : null,
+          ]}
+          testID={
+            section === "frequent"
+              ? `mobile-group-create-frequent-friend-${friend.id}`
+              : `mobile-group-create-friend-${friend.id}`
+          }
+        >
+          <View style={styles.pickerRowAvatarWrap}>
+            <AvatarMark
+              avatarBorderRadius={groupTokens.pickerRow.avatarRadius}
+              dimension={groupTokens.pickerRow.avatarSize}
+              fallbackTextStyle={styles.pickerRowAvatarText}
+              identityId={friend.id}
+              imageUrl={friend.avatarUrl}
+              label={getFriendLabel(friend)}
             />
-          ) : null}
-        </View>
-        <View style={styles.pickerRowText}>
-          <Text numberOfLines={1} style={styles.pickerRowName}>
-            {getFriendLabel(friend)}
-          </Text>
-          <Text numberOfLines={1} style={styles.pickerRowUsername}>
-            {!friend.allowsGroupInvites
-              ? copy.groupCreateBlocked
-              : // HTML 183: an online friend has the dot, so the line is just the
-                // handle; an offline one earns "· 2 sa önce görüldü" beside it.
-                friend.online || !friend.lastSeenAt
-                ? friend.username
-                : `${friend.username} · ${copy.groupCreateLastSeen.replace(
-                    "{time}",
-                    formatMobileRelativeTime(friend.lastSeenAt, locale),
-                  )}`}
-          </Text>
-        </View>
-        {friend.allowsGroupInvites ? (
-          <View style={[styles.pickerCheckbox, selected ? styles.pickerCheckboxSelected : null]}>
-            {selected ? (
-              <MobileLineIcon
-                color={groupTokens.pickerRow.checkIconColor}
-                name="check"
-                size={groupTokens.pickerRow.checkIcon}
+            {friend.online && friend.allowsGroupInvites ? (
+              <View
+                style={styles.pickerRowDot}
+                testID={
+                  section === "frequent"
+                    ? `mobile-group-create-frequent-dot-${friend.id}`
+                    : `mobile-group-create-dot-${friend.id}`
+                }
               />
             ) : null}
           </View>
-        ) : (
-          <MobileLineIcon
-            accessibilityLabel={copy.groupCreateBlocked}
-            color={groupTokens.pickerBlocked.lockIconColor}
-            name="lock"
-            size={groupTokens.pickerBlocked.lockIcon}
-          />
-        )}
-      </Pressable>
-    );
-  };
+          <View style={styles.pickerRowText}>
+            <Text numberOfLines={1} style={styles.pickerRowName}>
+              {getFriendLabel(friend)}
+            </Text>
+            <Text numberOfLines={1} style={styles.pickerRowUsername}>
+              {!friend.allowsGroupInvites
+                ? copy.groupCreateBlocked
+                : // HTML 183: an online friend has the dot, so the line is just the
+                  // handle; an offline one earns "· 2 sa önce görüldü" beside it.
+                  friend.online || !friend.lastSeenAt
+                  ? friend.username
+                  : `${friend.username} · ${copy.groupCreateLastSeen.replace(
+                      "{time}",
+                      formatMobileRelativeTime(friend.lastSeenAt, locale),
+                    )}`}
+            </Text>
+          </View>
+          {friend.allowsGroupInvites ? (
+            <View style={[styles.pickerCheckbox, selected ? styles.pickerCheckboxSelected : null]}>
+              {selected ? (
+                <MobileLineIcon
+                  color={groupTokens.pickerRow.checkIconColor}
+                  name="check"
+                  size={groupTokens.pickerRow.checkIcon}
+                />
+              ) : null}
+            </View>
+          ) : (
+            <MobileLineIcon
+              accessibilityLabel={copy.groupCreateBlocked}
+              color={groupTokens.pickerBlocked.lockIconColor}
+              name="lock"
+              size={groupTokens.pickerBlocked.lockIcon}
+            />
+          )}
+        </Pressable>
+      );
+    },
+    [groupTokens, isFull, onToggleMember, pressedStyle, selectedUserIds, styles],
+  );
+  const renderItem = useCallback(
+    ({ item }: { item: MobileGroupMemberListItem }) => {
+      if (item.kind === "friend") {
+        return renderRow(item.friend, item.section);
+      }
+
+      return (
+        <View
+          style={styles.listSectionRow}
+          testID={item.section === "frequent" ? "mobile-group-create-frequent-section" : undefined}
+        >
+          <Text style={styles.listSectionLabel}>
+            {item.section === "frequent" ? copy.groupCreateFrequent : copy.groupCreateAllFriends}
+          </Text>
+          {item.section === "all" ? (
+            <Text style={styles.listSectionCount} testID="mobile-group-create-friend-count">
+              {item.count}
+            </Text>
+          ) : null}
+        </View>
+      );
+    },
+    [renderRow, styles.listSectionCount, styles.listSectionLabel, styles.listSectionRow],
+  );
 
   return (
     <>
@@ -261,24 +331,15 @@ export function MobileGroupMemberStep({
         </View>
       ) : null}
 
-      <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1 }}>
-        {frequent.length > 0 ? (
-          <>
-            <View style={styles.listSectionRow} testID="mobile-group-create-frequent-section">
-              <Text style={styles.listSectionLabel}>{copy.groupCreateFrequent}</Text>
-            </View>
-            {frequent.map((friend) => renderRow(friend, "frequent"))}
-          </>
-        ) : null}
-        <View style={styles.listSectionRow}>
-          <Text style={styles.listSectionLabel}>{copy.groupCreateAllFriends}</Text>
-          {/* The count is what the section actually lists, search included. */}
-          <Text style={styles.listSectionCount} testID="mobile-group-create-friend-count">
-            {allFriends.length}
-          </Text>
-        </View>
-        {allFriends.map((friend) => renderRow(friend, "all"))}
-      </ScrollView>
+      <FlashList
+        data={items}
+        getItemType={getMobileGroupMemberItemType}
+        keyboardShouldPersistTaps="handled"
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        style={styles.memberListViewport}
+        testID="mobile-group-create-member-list"
+      />
     </>
   );
 }

@@ -34,7 +34,7 @@ import type { MobileEventLoopLagSummary } from "./mobile-event-loop-lag";
 import { getMobileRuntimeConfig } from "../config/environment";
 import {
   getMobileRecentDMPrefetchStats,
-  resetMobileRecentDMPrefetchStatsForTests,
+  resetMobileRecentDMPrefetchStats,
 } from "../query/mobile-message-prefetch";
 import { resetMobileMessageStreamSourcesForTests } from "../query/mobile-message-stream-source";
 import { mobileMessageStore } from "../storage/mobile-message-store-database";
@@ -62,7 +62,7 @@ export async function resetMobilePerformanceDiagnostics(): Promise<number> {
   resetMobileListBlankAreaForTests();
   resetMobileNavigationTimingForTests();
   resetMobileRequestLatencyForTests();
-  resetMobileRecentDMPrefetchStatsForTests();
+  resetMobileRecentDMPrefetchStats();
   resetMobileMessageStreamSourcesForTests();
   return drained;
 }

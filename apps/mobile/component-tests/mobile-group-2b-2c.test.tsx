@@ -12,6 +12,36 @@ import { mobileCopy } from "../src/locale/mobile-copy";
 const copy = mobileCopy.tr;
 const NOW = new Date("2026-08-11T12:00:00.000Z");
 
+jest.mock("@shopify/flash-list", () => {
+  const ReactRuntime = jest.requireActual<typeof import("react")>("react");
+  const ReactNative = jest.requireActual<typeof import("react-native")>("react-native");
+  const renderSlot = (slot: any) =>
+    typeof slot === "function" ? ReactRuntime.createElement(slot) : slot;
+  return {
+    FlashList: ({
+      data = [],
+      keyExtractor,
+      ListEmptyComponent,
+      ListFooterComponent,
+      ListHeaderComponent,
+      renderItem,
+      ...props
+    }: any) => (
+      <ReactNative.View {...props} data={data}>
+        {renderSlot(ListHeaderComponent)}
+        {data.length === 0
+          ? renderSlot(ListEmptyComponent)
+          : data.map((item: unknown, index: number) => (
+              <ReactRuntime.Fragment key={keyExtractor?.(item, index) ?? index}>
+                {renderItem?.({ index, item })}
+              </ReactRuntime.Fragment>
+            ))}
+        {renderSlot(ListFooterComponent)}
+      </ReactNative.View>
+    ),
+  };
+});
+
 function friend(id: string, displayName: string, overrides: Record<string, unknown> = {}) {
   return {
     allowsGroupInvites: true,
@@ -112,6 +142,11 @@ describe("2b §6 all friends", () => {
     }
     expect(view.getByTestId("mobile-group-create-friend-count").children.join("")).toBe(
       String(FRIENDS.length),
+    );
+    const list = view.getByTestId("mobile-group-create-member-list");
+    expect(list.props.data.length).toBeGreaterThan(FRIENDS.length);
+    expect(new Set(list.props.data.map((item: unknown) => list.props.getItemType(item)))).toEqual(
+      new Set(["section", "friend"]),
     );
   });
 

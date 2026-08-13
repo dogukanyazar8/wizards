@@ -36,6 +36,10 @@ function service(
       written.push(data as Written);
       return { createdAt: submittedAt };
     },
+    createBugReportWithScreenshotClaim: async (data) => {
+      written.push(data as Written);
+      return { createdAt: submittedAt };
+    },
     deleteExpiredBugReports: async () => ({ count: 0 }),
     isUniqueTicketViolation: (error) =>
       typeof error === "object" && error !== null && "code" in error && error.code === "P2002",

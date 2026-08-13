@@ -695,6 +695,69 @@ describe("mobile realtime query bridge", () => {
     assert.equal(fake.pendingCount(), 0);
   });
 
+  it("patches a delivery receipt without scheduling bootstrap", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const inboxKey = mobileQueryKeys.dmConversations();
+    queryClient.setQueryData<InfiniteData<MobileDMConversationsResponse, string | null>>(inboxKey, {
+      pageParams: [null],
+      pages: [
+        {
+          conversations: [
+            {
+              avatarPair: [],
+              iconUrl: null,
+              id: "conversation-1",
+              lastMessage: {
+                author: { displayName: "Viewer", id: "user-1", username: "viewer" },
+                authorIsCurrentUser: true,
+                createdAt: "2026-08-12T12:00:00.000Z",
+                deliveryStatus: "sent",
+                durationSec: null,
+                id: "message-1",
+                kind: "text",
+                systemTargetUserIds: [],
+                systemType: null,
+                systemValue: null,
+                text: "Hello",
+              },
+              lastMessageAt: "2026-08-12T12:00:00.000Z",
+              mentionCount: 0,
+              muted: false,
+              name: null,
+              notifyLevel: "ALL",
+              overflowCount: 0,
+              participantCount: 2,
+              participants: [],
+              pinnedAt: null,
+              type: "DM",
+              unreadCount: 0,
+            },
+          ],
+          nextCursor: null,
+          totalUnreadCount: 0,
+        },
+      ],
+    });
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("dm:conversation:delivered", {
+        conversationId: "conversation-1",
+        lastDeliveredAt: "2026-08-12T12:01:00.000Z",
+        userId: "user-2",
+      }),
+    );
+
+    const updated =
+      queryClient.getQueryData<InfiniteData<MobileDMConversationsResponse, string | null>>(
+        inboxKey,
+      );
+    assert.equal(updated?.pages[0]?.conversations[0]?.lastMessage?.deliveryStatus, "delivered");
+    assert.equal(queryClient.getQueryState(inboxKey)?.isInvalidated, false);
+    assert.equal(fake.pendingCount(), 0);
+  });
+
   it("applies active DM reaction and removal events without broad refresh", () => {
     const queryClient = new QueryClient();
     const fake = createFakeScheduler();
@@ -951,6 +1014,8 @@ describe("mobile realtime query bridge", () => {
       matching.detail.capabilities,
     );
     assert.equal(queryClient.getQueryData(unrelatedKey), unrelated);
+    assert.equal(fake.pendingCount(), 0);
+    assert.equal(queryClient.getQueryState(matchingKey)?.isInvalidated, false);
   });
 
   it("uses one exact workspace timer for an active management event and member list", () => {

@@ -449,27 +449,36 @@ export async function endAllMediaUsageSessionsForVoiceSession(
     },
   });
 
-  for (const session of sessions) {
-    const durationSeconds = positiveInt((endedAt.getTime() - session.startedAt.getTime()) / 1000);
-    await prisma.mediaUsageSession.update({
-      where: { id: session.id },
-      data: {
-        durationSeconds,
-        endedAt,
-      },
-    });
-    await incrementMetricAcrossInterval(
-      userId,
-      session.startedAt,
-      endedAt,
-      MEDIA_METRIC_FIELD[session.kind],
-      { appVersion: null, clientType: session.clientType },
-    );
+  for (let offset = 0; offset < sessions.length; offset += 3) {
+    const batch = sessions.slice(offset, offset + 3);
+    // Media kinds are independent, but unbounded Promise.all would trade serial
+    // latency for a pool spike. Three matches VOICE/CAMERA/SCREEN_SHARE.
+    await Promise.all(
+      batch.map(async (session) => {
+        const durationSeconds = positiveInt(
+          (endedAt.getTime() - session.startedAt.getTime()) / 1000,
+        );
+        await prisma.mediaUsageSession.update({
+          where: { id: session.id },
+          data: {
+            durationSeconds,
+            endedAt,
+          },
+        });
+        await incrementMetricAcrossInterval(
+          userId,
+          session.startedAt,
+          endedAt,
+          MEDIA_METRIC_FIELD[session.kind],
+          { appVersion: null, clientType: session.clientType },
+        );
 
-    // Leaving a voice room closes its media sessions through here, not through
-    // `endMediaUsageSession`; without this call `voice` and `broadcaster` would
-    // only ever count a screen share the user toggled off by hand.
-    await onMediaSessionEnded({ durationSeconds, kind: session.kind, userId });
+        // Leaving a voice room closes its media sessions through here, not through
+        // `endMediaUsageSession`; without this call `voice` and `broadcaster` would
+        // only ever count a screen share the user toggled off by hand.
+        await onMediaSessionEnded({ durationSeconds, kind: session.kind, userId });
+      }),
+    );
   }
 }
 

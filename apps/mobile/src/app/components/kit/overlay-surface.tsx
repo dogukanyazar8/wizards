@@ -3,6 +3,7 @@ import {
   useEffect,
   useId,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -167,48 +168,65 @@ export function OverlaySurface({
     };
   }, [focusRef, open]);
 
-  const surface = (
-    <View
-      // iOS modality: siblings of this view drop out of the VoiceOver order,
-      // which is what RN Modal used to provide. Android uses the content
-      // scope's importantForAccessibility instead.
-      accessibilityViewIsModal
-      style={[hostMounted ? StyleSheet.absoluteFill : null, style]}
-      testID={testID}
-    >
-      <AnimatedPressable
-        accessibilityLabel={accessibilityLabel}
-        accessibilityRole="button"
-        onPress={onClose}
-        style={[StyleSheet.absoluteFill, backdropStyle, animatedBackdropStyle]}
-        testID={`${testID}-backdrop`}
+  const surface = useMemo(
+    () => (
+      <View
+        // iOS modality: siblings of this view drop out of the VoiceOver order,
+        // which is what RN Modal used to provide. Android uses the content
+        // scope's importantForAccessibility instead.
+        accessibilityViewIsModal
+        style={[hostMounted ? StyleSheet.absoluteFill : null, style]}
+        testID={testID}
       >
-        {backdropBlurIntensity ? (
-          <BlurView
-            intensity={backdropBlurIntensity}
-            pointerEvents="none"
-            style={StyleSheet.absoluteFill}
-          />
-        ) : null}
-      </AnimatedPressable>
-      {children}
-    </View>
+        <AnimatedPressable
+          accessibilityLabel={accessibilityLabel}
+          accessibilityRole="button"
+          onPress={requestClose}
+          style={[StyleSheet.absoluteFill, backdropStyle, animatedBackdropStyle]}
+          testID={`${testID}-backdrop`}
+        >
+          {backdropBlurIntensity ? (
+            <BlurView
+              intensity={backdropBlurIntensity}
+              pointerEvents="none"
+              style={StyleSheet.absoluteFill}
+            />
+          ) : null}
+        </AnimatedPressable>
+        {children}
+      </View>
+    ),
+    [
+      accessibilityLabel,
+      animatedBackdropStyle,
+      backdropBlurIntensity,
+      backdropStyle,
+      children,
+      hostMounted,
+      requestClose,
+      style,
+      testID,
+    ],
   );
 
-  const hostedNode = hostMounted ? (
-    <MobileOverlayContextBridge values={bridgedValues}>{surface}</MobileOverlayContextBridge>
-  ) : null;
+  const hostedNode = useMemo(
+    () =>
+      hostMounted ? (
+        <MobileOverlayContextBridge values={bridgedValues}>{surface}</MobileOverlayContextBridge>
+      ) : null,
+    [bridgedValues, hostMounted, surface],
+  );
 
-  // Refreshed on every render so the hosted tree stays in step with the props
-  // the call site is rendering with; the registry drops the write when nothing
-  // changed, which keeps the host out of unrelated renders.
+  // The hosted element changes only with its real render inputs. Re-registering
+  // a fresh JSX object on every owner render made the registry's identity guard
+  // unreachable and woke both the host and the content accessibility scope.
   useLayoutEffect(() => {
     if (hostedNode === null) {
       return;
     }
 
     mobileOverlayRegistry.set({ id, node: hostedNode, onClose: requestClose });
-  });
+  }, [hostedNode, id, requestClose]);
 
   useLayoutEffect(() => {
     if (!hostMounted) {

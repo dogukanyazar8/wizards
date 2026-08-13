@@ -3,7 +3,7 @@ import { ServerPublicProfileSchema } from "@wizards/types";
 import { auth } from "@/auth";
 import { jsonError } from "@/lib/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
-import { createClientRateLimitIdentity } from "@/lib/security/client-ip";
+import { createNetworkRateLimitIdentity } from "@/lib/security/client-ip";
 import { getVisibleServerPublicProfile } from "@/lib/servers/server-public-profile-service";
 
 export type ServerProfileRouteContext = {
@@ -49,9 +49,7 @@ export async function serverProfileRoute(
     // route uses for its own unauthenticated traffic.
     const rateLimitKey =
       viewerId ??
-      createClientRateLimitIdentity({
-        fallbackNamespace: "server-profile",
-        fallbackValue: "anonymous",
+      createNetworkRateLimitIdentity({
         headers: request.headers,
       });
     await dependencies.enforceRateLimit(rateLimitKey, "server:profile");

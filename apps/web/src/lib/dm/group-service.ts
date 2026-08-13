@@ -185,10 +185,10 @@ export type GroupServiceDependencies = {
   writeRemovedMember(input: {
     actorId: string;
     conversationId: string;
-    nextOwnerId: string | null;
     systemType: "MEMBER_LEFT" | "MEMBER_REMOVED";
     targetUserId: string;
-  }): Promise<void>;
+    transferOwnershipTo?: string | null;
+  }): Promise<GroupMemberRemovalResult>;
 };
 
 /**
@@ -286,6 +286,176 @@ const groupParticipantSelect = {
   role: true,
   userId: true,
 } as const;
+
+type GroupRemovalConversation = {
+  ownerId: string | null;
+  participants: GroupParticipantRow[];
+  type: string;
+};
+
+type GroupRemovalTransaction = {
+  dMConversation: {
+    delete(args: unknown): Promise<unknown>;
+    findUniqueOrThrow(args: unknown): Promise<GroupRemovalConversation>;
+    update(args: unknown): Promise<unknown>;
+  };
+  dMMessage: { create(args: unknown): Promise<unknown> };
+  dMParticipant: {
+    delete(args: unknown): Promise<unknown>;
+    update(args: unknown): Promise<unknown>;
+  };
+};
+
+export type GroupRemovalWriteDependencies = {
+  now(): Date;
+  serialize(tx: GroupRemovalTransaction, conversationId: string): Promise<void>;
+  transaction<T>(run: (tx: GroupRemovalTransaction) => Promise<T>): Promise<T>;
+};
+
+const groupRemovalWriteDefaults: GroupRemovalWriteDependencies = {
+  now: () => new Date(),
+  serialize: async (tx, conversationId) => {
+    await serializeGroupMembershipWrite(tx as never, conversationId);
+  },
+  transaction: async (run) =>
+    await prisma.$transaction(async (tx) => await run(tx as unknown as GroupRemovalTransaction)),
+};
+
+export async function writeRemovedGroupMember(
+  input: {
+    actorId: string;
+    conversationId: string;
+    systemType: "MEMBER_LEFT" | "MEMBER_REMOVED";
+    targetUserId: string;
+    transferOwnershipTo?: string | null;
+  },
+  dependencies: GroupRemovalWriteDependencies = groupRemovalWriteDefaults,
+): Promise<GroupMemberRemovalResult> {
+  return await dependencies.transaction(async (tx) => {
+    // The advisory lock must precede the roster read: every decision below is
+    // invalid if another leave can commit between the read and delete.
+    await dependencies.serialize(tx, input.conversationId);
+
+    const conversation = await tx.dMConversation.findUniqueOrThrow({
+      where: { id: input.conversationId },
+      select: {
+        ownerId: true,
+        participants: { orderBy: { joinedAt: "asc" }, select: groupParticipantSelect },
+        type: true,
+      },
+    });
+
+    if (conversation.type !== "GROUP_DM") {
+      throw new ApiError("Conversation is not a group", 400, "NOT_A_GROUP");
+    }
+
+    const actor = conversation.participants.find(
+      (participant) => participant.userId === input.actorId,
+    );
+    const target = conversation.participants.find(
+      (participant) => participant.userId === input.targetUserId,
+    );
+    if (!actor || !target) {
+      throw new ApiError("Conversation not found", 404, "NOT_FOUND");
+    }
+
+    let nextOwnerId: string | null = null;
+    let broadcastViewerId = input.actorId;
+
+    if (input.systemType === "MEMBER_LEFT") {
+      if (input.actorId !== input.targetUserId) {
+        throw new ApiError("Conversation not found", 404, "NOT_FOUND");
+      }
+
+      if (conversation.participants.length === 1) {
+        await tx.dMConversation.delete({ where: { id: input.conversationId } });
+        return { broadcastViewerId: null };
+      }
+
+      const explicitSuccessorId = input.transferOwnershipTo ?? null;
+      if (explicitSuccessorId !== null) {
+        assertTransferTarget(conversation, input.actorId, explicitSuccessorId);
+      }
+
+      const remainingAdminCount = countGroupAdmins(
+        conversation.participants.map((participant) => ({
+          role: participant.role ?? "MEMBER",
+          userId: participant.userId,
+        })),
+        input.actorId,
+      );
+      if (
+        remainingAdminCount === 0 &&
+        (actor.role === "OWNER" || actor.role === "ADMIN") &&
+        explicitSuccessorId === null
+      ) {
+        throw new ApiError(
+          "Pick somebody to take the group over before you leave",
+          409,
+          "OWNER_TRANSFER_REQUIRED",
+        );
+      }
+
+      const earliestRemainingId = resolveNextGroupOwner(conversation.participants, input.actorId);
+      nextOwnerId =
+        conversation.ownerId === input.actorId
+          ? (explicitSuccessorId ?? earliestRemainingId)
+          : null;
+      broadcastViewerId = nextOwnerId ?? earliestRemainingId ?? input.actorId;
+    } else {
+      const actorRole = actor.role ?? "MEMBER";
+      const targetRole = target.role ?? "MEMBER";
+      if (actorRole !== "OWNER" && actorRole !== "ADMIN") {
+        throw new ApiError("Only group admins can do that", 403, "NOT_GROUP_ADMIN");
+      }
+      if (targetRole === "OWNER") {
+        throw new ApiError("The group owner cannot be removed", 403, "FORBIDDEN");
+      }
+      if (targetRole === "ADMIN" && actorRole !== "OWNER") {
+        throw new ApiError("Only the group owner can remove an admin", 403, "FORBIDDEN");
+      }
+    }
+
+    await tx.dMParticipant.delete({
+      where: {
+        conversationId_userId: {
+          conversationId: input.conversationId,
+          userId: input.targetUserId,
+        },
+      },
+    });
+    await tx.dMMessage.create({
+      data: {
+        content: "",
+        conversationId: input.conversationId,
+        systemTargetUserIds: input.systemType === "MEMBER_REMOVED" ? [input.targetUserId] : [],
+        systemType: input.systemType,
+        userId: input.actorId,
+      },
+    });
+    await tx.dMConversation.update({
+      data: {
+        lastMessageAt: dependencies.now(),
+        ...(nextOwnerId === null ? {} : { ownerId: nextOwnerId }),
+      },
+      where: { id: input.conversationId },
+    });
+
+    if (nextOwnerId !== null) {
+      await tx.dMParticipant.update({
+        data: { role: "OWNER" },
+        where: {
+          conversationId_userId: {
+            conversationId: input.conversationId,
+            userId: nextOwnerId,
+          },
+        },
+      });
+    }
+
+    return { broadcastViewerId };
+  });
+}
 
 const defaults: GroupServiceDependencies = {
   deleteConversation: async (conversationId) => {
@@ -660,49 +830,7 @@ const defaults: GroupServiceDependencies = {
         participantUserIds: included.participants.map((participant) => participant.userId),
       };
     }),
-  writeRemovedMember: async (input) =>
-    prisma.$transaction(async (tx) => {
-      await tx.dMParticipant.delete({
-        where: {
-          conversationId_userId: {
-            conversationId: input.conversationId,
-            userId: input.targetUserId,
-          },
-        },
-      });
-
-      await tx.dMMessage.create({
-        data: {
-          content: "",
-          conversationId: input.conversationId,
-          systemTargetUserIds: input.systemType === "MEMBER_REMOVED" ? [input.targetUserId] : [],
-          systemType: input.systemType,
-          userId: input.actorId,
-        },
-      });
-
-      await tx.dMConversation.update({
-        data: {
-          lastMessageAt: new Date(),
-          ...(input.nextOwnerId === null ? {} : { ownerId: input.nextOwnerId }),
-        },
-        where: { id: input.conversationId },
-      });
-
-      // The new owner's membership row has to agree with `ownerId`, or the
-      // permission gate keeps reading them as a plain member.
-      if (input.nextOwnerId !== null) {
-        await tx.dMParticipant.update({
-          data: { role: "OWNER" },
-          where: {
-            conversationId_userId: {
-              conversationId: input.conversationId,
-              userId: input.nextOwnerId,
-            },
-          },
-        });
-      }
-    }),
+  writeRemovedMember: async (input) => await writeRemovedGroupMember(input),
 };
 
 /**
@@ -929,61 +1057,24 @@ export async function leaveGroupConversation(
     throw new ApiError("Conversation not found", 404, "NOT_FOUND");
   }
 
-  // Last member out. Nothing left to hand the group to and nobody left to
-  // announce the departure to, so the conversation goes instead of getting a
-  // system row no one will ever read.
-  if (conversation.participants.length === 1) {
-    await dependencies.deleteConversation(conversationId);
-    return { broadcastViewerId: null };
-  }
-
   const explicitSuccessorId = options.transferOwnershipTo ?? null;
   if (explicitSuccessorId !== null) {
     assertTransferTarget(conversation, actorId, explicitSuccessorId);
   }
 
-  // 2f §5: "son yönetici ayrılıyorsa önce yönetici devri istenir". The group
-  // would otherwise be left with nobody who can edit it, remove anyone, or
-  // promote a replacement.
-  if (
-    countGroupAdmins(
-      conversation.participants.map((participant) => ({
-        role: participant.role ?? "MEMBER",
-        userId: participant.userId,
-      })),
-      actorId,
-    ) === 0 &&
-    (actor.role === "OWNER" || actor.role === "ADMIN") &&
-    explicitSuccessorId === null
-  ) {
-    throw new ApiError(
-      "Pick somebody to take the group over before you leave",
-      409,
-      "OWNER_TRANSFER_REQUIRED",
-    );
-  }
-
-  // The earliest remaining member: the owner the group falls to when the owner is
-  // the one leaving, and either way somebody who can still read the conversation
-  // once the actor is out of it.
-  const earliestRemainingId = resolveNextGroupOwner(conversation.participants, actorId);
-  // Only an owner's departure moves ownership. Null leaves `ownerId` untouched.
-  const nextOwnerId =
-    conversation.ownerId === actorId ? (explicitSuccessorId ?? earliestRemainingId) : null;
-
-  await dependencies.writeRemovedMember({
+  return await dependencies.writeRemovedMember({
     actorId,
     conversationId,
-    nextOwnerId,
     systemType: "MEMBER_LEFT",
     targetUserId: actorId,
+    ...(options.transferOwnershipTo === undefined
+      ? {}
+      : { transferOwnershipTo: options.transferOwnershipTo }),
   });
-
-  return { broadcastViewerId: nextOwnerId ?? earliestRemainingId };
 }
 
 function assertTransferTarget(
-  conversation: GroupConversationDetail,
+  conversation: { participants: ReadonlyArray<{ userId: string }> },
   actorId: string,
   targetUserId: string,
 ): void {
@@ -1030,17 +1121,12 @@ export async function removeGroupMember(
     throw new ApiError("Only the group owner can remove an admin", 403, "FORBIDDEN");
   }
 
-  await dependencies.writeRemovedMember({
+  return await dependencies.writeRemovedMember({
     actorId,
     conversationId,
-    nextOwnerId: null,
     systemType: "MEMBER_REMOVED",
     targetUserId,
   });
-
-  // The actor did the removing, so they are still inside and can read the
-  // projection the remaining members are about to be sent.
-  return { broadcastViewerId: actorId };
 }
 
 export async function updateGroupConversation(

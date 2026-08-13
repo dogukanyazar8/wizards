@@ -13,7 +13,11 @@ import {
 import bcrypt from "bcryptjs";
 
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
-import { EmailVerificationError, sendVerificationEmail } from "@/lib/auth/email-verification";
+import {
+  EmailVerificationError,
+  sendRegistrationAttemptEmail,
+  sendVerificationEmail,
+} from "@/lib/auth/email-verification";
 import {
   PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
   PasswordResetError,
@@ -23,12 +27,15 @@ import {
 import { rollbackUnverifiedUser } from "@/lib/auth/registration-compensation";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
 import { verifyTwoFactorCredential } from "@/lib/auth/two-factor";
+import { requiresOAuthTwoFactorStepUp } from "@/lib/auth/oauth-email";
+import { resolveRegistrationConflict } from "@/lib/auth/registration-policy";
 import {
   assertMobileLoginAttemptAllowed,
   recordMobileLoginAttemptFailure,
   resetMobileLoginAttemptFailures,
 } from "@/lib/auth/mobile-login-attempts";
 import { createRedisAttemptStore, type AttemptStore } from "@/lib/auth/attempt-tracker";
+import { isAuthSessionActive as isDurableAuthSessionActive } from "@/lib/auth/auth-session-service";
 import { normalizeAppLocale } from "@/lib/locale";
 import { persistUserLocale } from "@/lib/locale/persistence";
 import { logError } from "@/lib/logger";
@@ -38,6 +45,7 @@ import {
   MobileGoogleAuthError,
   verifyMobileGoogleIdToken,
   type MobileGoogleIdentity,
+  type MobileGoogleLinkedUser,
 } from "./google-native-auth";
 import {
   createMobileRefreshFamily,
@@ -70,6 +78,10 @@ const MOBILE_ACCESS_TOKEN_SCOPES = ["mobile:bootstrap"] as const;
 const MOBILE_PASSWORD_RESET_DELIVERY_FAILURE = {
   code: "PASSWORD_RESET_DELIVERY_FAILED",
 } as const;
+// Missing accounts still pay the same bcrypt cost as wrong passwords. The
+// value is deliberately fixed: hashing per request would create a larger oracle.
+const MOBILE_MISSING_ACCOUNT_PASSWORD_HASH =
+  "$2b$12$/zC3shOXAfktTcluug7UXukRRVQVvFIvceUC4sm3kIzn6iSSGGT6m";
 
 interface MobileAuthHandoffPayload {
   callbackPath: string;
@@ -94,11 +106,14 @@ interface MobileAuthUser {
   emailVerified: boolean;
   id: string;
   isBanned: boolean;
+  sessionsRevokedAfter?: Date | null;
   username: string;
 }
 
 interface MobileAuthOptions {
   env?: NodeJS.ProcessEnv;
+  isAuthSessionActive?: typeof isDurableAuthSessionActive;
+  loadSessionsRevokedAfter?: (userId: string) => Promise<Date | null | undefined>;
   loadUser?: (userId: string) => Promise<MobileAuthUser | null>;
   nowMs?: number;
   redis?: MobileAuthRedis;
@@ -117,6 +132,7 @@ interface MobilePasswordAuthUser extends MobileAuthUser {
 interface MobileGoogleAuthOptions extends MobileAuthOptions {
   linkAccount?: typeof linkMobileGoogleAccount;
   verifyIdToken?: (idToken: string) => Promise<MobileGoogleIdentity>;
+  verifyTwoFactor?: typeof verifyTwoFactorCredential;
 }
 
 interface MobileNativeAuthOptions extends MobileAuthOptions {
@@ -125,6 +141,27 @@ interface MobileNativeAuthOptions extends MobileAuthOptions {
   loginAttemptStore?: AttemptStore;
   verifyTwoFactor?: typeof verifyTwoFactorCredential;
 }
+
+type MobileRegistrationEmailUser = {
+  displayName: string | null;
+  email: string;
+  emailVerified: boolean;
+  id: string;
+  locale: string | null;
+  username: string;
+};
+
+type MobileRegistrationOptions = {
+  findRegistrationConflicts?: (
+    email: string,
+    username: string,
+  ) => Promise<{
+    existingEmail: MobileRegistrationEmailUser | null;
+    existingUsername: { id: string } | null;
+  }>;
+  notifyRegistrationAttempt?: typeof sendRegistrationAttemptEmail;
+  sendVerification?: typeof sendVerificationEmail;
+};
 
 interface MobileVerificationEmailUser {
   deletedAt: Date | null;
@@ -365,6 +402,7 @@ async function loadMobileAuthUser(userId: string) {
       emailVerified: true,
       id: true,
       isBanned: true,
+      sessionsRevokedAfter: true,
       username: true,
     },
   });
@@ -570,6 +608,65 @@ export async function exchangeMobileAuthHandoffToken(
   });
 }
 
+async function authorizeMobileGoogleUser(
+  user: MobileGoogleLinkedUser,
+  twoFactorCode: string | undefined,
+  verifyTwoFactor: typeof verifyTwoFactorCredential,
+) {
+  if (!isActiveMobileAuthUser(user)) {
+    throw new MobileNativeAuthError(
+      "ACCOUNT_UNAVAILABLE",
+      403,
+      "This account cannot sign in right now.",
+    );
+  }
+
+  if (!requiresOAuthTwoFactorStepUp(user)) {
+    return;
+  }
+
+  if (!twoFactorCode) {
+    throw new MobileNativeAuthError(
+      "TWO_FACTOR_REQUIRED",
+      401,
+      "Two-factor verification is required.",
+    );
+  }
+
+  const result = await verifyTwoFactor({
+    code: twoFactorCode,
+    secret: user.twoFactorSecret,
+    secretCiphertext: user.twoFactorSecretCiphertext,
+    secretKeyVersion: user.twoFactorSecretKeyVersion,
+    userId: user.id,
+  });
+
+  if (result.success) {
+    return;
+  }
+
+  if (result.error === "rate_limited") {
+    throw new MobileNativeAuthError(
+      "RATE_LIMITED",
+      429,
+      "Too many two-factor verification attempts. Please try again shortly.",
+    );
+  }
+  if (result.error === "verification_unavailable") {
+    throw new MobileNativeAuthError(
+      "TWO_FACTOR_UNAVAILABLE",
+      503,
+      "Two-factor verification is temporarily unavailable.",
+    );
+  }
+
+  throw new MobileNativeAuthError(
+    "TWO_FACTOR_INVALID",
+    401,
+    "The two-factor code is invalid or expired.",
+  );
+}
+
 /**
  * Native Google sign-in. The device runs Google's own account sheet, so the only
  * credential that reaches this server is the ID token, which is verified against
@@ -580,14 +677,27 @@ export async function createMobileGoogleSession(
   input: {
     idToken: string;
     locale?: "en" | "tr" | undefined;
+    twoFactorCode?: string | undefined;
   },
   options: MobileGoogleAuthOptions = {},
 ) {
   const nowMs = Math.trunc(options.nowMs ?? Date.now());
+  let authorizedExistingUserId: string | null = null;
 
   try {
     const identity = await (options.verifyIdToken ?? verifyMobileGoogleIdToken)(input.idToken);
     const user = await (options.linkAccount ?? linkMobileGoogleAccount)({
+      authorizeExistingUser: async (existingUser) => {
+        if (authorizedExistingUserId === existingUser.id) {
+          return;
+        }
+        await authorizeMobileGoogleUser(
+          existingUser,
+          input.twoFactorCode,
+          options.verifyTwoFactor ?? verifyTwoFactorCredential,
+        );
+        authorizedExistingUserId = existingUser.id;
+      },
       identity,
       locale: input.locale,
     });
@@ -597,6 +707,14 @@ export async function createMobileGoogleSession(
         "ACCOUNT_UNAVAILABLE",
         403,
         "This account cannot sign in right now.",
+      );
+    }
+
+    if (requiresOAuthTwoFactorStepUp(user) && authorizedExistingUserId !== user.id) {
+      throw new MobileNativeAuthError(
+        "TWO_FACTOR_REQUIRED",
+        401,
+        "Two-factor verification is required.",
       );
     }
 
@@ -639,6 +757,10 @@ export async function createMobilePasswordSession(
 
   const user = await (options.loadUserByEmail ?? loadMobilePasswordAuthUser)(email);
   const comparePassword = options.comparePassword ?? bcrypt.compare;
+  const isPasswordValid = await comparePassword(
+    input.password,
+    user?.passwordHash ?? MOBILE_MISSING_ACCOUNT_PASSWORD_HASH,
+  );
 
   if (!user?.passwordHash) {
     const failure = await recordMobileLoginAttemptFailure({
@@ -656,7 +778,6 @@ export async function createMobilePasswordSession(
     return null;
   }
 
-  const isPasswordValid = await comparePassword(input.password, user.passwordHash);
   if (!isPasswordValid || !isActiveMobileAuthUser(user)) {
     const failure = await recordMobileLoginAttemptFailure({
       email,
@@ -727,24 +848,7 @@ export async function createMobilePasswordSession(
   return response;
 }
 
-export async function registerMobilePasswordAccount(input: {
-  confirmPassword: string;
-  email: string;
-  locale?: "en" | "tr" | undefined;
-  password: string;
-  username: string;
-}) {
-  const email = normalizeMobileAuthEmail(input.email);
-  const locale = normalizeAppLocale(input.locale);
-  const username = input.username.trim();
-  if (input.password !== input.confirmPassword) {
-    throw new MobileNativeAuthError(
-      "PASSWORD_MISMATCH",
-      400,
-      "Password confirmation does not match.",
-    );
-  }
-
+async function findMobileRegistrationConflicts(email: string, username: string) {
   const [existingEmail, existingUsername] = await Promise.all([
     prisma.user.findUnique({
       where: { email },
@@ -763,17 +867,68 @@ export async function registerMobilePasswordAccount(input: {
     }),
   ]);
 
+  return { existingEmail, existingUsername };
+}
+
+export async function registerMobilePasswordAccount(
+  input: {
+    confirmPassword: string;
+    email: string;
+    locale?: "en" | "tr" | undefined;
+    password: string;
+    username: string;
+  },
+  options: MobileRegistrationOptions = {},
+) {
+  const email = normalizeMobileAuthEmail(input.email);
+  const locale = normalizeAppLocale(input.locale);
+  const username = input.username.trim();
+  if (input.password !== input.confirmPassword) {
+    throw new MobileNativeAuthError(
+      "PASSWORD_MISMATCH",
+      400,
+      "Password confirmation does not match.",
+    );
+  }
+
+  const { existingEmail, existingUsername } = await (
+    options.findRegistrationConflicts ?? findMobileRegistrationConflicts
+  )(email, username);
+
+  const registrationConflict = resolveRegistrationConflict({
+    emailExists: Boolean(existingEmail),
+    usernameExists: Boolean(existingUsername),
+  });
+
+  if (registrationConflict === "username_taken") {
+    throw new MobileNativeAuthError("USERNAME_TAKEN", 409, "This username is already taken.");
+  }
+
   if (existingEmail) {
     if (existingEmail.emailVerified) {
-      throw new MobileNativeAuthError(
-        "EMAIL_TAKEN",
-        409,
-        "An account with this email already exists.",
-      );
+      // Return the same accepted envelope as a new registration. Notification
+      // delivery stays best-effort so Resend health cannot become an oracle.
+      try {
+        await (options.notifyRegistrationAttempt ?? sendRegistrationAttemptEmail)(
+          existingEmail,
+          existingEmail.locale ?? locale,
+        );
+      } catch (error) {
+        logError("[mobile-auth] Registration-attempt email failed", error);
+      }
+
+      return MobileAuthRegisterResponseSchema.parse({
+        email,
+        message: "verification_email_sent",
+        status: "verification-required",
+      });
     }
 
     try {
-      await sendVerificationEmail(existingEmail, existingEmail.locale ?? locale);
+      await (options.sendVerification ?? sendVerificationEmail)(
+        existingEmail,
+        existingEmail.locale ?? locale,
+      );
     } catch (error) {
       throw mapMobileEmailSendError(error, "VERIFICATION_EMAIL_UNAVAILABLE");
     }
@@ -783,10 +938,6 @@ export async function registerMobilePasswordAccount(input: {
       message: "verification_email_sent",
       status: "verification-required",
     });
-  }
-
-  if (existingUsername) {
-    throw new MobileNativeAuthError("USERNAME_TAKEN", 409, "This username is already taken.");
   }
 
   const passwordHash = await bcrypt.hash(input.password, 12);
@@ -820,7 +971,7 @@ export async function registerMobilePasswordAccount(input: {
     await persistUserLocale(createdUser.id, locale);
 
     try {
-      await sendVerificationEmail(createdUser, locale);
+      await (options.sendVerification ?? sendVerificationEmail)(createdUser, locale);
     } catch (error) {
       await rollbackUnverifiedUser({
         email,
@@ -957,6 +1108,23 @@ export async function refreshMobileSession(refreshToken: string, options: Mobile
     await revokeMobileSession({ sessionId: rotation.sessionId }, options);
     return null;
   }
+  if (
+    !(await isMobileRefreshFamilyActive(redis, rotation, {
+      loadDurableRevokedAfter: async () => user.sessionsRevokedAfter ?? null,
+    }))
+  ) {
+    // Rotation alone cannot rehabilitate a family invalidated by a password
+    // reset. Remove the just-rotated state and return the same invalid result.
+    await revokeMobileSession({ sessionId: rotation.sessionId }, options);
+    return null;
+  }
+
+  const checkAuthSession =
+    options.isAuthSessionActive ?? (options.redis ? async () => null : isDurableAuthSessionActive);
+  if ((await checkAuthSession(rotation.userId, rotation.sessionId)) === false) {
+    await revokeMobileSession({ sessionId: rotation.sessionId }, options);
+    return null;
+  }
 
   return MobileAuthRefreshResponseSchema.parse({
     session: await createMobileSessionSnapshot(
@@ -990,10 +1158,32 @@ export async function revokeMobileSession(
 
 export async function isMobileAccessSessionActive(
   claims: MobileAccessTokenClaims,
-  options: Pick<MobileAuthOptions, "redis"> = {},
+  options: Pick<
+    MobileAuthOptions,
+    "isAuthSessionActive" | "loadSessionsRevokedAfter" | "redis"
+  > = {},
 ) {
   const redis = getMobileAuthRedis(options);
-  return isMobileRefreshFamilyActive(redis, claims);
+  const loadDurableRevokedAfter =
+    options.loadSessionsRevokedAfter ??
+    (options.redis
+      ? undefined
+      : async (userId: string) => {
+          const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { sessionsRevokedAfter: true },
+          });
+          return user?.sessionsRevokedAfter ?? null;
+        });
+  const checkAuthSession =
+    options.isAuthSessionActive ?? (options.redis ? async () => null : isDurableAuthSessionActive);
+  const [refreshFamilyActive, authSessionActive] = await Promise.all([
+    isMobileRefreshFamilyActive(redis, claims, {
+      ...(loadDurableRevokedAfter ? { loadDurableRevokedAfter } : {}),
+    }),
+    checkAuthSession(claims.userId, claims.sessionId),
+  ]);
+  return refreshFamilyActive && authSessionActive !== false;
 }
 
 export function verifyMobileAccessToken(

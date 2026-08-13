@@ -179,6 +179,7 @@ export function ChannelItem({
             <button
               aria-label={t("shell.channelItem.edit", { name })}
               className="text-app-muted rounded-lg p-1 transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-[hsl(var(--foreground))]"
+              data-channel-edit-name={name}
               onClick={onEdit}
               type="button"
             >

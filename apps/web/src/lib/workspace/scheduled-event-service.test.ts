@@ -6,6 +6,7 @@ import {
   buildServerScheduledEvent,
   cancelServerScheduledEventWithDatabase,
   getUpcomingServerScheduledEventWithDatabase,
+  listServerScheduledEventsWithDatabase,
   setServerScheduledEventInterestWithDatabase,
 } from "@/lib/workspace/scheduled-event-service";
 
@@ -96,6 +97,31 @@ describe("getUpcomingServerScheduledEventWithDatabase", () => {
     const database = { scheduledEvent: { findFirst: async () => null } } as never;
 
     assert.equal(await getUpcomingServerScheduledEventWithDatabase(database, "s1", null), null);
+  });
+});
+
+describe("listServerScheduledEventsWithDatabase", () => {
+  it("bounds a page and starts strictly after its keyset cursor", async () => {
+    let captured: Record<string, unknown> | null = null;
+    const database = {
+      scheduledEvent: {
+        findMany: async (args: Record<string, unknown>) => {
+          captured = args;
+          return [buildRow({ id: "e2" })];
+        },
+      },
+    } as never;
+
+    const events = await listServerScheduledEventsWithDatabase(database, "s1", "u1", {
+      cursor: "e1",
+      includePast: true,
+      limit: 25,
+    });
+
+    assert.equal(events[0]?.id, "e2");
+    assert.equal((captured as unknown as { take: number }).take, 25);
+    assert.equal((captured as unknown as { skip: number }).skip, 1);
+    assert.deepEqual((captured as unknown as { cursor: unknown }).cursor, { id: "e1" });
   });
 });
 

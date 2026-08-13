@@ -40,6 +40,7 @@ const FOUNDER_ENTRY_THRESHOLD = BADGE_CATALOG.founder.thresholds[0] as number;
 export type BadgeSweepStore = BadgeStore & {
   moderationCase: Pick<PrismaClient["moderationCase"], "findMany">;
   server: Pick<PrismaClient["server"], "findMany">;
+  userBadge: BadgeStore["userBadge"] & Pick<PrismaClient["userBadge"], "count">;
 };
 
 const defaultSweepStore = prisma as unknown as BadgeSweepStore;
@@ -79,24 +80,33 @@ async function sweepFounderBadges(
   store: BadgeSweepStore,
   dependencies: BadgeSweepDependencies,
 ): Promise<number> {
-  const servers = await store.server.findMany({
-    select: { _count: { select: { members: true } }, ownerId: true },
+  const holders = await store.userBadge.findMany({
+    where: { badge: "founder" },
+    select: { revokeReason: true, revokedAt: true, tier: true, userId: true },
   });
+  const holderIds = holders.map((row) => row.userId);
+  const qualifyingServers = await store.server.findMany({
+    where: { memberCount: { gte: FOUNDER_ENTRY_THRESHOLD } },
+    select: { memberCount: true, ownerId: true },
+  });
+  const holderServers =
+    holderIds.length === 0
+      ? []
+      : await store.server.findMany({
+          where: { ownerId: { in: holderIds } },
+          select: { memberCount: true, ownerId: true },
+        });
 
   // 00 §4: the threshold must be met by a single server, so the counts of the
   // servers somebody owns are compared, never summed.
   const largestOwnedServer = new Map<string, number>();
-  for (const server of servers) {
-    const members = server._count.members;
+  for (const server of [...qualifyingServers, ...holderServers]) {
+    const members = server.memberCount;
     if (members > (largestOwnedServer.get(server.ownerId) ?? 0)) {
       largestOwnedServer.set(server.ownerId, members);
     }
   }
 
-  const holders = await store.userBadge.findMany({
-    where: { badge: "founder" },
-    select: { revokeReason: true, revokedAt: true, tier: true, userId: true },
-  });
   const holderById = new Map(holders.map((row) => [row.userId, row]));
 
   // Owners who could newly qualify, plus everyone who already holds the badge
@@ -158,6 +168,7 @@ async function sweepFounderBadges(
 
 async function sweepModerationRevocations(
   now: Date,
+  lastSweepAt: Date | undefined,
   store: BadgeSweepStore,
   dependencies: BadgeSweepDependencies,
 ): Promise<number> {
@@ -165,6 +176,7 @@ async function sweepModerationRevocations(
     where: {
       status: "ACTIONED",
       subjectId: { not: null },
+      ...(lastSweepAt ? { updatedAt: { gte: lastSweepAt } } : {}),
     },
     distinct: ["subjectId"],
     select: { subjectId: true },
@@ -178,10 +190,28 @@ async function sweepModerationRevocations(
   }
 
   let revoked = 0;
+  const verifiedRevocations =
+    subjects.size === 0
+      ? []
+      : await store.userBadge.findMany({
+          where: {
+            badge: "verified",
+            revokeReason: MODERATION_REVOKE_REASON,
+            revokedAt: { not: null },
+            userId: { in: [...subjects] },
+          },
+          select: { userId: true },
+        });
+  const verifiedAlreadyRevoked = new Set(verifiedRevocations.map((row) => row.userId));
 
   for (const userId of subjects) {
+    // Derived `verified` uses an upsert marker. Rewriting that marker every
+    // hour made an idempotent sweep report a fresh revocation forever.
+    const badges = verifiedAlreadyRevoked.has(userId)
+      ? BADGES_REVOKED_ON_MODERATION_ACTION.filter((badge) => badge !== "verified")
+      : BADGES_REVOKED_ON_MODERATION_ACTION;
     revoked += await dependencies.revokeBadges({
-      badges: BADGES_REVOKED_ON_MODERATION_ACTION,
+      badges,
       now,
       reason: MODERATION_REVOKE_REASON,
       store,
@@ -198,16 +228,13 @@ async function sweepModerationRevocations(
  * that the grant once existed.
  */
 async function countExpiredEventBadges(now: Date, store: BadgeSweepStore): Promise<number> {
-  const rows = await store.userBadge.findMany({
+  return store.userBadge.count({
     where: { badge: "event", expiresAt: { lt: now }, revokedAt: null },
-    select: { id: true },
   });
-
-  return rows.length;
 }
 
 export async function sweepBadges(
-  args: { now?: Date; store?: BadgeSweepStore },
+  args: { lastSweepAt?: Date; now?: Date; store?: BadgeSweepStore },
   /** Merged over the defaults so a caller can replace one job in isolation. */
   overrides: Partial<BadgeSweepDependencies> = {},
 ): Promise<BadgeSweepResult> {
@@ -216,7 +243,7 @@ export async function sweepBadges(
   const dependencies: BadgeSweepDependencies = { ...defaultDependencies, ...overrides };
 
   const founderUpdated = await sweepFounderBadges(now, store, dependencies);
-  const revoked = await sweepModerationRevocations(now, store, dependencies);
+  const revoked = await sweepModerationRevocations(now, args.lastSweepAt, store, dependencies);
   const expired = await countExpiredEventBadges(now, store);
   // Counting holders is the one aggregate in the badge system. It stays here,
   // behind a daily guard, so no request ever pays for it. A failure is swallowed

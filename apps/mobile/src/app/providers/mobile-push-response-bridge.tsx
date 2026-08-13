@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { resolveMobileRoutePathIntent } from "../../navigation/mobile-linking";
 import { navigateMobileRouteIntent } from "../../navigation/mobile-navigation-ref";
 import { startMobilePushResponseRuntime } from "../../notifications/mobile-push-response-runtime";
@@ -30,16 +30,21 @@ function navigatePushPathWhenReady(path: string, attempt = 0): void {
  */
 export function MobilePushResponseBridge() {
   const { emitDMCallDecline } = useMobileRealtimeRuntime();
+  const emitDMCallDeclineRef = useRef(emitDMCallDecline);
+
+  useLayoutEffect(() => {
+    emitDMCallDeclineRef.current = emitDMCallDecline;
+  });
 
   useEffect(
     () =>
       startMobilePushResponseRuntime({
         declineDMCall: (conversationId, fromUserId) => {
-          emitDMCallDecline({ conversationId, fromUserId });
+          emitDMCallDeclineRef.current({ conversationId, fromUserId });
         },
         navigateToPath: navigatePushPathWhenReady,
       }),
-    [emitDMCallDecline],
+    [],
   );
 
   return null;

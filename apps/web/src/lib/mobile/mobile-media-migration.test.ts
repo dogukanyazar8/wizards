@@ -3,9 +3,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
 
+// Pre-rebaseline history now lives outside Prisma's read path, so a migration
+// dropped in the old folder can never silently go unapplied. This SQL is long
+// since applied; the archive keeps the shape it was applied with assertable.
 const migrationPath = resolve(
   process.cwd(),
-  "../../packages/db/prisma/migrations/20260713120000_add_mobile_media_upload_claims/migration.sql",
+  "../../packages/db/prisma/_archive-pre-rebaseline/migrations/20260713120000_add_mobile_media_upload_claims/migration.sql",
 );
 
 function readMigrationSql() {

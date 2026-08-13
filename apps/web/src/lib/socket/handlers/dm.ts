@@ -26,7 +26,11 @@ import {
 } from "@/lib/mobile/push-sender";
 import type { HandlerContext } from "@/lib/socket/context";
 import { createDMErrorEmitter, createSafeDMErrorEmitter } from "@/lib/socket/errors";
-import { checkDMMessageRateLimits, shouldLogRateLimitUnavailable } from "@/lib/socket/rate-limits";
+import {
+  checkDMDeliveryAckRateLimit,
+  checkDMMessageRateLimits,
+  shouldLogRateLimitUnavailable,
+} from "@/lib/socket/rate-limits";
 import {
   parseSocketPayload,
   SocketConversationPayloadSchema,
@@ -45,14 +49,6 @@ import type { SocketHandlerRegistration } from ".";
 
 /** How long an unanswered DM call keeps ringing before both sides give up. */
 const DM_CALL_RING_TTL_MS = 45_000;
-
-/**
- * Floor between two delivery acknowledgements for the same conversation on one
- * connection. The client already debounces bursts; this is the server-side
- * guard, and a dropped ack costs nothing because the next message (or the next
- * conversation-list read) marks the same thing.
- */
-const DM_DELIVERY_ACK_MIN_INTERVAL_MS = 1_000;
 
 /**
  * Rings every callee's mobile devices alongside the socket signal. Exported for
@@ -98,6 +94,22 @@ export async function sendDMCallPush(args: {
 export function registerDMHandlers(
   ctx: HandlerContext,
   options: {
+    checkDeliveryAckRateLimit?: typeof checkDMDeliveryAckRateLimit;
+    isParticipant?: typeof isDMParticipant;
+    leaveCall?: typeof leaveGroupCall;
+    loadParticipants?: (conversationId: string) => Promise<
+      Array<{
+        notifyLevel: "ALL" | "MENTIONS" | "NONE";
+        userId: string;
+        user: {
+          avatarUrl: string | null;
+          displayName: string | null;
+          locale: string | null;
+          username: string;
+        };
+      }>
+    >;
+    recordDelivery?: typeof recordDirectMessageDelivery;
     stopDMTyping?: (conversationId: string) => Promise<void>;
   } = {},
 ): SocketHandlerRegistration {
@@ -105,24 +117,32 @@ export function registerDMHandlers(
   const emitDMError = createDMErrorEmitter(socket);
   const emitSafeDMError = createSafeDMErrorEmitter(socket);
 
-  async function getAuthorizedDMParticipants(conversationId: string) {
-    const participants = await prisma.dMParticipant.findMany({
-      where: { conversationId },
-      select: {
-        // E5. Rides the roster read the ring already does, so deciding who is
-        // allowed to be rung costs nothing extra.
-        notifyLevel: true,
-        userId: true,
-        user: {
+  async function loadDMParticipants(conversationId: string) {
+    return await (
+      options.loadParticipants ??
+      (async (id: string) =>
+        await prisma.dMParticipant.findMany({
+          where: { conversationId: id },
           select: {
-            avatarUrl: true,
-            displayName: true,
-            locale: true,
-            username: true,
+            // E5. Rides the roster read the ring already does, so deciding who is
+            // allowed to be rung costs nothing extra.
+            notifyLevel: true,
+            userId: true,
+            user: {
+              select: {
+                avatarUrl: true,
+                displayName: true,
+                locale: true,
+                username: true,
+              },
+            },
           },
-        },
-      },
-    });
+        }))
+    )(conversationId);
+  }
+
+  async function getAuthorizedDMParticipants(conversationId: string) {
+    const participants = await loadDMParticipants(conversationId);
 
     if (!participants.some((participant) => participant.userId === userId)) {
       return null;
@@ -130,9 +150,6 @@ export function registerDMHandlers(
 
     return participants;
   }
-
-  /** Last delivery acknowledgement per conversation on this connection. */
-  const deliveryAckAtByConversation = new Map<string, number>();
 
   async function requireUnblockedDMParticipants(conversationId: string) {
     const participants = await getAuthorizedDMParticipants(conversationId);
@@ -262,14 +279,33 @@ export function registerDMHandlers(
   socket.on("dm:message:delivered", async (rawData) => {
     try {
       const data = parseSocketPayload(SocketConversationPayloadSchema, rawData);
-      const now = Date.now();
-      const lastAckAt = deliveryAckAtByConversation.get(data.conversationId) ?? 0;
-      if (now - lastAckAt < DM_DELIVERY_ACK_MIN_INTERVAL_MS) {
+      const rateLimitResult = await (
+        options.checkDeliveryAckRateLimit ?? checkDMDeliveryAckRateLimit
+      )({
+        redis: rateRedis,
+        userId,
+      });
+
+      if (rateLimitResult.status === "limited") {
         return;
       }
-      deliveryAckAtByConversation.set(data.conversationId, now);
 
-      await recordDirectMessageDelivery(userId, [data.conversationId]);
+      if (rateLimitResult.status === "unavailable") {
+        if (shouldLogRateLimitUnavailable("dm-delivery")) {
+          logError(
+            "[socket] DM delivery rate limit unavailable; dropping acknowledgement",
+            rateLimitResult.error,
+          );
+        }
+        return;
+      }
+
+      if (!(await (options.isParticipant ?? isDMParticipant)(userId, data.conversationId))) {
+        emitDMError("FORBIDDEN", "You are not a participant in this DM");
+        return;
+      }
+
+      await (options.recordDelivery ?? recordDirectMessageDelivery)(userId, [data.conversationId]);
     } catch (error) {
       emitSafeDMError("FORBIDDEN", "Unable to record DM delivery.", error);
     }
@@ -384,15 +420,16 @@ export function registerDMHandlers(
   socket.on("dm:call:leave", async (rawData) => {
     try {
       const data = parseSocketPayload(SocketConversationPayloadSchema, rawData);
-      const participants = await requireUnblockedDMParticipants(data.conversationId);
-      if (!participants) {
-        emitDMError("FORBIDDEN", "You are not a participant in this DM");
-        return;
-      }
-
+      // Leaving is idempotent and safe even after a kick or block. Cleaning the
+      // Redis roster first prevents a removed member becoming a permanent ghost.
       joinedCallConversationIds.delete(data.conversationId);
-      const state = await leaveGroupCall(data.conversationId, userId);
+      const state = await (options.leaveCall ?? leaveGroupCall)(data.conversationId, userId);
+      const participants = await loadDMParticipants(data.conversationId);
       const participantUserIds = participants.map((participant) => participant.userId);
+
+      if (!participantUserIds.includes(userId)) {
+        emitDMError("FORBIDDEN", "You are not a participant in this DM");
+      }
 
       broadcastGroupCallState(data.conversationId, participantUserIds, state);
 

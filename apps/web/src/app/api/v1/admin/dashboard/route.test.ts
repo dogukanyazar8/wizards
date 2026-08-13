@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it, mock } from "node:test";
+import type { AdminRole } from "@wizards/db";
 import { ApiError, jsonError } from "@/lib/api";
 import { getAdminDashboardRoute } from "./route-logic";
 
@@ -16,7 +17,7 @@ function routeDependencies(overrides: Partial<Parameters<typeof getAdminDashboar
       username: "admin",
     }),
     enforceApiRateLimit: async () => undefined,
-    getAdminDashboardSnapshot: async (days: number) => ({
+    getAdminDashboardSnapshot: async (days: number, _role: AdminRole) => ({
       generatedAt: "2026-07-09T00:00:00.000Z",
       range: { days },
     }),
@@ -44,8 +45,8 @@ describe("admin dashboard API route", () => {
         enforceApiRateLimit: async (userId, action) => {
           calls.push(`rate:${userId}:${action}`);
         },
-        getAdminDashboardSnapshot: async (days) => {
-          calls.push(`snapshot:${days}`);
+        getAdminDashboardSnapshot: async (days, role) => {
+          calls.push(`snapshot:${days}:${role}`);
           return {
             generatedAt: "2026-07-09T00:00:00.000Z",
             range: { days },
@@ -78,7 +79,7 @@ describe("admin dashboard API route", () => {
       "auth",
       "rate:admin-1:admin:dashboard",
       "normalize:90",
-      "snapshot:90",
+      "snapshot:90:OWNER",
     ]);
   });
 

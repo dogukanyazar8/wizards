@@ -3,10 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
-import type {
-  MobileMediaClaimResponse,
-  MobileMediaUploadCompletionResponse,
-} from "@wizards/types";
+import type { MobileMediaClaimResponse, MobileMediaUploadCompletionResponse } from "@wizards/types";
 
 import {
   MOBILE_UPLOAD_MESSAGES,
@@ -78,6 +75,64 @@ function assertSafeMessage(message: string) {
 }
 
 describe("mobile image upload service", () => {
+  it("aborts a stalled upload as an error and clears the optimized temporary file", async () => {
+    const removed: string[] = [];
+    let receivedSignal: AbortSignal | undefined;
+    const outcome = await executeMobileImageUpload({
+      dependencies: createDependencies({
+        createWatchdog: (options) => {
+          queueMicrotask(() => options.onExpire("preparing"));
+          return { progress: () => undefined, stage: "preparing", stop: () => undefined };
+        },
+        pickImage: async () => ({
+          ...pickedImage,
+          temporaryFileUri: "file:///cache/optimized-avatar.jpg",
+        }),
+        removeTemporaryFile: async (uri) => {
+          removed.push(uri);
+        },
+        uploadFile: async ({ signal }) => {
+          receivedSignal = signal;
+          return await new Promise((_, reject) => {
+            signal?.addEventListener(
+              "abort",
+              () => reject(Object.assign(new Error("watchdog"), { name: "AbortError" })),
+              { once: true },
+            );
+          });
+        },
+      }),
+      onLocalPreview: () => undefined,
+      target: profileTarget,
+    });
+
+    assert.equal(receivedSignal?.aborted, true);
+    assert.deepEqual(outcome, { message: MOBILE_UPLOAD_MESSAGES.failed, status: "error" });
+    assert.deepEqual(removed, ["file:///cache/optimized-avatar.jpg"]);
+  });
+
+  it("feeds upload progress to the watchdog", async () => {
+    const progress: Array<{ loaded: number; total: number }> = [];
+    const outcome = await executeMobileImageUpload({
+      dependencies: createDependencies({
+        createWatchdog: () => ({
+          progress: (input) => progress.push(input),
+          stage: "preparing",
+          stop: () => undefined,
+        }),
+        uploadFile: async ({ onProgress }) => {
+          onProgress?.({ loaded: 50, total: 100 });
+          return profileCompletion;
+        },
+      }),
+      onLocalPreview: () => undefined,
+      target: profileTarget,
+    });
+
+    assert.equal(outcome.status, "claimed");
+    assert.deepEqual(progress, [{ loaded: 50, total: 100 }]);
+  });
+
   it("picks, previews, obtains one token, uploads, then claims only the opaque claim id", async () => {
     const events: string[] = [];
     const claims: unknown[] = [];
@@ -179,7 +234,8 @@ describe("mobile image upload service", () => {
       target: profileTarget,
     });
 
-    assert.equal(forwardedSignal, controller.signal);
+    assert.notEqual(forwardedSignal, controller.signal);
+    assert.equal(forwardedSignal?.aborted, true);
     assert.deepEqual(outcome, { status: "cancelled" });
     assert.equal(claimRequests, 0);
   });
@@ -192,7 +248,10 @@ describe("mobile image upload service", () => {
     });
     const claimMismatch = await executeMobileImageUpload({
       dependencies: createDependencies({
-        claimUpload: async () => ({ ...serverClaim, server: { ...serverClaim.server, id: "server-2" } }),
+        claimUpload: async () => ({
+          ...serverClaim,
+          server: { ...serverClaim.server, id: "server-2" },
+        }),
         uploadFile: async () => serverCompletion,
       }),
       onLocalPreview: () => undefined,
@@ -229,7 +288,10 @@ describe("mobile image upload service", () => {
   });
 
   it("keeps the hook scoped to auth-owned clients and one abortable active operation", () => {
-    const source = readFileSync(join(process.cwd(), "src", "media", "use-mobile-image-upload.ts"), "utf8");
+    const source = readFileSync(
+      join(process.cwd(), "src", "media", "use-mobile-image-upload.ts"),
+      "utf8",
+    );
 
     assert.match(source, /useMobileAuth\(\)/);
     assert.match(source, /claimMobileMediaUpload/);

@@ -348,12 +348,10 @@ export function useMobileGroupMutations(client: MobileApiClient, viewerId?: stri
    * Removing yourself is leaving, and the details read requires participation —
    * refetching it would only earn a 403. The inbox row still has to go.
    *
-   * It is deliberately **not** awaited on that branch. React Query resolves
-   * `mutateAsync` only after `onSuccess` settles, so returning the invalidation
-   * held the caller — every leave handler navigates in its `.then` — on screen
-   * for a second round trip, showing the reader the group chat they had just
-   * left. Nothing they are about to look at depends on that refetch landing
-   * first; the inbox they are being sent to re-renders when it does.
+   * Navigation-triggering writes deliberately do not return invalidation
+   * promises. React Query resolves `mutateAsync` only after `onSuccess` settles;
+   * awaiting a refetch kept the reader on the screen they had just left or
+   * joined. The destination re-renders when the background refresh lands.
    */
   const refreshAfterRemoval = (conversationId: string, removedUserId: string) => {
     if (viewerId !== undefined && removedUserId === viewerId) {
@@ -368,7 +366,9 @@ export function useMobileGroupMutations(client: MobileApiClient, viewerId?: stri
     addMembers: useMutation({
       mutationFn: (input: { conversationId: string; userIds: readonly string[] }) =>
         addMobileGroupMembers(client, input.conversationId, input.userIds),
-      onSuccess: (_data, input) => refreshConversationAndDetails(input.conversationId),
+      onSuccess: (_data, input) => {
+        void refreshConversationAndDetails(input.conversationId);
+      },
     }),
     create: useMutation({
       mutationFn: (input: GroupDMCreateRequest) => createMobileGroup(client, input),
@@ -382,7 +382,9 @@ export function useMobileGroupMutations(client: MobileApiClient, viewerId?: stri
     setMuted: useMutation({
       mutationFn: (input: { conversationId: string; muted: boolean }) =>
         setMobileDMMuted(client, input.conversationId, input.muted),
-      onSuccess: (_data, input) => refreshConversationAndDetails(input.conversationId),
+      onSuccess: (_data, input) => {
+        void refreshConversationAndDetails(input.conversationId);
+      },
     }),
     removeMember: useMutation({
       mutationFn: (input: {
@@ -401,7 +403,9 @@ export function useMobileGroupMutations(client: MobileApiClient, viewerId?: stri
     update: useMutation({
       mutationFn: (input: { conversationId: string; patch: GroupDMUpdateRequest }) =>
         updateMobileGroup(client, input.conversationId, input.patch),
-      onSuccess: (_data, input) => refreshConversationAndDetails(input.conversationId),
+      onSuccess: (_data, input) => {
+        void refreshConversationAndDetails(input.conversationId);
+      },
     }),
   };
 }
@@ -466,10 +470,7 @@ export const MOBILE_GROUP_INVALIDATIONS = {
     mobileQueryKeys.groupDetails(conversationId),
     mobileQueryKeys.dmMessages(conversationId),
   ],
-  role: (conversationId: string) => [
-    mobileQueryKeys.groupDetails(conversationId),
-    mobileQueryKeys.groupMembers(conversationId),
-  ],
+  role: (conversationId: string) => [mobileQueryKeys.groupDetails(conversationId)],
   settings: (conversationId: string) => [mobileQueryKeys.groupDetails(conversationId)],
 } as const;
 
@@ -516,7 +517,9 @@ export function useMobileGroupSettingsMutations(client: MobileApiClient) {
     }),
     joinViaInvite: useMutation({
       mutationFn: (input: { code: string }) => joinMobileGroupViaInvite(client, input.code),
-      onSuccess: (result) => invalidate(MOBILE_GROUP_INVALIDATIONS.join(result.conversation.id)),
+      onSuccess: (result) => {
+        void invalidate(MOBILE_GROUP_INVALIDATIONS.join(result.conversation.id));
+      },
     }),
     rotateInvite: useMutation({
       mutationFn: (input: { conversationId: string }) =>

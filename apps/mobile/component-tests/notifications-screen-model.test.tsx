@@ -1,4 +1,4 @@
-import { describe, expect, it } from "@jest/globals";
+import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import type { MobileNotificationItem } from "@wizards/types";
 import {
   getMobileNotificationPresentation,
@@ -40,6 +40,10 @@ const reaction = { ...todayMention, eventKind: "message-reaction" as const };
 const serverMemberJoined = { ...todayMention, eventKind: "server-member-joined" as const };
 
 describe("1d notification presentation model", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it("groups only real notifications by their local calendar day", () => {
     expect(groupMobileNotificationsByDay([todayMention, yesterdayInvite], now)).toEqual([
       { label: "BUGÜN", notifications: [todayMention] },
@@ -58,6 +62,21 @@ describe("1d notification presentation model", () => {
         "en",
       )[0]?.label,
     ).toBe("MAY 4, 2026");
+  });
+
+  it("reuses one old-date formatter for every notification in the same locale", () => {
+    const DateTimeFormat = Intl.DateTimeFormat;
+    const formatterSpy = jest
+      .spyOn(Intl, "DateTimeFormat")
+      .mockImplementation((...args) => new DateTimeFormat(...args));
+    const oldNotifications = [
+      { ...todayMention, createdAt: "2026-05-04T10:00:00.000Z", id: "old-1" },
+      { ...todayMention, createdAt: "2026-05-03T10:00:00.000Z", id: "old-2" },
+    ] as MobileNotificationItem[];
+
+    groupMobileNotificationsByDay(oldNotifications, now, "tr");
+
+    expect(formatterSpy).toHaveBeenCalledTimes(1);
   });
 
   it("derives mention presentation from the typed API record without parsing copy", () => {

@@ -546,6 +546,7 @@ export function DMComposer({
           pickAttachment: async () => outcome.attachment,
           uploadAttachment: uploadMobileMessageAttachmentToUploadThing,
         },
+        removePickedFileOnReady: true,
       });
       setChannelAttachmentUploading(false);
       if (upload.status === "ready") {

@@ -6,6 +6,7 @@ import {
   MobileAuthLoginScreenContainer,
   MobileAuthRegisterScreenContainer,
   MobileAuthSessionCheckingContainer,
+  MobileAuthSessionErrorContainer,
   MobileAuthWelcomeScreenContainer,
 } from "../app/screens/auth/mobile-auth-screen-containers";
 import type { MobileAuthStackParamList } from "./mobile-auth-navigation-types";
@@ -13,7 +14,7 @@ import type { MobileAuthStackParamList } from "./mobile-auth-navigation-types";
 const AuthStack = createNativeStackNavigator<MobileAuthStackParamList>();
 
 export interface MobileAuthNavigatorProps {
-  readonly reason: "auth-required" | "checking";
+  readonly reason: "auth-required" | "checking" | "session-error";
 }
 
 export function MobileAuthNavigator({ reason }: MobileAuthNavigatorProps) {
@@ -21,6 +22,10 @@ export function MobileAuthNavigator({ reason }: MobileAuthNavigatorProps) {
 
   if (reason === "checking") {
     return <MobileAuthSessionCheckingContainer />;
+  }
+
+  if (reason === "session-error") {
+    return <MobileAuthSessionErrorContainer />;
   }
 
   return (

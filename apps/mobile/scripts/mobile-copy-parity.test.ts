@@ -19,6 +19,8 @@ const TURKISH_LETTERS = /[çğıöşüÇĞİÖŞÜ]/;
  */
 const SHARED_BY_DESIGN = new Set([
   "authWelcomeCopyrightTemplate",
+  "securitySettingsSessionClientDesktop",
+  "securitySettingsSessionClientMobile",
   "sharedMediaVideoLabelTemplate",
   // "{name} · {px} px" — a step name, a number and the unit symbol. "px" is not
   // translated in either language, so the two dictionaries are identical on

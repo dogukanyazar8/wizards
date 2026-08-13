@@ -71,9 +71,9 @@ const defaultDependencies: MobilePasswordRouteDependencies = {
 };
 
 /**
- * Changing the password revokes the NextAuth (web) sessions of the account. The
- * caller's own mobile session lives in Redis under `auth:mobile-session:*` and is
- * deliberately left intact, so the device that made the change stays signed in.
+ * Changing the password advances the account-wide revocation timestamp. Mobile
+ * refresh families compare their creation time with that same marker, so a
+ * password change cannot leave an older device session alive.
  */
 export async function mobileAccountPasswordChangeRoute(
   request: Request,
@@ -90,11 +90,7 @@ export async function mobileAccountPasswordChangeRoute(
     }
 
     if (!user.passwordHash) {
-      throw new ApiError(
-        "This account does not use a password.",
-        409,
-        "PASSWORD_UNAVAILABLE",
-      );
+      throw new ApiError("This account does not use a password.", 409, "PASSWORD_UNAVAILABLE");
     }
 
     const isCurrentPasswordValid = await dependencies.comparePassword(
@@ -106,7 +102,11 @@ export async function mobileAccountPasswordChangeRoute(
     }
 
     const now = new Date();
-    await dependencies.savePassword(userId, await dependencies.hashPassword(input.newPassword), now);
+    await dependencies.savePassword(
+      userId,
+      await dependencies.hashPassword(input.newPassword),
+      now,
+    );
     await dependencies.revokeSessions(userId, now);
 
     return Response.json(MobilePasswordChangeResponseSchema.parse({ success: true }), {

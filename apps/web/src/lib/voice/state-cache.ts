@@ -6,6 +6,7 @@ export function mapVoiceStateCache(
   participants: Array<{
     avatarUrl: string | null;
     displayName: string | null;
+    isDeafened?: boolean;
     isScreenSharing?: boolean;
     userId: string;
     username: string;
@@ -23,7 +24,10 @@ export function mapVoiceStateCache(
 
   const nextState: VoiceChannelStateDTO = {
     channelId,
-    participants,
+    participants: participants.map((participant) => ({
+      ...participant,
+      isDeafened: participant.isDeafened ?? false,
+    })),
   };
 
   if (existingIndex >= 0) {

@@ -45,6 +45,7 @@ export function MobileChannelSettingsScreen({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const submitRef = useRef(false);
+  const appliedChannelIdRef = useRef<string | null>(null);
   const detail = workspace.data?.detail;
   const channel = useMemo(
     () =>
@@ -58,10 +59,12 @@ export function MobileChannelSettingsScreen({
   );
 
   useEffect(() => {
-    if (channel) {
+    if (channel && appliedChannelIdRef.current !== channel.id) {
+      // Refetches replace the channel object; reseeding on identity erased an in-progress draft.
       setName(channel.name);
       setTopic(channel.topic ?? "");
       setCategoryId(channel.categoryId ?? null);
+      appliedChannelIdRef.current = channel.id;
     }
   }, [channel]);
 

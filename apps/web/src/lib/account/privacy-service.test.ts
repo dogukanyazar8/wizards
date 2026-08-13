@@ -6,6 +6,8 @@ import {
   ACCOUNT_DELETION_CONFIRMATION,
   anonymizeAccount,
   buildDeletedAccountIdentity,
+  createAccountDataExportDocument,
+  collectAccountUploadThingFileKeys,
   extractUploadThingFileKey,
   serializeAccountDataExport,
 } from "./privacy-service";
@@ -23,6 +25,44 @@ function patchMethod(target: object, key: string, value: unknown, restores: Rest
 }
 
 describe("account privacy service", { concurrency: false }, () => {
+  it("captures every deduplicated UploadThing key before account rows are erased", () => {
+    assert.deepEqual(
+      collectAccountUploadThingFileKeys({
+        attachments: [
+          { thumbnailUrl: "https://utfs.io/f/thumb-1", url: "https://utfs.io/f/file-1" },
+          { thumbnailUrl: null, url: "https://utfs.io/f/file-1" },
+        ],
+        user: {
+          avatarUrl: "https://example.ufs.sh/f/avatar-1",
+          bannerUrl: "https://cdn.example.test/not-owned",
+        },
+      }),
+      ["avatar-1", "file-1", "thumb-1"],
+    );
+  });
+
+  it("versions server-backed account preferences as export schema 2", () => {
+    const payload = createAccountDataExportDocument({
+      exportedAt: new Date("2026-08-13T00:00:00.000Z"),
+      preferences: {
+        notificationSettings: null,
+        settings: {
+          dateFormat: "DMY",
+          interfaceDensity: "COMPACT",
+          presenceVisibility: "FRIENDS",
+          profileVisibility: "NOBODY",
+          timeFormat: "H24",
+          timeZone: "Europe/Istanbul",
+        },
+      },
+      user: { id: "user-1" },
+    });
+
+    assert.equal(payload.schemaVersion, 2);
+    assert.match(serializeAccountDataExport(payload), /"profileVisibility": "NOBODY"/);
+    assert.match(serializeAccountDataExport(payload), /"timeZone": "Europe\/Istanbul"/);
+  });
+
   it("builds stable non-identifying deleted account identities", () => {
     const identity = buildDeletedAccountIdentity("9b2f0d64-1111-4222-8333-abcdefabcdef");
 
@@ -160,10 +200,17 @@ describe("account privacy service", { concurrency: false }, () => {
 
     const genericDelegate = {
       async deleteMany() {},
+      async upsert() {
+        operations.push("outbox.upsert");
+      },
       async update() {},
       async updateMany() {},
     };
     const dependencies = {
+      async collectUploadThingFileKeys() {
+        operations.push("storage.collect");
+        return ["avatar-1", "attachment-1"];
+      },
       async clearRuntimeState(userId: string, serverIds: string[]) {
         operations.push("runtime.clear");
         assert.equal(userId, "user-1");
@@ -203,6 +250,13 @@ describe("account privacy service", { concurrency: false }, () => {
                     }
                   }
                   return { count: 3 };
+                },
+              },
+              mobilePushToken: {
+                async deleteMany(args: { where: { userId: string } }) {
+                  operations.push("mobilePushToken.deleteMany");
+                  assert.deepEqual(args.where, { userId: "user-1" });
+                  return { count: 1 };
                 },
               },
               serverMember: {
@@ -252,7 +306,15 @@ describe("account privacy service", { concurrency: false }, () => {
       const result = await anonymizeAccount("user-1", dependencies as never);
 
       assert.deepEqual(result, { deletedAt: now });
-      assert.ok(operations.indexOf("storage.delete") < operations.indexOf("transaction.begin"));
+      assert.ok(operations.indexOf("storage.collect") < operations.indexOf("transaction.begin"));
+      assert.ok(operations.indexOf("outbox.upsert") < operations.indexOf("transaction.commit"));
+      assert.ok(operations.indexOf("transaction.commit") < operations.indexOf("storage.delete"));
+      assert.ok(
+        operations.indexOf("mobilePushToken.deleteMany") < operations.indexOf("transaction.commit"),
+      );
+      assert.ok(
+        operations.indexOf("authSession.deleteMany") < operations.indexOf("transaction.commit"),
+      );
       assert.ok(operations.indexOf("media.schedule") < operations.indexOf("transaction.commit"));
       assert.ok(operations.indexOf("transaction.commit") < operations.indexOf("sessions.revoke"));
       // The affected server ids must be read before the membership rows are
@@ -292,5 +354,37 @@ describe("account privacy service", { concurrency: false }, () => {
         restore();
       }
     }
+  });
+
+  it("keeps storage intact when account anonymization rolls back", async () => {
+    let storageDeletes = 0;
+    const now = new Date("2026-08-12T12:00:00.000Z");
+
+    await assert.rejects(
+      anonymizeAccount("user-1", {
+        clearRuntimeState: async () => {},
+        client: {
+          $transaction: async () => {
+            throw new Error("deadlock");
+          },
+          user: {
+            findUnique: async () => ({
+              deletedAt: null,
+              id: "user-1",
+              ownedServers: [],
+              serverMembers: [],
+            }),
+          },
+        },
+        deleteUploadThingFiles: async () => {
+          storageDeletes += 1;
+        },
+        now: () => now,
+        revokeSessions: async () => {},
+      } as never),
+      /deadlock/,
+    );
+
+    assert.equal(storageDeletes, 0);
   });
 });

@@ -37,6 +37,25 @@ export type MobileNotificationPresentation = {
   readonly kind: MobileNotificationPresentationKind;
 };
 
+const notificationDateFormatters = new Map<MobileLocale, Intl.DateTimeFormat>();
+
+function getMobileNotificationDateFormatter(locale: MobileLocale): Intl.DateTimeFormat {
+  const cached = notificationDateFormatters.get(locale);
+  if (cached) {
+    return cached;
+  }
+
+  // Intl formatter construction is expensive on Hermes. Locale changes are
+  // rare, so keep one formatter per supported locale and reuse it for rows.
+  const formatter = new Intl.DateTimeFormat(getMobileIntlLocale(locale), {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  notificationDateFormatters.set(locale, formatter);
+  return formatter;
+}
+
 export function groupMobileNotificationsByDay(
   notifications: readonly MobileNotificationItem[],
   now: Date,
@@ -120,13 +139,7 @@ function getMobileNotificationDayLabel(date: Date, now: Date, locale: MobileLoca
     return copy.notificationsYesterday.toLocaleUpperCase(intlLocale);
   }
 
-  return new Intl.DateTimeFormat(intlLocale, {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  })
-    .format(date)
-    .toLocaleUpperCase(intlLocale);
+  return getMobileNotificationDateFormatter(locale).format(date).toLocaleUpperCase(intlLocale);
 }
 
 function isSameLocalDay(left: Date, right: Date): boolean {

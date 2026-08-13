@@ -9,6 +9,12 @@ import {
   type MobileImageUploadTarget,
   type MobilePickedImage,
 } from "./mobile-image-upload-contract";
+import {
+  createMobileUploadWatchdog,
+  type MobileUploadWatchdog,
+  type MobileUploadWatchdogOptions,
+} from "./mobile-upload-watchdog";
+import { deleteMobileTemporaryFile } from "./mobile-temporary-file";
 
 export const MOBILE_UPLOAD_MESSAGES = {
   busy: "An image upload is already in progress.",
@@ -23,11 +29,14 @@ export type MobileImageUploadOutcome =
 
 export interface MobileImageUploadDependencies {
   claimUpload(input: MobileMediaClaimRequest): Promise<MobileMediaClaimResponse>;
+  createWatchdog?(options: MobileUploadWatchdogOptions): MobileUploadWatchdog;
   getAccessToken(): Promise<string | null>;
   pickImage(): Promise<MobilePickedImage | null>;
+  removeTemporaryFile?(uri: string): void | Promise<void>;
   uploadFile(input: {
     accessToken: string;
     file: File;
+    onProgress?: (progress: { loaded: number; total: number }) => void;
     signal?: AbortSignal;
     target: MobileImageUploadTarget;
   }): Promise<MobileMediaUploadCompletionResponse>;
@@ -40,6 +49,11 @@ export async function executeMobileImageUpload(input: {
   target: MobileImageUploadTarget;
 }): Promise<MobileImageUploadOutcome> {
   let accessToken: string | null = null;
+  let picked: MobilePickedImage | null = null;
+  let watchdog: MobileUploadWatchdog | null = null;
+  let watchdogExpired = false;
+  let uploadController: AbortController | null = null;
+  let removeAbortForwarder: (() => void) | null = null;
 
   try {
     if (input.signal?.aborted) {
@@ -47,7 +61,7 @@ export async function executeMobileImageUpload(input: {
     }
 
     const target = parseMobileImageUploadTarget(input.target);
-    const picked = await input.dependencies.pickImage();
+    picked = await input.dependencies.pickImage();
 
     if (!picked || input.signal?.aborted) {
       return { status: "cancelled" };
@@ -69,13 +83,28 @@ export async function executeMobileImageUpload(input: {
       return { status: "cancelled" };
     }
 
+    uploadController = new AbortController();
+    const forwardAbort = () => uploadController?.abort();
+    input.signal?.addEventListener("abort", forwardAbort, { once: true });
+    removeAbortForwarder = () => input.signal?.removeEventListener("abort", forwardAbort);
+    watchdog = (input.dependencies.createWatchdog ?? createMobileUploadWatchdog)({
+      onExpire: () => {
+        watchdogExpired = true;
+        uploadController?.abort();
+      },
+    });
+
     const completion = await input.dependencies.uploadFile({
       accessToken,
       file: picked.file,
+      onProgress: (progress) => watchdog?.progress(progress),
       target,
-      ...(input.signal ? { signal: input.signal } : {}),
+      signal: uploadController.signal,
     });
 
+    if (watchdogExpired) {
+      return { message: MOBILE_UPLOAD_MESSAGES.failed, status: "error" };
+    }
     if (input.signal?.aborted) {
       return { status: "cancelled" };
     }
@@ -96,12 +125,23 @@ export async function executeMobileImageUpload(input: {
 
     return { response, status: "claimed" };
   } catch (error) {
+    if (watchdogExpired) {
+      return { message: MOBILE_UPLOAD_MESSAGES.failed, status: "error" };
+    }
     if (input.signal?.aborted || isAbortError(error)) {
       return { status: "cancelled" };
     }
 
     return { message: describeMobileUploadFailure(error), status: "error" };
   } finally {
+    watchdog?.stop();
+    removeAbortForwarder?.();
+    if (picked?.temporaryFileUri) {
+      await deleteMobileTemporaryFile(
+        picked.temporaryFileUri,
+        input.dependencies.removeTemporaryFile,
+      );
+    }
     accessToken = null;
   }
 }

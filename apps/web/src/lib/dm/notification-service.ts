@@ -91,6 +91,7 @@ export async function createDMMessageNotifications(args: {
   senderId: string;
   senderName: string;
 }) {
+  const mentionedUserIds = new Set(args.mentionedUserIds ?? []);
   const recipients = selectDMNotificationRecipients({
     ...(args.mentionedUserIds ? { mentionedUserIds: args.mentionedUserIds } : {}),
     participants: args.participants,
@@ -112,6 +113,9 @@ export async function createDMMessageNotifications(args: {
         metadata: {
           conversationId: args.conversationId,
           messageId: args.messageId,
+          // Notification rows are per recipient. Persisting this bit lets an
+          // atomic feed read retire that recipient's mention badge exactly once.
+          ...(mentionedUserIds.has(participant.userId) ? { mentioned: true } : {}),
           senderId: args.senderId,
         },
         title: translate(locale, "dm.notification.title", {

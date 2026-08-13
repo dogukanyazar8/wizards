@@ -11,6 +11,7 @@ import type { VoiceChannelStateDTO } from "./types";
 const participant = {
   avatarUrl: null,
   displayName: "Alice",
+  isDeafened: false,
   userId: "user-1",
   username: "alice",
 };

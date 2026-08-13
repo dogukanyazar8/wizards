@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
+import { publishMobileAccountDeletionReauth } from "../../account/mobile-account-deletion-reauth-session";
 import type { MobileDeepLinkParseResult } from "../../deep-link/mobile-deep-links";
 import { resolveMobileRoutePathIntent } from "../../navigation/mobile-linking";
 import { navigateMobileRouteIntent } from "../../navigation/mobile-navigation-ref";
@@ -47,6 +48,12 @@ export function MobileDeepLinkProvider({ children }: PropsWithChildren) {
         return;
       }
 
+      if (command.type === "account-delete-reauth") {
+        publishMobileAccountDeletionReauth(command.token);
+        navigatePath("/settings/data-account");
+        return;
+      }
+
       if (command.type === "dm-call-answer") {
         navigatePath(`/channels/@me/${command.conversationId}`);
 
@@ -66,6 +73,7 @@ export function MobileDeepLinkProvider({ children }: PropsWithChildren) {
       void completeAuthHandoff({
         callbackPath: command.callbackPath,
         handoffToken: command.token,
+        state: command.state,
       }).then((completed) => {
         navigatePath(completed ? command.callbackPath : "/settings");
       });

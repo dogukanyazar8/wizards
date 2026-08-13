@@ -359,8 +359,8 @@ describe("mobile friends route logic", () => {
     const response = await mobileFriendsListRoute(
       new Request("https://whispr.test/api/v1/mobile/friends"),
       dependencies({
-        resolveFriendActivity: async (userIds: string[]) => {
-          seen.push({ activity: userIds });
+        resolveFriendActivity: async (viewerId: string, userIds: string[]) => {
+          seen.push({ activity: { userIds, viewerId } });
           return new Map([
             [
               ada.id,
@@ -405,7 +405,7 @@ describe("mobile friends route logic", () => {
     assert.equal(body.pending.incoming[0]!.mutualServerName, "paycore");
     assert.equal(body.pending.incoming[0]!.viaUsername, "selin_qa");
     assert.deepEqual(seen, [
-      { activity: [ada.id] },
+      { activity: { userIds: [ada.id], viewerId: "user-1" } },
       { context: { userIds: [ada.id], viewerId: "user-1" } },
     ]);
   });

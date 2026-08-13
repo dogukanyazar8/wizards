@@ -19,6 +19,19 @@ export type CameraQualityTier = "h720" | "h1080";
 
 export const DEFAULT_CAMERA_QUALITY_TIER: CameraQualityTier = "h1080";
 
+export function applyVoiceAudioBitrate(
+  publishDefaults: TrackPublishDefaults,
+  audioBitrate: number,
+): TrackPublishDefaults {
+  return {
+    ...publishDefaults,
+    audioPreset: {
+      ...publishDefaults.audioPreset,
+      maxBitrate: audioBitrate,
+    },
+  };
+}
+
 /** VP9 buys ~30% bitrate efficiency over VP8 at the same perceived quality. */
 export const CAMERA_VIDEO_CODEC: VideoCodec = "vp9";
 

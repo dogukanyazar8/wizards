@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { getAuthSessionCookieConfig } from "@/lib/auth/session-cookies";
+import { expireAuthSessionCookies, getAuthSessionCookieConfig } from "@/lib/auth/session-cookies";
 import { WHISPR_REQUEST_PATHNAME_HEADER } from "@/lib/request-context";
 
 const REDIRECT_IF_AUTHENTICATED = new Set(["/login", "/register"]);
@@ -51,6 +51,7 @@ function isSameAllowedOrigin(value: string | null, allowedOrigins: string[]) {
 
 export function isMutatingApiRequestAllowed({
   allowedOrigins,
+  authorizationHeader,
   method,
   originHeader,
   pathname,
@@ -59,6 +60,7 @@ export function isMutatingApiRequestAllowed({
   secFetchSite,
 }: {
   allowedOrigins?: string[];
+  authorizationHeader?: string | null;
   method: string;
   originHeader?: string | null;
   pathname: string;
@@ -67,6 +69,17 @@ export function isMutatingApiRequestAllowed({
   secFetchSite?: string | null;
 }) {
   if (!isCsrfProtectedApiPath(pathname) || !UNSAFE_METHODS.has(method.toUpperCase())) {
+    return true;
+  }
+
+  const isMobileApiPath = pathname.startsWith("/api/v1/mobile/");
+  const isPublicMobileAuthPath = pathname.startsWith("/api/v1/mobile/auth/");
+  if (
+    isMobileApiPath &&
+    (isPublicMobileAuthPath || /^Bearer\s+\S+$/iu.test(authorizationHeader?.trim() ?? ""))
+  ) {
+    // Native auth endpoints have no ambient cookie authority; every other
+    // mobile mutation must present the Bearer credential its route validates.
     return true;
   }
 
@@ -83,7 +96,7 @@ export function isMutatingApiRequestAllowed({
     return isSameAllowedOrigin(refererHeader, origins);
   }
 
-  return true;
+  return false;
 }
 
 export function buildContentSecurityPolicy(
@@ -195,6 +208,19 @@ export function getAuthRouteRedirectPath({
   return null;
 }
 
+export function getAuthTokenDisposition(token: { revoked?: unknown; sub?: unknown } | null) {
+  const isAuthenticated = Boolean(
+    token && token.revoked !== true && typeof token.sub === "string" && token.sub.length > 0,
+  );
+
+  return {
+    isAuthenticated,
+    // A decoded shell with no identity is not a session. Expire it so `/login`
+    // stays anonymous instead of bouncing back to the protected application.
+    shouldExpireCookies: Boolean(token) && !isAuthenticated,
+  };
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
@@ -209,6 +235,7 @@ export async function proxy(request: NextRequest) {
     if (
       !isMutatingApiRequestAllowed({
         allowedOrigins: getAllowedRequestOrigins(request.nextUrl.origin),
+        authorizationHeader: request.headers.get("authorization"),
         method: request.method,
         originHeader: request.headers.get("origin"),
         pathname,
@@ -239,6 +266,7 @@ export async function proxy(request: NextRequest) {
   }
 
   let isAuthenticated = false;
+  let shouldExpireCookies = false;
   try {
     if (secret) {
       const sessionCookie = getAuthSessionCookieConfig();
@@ -248,7 +276,9 @@ export async function proxy(request: NextRequest) {
         secureCookie: sessionCookie.secureCookie,
         secret,
       });
-      isAuthenticated = Boolean(token);
+      const disposition = getAuthTokenDisposition(token);
+      isAuthenticated = disposition.isAuthenticated;
+      shouldExpireCookies = disposition.shouldExpireCookies;
     }
   } catch {
     // Token parsing failures remain unauthenticated; protected routes fail closed below.
@@ -261,22 +291,22 @@ export async function proxy(request: NextRequest) {
     pathname,
   });
   if (authRedirectPath) {
-    return attachSecurityHeaders(
-      NextResponse.redirect(new URL(authRedirectPath, request.nextUrl.origin)),
-      cspHeader,
-      nonce,
-    );
+    const response = NextResponse.redirect(new URL(authRedirectPath, request.nextUrl.origin));
+    if (shouldExpireCookies) {
+      expireAuthSessionCookies(response.cookies);
+    }
+    return attachSecurityHeaders(response, cspHeader, nonce);
   }
 
-  return attachSecurityHeaders(
-    NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    }),
-    cspHeader,
-    nonce,
-  );
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+  if (shouldExpireCookies) {
+    expireAuthSessionCookies(response.cookies);
+  }
+  return attachSecurityHeaders(response, cspHeader, nonce);
 }
 
 export const config = {

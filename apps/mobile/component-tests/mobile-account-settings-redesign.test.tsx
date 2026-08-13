@@ -49,14 +49,22 @@ function props(overrides: Partial<Props> = {}): Props {
     error: null,
     isLoading: false,
     locale: "tr",
-    localVisibility: { presence: "EVERYONE", profile: "FRIENDS" },
     onBack: jest.fn(),
     onCopyUsername: jest.fn(async () => undefined),
     onRetry: jest.fn(),
-    onUpdateLocalVisibility: jest.fn(async () => undefined),
+    onUpdatePreference: jest.fn(async () => undefined),
     onUpdatePrivacy: jest.fn(async () => undefined),
     onUpdateProfile: jest.fn(async () => undefined),
     presence: "ONLINE",
+    preferences: {
+      dateFormat: "LOCALE",
+      interfaceDensity: "COMFORTABLE",
+      presenceVisibility: "FRIENDS",
+      profileVisibility: "NOBODY",
+      timeFormat: "LOCALE",
+      timeZone: "AUTO",
+    },
+    preferencesMutationPending: false,
     profileMutationPending: false,
     privacyMutationPending: false,
     settings,
@@ -135,11 +143,11 @@ describe("4b mobile account settings", () => {
     });
   });
 
-  it("offers every faithful Prisma policy and the bounded local visibility choices", async () => {
+  it("offers profile and presence visibility through the server-backed preference mutation", async () => {
     const onUpdatePrivacy = jest.fn(async () => undefined);
-    const onUpdateLocalVisibility = jest.fn(async () => undefined);
+    const onUpdatePreference = jest.fn(async () => undefined);
     const view = await render(
-      <MobileAccountSettingsView {...props({ onUpdateLocalVisibility, onUpdatePrivacy })} />,
+      <MobileAccountSettingsView {...props({ onUpdatePreference, onUpdatePrivacy })} />,
     );
 
     await fireEvent.press(view.getByTestId("mobile-account-dm-row"));
@@ -151,9 +159,39 @@ describe("4b mobile account settings", () => {
     expect(view.getByTestId("mobile-account-policy-friendRequests-MUTUAL_FRIENDS")).toBeTruthy();
 
     await fireEvent.press(view.getByTestId("mobile-account-profile-visibility-row"));
-    expect(view.queryByTestId("mobile-account-policy-profile-MUTUAL_SERVERS")).toBeNull();
+    expect(view.getByTestId("mobile-account-policy-profile-NOBODY")).toBeTruthy();
     await fireEvent.press(view.getByTestId("mobile-account-policy-profile-FRIENDS"));
-    expect(onUpdateLocalVisibility).toHaveBeenCalledWith("profile", "FRIENDS");
+    expect(onUpdatePreference).toHaveBeenCalledWith({ profileVisibility: "FRIENDS" });
+
+    await fireEvent.press(view.getByTestId("mobile-account-presence-visibility-row"));
+    await fireEvent.press(view.getByTestId("mobile-account-policy-presence-NOBODY"));
+    expect(onUpdatePreference).toHaveBeenCalledWith({ presenceVisibility: "NOBODY" });
+  });
+
+  it("edits timezone, date, time and density with accessible native controls", async () => {
+    const onUpdatePreference = jest.fn(async () => undefined);
+    const view = await render(<MobileAccountSettingsView {...props({ onUpdatePreference })} />);
+
+    await fireEvent.press(view.getByTestId("mobile-account-time-zone-row"));
+    expect(view.getByTestId("mobile-account-time-zone-picker")).toBeTruthy();
+    await fireEvent.changeText(view.getByTestId("mobile-account-time-zone-search"), "Istanbul");
+    await fireEvent.press(view.getByTestId("mobile-account-time-zone-Europe/Istanbul"));
+    expect(onUpdatePreference).toHaveBeenCalledWith({ timeZone: "Europe/Istanbul" });
+
+    await fireEvent.press(view.getByTestId("mobile-account-date-format-row"));
+    await fireEvent.press(view.getByTestId("mobile-account-date-format-DMY"));
+    expect(onUpdatePreference).toHaveBeenCalledWith({ dateFormat: "DMY" });
+
+    await fireEvent.press(view.getByTestId("mobile-account-time-format-row"));
+    await fireEvent.press(view.getByTestId("mobile-account-time-format-H24"));
+    expect(onUpdatePreference).toHaveBeenCalledWith({ timeFormat: "H24" });
+
+    await fireEvent.press(view.getByTestId("mobile-account-density-row"));
+    await fireEvent.press(view.getByTestId("mobile-account-density-COMPACT"));
+    expect(onUpdatePreference).toHaveBeenCalledWith({ interfaceDensity: "COMPACT" });
+    expect(
+      StyleSheet.flatten(view.getByTestId("mobile-account-density-row").props.style).minHeight,
+    ).toBeGreaterThanOrEqual(44);
   });
 
   it("renders geometry-matched loading, retryable error, completion and disabled security", async () => {

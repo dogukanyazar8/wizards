@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { test } from "node:test";
 import { resolve } from "node:path";
 
@@ -27,18 +27,20 @@ test("uses Prisma 7 ESM generation, central CLI configuration, and explicit seed
 
 /**
  * `prisma.config.ts` moved the migrations path to `prisma/rebaseline-migrations`
- * when UAT was squashed, but `prisma/migrations` is still on disk as the frozen
- * pre-baseline archive. A new migration written into the archive is silently
- * never applied — the schema typechecks, the tests pass, and the table simply
- * does not exist at runtime. That is exactly how the feedback tables shipped
- * missing, so the two directories are now checked against each other.
+ * when UAT was squashed. The frozen history now lives below the deliberately
+ * non-Prisma `_archive-pre-rebaseline` name: leaving a `prisma/migrations`
+ * sibling made it too easy to write a migration that Prisma silently ignored.
+ * The live and archived histories are still checked against each other.
  */
 test("every post-baseline migration lives on the path Prisma actually reads", () => {
   const config = read("prisma.config.ts");
   const [, configuredPath] = /path:\s*"([^"]+)"/.exec(config) ?? [];
   assert.equal(configuredPath, "prisma/rebaseline-migrations");
 
-  const archived = readdirSync(resolve(packageRoot, "prisma/migrations"), {
+  assert.equal(existsSync(resolve(packageRoot, "prisma/migrations")), false);
+  assert.equal(existsSync(resolve(packageRoot, "prisma/migrations_backup_20260427_151913")), false);
+
+  const archived = readdirSync(resolve(packageRoot, "prisma/_archive-pre-rebaseline/migrations"), {
     withFileTypes: true,
   })
     .filter((entry) => entry.isDirectory())
@@ -55,7 +57,7 @@ test("every post-baseline migration lives on the path Prisma actually reads", ()
   assert.deepEqual(
     strandedNewerThanBaseline,
     [],
-    `migrations newer than the baseline must live in ${configuredPath}, not prisma/migrations`,
+    `migrations newer than the baseline must live in ${configuredPath}, not the archive`,
   );
 });
 

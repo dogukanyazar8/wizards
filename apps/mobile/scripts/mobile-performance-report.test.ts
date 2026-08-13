@@ -206,7 +206,7 @@ describe("mobile performance report", () => {
     );
 
     assert.match(runtime, /resetMobileRequestLatencyForTests\(\)/u);
-    assert.match(runtime, /resetMobileRecentDMPrefetchStatsForTests\(\)/u);
+    assert.match(runtime, /resetMobileRecentDMPrefetchStats\(\)/u);
     assert.match(runtime, /resetMobileMessageStreamSourcesForTests\(\)/u);
   });
 });

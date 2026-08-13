@@ -3,7 +3,7 @@ import { AppState, Text, View } from "react-native";
 import { act, fireEvent, waitFor } from "@testing-library/react-native";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-import { MobileAppLockScreen } from "../src/app/components/mobile-app-lock-screen";
+import { MobileProductAppLockBoundary } from "../src/app/components/mobile-product-app-lock-boundary";
 import { MobileAuthProvider, useMobileAuth } from "../src/auth/mobile-auth-context";
 import type { MobileAppLockPreferenceStore } from "../src/auth/mobile-app-lock-preference-store";
 import type { MobileSessionRepository } from "../src/auth/session-store";
@@ -83,6 +83,7 @@ function createAuthenticator(input: {
   authenticateResult?: boolean;
   authenticateResults?: boolean[];
   hasHardware?: boolean;
+  hasHardwarePromise?: Promise<boolean>;
   isEnrolled?: boolean;
 }): MobileBiometricAuthenticator {
   const queue = input.authenticateResults ? [...input.authenticateResults] : null;
@@ -95,7 +96,9 @@ function createAuthenticator(input: {
       const next = queue && queue.length > 0 ? queue.shift()! : (input.authenticateResult ?? false);
       return { success: next };
     }),
-    hasHardware: jest.fn(async () => input.hasHardware ?? true),
+    hasHardware: jest.fn(async () =>
+      input.hasHardwarePromise ? input.hasHardwarePromise : (input.hasHardware ?? true),
+    ),
     isEnrolled: jest.fn(async () => input.isEnrolled ?? true),
   };
 }
@@ -146,16 +149,17 @@ function AppLockHarness() {
     <View>
       <Text testID="mobile-test-auth-status">{status}</Text>
       <Text testID="mobile-test-app-lock-status">{appLockStatus}</Text>
-      {appLockLocked ? null : <Text testID="mobile-test-protected-content">protected</Text>}
-      <MobileAppLockScreen
+      <MobileProductAppLockBoundary
+        locked={appLockLocked}
         onRetry={() => {
           void retryAppLockUnlock();
         }}
         onSignOut={() => {
           void signOut();
         }}
-        visible={appLockLocked}
-      />
+      >
+        <Text testID="mobile-test-protected-content">protected DM navigator</Text>
+      </MobileProductAppLockBoundary>
     </View>
   );
 }
@@ -178,6 +182,43 @@ async function renderHarness(overrides: Partial<MobileAuthProviderProps> = {}) {
 }
 
 describe("mobile biometric app lock", () => {
+  it("keeps protected content hidden until the lock preference resolves", async () => {
+    const preference = createDeferred<boolean>();
+    const appLockPreferenceStore: MobileAppLockPreferenceStore = {
+      load: jest.fn(() => preference.promise),
+      save: jest.fn(async () => undefined),
+    };
+    const { view } = await renderHarness({ appLockPreferenceStore });
+
+    expect(
+      view.getByTestId("mobile-test-app-lock-status", { includeHiddenElements: true }).props
+        .children,
+    ).toBe("idle");
+    expect(view.getByTestId("mobile-app-lock-screen")).toBeTruthy();
+    expect(view.queryByTestId("mobile-test-protected-content")).toBeNull();
+
+    preference.resolve(false);
+    await waitFor(() => expect(view.getByTestId("mobile-test-protected-content")).toBeTruthy());
+  });
+
+  it("keeps protected content hidden while biometric availability is checking", async () => {
+    const availability = createDeferred<boolean>();
+    const { view } = await renderHarness({
+      appLockPreferenceStore: createPreferenceStore(true),
+      biometricAuthenticator: createAuthenticator({ hasHardwarePromise: availability.promise }),
+    });
+
+    expect(
+      view.getByTestId("mobile-test-app-lock-status", { includeHiddenElements: true }).props
+        .children,
+    ).toBe("checking");
+    expect(view.getByTestId("mobile-app-lock-screen")).toBeTruthy();
+    expect(view.queryByTestId("mobile-test-protected-content")).toBeNull();
+
+    availability.resolve(false);
+    await waitFor(() => expect(view.getByTestId("mobile-test-protected-content")).toBeTruthy());
+  });
+
   it("lets a signed-in user straight in when the lock preference is off", async () => {
     const biometricAuthenticator = createAuthenticator({ hasHardware: true });
     const { view } = await renderHarness({

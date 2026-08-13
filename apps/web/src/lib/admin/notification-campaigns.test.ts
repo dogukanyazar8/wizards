@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { Prisma, type CampaignDeliveryStatus, type CampaignSkipReason } from "@wizards/db";
+import { Prisma, prisma, type CampaignDeliveryStatus, type CampaignSkipReason } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import {
   CAMPAIGN_APPROVAL_THRESHOLD,
   approveNotificationCampaign,
   createNotificationCampaign,
   normalizeCampaignSegment,
+  previewNotificationCampaignRecipients,
   sendNotificationCampaign,
   type CampaignApproveDependencies,
   type CampaignCreateDependencies,
@@ -234,6 +235,26 @@ describe("createNotificationCampaign", () => {
   });
 });
 
+describe("previewNotificationCampaignRecipients", { concurrency: false }, () => {
+  it("counts recipients in the database without materializing user ids", async () => {
+    const originalCount = prisma.user.count;
+    const originalFindMany = prisma.user.findMany;
+    (prisma.user as unknown as { count: () => Promise<number> }).count = async () => 7;
+    (prisma.user as unknown as { findMany: () => Promise<never> }).findMany = async () => {
+      throw new Error("recipient preview must use count");
+    };
+
+    try {
+      assert.deepEqual(await previewNotificationCampaignRecipients({ type: "ALL_USERS" }), {
+        recipientCount: 7,
+      });
+    } finally {
+      (prisma.user as unknown as { count: typeof originalCount }).count = originalCount;
+      (prisma.user as unknown as { findMany: typeof originalFindMany }).findMany = originalFindMany;
+    }
+  });
+});
+
 describe("approveNotificationCampaign", () => {
   function approveHarness(
     overrides: Partial<{
@@ -311,6 +332,46 @@ describe("approveNotificationCampaign", () => {
 });
 
 describe("sendNotificationCampaign", () => {
+  it("resumes a campaign left in SENDING after a worker interruption", async () => {
+    const harness = sendHarness({ campaign: { status: "SENDING" } });
+
+    await sendNotificationCampaign(
+      { adminUserId: "admin-1", campaignId: "campaign-1" },
+      harness.dependencies,
+    );
+
+    assert.equal(harness.campaign.status, "SENT");
+    assert.equal(harness.notifications.length, 3);
+  });
+
+  it("creates and marks a pending batch with bulk operations", async () => {
+    const harness = sendHarness();
+    const createOne = harness.dependencies.createNotification;
+    let createBatches = 0;
+    let markedBatches = 0;
+
+    await sendNotificationCampaign({ adminUserId: "admin-1", campaignId: "campaign-1" }, {
+      ...harness.dependencies,
+      createNotification: async () => {
+        throw new Error("single create is fallback only");
+      },
+      createNotificationsBatch: async (inputs) => {
+        createBatches += 1;
+        return Promise.all(inputs.map((input) => createOne(input)));
+      },
+      markDeliveriesSent: async (campaignId, userIds, sentAt) => {
+        markedBatches += 1;
+        for (const userId of userIds) {
+          await harness.dependencies.markDeliverySent(campaignId, userId, sentAt);
+        }
+      },
+    } as CampaignSendDependencies);
+
+    assert.equal(createBatches, 1);
+    assert.equal(markedBatches, 1);
+    assert.equal(harness.campaign.status, "SENT");
+  });
+
   it("does not notify a recipient twice when a failed campaign is sent again", async () => {
     const first = sendHarness({ failFor: ["user-3"] });
 

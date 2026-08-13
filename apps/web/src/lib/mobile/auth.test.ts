@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 
 import { createMemoryAttemptStore } from "../auth/attempt-tracker";
 import { getMobileLoginAttemptKey } from "../auth/mobile-login-attempts";
+import { revokeUserSessions } from "../auth/session-revocation";
 import {
   createMobileAuthHandoffToken,
   createMobilePasswordSession,
@@ -26,6 +27,10 @@ class MemoryRedis {
   readonly ttlSeconds = new Map<string, number>();
   readonly values = new Map<string, string>();
 
+  async get(key: string) {
+    return this.values.get(key) ?? null;
+  }
+
   private deleteValue(key: string) {
     this.values.delete(key);
     this.ttlSeconds.delete(key);
@@ -36,7 +41,7 @@ class MemoryRedis {
     this.ttlSeconds.set(key, ttlSeconds);
   }
 
-  async set(key: string, value: string, _mode: "EX", ttlSeconds: number, condition: "NX") {
+  async set(key: string, value: string, _mode: "EX", ttlSeconds: number, condition?: "NX") {
     if (condition === "NX" && this.values.has(key)) {
       return null;
     }
@@ -546,6 +551,30 @@ describe("mobile auth handoff", () => {
     }
   });
 
+  it("runs the password comparison for missing and existing mobile login accounts", async () => {
+    const comparedHashes: string[] = [];
+
+    for (const user of [null, buildPasswordUser()]) {
+      await createMobilePasswordSession(
+        { email: "ada@example.com", password: "wrong-password" },
+        {
+          comparePassword: async (_password, passwordHash) => {
+            comparedHashes.push(passwordHash);
+            return false;
+          },
+          env,
+          loadUserByEmail: async () => user,
+          loginAttemptStore: createMemoryAttemptStore(),
+          redis: new MemoryRedis(),
+        },
+      );
+    }
+
+    assert.equal(comparedHashes.length, 2);
+    assert.equal(comparedHashes[1], "stored-hash");
+    assert.match(comparedHashes[0] ?? "", /^\$2[aby]\$12\$/u);
+  });
+
   it("locks existing and unknown mobile login accounts without enumeration differences", async () => {
     const failures: Array<{ code: string; message: string; status: number }> = [];
 
@@ -700,6 +729,63 @@ describe("mobile auth handoff", () => {
         error.code === "PASSWORD_MISMATCH" &&
         error.status === 400,
     );
+  });
+
+  it("returns the generic registration envelope and notifies a verified email owner", async () => {
+    const notifications: string[] = [];
+    const response = await registerMobilePasswordAccount(
+      {
+        confirmPassword: "correct-horse-battery",
+        email: "Ada@Example.COM",
+        password: "correct-horse-battery",
+        username: "ada_lovelace",
+      },
+      {
+        findRegistrationConflicts: async () => ({
+          existingEmail: buildPasswordUser(),
+          existingUsername: null,
+        }),
+        notifyRegistrationAttempt: async (user) => {
+          notifications.push(user.email);
+        },
+      },
+    );
+
+    assert.deepEqual(response, {
+      email: "ada@example.com",
+      message: "verification_email_sent",
+      status: "verification-required",
+    });
+    assert.deepEqual(notifications, ["ada@example.com"]);
+  });
+
+  it("keeps mobile username conflicts independent of email existence", async () => {
+    for (const existingEmail of [buildPasswordUser(), null]) {
+      await assert.rejects(
+        () =>
+          registerMobilePasswordAccount(
+            {
+              confirmPassword: "correct-horse-battery",
+              email: "candidate@example.com",
+              password: "correct-horse-battery",
+              username: "taken_username",
+            },
+            {
+              findRegistrationConflicts: async () => ({
+                existingEmail,
+                existingUsername: { id: "username-owner" },
+              }),
+              notifyRegistrationAttempt: async () => {
+                assert.fail("username conflict must resolve before email notification");
+              },
+            },
+          ),
+        (error) =>
+          error instanceof MobileNativeAuthError &&
+          error.code === "USERNAME_TAKEN" &&
+          error.status === 409,
+      );
+    }
   });
 
   it("resends mobile verification emails only for active unverified accounts", async () => {
@@ -953,6 +1039,110 @@ describe("mobile auth handoff", () => {
     assert.equal(replayedClaims.sessionId, rotatedClaims.sessionId);
   });
 
+  it("rejects a refresh family created before password-reset session revocation", async () => {
+    const redis = new MemoryRedis();
+    const sessionStartedAtMs = 1_800_000_000_000;
+    const response = await createTestMobileSession(redis, sessionStartedAtMs);
+    const accessClaims = verifyMobileAccessToken(response.session.tokens.accessToken, {
+      env,
+      nowMs: sessionStartedAtMs,
+    });
+    assert.ok(accessClaims);
+
+    await revokeUserSessions("user-1", {
+      now: new Date(sessionStartedAtMs + 1_000),
+      redis,
+    });
+
+    assert.equal(await isMobileAccessSessionActive(accessClaims, { redis }), false);
+    assert.equal(
+      await refreshMobileSession(response.session.tokens.refreshToken, {
+        env,
+        loadUser,
+        nowMs: sessionStartedAtMs + 2_000,
+        redis,
+      }),
+      null,
+    );
+  });
+
+  it("uses durable session revocation after the Redis marker expires", async () => {
+    const redis = new MemoryRedis();
+    const sessionStartedAtMs = 1_800_000_000_000;
+    const response = await createTestMobileSession(redis, sessionStartedAtMs);
+    const accessClaims = verifyMobileAccessToken(response.session.tokens.accessToken, {
+      env,
+      nowMs: sessionStartedAtMs,
+    });
+    assert.ok(accessClaims);
+
+    assert.equal(
+      await isMobileAccessSessionActive(accessClaims, {
+        loadSessionsRevokedAfter: async () => new Date(sessionStartedAtMs + 1_000),
+        redis,
+      }),
+      false,
+    );
+  });
+
+  it("rejects a mobile access token whose durable AuthSession was revoked", async () => {
+    const redis = new MemoryRedis();
+    const sessionStartedAtMs = 1_800_000_000_000;
+    const response = await createTestMobileSession(redis, sessionStartedAtMs);
+    const accessClaims = verifyMobileAccessToken(response.session.tokens.accessToken, {
+      env,
+      nowMs: sessionStartedAtMs,
+    });
+    assert.ok(accessClaims);
+
+    assert.equal(
+      await isMobileAccessSessionActive(accessClaims, {
+        isAuthSessionActive: async () => false,
+        redis,
+      }),
+      false,
+    );
+  });
+
+  it("does not issue tokens for a refresh family whose durable AuthSession was revoked", async () => {
+    const redis = new MemoryRedis();
+    const sessionStartedAtMs = 1_800_000_000_000;
+    const response = await createTestMobileSession(redis, sessionStartedAtMs);
+
+    assert.equal(
+      await refreshMobileSession(response.session.tokens.refreshToken, {
+        env,
+        isAuthSessionActive: async () => false,
+        loadUser,
+        nowMs: sessionStartedAtMs + 1_000,
+        redis,
+      }),
+      null,
+    );
+  });
+
+  it("rejects a legacy mobile access session after global revocation", async () => {
+    const redis = new MemoryRedis();
+    const sessionStartedAtMs = 1_800_000_000_000;
+    const response = await createTestMobileSession(redis, sessionStartedAtMs);
+    const accessClaims = verifyMobileAccessToken(response.session.tokens.accessToken, {
+      env,
+      nowMs: sessionStartedAtMs,
+    });
+    assert.ok(accessClaims);
+
+    redis.values.set(
+      `auth:mobile-session:${accessClaims.sessionId}`,
+      JSON.stringify({ userId: "user-1" }),
+    );
+    await revokeUserSessions("user-1", {
+      now: new Date(sessionStartedAtMs + 1_000),
+      redis,
+    });
+
+    assert.equal(await isMobileAccessSessionActive(accessClaims, { redis }), false);
+  });
+
   it("gives concurrent refresh requests one identical successor", async () => {
     const redis = new MemoryRedis();
     const response = await createTestMobileSession(redis);
@@ -1094,6 +1284,43 @@ describe("mobile auth handoff", () => {
     assert.equal(family.familyId, accessClaims.sessionId);
     assert.equal(family.currentGeneration, 1);
     assert.equal(typeof family.currentTokenHash, "string");
+  });
+
+  it("preserves legacy creation time when adopting after an older revocation", async () => {
+    const redis = new MemoryRedis();
+    const sessionStartedAtMs = 1_800_000_000_000;
+    const response = await createTestMobileSession(redis, sessionStartedAtMs);
+    const accessClaims = verifyMobileAccessToken(response.session.tokens.accessToken, {
+      env,
+      nowMs: sessionStartedAtMs,
+    });
+    assert.ok(accessClaims);
+    const legacyRefreshToken = installLegacyRefreshToken(
+      redis,
+      accessClaims.sessionId,
+      sessionStartedAtMs,
+    );
+    await revokeUserSessions("user-1", {
+      now: new Date(sessionStartedAtMs - 1_000),
+      redis,
+    });
+
+    const rotated = await refreshMobileSession(legacyRefreshToken, {
+      env,
+      loadUser: async () => ({
+        ...(await loadUser()),
+        sessionsRevokedAfter: new Date(sessionStartedAtMs - 1_000),
+      }),
+      nowMs: sessionStartedAtMs + 60_000,
+      redis,
+    });
+    assert.ok(rotated);
+
+    const familyRaw = [...redis.values.entries()].find(([key]) =>
+      key.startsWith("auth:mobile-refresh-family:"),
+    )?.[1];
+    assert.ok(familyRaw);
+    assert.equal((JSON.parse(familyRaw) as { createdAt?: number }).createdAt, sessionStartedAtMs);
   });
 
   it("revokes a consumed legacy token that has no idempotent receipt", async () => {

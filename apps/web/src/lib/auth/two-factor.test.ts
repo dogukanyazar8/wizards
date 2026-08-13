@@ -370,7 +370,7 @@ describe("two-factor service", () => {
     );
   });
 
-  it("requires a valid password and second factor before disabling 2FA", async () => {
+  it("rejects an invalid password and invalid second factor identically", async () => {
     const harness = createHarness();
     harness.user.twoFactorEnabled = true;
     harness.user.twoFactorSecret = rfc6238Secret;
@@ -380,7 +380,7 @@ describe("two-factor service", () => {
         { code: generateTotpCode(rfc6238Secret, { nowMs: 90_000 }), password: "wrong", userId },
         harness.dependencies,
       ),
-      { error: "invalid_credentials", success: false },
+      { error: "invalid_code", success: false },
     );
 
     assert.deepEqual(
@@ -390,6 +390,30 @@ describe("two-factor service", () => {
       ),
       { error: "invalid_code", success: false },
     );
+  });
+
+  it("counts invalid passwords toward the two-factor attempt lock", async () => {
+    const harness = createHarness();
+    harness.user.twoFactorEnabled = true;
+    harness.user.twoFactorSecret = rfc6238Secret;
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      assert.deepEqual(
+        await disableTwoFactor({ code: "000000", password: "wrong", userId }, harness.dependencies),
+        { error: "invalid_code", success: false },
+      );
+    }
+
+    assert.deepEqual(
+      await disableTwoFactor({ code: "000000", password: "wrong", userId }, harness.dependencies),
+      { error: "rate_limited", retryAfterSeconds: 30, success: false },
+    );
+  });
+
+  it("requires a valid password and second factor before disabling 2FA", async () => {
+    const harness = createHarness();
+    harness.user.twoFactorEnabled = true;
+    harness.user.twoFactorSecret = rfc6238Secret;
 
     const disabled = await disableTwoFactor(
       {

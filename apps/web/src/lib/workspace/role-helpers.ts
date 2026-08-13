@@ -1,14 +1,10 @@
-import type {
-  WorkspaceAccessLevel,
-  WorkspacePermissionKey,
-  WorkspaceRole,
-} from "@wizards/types";
+import type { WorkspaceAccessLevel, WorkspacePermissionKey, WorkspaceRole } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
 import {
+  ADMIN_ACCESS_PERMISSIONS,
   MEMBER_BASE_PERMISSIONS,
   MODERATOR_PERMISSIONS,
-  PermissionBits,
   SERVER_ADMIN_PERMISSIONS,
   deriveWorkspaceAccessLevel,
   permissionKeysToMask,
@@ -17,8 +13,12 @@ import {
 } from "@/lib/workspace/permissions";
 import type { AccessContext, RoleRecord } from "@/lib/workspace/workspace-types";
 
-const ELEVATED_ROLE_PERMISSIONS =
-  PermissionBits.ADMINISTRATOR | PermissionBits.MANAGE_ROLES | PermissionBits.MANAGE_SERVER;
+// Access classification and role hierarchy used to maintain separate lists;
+// missing MANAGE_CHANNELS let a non-owner create an effectively admin role.
+const ELEVATED_ROLE_PERMISSIONS = ADMIN_ACCESS_PERMISSIONS.reduce(
+  (permissions, permission) => permissions | permission,
+  0n,
+);
 
 export function isOwnerAccess(access: Pick<AccessContext, "ownerId" | "userId">) {
   return access.ownerId === access.userId;

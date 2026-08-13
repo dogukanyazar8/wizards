@@ -34,17 +34,45 @@ async function getContributors() {
     .sort((left, right) => left.localeCompare(right, "tr", { sensitivity: "base" }));
 }
 
-export async function getSettingsBootstrapPayload({
-  locale,
-  user,
-}: {
-  locale?: string | null;
-  user: SettingsBootstrapUser;
-}): Promise<SettingsBootstrapPayload> {
-  const [contributors, packageVersion] = await Promise.all([
-    getContributors(),
-    getPackageVersion(),
-  ]);
+type SettingsBootstrapStaticDependencies = {
+  readContributors(): Promise<string[]>;
+  readPackageVersion(): Promise<string>;
+};
+
+const defaultStaticDependencies: SettingsBootstrapStaticDependencies = {
+  readContributors: getContributors,
+  readPackageVersion: getPackageVersion,
+};
+
+let staticBuildInfoPromise: Promise<{ contributors: string[]; packageVersion: string }> | null =
+  null;
+
+function getStaticBuildInfo(dependencies: SettingsBootstrapStaticDependencies) {
+  staticBuildInfoPromise ??= Promise.all([
+    dependencies.readContributors(),
+    dependencies.readPackageVersion(),
+  ])
+    .then(([contributors, packageVersion]) => ({ contributors, packageVersion }))
+    .catch((error: unknown) => {
+      // A transient disk/DB failure must not poison the process-lifetime memo.
+      staticBuildInfoPromise = null;
+      throw error;
+    });
+
+  return staticBuildInfoPromise;
+}
+
+export async function getSettingsBootstrapPayload(
+  {
+    locale,
+    user,
+  }: {
+    locale?: string | null;
+    user: SettingsBootstrapUser;
+  },
+  dependencies: SettingsBootstrapStaticDependencies = defaultStaticDependencies,
+): Promise<SettingsBootstrapPayload> {
+  const { contributors, packageVersion } = await getStaticBuildInfo(dependencies);
   const versionPayload = getWhisprVersionPayload();
   const formatterLocale = locale ?? "en";
   const lastUpdated = new Intl.DateTimeFormat(formatterLocale, {

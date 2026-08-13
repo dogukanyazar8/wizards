@@ -146,8 +146,8 @@ describe("web server profile route logic", () => {
     );
 
     assert.ok(
-      observedKey?.startsWith("fallback:"),
-      `expected a fallback identity, got ${observedKey}`,
+      observedKey === "untrusted",
+      `expected the shared untrusted identity, got ${observedKey}`,
     );
   });
 

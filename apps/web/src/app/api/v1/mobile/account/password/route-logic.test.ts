@@ -38,7 +38,7 @@ function createDependencies(
 }
 
 describe("mobile account password route", () => {
-  it("hashes the new password, revokes web sessions, and reports success", async () => {
+  it("hashes the new password, revokes account sessions, and reports success", async () => {
     const calls: string[] = [];
     const response = await mobileAccountPasswordChangeRoute(
       passwordRequest(),

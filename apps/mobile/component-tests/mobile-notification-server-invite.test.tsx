@@ -151,7 +151,7 @@ describe("server invite notification actions", () => {
 
     expect(mockDeclineInvite).toHaveBeenCalledWith({ code: "safe_code-1" });
     expect(mockAcceptInvite).not.toHaveBeenCalled();
-    expect(mockMarkRead).toHaveBeenCalledWith(INVITE_ID);
+    expect(mockMarkRead).toHaveBeenCalledWith(mockNotifications[0]);
   });
 
   it("accepts by the same code, which is what turns the invite into membership", async () => {

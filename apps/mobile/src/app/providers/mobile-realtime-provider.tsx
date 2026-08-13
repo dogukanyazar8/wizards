@@ -29,6 +29,7 @@ import {
   getMobileRealtimeForegroundBackfillSources,
   getMobileRealtimeVisibilityFromAppState,
   mobileRealtimeReducer,
+  redactMobileRealtimeEventForSnapshot,
   shouldConnectMobileRealtime,
   shouldForceMobileRealtimeReconnect,
 } from "../../realtime/mobile-realtime-state";
@@ -64,9 +65,9 @@ export const MOBILE_DM_DELIVERY_ACK_DELAY_MS = 300;
 type MobileRealtimeEventListener = (event: MobileRealtimeEventEnvelope) => void;
 
 /**
- * Typing is deliberately absent: it is published to `useMobileTypingStore` so the
- * surfaces that draw it subscribe directly. Every consumer of this context is a
- * consumer of *connection* state, which moves rarely.
+ * Typing and event diagnostics are deliberately absent: high-rate data lives in
+ * refs or focused stores. Every consumer of this context is a consumer of
+ * *connection* state, which moves at connection speed rather than event speed.
  */
 interface MobileRealtimeRuntime {
   readonly connection: MobileRealtimeConnectionSnapshot;
@@ -107,6 +108,11 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
   const typingLastStartAtRef = useRef<Record<string, number>>({});
   const typingPruneTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const deliveryAckTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const eventDiagnosticsRef = useRef({
+    eventCount: 0,
+    lastEvent: null as MobileRealtimeEventEnvelope | null,
+    lastSeenAt: null as number | null,
+  });
   const [connection, dispatchConnection] = useReducer(
     mobileRealtimeReducer,
     undefined,
@@ -279,7 +285,12 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
 
   const handleEvent = useCallback(
     (event: MobileRealtimeEventEnvelope) => {
-      dispatchConnection({ event, type: "event-received" });
+      const diagnostics = eventDiagnosticsRef.current;
+      eventDiagnosticsRef.current = {
+        eventCount: diagnostics.eventCount + 1,
+        lastEvent: redactMobileRealtimeEventForSnapshot(event),
+        lastSeenAt: event.receivedAt,
+      };
       bridge.handleEvent(event);
 
       if (event.eventName === "dm:message:new") {
@@ -350,6 +361,11 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
       clientRef.current = null;
       bridge.cancelPending();
       if (status !== "signed-in") {
+        eventDiagnosticsRef.current = {
+          eventCount: 0,
+          lastEvent: null,
+          lastSeenAt: null,
+        };
         if (connection.status !== "idle") {
           dispatchConnection({ type: "reset" });
         }

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { FlashList } from "@shopify/flash-list";
+import { memo, useCallback, useMemo, useState } from "react";
 import {
   BADGE_CATALOG,
   MOBILE_NOTIFICATION_FILTERS,
@@ -7,7 +8,6 @@ import {
 } from "@wizards/types";
 
 import {
-  FlatList,
   Ionicons,
   Pressable,
   Text,
@@ -82,6 +82,16 @@ function getNotificationEmptyLabel(filter: MobileNotificationFilter): string {
   }
 }
 
+type MobileNotificationFeedItem =
+  | { readonly id: string; readonly kind: "day-heading"; readonly label: string }
+  | {
+      readonly id: string;
+      readonly kind: "notification";
+      readonly notification: MobileNotificationItem;
+    };
+
+const getMobileNotificationFeedItemType = (item: MobileNotificationFeedItem) => item.kind;
+
 export function NotificationsScreen({
   bootstrapState,
   notificationState,
@@ -117,8 +127,24 @@ export function NotificationsScreen({
   const socialMutations = useMobileSocialMutations(apiClient);
   // Targeted server invites are answered from their notification row.
   const serverMutations = useMobileServerManagementMutations(apiClient);
-  const notifications = notificationsQuery.data?.pages.flatMap((page) => page.notifications) ?? [];
-  const notificationGroups = groupMobileNotificationsByDay(notifications, new Date(), locale);
+  const notifications = useMemo(
+    () => notificationsQuery.data?.pages.flatMap((page) => page.notifications) ?? [],
+    [notificationsQuery.data?.pages],
+  );
+  // Day groups are presentation only. Flatten them so every notification is a
+  // recycler cell instead of mounting an entire day inside one visible cell.
+  const feedItems = useMemo<MobileNotificationFeedItem[]>(
+    () =>
+      groupMobileNotificationsByDay(notifications, new Date(), locale).flatMap((group) => [
+        { id: `day:${group.label}`, kind: "day-heading" as const, label: group.label },
+        ...group.notifications.map((notification) => ({
+          id: notification.id,
+          kind: "notification" as const,
+          notification,
+        })),
+      ]),
+    [locale, notifications],
+  );
   const unreadCount = notificationsQuery.data?.pages[0]?.unreadCount ?? 0;
   // A running refetch is never surfaced — only a feed that failed to load is.
   const visibleSyncHealth: MobileSyncHealthSummary = notificationsQuery.isError
@@ -138,6 +164,64 @@ export function NotificationsScreen({
   // Same query key as the "all" tab and the tab-bar badge, so this costs no fetch.
   const hasAnyNotification = useMobileHasAnyNotification(apiClient);
   const clearAllDisabled = notificationMutations.clearAll.isPending || !hasAnyNotification;
+  const acceptFriendRequest = socialMutations.acceptRequest.mutate;
+  const rejectFriendRequest = socialMutations.rejectRequest.mutate;
+  const acceptServerInvite = serverMutations.acceptInvite.mutate;
+  const declineServerInvite = serverMutations.declineInvite.mutate;
+  const markNotificationRead = notificationMutations.markRead.mutate;
+  const handleAcceptFriendRequest = useCallback(
+    (requestId: string) => acceptFriendRequest({ requestId }),
+    [acceptFriendRequest],
+  );
+  const handleRejectFriendRequest = useCallback(
+    (requestId: string) => rejectFriendRequest({ requestId }),
+    [rejectFriendRequest],
+  );
+  const handleAcceptServerInvite = useCallback(
+    (code: string) => acceptServerInvite({ code }),
+    [acceptServerInvite],
+  );
+  const handleDeclineServerInvite = useCallback(
+    (code: string) => declineServerInvite({ code }),
+    [declineServerInvite],
+  );
+  const renderFeedItem = useCallback(
+    ({ item }: { item: MobileNotificationFeedItem }) =>
+      item.kind === "day-heading" ? (
+        <Text style={styles.notificationsSectionTitle}>{item.label}</Text>
+      ) : (
+        <MobileNotificationFeedRow
+          friendRequestPending={
+            socialMutations.acceptRequest.isPending || socialMutations.rejectRequest.isPending
+          }
+          notification={item.notification}
+          onAcceptFriendRequest={handleAcceptFriendRequest}
+          onAcceptServerInvite={handleAcceptServerInvite}
+          onDeclineFriendRequest={handleRejectFriendRequest}
+          onDeclineServerInvite={handleDeclineServerInvite}
+          onJoinVoiceNotification={onJoinVoiceNotification}
+          onMarkRead={markNotificationRead}
+          onOpenNotification={onOpenNotification}
+          serverInvitePending={
+            serverMutations.acceptInvite.isPending || serverMutations.declineInvite.isPending
+          }
+        />
+      ),
+    [
+      handleAcceptFriendRequest,
+      handleAcceptServerInvite,
+      handleDeclineServerInvite,
+      handleRejectFriendRequest,
+      markNotificationRead,
+      onJoinVoiceNotification,
+      onOpenNotification,
+      serverMutations.acceptInvite.isPending,
+      serverMutations.declineInvite.isPending,
+      socialMutations.acceptRequest.isPending,
+      socialMutations.rejectRequest.isPending,
+      styles.notificationsSectionTitle,
+    ],
+  );
   // Everything transient (bootstrap notice, permission card, sync banner) rides
   // inside the list header. Above the list they re-flowed the whole screen every
   // time a filter switch re-fetched, which is the downward drift between the
@@ -303,10 +387,11 @@ export function NotificationsScreen({
           );
         })}
       </View>
-      <FlatList
+      <FlashList
         contentContainerStyle={styles.notificationsList}
-        data={notificationGroups}
-        keyExtractor={(group) => group.label}
+        data={feedItems}
+        getItemType={getMobileNotificationFeedItemType}
+        keyExtractor={(item) => item.id}
         ListEmptyComponent={
           notificationsQuery.isLoading ? (
             <NotificationsLoadingSkeleton />
@@ -329,34 +414,7 @@ export function NotificationsScreen({
           void notificationsQuery.refetch().finally(() => setPullRefreshing(false));
         }}
         refreshing={isPullRefreshing}
-        renderItem={({ item: group }) => (
-          <View>
-            <Text style={styles.notificationsSectionTitle}>{group.label}</Text>
-            {group.notifications.map((notification) => (
-              <MobileNotificationFeedRow
-                friendRequestPending={
-                  socialMutations.acceptRequest.isPending || socialMutations.rejectRequest.isPending
-                }
-                key={notification.id}
-                notification={notification}
-                onAcceptFriendRequest={(requestId) =>
-                  socialMutations.acceptRequest.mutate({ requestId })
-                }
-                onAcceptServerInvite={(code) => serverMutations.acceptInvite.mutate({ code })}
-                onDeclineFriendRequest={(requestId) =>
-                  socialMutations.rejectRequest.mutate({ requestId })
-                }
-                onDeclineServerInvite={(code) => serverMutations.declineInvite.mutate({ code })}
-                onJoinVoiceNotification={onJoinVoiceNotification}
-                onMarkRead={() => notificationMutations.markRead.mutate(notification.id)}
-                onOpenNotification={onOpenNotification}
-                serverInvitePending={
-                  serverMutations.acceptInvite.isPending || serverMutations.declineInvite.isPending
-                }
-              />
-            ))}
-          </View>
-        )}
+        renderItem={renderFeedItem}
         showsVerticalScrollIndicator={false}
         style={styles.notificationsListViewport}
         testID="mobile-notifications-feed"
@@ -379,7 +437,7 @@ export function NotificationsScreen({
   );
 }
 
-function MobileNotificationFeedRow({
+const MobileNotificationFeedRow = memo(function MobileNotificationFeedRow({
   friendRequestPending,
   notification,
   onAcceptFriendRequest,
@@ -398,7 +456,7 @@ function MobileNotificationFeedRow({
   onDeclineFriendRequest(requestId: string): void;
   onDeclineServerInvite(code: string): void;
   onJoinVoiceNotification(notification: MobileNotificationItem): Promise<void>;
-  onMarkRead(): void;
+  onMarkRead(notification: MobileNotificationItem): void;
   onOpenNotification(notification: MobileNotificationItem): void;
   serverInvitePending: boolean;
 }) {
@@ -428,7 +486,7 @@ function MobileNotificationFeedRow({
       accessibilityState={{ selected: !notification.read }}
       onPress={() => {
         if (!notification.read) {
-          onMarkRead();
+          onMarkRead(notification);
         }
         // The router decides on the notification, not on its URL: a BADGE row
         // has a destination whether or not it carries one (07 §4).
@@ -536,7 +594,7 @@ function MobileNotificationFeedRow({
               disabled={serverInvitePending}
               onPress={() => {
                 if (!notification.read) {
-                  onMarkRead();
+                  onMarkRead(notification);
                 }
                 onAcceptServerInvite(notification.serverInviteCode!);
               }}
@@ -557,7 +615,7 @@ function MobileNotificationFeedRow({
               disabled={serverInvitePending}
               onPress={() => {
                 if (!notification.read) {
-                  onMarkRead();
+                  onMarkRead(notification);
                 }
                 onDeclineServerInvite(notification.serverInviteCode!);
               }}
@@ -582,7 +640,7 @@ function MobileNotificationFeedRow({
               disabled={friendRequestPending}
               onPress={() => {
                 if (!notification.read) {
-                  onMarkRead();
+                  onMarkRead(notification);
                 }
                 onAcceptFriendRequest(notification.friendRequestId!);
               }}
@@ -603,7 +661,7 @@ function MobileNotificationFeedRow({
               disabled={friendRequestPending}
               onPress={() => {
                 if (!notification.read) {
-                  onMarkRead();
+                  onMarkRead(notification);
                 }
                 onDeclineFriendRequest(notification.friendRequestId!);
               }}
@@ -629,7 +687,7 @@ function MobileNotificationFeedRow({
           accessibilityRole="button"
           onPress={() => {
             if (!notification.read) {
-              onMarkRead();
+              onMarkRead(notification);
             }
             void onJoinVoiceNotification(notification);
           }}
@@ -648,7 +706,7 @@ function MobileNotificationFeedRow({
       ) : null}
     </Pressable>
   );
-}
+});
 
 function NotificationsLoadingSkeleton() {
   const styles = useNotificationsScreenStyles();

@@ -5,6 +5,7 @@ export const MOBILE_OAUTH_START_PATH = "/mobile/oauth/start";
 
 /** Only providers with a configured NextAuth provider may be started from mobile. */
 export const MOBILE_OAUTH_SUPPORTED_PROVIDERS = ["google"] as const;
+const MOBILE_OAUTH_STATE_PATTERN = /^[0-9a-f]{64}$/u;
 
 export type MobileOAuthProvider = (typeof MOBILE_OAUTH_SUPPORTED_PROVIDERS)[number];
 
@@ -19,14 +20,43 @@ export function getSafeMobileOAuthProvider(value: unknown): MobileOAuthProvider 
   return provider ?? "google";
 }
 
-export function buildMobileOAuthCompletePath(callbackUrl: string) {
-  const safeCallbackUrl = getSafeAuthRedirectPath(callbackUrl, "/channels/@me");
-  return `${MOBILE_OAUTH_COMPLETE_PATH}?callbackUrl=${encodeURIComponent(safeCallbackUrl)}`;
+export function getSafeMobileOAuthState(value: unknown): string | null {
+  return typeof value === "string" && MOBILE_OAUTH_STATE_PATTERN.test(value) ? value : null;
 }
 
-export function buildMobileOAuthStartPath(callbackUrl: string, provider: MobileOAuthProvider) {
+export function buildMobileOAuthCompletePath(callbackUrl: string, state: string) {
   const safeCallbackUrl = getSafeAuthRedirectPath(callbackUrl, "/channels/@me");
+  const safeState = getSafeMobileOAuthState(state);
+  if (!safeState) {
+    throw new Error("Invalid mobile OAuth state.");
+  }
+  return `${MOBILE_OAUTH_COMPLETE_PATH}?callbackUrl=${encodeURIComponent(
+    safeCallbackUrl,
+  )}&state=${safeState}`;
+}
+
+export function buildMobileOAuthStartPath(
+  callbackUrl: string,
+  provider: MobileOAuthProvider,
+  state: string,
+) {
+  const safeCallbackUrl = getSafeAuthRedirectPath(callbackUrl, "/channels/@me");
+  const safeState = getSafeMobileOAuthState(state);
+  if (!safeState) {
+    throw new Error("Invalid mobile OAuth state.");
+  }
   return `${MOBILE_OAUTH_START_PATH}?callbackUrl=${encodeURIComponent(
     safeCallbackUrl,
-  )}&provider=${encodeURIComponent(getSafeMobileOAuthProvider(provider))}`;
+  )}&provider=${encodeURIComponent(getSafeMobileOAuthProvider(provider))}&state=${safeState}`;
+}
+
+export function buildMobileOAuthHandoffUrl(token: string, callbackUrl: string, state: string) {
+  const safeCallbackUrl = getSafeAuthRedirectPath(callbackUrl, "/channels/@me");
+  const safeState = getSafeMobileOAuthState(state);
+  if (!safeState) {
+    throw new Error("Invalid mobile OAuth state.");
+  }
+  return `whispr://oauth/${encodeURIComponent(token)}?callbackUrl=${encodeURIComponent(
+    safeCallbackUrl,
+  )}&state=${safeState}`;
 }

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import * as http from "node:http";
 import * as https from "node:https";
 import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
+import { isIP, type LookupFunction } from "node:net";
 import { parse, parseFragment } from "parse5";
 import { z } from "zod";
 import { ApiError } from "@/lib/api";
@@ -278,8 +278,7 @@ function visitHtmlNode<T>(node: HtmlNode, visitor: (node: HtmlNode) => T | null)
 function readHtmlAttribute(node: HtmlNode, name: string) {
   const normalizedName = name.toLowerCase();
   return (
-    node.attrs?.find((attribute) => attribute.name.toLowerCase() === normalizedName)?.value ??
-    null
+    node.attrs?.find((attribute) => attribute.name.toLowerCase() === normalizedName)?.value ?? null
   );
 }
 
@@ -410,14 +409,17 @@ export function extractLinkPreviewMetadata(
   };
 }
 
-export function createPublicLookup(resolveHost: ResolveHost) {
-  return (
-    hostname: string,
-    _options: unknown,
-    callback: (error: NodeJS.ErrnoException | null, address: string, family: number) => void,
-  ) => {
+export function createPublicLookup(resolveHost: ResolveHost): LookupFunction {
+  return (hostname, options, callback) => {
     void assertPublicResolvedAddresses(hostname, resolveHost)
       .then((addresses) => {
+        // Node 24 enables autoSelectFamily by default and requests `all: true`.
+        // Returning the legacy scalar shape there becomes ERR_INVALID_IP_ADDRESS.
+        if (options.all) {
+          callback(null, addresses);
+          return;
+        }
+
         const selectedAddress = addresses[0];
         if (!selectedAddress) {
           callback(new ApiError("This link cannot be previewed.", 400, "BLOCKED_URL"), "", 0);

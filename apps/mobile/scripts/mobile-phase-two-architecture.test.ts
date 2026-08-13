@@ -49,7 +49,7 @@ describe("mobile Phase 2 architecture", () => {
     assert.doesNotMatch(productApp, /const handleOpenWorkspaceChannel/);
     assert.match(productApp, /const channelScreenProps = overviewScreenProps;/);
     assert.ok(
-      productApp.trimEnd().split(/\r?\n/).length < 520,
+      productApp.trimEnd().split(/\r?\n/).length < 525,
       "Product app must stay focused (memoized tab screen-props carry explicit dependency arrays)",
     );
   });

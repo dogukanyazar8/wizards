@@ -1,5 +1,5 @@
 import { NavigationContext } from "@react-navigation/native";
-import { createElement, useContext, type Context, type ReactNode } from "react";
+import { createElement, useContext, useRef, type Context, type ReactNode } from "react";
 import { MobileChatKeyboardScopeContext } from "../../mobile-chat-keyboard-region";
 // The leaf context module, never the provider file: importing the provider pulls
 // the profile card — and every sheet it renders — back into this kit module.
@@ -64,10 +64,20 @@ function assertBridgeCoversScopedContexts(): void {
  */
 export function useMobileOverlayContextBridge(): readonly unknown[] {
   assertBridgeCoversScopedContexts();
-  return MOBILE_OVERLAY_BRIDGED_CONTEXTS.map((bridged) =>
+  const previousValuesRef = useRef<readonly unknown[]>([]);
+  const values = MOBILE_OVERLAY_BRIDGED_CONTEXTS.map((bridged) =>
     // eslint-disable-next-line react-hooks/rules-of-hooks -- fixed-length module constant
     useContext(bridged.context),
   );
+  if (
+    previousValuesRef.current.length === values.length &&
+    values.every((value, index) => Object.is(value, previousValuesRef.current[index]))
+  ) {
+    return previousValuesRef.current;
+  }
+
+  previousValuesRef.current = values;
+  return values;
 }
 
 /** Re-provides the call site's values around children rendered in the host. */

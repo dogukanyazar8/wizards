@@ -657,6 +657,38 @@ describe("mobile workspace management schemas", () => {
     assertRejects(MobileChannelUpdateRequestSchema, {});
   });
 
+  it("inherits strict channel advanced-setting contracts", () => {
+    const text = assertAccepts(MobileChannelCreateRequestSchema, {
+      name: "general",
+      slowModeDelay: 15,
+      type: "TEXT",
+    });
+    assert.equal(text?.slowModeDelay, 15);
+
+    const voice = assertAccepts(MobileChannelCreateRequestSchema, {
+      bitrate: 96_000,
+      name: "voice",
+      rtcRegion: "EU_WEST",
+      type: "VOICE",
+      userLimit: 5,
+      videoQualityMode: "FULL",
+    });
+    assert.equal(voice?.bitrate, 96_000);
+
+    assertRejects(MobileChannelCreateRequestSchema, {
+      bitrate: 64_000,
+      name: "general",
+      type: "TEXT",
+    });
+    assertRejects(MobileChannelCreateRequestSchema, {
+      name: "voice",
+      slowModeDelay: 5,
+      type: "VOICE",
+    });
+    assertRejects(MobileChannelUpdateRequestSchema, { bitrate: 48_000 }, ["bitrate"]);
+    assertAccepts(MobileChannelUpdateRequestSchema, { userLimit: 10 });
+  });
+
   it("counts every server update field, so a visibility-only save is a valid update", () => {
     assertAccepts(MobileServerUpdateRequestSchema, { isPublic: true });
     assertAccepts(MobileServerUpdateRequestSchema, { discoverable: true });

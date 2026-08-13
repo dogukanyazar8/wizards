@@ -6,12 +6,14 @@ import {
   applyGroupCallJoin,
   applyGroupCallLeave,
   groupCallStateKey,
+  joinGroupCall,
   parseGroupCallState,
   planGroupCallSignals,
   serializeGroupCallState,
   shouldRingParticipant,
   toGroupCallStateDTO,
   type StoredGroupCallState,
+  type GroupCallStore,
 } from "./group-call-state";
 
 const STARTED_AT = new Date("2026-08-11T12:00:00.000Z");
@@ -85,6 +87,64 @@ describe("applyGroupCallJoin", () => {
     applyGroupCallJoin(before, { joinedAt: JOINED_AT, userId: "user-2" });
 
     assert.equal(before.participants.length, 1);
+  });
+});
+
+describe("group call store mutation", () => {
+  it("keeps both participants when two joins race on the same initial snapshot", async () => {
+    let state: StoredGroupCallState | null = null;
+    let readCount = 0;
+    let releaseReads: (() => void) | null = null;
+    const bothReadsStarted = new Promise<void>((resolve) => {
+      releaseReads = resolve;
+    });
+    const store = {
+      async mutate(
+        _conversationId: string,
+        mutation:
+          | { input: { joinedAt: Date; userId: string; video?: boolean }; type: "join" }
+          | { type: "leave"; userId: string },
+      ) {
+        state =
+          mutation.type === "join"
+            ? applyGroupCallJoin(state, mutation.input)
+            : applyGroupCallLeave(state, mutation.userId);
+        return state;
+      },
+      async read() {
+        const snapshot = state;
+        readCount += 1;
+        if (readCount === 2) {
+          releaseReads?.();
+        }
+        await bothReadsStarted;
+        return snapshot;
+      },
+      async remove() {
+        state = null;
+      },
+      async write(_conversationId: string, next: StoredGroupCallState) {
+        state = next;
+      },
+    } as GroupCallStore & {
+      mutate(
+        conversationId: string,
+        mutation:
+          | { input: { joinedAt: Date; userId: string; video?: boolean }; type: "join" }
+          | { type: "leave"; userId: string },
+      ): Promise<StoredGroupCallState | null>;
+    };
+
+    await Promise.all([
+      joinGroupCall("conversation-1", { joinedAt: STARTED_AT, userId: "user-1" }, store),
+      joinGroupCall("conversation-1", { joinedAt: JOINED_AT, userId: "user-2" }, store),
+    ]);
+
+    const finalState = state as StoredGroupCallState | null;
+    assert.deepEqual(finalState?.participants, [
+      { joinedAt: STARTED_AT.toISOString(), userId: "user-1" },
+      { joinedAt: JOINED_AT.toISOString(), userId: "user-2" },
+    ]);
   });
 });
 

@@ -226,15 +226,20 @@ describe("mobile app lock preference store", () => {
 
 describe("mobile app lock presentation boundary", () => {
   it("removes protected navigation content while the lock screen is active", () => {
-    const source = readFileSync(
+    const productSource = readFileSync(
       join(process.cwd(), "src", "app", "mobile-product-app.tsx"),
+      "utf8",
+    );
+    const boundarySource = readFileSync(
+      join(process.cwd(), "src", "app", "components", "mobile-product-app-lock-boundary.tsx"),
       "utf8",
     );
 
     assert.match(
-      source,
-      /appLockLocked\s*\?\s*\([\s\S]*<MobileAppLockScreen[\s\S]*:\s*\([\s\S]*<Navigator/,
+      productSource,
+      /<MobileProductAppLockBoundary[\s\S]*locked=\{appLockLocked\}[\s\S]*<Navigator/,
     );
+    assert.match(boundarySource, /locked\s*\?\s*\([\s\S]*<MobileAppLockScreen/);
   });
 
   it("marks the lock screen as an accessibility modal", () => {

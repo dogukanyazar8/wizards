@@ -7,6 +7,7 @@ import {
   invalidateServerPermissionCache,
   readCachedChannelPermissionSnapshot,
   readCachedVisibleChannelIdsBatch,
+  readCachedVisibleChannelIdsByServerBatch,
   setPermissionCacheRedisForTest,
   writeCachedChannelPermissionSnapshot,
   writeCachedVisibleChannelIdsBatch,
@@ -15,12 +16,14 @@ import { PermissionBits } from "./permissions";
 
 class MemoryRedis {
   private readonly values = new Map<string, string>();
+  mgetCalls = 0;
 
   setRaw(key: string, value: string) {
     this.values.set(key, value);
   }
 
   async mget(...keys: string[]) {
+    this.mgetCalls += 1;
     return keys.map((key) => this.values.get(key) ?? null);
   }
 
@@ -53,7 +56,10 @@ class MemoryRedis {
   }
 }
 
-function restoreEnv(name: "PERMISSION_CACHE_DISABLED" | "PERMISSION_CACHE_ENABLED", value?: string) {
+function restoreEnv(
+  name: "PERMISSION_CACHE_DISABLED" | "PERMISSION_CACHE_ENABLED",
+  value?: string,
+) {
   if (value === undefined) {
     delete process.env[name];
   } else {
@@ -61,9 +67,7 @@ function restoreEnv(name: "PERMISSION_CACHE_DISABLED" | "PERMISSION_CACHE_ENABLE
   }
 }
 
-async function withPermissionCacheEnabled(
-  run: () => Promise<void>,
-) {
+async function withPermissionCacheEnabled(run: () => Promise<void>) {
   const originalDisabled = process.env.PERMISSION_CACHE_DISABLED;
   const originalEnabled = process.env.PERMISSION_CACHE_ENABLED;
   process.env.PERMISSION_CACHE_ENABLED = "true";
@@ -83,14 +87,19 @@ function createSnapshot(): CachedChannelPermissionSnapshot {
   return {
     channel: {
       id: "channel-1",
+      bitrate: 64_000,
       locked: false,
       name: "general",
+      rtcRegion: null,
+      slowModeDelay: 0,
       server: {
         features: ["GIFS_ENABLED"],
         messageCharacterLimit: 2000,
       },
       serverId: "server-1",
       type: ChannelType.TEXT,
+      userLimit: 0,
+      videoQualityMode: "AUTO",
     },
     context: {
       memberId: "member-1",
@@ -115,6 +124,7 @@ describe("workspace permission cache", () => {
     await withPermissionCacheEnabled(async () => {
       await writeCachedChannelPermissionSnapshot({
         channelId: "channel-1",
+        revisions: { memberVersion: "0", serverVersion: "0" },
         snapshot: createSnapshot(),
         userId: "user-1",
       });
@@ -135,10 +145,28 @@ describe("workspace permission cache", () => {
 
       await writeCachedChannelPermissionSnapshot({
         channelId: "channel-1",
+        revisions: { memberVersion: "0", serverVersion: "1" },
         snapshot: createSnapshot(),
         userId: "user-1",
       });
       await invalidateMemberPermissionCache("server-1", "user-1");
+      assert.equal(await readCachedChannelPermissionSnapshot("user-1", "channel-1"), null);
+    });
+  });
+
+  it("does not write a snapshot when its sampled revision is already stale", async () => {
+    await withPermissionCacheEnabled(async () => {
+      const redis = new MemoryRedis();
+      setPermissionCacheRedisForTest(redis);
+      redis.setRaw("permission:server:server-1:v", "1");
+
+      await writeCachedChannelPermissionSnapshot({
+        channelId: "channel-1",
+        revisions: { memberVersion: "0", serverVersion: "0" },
+        snapshot: createSnapshot(),
+        userId: "user-1",
+      });
+
       assert.equal(await readCachedChannelPermissionSnapshot("user-1", "channel-1"), null);
     });
   });
@@ -192,6 +220,38 @@ describe("workspace permission cache", () => {
     });
   });
 
+  it("reads many servers for one user in two Redis commands", async () => {
+    await withPermissionCacheEnabled(async () => {
+      const redis = new MemoryRedis();
+      setPermissionCacheRedisForTest(redis);
+      await writeCachedVisibleChannelIdsBatch([
+        {
+          channelIds: ["channel-1"],
+          permission: PermissionBits.VIEW_CHANNEL,
+          serverId: "server-1",
+          userId: "user-1",
+        },
+        {
+          channelIds: ["channel-2"],
+          permission: PermissionBits.VIEW_CHANNEL,
+          serverId: "server-2",
+          userId: "user-1",
+        },
+      ]);
+      redis.mgetCalls = 0;
+
+      const cached = await readCachedVisibleChannelIdsByServerBatch({
+        permission: PermissionBits.VIEW_CHANNEL,
+        serverIds: ["server-1", "server-2"],
+        userId: "user-1",
+      });
+
+      assert.deepEqual(cached.get("server-1"), ["channel-1"]);
+      assert.deepEqual(cached.get("server-2"), ["channel-2"]);
+      assert.equal(redis.mgetCalls, 2);
+    });
+  });
+
   it("treats over-age channel permission snapshots as stale when a max age is requested", async () => {
     await withPermissionCacheEnabled(async () => {
       const redis = new MemoryRedis();
@@ -220,10 +280,7 @@ describe("workspace permission cache", () => {
         }),
       );
 
-      const cachedWithoutMaxAge = await readCachedChannelPermissionSnapshot(
-        "user-1",
-        "channel-1",
-      );
+      const cachedWithoutMaxAge = await readCachedChannelPermissionSnapshot("user-1", "channel-1");
       assert.equal(cachedWithoutMaxAge?.permissions, PermissionBits.VIEW_CHANNEL);
 
       assert.equal(

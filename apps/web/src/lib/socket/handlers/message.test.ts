@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { PermissionBits } from "@/lib/workspace/permissions";
 
 import type { HandlerContext } from "../context";
+import * as messageHandlers from "./message";
 import { deriveMessageSendFanoutTargets, registerMessageHandlers } from "./message";
 
 function createHandlerContextRecorder() {
@@ -124,6 +126,89 @@ describe("socket message handlers", () => {
           message: "Message controls are temporarily unavailable. Please try again shortly.",
         },
       },
+    ]);
+  });
+
+  it("enforces channel slow mode after global limiting and returns retryAfterSeconds", async () => {
+    const { ctx, emittedEvents, handlers } = createHandlerContextRecorder();
+    const checks: string[] = [];
+
+    registerMessageHandlers(ctx, {
+      checkChannelMessageRateLimit: async () => {
+        checks.push("global");
+        return { status: "allowed" };
+      },
+      checkChannelSlowMode: async ({ channelId, delaySeconds, userId }) => {
+        checks.push(`slow:${channelId}:${userId}:${delaySeconds}`);
+        return { retryAfterSeconds: 12, status: "limited" };
+      },
+      requireChannelPermissionForUser: async () => ({
+        channel: {
+          id: "channel-1",
+          bitrate: 64_000,
+          locked: false,
+          name: "general",
+          rtcRegion: null,
+          server: { features: [], messageCharacterLimit: 2_000 },
+          serverId: "server-1",
+          slowModeDelay: 30,
+          type: "TEXT",
+          userLimit: 0,
+          videoQualityMode: "AUTO",
+        },
+        context: {} as never,
+        permissions: PermissionBits.SEND_MESSAGES,
+      }),
+    });
+
+    const handler = handlers.get("message:send");
+    assert.ok(handler);
+    await handler({ channelId: "channel-1", content: "Hello" });
+
+    assert.deepEqual(checks, ["global", "slow:channel-1:user-1:30"]);
+    assert.deepEqual(emittedEvents, [
+      {
+        event: "error",
+        payload: {
+          code: "SLOW_MODE",
+          message: "Slow mode is active. Please wait before sending another message.",
+          retryAfterSeconds: 12,
+        },
+      },
+    ]);
+  });
+
+  it("lets message moderators bypass slow mode without bypassing the global limiter", async () => {
+    const slowModeCalls: unknown[] = [];
+    const result = await messageHandlers.checkChannelSlowModeForSend({
+      channelId: "channel-1",
+      check: async (args) => {
+        slowModeCalls.push(args);
+        return { retryAfterSeconds: 30, status: "limited" };
+      },
+      delaySeconds: 30,
+      permissions: PermissionBits.MANAGE_MESSAGES,
+      redis: {} as never,
+      userId: "moderator-1",
+    });
+
+    assert.deepEqual(result, { status: "allowed" });
+    assert.deepEqual(slowModeCalls, []);
+  });
+
+  it("requires unlocked SEND_MESSAGES access before channel reactions", async () => {
+    const checks: unknown[][] = [];
+    await messageHandlers.requireChannelReactionPermission(
+      "user-1",
+      "channel-1",
+      async (...args) => {
+        checks.push(args);
+        return {} as never;
+      },
+    );
+
+    assert.deepEqual(checks, [
+      ["user-1", "channel-1", PermissionBits.SEND_MESSAGES, { respectLocked: true }],
     ]);
   });
 });

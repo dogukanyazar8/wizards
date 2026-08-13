@@ -154,23 +154,14 @@ function getNextCursor<T extends { createdAt: Date; id: string }>(rows: T[], lim
 }
 
 async function assertChannelSearchAccess(userId: string, channelId: string) {
-  const channel = await prisma.channel.findUnique({
-    where: { id: channelId },
-    select: {
-      id: true,
-      name: true,
-      serverId: true,
-      type: true,
+  const { channel } = await requireChannelPermissionForUser(
+    userId,
+    channelId,
+    PermissionBits.VIEW_CHANNEL,
+    {
+      requiredType: ChannelType.TEXT,
     },
-  });
-
-  if (!channel?.serverId || channel.type !== "TEXT") {
-    throw new ApiError("Channel not found", 404, "CHANNEL_NOT_FOUND");
-  }
-
-  await requireChannelPermissionForUser(userId, channelId, PermissionBits.VIEW_CHANNEL, {
-    requiredType: ChannelType.TEXT,
-  });
+  );
 
   return channel;
 }

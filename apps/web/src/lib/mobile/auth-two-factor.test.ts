@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { createMemoryAttemptStore } from "../auth/attempt-tracker";
-import { createMobilePasswordSession, MobileNativeAuthError } from "./auth";
+import {
+  createMobileGoogleSession,
+  createMobilePasswordSession,
+  MobileNativeAuthError,
+} from "./auth";
 
 type MobilePasswordSessionOptions = NonNullable<Parameters<typeof createMobilePasswordSession>[1]>;
 
@@ -69,6 +73,30 @@ function buildPasswordUser(
     isBanned: false,
     locale: "tr" as const,
     passwordHash: "stored-hash",
+    twoFactorEnabled: false,
+    twoFactorSecret: null,
+    twoFactorSecretCiphertext: null,
+    twoFactorSecretKeyVersion: null,
+    username: "ada",
+    ...overrides,
+  };
+}
+
+function buildGoogleUser(
+  overrides: Partial<{
+    twoFactorEnabled: boolean;
+    twoFactorSecret: string | null;
+    twoFactorSecretCiphertext: string | null;
+    twoFactorSecretKeyVersion: string | null;
+  }> = {},
+) {
+  return {
+    avatarUrl: "https://whispr.team/avatar.png",
+    deletedAt: null,
+    displayName: "Ada Lovelace",
+    emailVerified: true,
+    id: "user-1",
+    isBanned: false,
     twoFactorEnabled: false,
     twoFactorSecret: null,
     twoFactorSecretCiphertext: null,
@@ -288,5 +316,129 @@ describe("mobile password session two-factor enforcement", () => {
         ),
       { code: "RATE_LIMITED", status: 429 },
     );
+  });
+});
+
+describe("mobile Google session two-factor enforcement", () => {
+  it("rejects a missing code before linking an existing two-factor account", async () => {
+    const redis = new MemoryRedis();
+    const user = buildGoogleUser({
+      twoFactorEnabled: true,
+      twoFactorSecret: "two-factor-secret",
+    });
+    const calls: string[] = [];
+
+    await expectMobileAuthError(
+      () =>
+        createMobileGoogleSession(
+          { idToken: "verified-google-id-token" },
+          {
+            env,
+            linkAccount: async (linkInput) => {
+              await linkInput.authorizeExistingUser(user);
+              calls.push("link");
+              return user;
+            },
+            nowMs: 1_800_000_000_000,
+            redis,
+            verifyIdToken: async () => ({
+              avatarUrl: "https://whispr.team/avatar.png",
+              email: "ada@example.com",
+              emailVerified: true,
+              name: "Ada Lovelace",
+              subject: "google-user-1",
+            }),
+          },
+        ),
+      { code: "TWO_FACTOR_REQUIRED", status: 401 },
+    );
+
+    assert.deepEqual(calls, []);
+    assert.equal(redis.values.size, 0);
+  });
+
+  it("rejects an invalid code before linking or creating session state", async () => {
+    const redis = new MemoryRedis();
+    const user = buildGoogleUser({
+      twoFactorEnabled: true,
+      twoFactorSecret: "two-factor-secret",
+    });
+    const calls: string[] = [];
+
+    await expectMobileAuthError(
+      () =>
+        createMobileGoogleSession(
+          { idToken: "verified-google-id-token", twoFactorCode: "wrong-code" },
+          {
+            env,
+            linkAccount: async (linkInput) => {
+              await linkInput.authorizeExistingUser(user);
+              calls.push("link");
+              return user;
+            },
+            nowMs: 1_800_000_000_000,
+            redis,
+            verifyIdToken: async () => ({
+              avatarUrl: "https://whispr.team/avatar.png",
+              email: "ada@example.com",
+              emailVerified: true,
+              name: "Ada Lovelace",
+              subject: "google-user-1",
+            }),
+            verifyTwoFactor: async () => ({ error: "invalid_code", success: false }),
+          },
+        ),
+      { code: "TWO_FACTOR_INVALID", status: 401 },
+    );
+
+    assert.deepEqual(calls, []);
+    assert.equal(redis.values.size, 0);
+  });
+
+  it("links and creates a session only after a valid two-factor credential", async () => {
+    const redis = new MemoryRedis();
+    const user = buildGoogleUser({
+      twoFactorEnabled: true,
+      twoFactorSecret: "legacy-secret",
+      twoFactorSecretCiphertext: "encrypted-envelope",
+      twoFactorSecretKeyVersion: "v1",
+    });
+    const calls: string[] = [];
+
+    const response = await createMobileGoogleSession(
+      { idToken: "verified-google-id-token", twoFactorCode: "recovery-code" },
+      {
+        env,
+        linkAccount: async (linkInput) => {
+          await linkInput.authorizeExistingUser(user);
+          calls.push("link");
+          return user;
+        },
+        nowMs: 1_800_000_000_000,
+        redis,
+        verifyIdToken: async () => ({
+          avatarUrl: "https://whispr.team/avatar.png",
+          email: "ada@example.com",
+          emailVerified: true,
+          name: "Ada Lovelace",
+          subject: "google-user-1",
+        }),
+        verifyTwoFactor: async (input) => {
+          assert.deepEqual(input, {
+            code: "recovery-code",
+            secret: "legacy-secret",
+            secretCiphertext: "encrypted-envelope",
+            secretKeyVersion: "v1",
+            userId: "user-1",
+          });
+          calls.push("verify-two-factor");
+          return { success: true };
+        },
+      },
+    );
+
+    assert.equal(response.session.user.id, user.id);
+    assert.deepEqual(calls, ["verify-two-factor", "link"]);
+    assert.notEqual(redis.values.size, 0);
   });
 });

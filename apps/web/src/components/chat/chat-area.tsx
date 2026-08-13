@@ -28,6 +28,7 @@ import { MessageInput } from "./message-input";
 import { MessageSearchPanel } from "./message-search-panel";
 import { ThreadPanel } from "./thread-panel";
 import { TypingIndicator } from "./typing-indicator";
+import { createRafThrottledCallback } from "@/lib/ui/raf-throttle";
 import { ServerMemberPanel } from "@/components/shell/server-member-panel";
 import {
   DmComposer,
@@ -311,9 +312,14 @@ function ChatAreaContent({
   useBodyScrollLock(shouldShowInfoDrawer);
 
   const queryKey = useMemo(() => getMessagesQueryKey(mode, conversationId), [conversationId, mode]);
-  const handleReply = (id: string, authorName: string, content: string) => {
-    setReplyTo({ id, authorName, content });
-  };
+  // Message rows compare this callback by identity. Recreating it on typing ticks
+  // silently bypasses their memo boundary and reruns every Markdown renderer.
+  const handleReply = useCallback(
+    (id: string, authorName: string, content: string) => {
+      setReplyTo({ id, authorName, content });
+    },
+    [setReplyTo],
+  );
 
   const openSearch = () => {
     setIsSearchManuallyOpen(true);
@@ -327,7 +333,14 @@ function ChatAreaContent({
   };
 
   const updateNotificationMenuPosition = useCallback(() => {
-    setNotificationMenuPosition(getFloatingPanelPosition(notificationButtonRef.current));
+    const nextPosition = getFloatingPanelPosition(notificationButtonRef.current);
+    setNotificationMenuPosition((currentPosition) =>
+      currentPosition?.left === nextPosition?.left &&
+      currentPosition?.top === nextPosition?.top &&
+      currentPosition?.width === nextPosition?.width
+        ? currentPosition
+        : nextPosition,
+    );
   }, []);
 
   useEffect(() => {
@@ -336,12 +349,16 @@ function ChatAreaContent({
     }
 
     updateNotificationMenuPosition();
+    // Capture-phase scroll fires for every descendant scroller. Coalesce those
+    // events before reading layout so the chat tree does not rerender per event.
+    const throttledScroll = createRafThrottledCallback(updateNotificationMenuPosition);
 
     window.addEventListener("resize", updateNotificationMenuPosition);
-    window.addEventListener("scroll", updateNotificationMenuPosition, true);
+    window.addEventListener("scroll", throttledScroll.run, true);
     return () => {
+      throttledScroll.cancel();
       window.removeEventListener("resize", updateNotificationMenuPosition);
-      window.removeEventListener("scroll", updateNotificationMenuPosition, true);
+      window.removeEventListener("scroll", throttledScroll.run, true);
     };
   }, [showNotificationMenu, updateNotificationMenuPosition]);
 

@@ -12,7 +12,11 @@ export const HealthCheckSchema = z.object({
 
 export type HealthCheckInput = z.infer<typeof HealthCheckSchema>;
 
+export * from "./account-preferences";
+export * from "./account-date-time";
+export * from "./account-privacy";
 export * from "./auth";
+export * from "./auth-sessions";
 export * from "./badges";
 export * from "./group-call";
 export * from "./group-dm";
@@ -30,3 +34,4 @@ export * from "./mobile-social";
 export * from "./server-profile-presentation";
 export * from "./socket";
 export * from "./voice-mini";
+export * from "./voice-media-policy";

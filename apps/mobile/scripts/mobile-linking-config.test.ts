@@ -8,6 +8,7 @@ import {
 
 const webUrl = "https://whispr.team";
 const handoffToken = "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-"; // gitleaks:allow -- deterministic invalid fixture
+const oauthState = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
 describe("mobile linking configuration", () => {
   it("resolves validated channel, DM, and settings routes", () => {
@@ -134,11 +135,12 @@ describe("mobile linking configuration", () => {
   it("keeps auth handoffs and invites as typed commands", () => {
     assert.deepEqual(
       resolveMobileNavigationIntent(
-        `whispr://oauth/${handoffToken}?callbackUrl=%2Fchannels%2F%40me`,
+        `whispr://oauth/${handoffToken}?callbackUrl=%2Fchannels%2F%40me&state=${oauthState}`,
         { webUrl },
       ),
       {
         callbackPath: "/channels/@me",
+        state: oauthState,
         token: handoffToken,
         type: "auth-handoff",
       },

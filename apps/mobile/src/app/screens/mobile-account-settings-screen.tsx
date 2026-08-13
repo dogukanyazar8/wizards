@@ -1,25 +1,31 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Clipboard from "expo-clipboard";
 import { LinearGradient } from "expo-linear-gradient";
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { FlatList, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type {
+  AccountPreferences,
+  AccountPreferencesPatch,
   MobileAccountDmPolicy,
   MobileAccountFriendRequestPolicy,
   MobileAccountSettingsResponse,
   MobileAccountSettingsUpdate,
 } from "@wizards/types";
-
 import {
-  DEFAULT_LOCAL_VISIBILITY,
-  getMobileAccountProfileCompletion,
-  persistMobileAccountVisibilityPreference,
-  readMobileAccountVisibilityPreferences,
-  type MobileAccountLocalVisibility,
-  type MobileAccountLocalVisibilityField,
-  type MobileAccountLocalVisibilityPreferences,
-} from "../../account/mobile-account-settings-client";
+  ACCOUNT_FORMAT_PREVIEW_INSTANT,
+  ACCOUNT_PREFERENCES_DEFAULT,
+  formatAccountDate,
+  formatAccountTime,
+  getAccountTimeZoneOptions,
+  getInterfaceDensityMetrics,
+} from "@wizards/types";
+
+import { getMobileAccountProfileCompletion } from "../../account/mobile-account-settings-client";
+import { useMobileInterfaceDensity } from "../../account/use-mobile-interface-density";
+import {
+  useMobileAccountPreferencesMutation,
+  useMobileAccountPreferencesQuery,
+} from "../../account/mobile-account-preferences-query";
 import {
   useMobileAccountSettingsMutation,
   useMobileAccountSettingsQuery,
@@ -34,6 +40,7 @@ import {
   BottomSheet,
   Button,
   OptionSheet,
+  OverlaySurface,
   SheetHeader,
   Skeleton,
   useSheetPresentation,
@@ -59,12 +66,6 @@ const FRIEND_REQUEST_POLICIES: readonly MobileAccountFriendRequestPolicy[] = [
   "MUTUAL_FRIENDS",
   "NOBODY",
 ];
-const LOCAL_VISIBILITY_POLICIES: readonly MobileAccountLocalVisibility[] = [
-  "EVERYONE",
-  "FRIENDS",
-  "NOBODY",
-];
-
 /**
  * 2b §7's own side of the picker. Two values rather than the four-rung ladder:
  * a group add is always made by a friend, so "ortak sunucular" has nothing to
@@ -72,29 +73,29 @@ const LOCAL_VISIBILITY_POLICIES: readonly MobileAccountLocalVisibility[] = [
  * boolean the settings endpoint stores.
  */
 const GROUP_INVITE_POLICIES: readonly string[] = ["EVERYONE", "NOBODY"];
+const VISIBILITY_POLICIES: readonly string[] = ["EVERYONE", "FRIENDS", "NOBODY"];
 
-type PolicySheet = "dm" | "friendRequests" | "groupInvites" | "presence" | "profile" | null;
+type PolicySheet = "profile" | "presence" | "dm" | "friendRequests" | "groupInvites" | null;
+type PreferenceSheet = "date" | "time" | "density" | null;
 
 export interface MobileAccountSettingsViewProps {
   readonly error: string | null;
   readonly isLoading: boolean;
   readonly isVerificationSending: boolean;
   readonly locale: MobileLocale;
-  readonly localVisibility: MobileAccountLocalVisibilityPreferences;
   readonly onBack: () => void;
   readonly onCopyUsername: (username: string) => Promise<void>;
   readonly onRetry: (() => void) | undefined;
+  readonly onUpdatePreference: (input: AccountPreferencesPatch) => Promise<void>;
   readonly onVerifyEmail: (email: string) => Promise<void>;
-  readonly onUpdateLocalVisibility: (
-    field: MobileAccountLocalVisibilityField,
-    value: MobileAccountLocalVisibility,
-  ) => Promise<void>;
   readonly onUpdatePrivacy: (input: MobileAccountSettingsUpdate) => Promise<void>;
   readonly onUpdateProfile: (input: {
     displayName?: string | null;
     username?: string;
   }) => Promise<void>;
   readonly presence: string | null;
+  readonly preferences: AccountPreferences | null;
+  readonly preferencesMutationPending: boolean;
   readonly privacyMutationPending: boolean;
   readonly profileMutationPending: boolean;
   readonly settings: MobileAccountSettingsResponse | null;
@@ -320,7 +321,7 @@ function SettingsSkeleton({ locale, onBack }: { locale: MobileLocale; onBack(): 
         testID="mobile-account-settings-loading-privacy-heading"
       />
       <View style={styles.listCard} testID="mobile-account-settings-loading-privacy">
-        <SettingsLoadingRows count={4} section="privacy" />
+        <SettingsLoadingRows count={5} section="privacy" />
       </View>
       <View
         style={styles.loadingSectionHeading}
@@ -342,12 +343,7 @@ function PrivacyRow({
   value,
   withBorder,
 }: {
-  icon:
-    | "chatbubble-outline"
-    | "eye-outline"
-    | "people-outline"
-    | "person-add-outline"
-    | "radio-button-on";
+  icon: SheetIconName;
   label: string;
   onPress(): void;
   testID: string;
@@ -357,6 +353,8 @@ function PrivacyRow({
 }) {
   const styles = useMobileAccountSettingsStyles();
   const theme = useTheme();
+  const density = useMobileInterfaceDensity();
+  const densityMetrics = getInterfaceDensityMetrics(density);
   const iconColor =
     tone === "success"
       ? theme.status.success
@@ -371,6 +369,10 @@ function PrivacyRow({
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
+        {
+          minHeight: density === "COMPACT" ? densityMetrics.controlMinHeight : 56,
+          paddingVertical: densityMetrics.verticalPadding,
+        },
         withBorder && styles.rowBorder,
         pressed && styles.pressed,
       ]}
@@ -457,15 +459,16 @@ export function MobileAccountSettingsView({
   isLoading,
   isVerificationSending,
   locale,
-  localVisibility,
   onBack,
   onCopyUsername,
   onRetry,
-  onUpdateLocalVisibility,
+  onUpdatePreference,
   onUpdatePrivacy,
   onUpdateProfile,
   onVerifyEmail,
   presence,
+  preferences,
+  preferencesMutationPending,
   privacyMutationPending,
   profileMutationPending,
   settings,
@@ -475,6 +478,9 @@ export function MobileAccountSettingsView({
   const styles = useMobileAccountSettingsStyles();
   const theme = useTheme();
   const [policySheet, setPolicySheet] = useState<PolicySheet>(null);
+  const [preferenceSheet, setPreferenceSheet] = useState<PreferenceSheet>(null);
+  const [timeZonePickerOpen, setTimeZonePickerOpen] = useState(false);
+  const [timeZoneSearch, setTimeZoneSearch] = useState("");
   const [profileEditorOpen, setProfileEditorOpen] = useState(false);
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
   const [username, setUsername] = useState(user?.username ?? "");
@@ -484,17 +490,88 @@ export function MobileAccountSettingsView({
     setUsername(user?.username ?? "");
   }, [user?.displayName, user?.username]);
 
+  const resolvedPreferences = preferences ?? ACCOUNT_PREFERENCES_DEFAULT;
+  const intlLocale = locale === "tr" ? "tr-TR" : "en-US";
+  const timeZoneOptions = useMemo(
+    () => getAccountTimeZoneOptions({ selectedTimeZone: resolvedPreferences.timeZone }),
+    [resolvedPreferences.timeZone],
+  );
+  const visibleTimeZones = useMemo(() => {
+    const normalized = timeZoneSearch.trim().toLocaleLowerCase(intlLocale);
+    return normalized
+      ? timeZoneOptions.filter((option) =>
+          option.toLocaleLowerCase(intlLocale).includes(normalized),
+        )
+      : timeZoneOptions;
+  }, [intlLocale, timeZoneOptions, timeZoneSearch]);
+  const dateOptions = useMemo<readonly SheetOption<AccountPreferences["dateFormat"]>[]>(
+    () =>
+      (["LOCALE", "DMY", "MDY", "YMD"] as const).map((value) => ({
+        description: formatAccountDate(ACCOUNT_FORMAT_PREVIEW_INSTANT, {
+          dateFormat: value,
+          locale: intlLocale,
+          timeZone: resolvedPreferences.timeZone,
+        }),
+        label:
+          value === "LOCALE"
+            ? copy.accountSettingsFormatLocale
+            : value === "DMY"
+              ? copy.accountSettingsDateDmy
+              : value === "MDY"
+                ? copy.accountSettingsDateMdy
+                : copy.accountSettingsDateYmd,
+        value,
+      })),
+    [copy, intlLocale, resolvedPreferences.timeZone],
+  );
+  const timeOptions = useMemo<readonly SheetOption<AccountPreferences["timeFormat"]>[]>(
+    () =>
+      (["LOCALE", "H12", "H24"] as const).map((value) => ({
+        description: formatAccountTime(ACCOUNT_FORMAT_PREVIEW_INSTANT, {
+          locale: intlLocale,
+          timeFormat: value,
+          timeZone: resolvedPreferences.timeZone,
+        }),
+        label:
+          value === "LOCALE"
+            ? copy.accountSettingsFormatLocale
+            : value === "H12"
+              ? copy.accountSettingsTimeH12
+              : copy.accountSettingsTimeH24,
+        value,
+      })),
+    [copy, intlLocale, resolvedPreferences.timeZone],
+  );
+  const densityOptions = useMemo<readonly SheetOption<AccountPreferences["interfaceDensity"]>[]>(
+    () => [
+      {
+        description: copy.accountSettingsDensityComfortableHint,
+        icon: "resize-outline",
+        label: copy.accountSettingsDensityComfortable,
+        value: "COMFORTABLE",
+      },
+      {
+        description: copy.accountSettingsDensityCompactHint,
+        icon: "reorder-three-outline",
+        label: copy.accountSettingsDensityCompact,
+        value: "COMPACT",
+      },
+    ],
+    [copy],
+  );
+  const densityMetrics = getInterfaceDensityMetrics(resolvedPreferences.interfaceDensity);
+
   const openProfileEditor = () => {
     setDisplayName(user?.displayName ?? "");
     setUsername(user?.username ?? "");
     setProfileEditorOpen(true);
   };
 
-  if (isLoading && !settings) {
+  if (isLoading && (!settings || !preferences)) {
     return <SettingsSkeleton locale={locale} onBack={onBack} />;
   }
 
-  if (!settings || !user) {
+  if (!settings || !preferences || !user) {
     return (
       <ScrollView
         contentContainerStyle={styles.content}
@@ -528,13 +605,15 @@ export function MobileAccountSettingsView({
   const profileName = user.displayName ?? user.username;
   const isOnline = presence === "ONLINE";
   const policyValues =
-    policySheet === "dm"
-      ? DM_POLICIES
-      : policySheet === "friendRequests"
-        ? FRIEND_REQUEST_POLICIES
-        : policySheet === "groupInvites"
-          ? GROUP_INVITE_POLICIES
-          : LOCAL_VISIBILITY_POLICIES;
+    policySheet === "profile" || policySheet === "presence"
+      ? VISIBILITY_POLICIES
+      : policySheet === "dm"
+        ? DM_POLICIES
+        : policySheet === "friendRequests"
+          ? FRIEND_REQUEST_POLICIES
+          : policySheet === "groupInvites"
+            ? GROUP_INVITE_POLICIES
+            : DM_POLICIES;
   const policyOptions = buildPolicyOptions(locale, policyValues);
   const policyPresentation: {
     icon: SheetIconName;
@@ -543,55 +622,69 @@ export function MobileAccountSettingsView({
     title: string;
     tone: SheetTone;
   } =
-    policySheet === "dm"
+    policySheet === "profile"
       ? {
-          icon: "chatbubble-outline",
-          selected: settings.privacy.dmPermission,
-          subtitle: copy.accountSettingsDmPermissionHint,
-          title: copy.accountSettingsDmPermission,
+          icon: "eye-outline",
+          selected: preferences.profileVisibility,
+          subtitle: copy.accountSettingsProfileVisibilityHint,
+          title: copy.accountSettingsProfileVisibility,
           tone: "accent",
         }
-      : policySheet === "friendRequests"
+      : policySheet === "presence"
         ? {
-            icon: "person-add-outline",
-            selected: settings.privacy.friendRequests,
-            subtitle: copy.accountSettingsFriendRequestsHint,
-            title: copy.accountSettingsFriendRequests,
-            tone: "warning",
+            icon: "radio-button-on",
+            selected: preferences.presenceVisibility,
+            subtitle: copy.accountSettingsPresenceVisibilityHint,
+            title: copy.accountSettingsPresenceVisibility,
+            tone: "success",
           }
-        : policySheet === "groupInvites"
+        : policySheet === "dm"
           ? {
-              icon: "people-outline",
-              selected: settings.privacy.groupInvites ? "EVERYONE" : "NOBODY",
-              subtitle: copy.accountSettingsGroupInvitesHint,
-              title: copy.accountSettingsGroupInvites,
+              icon: "chatbubble-outline",
+              selected: settings.privacy.dmPermission,
+              subtitle: copy.accountSettingsDmPermissionHint,
+              title: copy.accountSettingsDmPermission,
               tone: "accent",
             }
-          : policySheet === "presence"
+          : policySheet === "friendRequests"
             ? {
-                icon: "radio-button-on",
-                selected: localVisibility.presence,
-                subtitle: copy.accountSettingsPresenceVisibilityHint,
-                title: copy.accountSettingsPresenceVisibility,
-                tone: "success",
+                icon: "person-add-outline",
+                selected: settings.privacy.friendRequests,
+                subtitle: copy.accountSettingsFriendRequestsHint,
+                title: copy.accountSettingsFriendRequests,
+                tone: "warning",
               }
-            : {
-                icon: "eye-outline",
-                selected: localVisibility.profile,
-                subtitle: copy.accountSettingsProfileVisibilityHint,
-                title: copy.accountSettingsProfileVisibility,
-                tone: "accent",
-              };
+            : policySheet === "groupInvites"
+              ? {
+                  icon: "people-outline",
+                  selected: settings.privacy.groupInvites ? "EVERYONE" : "NOBODY",
+                  subtitle: copy.accountSettingsGroupInvitesHint,
+                  title: copy.accountSettingsGroupInvites,
+                  tone: "accent",
+                }
+              : {
+                  icon: "chatbubble-outline",
+                  selected: settings.privacy.dmPermission,
+                  subtitle: copy.accountSettingsDmPermissionHint,
+                  title: copy.accountSettingsDmPermission,
+                  tone: "accent",
+                };
 
   const selectPolicy = async (value: string) => {
-    if (policySheet === "dm") {
+    if (policySheet === "profile") {
+      await onUpdatePreference({
+        profileVisibility: value as AccountPreferences["profileVisibility"],
+      });
+    } else if (policySheet === "presence") {
+      await onUpdatePreference({
+        presenceVisibility: value as AccountPreferences["presenceVisibility"],
+      });
+    } else if (policySheet === "dm") {
       await onUpdatePrivacy({ dmPermission: value as MobileAccountDmPolicy });
     } else if (policySheet === "friendRequests") {
       await onUpdatePrivacy({ friendRequests: value as MobileAccountFriendRequestPolicy });
     } else if (policySheet === "groupInvites") {
       await onUpdatePrivacy({ groupInvites: value === "EVERYONE" });
-    } else if (policySheet === "presence" || policySheet === "profile") {
-      await onUpdateLocalVisibility(policySheet, value as MobileAccountLocalVisibility);
     }
     setPolicySheet(null);
   };
@@ -735,7 +828,7 @@ export function MobileAccountSettingsView({
           onPress={() => setPolicySheet("profile")}
           testID="mobile-account-profile-visibility-row"
           tone="accent"
-          value={getPolicyLabel(locale, localVisibility.profile)}
+          value={getPolicyLabel(locale, preferences.profileVisibility)}
           withBorder
         />
         <PrivacyRow
@@ -744,7 +837,7 @@ export function MobileAccountSettingsView({
           onPress={() => setPolicySheet("presence")}
           testID="mobile-account-presence-visibility-row"
           tone="success"
-          value={getPolicyLabel(locale, localVisibility.presence)}
+          value={getPolicyLabel(locale, preferences.presenceVisibility)}
           withBorder
         />
         <PrivacyRow
@@ -776,6 +869,82 @@ export function MobileAccountSettingsView({
         />
       </View>
 
+      <Text style={styles.sectionHeading}>{copy.accountSettingsRegionalHeading}</Text>
+      <View style={styles.listCard}>
+        <PrivacyRow
+          icon="globe-outline"
+          label={copy.accountSettingsTimeZone}
+          onPress={() => setTimeZonePickerOpen(true)}
+          testID="mobile-account-time-zone-row"
+          tone="accent"
+          value={
+            preferences.timeZone === "AUTO"
+              ? copy.accountSettingsTimeZoneAuto
+              : preferences.timeZone
+          }
+          withBorder
+        />
+        <PrivacyRow
+          icon="calendar-outline"
+          label={copy.accountSettingsDateFormat}
+          onPress={() => setPreferenceSheet("date")}
+          testID="mobile-account-date-format-row"
+          tone="accent"
+          value={formatAccountDate(ACCOUNT_FORMAT_PREVIEW_INSTANT, {
+            dateFormat: preferences.dateFormat,
+            locale: intlLocale,
+            timeZone: preferences.timeZone,
+          })}
+          withBorder
+        />
+        <PrivacyRow
+          icon="time-outline"
+          label={copy.accountSettingsTimeFormat}
+          onPress={() => setPreferenceSheet("time")}
+          testID="mobile-account-time-format-row"
+          tone="success"
+          value={formatAccountTime(ACCOUNT_FORMAT_PREVIEW_INSTANT, {
+            locale: intlLocale,
+            timeFormat: preferences.timeFormat,
+            timeZone: preferences.timeZone,
+          })}
+          withBorder={false}
+        />
+      </View>
+
+      <Text style={styles.sectionHeading}>{copy.accountSettingsAppearanceHeading}</Text>
+      <View style={styles.listCard}>
+        <PrivacyRow
+          icon="reorder-three-outline"
+          label={copy.accountSettingsDensity}
+          onPress={() => setPreferenceSheet("density")}
+          testID="mobile-account-density-row"
+          tone="accent"
+          value={
+            preferences.interfaceDensity === "COMPACT"
+              ? copy.accountSettingsDensityCompact
+              : copy.accountSettingsDensityComfortable
+          }
+          withBorder={false}
+        />
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={[
+            styles.densityPreview,
+            {
+              gap: densityMetrics.rowGap,
+              minHeight: densityMetrics.controlMinHeight,
+              paddingVertical: densityMetrics.verticalPadding,
+            },
+          ]}
+          testID="mobile-account-density-preview"
+        >
+          <View style={styles.densityPreviewLineLong} />
+          <View style={styles.densityPreviewLineShort} />
+        </View>
+      </View>
+
       <Text style={styles.sectionHeading}>{copy.accountSettingsSecurityHeading}</Text>
       <View style={styles.listCard}>
         <SecurityRow
@@ -798,7 +967,11 @@ export function MobileAccountSettingsView({
 
       <OptionSheet
         closeAccessibilityLabel={copy.sheetCloseAction}
-        disabled={privacyMutationPending}
+        disabled={
+          policySheet === "profile" || policySheet === "presence"
+            ? preferencesMutationPending
+            : privacyMutationPending
+        }
         icon={policyPresentation.icon}
         onClose={() => setPolicySheet(null)}
         onSelect={(option) => void selectPolicy(option).catch(() => undefined)}
@@ -811,6 +984,144 @@ export function MobileAccountSettingsView({
         title={policyPresentation.title}
         tone={policyPresentation.tone}
       />
+      <OptionSheet
+        closeAccessibilityLabel={copy.sheetCloseAction}
+        disabled={preferencesMutationPending}
+        icon="calendar-outline"
+        onClose={() => setPreferenceSheet(null)}
+        onSelect={(value) => {
+          void onUpdatePreference({ dateFormat: value })
+            .then(() => setPreferenceSheet(null))
+            .catch(() => undefined);
+        }}
+        open={preferenceSheet === "date"}
+        options={dateOptions}
+        selectedValue={preferences.dateFormat}
+        subtitle={copy.accountSettingsDateFormatHint}
+        testID="mobile-account-date-format"
+        title={copy.accountSettingsDateFormat}
+      />
+      <OptionSheet
+        closeAccessibilityLabel={copy.sheetCloseAction}
+        disabled={preferencesMutationPending}
+        icon="time-outline"
+        onClose={() => setPreferenceSheet(null)}
+        onSelect={(value) => {
+          void onUpdatePreference({ timeFormat: value })
+            .then(() => setPreferenceSheet(null))
+            .catch(() => undefined);
+        }}
+        open={preferenceSheet === "time"}
+        options={timeOptions}
+        selectedValue={preferences.timeFormat}
+        subtitle={copy.accountSettingsTimeFormatHint}
+        testID="mobile-account-time-format"
+        title={copy.accountSettingsTimeFormat}
+      />
+      <OptionSheet
+        closeAccessibilityLabel={copy.sheetCloseAction}
+        disabled={preferencesMutationPending}
+        icon="reorder-three-outline"
+        onClose={() => setPreferenceSheet(null)}
+        onSelect={(value) => {
+          void onUpdatePreference({ interfaceDensity: value })
+            .then(() => setPreferenceSheet(null))
+            .catch(() => undefined);
+        }}
+        open={preferenceSheet === "density"}
+        options={densityOptions}
+        selectedValue={preferences.interfaceDensity}
+        subtitle={copy.accountSettingsDensityHint}
+        testID="mobile-account-density"
+        title={copy.accountSettingsDensity}
+      />
+      {timeZonePickerOpen ? (
+        <OverlaySurface
+          accessibilityLabel={copy.sheetCloseAction}
+          animatedBackdropStyle={{ opacity: 1 }}
+          backdropStyle={{ backgroundColor: theme.surface.base }}
+          onClose={() => {
+            setTimeZonePickerOpen(false);
+            setTimeZoneSearch("");
+          }}
+          open
+          style={styles.timeZonePicker}
+          testID="mobile-account-time-zone-picker"
+        >
+          <View style={styles.timeZonePicker}>
+            <View style={styles.timeZonePickerHeader}>
+              <Pressable
+                accessibilityLabel={copy.sheetCloseAction}
+                accessibilityRole="button"
+                onPress={() => {
+                  setTimeZonePickerOpen(false);
+                  setTimeZoneSearch("");
+                }}
+                style={styles.timeZoneClose}
+                testID="mobile-account-time-zone-close"
+              >
+                <Ionicons color={theme.text.primary} name="close" size={22} />
+              </Pressable>
+              <Text style={styles.timeZoneTitle}>{copy.accountSettingsTimeZone}</Text>
+            </View>
+            <TextInput
+              accessibilityLabel={copy.accountSettingsTimeZoneSearch}
+              autoCapitalize="none"
+              autoCorrect={false}
+              onChangeText={setTimeZoneSearch}
+              placeholder={copy.accountSettingsTimeZoneSearch}
+              placeholderTextColor={theme.text.muted}
+              style={styles.timeZoneSearch}
+              testID="mobile-account-time-zone-search"
+              value={timeZoneSearch}
+            />
+            <FlatList
+              data={visibleTimeZones}
+              initialNumToRender={24}
+              keyboardShouldPersistTaps="handled"
+              keyExtractor={(item) => item}
+              ListEmptyComponent={
+                <Text style={styles.timeZoneEmpty}>{copy.accountSettingsTimeZoneNoResults}</Text>
+              }
+              maxToRenderPerBatch={32}
+              removeClippedSubviews
+              renderItem={({ item }) => {
+                const selected = item === preferences.timeZone;
+                return (
+                  <Pressable
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selected, disabled: preferencesMutationPending }}
+                    disabled={preferencesMutationPending}
+                    onPress={() => {
+                      void onUpdatePreference({ timeZone: item })
+                        .then(() => {
+                          setTimeZonePickerOpen(false);
+                          setTimeZoneSearch("");
+                        })
+                        .catch(() => undefined);
+                    }}
+                    style={({ pressed }) => [
+                      styles.timeZoneRow,
+                      selected && styles.timeZoneRowSelected,
+                      pressed && styles.pressed,
+                    ]}
+                    testID={`mobile-account-time-zone-${item}`}
+                  >
+                    <Text numberOfLines={2} style={styles.timeZoneRowLabel}>
+                      {item === "AUTO" ? copy.accountSettingsTimeZoneAuto : item}
+                    </Text>
+                    {selected ? (
+                      <Ionicons color={theme.accent.strong} name="checkmark" size={20} />
+                    ) : null}
+                  </Pressable>
+                );
+              }}
+              style={styles.timeZoneList}
+              windowSize={7}
+            />
+          </View>
+        </OverlaySurface>
+      ) : null}
       <ProfileEditorSheet
         busy={profileMutationPending}
         displayName={displayName}
@@ -921,9 +1232,10 @@ export function MobileAccountSettingsScreen({
   const { showToast } = useToast();
   const copy = mobileCopy[locale];
   const query = useMobileAccountSettingsQuery(apiClient, status === "signed-in");
+  const preferencesQuery = useMobileAccountPreferencesQuery(apiClient, status === "signed-in");
+  const preferencesMutation = useMobileAccountPreferencesMutation(apiClient);
   const privacyMutation = useMobileAccountSettingsMutation(apiClient);
   const profileMutations = useMobileSocialMutations(apiClient);
-  const [localVisibility, setLocalVisibility] = useState(DEFAULT_LOCAL_VISIBILITY);
   const [isVerificationSending, setVerificationSending] = useState(false);
   const [canonicalUser, setCanonicalUser] = useState<MobileSessionUser | null>(
     session?.user ?? null,
@@ -933,38 +1245,18 @@ export function MobileAccountSettingsScreen({
     setCanonicalUser(session?.user ?? null);
   }, [session?.user]);
 
-  useEffect(() => {
-    let mounted = true;
-    readMobileAccountVisibilityPreferences(AsyncStorage)
-      .then((value) => mounted && setLocalVisibility(value))
-      .catch(() => showToast({ title: copy.accountSettingsLoadError, variant: "error" }));
-    return () => {
-      mounted = false;
-    };
-  }, [copy.accountSettingsLoadError, showToast]);
-
-  const updateLocalVisibility = async (
-    field: MobileAccountLocalVisibilityField,
-    value: MobileAccountLocalVisibility,
-  ) => {
-    const previous = localVisibility;
+  const updatePrivacy = async (input: MobileAccountSettingsUpdate) => {
     try {
-      await persistMobileAccountVisibilityPreference({
-        current: previous,
-        field,
-        onChange: setLocalVisibility,
-        storage: AsyncStorage,
-        value,
-      });
+      await privacyMutation.mutateAsync(input);
     } catch (error) {
       showToast({ title: copy.accountSettingsUpdateError, variant: "error" });
       throw error;
     }
   };
 
-  const updatePrivacy = async (input: MobileAccountSettingsUpdate) => {
+  const updatePreference = async (input: AccountPreferencesPatch) => {
     try {
-      await privacyMutation.mutateAsync(input);
+      await preferencesMutation.mutateAsync(input);
     } catch (error) {
       showToast({ title: copy.accountSettingsUpdateError, variant: "error" });
       throw error;
@@ -1026,22 +1318,27 @@ export function MobileAccountSettingsScreen({
       error={
         status === "signed-out"
           ? copy.settingsAccountSignedOut
-          : query.isError
+          : query.isError || preferencesQuery.isError
             ? copy.accountSettingsLoadError
             : null
       }
-      isLoading={query.isLoading}
+      isLoading={query.isLoading || preferencesQuery.isLoading}
       isVerificationSending={isVerificationSending}
       locale={locale}
-      localVisibility={localVisibility}
       onBack={onBack}
       onCopyUsername={copyUsername}
-      onRetry={status === "signed-in" ? () => void query.refetch() : undefined}
-      onUpdateLocalVisibility={updateLocalVisibility}
+      onRetry={
+        status === "signed-in"
+          ? () => void Promise.all([query.refetch(), preferencesQuery.refetch()])
+          : undefined
+      }
+      onUpdatePreference={updatePreference}
       onUpdatePrivacy={updatePrivacy}
       onUpdateProfile={updateProfile}
       onVerifyEmail={verifyEmail}
       presence={presence}
+      preferences={preferencesQuery.data ?? null}
+      preferencesMutationPending={preferencesMutation.isPending}
       privacyMutationPending={privacyMutation.isPending}
       profileMutationPending={profileMutations.updateProfile.isPending}
       settings={query.data ?? null}

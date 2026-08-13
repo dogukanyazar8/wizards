@@ -6,6 +6,7 @@ import {
   exchangeMobileAuthHandoff,
   MOBILE_AUTH_EXCHANGE_ENDPOINT,
   MOBILE_AUTH_FORGOT_PASSWORD_ENDPOINT,
+  MOBILE_AUTH_GOOGLE_ENDPOINT,
   MOBILE_AUTH_LOGIN_ENDPOINT,
   MOBILE_AUTH_REGISTER_ENDPOINT,
   MOBILE_AUTH_REFRESH_ENDPOINT,
@@ -16,6 +17,7 @@ import {
   requestMobilePasswordReset,
   requestMobileVerificationEmail,
   revokeMobileAuthSession,
+  signInMobileWithGoogleIdToken,
   signInMobileWithPassword,
 } from "../src/auth/mobile-auth-exchange";
 
@@ -39,6 +41,29 @@ const validSession = {
 };
 
 describe("mobile auth exchange contract", () => {
+  it("sends the Google ID token and two-factor credential together", async () => {
+    const requests: Array<{ body: unknown; method: string | undefined; path: string }> = [];
+    const client: MobileApiClient = {
+      async requestJson<TResponse>(path: string, options: MobileApiRequestOptions = {}) {
+        requests.push({ body: options.body, method: options.method, path });
+        return { session: validSession } as TResponse;
+      },
+    };
+
+    await signInMobileWithGoogleIdToken(client, {
+      idToken: "verified-google-id-token",
+      twoFactorCode: "123456",
+    });
+
+    assert.deepEqual(requests, [
+      {
+        body: { idToken: "verified-google-id-token", twoFactorCode: "123456" },
+        method: "POST",
+        path: MOBILE_AUTH_GOOGLE_ENDPOINT,
+      },
+    ]);
+  });
+
   it("signs in with email and password through the native mobile endpoint", async () => {
     const requests: Array<{ body: unknown; method: string | undefined; path: string }> = [];
     const client: MobileApiClient = {

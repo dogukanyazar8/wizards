@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { useVirtualizer, type VirtualItem } from "@tanstack/react-virtual";
 import type { ChatMessage } from "@wizards/types";
 import { MessageItem } from "./message-item";
 import {
@@ -9,10 +10,80 @@ import {
   type DmSystemMessageParticipant,
 } from "@/components/dm/dm-system-message";
 import { useI18n } from "@/components/providers/locale-provider";
+import { useAccountPreferenceRuntime } from "@/components/providers/account-preference-provider";
 import { useMessages, type MessageMode } from "@/hooks/use-messages";
 import { useSocket } from "@/hooks/use-socket";
 
 const MESSAGE_GROUP_WINDOW_MS = 5 * 60 * 1000;
+const MESSAGE_ESTIMATED_ROW_HEIGHT_PX = 84;
+const MESSAGE_VIRTUAL_OVERSCAN = 8;
+const MESSAGE_SCROLL_SETTLE_DELAY_MS = 150;
+
+export const MESSAGE_VIRTUALIZER_SCROLL_OPTIONS = {
+  anchorTo: "end",
+  followOnAppend: "auto",
+  scrollEndThreshold: 100,
+} as const;
+
+type ScrollMetrics = Pick<HTMLElement, "clientHeight" | "scrollHeight" | "scrollTop">;
+type MessageVirtualItem = Pick<VirtualItem, "index" | "key" | "size" | "start">;
+
+export function getVirtualMessageRows<Row>(
+  rows: readonly Row[],
+  virtualItems: readonly MessageVirtualItem[],
+) {
+  return virtualItems.flatMap((virtualItem) => {
+    const row = rows[virtualItem.index];
+    return row === undefined ? [] : [{ row, virtualItem }];
+  });
+}
+
+export function findMessageVirtualIndex(
+  rows: readonly { message: { id: string } }[],
+  messageId: string,
+) {
+  return rows.findIndex((row) => row.message.id === messageId);
+}
+
+export function getNewMessageAnnouncement(
+  message: {
+    authorId: string;
+    authorName: string;
+    content: string;
+    id: string;
+  },
+  currentUserId: string,
+) {
+  if (message.authorId === currentUserId) {
+    return null;
+  }
+
+  return { id: message.id, text: `${message.authorName}: ${message.content}` };
+}
+
+export function isMessageListNearBottom(metrics: ScrollMetrics) {
+  return metrics.scrollHeight - metrics.scrollTop - metrics.clientHeight < 100;
+}
+
+export function scheduleMessageListScrollPass(options: {
+  onScroll: () => void;
+  onSettled: () => void;
+  requestFrame: (callback: () => void) => number;
+  scheduleTimeout: (callback: () => void, delay: number) => number;
+  shouldSchedule: boolean;
+}) {
+  if (!options.shouldSchedule) {
+    return null;
+  }
+
+  return options.requestFrame(() => {
+    options.onScroll();
+    options.scheduleTimeout(() => {
+      options.onScroll();
+      options.onSettled();
+    }, MESSAGE_SCROLL_SETTLE_DELAY_MS);
+  });
+}
 
 interface MessageListProps {
   conversationId: string;
@@ -53,23 +124,110 @@ function MessageListContent({
   onRetry,
   onThread,
 }: MessageListProps) {
-  const { locale, t } = useI18n();
+  "use no memo";
+
+  // TanStack Virtual exposes mutable instance methods; React Compiler cannot
+  // safely memoize this boundary without making scroll measurements stale.
+  const { t } = useI18n();
+  const { formatDate } = useAccountPreferenceRuntime();
   const socket = useSocket();
-  const { data, error, fetchNextPage, hasNextPage, isLoading } = useMessages(mode, conversationId);
+  const { data, error, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useMessages(
+    mode,
+    conversationId,
+  );
   const [showScrollButton, setShowScrollButton] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const virtualSizerRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const hasScrolledInitialRef = useRef(false);
   const initialScrollCompleteRef = useRef(false);
+  const isNearBottomRef = useRef(true);
   const lastNewestMessageIdRef = useRef<string | null>(null);
   const lastNewestMessageActivityRef = useRef<string | null>(null);
   const scrollFrameRef = useRef<number | null>(null);
-  const scrollTimeoutRefs = useRef<number[]>([]);
+  const scrollTimeoutRef = useRef<number | null>(null);
   const lastHighlightedMessageIdRef = useRef<string | null>(null);
   const [targetMessageId, setTargetMessageId] = useState<string | null>(null);
   const [unreadJumpDismissed, setUnreadJumpDismissed] = useState(false);
   const [deletedNoticeNow, setDeletedNoticeNow] = useState(() => Date.now());
+  const [virtualScrollMargin, setVirtualScrollMargin] = useState(0);
+  const [newMessageAnnouncement, setNewMessageAnnouncement] = useState<{
+    id: string;
+    text: string;
+  } | null>(null);
+
+  // The cache remains complete; virtualization bounds browser work without
+  // creating pagination gaps or moving realtime writes into an older page.
+  const allMessages = useMemo(
+    () =>
+      (data?.pages ? [...data.pages].reverse().flatMap((page) => page.messages) : []).filter(
+        (message) => {
+          if (!message.deletedAt || !message.placeholderExpiresAt) {
+            return true;
+          }
+
+          return Date.parse(message.placeholderExpiresAt) > deletedNoticeNow;
+        },
+      ),
+    [data?.pages, deletedNoticeNow],
+  );
+  const groupedMessages = useMemo(
+    () =>
+      allMessages.map((message, index) => {
+        const previousMessage = allMessages[index - 1];
+        const messageDate = new Date(message.createdAt);
+        const previousDate = previousMessage ? new Date(previousMessage.createdAt) : null;
+        const showDateSeparator =
+          index === 0 ||
+          !previousDate ||
+          messageDate.toDateString() !== previousDate.toDateString();
+        const isGrouped =
+          index > 0 &&
+          previousMessage !== undefined &&
+          message.type === "DEFAULT" &&
+          previousMessage.type === "DEFAULT" &&
+          previousMessage.author.id === message.author.id &&
+          Math.abs(
+            new Date(message.createdAt).getTime() - new Date(previousMessage.createdAt).getTime(),
+          ) < MESSAGE_GROUP_WINDOW_MS;
+        return { isGrouped, message, showDateSeparator };
+      }),
+    [allMessages],
+  );
+  // This component explicitly opts out above; virtualizer methods are mutable
+  // by design and must observe the live scroll element and measurement cache.
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const messageVirtualizer = useVirtualizer({
+    ...MESSAGE_VIRTUALIZER_SCROLL_OPTIONS,
+    count: groupedMessages.length,
+    estimateSize: () => MESSAGE_ESTIMATED_ROW_HEIGHT_PX,
+    getItemKey: (index) => groupedMessages[index]?.message.id ?? `message-row-${index}`,
+    getScrollElement: () => listRef.current,
+    overscan: MESSAGE_VIRTUAL_OVERSCAN,
+    scrollMargin: virtualScrollMargin,
+  });
+  const virtualRows = getVirtualMessageRows(groupedMessages, messageVirtualizer.getVirtualItems());
+
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    const sizer = virtualSizerRef.current;
+    if (!list || !sizer) {
+      return;
+    }
+
+    const updateScrollMargin = () => {
+      setVirtualScrollMargin((current) =>
+        current === sizer.offsetTop ? current : sizer.offsetTop,
+      );
+    };
+    updateScrollMargin();
+
+    const resizeObserver = new ResizeObserver(updateScrollMargin);
+    resizeObserver.observe(list);
+    resizeObserver.observe(sizer);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   const forceScrollToBottom = useCallback(() => {
     if (!listRef.current) {
@@ -78,6 +236,7 @@ function MessageListContent({
 
     bottomRef.current?.scrollIntoView({ block: "end", behavior: "auto" });
     listRef.current.scrollTop = listRef.current.scrollHeight;
+    isNearBottomRef.current = true;
     setShowScrollButton(false);
   }, []);
 
@@ -87,36 +246,37 @@ function MessageListContent({
         window.cancelAnimationFrame(scrollFrameRef.current);
       }
 
-      for (const timeoutId of scrollTimeoutRefs.current) {
-        window.clearTimeout(timeoutId);
+      if (scrollTimeoutRef.current !== null) {
+        window.clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = null;
       }
-      scrollTimeoutRefs.current = [];
 
-      const run = (remainingFrames: number) => {
-        scrollFrameRef.current = window.requestAnimationFrame(() => {
-          forceScrollToBottom();
-
-          if (remainingFrames > 0) {
-            run(remainingFrames - 1);
-            return;
-          }
-
-          scrollFrameRef.current = null;
-        });
-      };
-
-      run(4);
-
-      for (const delay of [50, 150, 350, 700]) {
-        const timeoutId = window.setTimeout(() => {
-          forceScrollToBottom();
-
-          if (options.completeInitial && delay === 700) {
+      // The old five-frame/four-timeout burst forced layout nine times. One frame
+      // plus one settlement pass covers late Markdown height without the churn.
+      scrollFrameRef.current = scheduleMessageListScrollPass({
+        onScroll: forceScrollToBottom,
+        onSettled: () => {
+          if (options.completeInitial) {
             initialScrollCompleteRef.current = true;
           }
-        }, delay);
-        scrollTimeoutRefs.current.push(timeoutId);
-      }
+        },
+        requestFrame: (callback) =>
+          window.requestAnimationFrame(() => {
+            scrollFrameRef.current = null;
+            callback();
+          }),
+        scheduleTimeout: (callback, delay) => {
+          const timeoutId = window.setTimeout(() => {
+            scrollTimeoutRef.current = null;
+            callback();
+          }, delay);
+          scrollTimeoutRef.current = timeoutId;
+          return timeoutId;
+        },
+        // Read the position captured before new content changed scrollHeight. A
+        // large incoming message can otherwise make a reader at bottom look far away.
+        shouldSchedule: Boolean(options.completeInitial) || isNearBottomRef.current,
+      });
     },
     [forceScrollToBottom],
   );
@@ -127,13 +287,21 @@ function MessageListContent({
         window.cancelAnimationFrame(scrollFrameRef.current);
       }
 
-      for (const timeoutId of scrollTimeoutRefs.current) {
-        window.clearTimeout(timeoutId);
+      if (scrollTimeoutRef.current !== null) {
+        window.clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = null;
       }
-      scrollTimeoutRefs.current = [];
     },
     [],
   );
+
+  const fetchOlderMessages = useCallback(async () => {
+    if (isFetchingNextPage) {
+      return;
+    }
+
+    await fetchNextPage();
+  }, [fetchNextPage, isFetchingNextPage]);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -141,8 +309,13 @@ function MessageListContent({
         return;
       }
 
-      if (entries[0]?.isIntersecting && (hasNextPage ?? false) && !isLoading) {
-        fetchNextPage();
+      if (
+        entries[0]?.isIntersecting &&
+        (hasNextPage ?? false) &&
+        !isFetchingNextPage &&
+        !isLoading
+      ) {
+        void fetchOlderMessages();
       }
     });
 
@@ -151,7 +324,7 @@ function MessageListContent({
     }
 
     return () => observer.disconnect();
-  }, [fetchNextPage, hasNextPage, isLoading]);
+  }, [fetchOlderMessages, hasNextPage, isFetchingNextPage, isLoading]);
 
   useEffect(() => {
     const readTargetMessage = () => {
@@ -166,22 +339,34 @@ function MessageListContent({
     };
   }, []);
 
-  const scrollToMessage = useCallback((messageId: string) => {
-    window.requestAnimationFrame(() => {
-      const target = document.querySelector(`[data-message-id="${messageId}"]`);
-
-      if (!(target instanceof HTMLElement)) {
+  const scrollToMessage = useCallback(
+    (messageId: string) => {
+      const index = findMessageVirtualIndex(groupedMessages, messageId);
+      if (index < 0) {
         return;
       }
 
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
-      target.dataset.jumpHighlight = "true";
-      lastHighlightedMessageIdRef.current = messageId;
-      window.setTimeout(() => {
-        delete target.dataset.jumpHighlight;
-      }, 1600);
-    });
-  }, []);
+      // Offscreen rows have no DOM node by design. Scroll by stable message
+      // index first, then highlight after the virtual row mounts and measures.
+      messageVirtualizer.scrollToIndex(index, { align: "center" });
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          const target = document.querySelector(`[data-message-id="${messageId}"]`);
+
+          if (!(target instanceof HTMLElement)) {
+            return;
+          }
+
+          target.dataset.jumpHighlight = "true";
+          lastHighlightedMessageIdRef.current = messageId;
+          window.setTimeout(() => {
+            delete target.dataset.jumpHighlight;
+          }, 1600);
+        });
+      });
+    },
+    [groupedMessages, messageVirtualizer],
+  );
 
   useLayoutEffect(() => {
     if (!data?.pages) {
@@ -238,12 +423,26 @@ function MessageListContent({
     }
 
     if (isInitialLoad || hasNewLatestMessage || hasLatestInteraction) {
+      if (!isInitialLoad && hasNewLatestMessage && newestMessage) {
+        const authorName = newestMessage.author.displayName ?? newestMessage.author.username;
+        setNewMessageAnnouncement(
+          getNewMessageAnnouncement(
+            {
+              authorId: newestMessage.author.id,
+              authorName,
+              content: newestMessage.content,
+              id: newestMessage.id,
+            },
+            currentUserId,
+          ),
+        );
+      }
       hasScrolledInitialRef.current = true;
       scheduleScrollToBottom({
         completeInitial: isInitialLoad || !initialScrollCompleteRef.current,
       });
     }
-  }, [data?.pages, scheduleScrollToBottom, scrollToMessage, targetMessageId]);
+  }, [currentUserId, data?.pages, scheduleScrollToBottom, scrollToMessage, targetMessageId]);
 
   useEffect(() => {
     if (!targetMessageId || !data?.pages || !(hasNextPage ?? false) || isLoading) {
@@ -263,8 +462,8 @@ function MessageListContent({
       return;
     }
 
-    const { scrollTop, scrollHeight, clientHeight } = listRef.current;
-    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    const isNearBottom = isMessageListNearBottom(listRef.current);
+    isNearBottomRef.current = isNearBottom;
     setShowScrollButton(!isNearBottom);
   }, []);
 
@@ -275,16 +474,6 @@ function MessageListContent({
 
     forceScrollToBottom();
   }, [forceScrollToBottom]);
-
-  const allMessages = (
-    data?.pages ? [...data.pages].reverse().flatMap((page) => page.messages) : []
-  ).filter((message) => {
-    if (!message.deletedAt || !message.placeholderExpiresAt) {
-      return true;
-    }
-
-    return Date.parse(message.placeholderExpiresAt) > deletedNoticeNow;
-  });
 
   useEffect(() => {
     const nextExpiry = allMessages
@@ -329,30 +518,6 @@ function MessageListContent({
     return null;
   }, [allMessages, currentUserId, senderColors]);
 
-  const groupedMessages = useMemo(
-    () =>
-      allMessages.map((message, index) => {
-        const previousMessage = allMessages[index - 1];
-        const messageDate = new Date(message.createdAt);
-        const previousDate = previousMessage ? new Date(previousMessage.createdAt) : null;
-        const showDateSeparator =
-          index === 0 ||
-          !previousDate ||
-          messageDate.toDateString() !== previousDate.toDateString();
-        const isGrouped =
-          index > 0 &&
-          previousMessage !== undefined &&
-          message.type === "DEFAULT" &&
-          previousMessage.type === "DEFAULT" &&
-          previousMessage.author.id === message.author.id &&
-          Math.abs(
-            new Date(message.createdAt).getTime() - new Date(previousMessage.createdAt).getTime(),
-          ) < MESSAGE_GROUP_WINDOW_MS;
-        return { isGrouped, message, showDateSeparator };
-      }),
-    [allMessages],
-  );
-
   const formatDateSeparator = useCallback(
     (isoDate: string) => {
       const date = new Date(isoDate);
@@ -368,13 +533,9 @@ function MessageListContent({
         return t("chat.date.yesterday");
       }
 
-      return date.toLocaleDateString(locale, {
-        day: "numeric",
-        month: "long",
-        year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
-      });
+      return formatDate(date);
     },
-    [locale, t],
+    [formatDate, t],
   );
 
   const handleReact = useCallback(
@@ -397,127 +558,149 @@ function MessageListContent({
   );
 
   return (
-    <div
-      ref={listRef}
-      onScroll={handleScroll}
-      className="relative min-w-0 flex-1 space-y-0 overflow-y-auto overflow-x-hidden overscroll-contain scroll-pb-[max(7.5rem,calc(env(safe-area-inset-bottom)+6.75rem))] bg-transparent px-2.5 py-1 sm:px-4 md:px-5 md:py-2"
-      aria-label={t("chat.list.ariaLabel")}
-      aria-live="polite"
-      aria-relevant="additions text"
-      data-testid="message-list"
-      role="log"
-    >
-      <div ref={observerRef} className="h-1" />
+    <>
+      <div aria-atomic="true" aria-live="polite" className="sr-only">
+        {newMessageAnnouncement ? (
+          <span key={newMessageAnnouncement.id}>{newMessageAnnouncement.text}</span>
+        ) : null}
+      </div>
 
-      {initialUnreadMessageId && !unreadJumpDismissed ? (
-        <div className="sticky top-3 z-20 mb-3 flex justify-center">
+      <div
+        ref={listRef}
+        onScroll={handleScroll}
+        className="relative min-w-0 flex-1 space-y-0 overflow-y-auto overflow-x-hidden overscroll-contain scroll-pb-[max(7.5rem,calc(env(safe-area-inset-bottom)+6.75rem))] bg-transparent px-2.5 py-1 sm:px-4 md:px-5 md:py-2"
+        aria-label={t("chat.list.ariaLabel")}
+        aria-live="off"
+        data-testid="message-list"
+        role="log"
+      >
+        <div ref={observerRef} className="absolute left-0 top-0 h-px w-full" />
+
+        {initialUnreadMessageId && !unreadJumpDismissed ? (
+          <div className="pointer-events-none sticky top-3 z-20 flex h-0 justify-center">
+            <button
+              className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.12)] px-4 py-2 text-xs font-bold text-[hsl(var(--primary))] shadow-[0_14px_34px_hsl(var(--primary)/0.12)] backdrop-blur-xl transition hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              data-testid="jump-to-unread-button"
+              onClick={() => {
+                setUnreadJumpDismissed(true);
+                scrollToMessage(initialUnreadMessageId);
+              }}
+              type="button"
+            >
+              {t("chat.unread.jump")}
+            </button>
+          </div>
+        ) : null}
+
+        {isLoading && allMessages.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-app-muted">
+            <div className="animate-pulse">{t("chat.list.loading")}</div>
+          </div>
+        ) : null}
+
+        {error && !isLoading ? (
+          <div className="absolute inset-0 z-20 flex items-center justify-center text-app-muted">
+            <div className="text-center">
+              <p className="text-sm">{t("chat.list.errorTitle")}</p>
+              <p className="text-xs">{t("chat.list.errorDescription")}</p>
+            </div>
+          </div>
+        ) : null}
+
+        {!error && allMessages.length === 0 && !isLoading ? (
+          <div className="flex h-full items-center justify-center px-4 text-app-muted">
+            <div className="max-w-[18rem] rounded-[22px] bg-[hsl(var(--surface-card)/0.74)] px-5 py-4 text-center shadow-[0_14px_32px_hsl(var(--shadow-color)/0.045)] backdrop-blur-xl">
+              <p className="text-sm font-bold text-app-foreground">{t("chat.list.emptyTitle")}</p>
+              <p className="mt-1 text-xs leading-5 text-app-muted">
+                {t("chat.list.emptyDescription")}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        <div
+          ref={virtualSizerRef}
+          className="relative w-full"
+          style={{ height: `${messageVirtualizer.getTotalSize()}px` }}
+        >
+          {virtualRows.map(({ row: { message, isGrouped, showDateSeparator }, virtualItem }) => (
+            <div
+              className="absolute left-0 top-0 w-full"
+              data-index={virtualItem.index}
+              data-virtual-message-row
+              key={virtualItem.key}
+              ref={messageVirtualizer.measureElement}
+              style={{
+                transform: `translateY(${virtualItem.start - messageVirtualizer.options.scrollMargin}px)`,
+              }}
+            >
+              {showDateSeparator ? (
+                <div
+                  className="sticky top-2 z-10 my-2 flex items-center gap-2 px-1 text-[10px] font-bold uppercase tracking-[0.18em] text-app-soft"
+                  data-testid="message-date-separator"
+                  role="separator"
+                >
+                  <span className="h-px flex-1 bg-[hsl(var(--border)/0.62)]" />
+                  <span className="rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.9)] px-2.5 py-0.5 shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)] backdrop-blur-xl">
+                    {formatDateSeparator(message.createdAt)}
+                  </span>
+                  <span className="h-px flex-1 bg-[hsl(var(--border)/0.62)]" />
+                </div>
+              ) : null}
+              {/* §19.3: a group event is a note about the conversation, so it is
+              drawn before — and instead of — anything a bubble would add. */}
+              {message.systemType ? (
+                <DmSystemMessage
+                  actorFallbackName={message.author.displayName ?? message.author.username}
+                  actorUserId={message.author.id}
+                  currentUserId={currentUserId}
+                  participants={participants}
+                  systemTargetUserIds={message.systemTargetUserIds}
+                  systemType={message.systemType}
+                  systemValue={message.systemValue}
+                />
+              ) : (
+                <MessageItem
+                  mode={mode}
+                  message={message}
+                  isGrouped={isGrouped}
+                  {...(senderColors?.[message.author.id]
+                    ? { authorColor: senderColors[message.author.id] }
+                    : {})}
+                  {...(message.id === readReceiptMessageId && message.readReceipt
+                    ? {
+                        readReceipt: {
+                          count: message.readReceipt.count,
+                          everyone: message.readReceipt.everyone,
+                        },
+                      }
+                    : {})}
+                  currentUserId={currentUserId}
+                  canModerate={canModerate}
+                  onReact={handleReact}
+                  onRemoveOptimistic={onRemoveOptimistic}
+                  onReply={handleReply}
+                  onRetry={onRetry}
+                  onThread={onThread}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div ref={bottomRef} className="h-1" />
+
+        {showScrollButton ? (
           <button
-            className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.12)] px-4 py-2 text-xs font-bold text-[hsl(var(--primary))] shadow-[0_14px_34px_hsl(var(--primary)/0.12)] backdrop-blur-xl transition hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-            data-testid="jump-to-unread-button"
-            onClick={() => {
-              setUnreadJumpDismissed(true);
-              scrollToMessage(initialUnreadMessageId);
-            }}
+            onClick={scrollToBottom}
+            className="sticky bottom-4 ml-auto flex rounded-full bg-[hsl(var(--primary))] p-2 text-[hsl(var(--primary-foreground))] shadow-lg transition hover:bg-[hsl(var(--primary)/0.9)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            aria-label={t("chat.list.scrollToLatest")}
             type="button"
           >
-            {t("chat.unread.jump")}
+            <ChevronDown className="h-5 w-5" />
           </button>
-        </div>
-      ) : null}
-
-      {isLoading && allMessages.length === 0 ? (
-        <div className="flex h-full items-center justify-center text-app-muted">
-          <div className="animate-pulse">{t("chat.list.loading")}</div>
-        </div>
-      ) : null}
-
-      {error && !isLoading ? (
-        <div className="flex h-full items-center justify-center text-app-muted">
-          <div className="text-center">
-            <p className="text-sm">{t("chat.list.errorTitle")}</p>
-            <p className="text-xs">{t("chat.list.errorDescription")}</p>
-          </div>
-        </div>
-      ) : null}
-
-      {!error && allMessages.length === 0 && !isLoading ? (
-        <div className="flex h-full items-center justify-center px-4 text-app-muted">
-          <div className="max-w-[18rem] rounded-[22px] bg-[hsl(var(--surface-card)/0.74)] px-5 py-4 text-center shadow-[0_14px_32px_hsl(var(--shadow-color)/0.045)] backdrop-blur-xl">
-            <p className="text-sm font-bold text-app-foreground">{t("chat.list.emptyTitle")}</p>
-            <p className="mt-1 text-xs leading-5 text-app-muted">
-              {t("chat.list.emptyDescription")}
-            </p>
-          </div>
-        </div>
-      ) : null}
-
-      {groupedMessages.map(({ message, isGrouped, showDateSeparator }) => (
-        <div key={message.id}>
-          {showDateSeparator ? (
-            <div
-              className="sticky top-2 z-10 my-2 flex items-center gap-2 px-1 text-[10px] font-bold uppercase tracking-[0.18em] text-app-soft"
-              data-testid="message-date-separator"
-              role="separator"
-            >
-              <span className="h-px flex-1 bg-[hsl(var(--border)/0.62)]" />
-              <span className="rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.9)] px-2.5 py-0.5 shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)] backdrop-blur-xl">
-                {formatDateSeparator(message.createdAt)}
-              </span>
-              <span className="h-px flex-1 bg-[hsl(var(--border)/0.62)]" />
-            </div>
-          ) : null}
-          {/* §19.3: a group event is a note about the conversation, so it is
-              drawn before — and instead of — anything a bubble would add. */}
-          {message.systemType ? (
-            <DmSystemMessage
-              actorFallbackName={message.author.displayName ?? message.author.username}
-              actorUserId={message.author.id}
-              currentUserId={currentUserId}
-              participants={participants}
-              systemTargetUserIds={message.systemTargetUserIds}
-              systemType={message.systemType}
-              systemValue={message.systemValue}
-            />
-          ) : (
-            <MessageItem
-              mode={mode}
-              message={message}
-              isGrouped={isGrouped}
-              {...(senderColors?.[message.author.id]
-                ? { authorColor: senderColors[message.author.id] }
-                : {})}
-              {...(message.id === readReceiptMessageId && message.readReceipt
-                ? {
-                    readReceipt: {
-                      count: message.readReceipt.count,
-                      everyone: message.readReceipt.everyone,
-                    },
-                  }
-                : {})}
-              currentUserId={currentUserId}
-              canModerate={canModerate}
-              onReact={handleReact}
-              onRemoveOptimistic={onRemoveOptimistic}
-              onReply={handleReply}
-              onRetry={onRetry}
-              onThread={onThread}
-            />
-          )}
-        </div>
-      ))}
-
-      <div ref={bottomRef} className="h-1" />
-
-      {showScrollButton ? (
-        <button
-          onClick={scrollToBottom}
-          className="sticky bottom-4 ml-auto flex rounded-full bg-[hsl(var(--primary))] p-2 text-[hsl(var(--primary-foreground))] shadow-lg transition hover:bg-[hsl(var(--primary)/0.9)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-          aria-label={t("chat.list.scrollToLatest")}
-          type="button"
-        >
-          <ChevronDown className="h-5 w-5" />
-        </button>
-      ) : null}
-    </div>
+        ) : null}
+      </div>
+    </>
   );
 }

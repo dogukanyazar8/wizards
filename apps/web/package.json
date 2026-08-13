@@ -12,7 +12,7 @@
     "Safari >= 16.4"
   ],
   "scripts": {
-    "dev": "tsx watch server.ts",
+    "dev": "tsx watch --env-file=.env server.ts",
     "build": "pnpm --filter @wizards/db db:generate && node scripts/build-next.mjs && pnpm run build:server",
     "build:server": "node scripts/build-server.mjs",
     "db:migrate:deploy": "pnpm --filter @wizards/db db:migrate:deploy",
@@ -34,7 +34,7 @@
     "e2e:ui": "pnpm run e2e:check-env && playwright test --project=chromium --ui",
     "e2e:visual": "pnpm run e2e:check-env && playwright test --project=chromium e2e/specs/visual",
     "e2e:web-server": "pnpm run build && pnpm start",
-    "lint": "node --test scripts/eslint-config.test.mjs && eslint .",
+    "lint": "node --test scripts/eslint-config.test.mjs scripts/dev-env-contract.test.mjs && eslint .",
     "maintenance:cleanup-reauth": "tsx scripts/cleanup-account-reauth-challenges.ts",
     "maintenance:server-member-counts": "tsx scripts/repair-server-member-counts.ts",
     "maintenance:totp-secrets": "tsx scripts/backfill-totp-secrets.ts",
@@ -60,6 +60,7 @@
     "@sentry/nextjs": "10.69.0",
     "@socket.io/redis-adapter": "^8.3.0",
     "@tanstack/react-query": "5.101.4",
+    "@tanstack/react-virtual": "3.14.9",
     "@tauri-apps/api": "2.11.1",
     "@tauri-apps/plugin-notification": "^2.3.3",
     "@tauri-apps/plugin-process": "^2.3.1",

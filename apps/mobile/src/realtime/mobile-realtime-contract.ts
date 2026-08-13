@@ -142,6 +142,7 @@ const CHANNEL_WORKSPACE_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>(
 const DM_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
   "dm:conversation:updated",
   "dm:conversation:read",
+  "dm:conversation:delivered",
   // Faz 5 §17.2: a group appearing, changing hands, or losing the viewer each
   // rewrites the inbox row, and none of them ride a message event.
   "dm:conversation:created",
@@ -390,6 +391,7 @@ export function getMobileRealtimeRefreshSources(
     eventName === "dm:call:declined" ||
     eventName === "dm:call:cancelled" ||
     eventName === "dm:call:ended" ||
+    eventName === "friends:voice:update" ||
     isMobileRealtimeGroupPatchEvent(eventName) ||
     eventName === "voice:audio-level:update" ||
     eventName === "voice:invite:accepted" ||
@@ -431,10 +433,6 @@ export function getMobileRealtimeRefreshSources(
 
   if (eventName === "notification:new") {
     sources.add("notification");
-  }
-
-  if (sources.size === 0) {
-    sources.add("bootstrap");
   }
 
   return [...sources];
@@ -553,6 +551,7 @@ export function validateMobileRealtimeContract(): string[] {
       eventName === "dm:call:declined" ||
       eventName === "dm:call:cancelled" ||
       eventName === "dm:call:ended" ||
+      eventName === "friends:voice:update" ||
       isMobileRealtimeGroupPatchEvent(eventName) ||
       eventName === "voice:audio-level:update" ||
       eventName === "voice:invite:accepted" ||

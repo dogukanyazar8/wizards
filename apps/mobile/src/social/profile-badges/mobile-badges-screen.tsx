@@ -281,8 +281,10 @@ export function MobileBadgesScreen({ initialBadgeId, onBack }: MobileBadgesScree
     }
   }, [initialBadgeId]);
 
-  const earned = entries.filter((entry) => entry.earned);
-  const locked = entries.filter((entry) => !entry.earned);
+  // BadgeSection memoizes its family grouping by entry identity. Inline filters
+  // rebuilt both inputs on every sheet or header state change and defeated it.
+  const earned = useMemo(() => entries.filter((entry) => entry.earned), [entries]);
+  const locked = useMemo(() => entries.filter((entry) => !entry.earned), [entries]);
   const openDetail = (id: BadgeId) => {
     haptics.selection();
     setRequest({ badgeId: id, kind: "badge" });

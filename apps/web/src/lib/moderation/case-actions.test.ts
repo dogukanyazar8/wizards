@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import {
   applyModerationCaseAction,
@@ -67,6 +68,15 @@ function harness(
         userId: args.userId,
       });
     },
+    createReporterNotifications: async (notifications) => {
+      const existingKeys = new Set(recorded.notifications.map((entry) => entry.dedupeKey));
+      for (const notification of notifications) {
+        if (!existingKeys.has(notification.dedupeKey)) {
+          recorded.notifications.push(notification);
+          existingKeys.add(notification.dedupeKey);
+        }
+      }
+    },
     findCase: async () => moderationCase as never,
     listReporterIds: async () => overrides.reporterIds ?? ["user-9"],
     resolveCase: async (args) => {
@@ -128,6 +138,52 @@ describe("moderation case claiming", () => {
         claimModerationCase({ adminUserId: "admin-1", caseId: "case-1", now: NOW }, dependencies),
       (error: unknown) => error instanceof ApiError && error.status === 404,
     );
+  });
+
+  it("refuses every decided case even when it was never assigned", async () => {
+    const originalFindUnique = prisma.moderationCase.findUnique;
+    const originalUpdateMany = prisma.moderationCase.updateMany;
+    const originalCreateEvent = prisma.moderationCaseEvent.create;
+    const originalCreateAudit = prisma.adminAuditLog.create;
+    const originalCount = prisma.moderationCase.count;
+
+    try {
+      for (const status of ["ACTIONED", "DISMISSED", "CLOSED", "APPEALED"] as const) {
+        (prisma.moderationCase.findUnique as unknown as { call: unknown }) = (async () => ({
+          id: "case-1",
+          publicNumber: 42,
+          status,
+          subjectHandle: "bora",
+          subjectId: "user-2",
+        })) as never;
+        (prisma.moderationCase.updateMany as unknown as { call: unknown }) = (async (query: {
+          where?: { status?: { notIn?: string[] } };
+        }) => ({
+          count: query.where?.status?.notIn?.includes(status) ? 0 : 1,
+        })) as never;
+        (prisma.moderationCaseEvent.create as unknown as { call: unknown }) =
+          (async () => ({})) as never;
+        (prisma.adminAuditLog.create as unknown as { call: unknown }) = (async () => ({})) as never;
+        (prisma.moderationCase.count as unknown as { call: unknown }) = (async () => 0) as never;
+
+        await assert.rejects(
+          () =>
+            claimModerationCase({
+              adminUserId: "admin-1",
+              caseId: "case-1",
+              now: NOW,
+            }),
+          (error: unknown) => error instanceof ApiError && error.status === 409,
+          status,
+        );
+      }
+    } finally {
+      prisma.moderationCase.findUnique = originalFindUnique;
+      prisma.moderationCase.updateMany = originalUpdateMany;
+      prisma.moderationCaseEvent.create = originalCreateEvent;
+      prisma.adminAuditLog.create = originalCreateAudit;
+      prisma.moderationCase.count = originalCount;
+    }
   });
 });
 
@@ -252,6 +308,47 @@ describe("moderation case actions", () => {
           dependencies,
         ),
       (error: unknown) => error instanceof ApiError && error.status === 409,
+    );
+  });
+
+  it("rejects a second action while an appeal is open", async () => {
+    const { dependencies, recorded } = harness({ moderationCase: { status: "APPEALED" } });
+
+    await assert.rejects(
+      () =>
+        applyModerationCaseAction(
+          {
+            action: "ban",
+            adminUserId: "admin-1",
+            caseId: "case-1",
+            now: NOW,
+            resolution: "Tekrar uygulanmasın.",
+          },
+          dependencies,
+        ),
+      (error: unknown) => error instanceof ApiError && error.status === 409,
+    );
+    assert.deepEqual(recorded.bans, []);
+    assert.deepEqual(recorded.resolutions, []);
+  });
+
+  it("does not fail reporter fan-out when a dedupe key already exists", async () => {
+    const { dependencies, recorded } = harness({ reporterIds: ["user-9", "user-9"] });
+
+    await applyModerationCaseAction(
+      {
+        action: "dismiss",
+        adminUserId: "admin-1",
+        caseId: "case-1",
+        now: NOW,
+        resolution: "Kural ihlali yok.",
+      },
+      dependencies,
+    );
+
+    assert.equal(
+      recorded.notifications.filter((entry) => entry.dedupeKey.includes(":reporter:")).length,
+      1,
     );
   });
 

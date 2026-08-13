@@ -21,6 +21,10 @@ export type VoiceParticipantProfile = {
   username: string;
 };
 
+export type VoiceParticipantRosterEntry = VoiceParticipantProfile & {
+  isDeafened?: boolean;
+};
+
 export type VoiceParticipantCameraState = {
   cameraPublication: TrackPublication | null;
   cameraTrack: LocalVideoTrack | RemoteVideoTrack | null;
@@ -40,35 +44,16 @@ export interface VoiceScreenShareViewModel {
   username: string;
 }
 
-type ParticipantMetadata = {
-  avatarUrl?: string | null;
-  displayName?: string | null;
-  isDeafened?: boolean;
-  username?: string | null;
-};
-
 type ParticipantProfileSource = {
   identity: string;
   metadata?: string | null;
   name?: string | null;
 };
 
-export function parseParticipantMetadata(participant: { metadata?: string | null }) {
-  if (!participant.metadata) {
-    return {};
-  }
-
-  try {
-    const parsed = JSON.parse(participant.metadata) as ParticipantMetadata;
-    return parsed ?? {};
-  } catch {
-    return {};
-  }
-}
-
 export function getParticipantProfile(
   participant: ParticipantProfileSource,
   currentUser: VoiceCurrentUser,
+  roster: readonly VoiceParticipantRosterEntry[] = [],
 ): VoiceParticipantProfile {
   if (participant.identity === currentUser.id) {
     return {
@@ -79,18 +64,25 @@ export function getParticipantProfile(
     };
   }
 
-  const metadata = parseParticipantMetadata(participant);
-  const username =
-    metadata.username?.trim() ||
-    metadata.displayName?.trim() ||
-    participant.name?.trim() ||
-    participant.identity;
+  const rosterProfile = roster.find((entry) => entry.userId === participant.identity);
+  if (rosterProfile) {
+    return {
+      avatarUrl: rosterProfile.avatarUrl,
+      displayName: rosterProfile.displayName,
+      userId: rosterProfile.userId,
+      username: rosterProfile.username,
+    };
+  }
+
+  // Participant metadata used to win here even though peers could rewrite it.
+  // The token name is server-issued; identity is the safe final fallback.
+  const name = participant.name?.trim() || participant.identity;
 
   return {
     userId: participant.identity,
-    username,
-    displayName: metadata.displayName?.trim() || participant.name?.trim() || null,
-    avatarUrl: metadata.avatarUrl ?? null,
+    username: name,
+    displayName: participant.name?.trim() || null,
+    avatarUrl: null,
   };
 }
 
@@ -106,8 +98,11 @@ export function getParticipantCameraState(participant: Participant): VoicePartic
   };
 }
 
-export function getParticipantDeafenState(participant: ParticipantProfileSource) {
-  return parseParticipantMetadata(participant).isDeafened === true;
+export function getParticipantDeafenState(
+  participant: ParticipantProfileSource,
+  roster: readonly Pick<VoiceParticipantRosterEntry, "isDeafened" | "userId">[] = [],
+) {
+  return roster.find((entry) => entry.userId === participant.identity)?.isDeafened === true;
 }
 
 export function getScreenShareId(participantId: string, trackSid: string) {
@@ -117,10 +112,11 @@ export function getScreenShareId(participantId: string, trackSid: string) {
 export function collectScreenShares(
   targetRoom: Room,
   currentUser: VoiceCurrentUser,
+  roster: readonly VoiceParticipantRosterEntry[] = [],
 ): VoiceScreenShareViewModel[] {
   return [targetRoom.localParticipant, ...targetRoom.remoteParticipants.values()].flatMap(
     (participant) => {
-      const profile = getParticipantProfile(participant, currentUser);
+      const profile = getParticipantProfile(participant, currentUser, roster);
 
       return participant
         .getTrackPublications()

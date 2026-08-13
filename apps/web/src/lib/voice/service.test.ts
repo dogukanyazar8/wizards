@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { assertVoiceChannelCapacity, type VoiceCapacityDelegate } from "./capacity";
+import { prisma } from "@wizards/db";
+import { ApiError } from "@/lib/api";
+import { UNKNOWN_ATTRIBUTION } from "@/lib/analytics/client-attribution";
+import {
+  assertVoiceChannelCapacity,
+  resolveVoiceParticipantLimit,
+  type VoiceCapacityDelegate,
+} from "./capacity";
+import * as voiceService from "./service";
 import {
   acquireVoiceCleanupLock,
   acquireVoiceJoinLocks,
@@ -29,6 +37,17 @@ type ClearMutationInput = Parameters<typeof runVoiceStateClearMutation>[0];
 type VoiceStateClearRecord = Awaited<ReturnType<ClearMutationInput["voiceState"]["findUnique"]>>;
 type VoiceStateDeleteManyCall = Parameters<ClearMutationInput["voiceState"]["deleteMany"]>[0];
 type VoiceCapacityCountCall = Parameters<VoiceCapacityDelegate["count"]>[0];
+
+type Restore = () => void;
+
+function patchMethod(target: object, key: string, value: unknown, restores: Restore[]) {
+  const record = target as Record<string, unknown>;
+  const original = record[key];
+  record[key] = value;
+  restores.push(() => {
+    record[key] = original;
+  });
+}
 
 class MemoryVoiceJoinRedis {
   readonly evalCalls: Array<{
@@ -104,6 +123,145 @@ function createVoiceStateClearDelegate(existingState: VoiceStateClearRecord, del
 }
 
 describe("voice service concurrency helpers", () => {
+  it("removes one user from Socket.IO, LiveKit, and persisted voice state", async () => {
+    const detach = (
+      voiceService as unknown as {
+        detachUserFromVoiceSurface?: (
+          userId: string,
+          options: {
+            dependencies: {
+              clearState(userId: string): Promise<{
+                channelId: string;
+                serverId: string;
+                sessionId: string;
+                userId: string;
+              } | null>;
+              emitStateUpdate(input: unknown): Promise<void>;
+              getIo(): {
+                in(room: string): { fetchSockets(): Promise<unknown[]> };
+              } | null;
+              removeLiveKitParticipant(channelId: string, userId: string): Promise<void>;
+            };
+          },
+        ) => Promise<unknown>;
+      }
+    ).detachUserFromVoiceSurface;
+
+    assert.equal(typeof detach, "function");
+    if (!detach) return;
+
+    const calls: string[] = [];
+    const voiceRooms = new Set(["channel-1", "channel-2"]);
+    const socket = {
+      data: { userId: "user-1", voiceRooms },
+      async leave(room: string) {
+        calls.push(`socket:${room}`);
+      },
+    };
+
+    await detach("user-1", {
+      dependencies: {
+        async clearState(userId) {
+          calls.push(`db:${userId}`);
+          return {
+            channelId: "channel-1",
+            serverId: "server-1",
+            sessionId: "session-1",
+            userId,
+          };
+        },
+        async emitStateUpdate() {
+          calls.push("emit");
+        },
+        getIo() {
+          return {
+            in(room: string) {
+              calls.push(`fetch:${room}`);
+              return { fetchSockets: async () => [socket] };
+            },
+          };
+        },
+        async removeLiveKitParticipant(channelId, userId) {
+          calls.push(`livekit:${channelId}:${userId}`);
+        },
+      },
+    });
+
+    assert.deepEqual(calls, [
+      "db:user-1",
+      "fetch:user:user-1",
+      "socket:voice:channel-1",
+      "livekit:channel-1:user-1",
+      "emit",
+    ]);
+    assert.deepEqual([...voiceRooms], ["channel-2"]);
+  });
+
+  it("rejects an unauthorized heartbeat before refreshing persisted state", async () => {
+    const restores: Restore[] = [];
+    let updateCount = 0;
+    let detachCount = 0;
+    patchMethod(
+      prisma.voiceState,
+      "findUnique",
+      async () => ({
+        channelId: "channel-1",
+        serverId: "server-1",
+        sessionId: "session-1",
+      }),
+      restores,
+    );
+    patchMethod(
+      prisma.voiceState,
+      "update",
+      async () => {
+        updateCount += 1;
+      },
+      restores,
+    );
+
+    resetVoiceCleanupLocalDebounceForTests();
+    shouldAttemptVoiceCleanup(Date.now());
+
+    try {
+      const heartbeat = voiceService.heartbeatVoiceState as unknown as (
+        userId: string,
+        sessionId: string,
+        attribution: typeof UNKNOWN_ATTRIBUTION,
+        dependencies: {
+          detachUser(userId: string, options: { expectedSessionId: string }): Promise<unknown>;
+          requireMembership(
+            userId: string,
+            input: { channelId: string; serverId: string },
+          ): Promise<unknown>;
+        },
+      ) => Promise<unknown>;
+
+      await assert.rejects(
+        () =>
+          heartbeat("user-1", "session-1", UNKNOWN_ATTRIBUTION, {
+            async detachUser() {
+              detachCount += 1;
+            },
+            async requireMembership() {
+              throw new ApiError("Voice permission revoked", 403, "FORBIDDEN");
+            },
+          }),
+        (error) => {
+          assert.ok(error instanceof ApiError);
+          assert.equal(error.code, "FORBIDDEN");
+          return true;
+        },
+      );
+
+      assert.equal(updateCount, 0);
+      assert.equal(detachCount, 1);
+    } finally {
+      for (const restore of restores.reverse()) restore();
+      resetVoiceCleanupLocalDebounceForTests();
+    }
+  });
+
   it("keeps server scope on every voice-state realtime payload", () => {
     assert.deepEqual(
       createVoiceStateUpdatePayload({
@@ -113,6 +271,7 @@ describe("voice service concurrency helpers", () => {
           {
             avatarUrl: null,
             displayName: "Ada",
+            isDeafened: false,
             isScreenSharing: false,
             userId: "user-1",
             username: "ada",
@@ -128,6 +287,7 @@ describe("voice service concurrency helpers", () => {
           {
             avatarUrl: null,
             displayName: "Ada",
+            isDeafened: false,
             isScreenSharing: false,
             userId: "user-1",
             username: "ada",
@@ -203,6 +363,42 @@ describe("voice service concurrency helpers", () => {
         assert.equal("code" in error ? error.code : undefined, "ROOM_FULL");
         return true;
       },
+    );
+  });
+
+  it("uses the channel participant limit without exceeding the system maximum", () => {
+    assert.equal(resolveVoiceParticipantLimit(0), MAX_VOICE_PARTICIPANTS);
+    assert.equal(resolveVoiceParticipantLimit(3), 3);
+    assert.equal(resolveVoiceParticipantLimit(99), MAX_VOICE_PARTICIPANTS);
+  });
+
+  it("rejects only new joins after a channel limit is lowered", async () => {
+    await assert.rejects(
+      () =>
+        assertVoiceChannelCapacity({
+          channelId: "channel-1",
+          userId: "new-user",
+          userLimit: 3,
+          voiceState: {
+            async count() {
+              return 3;
+            },
+          },
+        }),
+      (error) => error instanceof ApiError && error.code === "ROOM_FULL",
+    );
+
+    await assert.doesNotReject(() =>
+      assertVoiceChannelCapacity({
+        channelId: "channel-1",
+        userId: "already-connected",
+        userLimit: 3,
+        voiceState: {
+          async count() {
+            return 2;
+          },
+        },
+      }),
     );
   });
 

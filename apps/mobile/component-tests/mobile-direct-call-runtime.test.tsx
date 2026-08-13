@@ -155,6 +155,7 @@ async function createHarness({
       await beforeTokenResponse();
       return {
         conversationId: "conversation-1",
+        mediaPolicy: { audioBitrate: 64_000, videoQualityMode: "AUTO" },
         provider: "livekit",
         token: "direct.livekit.jwt.token",
         url: "wss://voice.whispr.test",

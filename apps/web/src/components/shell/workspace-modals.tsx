@@ -11,6 +11,12 @@ import { Modal } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
 import { ServerIconField } from "@/components/shell/server-icon-field";
 import { ServerFeatureToggle } from "@/components/shell/server-feature-toggle";
+import { ChannelAdvancedSettingsFields } from "@/components/shell/channel-advanced-settings";
+import {
+  createChannelAdvancedSettings,
+  getChannelAdvancedSettingsInput,
+  isChannelAdvancedSettingsValid,
+} from "@/components/shell/channel-form-model";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import {
@@ -109,6 +115,7 @@ function WorkspaceModalsContent({
           (category) => category.id === categoryModal.categoryId,
         ) ?? null)
       : null;
+  const channelType = editingChannel?.type ?? channelModal.type;
 
   const initialServer = serverModal.mode === "edit" ? activeServerDetail?.server : null;
   const [serverName, setServerName] = useState(() => initialServer?.name ?? "");
@@ -132,6 +139,9 @@ function WorkspaceModalsContent({
     () => editingChannel?.categoryId ?? channelModal.categoryId ?? null,
   );
   const [channelLocked, setChannelLocked] = useState(() => editingChannel?.locked ?? false);
+  const [channelAdvancedSettings, setChannelAdvancedSettings] = useState(() =>
+    createChannelAdvancedSettings(editingChannel),
+  );
   const [channelPermissionOverride, setChannelPermissionOverride] = useState<{
     allowedRoleIds: string[];
     preset: WorkspaceChannelPermissionPreset;
@@ -299,6 +309,7 @@ function WorkspaceModalsContent({
           : channelLocked;
 
         await updateChannelRequest(channelModal.channelId, {
+          ...getChannelAdvancedSettingsInput(channelType, channelAdvancedSettings),
           categoryId: channelCategoryId,
           locked: nextLocked,
           name: channelName,
@@ -316,6 +327,7 @@ function WorkspaceModalsContent({
       }
 
       return createChannelRequest(channelModal.serverId, {
+        ...getChannelAdvancedSettingsInput(channelType, channelAdvancedSettings),
         categoryId: channelCategoryId,
         name: channelName,
         permissions: channelPermissionControlsEnabled
@@ -325,7 +337,7 @@ function WorkspaceModalsContent({
             }
           : undefined,
         topic: channelTopic,
-        type: channelModal.type,
+        type: channelType,
       });
     },
     onMutate: async () => {
@@ -346,6 +358,7 @@ function WorkspaceModalsContent({
         queryClient.setQueryData(
           workspaceQueryKeys.server(activeServerDetail.server.id),
           applyChannelPatch(previousDetail, channelModal.channelId, {
+            ...getChannelAdvancedSettingsInput(channelType, channelAdvancedSettings),
             categoryId: channelCategoryId,
             locked: channelPermissionControlsEnabled
               ? channelPermissionPreset !== "PUBLIC"
@@ -381,6 +394,7 @@ function WorkspaceModalsContent({
       setChannelName("");
       setChannelTopic("");
       setChannelLocked(false);
+      setChannelAdvancedSettings(createChannelAdvancedSettings());
       setChannelPermissionPreset("PUBLIC");
       setChannelAllowedRoleIds([]);
     },
@@ -713,13 +727,14 @@ function WorkspaceModalsContent({
         title={
           channelModal.mode === "edit"
             ? t("workspace.modal.channelEditTitle")
-            : channelModal.type === "VOICE"
+            : channelType === "VOICE"
               ? t("workspace.modal.channelCreateVoiceTitle")
               : t("workspace.modal.channelCreateTextTitle")
         }
       >
         <form
           className="space-y-4"
+          data-testid="channel-form"
           onSubmit={(event) => {
             event.preventDefault();
             channelMutation.mutate();
@@ -734,14 +749,18 @@ function WorkspaceModalsContent({
                 {t("workspace.modal.channelHint")}
               </p>
             </div>
-            <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+            <label
+              className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]"
+              htmlFor="channel-name"
+            >
               {t("workspace.modal.channelName")}
             </label>
             <Input
+              id="channel-name"
               maxLength={48}
               onChange={(event) => setChannelName(event.target.value)}
               placeholder={
-                channelModal.type === "VOICE"
+                channelType === "VOICE"
                   ? t("workspace.modal.channelVoicePlaceholder")
                   : t("workspace.modal.channelTextPlaceholder")
               }
@@ -750,16 +769,26 @@ function WorkspaceModalsContent({
             />
           </div>
           <div className="space-y-2">
-            <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+            <label
+              className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]"
+              htmlFor="channel-topic"
+            >
               {t("workspace.modal.channelTopic")}
             </label>
             <Textarea
+              id="channel-topic"
               maxLength={120}
               onChange={(event) => setChannelTopic(event.target.value)}
               placeholder={t("workspace.modal.channelTopicPlaceholder")}
               value={channelTopic}
             />
           </div>
+          <ChannelAdvancedSettingsFields
+            availableRtcRegions={activeServerDetail?.server.availableRtcRegions ?? []}
+            channelType={channelType}
+            onChange={setChannelAdvancedSettings}
+            value={channelAdvancedSettings}
+          />
           {channelPermissionControlsEnabled && activeServerDetail ? (
             <div className="app-panel-soft rounded-[24px] border p-4">
               <div className="mb-4">
@@ -767,7 +796,7 @@ function WorkspaceModalsContent({
                   {t("workspace.permissions.title")}
                 </p>
                 <p className="mt-1 text-xs leading-5 text-app-muted">
-                  {channelModal.type === "VOICE"
+                  {channelType === "VOICE"
                     ? t("workspace.permissions.voiceDescription")
                     : t("workspace.permissions.textDescription")}
                 </p>
@@ -842,7 +871,7 @@ function WorkspaceModalsContent({
                 </div>
               ) : null}
             </div>
-          ) : channelModal.mode === "edit" && channelModal.type === "TEXT" ? (
+          ) : channelModal.mode === "edit" && channelType === "TEXT" ? (
             <ServerFeatureToggle
               checked={channelLocked}
               description={t("workspace.modal.channelReadOnlyDescription")}
@@ -852,10 +881,14 @@ function WorkspaceModalsContent({
           ) : null}
           {activeServerDetail ? (
             <div className="space-y-2">
-              <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+              <label
+                className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]"
+                htmlFor="channel-category"
+              >
                 {t("workspace.modal.channelCategory")}
               </label>
               <select
+                id="channel-category"
                 className="h-11 w-full rounded-2xl border border-[hsl(var(--border)/0.82)] bg-[hsl(var(--surface-soft)/0.55)] px-4 text-sm text-[hsl(var(--foreground))] outline-hidden transition focus:border-[hsl(var(--ring)/0.55)] focus:ring-4 focus:ring-[hsl(var(--ring)/0.12)]"
                 onChange={(event) => setChannelCategoryId(event.target.value || null)}
                 value={channelCategoryId ?? ""}
@@ -880,9 +913,15 @@ function WorkspaceModalsContent({
             </Button>
             <Button
               className="w-full sm:w-auto"
+              data-testid="channel-submit-button"
               disabled={
                 channelMutation.isPending ||
                 channelName.trim().length < 1 ||
+                !isChannelAdvancedSettingsValid(
+                  channelType,
+                  channelAdvancedSettings,
+                  activeServerDetail?.server.availableRtcRegions ?? [],
+                ) ||
                 (channelPermissionControlsEnabled &&
                   channelPermissionPreset === "ROLE_GATED" &&
                   channelAllowedRoleIds.length === 0)

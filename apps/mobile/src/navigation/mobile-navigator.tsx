@@ -104,7 +104,7 @@ export function MobileNavigator({
   notificationUnreadCount = 0,
   onTabChange,
 }: MobileNavigatorProps) {
-  const { status } = useMobileAuth();
+  const { sessionReadFailed, status } = useMobileAuth();
   const theme = useTheme();
   const reducedMotion = useReducedMotion() === true;
   const { handleCommand } = useMobileDeepLinkRuntime();
@@ -355,7 +355,15 @@ export function MobileNavigator({
           </RootStack.Screen>
         </RootStack.Navigator>
       ) : (
-        <MobileAuthNavigator reason={status === "checking" ? "checking" : "auth-required"} />
+        <MobileAuthNavigator
+          reason={
+            status === "checking"
+              ? "checking"
+              : sessionReadFailed
+                ? "session-error"
+                : "auth-required"
+          }
+        />
       )}
     </NavigationContainer>
   );

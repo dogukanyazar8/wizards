@@ -38,12 +38,10 @@ async function requestJson<T>(url: string, options: RequestOptions = {}): Promis
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
 
-  const payload = (await response.json().catch(() => null)) as
-    | {
-        error?: string;
-        code?: string;
-      }
-    | null;
+  const payload = (await response.json().catch(() => null)) as {
+    error?: string;
+    code?: string;
+  } | null;
 
   if (!response.ok) {
     throw new VoiceClientError(
@@ -98,6 +96,7 @@ export async function deleteVoiceState(input: { sessionId?: string } = {}) {
 export async function sendVoiceHeartbeat(
   sessionId: string,
   state: {
+    selfDeaf?: boolean;
     selfStream?: boolean;
     selfVideo?: boolean;
   } = {},

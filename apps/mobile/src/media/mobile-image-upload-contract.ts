@@ -13,6 +13,8 @@ const MOBILE_LOCAL_IMAGE_URI_MAX_LENGTH = 4_096;
 export type MobilePickedImage = {
   file: File;
   localUri: string;
+  /** Owned cache output; unlike a gallery URI, safe to delete after upload settles. */
+  temporaryFileUri?: string;
 };
 
 /**
@@ -24,7 +26,21 @@ export type MobilePickerAsset = {
   readonly fileSize?: number | null | undefined;
   readonly mimeType?: string | null | undefined;
   readonly uri: string;
+  readonly temporaryFileUri?: string;
 };
+
+export async function prepareMobileImageAssetsSequentially<Input, Output>(
+  assets: readonly Input[],
+  prepare: (asset: Input) => Promise<Output>,
+): Promise<Output[]> {
+  const prepared: Output[] = [];
+  // Each prepare can hold a full native bitmap. Parallel decode made three
+  // camera images exceed low-memory Android process budgets.
+  for (const asset of assets) {
+    prepared.push(await prepare(asset));
+  }
+  return prepared;
+}
 
 /**
  * One picker run can now return several images, and one unusable image among
@@ -179,7 +195,11 @@ export function toMobilePickedImageBatch(
       uri: asset.uri,
     } as unknown as File;
 
-    picked.push({ file, localUri: asset.uri });
+    picked.push({
+      file,
+      localUri: asset.uri,
+      ...(asset.temporaryFileUri ? { temporaryFileUri: asset.temporaryFileUri } : {}),
+    });
   }
 
   return { failures, picked };

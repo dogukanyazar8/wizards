@@ -83,6 +83,20 @@ const EMPTY_VIEWER = {
 };
 
 describe("buildServerPublicProfile", () => {
+  it("returns a bounded channel preview with an explicit continuation signal", () => {
+    const source = buildSource({
+      channels: Array.from({ length: 41 }, (_, index) =>
+        buildChannel({ id: `channel-${index}`, name: `channel-${index}` }),
+      ),
+    });
+
+    const profile = buildServerPublicProfile(source as never, EMPTY_VIEWER as never);
+
+    assert.equal(SERVER_PUBLIC_PROFILE_SELECT.channels.take, 41);
+    assert.equal(profile.channels.length, 40);
+    assert.equal(profile.hasMoreChannels, true);
+  });
+
   it("carries the server identity and classification through", () => {
     const profile = buildServerPublicProfile(buildSource() as never, EMPTY_VIEWER as never);
 

@@ -7,10 +7,11 @@ import {
 } from "../src/config/environment";
 
 describe("mobile environment contract", () => {
-  it("normalizes unknown environments to development", () => {
-    assert.equal(normalizeMobileEnvironment(undefined), "development");
-    assert.equal(normalizeMobileEnvironment("staging"), "development");
-    assert.equal(normalizeMobileEnvironment("uat"), "uat");
+  it("defaults only development builds and rejects unknown release environments", () => {
+    assert.equal(normalizeMobileEnvironment(undefined, true), "development");
+    assert.equal(normalizeMobileEnvironment("uat", false), "uat");
+    assert.throws(() => normalizeMobileEnvironment(undefined, false), /must be one of/);
+    assert.throws(() => normalizeMobileEnvironment("staging", false), /must be one of/);
   });
 
   it("allows local HTTP only for development builds", () => {

@@ -17,7 +17,11 @@ function dependenciesFor(
     createToken: async (_userId: string, input: unknown) => {
       calls.push("create-token");
       capture.tokenInput = input;
-      return { token: "t".repeat(16), url: "wss://livekit.example.com" };
+      return {
+        mediaPolicy: { audioBitrate: 64_000, videoQualityMode: "AUTO" as const },
+        token: "t".repeat(16),
+        url: "wss://livekit.example.com",
+      };
     },
     enforceRateLimit: async () => {
       calls.push("rate-limit");
@@ -54,6 +58,7 @@ describe("mobile voice token route logic", () => {
       assert.deepEqual(capture.tokenInput, target);
       assert.deepEqual(await response.json(), {
         ...target,
+        mediaPolicy: { audioBitrate: 64_000, videoQualityMode: "AUTO" },
         provider: "livekit",
         token: "t".repeat(16),
         url: "wss://livekit.example.com",

@@ -53,7 +53,6 @@ export async function loadAdminActivitySnapshot(
           select: {
             avatarUrl: true,
             displayName: true,
-            email: true,
             id: true,
             status: true,
             username: true,
@@ -155,7 +154,6 @@ export async function loadAdminActivitySnapshot(
       user: {
         avatarUrl: session.user.avatarUrl,
         displayName: getDisplayName(session.user),
-        email: session.user.email,
         id: session.user.id,
         status: session.user.status,
         username: session.user.username,

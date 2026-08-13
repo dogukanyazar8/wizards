@@ -23,6 +23,10 @@ import { getRedis } from "@/lib/redis";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import { mapAttachmentsForViewer } from "@/lib/messages/attachment-visibility";
 import { readPresenceState, type PresenceFields } from "@/lib/presence";
+import {
+  redactPresenceCollectionForViewer,
+  resolveVisibilityDecisions,
+} from "@/lib/privacy/visibility-policy";
 import { canStartDirectMessage } from "@/lib/privacy-policy";
 import type {
   DMConversationsPageResponse,
@@ -219,14 +223,26 @@ function getPresenceFallback(
   };
 }
 
-async function readDMConversationPresenceState(conversation: RawDMConversation) {
-  return readPresenceState(
-    getRedis(),
-    conversation.participants.map((participant) => ({
-      ...getPresenceFallback(participant),
-      userId: participant.userId,
-    })),
-  );
+async function readDMConversationPresenceState(conversation: RawDMConversation, viewerId: string) {
+  const subjectIds = conversation.participants.map((participant) => participant.userId);
+  const [presenceState, visibilityDecisions] = await Promise.all([
+    readPresenceState(
+      getRedis(),
+      conversation.participants.map((participant) => ({
+        ...getPresenceFallback(participant),
+        userId: participant.userId,
+      })),
+    ),
+    resolveVisibilityDecisions(viewerId, subjectIds),
+  ]);
+
+  return redactPresenceCollectionForViewer({
+    decisions: visibilityDecisions,
+    invisibleUserIds: presenceState.hiddenUserIds,
+    lastSeenByUserId: new Map(),
+    presenceByUserId: presenceState.presenceByUserId,
+    subjectIds,
+  });
 }
 
 /**
@@ -421,19 +437,24 @@ export function getDMDisplayName(user: { username: string; displayName: string |
   return user.displayName ?? user.username;
 }
 
-function mapDMParticipantWithPresence(
+export function mapDMParticipantWithPresence(
   participant: RawDMConversation["participants"][number],
   presence: PresenceFields,
   lastSeenAt: string | null,
+  viewerId: string,
 ): DMParticipantDTO {
+  const isViewer = participant.userId === viewerId;
+
   return {
     userId: participant.userId,
     username: participant.user.username,
     displayName: participant.user.displayName,
     avatarUrl: participant.user.avatarUrl,
-    unreadCount: participant.unreadCount,
-    mentionCount: participant.mentionCount,
-    muted: participant.muted,
+    // These are inbox preferences, not roster metadata. Copying every row's
+    // values exposed who muted the group and how much they had not read.
+    unreadCount: isViewer ? participant.unreadCount : 0,
+    mentionCount: isViewer ? participant.mentionCount : 0,
+    muted: isViewer ? participant.muted : false,
     lastSeenAt,
     status: presence.status,
     customStatus: presence.customStatus,
@@ -512,13 +533,11 @@ function mapDMReply(
       username: message.author.username,
       displayName: message.author.displayName,
       avatarUrl: message.author.avatarUrl,
-      status:
-        message.author.status === "ONLINE" ||
-        message.author.status === "IDLE" ||
-        message.author.status === "DND"
-          ? message.author.status
-          : "OFFLINE",
-      customStatus: message.author.customStatus,
+      // Presence is viewer-specific. Conversation participant payloads are
+      // already policy-filtered; duplicating raw author presence on every
+      // message would bypass that boundary for FRIENDS/NOBODY and INVISIBLE.
+      status: "OFFLINE",
+      customStatus: null,
     },
     attachments: mapAttachmentsForViewer(message.attachments, viewerId).map((attachment) => ({
       ...attachment,
@@ -638,10 +657,10 @@ export async function mapDMConversationDTO(
    * Pre-resolved for a page of conversations, so a list is one last-seen query
    * for every participant on the page rather than one per conversation.
    */
-  lastSeenByUserId?: Map<string, string>,
+  lastSeenByUserId?: Map<string, string | null>,
 ): Promise<DMConversationDTO> {
   const [presenceState, resolvedLastSeenByUserId] = await Promise.all([
-    readDMConversationPresenceState(conversation),
+    readDMConversationPresenceState(conversation, viewerId),
     lastSeenByUserId ?? readDMConversationLastSeenMap(conversation),
   ]);
   return mapDMConversationDTOWithPresence(
@@ -670,7 +689,7 @@ function mapDMConversationDTOWithPresence(
   viewerId: string,
   deletedMessageLabel: string,
   presenceByUserId: Map<string, PresenceFields>,
-  lastSeenByUserId: Map<string, string>,
+  lastSeenByUserId: Map<string, string | null>,
   hiddenUserIds: ReadonlySet<string>,
   rosterMode: DMConversationRosterMode = "full",
 ): DMConversationDTO {
@@ -684,6 +703,7 @@ function mapDMConversationDTOWithPresence(
       hiddenUserIds.has(participant.userId)
         ? null
         : (lastSeenByUserId.get(participant.userId) ?? null),
+      viewerId,
     ),
   );
   // V7. Resolved here so the row, the header and the web sidebar all draw the
@@ -789,17 +809,28 @@ export async function requireDMParticipant(
  */
 export function toHistoryWindowFilter(
   historyFromAt: Date | null,
-  cursorCreatedAt: Date | null,
-): { createdAt: { gte?: Date; lt?: Date } } | Record<string, never> {
-  if (!historyFromAt && !cursorCreatedAt) {
+  cursor: { createdAt: Date; id: string } | null,
+): Prisma.DMMessageWhereInput {
+  if (!historyFromAt && !cursor) {
     return {};
   }
 
   return {
-    createdAt: {
-      ...(historyFromAt ? { gte: historyFromAt } : {}),
-      ...(cursorCreatedAt ? { lt: cursorCreatedAt } : {}),
-    },
+    ...(historyFromAt ? { createdAt: { gte: historyFromAt } } : {}),
+    ...(cursor
+      ? {
+          // createdAt is millisecond-precision. The id tie-breaker keeps rows at
+          // the page boundary's exact timestamp reachable on the next page.
+          AND: [
+            {
+              OR: [
+                { createdAt: { lt: cursor.createdAt } },
+                { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+              ],
+            },
+          ],
+        }
+      : {}),
   };
 }
 
@@ -1051,7 +1082,8 @@ export async function listDirectMessages(
   // resolved inside the per-row mapper, which meant a `groupBy` and a Redis round
   // trip per conversation — 50 of each for a full page, and every group multiplied
   // the users each of those calls carried. `readPresenceState` dedupes ids itself.
-  const [lastSeenByUserId, presenceState] = await Promise.all([
+  const subjectIds = pageParticipants.map((participant) => participant.userId);
+  const [rawLastSeenByUserId, rawPresenceState, visibilityDecisions] = await Promise.all([
     resolveLastSeenAtByUserId(pageParticipants.map((participant) => participant.userId)),
     readPresenceState(
       getRedis(),
@@ -1060,7 +1092,15 @@ export async function listDirectMessages(
         userId: participant.userId,
       })),
     ),
+    resolveVisibilityDecisions(userId, subjectIds),
   ]);
+  const presenceState = redactPresenceCollectionForViewer({
+    decisions: visibilityDecisions,
+    invisibleUserIds: rawPresenceState.hiddenUserIds,
+    lastSeenByUserId: rawLastSeenByUserId,
+    presenceByUserId: rawPresenceState.presenceByUserId,
+    subjectIds,
+  });
   const conversations = pageRows
     .map((row) => participationById.get(row.participantId))
     .filter((participant): participant is NonNullable<typeof participant> => Boolean(participant))
@@ -1070,7 +1110,7 @@ export async function listDirectMessages(
         userId,
         deletedMessageLabel,
         presenceState.presenceByUserId,
-        lastSeenByUserId,
+        presenceState.lastSeenByUserId,
         presenceState.hiddenUserIds,
         "row",
       ),
@@ -1173,21 +1213,6 @@ export async function listDirectMessageMutualServers(
   }));
 }
 
-/**
- * Every photo and video ever shared in a conversation. The details payload only
- * carries the newest page of messages, so the summary it derives cannot be
- * counted — the 1c profile header ("PAYLAŞILAN MEDYA — N") needs the real total
- * and this is one indexed count rather than a second history walk.
- */
-export async function countDirectMessageMediaAttachments(conversationId: string): Promise<number> {
-  return prisma.attachment.count({
-    where: {
-      dmMessage: { conversationId, deletedAt: null },
-      OR: [{ contentType: { startsWith: "image/" } }, { contentType: { startsWith: "video/" } }],
-    },
-  });
-}
-
 export async function getDirectMessageConversationRealtimeViews(
   conversationId: string,
   userIds: string[],
@@ -1216,7 +1241,7 @@ export async function getDirectMessageConversationRealtimeViews(
     conversation.participants.map((participant) => participant.userId),
   );
   const latestMessageDeleted = Boolean(conversation.messages[0]?.deletedAt);
-  const [localeByUserId, presenceState, lastSeenByUserId] = await Promise.all([
+  const [localeByUserId, lastSeenByUserId, presenceStates] = await Promise.all([
     latestMessageDeleted
       ? prisma.user
           .findMany({
@@ -1225,9 +1250,15 @@ export async function getDirectMessageConversationRealtimeViews(
           })
           .then((users) => new Map(users.map((user) => [user.id, user.locale])))
       : Promise.resolve(new Map<string, string | null>()),
-    readDMConversationPresenceState(conversation),
     readDMConversationLastSeenMap(conversation),
+    Promise.all(
+      uniqueUserIds.map(
+        async (viewerId) =>
+          [viewerId, await readDMConversationPresenceState(conversation, viewerId)] as const,
+      ),
+    ),
   ]);
+  const presenceStateByViewerId = new Map(presenceStates);
   const defaultDeletedMessageLabel = getDeletedMessageLabelForLocale(null);
 
   return uniqueUserIds
@@ -1236,6 +1267,10 @@ export async function getDirectMessageConversationRealtimeViews(
       const currentParticipant = conversation.participants.find(
         (candidate) => candidate.userId === participantId,
       );
+      const presenceState = presenceStateByViewerId.get(participantId);
+      if (!presenceState) {
+        return null;
+      }
 
       return {
         participantId,
@@ -1247,11 +1282,17 @@ export async function getDirectMessageConversationRealtimeViews(
             ? getDeletedMessageLabelForLocale(localeByUserId.get(participantId))
             : defaultDeletedMessageLabel,
           presenceState.presenceByUserId,
-          lastSeenByUserId,
+          new Map(
+            [...lastSeenByUserId].map(([userId, value]) => [
+              userId,
+              presenceState.hiddenUserIds.has(userId) ? null : value,
+            ]),
+          ),
           presenceState.hiddenUserIds,
         ),
       };
-    });
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 }
 
 export async function listDMMessages(
@@ -1262,21 +1303,19 @@ export async function listDMMessages(
 ): Promise<DMMessagesResponse> {
   const membership = await requireDMParticipant(userId, conversationId);
 
-  let cursorCreatedAt: Date | null = null;
+  let cursorMessage: { createdAt: Date; id: string } | null = null;
   if (cursor) {
-    const cursorMessage = await prisma.dMMessage.findFirst({
+    cursorMessage = await prisma.dMMessage.findFirst({
       where: {
         id: cursor,
         conversationId,
       },
-      select: { createdAt: true },
+      select: { createdAt: true, id: true },
     });
 
     if (!cursorMessage) {
       throw new ApiError("Message not found", 404, "NOT_FOUND");
     }
-
-    cursorCreatedAt = cursorMessage.createdAt;
   }
 
   const messages = await prisma.dMMessage.findMany({
@@ -1285,7 +1324,7 @@ export async function listDMMessages(
       threadParentId: null,
       placeholderRemovedAt: null,
       // 2c §7. Served by the existing `[conversationId, createdAt]` index.
-      ...toHistoryWindowFilter(membership.historyFromAt, cursorCreatedAt),
+      ...toHistoryWindowFilter(membership.historyFromAt, cursorMessage),
       // C4. The sweep may be up to a minute behind; the reader must not be.
       ...toUnexpiredFilter(new Date()),
     },
@@ -1380,22 +1419,20 @@ export async function listDMThreadMessages(
     throw new ApiError("Thread parent message not found", 404, "THREAD_PARENT_NOT_FOUND");
   }
 
-  let cursorCreatedAt: Date | null = null;
+  let cursorMessage: { createdAt: Date; id: string } | null = null;
   if (cursor) {
-    const cursorMessage = await prisma.dMMessage.findFirst({
+    cursorMessage = await prisma.dMMessage.findFirst({
       where: {
         id: cursor,
         conversationId,
         threadParentId: parentMessageId,
       },
-      select: { createdAt: true },
+      select: { createdAt: true, id: true },
     });
 
     if (!cursorMessage) {
       throw new ApiError("Message not found", 404, "NOT_FOUND");
     }
-
-    cursorCreatedAt = cursorMessage.createdAt;
   }
 
   const messages = await prisma.dMMessage.findMany({
@@ -1403,7 +1440,7 @@ export async function listDMThreadMessages(
       conversationId,
       threadParentId: parentMessageId,
       placeholderRemovedAt: null,
-      ...toHistoryWindowFilter(membership.historyFromAt, cursorCreatedAt),
+      ...toHistoryWindowFilter(membership.historyFromAt, cursorMessage),
       ...toUnexpiredFilter(new Date()),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -1441,6 +1478,9 @@ export async function markDirectMessageRead(userId: string, conversationId: stri
     },
     data: {
       lastReadAt: new Date(),
+      // Opening the conversation acknowledges both badge sources; clearing
+      // unreadCount alone left group mentions permanently visible.
+      mentionCount: 0,
       unreadCount: 0,
     },
   });

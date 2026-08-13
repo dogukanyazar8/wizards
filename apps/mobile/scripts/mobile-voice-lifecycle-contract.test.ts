@@ -8,11 +8,77 @@ import {
   MOBILE_VOICE_HEARTBEAT_INTERVAL_MS,
   MOBILE_VOICE_LEVEL_INTERVAL_MS,
   MOBILE_VOICE_UAT_LIFECYCLE_SCENARIOS,
+  reconcileMobileVoiceForegroundInterval,
+  runMobileVoiceLevelTick,
   summarizeMobileVoiceLifecycleMatrix,
   validateMobileVoiceLifecycleContract,
 } from "../src/voice/mobile-voice-lifecycle-contract";
 
 describe("mobile voice lifecycle contract", () => {
+  it("stops a foreground interval when the app backgrounds and restarts it on resume", () => {
+    const cleared: unknown[] = [];
+    const handles: unknown[] = [];
+    const setTimer = () => {
+      const handle = { id: handles.length + 1 };
+      handles.push(handle);
+      return handle;
+    };
+
+    let current = reconcileMobileVoiceForegroundInterval({
+      appState: "active",
+      clearTimer: (handle) => cleared.push(handle),
+      current: null,
+      enabled: true,
+      intervalMs: MOBILE_VOICE_LEVEL_INTERVAL_MS,
+      run: () => undefined,
+      setTimer,
+    });
+    assert.equal(current, handles[0]);
+
+    current = reconcileMobileVoiceForegroundInterval({
+      appState: "background",
+      clearTimer: (handle) => cleared.push(handle),
+      current,
+      enabled: true,
+      intervalMs: MOBILE_VOICE_LEVEL_INTERVAL_MS,
+      run: () => undefined,
+      setTimer,
+    });
+    assert.equal(current, null);
+    assert.deepEqual(cleared, [handles[0]]);
+
+    current = reconcileMobileVoiceForegroundInterval({
+      appState: "active",
+      clearTimer: (handle) => cleared.push(handle),
+      current,
+      enabled: true,
+      intervalMs: MOBILE_VOICE_LEVEL_INTERVAL_MS,
+      run: () => undefined,
+      setTimer,
+    });
+    assert.equal(current, handles[1]);
+  });
+
+  it("does not merge participants when backpressure rejects a level tick", async () => {
+    let merges = 0;
+
+    await runMobileVoiceLevelTick({
+      sample: async () => false,
+      updateParticipants: () => {
+        merges += 1;
+      },
+    });
+    assert.equal(merges, 0);
+
+    await runMobileVoiceLevelTick({
+      sample: async () => true,
+      updateParticipants: () => {
+        merges += 1;
+      },
+    });
+    assert.equal(merges, 1);
+  });
+
   it("covers the native LiveKit UAT voice matrix without pretending unsupported features are ready", () => {
     const scenarioIds = MOBILE_VOICE_UAT_LIFECYCLE_SCENARIOS.map((scenario) => scenario.id);
 
@@ -104,7 +170,9 @@ describe("mobile voice lifecycle contract", () => {
 
     assert.match(hookSource, /MOBILE_VOICE_AUDIO_ROUTE_SYNC_INTERVAL_MS = 4_000/);
     assert.match(hookSource, /hasMobileVoiceAudioRouteInputChanged/);
-    assert.match(hookSource, /clearInterval\(interval\);\s*subscription\.remove\(\);/);
+    assert.match(hookSource, /reconcileInterval\(nextState\)/);
+    assert.match(hookSource, /subscription\.remove\(\)/);
+    assert.match(hookSource, /clearLevelTicker\(\)/);
 
     // The sync path only reads: applying a selection here would fight whatever
     // the OS did when the headset was plugged in or pulled out.

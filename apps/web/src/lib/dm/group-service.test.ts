@@ -17,6 +17,7 @@ import {
   updateGroupSettings,
   updateMemberRole,
 } from "./group-service";
+import * as groupService from "./group-service";
 
 type Deps = Parameters<typeof createGroupConversation>[2];
 
@@ -36,6 +37,143 @@ describe("membership write guarantees", () => {
     assert.match(writeAddedMembers, /members = input\.members\.filter/);
     assert.match(writeAddedMembers, /assignNameColors\(/);
     assert.match(writeAddedMembers, /if \(members\.length > 0\)/);
+  });
+
+  it("serializes concurrent owner and admin departures before deciding succession", async () => {
+    type LockedParticipant = { joinedAt: Date; role: "ADMIN" | "MEMBER" | "OWNER"; userId: string };
+    type FakeTransaction = {
+      dMConversation: {
+        delete(args: unknown): Promise<unknown>;
+        findUniqueOrThrow(args: unknown): Promise<unknown>;
+        update(args: unknown): Promise<unknown>;
+      };
+      dMMessage: { create(args: unknown): Promise<unknown> };
+      dMParticipant: {
+        delete(args: unknown): Promise<unknown>;
+        update(args: unknown): Promise<unknown>;
+      };
+      releaseLock?: () => void;
+    };
+    type RemovalWriter = (
+      input: {
+        actorId: string;
+        conversationId: string;
+        systemType: "MEMBER_LEFT";
+        targetUserId: string;
+      },
+      dependencies: {
+        now(): Date;
+        serialize(tx: FakeTransaction, conversationId: string): Promise<void>;
+        transaction<T>(run: (tx: FakeTransaction) => Promise<T>): Promise<T>;
+      },
+    ) => Promise<{ broadcastViewerId: string | null }>;
+    const writeRemoval = (groupService as unknown as { writeRemovedGroupMember?: RemovalWriter })
+      .writeRemovedGroupMember;
+
+    assert.equal(typeof writeRemoval, "function");
+
+    let ownerId = "user-1";
+    let participants: LockedParticipant[] = [
+      { joinedAt: new Date("2026-08-12T09:00:00.000Z"), role: "OWNER", userId: "user-1" },
+      { joinedAt: new Date("2026-08-12T09:01:00.000Z"), role: "ADMIN", userId: "user-2" },
+      { joinedAt: new Date("2026-08-12T09:02:00.000Z"), role: "MEMBER", userId: "user-3" },
+    ];
+    let lockTail = Promise.resolve();
+    const dependencies = {
+      now: () => new Date("2026-08-12T10:00:00.000Z"),
+      async serialize(tx: FakeTransaction) {
+        const previous = lockTail;
+        let release = () => {};
+        lockTail = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        await previous;
+        tx.releaseLock = release;
+      },
+      async transaction<T>(run: (tx: FakeTransaction) => Promise<T>) {
+        const tx: FakeTransaction = {
+          dMConversation: {
+            async delete() {
+              participants = [];
+              return {};
+            },
+            async findUniqueOrThrow() {
+              return {
+                ownerId,
+                participants: participants.map((entry) => ({ ...entry })),
+                type: "GROUP_DM",
+              };
+            },
+            async update(args: unknown) {
+              const data = (args as { data: { ownerId?: string } }).data;
+              if (data.ownerId) ownerId = data.ownerId;
+              return {};
+            },
+          },
+          dMMessage: {
+            async create() {
+              return {};
+            },
+          },
+          dMParticipant: {
+            async delete(args: unknown) {
+              const userId = (args as { where: { conversationId_userId: { userId: string } } })
+                .where.conversationId_userId.userId;
+              participants = participants.filter((entry) => entry.userId !== userId);
+              return {};
+            },
+            async update(args: unknown) {
+              const input = args as {
+                data: { role: "OWNER" };
+                where: { conversationId_userId: { userId: string } };
+              };
+              participants = participants.map((entry) =>
+                entry.userId === input.where.conversationId_userId.userId
+                  ? { ...entry, role: input.data.role }
+                  : entry,
+              );
+              return {};
+            },
+          },
+        };
+
+        try {
+          return await run(tx);
+        } finally {
+          tx.releaseLock?.();
+        }
+      },
+    };
+
+    const results = await Promise.allSettled([
+      writeRemoval?.(
+        {
+          actorId: "user-1",
+          conversationId: "group-1",
+          systemType: "MEMBER_LEFT",
+          targetUserId: "user-1",
+        },
+        dependencies,
+      ),
+      writeRemoval?.(
+        {
+          actorId: "user-2",
+          conversationId: "group-1",
+          systemType: "MEMBER_LEFT",
+          targetUserId: "user-2",
+        },
+        dependencies,
+      ),
+    ]);
+
+    assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+    assert.equal(results.filter((result) => result.status === "rejected").length, 1);
+    assert.ok(participants.length > 0);
+    assert.ok(
+      participants.some(
+        (participant) => participant.role === "OWNER" || participant.role === "ADMIN",
+      ),
+    );
   });
 });
 
@@ -651,6 +789,7 @@ describe("removeGroupMember", () => {
           systemType: input.systemType,
           targetUserId: input.targetUserId,
         };
+        return { broadcastViewerId: "user-1" };
       },
     });
 
@@ -689,6 +828,7 @@ describe("removeGroupMember", () => {
         }),
       writeRemovedMember: async (input) => {
         written = { targetUserId: input.targetUserId };
+        return { broadcastViewerId: "user-2" };
       },
     });
 
@@ -732,6 +872,7 @@ describe("removeGroupMember", () => {
         }),
       writeRemovedMember: async (input) => {
         written = { targetUserId: input.targetUserId };
+        return { broadcastViewerId: "user-1" };
       },
     });
 
@@ -768,6 +909,7 @@ describe("removeGroupMember", () => {
       loadConversation: async () => buildGroup(),
       writeRemovedMember: async (input) => {
         written = { systemType: input.systemType, targetUserId: input.targetUserId };
+        return { broadcastViewerId: "user-1" };
       },
     });
 
@@ -804,12 +946,9 @@ describe("leaveGroupConversation", () => {
     );
   });
 
-  it("deletes the conversation when a non-owner is the last member standing", async () => {
-    let deleted: string | null = null;
+  it("delegates the last-member deletion decision to the locked writer", async () => {
+    let removeWrites = 0;
     const dependencies = buildDependencies({
-      deleteConversation: async (conversationId) => {
-        deleted = conversationId;
-      },
       loadConversation: async () =>
         buildGroup({
           // The sole remaining participant is not the owner, so the old
@@ -817,11 +956,16 @@ describe("leaveGroupConversation", () => {
           ownerId: "user-1",
           participants: [member("user-2", 2)],
         }),
+      writeRemovedMember: async () => {
+        removeWrites += 1;
+        return { broadcastViewerId: null };
+      },
     });
 
-    await leaveGroupConversation("user-2", "group-1", dependencies);
+    const result = await leaveGroupConversation("user-2", "group-1", dependencies);
 
-    assert.equal(deleted, "group-1");
+    assert.equal(removeWrites, 1);
+    assert.deepEqual(result, { broadcastViewerId: null });
   });
 
   /**
@@ -830,7 +974,15 @@ describe("leaveGroupConversation", () => {
    * edit the group, remove anyone or appoint a replacement.
    */
   it("refuses the last admin's departure until a successor is named", async () => {
-    const dependencies = buildDependencies({ loadConversation: async () => buildGroup() });
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup(),
+      writeRemovedMember: async () => {
+        throw Object.assign(new Error("transfer required"), {
+          code: "OWNER_TRANSFER_REQUIRED",
+          status: 409,
+        });
+      },
+    });
 
     await assert.rejects(
       () => leaveGroupConversation("user-1", "group-1", dependencies),
@@ -843,11 +995,12 @@ describe("leaveGroupConversation", () => {
   });
 
   it("hands the group to the named successor", async () => {
-    let written: { nextOwnerId: string | null } | null = null;
+    let written: { transferOwnershipTo: string | null | undefined } | null = null;
     const dependencies = buildDependencies({
       loadConversation: async () => buildGroup(),
       writeRemovedMember: async (input) => {
-        written = { nextOwnerId: input.nextOwnerId };
+        written = { transferOwnershipTo: input.transferOwnershipTo };
+        return { broadcastViewerId: "user-3" };
       },
     });
 
@@ -855,7 +1008,7 @@ describe("leaveGroupConversation", () => {
       transferOwnershipTo: "user-3",
     });
 
-    assert.deepEqual(written, { nextOwnerId: "user-3" });
+    assert.deepEqual(written, { transferOwnershipTo: "user-3" });
   });
 
   it("refuses a successor who is not in the group", async () => {
@@ -896,7 +1049,7 @@ describe("leaveGroupConversation", () => {
    * only be a click in the way.
    */
   it("passes ownership to a remaining admin without asking", async () => {
-    let written: { nextOwnerId: string | null } | null = null;
+    let written: { transferOwnershipTo: string | null | undefined } | null = null;
     const dependencies = buildDependencies({
       loadConversation: async () =>
         buildGroup({
@@ -907,18 +1060,18 @@ describe("leaveGroupConversation", () => {
           ],
         }),
       writeRemovedMember: async (input) => {
-        written = { nextOwnerId: input.nextOwnerId };
+        written = { transferOwnershipTo: input.transferOwnershipTo };
+        return { broadcastViewerId: "user-3" };
       },
     });
 
     await leaveGroupConversation("user-1", "group-1", dependencies);
 
-    // user-2 joined earlier, but user-3 is already an admin.
-    assert.deepEqual(written, { nextOwnerId: "user-3" });
+    assert.deepEqual(written, { transferOwnershipTo: undefined });
   });
 
   it("lets a plain admin leave while the owner is still there", async () => {
-    let written: { nextOwnerId: string | null } | null = null;
+    let written: { transferOwnershipTo: string | null | undefined } | null = null;
     const dependencies = buildDependencies({
       loadConversation: async () =>
         buildGroup({
@@ -929,49 +1082,47 @@ describe("leaveGroupConversation", () => {
           ],
         }),
       writeRemovedMember: async (input) => {
-        written = { nextOwnerId: input.nextOwnerId };
+        written = { transferOwnershipTo: input.transferOwnershipTo };
+        return { broadcastViewerId: "user-1" };
       },
     });
 
     await leaveGroupConversation("user-2", "group-1", dependencies);
 
-    assert.deepEqual(written, { nextOwnerId: null });
+    assert.deepEqual(written, { transferOwnershipTo: undefined });
   });
 
   it("leaves ownership alone when a non-owner leaves", async () => {
-    let written: { nextOwnerId: string | null } | null = null;
+    let written: { transferOwnershipTo: string | null | undefined } | null = null;
     const dependencies = buildDependencies({
       loadConversation: async () => buildGroup(),
       writeRemovedMember: async (input) => {
-        written = { nextOwnerId: input.nextOwnerId };
+        written = { transferOwnershipTo: input.transferOwnershipTo };
+        return { broadcastViewerId: "user-1" };
       },
     });
 
     await leaveGroupConversation("user-2", "group-1", dependencies);
 
-    assert.deepEqual(written, { nextOwnerId: null });
+    assert.deepEqual(written, { transferOwnershipTo: undefined });
   });
 
   it("deletes the conversation when the last member leaves", async () => {
-    let deleted: string | null = null;
     let removeWrites = 0;
     const dependencies = buildDependencies({
-      deleteConversation: async (conversationId) => {
-        deleted = conversationId;
-      },
       loadConversation: async () =>
         buildGroup({
           participants: [member("user-1", 1, { role: "OWNER" })],
         }),
       writeRemovedMember: async () => {
         removeWrites += 1;
+        return { broadcastViewerId: null };
       },
     });
 
     await leaveGroupConversation("user-1", "group-1", dependencies);
 
-    assert.equal(deleted, "group-1");
-    assert.equal(removeWrites, 0);
+    assert.equal(removeWrites, 1);
   });
 });
 

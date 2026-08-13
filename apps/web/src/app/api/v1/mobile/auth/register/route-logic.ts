@@ -23,11 +23,13 @@ export async function mobilePasswordRegisterRoute(
   request: Request,
   dependencies: MobilePasswordRegisterRouteDependencies = defaultMobilePasswordRegisterRouteDependencies,
 ) {
+  let normalizedEmail = "";
   try {
     const body = await dependencies.parseRegisterRequest(request);
+    normalizedEmail = body.email.trim().toLowerCase();
     await dependencies.enforceRateLimit(request, {
       namespace: "email",
-      value: body.email.trim().toLowerCase(),
+      value: normalizedEmail,
     });
     const response = await dependencies.registerPassword(body);
 
@@ -37,6 +39,18 @@ export async function mobilePasswordRegisterRoute(
       },
     });
   } catch (error) {
+    // Older workers or a concurrent unique-key race can still surface the old
+    // error. Keep the public endpoint non-enumerating during mixed deployments.
+    if (normalizedEmail && error instanceof MobileNativeAuthError && error.code === "EMAIL_TAKEN") {
+      return Response.json(
+        {
+          email: normalizedEmail,
+          message: "verification_email_sent",
+          status: "verification-required",
+        },
+        { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } },
+      );
+    }
     if (error instanceof MobileNativeAuthError) {
       return jsonError(new ApiError(error.message, error.status, error.code));
     }

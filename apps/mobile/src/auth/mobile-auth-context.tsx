@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { AppState, Linking, Platform, type AppStateStatus } from "react-native";
+import { getRandomBytesAsync } from "expo-crypto";
 import * as WebBrowser from "expo-web-browser";
 import {
   createMobileApiClient,
@@ -62,7 +63,10 @@ import {
   signInMobileWithPassword,
 } from "./mobile-auth-exchange";
 import { markMobileStartupPhase } from "../performance/mobile-startup-phases";
-import { getMobilePasswordSignInFailure } from "./mobile-auth-error-mapping";
+import {
+  getMobileGoogleSignInFailure,
+  getMobilePasswordSignInFailure,
+} from "./mobile-auth-error-mapping";
 import {
   createMobileAuthState,
   getMobileSessionDiagnostics,
@@ -97,6 +101,12 @@ const SESSION_REFRESH_TIMEOUT_MS = 30_000;
  * burn the refresh rate limit.
  */
 const SESSION_REFRESH_RETRY_COOLDOWN_MS = 15_000;
+const MOBILE_OAUTH_STATE_BYTES = 32;
+
+async function createMobileOAuthState(): Promise<string> {
+  const bytes = await getRandomBytesAsync(MOBILE_OAUTH_STATE_BYTES);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 
 /**
  * Only the API can end a session. A rejected refresh token (401) means the
@@ -140,7 +150,12 @@ const APP_LOCK_PROMPT_OPTIONS = {
 
 export type MobileSocialSignInResult =
   | { readonly ok: true; readonly via: "external-browser" | "in-app" | "native" }
-  | { readonly ok: false; readonly reason: "cancelled" | "failed" };
+  | {
+      readonly message?: string;
+      readonly ok: false;
+      readonly reason: "cancelled" | "failed";
+      readonly requiresTwoFactor?: boolean;
+    };
 
 export interface MobileAuthContextValue extends MobileAuthState {
   apiClient: MobileApiClient;
@@ -148,7 +163,11 @@ export interface MobileAuthContextValue extends MobileAuthState {
   appLockEnabled: boolean;
   appLockLocked: boolean;
   appLockStatus: MobileAppLockStatus;
-  completeAuthHandoff(input: { callbackPath: string; handoffToken: string }): Promise<boolean>;
+  completeAuthHandoff(input: {
+    callbackPath: string;
+    handoffToken: string;
+    state: string;
+  }): Promise<boolean>;
   deviceIntegrityStatus: MobileDeviceIntegrityStatus;
   deviceIntegrityWarningVisible: boolean;
   diagnostics: MobileSessionDiagnostics;
@@ -156,7 +175,10 @@ export interface MobileAuthContextValue extends MobileAuthState {
   getAccessToken(): Promise<string | null>;
   openWebRegister(): Promise<void>;
   openWebSignIn(): Promise<void>;
-  startSocialSignIn(provider: MobileAuthLiveSocialProviderId): Promise<MobileSocialSignInResult>;
+  startSocialSignIn(
+    provider: MobileAuthLiveSocialProviderId,
+    input?: { twoFactorCode?: string },
+  ): Promise<MobileSocialSignInResult>;
   registerWithPassword(input: {
     confirmPassword: string;
     email: string;
@@ -181,6 +203,7 @@ export interface MobileAuthContextValue extends MobileAuthState {
     twoFactorCode?: string;
   }): Promise<{ ok: true } | { message: string; ok: false; requiresTwoFactor: boolean }>;
   signOut(): Promise<void>;
+  sessionReadFailed: boolean;
 }
 
 interface MobileAuthProviderProps {
@@ -212,11 +235,18 @@ export function MobileAuthProvider({
   const [deviceIntegrityWarningDismissed, setDeviceIntegrityWarningDismissed] = useState(false);
   const [appLockStatus, setAppLockStatus] = useState<MobileAppLockStatus>("idle");
   const [appLockEnabled, setAppLockEnabledState] = useState(false);
+  const [appLockPreferenceLoaded, setAppLockPreferenceLoaded] = useState(false);
   const [appLockAvailability, setAppLockAvailability] =
     useState<MobileAppLockAvailability>("unknown");
   const deviceIntegrityCheckStartedRef = useRef(false);
   const refreshPromiseRef = useRef<Promise<MobileSessionSnapshot | null> | null>(null);
   const refreshCooldownUntilRef = useRef(0);
+  const sessionGenerationRef = useRef(0);
+  const sessionRepositoryQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const sessionReadPromiseRef = useRef<Promise<void> | null>(null);
+  const pendingSessionCleanupRef = useRef(false);
+  const pendingSocialSignInStateRef = useRef<string | null>(null);
+  const [sessionReadFailed, setSessionReadFailed] = useState(false);
   const stateRef = useRef(state);
   const appLockEnabledRef = useRef(false);
   const appLockColdArmedRef = useRef(false);
@@ -239,6 +269,27 @@ export function MobileAuthProvider({
     },
     [commitAuthState],
   );
+
+  // SecureStore has no compare-and-swap primitive. Serialize every read/write
+  // so a late refresh save cannot land after sign-out cleanup or erase a newer
+  // sign-in. Rejections are contained so one storage failure never poisons the
+  // queue for later recovery attempts.
+  const runSessionRepositoryOperation = useCallback(<T,>(operation: () => Promise<T>) => {
+    const result = sessionRepositoryQueueRef.current.then(operation, operation);
+    sessionRepositoryQueueRef.current = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  }, []);
+
+  const clearStoredSession = useCallback(async () => {
+    try {
+      await runSessionRepositoryOperation(() => repository.clear());
+    } catch {
+      await runSessionRepositoryOperation(() => repository.clear());
+    }
+  }, [repository, runSessionRepositoryOperation]);
 
   useEffect(() => {
     stateRef.current = state;
@@ -288,11 +339,17 @@ export function MobileAuthProvider({
 
   useEffect(() => {
     let active = true;
-    void appLockPreferenceStore.load().then((enabled) => {
-      if (active) {
-        setAppLockEnabledState(enabled);
-      }
-    });
+    void appLockPreferenceStore
+      .load()
+      .catch(() => true)
+      .then((enabled) => {
+        if (active) {
+          // A failed preference read cannot safely prove that the user disabled
+          // the gate, so arm it and let hardware availability decide.
+          setAppLockEnabledState(enabled);
+          setAppLockPreferenceLoaded(true);
+        }
+      });
 
     return () => {
       active = false;
@@ -410,57 +467,112 @@ export function MobileAuthProvider({
   );
 
   const refreshSessionWithServer = useCallback(
-    async (session: MobileSessionSnapshot) => {
+    async (session: MobileSessionSnapshot, persistResult = true) => {
       const refreshToken = session.tokens.refreshToken;
       if (!refreshToken) {
         return null;
       }
 
-      if (Date.now() < refreshCooldownUntilRef.current) {
+      if (persistResult && Date.now() < refreshCooldownUntilRef.current) {
         return null;
       }
 
-      if (!refreshPromiseRef.current) {
-        refreshPromiseRef.current = refreshMobileAuthSession(createSessionRefreshClient(), {
+      const runRefresh = (shouldPersist: boolean) => {
+        const generation = sessionGenerationRef.current;
+        return refreshMobileAuthSession(createSessionRefreshClient(), {
           refreshToken,
         })
           .then(async (refreshedSession) => {
-            refreshCooldownUntilRef.current = 0;
-            await repository.save(refreshedSession);
-            commitAuthState(createMobileAuthState("signed-in", refreshedSession));
+            if (shouldPersist) {
+              refreshCooldownUntilRef.current = 0;
+            }
+            // A sign-out can finish while this network call is in flight. The
+            // refreshed token is still useful for best-effort push revocation,
+            // but it must never be persisted or revive UI state.
+            if (
+              shouldPersist &&
+              generation === sessionGenerationRef.current &&
+              stateRef.current.session === session
+            ) {
+              await runSessionRepositoryOperation(() => repository.save(refreshedSession));
+              if (
+                generation !== sessionGenerationRef.current ||
+                stateRef.current.session !== session
+              ) {
+                return refreshedSession;
+              }
+              commitAuthState(createMobileAuthState("signed-in", refreshedSession));
+            }
             return refreshedSession;
           })
           .catch(async (error: unknown) => {
-            if (isMobileSessionRejected(error)) {
-              await repository.clear();
+            if (
+              shouldPersist &&
+              generation === sessionGenerationRef.current &&
+              stateRef.current.session === session &&
+              isMobileSessionRejected(error)
+            ) {
+              await runSessionRepositoryOperation(() => repository.clear());
+              if (
+                generation !== sessionGenerationRef.current ||
+                stateRef.current.session !== session
+              ) {
+                return null;
+              }
               commitAuthState(createMobileAuthState("signed-out"));
               return null;
             }
 
-            refreshCooldownUntilRef.current = Date.now() + SESSION_REFRESH_RETRY_COOLDOWN_MS;
+            if (shouldPersist) {
+              refreshCooldownUntilRef.current = Date.now() + SESSION_REFRESH_RETRY_COOLDOWN_MS;
+            }
             return null;
-          })
-          .finally(() => {
-            refreshPromiseRef.current = null;
           });
+      };
+
+      if (!persistResult) {
+        return refreshPromiseRef.current ?? runRefresh(false);
+      }
+
+      if (!refreshPromiseRef.current) {
+        const refresh = runRefresh(true);
+        const trackedRefresh = refresh.finally(() => {
+          if (refreshPromiseRef.current === trackedRefresh) {
+            refreshPromiseRef.current = null;
+          }
+        });
+        refreshPromiseRef.current = trackedRefresh;
       }
 
       return refreshPromiseRef.current;
     },
-    [commitAuthState, createSessionRefreshClient, repository],
+    [commitAuthState, createSessionRefreshClient, repository, runSessionRepositoryOperation],
   );
 
   const ensureFreshSession = useCallback(
-    async (session: MobileSessionSnapshot | null) => {
+    async (session: MobileSessionSnapshot | null, persistResult = true) => {
       if (!session) {
         return null;
       }
 
-      if (!shouldRefreshMobileSession(session) && !isMobileSessionExpired(session)) {
+      const expired = isMobileSessionExpired(session);
+      if (expired && !session.tokens.refreshToken) {
+        const generation = sessionGenerationRef.current;
+        if (persistResult && stateRef.current.session === session) {
+          await runSessionRepositoryOperation(() => repository.clear());
+          if (generation !== sessionGenerationRef.current || stateRef.current.session !== session) {
+            return null;
+          }
+          commitAuthState(createMobileAuthState("signed-out"));
+        }
+        return null;
+      }
+
+      if (!shouldRefreshMobileSession(session) && !expired) {
         return session;
       }
 
-      const refreshedSession = await refreshSessionWithServer(session);
+      const refreshedSession = await refreshSessionWithServer(session, persistResult);
       if (refreshedSession) {
         return refreshedSession;
       }
@@ -469,63 +581,158 @@ export function MobileAuthProvider({
       // catch above already signed the user out and the ref is empty; otherwise
       // the stored session survives, its access token goes stale, requests fail
       // with 401 and the next call retries once the cooldown lapses.
-      return stateRef.current.session;
+      return persistResult ? stateRef.current.session : null;
     },
-    [refreshSessionWithServer],
+    [commitAuthState, refreshSessionWithServer, repository, runSessionRepositoryOperation],
   );
 
-  const refreshSessionFromStorage = useCallback(async () => {
+  const refreshSessionFromStorage = useCallback(() => {
+    if (sessionReadPromiseRef.current) {
+      return sessionReadPromiseRef.current;
+    }
+
+    const generation = sessionGenerationRef.current + 1;
+    sessionGenerationRef.current = generation;
+    setSessionReadFailed(false);
     commitAuthState(createMobileAuthState("checking"));
 
-    let session: MobileSessionSnapshot | null;
-    try {
-      session = await repository.load();
-    } catch {
-      commitAuthState(createMobileAuthState("error", null, activeMobileCopy.authSessionReadFailed));
-      return;
-    }
+    const readSession = async () => {
+      if (pendingSessionCleanupRef.current) {
+        try {
+          await clearStoredSession();
+          if (generation !== sessionGenerationRef.current) {
+            return;
+          }
+          pendingSessionCleanupRef.current = false;
+          commitAuthState(createMobileAuthState("signed-out"));
+        } catch {
+          if (generation !== sessionGenerationRef.current) {
+            return;
+          }
+          setSessionReadFailed(true);
+          commitAuthState(
+            createMobileAuthState("error", null, activeMobileCopy.authSessionReadFailed),
+          );
+        }
+        return;
+      }
 
-    if (!session) {
-      commitAuthState(createMobileAuthState("signed-out"));
-      return;
-    }
+      let session: MobileSessionSnapshot | null;
+      try {
+        session = await runSessionRepositoryOperation(() => repository.load());
+      } catch {
+        if (generation !== sessionGenerationRef.current) {
+          return;
+        }
+        try {
+          session = await runSessionRepositoryOperation(() => repository.load());
+        } catch {
+          if (generation !== sessionGenerationRef.current) {
+            return;
+          }
+          setSessionReadFailed(true);
+          commitAuthState(
+            createMobileAuthState("error", null, activeMobileCopy.authSessionReadFailed),
+          );
+          return;
+        }
+      }
 
-    // Trust the stored snapshot and render the app immediately, then refresh
-    // behind it. A cold start no longer waits on the network to decide whether
-    // the user is signed in, and only a rejected refresh token can undo this.
-    commitAuthState(createMobileAuthState("signed-in", session));
-    await ensureFreshSession(session);
-  }, [commitAuthState, ensureFreshSession, repository]);
+      if (generation !== sessionGenerationRef.current) {
+        return;
+      }
+      if (!session) {
+        commitAuthState(createMobileAuthState("signed-out"));
+        return;
+      }
+
+      // Never publish an already-expired, non-renewable snapshot as signed in;
+      // protected consumers would otherwise mount while storage cleanup waits.
+      if (isMobileSessionExpired(session) && !session.tokens.refreshToken) {
+        await runSessionRepositoryOperation(() => repository.clear());
+        if (generation === sessionGenerationRef.current) {
+          commitAuthState(createMobileAuthState("signed-out"));
+        }
+        return;
+      }
+
+      // Trust the stored snapshot and render the app immediately, then refresh
+      // behind it. A cold start no longer waits on the network to decide whether
+      // the user is signed in, and only a rejected refresh token can undo this.
+      commitAuthState(createMobileAuthState("signed-in", session));
+      await ensureFreshSession(session);
+    };
+
+    const read = readSession();
+    const trackedRead = read.finally(() => {
+      if (sessionReadPromiseRef.current === trackedRead) {
+        sessionReadPromiseRef.current = null;
+      }
+    });
+    sessionReadPromiseRef.current = trackedRead;
+    return trackedRead;
+  }, [
+    clearStoredSession,
+    commitAuthState,
+    ensureFreshSession,
+    repository,
+    runSessionRepositoryOperation,
+  ]);
 
   const signOut = useCallback(async () => {
-    const session = stateRef.current.session ?? (await repository.load());
-    if (session?.tokens.accessToken) {
-      try {
-        await revokeMobilePushToken(
-          createMobileApiClient({
-            baseUrl: runtimeConfig.apiUrl,
-            getAccessToken: () => session.tokens.accessToken,
-          }),
-        );
-      } catch {
-        // Notification unregister is best-effort. The server-side token is TTL-bound.
-      }
-    }
-
-    if (session?.tokens.refreshToken) {
-      try {
-        await revokeMobileAuthSession(createUnauthenticatedClient(), {
-          refreshToken: session.tokens.refreshToken,
-        });
-      } catch {
-        // Local sign-out must always complete. The server-side token stays bounded by TTL.
-      }
-    }
-
+    const session = stateRef.current.session;
+    sessionGenerationRef.current += 1;
+    pendingSocialSignInStateRef.current = null;
     refreshCooldownUntilRef.current = 0;
-    await repository.clear();
+    const clearPromise = clearStoredSession();
     commitAuthState(createMobileAuthState("signed-out"));
-  }, [commitAuthState, createUnauthenticatedClient, repository, runtimeConfig.apiUrl]);
+    try {
+      await clearPromise;
+      pendingSessionCleanupRef.current = false;
+    } catch {
+      pendingSessionCleanupRef.current = true;
+      setSessionReadFailed(true);
+      commitAuthState(createMobileAuthState("error", null, activeMobileCopy.authSessionReadFailed));
+    }
+
+    // Local credentials and privileged UI disappear first. Remote cleanup runs
+    // best-effort so two 12s network budgets cannot hold the user signed in.
+    void (async () => {
+      const freshSession = await ensureFreshSession(session, false);
+      if (freshSession?.tokens.accessToken) {
+        try {
+          await revokeMobilePushToken(
+            createMobileApiClient({
+              baseUrl: runtimeConfig.apiUrl,
+              getAccessToken: () => freshSession.tokens.accessToken,
+            }),
+          );
+        } catch {
+          // Push unregister is best-effort, but it must run before family revoke
+          // invalidates the fresh access token it authenticates with.
+        }
+      }
+
+      const refreshToken = freshSession?.tokens.refreshToken ?? session?.tokens.refreshToken;
+      if (refreshToken) {
+        try {
+          await revokeMobileAuthSession(createUnauthenticatedClient(), {
+            refreshToken,
+          });
+        } catch {
+          // Local sign-out already completed; server tokens remain TTL-bound.
+        }
+      }
+    })().catch(() => undefined);
+  }, [
+    commitAuthState,
+    clearStoredSession,
+    createUnauthenticatedClient,
+    ensureFreshSession,
+    repository,
+    runSessionRepositoryOperation,
+    runtimeConfig.apiUrl,
+  ]);
 
   const getAccessToken = useCallback(async () => {
     const session = await ensureFreshSession(stateRef.current.session);
@@ -545,7 +752,7 @@ export function MobileAuthProvider({
       }
 
       try {
-        await repository.save(nextSession);
+        await runSessionRepositoryOperation(() => repository.save(nextSession));
       } catch {
         return false;
       }
@@ -557,7 +764,7 @@ export function MobileAuthProvider({
       commitAuthState(createMobileAuthState("signed-in", nextSession));
       return true;
     },
-    [commitAuthState, repository],
+    [commitAuthState, repository, runSessionRepositoryOperation],
   );
 
   // The in-app auth session and the OS deep-link listener can both surface the
@@ -566,16 +773,36 @@ export function MobileAuthProvider({
   const handoffExchangesRef = useRef(new Map<string, Promise<boolean>>());
 
   const exchangeAuthHandoff = useCallback(
-    async (input: { callbackPath: string; handoffToken: string }) => {
-      commitAuthState(createMobileAuthState("checking", stateRef.current.session));
+    async (input: { callbackPath: string; handoffToken: string }, oauthState: string) => {
+      const generation = sessionGenerationRef.current + 1;
+      sessionGenerationRef.current = generation;
+      const checkingState = createMobileAuthState("checking", stateRef.current.session);
+      commitAuthState(checkingState);
 
       try {
         const session = await exchangeMobileAuthHandoff(createUnauthenticatedClient(), input);
+        if (
+          generation !== sessionGenerationRef.current ||
+          stateRef.current !== checkingState ||
+          pendingSocialSignInStateRef.current !== oauthState
+        ) {
+          return false;
+        }
 
-        await repository.save(session);
+        await runSessionRepositoryOperation(() => repository.save(session));
+        if (
+          generation !== sessionGenerationRef.current ||
+          stateRef.current !== checkingState ||
+          pendingSocialSignInStateRef.current !== oauthState
+        ) {
+          return false;
+        }
         commitAuthState(createMobileAuthState("signed-in", session));
         return true;
       } catch {
+        if (generation !== sessionGenerationRef.current || stateRef.current !== checkingState) {
+          return false;
+        }
         commitAuthStateFromCurrent((current: MobileAuthState) => ({
           ...current,
           error:
@@ -585,17 +812,40 @@ export function MobileAuthProvider({
         return false;
       }
     },
-    [commitAuthState, commitAuthStateFromCurrent, createUnauthenticatedClient, repository],
+    [
+      commitAuthState,
+      commitAuthStateFromCurrent,
+      createUnauthenticatedClient,
+      repository,
+      runSessionRepositoryOperation,
+    ],
   );
 
   const completeAuthHandoff = useCallback(
-    async (input: { callbackPath: string; handoffToken: string }) => {
+    async (input: { callbackPath: string; handoffToken: string; state: string }) => {
+      if (
+        stateRef.current.status === "signed-in" ||
+        pendingSocialSignInStateRef.current !== input.state
+      ) {
+        return false;
+      }
+
       const pendingExchange = handoffExchangesRef.current.get(input.handoffToken);
       if (pendingExchange) {
         return pendingExchange;
       }
 
-      const exchange = exchangeAuthHandoff(input);
+      const exchange = exchangeAuthHandoff(
+        {
+          callbackPath: input.callbackPath,
+          handoffToken: input.handoffToken,
+        },
+        input.state,
+      ).finally(() => {
+        if (pendingSocialSignInStateRef.current === input.state) {
+          pendingSocialSignInStateRef.current = null;
+        }
+      });
       handoffExchangesRef.current.set(input.handoffToken, exchange);
 
       if (handoffExchangesRef.current.size > MAX_TRACKED_HANDOFF_EXCHANGES) {
@@ -612,22 +862,32 @@ export function MobileAuthProvider({
 
   const signInWithPassword = useCallback(
     async (input: { email: string; password: string; twoFactorCode?: string }) => {
+      const generation = sessionGenerationRef.current + 1;
+      sessionGenerationRef.current = generation;
       try {
         const session = await signInMobileWithPassword(createUnauthenticatedClient(), {
           ...input,
         });
-        await repository.save(session);
+        if (generation !== sessionGenerationRef.current) {
+          return { ok: false, message: "Giris tamamlanamadi.", requiresTwoFactor: false } as const;
+        }
+        await runSessionRepositoryOperation(() => repository.save(session));
+        if (generation !== sessionGenerationRef.current) {
+          return { ok: false, message: "Giris tamamlanamadi.", requiresTwoFactor: false } as const;
+        }
         commitAuthState(createMobileAuthState("signed-in", session));
         return { ok: true } as const;
       } catch (error) {
-        commitAuthState(createMobileAuthState("signed-out", null, "Giris tamamlanamadi."));
+        if (generation === sessionGenerationRef.current) {
+          commitAuthState(createMobileAuthState("signed-out", null, "Giris tamamlanamadi."));
+        }
         return {
           ...getMobilePasswordSignInFailure(error),
           ok: false,
         } as const;
       }
     },
-    [commitAuthState, createUnauthenticatedClient, repository],
+    [commitAuthState, createUnauthenticatedClient, repository, runSessionRepositoryOperation],
   );
 
   const registerWithPassword = useCallback(
@@ -722,8 +982,11 @@ export function MobileAuthProvider({
 
   const openWebSignIn = useCallback(async () => {
     try {
-      await Linking.openURL(buildMobileWebSignInUrl(runtimeConfig.webUrl));
+      const oauthState = await createMobileOAuthState();
+      pendingSocialSignInStateRef.current = oauthState;
+      await Linking.openURL(buildMobileWebSignInUrl(runtimeConfig.webUrl, oauthState));
     } catch {
+      pendingSocialSignInStateRef.current = null;
       commitAuthStateFromCurrent((current: MobileAuthState) => ({
         ...current,
         error: "Whispr web girisi acilamadi. Lutfen baglantini kontrol et.",
@@ -734,8 +997,8 @@ export function MobileAuthProvider({
   // Preferred path: Google's own account sheet, fully on device. Only the ID
   // token leaves the sheet, and the API verifies it against Google's JWKS before
   // a Whispr session exists. No browser, no OAuth code, no client secret.
-  const startNativeGoogleSignIn =
-    useCallback(async (): Promise<MobileSocialSignInResult | null> => {
+  const startNativeGoogleSignIn = useCallback(
+    async (twoFactorCode?: string): Promise<MobileSocialSignInResult | null> => {
       const outcome = await runMobileGoogleNativeSignIn({
         client: googleSignInClient,
         onFailure: reportMobileGoogleSignInFallback,
@@ -753,40 +1016,72 @@ export function MobileAuthProvider({
       }
 
       commitAuthState(createMobileAuthState("checking", stateRef.current.session));
+      const generation = sessionGenerationRef.current + 1;
+      sessionGenerationRef.current = generation;
 
       try {
         const session = await signInMobileWithGoogleIdToken(createUnauthenticatedClient(), {
           idToken: outcome.idToken,
+          ...(twoFactorCode ? { twoFactorCode } : {}),
         });
 
-        await repository.save(session);
+        if (generation !== sessionGenerationRef.current) {
+          return { ok: false, reason: "failed" } as const;
+        }
+        await runSessionRepositoryOperation(() => repository.save(session));
+        if (generation !== sessionGenerationRef.current) {
+          return { ok: false, reason: "failed" } as const;
+        }
         commitAuthState(createMobileAuthState("signed-in", session));
         return { ok: true, via: "native" } as const;
-      } catch {
+      } catch (error) {
+        if (generation !== sessionGenerationRef.current) {
+          return { ok: false, reason: "failed" } as const;
+        }
+        const failure = getMobileGoogleSignInFailure(error);
         commitAuthStateFromCurrent((current: MobileAuthState) => ({
           ...current,
-          error: activeMobileCopy.authSocialSignInFailed,
+          error: failure.message,
           status: current.session ? "signed-in" : "signed-out",
         }));
-        return { ok: false, reason: "failed" } as const;
+        return { ...failure, ok: false, reason: "failed" } as const;
       }
-    }, [
+    },
+    [
       commitAuthState,
       commitAuthStateFromCurrent,
       createUnauthenticatedClient,
       googleSignInClient,
       repository,
+      runSessionRepositoryOperation,
       runtimeConfig.googleWebClientId,
-    ]);
+    ],
+  );
 
   const startSocialSignIn = useCallback(
-    async (provider: MobileAuthLiveSocialProviderId): Promise<MobileSocialSignInResult> => {
-      const nativeResult = await startNativeGoogleSignIn();
+    async (
+      provider: MobileAuthLiveSocialProviderId,
+      input?: { twoFactorCode?: string },
+    ): Promise<MobileSocialSignInResult> => {
+      // A handoff is an authentication entry point, never an account-switching
+      // mechanism for an already authenticated app.
+      if (stateRef.current.status === "signed-in") {
+        return { ok: false, reason: "failed" } as const;
+      }
+
+      const nativeResult = await startNativeGoogleSignIn(input?.twoFactorCode);
       if (nativeResult) {
         return nativeResult;
       }
 
-      const startUrl = buildMobileWebSocialSignInUrl(runtimeConfig.webUrl, provider);
+      let oauthState: string;
+      try {
+        oauthState = await createMobileOAuthState();
+      } catch {
+        return { ok: false, reason: "failed" } as const;
+      }
+      pendingSocialSignInStateRef.current = oauthState;
+      const startUrl = buildMobileWebSocialSignInUrl(runtimeConfig.webUrl, provider, oauthState);
       const outcome = await runMobileSocialAuthSession({
         openAuthSession: (url, redirectUrl) =>
           WebBrowser.openAuthSessionAsync(url, redirectUrl, {
@@ -799,6 +1094,7 @@ export function MobileAuthProvider({
       });
 
       if (outcome.type === "cancelled") {
+        pendingSocialSignInStateRef.current = null;
         return { ok: false, reason: "cancelled" } as const;
       }
 
@@ -806,6 +1102,7 @@ export function MobileAuthProvider({
         const completed = await completeAuthHandoff({
           callbackPath: outcome.callbackPath,
           handoffToken: outcome.handoffToken,
+          state: outcome.state,
         });
 
         return completed
@@ -814,6 +1111,7 @@ export function MobileAuthProvider({
       }
 
       if (outcome.reason === "invalid-callback") {
+        pendingSocialSignInStateRef.current = null;
         commitAuthStateFromCurrent((current: MobileAuthState) => ({
           ...current,
           error: activeMobileCopy.authSocialSignInFailed,
@@ -825,6 +1123,7 @@ export function MobileAuthProvider({
         await Linking.openURL(startUrl);
         return { ok: true, via: "external-browser" } as const;
       } catch {
+        pendingSocialSignInStateRef.current = null;
         commitAuthStateFromCurrent((current: MobileAuthState) => ({
           ...current,
           error: activeMobileCopy.authSocialSignInFailed,
@@ -842,8 +1141,11 @@ export function MobileAuthProvider({
 
   const openWebRegister = useCallback(async () => {
     try {
-      await Linking.openURL(buildMobileWebRegisterUrl(runtimeConfig.webUrl));
+      const oauthState = await createMobileOAuthState();
+      pendingSocialSignInStateRef.current = oauthState;
+      await Linking.openURL(buildMobileWebRegisterUrl(runtimeConfig.webUrl, oauthState));
     } catch {
+      pendingSocialSignInStateRef.current = null;
       commitAuthStateFromCurrent((current: MobileAuthState) => ({
         ...current,
         error: "Whispr kayit ekrani acilamadi. Lutfen baglantini kontrol et.",
@@ -879,7 +1181,11 @@ export function MobileAuthProvider({
   const diagnostics = useMemo(() => getMobileSessionDiagnostics(state), [state]);
   const deviceIntegrityWarningVisible =
     deviceIntegrityStatus === "compromised" && !deviceIntegrityWarningDismissed;
-  const appLockLocked = appLockStatus === "locked";
+  const appLockLocked =
+    state.status === "signed-in" &&
+    (!appLockPreferenceLoaded ||
+      (appLockEnabled &&
+        (appLockStatus === "idle" || appLockStatus === "checking" || appLockStatus === "locked")));
 
   const value = useMemo<MobileAuthContextValue>(
     () => ({
@@ -906,6 +1212,7 @@ export function MobileAuthProvider({
       setAppLockEnabled,
       signInWithPassword,
       signOut,
+      sessionReadFailed,
       startSocialSignIn,
     }),
     [
@@ -931,6 +1238,7 @@ export function MobileAuthProvider({
       setAppLockEnabled,
       signInWithPassword,
       signOut,
+      sessionReadFailed,
       startSocialSignIn,
       state,
     ],

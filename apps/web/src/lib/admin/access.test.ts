@@ -8,6 +8,8 @@ import {
   isProductionAdminBootstrapEnvironment,
 } from "./access";
 
+process.env.TRUSTED_PROXY_HOPS = "1";
+
 describe("admin audit trail", () => {
   it("records the hashed caller address alongside the user agent", () => {
     const entry = buildAdminAuditLogEntry({
@@ -15,7 +17,7 @@ describe("admin audit trail", () => {
       adminUserId: "admin-1",
       headers: new Headers({
         "user-agent": "Mozilla/5.0 (Windows NT 10.0)",
-        "x-real-ip": "203.0.113.10",
+        "x-forwarded-for": "203.0.113.10",
       }),
       targetId: "user-2",
       targetType: "User",
@@ -29,7 +31,7 @@ describe("admin audit trail", () => {
   it("reads the same headers from a plain record", () => {
     const entry = buildAdminAuditLogEntry({
       action: "user.ban",
-      headers: { "user-agent": "curl/8.6.0", "x-real-ip": "198.51.100.7" },
+      headers: { "user-agent": "curl/8.6.0", "x-forwarded-for": "198.51.100.7" },
     });
 
     assert.equal(entry.ipHash, hashAnalyticsValue("198.51.100.7"));

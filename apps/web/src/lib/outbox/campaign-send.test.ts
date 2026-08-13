@@ -26,6 +26,35 @@ function jobDependencies(status: string | null) {
 }
 
 describe("scheduled campaign job", () => {
+  it("requeues a terminal campaign job when an admin retries the campaign", async () => {
+    const updates: Array<{ data: Record<string, unknown>; where: unknown }> = [];
+    let upserts = 0;
+
+    await enqueueCampaignSendJob(
+      {
+        outboxJob: {
+          updateMany: async (args: never) => {
+            updates.push(args as unknown as { data: Record<string, unknown>; where: unknown });
+            return { count: 1 };
+          },
+          upsert: async () => {
+            upserts += 1;
+            return {};
+          },
+        },
+      } as never,
+      { adminUserId: "admin-1", campaignId: "campaign-1", scheduledAt: TOMORROW },
+    );
+
+    assert.equal(upserts, 0);
+    assert.deepEqual(updates[0]?.where, {
+      idempotencyKey: "campaign-send:campaign-1",
+      status: { in: ["COMPLETED", "FAILED"] },
+    });
+    assert.equal(updates[0]?.data.status, "PENDING");
+    assert.equal(updates[0]?.data.availableAt, TOMORROW);
+  });
+
   it("books the send for its scheduled instant rather than sending now", async () => {
     const upserts: Array<{ create: Record<string, unknown>; where: unknown }> = [];
 

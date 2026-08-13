@@ -47,10 +47,14 @@ export async function mobileServerEventsListRoute(
     await dependencies.enforceRateLimit(userId, "mobile:server:events:list");
     const { serverId } = MobileServerIdParamsSchema.parse(await context.params);
     const url = new URL(request.url);
-    const { includePast } = MobileServerScheduledEventsQuerySchema.parse(
+    const { cursor, includePast, limit } = MobileServerScheduledEventsQuerySchema.parse(
       Object.fromEntries(url.searchParams),
     );
-    const events = await dependencies.listEvents(serverId, userId, { includePast });
+    const events = await dependencies.listEvents(serverId, userId, {
+      ...(cursor ? { cursor } : {}),
+      includePast,
+      limit,
+    });
 
     return Response.json(MobileServerScheduledEventsResponseSchema.parse({ events }));
   } catch (error) {

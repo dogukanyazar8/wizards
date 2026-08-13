@@ -83,7 +83,7 @@ describe("group realtime", () => {
 
     assert.deepEqual(emitted, [
       {
-        args: [{ conversation }],
+        args: [{ conversationId: "group-1" }],
         event: "dm:conversation:created",
         rooms: ["user:user-1", "user:user-2"],
       },
@@ -97,7 +97,7 @@ describe("group realtime", () => {
 
     assert.deepEqual(emitted, [
       {
-        args: [{ conversation, conversationId: "group-1" }],
+        args: [{ conversationId: "group-1" }],
         event: "dm:conversation:members_changed",
         rooms: ["dm:group-1", "user:user-2"],
       },
@@ -111,17 +111,39 @@ describe("group realtime", () => {
 
     assert.deepEqual(emitted, [
       {
-        args: [{ conversation, conversationId: "group-1" }],
+        args: [{ conversationId: "group-1" }],
         event: "dm:conversation:members_changed",
         rooms: ["dm:group-1"],
       },
     ]);
   });
 
-  it("tells the removed member and forces their sockets out of the room", () => {
+  it("evicts a removed member from Socket.IO, LiveKit, and the call roster", async () => {
     const { emitted, io, left } = buildIo();
+    const callCleanup: string[] = [];
 
-    evictRemovedGroupMember(io, { conversationId: "group-1", userId: "user-3" });
+    await (
+      evictRemovedGroupMember as unknown as (
+        io: ReturnType<typeof buildIo>["io"],
+        input: { conversationId: string; userId: string },
+        dependencies: {
+          leaveCall(conversationId: string, userId: string): Promise<unknown>;
+          removeParticipant(roomName: string, userId: string): Promise<void>;
+        },
+      ) => Promise<void>
+    )(
+      io,
+      { conversationId: "group-1", userId: "user-3" },
+      {
+        async leaveCall(conversationId, userId) {
+          callCleanup.push(`roster:${conversationId}:${userId}`);
+          return null;
+        },
+        async removeParticipant(roomName, userId) {
+          callCleanup.push(`livekit:${roomName}:${userId}`);
+        },
+      },
+    );
 
     assert.deepEqual(emitted, [
       {
@@ -133,6 +155,7 @@ describe("group realtime", () => {
     // Without this the removed member keeps receiving every later message: the
     // join handler only gates entry, it never evicts a socket already inside.
     assert.deepEqual(left, [{ room: "dm:group-1", source: "user:user-3" }]);
+    assert.deepEqual(callCleanup, ["livekit:dm:group-1:user-3", "roster:group-1:user-3"]);
   });
 });
 
@@ -267,8 +290,10 @@ describe("Faz 2 group invite events", () => {
     // would be nothing their inbox could act on.
     assert.deepEqual(emitted[0]?.rooms, ["user:user-3"]);
     assert.equal(emitted[0]?.event, "dm:conversation:created");
+    assert.deepEqual(emitted[0]?.args, [{ conversationId: "group-1" }]);
     assert.deepEqual(emitted[1]?.rooms, ["dm:group-1"]);
     assert.equal(emitted[1]?.event, "dm:conversation:members_changed");
+    assert.deepEqual(emitted[1]?.args, [{ conversationId: "group-1" }]);
   });
 
   it("announces the invite switch to every member without the code", () => {

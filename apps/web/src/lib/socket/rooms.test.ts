@@ -49,4 +49,29 @@ describe("socket room helpers", () => {
     ]);
     assert.equal(socket.data.voiceStateViewerChannelsByServer.has("server-1"), false);
   });
+
+  it("does not churn viewer rooms when the resolved channel set is unchanged", async () => {
+    const joinedRooms: string[] = [];
+    const leftRooms: string[] = [];
+    const socket = {
+      data: {
+        voiceStateViewerChannelsByServer: new Map<string, Set<string>>(),
+      },
+      join(room: string) {
+        joinedRooms.push(room);
+      },
+      leave(room: string) {
+        leftRooms.push(room);
+      },
+    };
+
+    await joinVoiceStateViewerRoomsForServer(socket as never, "server-1", ["voice-1", "voice-2"]);
+    await joinVoiceStateViewerRoomsForServer(socket as never, "server-1", ["voice-2", "voice-1"]);
+
+    assert.deepEqual(joinedRooms, [
+      getVoiceStateViewerRoomName("voice-1"),
+      getVoiceStateViewerRoomName("voice-2"),
+    ]);
+    assert.deepEqual(leftRooms, []);
+  });
 });

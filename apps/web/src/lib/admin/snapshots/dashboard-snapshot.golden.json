@@ -18,7 +18,6 @@
       "user": {
         "avatarUrl": "https://cdn.test/avatar-1.png",
         "displayName": "Ada",
-        "email": "ada@test.dev",
         "id": "user-1",
         "status": "ONLINE",
         "username": "ada"
@@ -37,7 +36,6 @@
       "user": {
         "avatarUrl": null,
         "displayName": "bora",
-        "email": "bora@test.dev",
         "id": "user-2",
         "status": "IDLE",
         "username": "bora"
@@ -182,7 +180,6 @@
       },
       "createdAt": "2026-05-12T15:00:00.000Z",
       "id": "audit-1",
-      "ipHash": "0123456789abcdef",
       "targetId": "user-2",
       "targetType": "USER"
     },
@@ -191,7 +188,6 @@
       "actor": null,
       "createdAt": "2026-05-12T14:00:00.000Z",
       "id": "audit-2",
-      "ipHash": null,
       "targetId": null,
       "targetType": "SYSTEM"
     }
@@ -290,7 +286,6 @@
     {
       "avatarUrl": "https://cdn.test/avatar-1.png",
       "displayName": "Ada",
-      "email": "ada@test.dev",
       "id": "user-1",
       "metrics": {
         "appSeconds": 240,
@@ -310,7 +305,6 @@
     {
       "avatarUrl": null,
       "displayName": "bora",
-      "email": "bora@test.dev",
       "id": "user-2",
       "metrics": {
         "appSeconds": 120,
@@ -444,7 +438,6 @@
         "avatarUrl": "https://cdn.test/avatar-3.png",
         "createdAt": "2026-05-12T09:00:00.000Z",
         "displayName": "Cem",
-        "email": "cem@test.dev",
         "emailVerified": false,
         "id": "user-3",
         "isBanned": false,
@@ -455,7 +448,6 @@
         "avatarUrl": null,
         "createdAt": "2026-05-11T09:00:00.000Z",
         "displayName": "bora",
-        "email": "bora@test.dev",
         "emailVerified": true,
         "id": "user-2",
         "isBanned": true,

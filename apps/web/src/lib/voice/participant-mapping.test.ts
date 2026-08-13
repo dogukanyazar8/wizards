@@ -9,7 +9,6 @@ import {
   getParticipantDeafenState,
   getParticipantProfile,
   getScreenShareId,
-  parseParticipantMetadata,
 } from "./participant-mapping";
 
 const currentUser = {
@@ -55,27 +54,6 @@ function createParticipant(input: {
 }
 
 describe("voice participant mapping helpers", () => {
-  it("parses participant metadata safely", () => {
-    assert.deepEqual(parseParticipantMetadata({ metadata: null }), {});
-    assert.deepEqual(parseParticipantMetadata({ metadata: "not-json" }), {});
-    assert.deepEqual(
-      parseParticipantMetadata({
-        metadata: JSON.stringify({
-          avatarUrl: "https://example.com/a.png",
-          displayName: "Alice",
-          isDeafened: true,
-          username: "alice",
-        }),
-      }),
-      {
-        avatarUrl: "https://example.com/a.png",
-        displayName: "Alice",
-        isDeafened: true,
-        username: "alice",
-      },
-    );
-  });
-
   it("prefers the current user snapshot for the local participant", () => {
     assert.deepEqual(
       getParticipantProfile(
@@ -95,7 +73,7 @@ describe("voice participant mapping helpers", () => {
     );
   });
 
-  it("falls back through metadata, participant name, and identity for remote profiles", () => {
+  it("ignores remote profile metadata when no server roster entry exists", () => {
     assert.deepEqual(
       getParticipantProfile(
         createParticipant({
@@ -107,10 +85,60 @@ describe("voice participant mapping helpers", () => {
       ),
       {
         avatarUrl: null,
-        displayName: "Display Only",
+        displayName: "LiveKit Name",
         userId: "user-2",
-        username: "Display Only",
+        username: "LiveKit Name",
       },
+    );
+  });
+
+  it("uses the server roster instead of identity fields from participant metadata", () => {
+    assert.deepEqual(
+      getParticipantProfile(
+        createParticipant({
+          identity: "user-2",
+          metadata: JSON.stringify({
+            avatarUrl: "https://attacker.example/avatar.png",
+            displayName: "Impersonated",
+            username: "admin",
+          }),
+          name: "LiveKit Name",
+        }) as never,
+        currentUser,
+        [
+          {
+            avatarUrl: "https://example.com/real.png",
+            displayName: "Real User",
+            isDeafened: true,
+            userId: "user-2",
+            username: "real-user",
+          },
+        ],
+      ),
+      {
+        avatarUrl: "https://example.com/real.png",
+        displayName: "Real User",
+        userId: "user-2",
+        username: "real-user",
+      },
+    );
+  });
+
+  it("reads deafen state from the server roster instead of participant metadata", () => {
+    assert.equal(
+      (
+        getParticipantDeafenState as unknown as (
+          participant: ReturnType<typeof createParticipant>,
+          roster: Array<{ isDeafened: boolean; userId: string }>,
+        ) => boolean
+      )(
+        createParticipant({
+          identity: "user-2",
+          metadata: JSON.stringify({ isDeafened: false }),
+        }),
+        [{ isDeafened: true, userId: "user-2" }],
+      ),
+      true,
     );
   });
 
@@ -159,7 +187,7 @@ describe("voice participant mapping helpers", () => {
     );
   });
 
-  it("reads remote deafen state from participant metadata", () => {
+  it("does not trust remote deafen state from participant metadata", () => {
     assert.equal(
       getParticipantDeafenState(
         createParticipant({
@@ -167,7 +195,7 @@ describe("voice participant mapping helpers", () => {
           metadata: JSON.stringify({ isDeafened: true }),
         }) as never,
       ),
-      true,
+      false,
     );
     assert.equal(
       getParticipantDeafenState(
@@ -217,37 +245,47 @@ describe("voice participant mapping helpers", () => {
 
     assert.equal(getScreenShareId("user-2", "track-1"), "user-2:track-1");
     assert.equal(countActiveScreenShares(room as never), 2);
-    assert.deepEqual(collectScreenShares(room as never, currentUser), [
-      {
-        avatarUrl: "https://example.com/me.png",
-        displayName: "Current User",
-        id: "user-1:local-share",
-        isLocal: true,
-        participantId: "user-1",
-        publication: {
-          source: Track.Source.ScreenShare,
+    assert.deepEqual(
+      collectScreenShares(room as never, currentUser, [
+        {
+          avatarUrl: null,
+          displayName: null,
+          userId: "user-2",
+          username: "remote",
+        },
+      ]),
+      [
+        {
+          avatarUrl: "https://example.com/me.png",
+          displayName: "Current User",
+          id: "user-1:local-share",
+          isLocal: true,
+          participantId: "user-1",
+          publication: {
+            source: Track.Source.ScreenShare,
+            trackSid: "local-share",
+            videoTrack: localShareTrack,
+          },
+          track: localShareTrack,
           trackSid: "local-share",
-          videoTrack: localShareTrack,
+          username: "current",
         },
-        track: localShareTrack,
-        trackSid: "local-share",
-        username: "current",
-      },
-      {
-        avatarUrl: null,
-        displayName: null,
-        id: "user-2:remote-share",
-        isLocal: false,
-        participantId: "user-2",
-        publication: {
-          source: Track.Source.ScreenShare,
+        {
+          avatarUrl: null,
+          displayName: null,
+          id: "user-2:remote-share",
+          isLocal: false,
+          participantId: "user-2",
+          publication: {
+            source: Track.Source.ScreenShare,
+            trackSid: "remote-share",
+            videoTrack: remoteShareTrack,
+          },
+          track: remoteShareTrack,
           trackSid: "remote-share",
-          videoTrack: remoteShareTrack,
+          username: "remote",
         },
-        track: remoteShareTrack,
-        trackSid: "remote-share",
-        username: "remote",
-      },
-    ]);
+      ],
+    );
   });
 });

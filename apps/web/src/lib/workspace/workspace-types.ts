@@ -31,6 +31,7 @@ export type AccessContext = {
 };
 
 export type ChannelRecord = {
+  bitrate?: number;
   categoryId: string | null;
   canAccess?: boolean;
   id: string;
@@ -54,6 +55,10 @@ export type ChannelRecord = {
   }>;
   position: number;
   readOnly?: boolean;
+  rtcRegion?: string | null;
+  slowModeDelay?: number;
   topic: string | null;
   type: ChannelType;
+  userLimit?: number;
+  videoQualityMode?: "AUTO" | "FULL";
 };

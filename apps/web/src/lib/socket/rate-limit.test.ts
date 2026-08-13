@@ -7,6 +7,7 @@ import {
   CHANNEL_MESSAGE_RATE_LIMIT,
   checkChannelMessageEditRateLimit,
   checkChannelMessageRateLimit,
+  checkChannelSlowMode,
   checkDMMessageRateLimits,
   DM_MESSAGE_CONVERSATION_RATE_LIMIT,
   DM_MESSAGE_GLOBAL_RATE_LIMIT,
@@ -16,9 +17,13 @@ import {
   resetRateLimitUnavailableGraceForTest,
   shouldLogRateLimitUnavailable,
 } from "./rate-limits";
+import * as rateLimits from "./rate-limits";
 
 class MemoryRateLimitGraceRedis {
-  private readonly values = new Map<string, { attempts: number; expiresAt: number; firstAt: number }>();
+  private readonly values = new Map<
+    string,
+    { attempts: number; expiresAt: number; firstAt: number }
+  >();
 
   async eval(
     _script: string,
@@ -93,6 +98,51 @@ describe("socket DM rate limit configuration", () => {
     });
 
     assert.equal(result.status, "limited");
+  });
+
+  it("scopes slow mode by channel and user and returns an exact retry delay", async () => {
+    const result = await checkChannelSlowMode({
+      channelId: "channel-1",
+      delaySeconds: 30,
+      redis,
+      slowModeCheck: async (_redis, key, delaySeconds) => {
+        assert.equal(key, "rate:channel-slow:channel-1:user-1");
+        assert.equal(delaySeconds, 30);
+        return { allowed: false, retryAfterSeconds: 17 };
+      },
+      userId: "user-1",
+    });
+
+    assert.deepEqual(result, { retryAfterSeconds: 17, status: "limited" });
+  });
+
+  it("does not touch Redis when slow mode is disabled", async () => {
+    const result = await checkChannelSlowMode({
+      channelId: "channel-1",
+      delaySeconds: 0,
+      redis,
+      slowModeCheck: async () => {
+        throw new Error("must not run");
+      },
+      userId: "user-1",
+    });
+
+    assert.deepEqual(result, { status: "allowed" });
+  });
+
+  it("fails closed when slow-mode storage is unavailable", async () => {
+    const error = new Error("redis unavailable");
+    const result = await checkChannelSlowMode({
+      channelId: "channel-1",
+      delaySeconds: 10,
+      redis,
+      slowModeCheck: async () => {
+        throw error;
+      },
+      userId: "user-1",
+    });
+
+    assert.deepEqual(result, { error, status: "unavailable" });
   });
 
   it("returns unavailable instead of throwing when channel rate limiting fails", async () => {
@@ -218,6 +268,36 @@ describe("socket DM rate limit configuration", () => {
       DM_MESSAGE_GLOBAL_RATE_LIMIT.windowSeconds,
       DM_MESSAGE_CONVERSATION_RATE_LIMIT.windowSeconds,
     );
+  });
+
+  it("bounds delivery acknowledgements by user instead of attacker-controlled conversation ids", async () => {
+    type CheckDelivery = (args: {
+      rateLimitCheck: (
+        redis: Redis,
+        key: string,
+        limit: number,
+        windowSeconds: number,
+      ) => Promise<boolean>;
+      redis: Redis;
+      userId: string;
+    }) => Promise<{ status: string }>;
+    const checkDelivery = (rateLimits as unknown as { checkDMDeliveryAckRateLimit?: CheckDelivery })
+      .checkDMDeliveryAckRateLimit;
+
+    assert.equal(typeof checkDelivery, "function");
+
+    const keys: string[] = [];
+    const result = await checkDelivery?.({
+      rateLimitCheck: async (_redis, key) => {
+        keys.push(key);
+        return true;
+      },
+      redis,
+      userId: "user-1",
+    });
+
+    assert.equal(result?.status, "allowed");
+    assert.deepEqual(keys, ["rate:dm:delivery:user-1"]);
   });
 
   it("stops after the global DM cap when it is exhausted", async () => {

@@ -9,6 +9,7 @@ export interface VoiceStateParticipantDTO {
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
+  isDeafened: boolean;
   isScreenSharing?: boolean;
 }
 
@@ -33,6 +34,7 @@ export const VoiceStateParticipantSchema = z.object({
   username: z.string(),
   displayName: z.string().nullable(),
   avatarUrl: z.string().nullable(),
+  isDeafened: z.boolean().default(false),
   isScreenSharing: z.boolean().optional().default(false),
 });
 
@@ -60,6 +62,7 @@ export const UpsertVoiceStateBodySchema = z.object({
 
 export const HeartbeatVoiceStateBodySchema = z.object({
   sessionId: z.string().uuid(),
+  selfDeaf: z.boolean().optional(),
   selfScreenShare: z.boolean().optional(),
   selfStream: z.boolean().optional(),
   selfVideo: z.boolean().optional(),

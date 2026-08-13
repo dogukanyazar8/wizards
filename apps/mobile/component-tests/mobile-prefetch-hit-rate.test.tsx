@@ -8,7 +8,7 @@ import {
   getMobileRecentDMPrefetchStats,
   recordMobileRecentDMPrefetch,
   recordMobileRecentDMPrefetchSettled,
-  resetMobileRecentDMPrefetchStatsForTests,
+  resetMobileRecentDMPrefetchStats,
   useMobileMessagePrefetch,
 } from "../src/query/mobile-message-prefetch";
 
@@ -47,7 +47,7 @@ async function renderPrefetchActions() {
  */
 describe("recent DM prefetch hit rate", () => {
   beforeEach(() => {
-    resetMobileRecentDMPrefetchStatsForTests();
+    resetMobileRecentDMPrefetchStats();
   });
 
   it("counts a tap on a settled warm conversation as a hit", async () => {

@@ -48,7 +48,13 @@ export interface MobileApiRequestOptions extends Omit<RequestInit, "body"> {
 }
 
 export interface MobileApiClient {
+  createDownloadRequest?(path: string): Promise<MobileDownloadRequest>;
   requestJson<TResponse>(path: string, options?: MobileApiRequestOptions): Promise<TResponse>;
+}
+
+export interface MobileDownloadRequest {
+  headers: Record<string, string>;
+  url: string;
 }
 
 const DEFAULT_TIMEOUT_MS = 12_000;
@@ -123,6 +129,23 @@ export function createMobileApiClient(options: MobileApiClientOptions): MobileAp
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
   return {
+    async createDownloadRequest(path: string) {
+      assertRelativeApiPath(path);
+      const accessToken = await resolveAccessToken(options.getAccessToken);
+      if (!accessToken) {
+        throw new MobileApiError("Whispr mobile download requires authentication.", {
+          code: "missing_access_token",
+        });
+      }
+      return {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${accessToken}`,
+          ...MOBILE_CLIENT_HEADERS,
+        },
+        url: buildRequestUrl(baseUrl, path),
+      };
+    },
     async requestJson<TResponse>(path: string, requestOptions: MobileApiRequestOptions = {}) {
       assertRelativeApiPath(path);
       const networkStatus = options.getNetworkStatus?.() ?? getMobileNetworkStatusSnapshot();

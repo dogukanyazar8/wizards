@@ -24,6 +24,19 @@ export type MobileCameraVideoCodec = "h264" | "vp8";
 
 export const DEFAULT_MOBILE_CAMERA_QUALITY_TIER: MobileCameraQualityTier = "h720";
 
+export function applyMobileVoiceAudioBitrate(
+  publishDefaults: TrackPublishDefaults,
+  audioBitrate: number,
+): TrackPublishDefaults {
+  return {
+    ...publishDefaults,
+    audioPreset: {
+      ...publishDefaults.audioPreset,
+      maxBitrate: audioBitrate,
+    },
+  };
+}
+
 /** H.264 is the only codec with a hardware encoder on every shipped handset. */
 export const MOBILE_CAMERA_VIDEO_CODEC: MobileCameraVideoCodec = "h264";
 

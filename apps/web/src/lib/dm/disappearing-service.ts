@@ -37,11 +37,23 @@ export type DisappearingPurgeDependencies = {
 
 export const defaultDisappearingPurgeDependencies: DisappearingPurgeDependencies = {
   deleteMessages: async (messageIds) => {
-    // `deleteMany` on primary keys the sweep just read. The rows are gone for
-    // good: attachments cascade, `pinnedMessageId` drops to NULL through the
-    // Faz 1 foreign key, and reactions go with the message.
-    const result = await prisma.dMMessage.deleteMany({ where: { id: { in: [...messageIds] } } });
-    return result.count;
+    return prisma.$transaction(async (tx) => {
+      // Replies use ON DELETE RESTRICT, while thread children use CASCADE. Clear
+      // both references in the same transaction so one referenced deadline
+      // cannot poison the oldest purge batch or erase a still-live thread reply.
+      await tx.dMMessage.updateMany({
+        where: { replyToId: { in: [...messageIds] } },
+        data: { replyToId: null },
+      });
+      await tx.dMMessage.updateMany({
+        where: { threadParentId: { in: [...messageIds] } },
+        data: { threadParentId: null },
+      });
+      const result = await tx.dMMessage.deleteMany({
+        where: { id: { in: [...messageIds] } },
+      });
+      return result.count;
+    });
   },
   deleteStorageObjects: async (fileKeys) => {
     // Imported lazily so a deployment without UploadThing credentials can still

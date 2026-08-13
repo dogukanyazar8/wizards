@@ -4,7 +4,8 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaInsetsContext } from "react-native-safe-area-context";
 
 import { useMobileAuth } from "../auth/mobile-auth-context";
-import { DestructiveConfirmationSheet, OptionSheet } from "../app/components/kit";
+import { MobileApiError } from "../api/mobile-api-client";
+import { DestructiveConfirmationSheet, OptionSheet, useToast } from "../app/components/kit";
 import { MessageImageLightbox } from "../app/components/message-image-lightbox";
 import { startMobileDirectCall } from "../app/features/mobile-direct-call-bridge";
 import { getMobileShellTopInset } from "../app/mobile-app-shell";
@@ -100,6 +101,7 @@ export function MobileUserProfileScreen({
   userId,
 }: MobileUserProfileScreenProps) {
   const { apiClient } = useMobileAuth();
+  const { showToast } = useToast();
   const { locale } = useMobileLocaleRuntime();
   const theme = useTheme();
   const styles = useThemedStyles(createMobileProfilePageStyles);
@@ -196,6 +198,23 @@ export function MobileUserProfileScreen({
 
   const chrome: MobileProfilePageChrome = { copy, locale, styles };
 
+  const resolveRequestErrorCopy = useCallback(
+    (error: unknown) => {
+      const serverCode = error instanceof MobileApiError ? error.serverCode : null;
+      if (serverCode === "NOT_FOUND") return copy.friendsRequestUserNotFound;
+      if (serverCode === "ALREADY_FRIENDS") return copy.friendsRequestAlreadyFriends;
+      if (serverCode === "ALREADY_PENDING") return copy.friendsRequestAlreadyPending;
+      if (serverCode === "BLOCKED" || serverCode === "FRIEND_REQUEST_POLICY")
+        return copy.friendsRequestBlocked;
+      return copy.friendsRequestFailed;
+    },
+    [copy],
+  );
+
+  const showActionFailure = useCallback(() => {
+    showToast({ title: copy.socialActionFailed, variant: "error" });
+  }, [copy.socialActionFailed, showToast]);
+
   // One place opens the 2b note sheet — the NOT card and the three-dot menu row
   // both come through here, and a host may still take it over.
   const openNoteEditor = useCallback(() => {
@@ -226,11 +245,15 @@ export function MobileUserProfileScreen({
   }, [conversationId, mutations.openDM, profile]);
 
   const openConversation = useCallback(async () => {
-    const target = await resolveConversationId();
-    if (target) {
-      onOpenConversation(target);
+    try {
+      const target = await resolveConversationId();
+      if (target) {
+        onOpenConversation(target);
+      }
+    } catch {
+      showActionFailure();
     }
-  }, [onOpenConversation, resolveConversationId]);
+  }, [onOpenConversation, resolveConversationId, showActionFailure]);
 
   /**
    * 1c runs the same call flow as the 11b card: the shared starter the product
@@ -240,19 +263,38 @@ export function MobileUserProfileScreen({
   const startCall = useCallback(
     (video: boolean) => {
       void (async () => {
-        const target = await resolveConversationId();
-        if (!target || !profile) {
-          return;
+        try {
+          const target = await resolveConversationId();
+          if (!target || !profile) {
+            return;
+          }
+          await startMobileDirectCall({
+            conversationId: target,
+            title: profile.user.displayName?.trim() || profile.user.username,
+            video,
+          });
+        } catch {
+          showActionFailure();
         }
-        await startMobileDirectCall({
-          conversationId: target,
-          title: profile.user.displayName?.trim() || profile.user.username,
-          video,
-        });
       })();
     },
-    [profile, resolveConversationId],
+    [profile, resolveConversationId, showActionFailure],
   );
+
+  const addFriend = useCallback(async () => {
+    if (!profile) {
+      return;
+    }
+    try {
+      await mutations.createRequest.mutateAsync({
+        userId: profile.user.id,
+        username: profile.user.username,
+      });
+    } catch (error) {
+      // A voided request rejection previously made the primary action look inert.
+      showToast({ title: resolveRequestErrorCopy(error), variant: "error" });
+    }
+  }, [mutations.createRequest, profile, resolveRequestErrorCopy, showToast]);
 
   const bannerColor =
     profile?.bannerColor ??
@@ -279,7 +321,7 @@ export function MobileUserProfileScreen({
         label: profile.blocked ? copy.profilePageUnblockAction : copy.profilePageBlockAction,
         onPress: () =>
           profile.blocked
-            ? mutations.unblockFriend.mutate(profile.user.id)
+            ? mutations.unblockFriend.mutate(profile.user.id, { onError: showActionFailure })
             : setBlockConfirmOpen(true),
       },
       {
@@ -290,7 +332,7 @@ export function MobileUserProfileScreen({
         onPress: () => setReportOpen(true),
       },
     ];
-  }, [copy, mutations.unblockFriend, openNoteEditor, profile]);
+  }, [copy, mutations.unblockFriend, openNoteEditor, profile, showActionFailure]);
 
   return (
     <View style={styles.root} testID="mobile-user-profile-screen">
@@ -339,17 +381,22 @@ export function MobileUserProfileScreen({
                   chrome={chrome}
                   incomingRequestId={incomingRequestId}
                   onAcceptRequest={(requestId) =>
-                    mutations.acceptRequest.mutate({ requestId, userId: profile.user.id })
+                    mutations.acceptRequest.mutate(
+                      { requestId, userId: profile.user.id },
+                      {
+                        onError: (error) =>
+                          showToast({ title: resolveRequestErrorCopy(error), variant: "error" }),
+                      },
+                    )
                   }
-                  onAddFriend={() =>
-                    void mutations.createRequest.mutateAsync({
-                      userId: profile.user.id,
-                      username: profile.user.username,
-                    })
-                  }
+                  onAddFriend={() => void addFriend()}
                   onEditProfile={onOpenProfileEdit}
                   onOpenConversation={() => void openConversation()}
-                  onUnblock={() => mutations.unblockFriend.mutate(profile.user.id)}
+                  onUnblock={() =>
+                    mutations.unblockFriend.mutate(profile.user.id, {
+                      onError: showActionFailure,
+                    })
+                  }
                   onVideoCall={() => startCall(true)}
                   onVoiceCall={() => startCall(false)}
                   variant={sections.variant}
@@ -450,10 +497,9 @@ export function MobileUserProfileScreen({
         confirmLabel={copy.profilePageBlockAction}
         icon="ban-outline"
         onCancel={() => setBlockConfirmOpen(false)}
-        onConfirm={() => {
-          if (profile) {
-            mutations.blockFriend.mutate(profile.user.id);
-          }
+        onConfirm={async () => {
+          if (!profile) return;
+          await mutations.blockFriend.mutateAsync(profile.user.id);
           setBlockConfirmOpen(false);
         }}
         open={blockConfirmOpen}
@@ -465,7 +511,14 @@ export function MobileUserProfileScreen({
         onClose={() => setReportOpen(false)}
         onSelect={(reason) => {
           if (profile) {
-            mutations.reportUser.mutate({ reason, userId: profile.user.id });
+            mutations.reportUser.mutate(
+              { reason, userId: profile.user.id },
+              {
+                onError: () => showToast({ title: copy.reportSubmitFailed, variant: "error" }),
+                onSuccess: () =>
+                  showToast({ title: copy.profileCardReportedToast, variant: "success" }),
+              },
+            );
           }
           setReportOpen(false);
         }}

@@ -1,5 +1,6 @@
 import { prisma } from "@wizards/db";
 import { ApiError, jsonError } from "@/lib/api";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { openPublicAttachmentDownload } from "@/lib/attachments/download-proxy";
 import { requireApiUserId } from "@/lib/auth/api";
 import { canViewAttachmentUrl } from "@/lib/messages/attachment-visibility";
@@ -17,11 +18,14 @@ function contentDispositionFor(filename: string) {
   return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(normalized)}`;
 }
 
-async function assertAttachmentAccess(userId: string, attachment: {
-  dmMessage: { conversationId: string } | null;
-  message: { channelId: string } | null;
-  userId: string;
-}) {
+async function assertAttachmentAccess(
+  userId: string,
+  attachment: {
+    dmMessage: { conversationId: string } | null;
+    message: { channelId: string } | null;
+    userId: string;
+  },
+) {
   if (attachment.message) {
     await requireChannelPermissionForUser(
       userId,
@@ -57,6 +61,7 @@ async function assertAttachmentAccess(userId: string, attachment: {
 export async function GET(_: Request, context: RouteContext) {
   try {
     const userId = await requireApiUserId();
+    await enforceApiRateLimit(userId, "attachment:download");
     const { attachmentId } = await context.params;
     const attachment = await prisma.attachment.findUnique({
       where: { id: attachmentId },

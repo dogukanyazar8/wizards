@@ -3,12 +3,17 @@ import type { CreateChannelInput, UpdateChannelInput } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
 import { getSocketServer } from "@/lib/socket/runtime";
+import { assertLiveKitRtcRegionAvailable } from "@/lib/livekit/rtc-regions";
 import { disconnectUnauthorizedVoiceParticipants } from "@/lib/voice/service";
 import { ensureServerPermission, getAccessContext } from "@/lib/workspace/access-context";
 import {
   applyChannelPermissionMutation,
   prepareChannelPermissionMutation,
 } from "@/lib/workspace/channel-permission-logic";
+import {
+  buildChannelCreateSettings,
+  buildChannelUpdateSettings,
+} from "@/lib/workspace/channel-settings";
 import { invalidateServerPermissionCache } from "@/lib/workspace/permission-cache";
 import { PermissionBits } from "@/lib/workspace/permissions";
 import { normalizeWorkspaceLabel } from "@/lib/workspace/workspace-label";
@@ -17,11 +22,12 @@ export async function createWorkspaceChannel(
   userId: string,
   serverId: string,
   input: CreateChannelInput,
-) {
+): Promise<{ id: string }> {
   const access = await getAccessContext(userId, serverId);
   ensureServerPermission(access, PermissionBits.MANAGE_CHANNELS);
 
   const normalizedName = normalizeWorkspaceLabel(input.name);
+  assertLiveKitRtcRegionAvailable(input.rtcRegion);
 
   if (!normalizedName) {
     throw new ApiError("Channel name must include at least one letter or number", 400);
@@ -79,6 +85,7 @@ export async function createWorkspaceChannel(
   const channel = await prisma.$transaction(async (tx) => {
     const createdChannel = await tx.channel.create({
       data: {
+        ...buildChannelCreateSettings(input),
         categoryId: input.categoryId ?? null,
         locked: channelPermissionMutation?.nextLocked ?? false,
         name: normalizedName,
@@ -181,6 +188,14 @@ export async function updateWorkspaceChannel(
   }
 
   const data: Prisma.ChannelUpdateInput = {};
+  assertLiveKitRtcRegionAvailable(input.rtcRegion);
+  Object.assign(
+    data,
+    buildChannelUpdateSettings(
+      existingChannel.type === ChannelType.VOICE ? "VOICE" : "TEXT",
+      input,
+    ),
+  );
 
   if (input.name !== undefined) {
     const normalizedName = normalizeWorkspaceLabel(input.name);
@@ -209,7 +224,13 @@ export async function updateWorkspaceChannel(
   }
 
   const shouldInvalidateChannelPermissionMetadata =
-    input.locked !== undefined || input.name !== undefined;
+    input.locked !== undefined ||
+    input.name !== undefined ||
+    input.slowModeDelay !== undefined ||
+    input.bitrate !== undefined ||
+    input.rtcRegion !== undefined ||
+    input.userLimit !== undefined ||
+    input.videoQualityMode !== undefined;
 
   await prisma.channel.update({
     where: {

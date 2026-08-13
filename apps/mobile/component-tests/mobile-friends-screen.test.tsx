@@ -1,6 +1,6 @@
 import React from "react";
 import { Share, StyleSheet } from "react-native";
-import { act, fireEvent } from "@testing-library/react-native";
+import { act, fireEvent, waitFor } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
@@ -13,6 +13,7 @@ const mockCancelRequest = jest.fn(async () => ({ success: true }));
 const mockCreateRequest = jest.fn(async () => ({ request: { id: "request-new" } }));
 const mockUnblockFriend = jest.fn();
 const mockRemoveFriend = jest.fn();
+const mockBlockFriend = jest.fn();
 const mockJoinVoiceChannel = jest.fn(async () => true);
 const mockRequestMicrophonePermission = jest.fn(async () => ({ hasMicrophonePermission: true }));
 const mockNavigateRouteIntent = jest.fn();
@@ -23,6 +24,36 @@ const mockVoiceRuntime = {
 let mockFriendsQuery: Record<string, unknown>;
 let mockUserSearchQuery: Record<string, unknown>;
 let mockSuggestionsQuery: Record<string, unknown>;
+
+jest.mock("@shopify/flash-list", () => {
+  const ReactRuntime = jest.requireActual<typeof import("react")>("react");
+  const ReactNative = jest.requireActual<typeof import("react-native")>("react-native");
+  const renderSlot = (slot: any) =>
+    typeof slot === "function" ? ReactRuntime.createElement(slot) : slot;
+  return {
+    FlashList: ({
+      data = [],
+      keyExtractor,
+      ListEmptyComponent,
+      ListFooterComponent,
+      ListHeaderComponent,
+      renderItem,
+      ...props
+    }: any) => (
+      <ReactNative.View {...props} data={data}>
+        {renderSlot(ListHeaderComponent)}
+        {data.length === 0
+          ? renderSlot(ListEmptyComponent)
+          : data.map((item: unknown, index: number) => (
+              <ReactRuntime.Fragment key={keyExtractor?.(item, index) ?? index}>
+                {renderItem?.({ index, item })}
+              </ReactRuntime.Fragment>
+            ))}
+        {renderSlot(ListFooterComponent)}
+      </ReactNative.View>
+    ),
+  };
+});
 
 jest.mock("../src/auth/mobile-auth-context", () => ({
   useMobileAuth: () => ({
@@ -38,7 +69,7 @@ jest.mock("../src/social/mobile-social-query", () => ({
   useMobileUserSearchQuery: () => mockUserSearchQuery,
   useMobileSocialMutations: () => ({
     acceptRequest: { isPending: false, mutate: mockAcceptRequest },
-    blockFriend: { isPending: false, mutate: jest.fn() },
+    blockFriend: { isPending: false, mutate: mockBlockFriend },
     cancelRequest: { isPending: false, mutateAsync: mockCancelRequest },
     createRequest: { isPending: false, mutateAsync: mockCreateRequest },
     openDM: { isPending: false, mutateAsync: mockMutateAsync },
@@ -86,6 +117,7 @@ function emptyOverview(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockMutateAsync.mockResolvedValue({ conversation: { id: "dm-1" } });
   mockUserSearchQuery = { data: { results: [] }, isFetching: false, isLoading: false };
   mockSuggestionsQuery = { data: { suggestions: [] }, isLoading: false };
 });
@@ -119,6 +151,14 @@ describe("5c friends screen", () => {
     expect(view.getByTestId("mobile-friends-screen")).toBeTruthy();
     expect(view.getByTestId("mobile-friends-group-online")).toBeTruthy();
     expect(view.getByTestId("mobile-friends-group-offline")).toBeTruthy();
+    const list = view.getByTestId("mobile-friends-screen");
+    expect(list.props.data).toHaveLength(4);
+    expect(list.props.data.map((item: unknown) => list.props.getItemType(item))).toEqual([
+      "section",
+      "friend",
+      "section",
+      "friend",
+    ]);
     // §2 "1b": an online row carries message + overflow; an offline row is
     // message-only. The disabled call button the 5c layout used is gone.
     expect(view.getByTestId("mobile-friend-message-friend-online")).toBeTruthy();
@@ -154,7 +194,76 @@ describe("5c friends screen", () => {
     expect(mockMutateAsync).not.toHaveBeenCalled();
 
     await fireEvent.press(view.getByLabelText("Arkadaşlıktan çıkar"));
-    expect(mockRemoveFriend).toHaveBeenCalledWith("friend-online");
+    expect(mockRemoveFriend).toHaveBeenCalledWith(
+      "friend-online",
+      expect.objectContaining({ onError: expect.any(Function) }),
+    );
+  });
+
+  it("shows an error toast when removing a friend fails", async () => {
+    mockFriendsQuery = emptyOverview({
+      friends: [
+        {
+          ...ada,
+          customStatus: null,
+          id: "friend-online",
+          presence: { customStatus: null, status: "ONLINE" },
+          status: "ONLINE",
+        },
+      ],
+    });
+    mockRemoveFriend.mockImplementationOnce((_userId, options) =>
+      options?.onError?.(new Error("offline")),
+    );
+    const view = await renderHub(<FriendsHub embedded mode="friends" />);
+
+    await fireEvent.press(view.getByTestId("mobile-friend-more-friend-online"));
+    await fireEvent.press(view.getByLabelText("Arkadaşlıktan çıkar"));
+
+    await waitFor(() => expect(view.getByText("İşlem tamamlanamadı. Tekrar dene.")).toBeTruthy());
+  });
+
+  it("shows an error toast when blocking a friend fails", async () => {
+    mockFriendsQuery = emptyOverview({
+      friends: [
+        {
+          ...ada,
+          customStatus: null,
+          id: "friend-online",
+          presence: { customStatus: null, status: "ONLINE" },
+          status: "ONLINE",
+        },
+      ],
+    });
+    mockBlockFriend.mockImplementationOnce((_userId, options) =>
+      options?.onError?.(new Error("offline")),
+    );
+    const view = await renderHub(<FriendsHub embedded mode="friends" />);
+
+    await fireEvent.press(view.getByTestId("mobile-friend-more-friend-online"));
+    await fireEvent.press(view.getByLabelText("Engelle"));
+
+    await waitFor(() => expect(view.getByText("İşlem tamamlanamadı. Tekrar dene.")).toBeTruthy());
+  });
+
+  it("shows an error toast when opening a conversation fails", async () => {
+    mockFriendsQuery = emptyOverview({
+      friends: [
+        {
+          ...ada,
+          customStatus: null,
+          id: "friend-online",
+          presence: { customStatus: null, status: "ONLINE" },
+          status: "ONLINE",
+        },
+      ],
+    });
+    mockMutateAsync.mockRejectedValueOnce(new Error("offline"));
+    const view = await renderHub(<FriendsHub embedded mode="friends" />);
+
+    await fireEvent.press(view.getByTestId("mobile-friend-message-friend-online"));
+
+    await waitFor(() => expect(view.getByText("İşlem tamamlanamadı. Tekrar dene.")).toBeTruthy());
   });
 
   it("colours friend presence dots with the web status palette", async () => {
@@ -360,7 +469,23 @@ describe("9d requests segment", () => {
     expect(view.getByTestId("mobile-friend-blocked-list")).toBeTruthy();
 
     await fireEvent.press(view.getByTestId("mobile-friend-unblock-user-3"));
-    expect(mockUnblockFriend).toHaveBeenCalledWith("user-3");
+    expect(mockUnblockFriend).toHaveBeenCalledWith(
+      "user-3",
+      expect.objectContaining({ onError: expect.any(Function) }),
+    );
+  });
+
+  it("shows an error toast when unblocking a friend fails", async () => {
+    mockFriendsQuery = emptyOverview({ blocked: [grace] });
+    mockUnblockFriend.mockImplementationOnce((_userId, options) =>
+      options?.onError?.(new Error("offline")),
+    );
+    const view = await renderHub(<FriendsHub embedded mode="requests" />);
+
+    await fireEvent.press(view.getByTestId("mobile-friend-blocked-toggle"));
+    await fireEvent.press(view.getByTestId("mobile-friend-unblock-user-3"));
+
+    await waitFor(() => expect(view.getByText("İşlem tamamlanamadı. Tekrar dene.")).toBeTruthy());
   });
 
   it("keeps 9d request controls on token colours and 44px touch targets", () => {

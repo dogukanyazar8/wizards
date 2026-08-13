@@ -42,6 +42,8 @@ export type MobileRealtimeClient = {
 };
 
 export type MobileRealtimeClientOptions = {
+  /** Lets lifecycle tests exercise token races without opening a network socket. */
+  createSocket?: () => MobileRealtimeSocket;
   getAccessToken: () => Promise<string | null>;
   onConnected?: () => void;
   onDisconnected?: () => void;
@@ -54,6 +56,12 @@ export type MobileRealtimeClientOptions = {
 type MutableSocketAuth = {
   auth?: { token?: string };
 };
+
+export type MobileRealtimeSocket = Pick<
+  Socket,
+  "connect" | "connected" | "disconnect" | "emit" | "io" | "on" | "removeAllListeners"
+> &
+  MutableSocketAuth;
 
 async function resolveSocketAuthToken(
   getAccessToken: MobileRealtimeClientOptions["getAccessToken"],
@@ -69,7 +77,7 @@ export function getMobileVoiceStatesWatchPayload(serverId: string) {
 export function createMobileRealtimeClient(
   options: MobileRealtimeClientOptions,
 ): MobileRealtimeClient {
-  let socket: (Socket & MutableSocketAuth) | null = null;
+  let socket: MobileRealtimeSocket | null = null;
   let activeChannelId: string | null = null;
   let activeConversationId: string | null = null;
   let activeServerId: string | null = null;
@@ -101,7 +109,7 @@ export function createMobileRealtimeClient(
     }
   };
 
-  const bindSocketEvents = (boundSocket: Socket) => {
+  const bindSocketEvents = (boundSocket: MobileRealtimeSocket) => {
     boundSocket.on("connect", () => {
       options.onConnected?.();
       emitActiveTargetJoins();
@@ -140,18 +148,20 @@ export function createMobileRealtimeClient(
       return socket;
     }
 
-    socket = io(options.socketUrl, {
-      autoConnect: false,
-      // `startAppSession` runs off the socket handshake, so REST headers alone
-      // would leave every session unattributed.
-      extraHeaders: { ...MOBILE_CLIENT_HEADERS },
-      reconnection: true,
-      reconnectionAttempts: MOBILE_REALTIME_RECONNECT_POLICY.maxAttempts,
-      reconnectionDelay: MOBILE_REALTIME_RECONNECT_POLICY.initialDelayMs,
-      reconnectionDelayMax: MOBILE_REALTIME_RECONNECT_POLICY.maxDelayMs,
-      timeout: MOBILE_REALTIME_RECONNECT_POLICY.timeoutMs,
-      transports: ["websocket"],
-    }) as Socket & MutableSocketAuth;
+    socket =
+      options.createSocket?.() ??
+      (io(options.socketUrl, {
+        autoConnect: false,
+        // `startAppSession` runs off the socket handshake, so REST headers alone
+        // would leave every session unattributed.
+        extraHeaders: { ...MOBILE_CLIENT_HEADERS },
+        reconnection: true,
+        reconnectionAttempts: MOBILE_REALTIME_RECONNECT_POLICY.maxAttempts,
+        reconnectionDelay: MOBILE_REALTIME_RECONNECT_POLICY.initialDelayMs,
+        reconnectionDelayMax: MOBILE_REALTIME_RECONNECT_POLICY.maxDelayMs,
+        timeout: MOBILE_REALTIME_RECONNECT_POLICY.timeoutMs,
+        transports: ["websocket"],
+      }) as MobileRealtimeSocket);
     bindSocketEvents(socket);
     return socket;
   };
@@ -169,6 +179,11 @@ export function createMobileRealtimeClient(
       }
 
       const token = await resolveSocketAuthToken(options.getAccessToken);
+      // Teardown can run while secure storage is resolving the token. Never
+      // connect the detached socket whose listeners were already removed.
+      if (disposed || socket !== nextSocket) {
+        return;
+      }
       if (!token) {
         options.onError?.("missing_token");
         return;

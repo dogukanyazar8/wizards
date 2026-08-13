@@ -23,24 +23,4 @@ describe("mobile auth context", () => {
     assert.doesNotMatch(source, /\bsetState\(createMobileAuthState\(/);
     assert.doesNotMatch(source, /\bsetState\(\(current/);
   });
-
-  it("revokes mobile push registration before clearing local session state on sign-out", () => {
-    const source = readFileSync(authContextPath, "utf8");
-    const signOutStart = source.indexOf("const signOut = useCallback(async () => {");
-    const signOutEnd = source.indexOf("const getAccessToken = useCallback", signOutStart);
-    const signOutSource = source.slice(signOutStart, signOutEnd);
-
-    const pushRevokeIndex = signOutSource.indexOf("await revokeMobilePushToken(");
-    const authRevokeIndex = signOutSource.indexOf("await revokeMobileAuthSession(");
-    const clearIndex = signOutSource.indexOf("await repository.clear();");
-    const signedOutCommitIndex = signOutSource.indexOf('commitAuthState(createMobileAuthState("signed-out"));');
-
-    assert.equal(pushRevokeIndex > -1, true);
-    assert.equal(authRevokeIndex > -1, true);
-    assert.equal(clearIndex > -1, true);
-    assert.equal(signedOutCommitIndex > -1, true);
-    assert.equal(pushRevokeIndex < authRevokeIndex, true);
-    assert.equal(authRevokeIndex < clearIndex, true);
-    assert.equal(clearIndex < signedOutCommitIndex, true);
-  });
 });

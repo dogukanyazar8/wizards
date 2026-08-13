@@ -11,6 +11,7 @@ import { listDirectMessageMutualServers } from "@/lib/dm/service";
 import { mapStoredPresenceStatus } from "@/lib/friends/service";
 import { readPresenceMap, type VisiblePresenceStatus } from "@/lib/presence";
 import { getRedis } from "@/lib/redis";
+import { evaluateVisibilityPolicy } from "@/lib/privacy/visibility-policy";
 import { getMobileUserNote } from "@/lib/social/mobile-user-note-service";
 import {
   attachReportToCaseInTransaction,
@@ -52,6 +53,7 @@ const profileUserSelect = {
   pronouns: true,
   registeredAt: true,
   status: true,
+  settings: { select: { presenceVisibility: true, profileVisibility: true } },
   username: true,
 } as const;
 
@@ -258,18 +260,6 @@ export function readProfilePresence(
   };
 }
 
-async function listAcceptedFriendIds(userId: string): Promise<Set<string>> {
-  const rows = await prisma.friendRequest.findMany({
-    select: { receiverId: true, senderId: true },
-    where: {
-      status: "ACCEPTED",
-      OR: [{ receiverId: userId }, { senderId: userId }],
-    },
-  });
-
-  return new Set(rows.map((row) => (row.senderId === userId ? row.receiverId : row.senderId)));
-}
-
 /** Total shared servers behind the capped preview; one indexed count, no rows read. */
 async function countMutualServers(requesterId: string, userId: string): Promise<number> {
   if (requesterId === userId) {
@@ -290,23 +280,31 @@ async function getMutualFriends(requesterId: string, userId: string) {
     return { count: 0, preview: [] };
   }
 
-  const [requesterFriends, subjectFriends] = await Promise.all([
-    listAcceptedFriendIds(requesterId),
-    listAcceptedFriendIds(userId),
-  ]);
-  const mutualIds = [...requesterFriends].filter((id) => subjectFriends.has(id));
-  if (mutualIds.length === 0) {
-    return { count: 0, preview: [] };
-  }
-
-  const preview = await prisma.user.findMany({
-    orderBy: { username: "asc" },
-    select: { avatarUrl: true, displayName: true, id: true, username: true },
-    take: MUTUAL_PREVIEW_LIMIT,
-    where: { deletedAt: null, id: { in: mutualIds } },
+  const connectedTo = (peerId: string) => ({
+    OR: [
+      { friendRequestsSent: { some: { receiverId: peerId, status: "ACCEPTED" as const } } },
+      { friendRequestsReceived: { some: { senderId: peerId, status: "ACCEPTED" as const } } },
+    ],
   });
+  const where = {
+    AND: [connectedTo(requesterId), connectedTo(userId)],
+    deletedAt: null,
+    id: { notIn: [requesterId, userId] },
+  };
+  // The old implementation loaded both full friend lists into Node. Let
+  // PostgreSQL intersect the indexed relations, returning only the preview and
+  // its scalar total.
+  const [count, preview] = await Promise.all([
+    prisma.user.count({ where }),
+    prisma.user.findMany({
+      orderBy: { username: "asc" },
+      select: { avatarUrl: true, displayName: true, id: true, username: true },
+      take: MUTUAL_PREVIEW_LIMIT,
+      where,
+    }),
+  ]);
 
-  return { count: mutualIds.length, preview };
+  return { count, preview };
 }
 
 async function getServerContext(input: {
@@ -411,7 +409,7 @@ export async function getMobileUserProfile(
       note: null,
       presence: { customStatus: null, customStatusEmoji: null, status: "OFFLINE" },
       pronouns: null,
-      registeredAt: user.registeredAt.toISOString(),
+      registeredAt: "1970-01-01T00:00:00.000Z",
       relationship,
       self: false,
       serverContext: null,
@@ -420,6 +418,16 @@ export async function getMobileUserProfile(
   }
 
   const isFriend = self || relationship === "friend";
+  const visibility = evaluateVisibilityPolicy({
+    blocked: false,
+    isFriend,
+    presenceVisibility: user.settings?.presenceVisibility ?? "EVERYONE",
+    profileVisibility: user.settings?.profileVisibility ?? "EVERYONE",
+    self,
+  });
+  if (!visibility.canViewProfile) {
+    throw new ApiError("User not found", 404, "USER_NOT_FOUND");
+  }
   const [mutualServers, mutualServerCount, mutualFriends, serverContext, note, livePresence] =
     await Promise.all([
       dependencies.listMutualServers(input.requesterId, input.userId, {
@@ -442,7 +450,9 @@ export async function getMobileUserProfile(
         : dependencies.getNote({ authorId: input.requesterId, subjectId: input.userId }),
       // Your own presence is the one you set, so it is read off the row, not off
       // the socket registry.
-      self ? Promise.resolve(null) : dependencies.readLivePresence(input.userId),
+      self || !visibility.canViewPresence
+        ? Promise.resolve(null)
+        : dependencies.readLivePresence(input.userId),
     ]);
 
   return {
@@ -470,7 +480,9 @@ export async function getMobileUserProfile(
     note,
     presence: readProfilePresence({
       ...user,
-      status: resolveMobileProfilePresenceStatus({ livePresence, self, storedStatus: user.status }),
+      status: visibility.canViewPresence
+        ? resolveMobileProfilePresenceStatus({ livePresence, self, storedStatus: user.status })
+        : "OFFLINE",
     }),
     pronouns: user.pronouns,
     registeredAt: user.registeredAt.toISOString(),

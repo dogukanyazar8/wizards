@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { QueryClient } from "@tanstack/react-query";
+import type { MobileNotificationItem } from "@wizards/types";
 
 import type { MobileApiClient } from "../src/api/mobile-api-client";
 import {
@@ -42,15 +43,16 @@ test("notification feed query uses the bounded notifications key and opaque curs
   );
 });
 
-test("notification read mutations retire the mention and DM badge caches too", async () => {
+test("notification mutations reconcile badges without awaiting refetches", async () => {
   const queryClient = new QueryClient();
   const notificationKey = mobileQueryKeys.notifications();
   const bootstrapKey = mobileQueryKeys.bootstrap();
   const workspaceKey = mobileQueryKeys.workspace("server-1");
+  const unrelatedWorkspaceKey = mobileQueryKeys.workspace("server-2");
   const dmConversationsKey = mobileQueryKeys.dmConversations();
   const touchedKeys = [notificationKey, bootstrapKey, workspaceKey, dmConversationsKey];
   const resetInvalidation = () => {
-    for (const key of touchedKeys) {
+    for (const key of [...touchedKeys, unrelatedWorkspaceKey]) {
       queryClient.getQueryCache().find({ queryKey: key, exact: true })?.setState({
         isInvalidated: false,
       });
@@ -69,31 +71,62 @@ test("notification read mutations retire the mention and DM badge caches too", a
   queryClient.setQueryData(notificationKey, { pages: [] });
   queryClient.setQueryData(bootstrapKey, { ready: true });
   queryClient.setQueryData(workspaceKey, { ready: true });
+  queryClient.setQueryData(unrelatedWorkspaceKey, { ready: true });
   queryClient.setQueryData(dmConversationsKey, { pages: [] });
   const client: MobileApiClient = {
     async requestJson<TResponse>() {
       return { success: true } as TResponse;
     },
   };
+  const notification: MobileNotificationItem = {
+    actionUrl: null,
+    actor: null,
+    badgeId: null,
+    body: "Mentioned you",
+    channel: { id: "channel-1", name: "general" },
+    createdAt: "2026-08-12T12:00:00.000Z",
+    eventKind: null,
+    friendRequestId: null,
+    id: "00000000-0000-4000-8000-000000000001",
+    messageQuote: null,
+    read: false,
+    readAt: null,
+    server: { id: "server-1", name: "Whispr" },
+    serverInviteCode: null,
+    type: "MENTION",
+  };
 
   const one = createMobileNotificationMarkReadMutationOptions({ client, queryClient });
   const all = createMobileNotificationMarkAllReadMutationOptions({ client, queryClient });
   const clear = createMobileNotificationClearMutationOptions({ client, queryClient });
-  await one.mutationFn("00000000-0000-4000-8000-000000000001");
-  await one.onSuccess!();
-  // Reading a mention clears `ChannelReadState.mentionCount` server-side and
-  // reading a DM row clears `DMParticipant.unreadCount`, so the servers screen
-  // (bootstrap), every cached server detail and the DM inbox behind the messages
-  // tab badge must all refetch.
+  await one.mutationFn(notification as never);
+  const markReadSettlement = (one.onSuccess as (...args: unknown[]) => unknown)(
+    undefined,
+    notification,
+  );
+  // A single row carries its server, so unrelated workspace details stay warm.
   assertAllInvalidated("mark read");
+  assert.equal(markReadSettlement, undefined);
+  assert.equal(queryClient.getQueryState(unrelatedWorkspaceKey)?.isInvalidated, false);
+
+  resetInvalidation();
+  (one.onSuccess as (...args: unknown[]) => unknown)(undefined, {
+    ...notification,
+    id: "00000000-0000-4000-8000-000000000002",
+    server: null,
+  });
+  assert.equal(queryClient.getQueryState(workspaceKey)?.isInvalidated, false);
+  assert.equal(queryClient.getQueryState(unrelatedWorkspaceKey)?.isInvalidated, false);
 
   resetInvalidation();
   await all.mutationFn();
-  await all.onSuccess!();
+  assert.equal(all.onSuccess!(), undefined);
   assertAllInvalidated("mark all read");
+  assert.equal(queryClient.getQueryState(unrelatedWorkspaceKey)?.isInvalidated, true);
 
   resetInvalidation();
   await clear.mutationFn();
-  await clear.onSuccess!();
+  assert.equal(clear.onSuccess!(), undefined);
   assertAllInvalidated("clear all");
+  assert.equal(queryClient.getQueryState(unrelatedWorkspaceKey)?.isInvalidated, true);
 });

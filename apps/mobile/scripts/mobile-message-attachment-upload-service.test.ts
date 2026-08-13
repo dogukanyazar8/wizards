@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import {
-  executeMobileMessageAttachmentUpload,
-} from "../src/media/mobile-message-attachment-upload-service";
+import { executeMobileMessageAttachmentUpload } from "../src/media/mobile-message-attachment-upload-service";
 import {
   MobileMessageAttachmentUploadError,
   parseMobileMessageAttachmentUploadCompletion,
@@ -22,6 +20,33 @@ const picked: MobilePickedMessageAttachment = {
 };
 
 describe("mobile message attachment upload service", () => {
+  it("aborts a stalled upload and reports an error that lets the composer retry", async () => {
+    let receivedSignal: AbortSignal | undefined;
+    const outcome = await executeMobileMessageAttachmentUpload({
+      dependencies: {
+        createWatchdog: (options) => {
+          queueMicrotask(() => options.onExpire("preparing"));
+          return { progress: () => undefined, stage: "preparing", stop: () => undefined };
+        },
+        getAccessToken: async () => "mobile-access-token",
+        pickAttachment: async () => picked,
+        uploadAttachment: async ({ signal }) => {
+          receivedSignal = signal;
+          return await new Promise((_, reject) => {
+            signal?.addEventListener(
+              "abort",
+              () => reject(Object.assign(new Error("watchdog"), { name: "AbortError" })),
+              { once: true },
+            );
+          });
+        },
+      },
+    });
+
+    assert.equal(receivedSignal?.aborted, true);
+    assert.deepEqual(outcome, { code: "upload-failed", status: "error" });
+  });
+
   it("accepts the pending attachment response returned by UploadThing", () => {
     const draft = parseMobileMessageAttachmentUploadCompletion(
       [
@@ -77,6 +102,36 @@ describe("mobile message attachment upload service", () => {
     if (outcome.status === "ready") {
       assert.equal(outcome.draft.input.id, "c1b852d2-816e-4bc2-9137-0d38c46f0a18");
     }
+  });
+
+  it("deletes an owned voice-note file after the upload becomes ready", async () => {
+    const removed: string[] = [];
+    const outcome = await executeMobileMessageAttachmentUpload({
+      dependencies: {
+        getAccessToken: async () => "mobile-access-token",
+        pickAttachment: async () => picked,
+        removeLocalFile: async (uri) => {
+          removed.push(uri);
+        },
+        uploadAttachment: async () => ({
+          attachment: {
+            contentType: "application/pdf",
+            filename: "notes.pdf",
+            id: "c1b852d2-816e-4bc2-9137-0d38c46f0a18",
+            scanStatus: "PENDING",
+            size: 1024,
+            url: "https://ufs.example.test/notes.pdf",
+          },
+          input: { id: "c1b852d2-816e-4bc2-9137-0d38c46f0a18" },
+          kind: "file",
+          localUri: picked.localUri,
+        }),
+      },
+      removePickedFileOnReady: true,
+    });
+
+    assert.equal(outcome.status, "ready");
+    assert.deepEqual(removed, [picked.localUri]);
   });
 
   it("does not upload when there is no active mobile session", async () => {

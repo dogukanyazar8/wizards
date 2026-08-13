@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { VoiceMediaPolicySchema, type VoiceMediaPolicy } from "@wizards/types";
 
 export const CreateLiveKitTokenBodySchema = z
   .object({
@@ -19,11 +20,13 @@ export const CreateLiveKitTokenBodySchema = z
   });
 
 export interface LiveKitTokenResponse {
+  mediaPolicy: VoiceMediaPolicy;
   token: string;
   url: string;
 }
 
 export const LiveKitTokenResponseSchema = z.object({
+  mediaPolicy: VoiceMediaPolicySchema,
   token: z.string().min(1),
   url: z.string().min(1),
 });

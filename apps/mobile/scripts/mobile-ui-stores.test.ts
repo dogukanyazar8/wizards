@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import {
+  getMobileRecentDMPrefetchStats,
+  recordMobileRecentDMPrefetch,
+  recordMobileRecentDMPrefetchSettled,
+} from "../src/query/mobile-message-prefetch";
 import { mobileSearchKeyRegistry } from "../src/query/mobile-query-keys";
 import { useMobileActiveTargetStore } from "../src/state/mobile-active-target-store";
 import { useMobileComposerDraftStore } from "../src/state/mobile-composer-draft-store";
@@ -35,6 +40,8 @@ test("reset clears session UI state and the in-memory search registry", () => {
   useMobileActiveTargetStore.getState().setConversation("conversation-1");
   useMobileComposerDraftStore.getState().setDraft("dm:conversation-1", "private draft");
   useMobileOverlayStore.getState().openOverlay("screen-share-consent");
+  recordMobileRecentDMPrefetch(["conversation-1"]);
+  recordMobileRecentDMPrefetchSettled("conversation-1");
   assert.equal(
     mobileSearchKeyRegistry.getFingerprint({
       conversationId: "conversation-1",
@@ -49,6 +56,12 @@ test("reset clears session UI state and the in-memory search registry", () => {
   assert.equal(useMobileActiveTargetStore.getState().conversationId, null);
   assert.deepEqual(useMobileComposerDraftStore.getState().drafts, {});
   assert.equal(useMobileOverlayStore.getState().activeOverlay, null);
+  assert.deepEqual(getMobileRecentDMPrefetchStats(), {
+    attempted: 0,
+    hitRate: 0,
+    openedAfterSettled: 0,
+    settled: 0,
+  });
   assert.equal(
     mobileSearchKeyRegistry.getFingerprint({
       conversationId: "conversation-1",

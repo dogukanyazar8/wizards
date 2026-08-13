@@ -9,6 +9,8 @@ import {
  * marks five phases in under half a second — should cost one write, not five.
  */
 export const MOBILE_PERFORMANCE_PERSISTENCE_DEBOUNCE_MS = 1_500;
+/** Instrumentation must stay bounded on the exact device whose encrypted store is stuck. */
+export const MOBILE_PERFORMANCE_PERSISTENCE_QUEUE_CAP = 200;
 const MOBILE_PERFORMANCE_PERSISTENCE_MAX_RETRY_DELAY_MS = 30_000;
 
 export interface MobilePerformanceSamplePersistenceOptions {
@@ -39,6 +41,17 @@ export function createMobilePerformanceSamplePersistence({
   let resetVersion = 0;
   let inFlightWrite: Promise<void> | null = null;
 
+  function trimPendingToCap(): void {
+    if (pending.length <= MOBILE_PERFORMANCE_PERSISTENCE_QUEUE_CAP) {
+      return;
+    }
+
+    const dropped = pending.splice(0, pending.length - MOBILE_PERFORMANCE_PERSISTENCE_QUEUE_CAP);
+    for (const sample of dropped) {
+      queuedIds.delete(sample.sampleId);
+    }
+  }
+
   function clearTimer() {
     if (timer) {
       clearTimeout(timer);
@@ -64,6 +77,7 @@ export function createMobilePerformanceSamplePersistence({
 
     queuedIds.add(sample.sampleId);
     pending.push(sample);
+    trimPendingToCap();
 
     scheduleFlush();
   }
@@ -92,6 +106,7 @@ export function createMobilePerformanceSamplePersistence({
       // of anything captured while the write was in flight.
       if (resetVersion === writeVersion) {
         pending = [...batch, ...pending];
+        trimPendingToCap();
         retryDelayMs = Math.min(
           Math.max(debounceMs, retryDelayMs) * 2,
           MOBILE_PERFORMANCE_PERSISTENCE_MAX_RETRY_DELAY_MS,

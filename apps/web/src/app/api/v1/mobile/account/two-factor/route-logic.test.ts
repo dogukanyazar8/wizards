@@ -53,13 +53,13 @@ describe("mobile two-factor routes", () => {
     const invalid = await mobileTwoFactorDisableRoute(
       request("DELETE", { code: "123456", password: "wrong" }),
       dependencies({
-        disable: async () => ({ error: "invalid_credentials", success: false as const }),
+        disable: async () => ({ error: "invalid_code", success: false as const }),
       }),
     );
-    assert.equal(invalid.status, 401);
+    assert.equal(invalid.status, 400);
     assert.deepEqual(await invalid.json(), {
-      code: "INVALID_CREDENTIALS",
-      error: "Invalid credentials",
+      code: "INVALID_CODE",
+      error: "Invalid two-factor code",
     });
   });
   it("maps replay-store outages to a bounded unavailable response", async () => {

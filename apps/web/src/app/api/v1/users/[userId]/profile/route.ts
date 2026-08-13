@@ -1,7 +1,7 @@
-import { prisma } from "@wizards/db";
 import { requireApiUserId } from "@/lib/auth/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
-import { ApiError, jsonError } from "@/lib/api";
+import { jsonError } from "@/lib/api";
+import { getWebUserProfile } from "@/lib/social/web-user-profile-service";
 import type { NextRequest } from "next/server";
 
 type RouteContext = {
@@ -16,64 +16,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
     await enforceApiRateLimit(requesterId, "user:profile");
     const { userId } = await context.params;
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        username: true,
-        displayName: true,
-        avatarUrl: true,
-        bannerUrl: true,
-        bannerColor: true,
-        bio: true,
-        customStatus: true,
-        createdAt: true,
-        deletedAt: true,
-      },
-    });
-
-    if (!user) {
-      throw new ApiError("User not found", 404);
-    }
-
-    let serverNickname: string | null = null;
     const serverId = request.nextUrl.searchParams.get("serverId");
-
-    if (serverId) {
-      const memberships = await prisma.serverMember.findMany({
-        where: {
-          serverId,
-          userId: {
-            in: requesterId === userId ? [requesterId] : [requesterId, userId],
-          },
-        },
-        select: {
-          nickname: true,
-          userId: true,
-        },
-        take: 2,
-      });
-      const requesterMember = memberships.find((member) => member.userId === requesterId);
-
-      if (!requesterMember) {
-        throw new ApiError("Server profile not found", 404);
-      }
-
-      serverNickname = memberships.find((member) => member.userId === userId)?.nickname ?? null;
-    }
-
-    return Response.json({
-      id: user.id,
-      username: user.deletedAt ? "deleted-user" : user.username,
-      displayName: user.deletedAt ? "Deleted User" : user.displayName,
-      avatarUrl: user.deletedAt ? null : user.avatarUrl,
-      bannerUrl: user.deletedAt ? null : user.bannerUrl,
-      bannerColor: user.deletedAt ? null : user.bannerColor,
-      bio: user.deletedAt ? null : user.bio,
-      customStatus: user.deletedAt ? null : user.customStatus,
-      createdAt: user.createdAt.toISOString(),
-      serverNickname: user.deletedAt ? null : serverNickname,
-    });
+    return Response.json(await getWebUserProfile({ requesterId, serverId, userId }));
   } catch (error) {
     return jsonError(error);
   }

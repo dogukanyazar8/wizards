@@ -3,7 +3,6 @@ import { isDMParticipant } from "@/lib/dm/participant-service";
 import { logError } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { ensureChannelMembership } from "@/lib/socket/channel-membership";
-import { emitToChannelViewers } from "@/lib/socket/emitters";
 import {
   parseSocketPayload,
   SocketConversationPayloadSchema,
@@ -38,6 +37,7 @@ type DMTypingEntry = {
 
 type CheckTypingEventAllowed = (scope: string) => Promise<boolean>;
 type IsDMParticipant = (userId: string, conversationId: string) => Promise<boolean>;
+type RequireChannelPermission = typeof requireChannelPermissionForUser;
 
 export function parseDMTypingEntry(value: string): DMTypingEntry | null {
   try {
@@ -69,6 +69,7 @@ export function registerTypingHandlers(
   options: {
     checkTypingEventAllowed?: CheckTypingEventAllowed;
     isDMParticipant?: IsDMParticipant;
+    requireChannelPermission?: RequireChannelPermission;
   } = {},
 ): SocketHandlerRegistration {
   const emitDMError = createDMErrorEmitter(ctx.socket);
@@ -77,6 +78,8 @@ export function registerTypingHandlers(
   const dmTypingConversations = new Set<string>();
   const dmTypingTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
   const dmParticipantCache = new Map<string, { expiresAt: number; userIds: string[] }>();
+  const requireChannelPermission =
+    options.requireChannelPermission ?? requireChannelPermissionForUser;
 
   /**
    * The conversation list needs typing dots for chats the reader does not
@@ -110,41 +113,25 @@ export function registerTypingHandlers(
     const typingData = await ctx.redis.hgetall(key);
     const now = Date.now();
     const expiredUserIds: string[] = [];
-    const activeUserIds = Object.entries(typingData)
-      .filter(([typingUserId, expiry]) => {
-        const expiresAt = Number.parseInt(expiry, 10);
-        const isActive = Number.isFinite(expiresAt) && expiresAt > now;
+    const activeEntries = Object.entries(typingData)
+      .map(([typingUserId, value]) => ({ typingUserId, value: parseDMTypingEntry(value) }))
+      .filter(({ typingUserId, value }) => {
+        const isActive = Boolean(value && value.expiresAt > now);
         if (!isActive) {
           expiredUserIds.push(typingUserId);
         }
         return isActive;
-      })
-      .map(([typingUserId]) => typingUserId);
+      });
 
     if (expiredUserIds.length > 0) {
       await ctx.redis.hdel(key, ...expiredUserIds);
     }
 
-    if (activeUserIds.length === 0) {
+    if (activeEntries.length === 0) {
       return [];
     }
 
-    const users = await prisma.user.findMany({
-      where: { id: { in: activeUserIds } },
-      select: {
-        displayName: true,
-        id: true,
-        username: true,
-      },
-    });
-
-    const userMap = new Map(users.map((entry) => [entry.id, entry.displayName ?? entry.username]));
-
-    return activeUserIds.map(
-      (typingUserId) =>
-        userMap.get(typingUserId) ??
-        (typingUserId === ctx.userId ? ctx.socket.data.displayName : "Someone"),
-    );
+    return activeEntries.map(({ value }) => value!.username);
   }
 
   async function emitDMTypingUpdate(conversationId: string) {
@@ -245,7 +232,7 @@ export function registerTypingHandlers(
       if (!(await isTypingEventAllowed(`channel:${channelId}`))) {
         return;
       }
-      await requireChannelPermissionForUser(ctx.userId, channelId, PermissionBits.SEND_MESSAGES, {
+      await requireChannelPermission(ctx.userId, channelId, PermissionBits.SEND_MESSAGES, {
         forbiddenCode: "FORBIDDEN",
         forbiddenMessage: "You cannot type in this channel.",
         lockedCode: "CHANNEL_LOCKED",
@@ -256,11 +243,21 @@ export function registerTypingHandlers(
       const key = `typing:${channelId}`;
       ctx.socket.data.typingChannels.add(channelId);
 
-      await ctx.redis.hset(key, ctx.userId, Date.now() + CHANNEL_TYPING_EXPIRY);
+      await ctx.redis.hset(
+        key,
+        ctx.userId,
+        JSON.stringify({
+          expiresAt: Date.now() + CHANNEL_TYPING_EXPIRY,
+          username: ctx.socket.data.displayName || ctx.socket.data.username,
+        }),
+      );
       await ctx.redis.expire(key, TYPING_KEY_TTL_SECONDS);
       const typingUsers = await getChannelTypingUsers(channelId);
 
-      await emitToChannelViewers(ctx.io, channelId, "typing:update", {
+      // Typing dots are short-lived UI decoration. Everyone already in the
+      // authoritative channel room may receive them; re-running a permission
+      // fan-out on every keystroke costs more than the signal is worth.
+      ctx.io.to(channelId).emit("typing:update", {
         channelId,
         users: typingUsers,
       });
@@ -279,7 +276,7 @@ export function registerTypingHandlers(
       await ctx.redis.hdel(key, ctx.userId);
       const typingUsers = await getChannelTypingUsers(channelId);
 
-      await emitToChannelViewers(ctx.io, channelId, "typing:update", {
+      ctx.io.to(channelId).emit("typing:update", {
         channelId,
         users: typingUsers,
       });

@@ -64,15 +64,45 @@ const sweepDefaults: DisappearingSweepDependencies = {
     return result === "OK" ? token : null;
   },
   logError: logErrorDefault,
-  purge: (options) =>
-    purgeExpiredDMMessages(options, {
+  purge: async (options) => {
+    const runtime = purgeRuntimeDependencies();
+    const result = await purgeExpiredDMMessages(options, {
       ...defaultDisappearingPurgeDependencies,
-      ...purgeRuntimeDependencies(),
-    }),
+      ...runtime,
+    });
+    await runtime.flushExpired();
+    return result;
+  },
   releaseLock: async (token) => {
     await getRedisOp().eval(RELEASE_LOCK_SCRIPT, 1, DISAPPEARING_LOCK_KEY, token);
   },
 };
+
+export async function flushDisappearingExpiredEvents(
+  events: ReadonlyArray<{ conversationId: string; messageIds: string[] }>,
+  database: Pick<typeof prisma, "dMParticipant">,
+  io: GroupRealtimeServer,
+) {
+  const conversationIds = Array.from(new Set(events.map((event) => event.conversationId)));
+  if (conversationIds.length === 0) {
+    return;
+  }
+  const participants = await database.dMParticipant.findMany({
+    where: { conversationId: { in: conversationIds } },
+    select: { conversationId: true, userId: true },
+  });
+  const userIdsByConversation = new Map<string, string[]>();
+  for (const participant of participants) {
+    const userIds = userIdsByConversation.get(participant.conversationId) ?? [];
+    userIds.push(participant.userId);
+    userIdsByConversation.set(participant.conversationId, userIds);
+  }
+  for (const event of events) {
+    for (const userId of userIdsByConversation.get(event.conversationId) ?? []) {
+      io.to(`user:${userId}`).emit("dm:message:expired", event);
+    }
+  }
+}
 
 /**
  * The two realtime emitters the purge needs, resolved per run: the socket server
@@ -84,6 +114,7 @@ function purgeRuntimeDependencies() {
   // a room", and depending on the full server type would drag Socket.IO's event
   // map into a module the tests drive with a plain object.
   const io = getSocketServer() as GroupRealtimeServer | null;
+  const expiredEvents: Array<{ conversationId: string; messageIds: string[] }> = [];
 
   return {
     emitExpired: ({
@@ -99,30 +130,24 @@ function purgeRuntimeDependencies() {
 
       // Same room the ordinary removal uses, so a client needs one listener.
       io.to(`dm:${conversationId}`).emit("dm:message:expired", { conversationId, messageIds });
-
-      // …and everyone else, because the people who matter here are usually *not*
-      // in the room: a client sitting on the inbox holds the expired message as
-      // its conversation preview and has no other reason to hear about it. Not
-      // awaited — the rows are already gone, and the sweep must not wait on a
-      // roster read to finish its batch.
-      void prisma.dMParticipant
-        .findMany({ where: { conversationId }, select: { userId: true } })
-        .then((participants) => {
-          for (const participant of participants) {
-            io.to(`user:${participant.userId}`).emit("dm:message:expired", {
-              conversationId,
-              messageIds,
-            });
-          }
-        })
-        .catch((error: unknown) => {
-          logErrorDefault("[dm] Disappearing expiry fan-out failed", error);
-        });
+      expiredEvents.push({ conversationId, messageIds });
     },
     emitUnpinned: ({ conversationId }: { conversationId: string }) => {
       // The FK already cleared `pinnedMessageId`; this is what closes the strip
       // on the clients that still have it open.
       io?.to(`dm:${conversationId}`).emit("dm:group:pin", { conversationId, pinnedMessage: null });
+    },
+    flushExpired: async () => {
+      if (!io || expiredEvents.length === 0) {
+        return;
+      }
+      try {
+        // One roster read for the entire sweep prevents a 500-message batch
+        // from bursting the connection pool with one query per conversation.
+        await flushDisappearingExpiredEvents(expiredEvents, prisma, io);
+      } catch (error) {
+        logErrorDefault("[dm] Disappearing expiry fan-out failed", error);
+      }
     },
   };
 }

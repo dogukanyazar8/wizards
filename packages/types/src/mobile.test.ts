@@ -594,6 +594,29 @@ const bugReport = {
 };
 
 describe("mobile schemas", () => {
+  it("accepts a bounded Google two-factor credential and rejects blank input", () => {
+    const idToken = `${"a".repeat(40)}.${"b".repeat(40)}.${"c".repeat(40)}`;
+
+    assert.equal(
+      MobileAuthGoogleLoginRequestSchema.parse({
+        idToken,
+        twoFactorCode: "  recovery-code  ",
+      }).twoFactorCode,
+      "recovery-code",
+    );
+    assert.equal(
+      MobileAuthGoogleLoginRequestSchema.safeParse({ idToken, twoFactorCode: "   " }).success,
+      false,
+    );
+    assert.equal(
+      MobileAuthGoogleLoginRequestSchema.safeParse({
+        idToken,
+        twoFactorCode: "x".repeat(65),
+      }).success,
+      false,
+    );
+  });
+
   it("keeps every exported schema covered by an acceptance and rejection fixture", () => {
     assertSchemaBehaviorCoverage(mobileSchemas, {
       MobileAuthExchangeRequestSchema: {
@@ -1313,6 +1336,7 @@ describe("mobile schemas", () => {
         schema: MobileVoiceTokenResponseSchema,
         valid: {
           channelId: "channel-1",
+          mediaPolicy: { audioBitrate: 64_000, videoQualityMode: "AUTO" },
           provider: "livekit",
           token: "t".repeat(16),
           url: "wss://livekit.example.com",
@@ -1568,6 +1592,11 @@ describe("mobile schemas", () => {
     assertRejects(MobileBugReportRequestSchema, { ...bugReport, body: "x".repeat(1_001) }, [
       "body",
     ]);
+    assertRejects(
+      MobileBugReportRequestSchema,
+      { ...bugReport, includesScreenshot: true, screenshotUploadKey: "javascript:alert(1)" },
+      ["screenshotUploadKey"],
+    );
   });
 
   it("enforces bootstrap feature and session token boundaries", () => {
@@ -1812,6 +1841,7 @@ describe("mobile schemas", () => {
     });
     assertAccepts(MobileVoiceTokenResponseSchema, {
       conversationId: "conversation-1",
+      mediaPolicy: { audioBitrate: 64_000, videoQualityMode: "AUTO" },
       provider: "livekit",
       token: "t".repeat(16),
       url: "wss://livekit.example.com",
@@ -2028,6 +2058,11 @@ describe("mobile invite preview exposure boundary", () => {
       "createdAt",
       "description",
       "discoverable",
+      // Reviewed exposure: a boolean saying the channel list this same payload
+      // already carries was cut at `MAX_PROFILE_CHANNELS`. It describes the
+      // truncation, not what was truncated, so an invite holder learns nothing
+      // the visible list did not already tell them.
+      "hasMoreChannels",
       "iconUrl",
       "inviteAddress",
       "isPublic",

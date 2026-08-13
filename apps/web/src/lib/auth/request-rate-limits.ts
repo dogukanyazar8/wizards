@@ -2,7 +2,7 @@ import { logError } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRedisRate } from "@/lib/redis";
 import {
-  createClientRateLimitIdentity,
+  createNetworkRateLimitIdentity,
   createSubjectRateLimitIdentity,
   type ClientIpHeaderSource,
 } from "@/lib/security/client-ip";
@@ -38,9 +38,7 @@ function createLayeredRules(input: {
   };
   windowSeconds: number;
 }): RateLimitRule[] {
-  const networkIdentity = createClientRateLimitIdentity({
-    fallbackNamespace: input.subject.namespace,
-    fallbackValue: input.subject.value,
+  const networkIdentity = createNetworkRateLimitIdentity({
     headers: input.headers,
   });
   const subjectIdentity = createSubjectRateLimitIdentity(
@@ -102,9 +100,7 @@ function createCooldownKey(input: {
     value: string;
   };
 }) {
-  const networkIdentity = createClientRateLimitIdentity({
-    fallbackNamespace: input.subject.namespace,
-    fallbackValue: input.subject.value,
+  const networkIdentity = createNetworkRateLimitIdentity({
     headers: input.headers,
   });
   return `rate:auth:${input.scope}:cooldown:${createSubjectRateLimitIdentity(

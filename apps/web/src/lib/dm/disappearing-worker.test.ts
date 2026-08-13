@@ -3,9 +3,52 @@ import { describe, it } from "node:test";
 
 import {
   DISAPPEARING_LOCK_TTL_MS,
+  flushDisappearingExpiredEvents,
   runDisappearingSweep,
   type DisappearingSweepDependencies,
 } from "./disappearing-worker";
+
+describe("disappearing expiry fan-out", () => {
+  it("loads every affected conversation roster in one query", async () => {
+    const queries: unknown[] = [];
+    const emits: Array<{ event: string; payload: unknown; room: string }> = [];
+    const database = {
+      dMParticipant: {
+        findMany: async (args: unknown) => {
+          queries.push(args);
+          return [
+            { conversationId: "dm-1", userId: "u1" },
+            { conversationId: "dm-2", userId: "u2" },
+          ];
+        },
+      },
+    } as never;
+    const io = {
+      to: (room: string) => ({
+        emit: (event: string, payload: unknown) => emits.push({ event, payload, room }),
+      }),
+    } as never;
+
+    await flushDisappearingExpiredEvents(
+      [
+        { conversationId: "dm-1", messageIds: ["m1"] },
+        { conversationId: "dm-2", messageIds: ["m2"] },
+      ],
+      database,
+      io,
+    );
+
+    assert.equal(queries.length, 1);
+    assert.deepEqual(queries[0], {
+      select: { conversationId: true, userId: true },
+      where: { conversationId: { in: ["dm-1", "dm-2"] } },
+    });
+    assert.deepEqual(
+      emits.map((entry) => entry.room),
+      ["user:u1", "user:u2"],
+    );
+  });
+});
 
 type Trace = string[];
 

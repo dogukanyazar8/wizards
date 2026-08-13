@@ -1,6 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { MobileManagedWorkspaceServerDetailResponse } from "@wizards/types";
 
@@ -90,6 +90,7 @@ export function MobileWorkspaceCreateSheets({
   const [categoryName, setCategoryName] = useState("");
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const createdCategoryIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (state?.kind === "channel") {
@@ -102,6 +103,7 @@ export function MobileWorkspaceCreateSheets({
       setNewCategoryName("");
       setChannelError(null);
       setSubmitting(false);
+      createdCategoryIdRef.current = null;
     } else if (state?.kind === "category") {
       setCategoryName("");
       setCategoryError(null);
@@ -143,14 +145,19 @@ export function MobileWorkspaceCreateSheets({
     setSubmitting(true);
     setChannelError(null);
     try {
-      let targetCategoryId = categoryId;
+      let targetCategoryId = categoryId ?? createdCategoryIdRef.current;
       const trimmedNewCategory = newCategoryName.trim();
-      if (newCategoryOpen && trimmedNewCategory.length > 0) {
+      if (newCategoryOpen && trimmedNewCategory.length > 0 && targetCategoryId === null) {
         const created = await mutations.createCategory.mutateAsync({
           name: trimmedNewCategory,
           serverId,
         });
         targetCategoryId = created.category.id;
+        // The category POST already committed; a failed channel retry must reuse it.
+        createdCategoryIdRef.current = targetCategoryId;
+        setCategoryId(targetCategoryId);
+        setNewCategoryOpen(false);
+        setNewCategoryName("");
       }
 
       const created = await mutations.createChannel.mutateAsync({
@@ -385,6 +392,7 @@ export function MobileWorkspaceCreateSheets({
                       accessibilityState={{ selected }}
                       key={category.id}
                       onPress={() => {
+                        createdCategoryIdRef.current = null;
                         setNewCategoryOpen(false);
                         setCategoryId(category.id);
                       }}
@@ -404,6 +412,7 @@ export function MobileWorkspaceCreateSheets({
                   accessibilityRole="button"
                   accessibilityState={{ selected: newCategoryOpen }}
                   onPress={() => {
+                    createdCategoryIdRef.current = null;
                     setNewCategoryOpen((current) => !current);
                     setCategoryId(null);
                   }}

@@ -7,6 +7,10 @@ import type { MobileUserProfile } from "@wizards/types";
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
 const mockShowToast = jest.fn();
+const mockOpenDM = jest.fn();
+const mockCreateRequest = jest.fn();
+const mockReportUser = jest.fn();
+const mockUnblockFriend = jest.fn();
 let mockProfile: MobileUserProfile | null = null;
 
 jest.mock("../src/auth/mobile-auth-context", () => ({
@@ -42,11 +46,11 @@ jest.mock("../src/social/mobile-social-query", () => ({
   useMobileSocialMutations: () => ({
     acceptRequest: mockIdleMutation,
     blockFriend: mockIdleMutation,
-    createRequest: mockIdleMutation,
-    openDM: mockIdleMutation,
+    createRequest: { isPending: false, mutate: jest.fn(), mutateAsync: mockCreateRequest },
+    openDM: { isPending: false, mutate: jest.fn(), mutateAsync: mockOpenDM },
     rejectRequest: mockIdleMutation,
-    reportUser: mockIdleMutation,
-    unblockFriend: mockIdleMutation,
+    reportUser: { isPending: false, mutate: jest.fn(), mutateAsync: mockReportUser },
+    unblockFriend: { isPending: false, mutate: jest.fn(), mutateAsync: mockUnblockFriend },
   }),
   useMobileUserProfileQuery: () => ({
     data: mockProfile,
@@ -134,6 +138,14 @@ beforeEach(() => {
   mobileOverlayRegistry.reset();
   mockProfile = peerProfile;
   mockShowToast.mockReset();
+  mockOpenDM.mockReset();
+  mockOpenDM.mockResolvedValue({ conversation: { id: "dm-1" } });
+  mockCreateRequest.mockReset();
+  mockCreateRequest.mockResolvedValue({ request: { id: "request-1" } });
+  mockReportUser.mockReset();
+  mockReportUser.mockResolvedValue({ success: true });
+  mockUnblockFriend.mockReset();
+  mockUnblockFriend.mockResolvedValue({ success: true });
 });
 
 describe("profile card overlay lifecycle", () => {
@@ -191,5 +203,57 @@ describe("profile card overlay lifecycle", () => {
       });
       await waitFor(() => expect(mobileOverlayRegistry.getEntries()).toHaveLength(0));
     }
+  });
+
+  it("shows a toast instead of leaking a rejected message action", async () => {
+    mockOpenDM.mockRejectedValueOnce(new Error("offline"));
+    const view = await renderCardStack("user-2");
+
+    await fireEvent.press(view.getByTestId("open-profile-card"));
+    await fireEvent.press(view.getByTestId("mobile-profile-card-primary-action", anyElement));
+
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith({
+        title: "İşlem tamamlanamadı. Tekrar dene.",
+        variant: "error",
+      }),
+    );
+  });
+
+  it("maps a rejected add-friend action to request error copy", async () => {
+    mockProfile = { ...peerProfile, relationship: "none" };
+    mockCreateRequest.mockRejectedValueOnce(new Error("offline"));
+    const view = await renderCardStack("user-2");
+
+    await fireEvent.press(view.getByTestId("open-profile-card"));
+    await fireEvent.press(view.getByTestId("mobile-profile-card-primary-action", anyElement));
+
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith({
+        title: "İstek gönderilemedi.",
+        variant: "error",
+      }),
+    );
+  });
+
+  it("shows only the failure toast when an abuse report is rejected", async () => {
+    mockReportUser.mockRejectedValueOnce(new Error("offline"));
+    const view = await renderCardStack("user-2");
+
+    await fireEvent.press(view.getByTestId("open-profile-card"));
+    await fireEvent.press(view.getByTestId("mobile-profile-card-menu-trigger", anyElement));
+    await fireEvent.press(view.getByTestId("mobile-profile-card-menu-report", anyElement));
+    await fireEvent.press(view.getByTestId("mobile-profile-card-report-harassment", anyElement));
+
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith({
+        title: "Rapor gönderilemedi. Bağlantını kontrol edip tekrar dene.",
+        variant: "error",
+      }),
+    );
+    expect(mockShowToast).not.toHaveBeenCalledWith({
+      title: "Bildirimin gönderildi",
+      variant: "success",
+    });
   });
 });

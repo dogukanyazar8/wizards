@@ -28,6 +28,10 @@ export interface MobileGoogleLinkedUser {
   readonly emailVerified: boolean;
   readonly id: string;
   readonly isBanned: boolean;
+  readonly twoFactorEnabled: boolean;
+  readonly twoFactorSecret: string | null;
+  readonly twoFactorSecretCiphertext: string | null;
+  readonly twoFactorSecretKeyVersion: string | null;
   readonly username: string;
 }
 
@@ -148,6 +152,10 @@ const LINKED_USER_SELECT = {
   emailVerified: true,
   id: true,
   isBanned: true,
+  twoFactorEnabled: true,
+  twoFactorSecret: true,
+  twoFactorSecretCiphertext: true,
+  twoFactorSecretKeyVersion: true,
   username: true,
 } as const;
 
@@ -196,10 +204,29 @@ async function findUniqueUsername(seed: string): Promise<string> {
  * a fresh user when neither exists.
  */
 export async function linkMobileGoogleAccount(input: {
+  authorizeExistingUser: (user: MobileGoogleLinkedUser) => Promise<void>;
   identity: MobileGoogleIdentity;
   locale?: "en" | "tr" | undefined;
 }): Promise<MobileGoogleLinkedUser> {
   const { identity } = input;
+  const recoverConcurrentLink = async () => {
+    const racedAccount = await prisma.account.findUnique({
+      select: { user: { select: LINKED_USER_SELECT } },
+      where: {
+        provider_providerAccountId: {
+          provider: "google",
+          providerAccountId: identity.subject,
+        },
+      },
+    });
+
+    if (racedAccount) {
+      await input.authorizeExistingUser(racedAccount.user);
+      return racedAccount.user;
+    }
+
+    return null;
+  };
   const linkedAccount = await prisma.account.findUnique({
     select: { user: { select: LINKED_USER_SELECT } },
     where: {
@@ -211,6 +238,7 @@ export async function linkMobileGoogleAccount(input: {
   });
 
   if (linkedAccount) {
+    await input.authorizeExistingUser(linkedAccount.user);
     return linkedAccount.user;
   }
 
@@ -220,25 +248,37 @@ export async function linkMobileGoogleAccount(input: {
   });
 
   if (existingUser) {
-    const [, updatedUser] = await prisma.$transaction([
-      prisma.account.create({
-        data: {
-          provider: "google",
-          providerAccountId: identity.subject,
-          type: "oauth",
-          userId: existingUser.id,
-        },
-      }),
-      prisma.user.update({
-        data: existingUser.emailVerified
-          ? {}
-          : { emailVerified: true, emailVerifiedAt: existingUser.emailVerifiedAt ?? new Date() },
-        select: LINKED_USER_SELECT,
-        where: { id: existingUser.id },
-      }),
-    ]);
+    await input.authorizeExistingUser(existingUser);
 
-    return updatedUser;
+    try {
+      const [, updatedUser] = await prisma.$transaction([
+        prisma.account.create({
+          data: {
+            provider: "google",
+            providerAccountId: identity.subject,
+            type: "oauth",
+            userId: existingUser.id,
+          },
+        }),
+        prisma.user.update({
+          data: existingUser.emailVerified
+            ? {}
+            : { emailVerified: true, emailVerifiedAt: existingUser.emailVerifiedAt ?? new Date() },
+          select: LINKED_USER_SELECT,
+          where: { id: existingUser.id },
+        }),
+      ]);
+
+      return updatedUser;
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        const racedUser = await recoverConcurrentLink();
+        if (racedUser) {
+          return racedUser;
+        }
+      }
+      throw error;
+    }
   }
 
   const locale = normalizeAppLocale(input.locale);
@@ -275,18 +315,9 @@ export async function linkMobileGoogleAccount(input: {
     // Two devices can race the very first sign-in of the same Google account;
     // the unique constraint decides the winner and the loser reads the row.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      const racedAccount = await prisma.account.findUnique({
-        select: { user: { select: LINKED_USER_SELECT } },
-        where: {
-          provider_providerAccountId: {
-            provider: "google",
-            providerAccountId: identity.subject,
-          },
-        },
-      });
-
-      if (racedAccount) {
-        return racedAccount.user;
+      const racedUser = await recoverConcurrentLink();
+      if (racedUser) {
+        return racedUser;
       }
     }
 

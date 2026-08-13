@@ -7,6 +7,7 @@ import { getMobileDevLoginCredentials } from "../../../auth/mobile-dev-login";
 import type { MobileAuthStackParamList } from "../../../navigation/mobile-auth-navigation-types";
 import { mobileCopy } from "../../../locale/mobile-copy";
 import { AuthScreenBackground } from "../../components/kit/auth/auth-screen-background";
+import { AuthPrimaryButton } from "../../components/kit/auth/auth-primary-button";
 import { useMobileLocaleRuntime } from "../../providers/mobile-locale-provider";
 import { useTheme, useThemedStyles } from "../../providers/mobile-theme-provider";
 import { AuthForgotPasswordScreen } from "./auth-forgot-password-screen";
@@ -51,7 +52,9 @@ const createSessionCheckingStyles = (theme: ReturnType<typeof useTheme>) => ({
   },
 });
 
-function navigateBackOrWelcome(navigation: LoginScreenProps["navigation"] | RegisterScreenProps["navigation"]) {
+function navigateBackOrWelcome(
+  navigation: LoginScreenProps["navigation"] | RegisterScreenProps["navigation"],
+) {
   if (navigation.canGoBack()) {
     navigation.goBack();
     return;
@@ -78,6 +81,32 @@ export function MobileAuthSessionCheckingContainer() {
         <Text maxFontSizeMultiplier={2} style={styles.subtitle}>
           {copy.gatedChecking}
         </Text>
+      </View>
+    </AuthScreenBackground>
+  );
+}
+
+export function MobileAuthSessionErrorContainer() {
+  const styles = useThemedStyles(createSessionCheckingStyles);
+  const { error, refreshSessionFromStorage } = useMobileAuth();
+  const { locale } = useMobileLocaleRuntime();
+  const copy = mobileCopy[locale];
+
+  return (
+    <AuthScreenBackground testID="mobile-auth-session-error">
+      <View style={styles.card}>
+        <Text maxFontSizeMultiplier={2} style={styles.title}>
+          {error ?? copy.authSessionReadFailed}
+        </Text>
+        <Text maxFontSizeMultiplier={2} style={styles.subtitle}>
+          {copy.authSummary}
+        </Text>
+        <AuthPrimaryButton
+          iconName="refresh"
+          label={copy.retryAction}
+          onPress={() => void refreshSessionFromStorage()}
+          testID="mobile-auth-session-retry"
+        />
       </View>
     </AuthScreenBackground>
   );

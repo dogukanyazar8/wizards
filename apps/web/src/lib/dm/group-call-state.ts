@@ -178,12 +178,97 @@ export function planGroupCallSignals(
 }
 
 export type GroupCallStore = {
+  mutate?(
+    conversationId: string,
+    mutation: GroupCallMutation,
+  ): Promise<StoredGroupCallState | null>;
   read(conversationId: string): Promise<StoredGroupCallState | null>;
   remove(conversationId: string): Promise<void>;
   write(conversationId: string, state: StoredGroupCallState): Promise<void>;
 };
 
+export type GroupCallMutation =
+  | { input: { joinedAt: Date; userId: string; video?: boolean }; type: "join" }
+  | { type: "leave"; userId: string };
+
+const MUTATE_GROUP_CALL_STATE_SCRIPT = `
+local key = KEYS[1]
+local operation = ARGV[1]
+local userId = ARGV[2]
+local joinedAt = ARGV[3]
+local wantsVideo = ARGV[4] == "1"
+local ttlMs = tonumber(ARGV[5])
+
+local state = nil
+local raw = redis.call("GET", key)
+if raw then
+  local ok, decoded = pcall(cjson.decode, raw)
+  if ok and type(decoded) == "table" and type(decoded.participants) == "table" then
+    state = decoded
+  end
+end
+
+if operation == "join" then
+  if not state then
+    state = { participants = {}, startedAt = joinedAt, video = wantsVideo }
+  end
+
+  local found = false
+  for _, participant in ipairs(state.participants) do
+    if participant.userId == userId then
+      found = true
+      break
+    end
+  end
+  if not found then
+    table.insert(state.participants, { joinedAt = joinedAt, userId = userId })
+  end
+  if wantsVideo then
+    state.video = true
+  end
+
+  local encoded = cjson.encode(state)
+  redis.call("SET", key, encoded, "PX", ttlMs)
+  return encoded
+end
+
+if not state then
+  return ""
+end
+
+local remaining = {}
+for _, participant in ipairs(state.participants) do
+  if participant.userId ~= userId then
+    table.insert(remaining, participant)
+  end
+end
+
+if #remaining == 0 then
+  redis.call("DEL", key)
+  return ""
+end
+
+state.participants = remaining
+local encoded = cjson.encode(state)
+redis.call("SET", key, encoded, "PX", ttlMs)
+return encoded
+`;
+
 export const redisGroupCallStore: GroupCallStore = {
+  mutate: async (conversationId, mutation) => {
+    const raw = await getRedisOp().eval(
+      MUTATE_GROUP_CALL_STATE_SCRIPT,
+      1,
+      groupCallStateKey(conversationId),
+      mutation.type,
+      mutation.type === "join" ? mutation.input.userId : mutation.userId,
+      mutation.type === "join" ? mutation.input.joinedAt.toISOString() : "",
+      mutation.type === "join" && mutation.input.video === true ? "1" : "0",
+      GROUP_CALL_STATE_TTL_MS,
+    );
+
+    return parseGroupCallState(typeof raw === "string" && raw.length > 0 ? raw : null);
+  },
   read: async (conversationId) =>
     parseGroupCallState(await getRedisOp().get(groupCallStateKey(conversationId))),
   remove: async (conversationId) => {
@@ -202,16 +287,22 @@ export const redisGroupCallStore: GroupCallStore = {
 };
 
 /**
- * Read, apply, write. Not a transaction: the losing side of a genuine race
- * re-reads on its own next event, and the worst outcome is a roster that is one
- * name stale for the length of a round trip — which the next `dm:call:state`
- * corrects. A WATCH loop here would buy consistency the UI cannot perceive.
+ * Production mutations run in one Redis Lua script. Injected legacy stores keep
+ * the read/apply/write fallback for pure tests and non-Redis callers.
  */
 export async function joinGroupCall(
   conversationId: string,
   input: { joinedAt: Date; userId: string; video?: boolean },
   store: GroupCallStore = redisGroupCallStore,
 ): Promise<StoredGroupCallState> {
+  if (store.mutate) {
+    const next = await store.mutate(conversationId, { input, type: "join" });
+    if (!next) {
+      throw new Error("Atomic group call join returned no state");
+    }
+    return next;
+  }
+
   const next = applyGroupCallJoin(await store.read(conversationId), input);
   await store.write(conversationId, next);
 
@@ -223,6 +314,10 @@ export async function leaveGroupCall(
   userId: string,
   store: GroupCallStore = redisGroupCallStore,
 ): Promise<StoredGroupCallState | null> {
+  if (store.mutate) {
+    return await store.mutate(conversationId, { type: "leave", userId });
+  }
+
   const next = applyGroupCallLeave(await store.read(conversationId), userId);
 
   if (next) {

@@ -11,9 +11,16 @@ import {
 import { sendMobilePushForNotifications } from "@/lib/mobile/push-sender";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getSocketServer } from "@/lib/socket/runtime";
+import { applyServerOnlinePresenceForSocket } from "@/lib/socket/server-online-presence";
 import { logError } from "@/lib/logger";
 import { readPresenceState } from "@/lib/presence";
 import { canSendFriendRequest } from "@/lib/privacy-policy";
+import {
+  buildPresenceBroadcastAudience,
+  profileVisibilityWhereForViewer,
+  redactPresenceCollectionForViewer,
+  resolveVisibilityDecisions,
+} from "@/lib/privacy/visibility-policy";
 import { resolveLastSeenAtByUserId } from "@/lib/friends/last-seen";
 import { isLiveInvite } from "@/lib/workspace/invite-selection";
 import type {
@@ -79,9 +86,142 @@ type FriendsUpdatedReason =
   | "unblocked";
 
 export const PRESENCE_CACHE_TTL_SECONDS = 180;
+const PRESENCE_FRIEND_IDS_FIELD = "fanoutFriendIds";
+const PRESENCE_SERVER_IDS_FIELD = "fanoutServerIds";
 
 function getPresenceRedisKey(userId: string) {
   return `presence:${userId}`;
+}
+
+type PresenceAudienceRedis = {
+  expire(key: string, seconds: number): Promise<unknown>;
+  hdel(key: string, ...fields: string[]): Promise<unknown>;
+  hget(key: string, field: string): Promise<string | null>;
+  hset(key: string, field: string, value: string): Promise<unknown>;
+};
+
+type PresenceAudienceDependencies = {
+  findFriendships(userId: string): Promise<Array<{ receiverId: string; senderId: string }>>;
+  findServerMemberships(userId: string): Promise<Array<{ serverId: string }>>;
+  redis: PresenceAudienceRedis;
+};
+
+function createDefaultPresenceAudienceDependencies(): PresenceAudienceDependencies {
+  return {
+    findFriendships: (userId) =>
+      prisma.friendRequest.findMany({
+        where: {
+          status: "ACCEPTED",
+          OR: [{ senderId: userId }, { receiverId: userId }],
+        },
+        select: { receiverId: true, senderId: true },
+      }),
+    findServerMemberships: (userId) =>
+      prisma.serverMember.findMany({
+        where: { userId },
+        select: { serverId: true },
+      }),
+    redis: getRedis(),
+  };
+}
+
+function parseCachedIds(value: string | null) {
+  if (value === null) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) && parsed.every((entry) => typeof entry === "string")
+      ? Array.from(new Set(parsed))
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readCachedPresenceAudienceIds(
+  userId: string,
+  field: string,
+  dependencies: PresenceAudienceDependencies,
+) {
+  try {
+    return parseCachedIds(await dependencies.redis.hget(getPresenceRedisKey(userId), field));
+  } catch {
+    return null;
+  }
+}
+
+async function cachePresenceAudienceIds(
+  userId: string,
+  field: string,
+  ids: string[],
+  dependencies: PresenceAudienceDependencies,
+) {
+  try {
+    const key = getPresenceRedisKey(userId);
+    await dependencies.redis.hset(key, field, JSON.stringify(ids));
+    await dependencies.redis.expire(key, PRESENCE_CACHE_TTL_SECONDS);
+  } catch {
+    // Fan-out still has the freshly queried ids. Cache loss must not suppress
+    // a presence update or fail the friend mutation that invalidates it.
+  }
+}
+
+export async function getPresenceFriendUserIds(
+  userId: string,
+  dependencies: PresenceAudienceDependencies = createDefaultPresenceAudienceDependencies(),
+) {
+  const cached = await readCachedPresenceAudienceIds(
+    userId,
+    PRESENCE_FRIEND_IDS_FIELD,
+    dependencies,
+  );
+  if (cached) {
+    return cached;
+  }
+
+  const friendships = await dependencies.findFriendships(userId);
+  const friendUserIds = Array.from(
+    new Set(
+      friendships.map((friendship) =>
+        friendship.senderId === userId ? friendship.receiverId : friendship.senderId,
+      ),
+    ),
+  );
+  await cachePresenceAudienceIds(userId, PRESENCE_FRIEND_IDS_FIELD, friendUserIds, dependencies);
+  return friendUserIds;
+}
+
+export async function getPresenceServerIds(
+  userId: string,
+  dependencies: PresenceAudienceDependencies = createDefaultPresenceAudienceDependencies(),
+) {
+  const cached = await readCachedPresenceAudienceIds(
+    userId,
+    PRESENCE_SERVER_IDS_FIELD,
+    dependencies,
+  );
+  if (cached) {
+    return cached;
+  }
+
+  const serverIds = Array.from(
+    new Set((await dependencies.findServerMemberships(userId)).map(({ serverId }) => serverId)),
+  );
+  await cachePresenceAudienceIds(userId, PRESENCE_SERVER_IDS_FIELD, serverIds, dependencies);
+  return serverIds;
+}
+
+export async function invalidatePresenceAudienceCache(
+  userIds: Iterable<string>,
+  redis: PresenceAudienceRedis = getRedis(),
+) {
+  await Promise.all(
+    Array.from(new Set(userIds)).map((userId) =>
+      redis.hdel(getPresenceRedisKey(userId), PRESENCE_FRIEND_IDS_FIELD, PRESENCE_SERVER_IDS_FIELD),
+    ),
+  );
 }
 
 function toFriendStatusDto(status: string): FriendStatusDto {
@@ -176,13 +316,20 @@ async function createFriendRequestNotification(
   ]).catch(() => undefined);
 }
 
-function emitFriendsUpdated(userIds: Iterable<string>, reason: FriendsUpdatedReason) {
+async function emitFriendsUpdated(userIds: Iterable<string>, reason: FriendsUpdatedReason) {
+  const uniqueUserIds = Array.from(new Set(userIds));
+  try {
+    await invalidatePresenceAudienceCache(uniqueUserIds);
+  } catch (error) {
+    logError("[friends] Presence audience cache invalidation failed", error);
+  }
+
   const io = getSocketServer();
   if (!io) {
     return;
   }
 
-  for (const userId of new Set(userIds)) {
+  for (const userId of uniqueUserIds) {
     io.to(`user:${userId}`).emit("friends:updated", { reason });
   }
 }
@@ -364,38 +511,128 @@ export async function broadcastPresenceUpdateToFriends(
     return;
   }
 
-  const [friendships, serverMemberships] = await Promise.all([
+  const [user, blockRows] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: update.userId },
+      select: { settings: { select: { presenceVisibility: true } } },
+    }),
     prisma.friendRequest.findMany({
       where: {
-        status: "ACCEPTED",
+        status: "BLOCKED",
         OR: [{ senderId: update.userId }, { receiverId: update.userId }],
       },
-      select: {
-        receiverId: true,
-        senderId: true,
-      },
-    }),
-    prisma.serverMember.findMany({
-      where: { userId: update.userId },
-      select: { serverId: true },
+      select: { receiverId: true, senderId: true },
     }),
   ]);
+  if (!user) return;
 
-  const targetUserIds = new Set<string>([update.userId]);
+  const presenceVisibility = user.settings?.presenceVisibility ?? "EVERYONE";
+  const [friendUserIds, serverIds] = await Promise.all([
+    presenceVisibility === "NOBODY" ? Promise.resolve([]) : getPresenceFriendUserIds(update.userId),
+    presenceVisibility === "EVERYONE" ? getPresenceServerIds(update.userId) : Promise.resolve([]),
+  ]);
+  const audience = buildPresenceBroadcastAudience({
+    blockedUserIds: blockRows.map((row) =>
+      row.senderId === update.userId ? row.receiverId : row.senderId,
+    ),
+    friendUserIds,
+    presenceVisibility,
+    serverIds,
+    userId: update.userId,
+  });
 
-  for (const friendship of friendships) {
-    const friendId =
-      friendship.senderId === update.userId ? friendship.receiverId : friendship.senderId;
-    targetUserIds.add(friendId);
+  io.to(`user:${update.userId}`).emit("presence:update", update);
+  const publicRooms = [
+    ...audience.directUserIds
+      .filter((userId) => userId !== update.userId)
+      .map((userId) => `user:${userId}`),
+    ...audience.serverIds.map((serverId) => `server:${serverId}`),
+  ];
+  if (publicRooms.length === 0) return;
+
+  io.to(publicRooms)
+    .except([`user:${update.userId}`, ...audience.blockedUserIds.map((userId) => `user:${userId}`)])
+    .emit("presence:update", {
+      ...update,
+      customStatus: update.status === "OFFLINE" ? null : update.customStatus,
+    });
+}
+
+/**
+ * Clear every relationship-scoped cache before publishing the newly narrowed
+ * audience. This prevents a viewer that was allowed by the previous setting
+ * from retaining a stale online/custom-status or voice-room value.
+ */
+export async function broadcastPresenceVisibilityChanged(userId: string): Promise<void> {
+  const io = getSocketServer();
+  if (!io) return;
+
+  const [user, friendUserIds, serverIds, blockRows] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { settings: { select: { presenceVisibility: true } } },
+    }),
+    getPresenceFriendUserIds(userId),
+    getPresenceServerIds(userId),
+    prisma.friendRequest.findMany({
+      where: {
+        status: "BLOCKED",
+        OR: [{ senderId: userId }, { receiverId: userId }],
+      },
+      select: { receiverId: true, senderId: true },
+    }),
+  ]);
+  if (!user) return;
+  const presenceVisibility = user.settings?.presenceVisibility ?? "EVERYONE";
+  const audience = buildPresenceBroadcastAudience({
+    blockedUserIds: blockRows.map((row) =>
+      row.senderId === userId ? row.receiverId : row.senderId,
+    ),
+    friendUserIds,
+    presenceVisibility: "EVERYONE",
+    serverIds,
+    userId,
+  });
+  const excludedRooms = [
+    `user:${userId}`,
+    ...audience.blockedUserIds.map((blockedUserId) => `user:${blockedUserId}`),
+  ];
+  const staleRooms = [
+    ...audience.directUserIds
+      .filter((targetUserId) => targetUserId !== userId)
+      .map((targetUserId) => `user:${targetUserId}`),
+    ...audience.serverIds.map((serverId) => `server:${serverId}`),
+  ];
+
+  if (staleRooms.length > 0) {
+    io.to(staleRooms).except(excludedRooms).emit("presence:update", {
+      customStatus: null,
+      status: "OFFLINE",
+      userId,
+    });
+  }
+  for (const friendUserId of audience.directUserIds) {
+    if (friendUserId !== userId) {
+      io.to(`user:${friendUserId}`).emit("friends:voice:update", {
+        userId,
+        voiceRoom: null,
+      });
+    }
   }
 
-  for (const targetUserId of targetUserIds) {
-    io.to(`user:${targetUserId}`).emit("presence:update", update);
+  try {
+    const userSockets = await io.in(`user:${userId}`).fetchSockets();
+    await Promise.all(
+      userSockets.map(async (socket) => {
+        socket.data.presenceVisibility = presenceVisibility;
+        await applyServerOnlinePresenceForSocket(getRedis(), socket, userId);
+      }),
+    );
+  } catch (error) {
+    logError("[presence visibility] Socket online-set convergence failed", error);
   }
 
-  for (const membership of serverMemberships) {
-    io.to(`server:${membership.serverId}`).emit("presence:update", update);
-  }
+  await broadcastPresenceUpdateToFriends(await getUserPresenceBroadcast(userId));
 }
 
 /**
@@ -417,14 +654,19 @@ export async function broadcastVoiceRoomUpdateToFriends(args: {
     return;
   }
 
-  const [friendships, channel] = await Promise.all([
+  const [user, blockRows, friendUserIds, channel] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: args.userId },
+      select: { settings: { select: { presenceVisibility: true } } },
+    }),
     prisma.friendRequest.findMany({
       where: {
-        status: "ACCEPTED",
+        status: "BLOCKED",
         OR: [{ senderId: args.userId }, { receiverId: args.userId }],
       },
       select: { receiverId: true, senderId: true },
     }),
+    getPresenceFriendUserIds(args.userId),
     args.action === "join"
       ? prisma.channel.findUnique({
           where: { id: args.channelId },
@@ -449,14 +691,17 @@ export async function broadcastVoiceRoomUpdateToFriends(args: {
         }
       : null;
 
-  const targetUserIds = new Set<string>([args.userId]);
-  for (const friendship of friendships) {
-    targetUserIds.add(
-      friendship.senderId === args.userId ? friendship.receiverId : friendship.senderId,
-    );
-  }
+  const audience = buildPresenceBroadcastAudience({
+    blockedUserIds: blockRows.map((row) =>
+      row.senderId === args.userId ? row.receiverId : row.senderId,
+    ),
+    friendUserIds,
+    presenceVisibility: user?.settings?.presenceVisibility ?? "EVERYONE",
+    serverIds: [],
+    userId: args.userId,
+  });
 
-  for (const targetUserId of targetUserIds) {
+  for (const targetUserId of audience.directUserIds) {
     io.to(`user:${targetUserId}`).emit("friends:voice:update", {
       userId: args.userId,
       voiceRoom,
@@ -480,7 +725,8 @@ export async function listFriends(userId: string): Promise<FriendDto[]> {
   const friends = friendships.map((friendship) =>
     friendship.senderId === userId ? friendship.receiver : friendship.sender,
   );
-  const [{ hiddenUserIds, presenceByUserId }, lastSeenByUserId] = await Promise.all([
+  const friendUserIds = friends.map((friend) => friend.id);
+  const [presenceState, rawLastSeenByUserId, visibilityDecisions] = await Promise.all([
     readPresenceState(
       getRedis(),
       friends.map((friend) => ({
@@ -489,8 +735,16 @@ export async function listFriends(userId: string): Promise<FriendDto[]> {
         userId: friend.id,
       })),
     ),
-    resolveLastSeenAtByUserId(friends.map((friend) => friend.id)),
+    resolveLastSeenAtByUserId(friendUserIds),
+    resolveVisibilityDecisions(userId, friendUserIds),
   ]);
+  const { hiddenUserIds, lastSeenByUserId, presenceByUserId } = redactPresenceCollectionForViewer({
+    decisions: visibilityDecisions,
+    invisibleUserIds: presenceState.hiddenUserIds,
+    lastSeenByUserId: rawLastSeenByUserId,
+    presenceByUserId: presenceState.presenceByUserId,
+    subjectIds: friendUserIds,
+  });
 
   return friends.map((friend) => {
     const presence = presenceByUserId.get(friend.id) ?? {
@@ -666,10 +920,16 @@ export async function searchUsers(
   const take = Math.min(Math.max(1, Math.trunc(limit)), USER_SEARCH_RESULT_LIMIT);
   const users = await prisma.user.findMany({
     where: {
-      id: { not: userId },
-      OR: [
-        { username: { contains: term, mode: "insensitive" as const } },
-        { displayName: { contains: term, mode: "insensitive" as const } },
+      AND: [
+        profileVisibilityWhereForViewer(userId),
+        {
+          deletedAt: null,
+          id: { not: userId },
+          OR: [
+            { username: { contains: term, mode: "insensitive" as const } },
+            { displayName: { contains: term, mode: "insensitive" as const } },
+          ],
+        },
       ],
     },
     select: friendUserSelect,
@@ -846,7 +1106,7 @@ export async function sendFriendRequest(
   });
 
   await createFriendRequestNotification(receiver, sender, request.id);
-  emitFriendsUpdated([senderId, receiver.id], "friend_request_received");
+  await emitFriendsUpdated([senderId, receiver.id], "friend_request_received");
 
   return toFriendRequestDto(request);
 }
@@ -888,7 +1148,7 @@ export async function actOnFriendRequest(
     await createFriendAcceptedNotification(request.sender, request.receiver, request.id);
   }
 
-  emitFriendsUpdated(
+  await emitFriendsUpdated(
     [request.senderId, request.receiverId],
     action === "accept" ? "friend_request_accepted" : "friend_request_rejected",
   );
@@ -920,7 +1180,7 @@ export async function cancelFriendRequest(userId: string, requestId: string): Pr
 
   await clearFriendRequestNotifications(requestId, [request.receiverId]);
 
-  emitFriendsUpdated([request.senderId, request.receiverId], "friend_request_canceled");
+  await emitFriendsUpdated([request.senderId, request.receiverId], "friend_request_canceled");
 }
 
 export async function removeFriend(userId: string, friendUserId: string): Promise<void> {
@@ -935,7 +1195,7 @@ export async function removeFriend(userId: string, friendUserId: string): Promis
     where: { id: friendship.id },
   });
 
-  emitFriendsUpdated([userId, friendUserId], "friend_removed");
+  await emitFriendsUpdated([userId, friendUserId], "friend_removed");
 }
 
 export async function blockUser(userId: string, blockedUserId: string): Promise<FriendUserDto> {
@@ -992,7 +1252,7 @@ export async function blockUser(userId: string, blockedUserId: string): Promise<
     );
   }
 
-  emitFriendsUpdated([userId, blockedUserId], "blocked");
+  await emitFriendsUpdated([userId, blockedUserId], "blocked");
 
   return toFriendUserDto(blockedUser);
 }
@@ -1012,7 +1272,7 @@ export async function unblockUser(userId: string, blockedUserId: string): Promis
     throw new ApiError("Block not found", 404, "NOT_FOUND");
   }
 
-  emitFriendsUpdated([userId, blockedUserId], "unblocked");
+  await emitFriendsUpdated([userId, blockedUserId], "unblocked");
 }
 
 export async function listBlockedUsers(userId: string): Promise<FriendUserDto[]> {

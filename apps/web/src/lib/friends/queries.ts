@@ -2,6 +2,10 @@ import { prisma } from "@wizards/db";
 import { getRedis } from "@/lib/redis";
 import { resolveLastSeenAtByUserId } from "@/lib/friends/last-seen";
 import { readPresenceState } from "@/lib/presence";
+import {
+  redactPresenceCollectionForViewer,
+  resolveVisibilityDecisions,
+} from "@/lib/privacy/visibility-policy";
 import type {
   FriendDto,
   FriendRequestDto,
@@ -29,6 +33,17 @@ const friendListUserSelect = {
   // list that feeds it carries the switch rather than asking per row.
   settings: { select: { allowGroupInvites: true } },
 } as const;
+
+export type FriendPageOptions = { cursor?: string; limit?: number };
+
+export function friendPageQuery(options: FriendPageOptions) {
+  const requestedLimit = Math.trunc(options.limit ?? 100);
+  const take = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 100) : 100;
+  return {
+    ...(options.cursor ? { cursor: { id: options.cursor }, skip: 1 } : {}),
+    take,
+  };
+}
 
 type FriendRequestRecord = {
   id: string;
@@ -76,8 +91,12 @@ function toFriendRequestDto(request: FriendRequestRecord): FriendRequestDto {
   };
 }
 
-export async function listFriends(userId: string): Promise<FriendDto[]> {
+export async function listFriends(
+  userId: string,
+  options: FriendPageOptions = {},
+): Promise<FriendDto[]> {
   const friendships = await prisma.friendRequest.findMany({
+    ...friendPageQuery(options),
     where: {
       status: "ACCEPTED",
       OR: [{ senderId: userId }, { receiverId: userId }],
@@ -92,7 +111,8 @@ export async function listFriends(userId: string): Promise<FriendDto[]> {
   const friends = friendships.map((friendship) =>
     friendship.senderId === userId ? friendship.receiver : friendship.sender,
   );
-  const [{ hiddenUserIds, presenceByUserId }, lastSeenByUserId] = await Promise.all([
+  const friendUserIds = friends.map((friend) => friend.id);
+  const [presenceState, rawLastSeenByUserId, visibilityDecisions] = await Promise.all([
     readPresenceState(
       getRedis(),
       friends.map((friend) => ({
@@ -101,8 +121,16 @@ export async function listFriends(userId: string): Promise<FriendDto[]> {
         userId: friend.id,
       })),
     ),
-    resolveLastSeenAtByUserId(friends.map((friend) => friend.id)),
+    resolveLastSeenAtByUserId(friendUserIds),
+    resolveVisibilityDecisions(userId, friendUserIds),
   ]);
+  const { hiddenUserIds, lastSeenByUserId, presenceByUserId } = redactPresenceCollectionForViewer({
+    decisions: visibilityDecisions,
+    invisibleUserIds: presenceState.hiddenUserIds,
+    lastSeenByUserId: rawLastSeenByUserId,
+    presenceByUserId: presenceState.presenceByUserId,
+    subjectIds: friendUserIds,
+  });
 
   return friends.map((friend) => {
     const presence = presenceByUserId.get(friend.id) ?? {
@@ -128,14 +156,20 @@ export async function listFriends(userId: string): Promise<FriendDto[]> {
   });
 }
 
-export async function listPendingFriendRequests(userId: string): Promise<PendingFriendsResponse> {
+export async function listPendingFriendRequests(
+  userId: string,
+  options: FriendPageOptions = {},
+): Promise<PendingFriendsResponse> {
+  const page = friendPageQuery(options);
   const [incoming, outgoing] = await Promise.all([
     prisma.friendRequest.findMany({
+      ...page,
       where: { receiverId: userId, status: "PENDING" },
       include: friendRequestInclude,
       orderBy: { createdAt: "desc" },
     }),
     prisma.friendRequest.findMany({
+      ...page,
       where: { senderId: userId, status: "PENDING" },
       include: friendRequestInclude,
       orderBy: { createdAt: "desc" },
@@ -148,8 +182,12 @@ export async function listPendingFriendRequests(userId: string): Promise<Pending
   };
 }
 
-export async function listBlockedUsers(userId: string): Promise<FriendUserDto[]> {
+export async function listBlockedUsers(
+  userId: string,
+  options: FriendPageOptions = {},
+): Promise<FriendUserDto[]> {
   const blockedRows = await prisma.friendRequest.findMany({
+    ...friendPageQuery(options),
     where: {
       senderId: userId,
       status: "BLOCKED",

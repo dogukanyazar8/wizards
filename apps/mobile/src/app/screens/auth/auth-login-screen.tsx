@@ -42,6 +42,7 @@ export interface AuthLoginScreenProps {
   }) => Promise<{ ok: true } | { message: string; ok: false; requiresTwoFactor?: boolean }>;
   readonly onSocialSignIn: (
     provider: MobileAuthLiveSocialProviderId,
+    input?: { twoFactorCode?: string },
   ) => Promise<MobileSocialSignInResult>;
 }
 
@@ -107,7 +108,10 @@ export function AuthLoginScreen({
     setSocialProviderInFlight(provider.id);
 
     try {
-      const result = await onSocialSignIn(provider.id);
+      const normalizedTwoFactorCode = twoFactorVisible ? twoFactorCode.trim() : "";
+      const result = normalizedTwoFactorCode
+        ? await onSocialSignIn(provider.id, { twoFactorCode: normalizedTwoFactorCode })
+        : await onSocialSignIn(provider.id);
 
       if (result.ok) {
         // The in-app session already signed the user in and this screen is about
@@ -120,7 +124,10 @@ export function AuthLoginScreen({
 
       // A cancelled consent sheet is a normal user action, not an error.
       if (result.reason === "failed") {
-        setErrorMessage(copy.authSocialSignInFailed);
+        if (result.requiresTwoFactor) {
+          setTwoFactorVisible(true);
+        }
+        setErrorMessage(getSafeResultMessage(result.message ?? "", copy.authSocialSignInFailed));
       }
     } catch {
       setErrorMessage(copy.authSocialSignInFailed);

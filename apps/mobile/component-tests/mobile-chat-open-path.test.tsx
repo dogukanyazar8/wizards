@@ -103,6 +103,7 @@ function createStalledDetailClient() {
 }
 
 async function renderMessagingFeature(client: MobileApiClient) {
+  let renderCount = 0;
   const queryClient = new QueryClient({
     defaultOptions: {
       mutations: { gcTime: Number.POSITIVE_INFINITY, retry: false },
@@ -112,8 +113,9 @@ async function renderMessagingFeature(client: MobileApiClient) {
   renderedQueryClients.push(queryClient);
 
   const view = await renderHook(
-    () =>
-      useMobileMessagingFeature({
+    () => {
+      renderCount += 1;
+      return useMobileMessagingFeature({
         activeVoiceChannelId: null,
         apiClient: client,
         currentUser,
@@ -128,7 +130,8 @@ async function renderMessagingFeature(client: MobileApiClient) {
         stopDMTyping: () => undefined,
         updateChannelTyping: () => undefined,
         updateDMTyping: () => undefined,
-      }),
+      });
+    },
     {
       wrapper: ({ children }: { children: React.ReactNode }) => (
         <QueryClientProvider client={queryClient}>
@@ -138,7 +141,7 @@ async function renderMessagingFeature(client: MobileApiClient) {
     },
   );
 
-  return { queryClient, view };
+  return { getRenderCount: () => renderCount, queryClient, view };
 }
 
 describe("chat open path", () => {
@@ -174,6 +177,22 @@ describe("chat open path", () => {
 
     expect(view.result.current.channelMessagesState.payload).toBe(null);
     expect(view.result.current.workspaceServerState.payload).toBe(null);
+  });
+
+  it("does not rerender the product root when the already-open channel regains focus", async () => {
+    const { client } = createStalledDetailClient();
+    const { getRenderCount, view } = await renderMessagingFeature(client);
+
+    await act(() => {
+      view.result.current.handleOpenWorkspaceRoute("server-1", "channel-9");
+    });
+    const renderCountAfterOpen = getRenderCount();
+
+    await act(() => {
+      view.result.current.handleOpenWorkspaceRoute("server-1", "channel-9");
+    });
+
+    expect(getRenderCount()).toBe(renderCountAfterOpen);
   });
 
   it("does not subscribe the product root to DM history when selection changes", async () => {

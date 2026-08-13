@@ -406,6 +406,9 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       paddingHorizontal: metrics.channel.rowPaddingHorizontal,
       paddingVertical: metrics.channel.rowPaddingVertical,
     },
+    messagePreviewRowChannelCompact: {
+      paddingVertical: Math.max(4, metrics.channel.rowPaddingVertical - 3),
+    },
     /**
      * §1.2: a continuation drops the avatar and indents to 61px instead — row
      * padding (16) + avatar (34) + row gap (11), so the body stays pixel-aligned

@@ -158,6 +158,7 @@ async function authenticateMobileSocketToken(rawToken: string) {
       emailVerified: true,
       id: true,
       isBanned: true,
+      settings: { select: { presenceVisibility: true } },
       username: true,
     },
   });
@@ -172,6 +173,7 @@ type SocketAuthUser = {
   emailVerified: Date | boolean | null;
   id: string;
   isBanned: boolean;
+  settings: { presenceVisibility: "EVERYONE" | "FRIENDS" | "NOBODY" } | null;
   username: string;
 };
 
@@ -185,6 +187,7 @@ function assignSocketUserData(socket: { data: SocketData }, user: SocketAuthUser
   socket.data.displayName = user.displayName ?? user.username;
   socket.data.presenceCustomStatus = user.customStatus ?? null;
   socket.data.presenceStatus = "OFFLINE";
+  socket.data.presenceVisibility = user.settings?.presenceVisibility ?? "EVERYONE";
 }
 
 export function resolveSocketRequestOrigin(input: {
@@ -550,6 +553,7 @@ export function initSocketServer(httpServer: HTTPServer) {
           emailVerified: true,
           id: true,
           isBanned: true,
+          settings: { select: { presenceVisibility: true } },
           username: true,
         },
       });

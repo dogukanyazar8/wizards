@@ -118,7 +118,11 @@ describe("group DM LiveKit rooms", () => {
 
   it("404s for a conversation that does not exist", async () => {
     await withPatches(async (restores) => {
-      patchMethod(prisma.dMConversation, "findUnique", async () => null, restores);
+      // The roster read is now both the existence check and the access check:
+      // an empty participant list is indistinguishable from a missing
+      // conversation at this boundary, and stubbing the conversation lookup
+      // alone would let the real client run against no database.
+      patchMethod(prisma.dMParticipant, "findMany", async () => [], restores);
 
       await assert.rejects(
         resolveLiveKitRoomName("user-1", { conversationId: "missing" }),

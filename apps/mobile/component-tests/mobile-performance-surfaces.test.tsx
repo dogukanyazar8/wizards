@@ -297,4 +297,91 @@ describe("mobile performance surfaces", () => {
 
     expect(mockExpoImageRender).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps hot-list data, style, and render callbacks stable across an unrelated rerender", async () => {
+    const dmProps = {
+      conversations: [{ ...conversation, lastMessage: null }],
+      hasNextPage: false,
+      onLoadMore: jest.fn(),
+      onOpenConversation: jest.fn(),
+      selectedConversationId: null,
+    } as const;
+    const channelProps = {
+      isCollapseDisabled: false,
+      layout: "compact" as const,
+      onOpenChannel: jest.fn(),
+      onToggleSection: jest.fn(),
+      sections: channelSections,
+      selectedChannelId: null,
+    };
+    function Harness() {
+      const [count, setCount] = useState(0);
+      return (
+        <>
+          <Pressable testID="rerender-hot-lists" onPress={() => setCount((value) => value + 1)}>
+            <Text>{count}</Text>
+          </Pressable>
+          <DirectMessageListCard {...dmProps} />
+          <WorkspaceChannelSectionList {...channelProps} />
+        </>
+      );
+    }
+
+    const view = await render(<Harness />);
+    const firstDm = mockFlashListRender.mock.calls.find(
+      ([props]) => props.testID === "mobile-dm-conversation-list",
+    )?.[0];
+    const firstChannel = mockFlashListRender.mock.calls.find(
+      ([props]) => props.testID === "mobile-workspace-channel-list",
+    )?.[0];
+
+    await fireEvent.press(view.getByTestId("rerender-hot-lists"));
+    const lastDm = mockFlashListRender.mock.calls
+      .filter(([props]) => props.testID === "mobile-dm-conversation-list")
+      .at(-1)?.[0];
+    const lastChannel = mockFlashListRender.mock.calls
+      .filter(([props]) => props.testID === "mobile-workspace-channel-list")
+      .at(-1)?.[0];
+
+    expect(lastDm?.data).toBe(firstDm?.data);
+    expect(lastDm?.renderItem).toBe(firstDm?.renderItem);
+    expect(lastDm?.style).toBe(firstDm?.style);
+    expect(lastChannel?.data).toBe(firstChannel?.data);
+    expect(lastChannel?.renderItem).toBe(firstChannel?.renderItem);
+  });
+
+  it("indexes voice state once instead of scanning it for every channel row", async () => {
+    let channelIdReads = 0;
+    const voiceStates = ["voice-1", "voice-2"].map((channelId) => ({
+      get channelId() {
+        channelIdReads += 1;
+        return channelId;
+      },
+      participants: [],
+    }));
+    const sections = [
+      {
+        ...voiceChannelSections[0]!,
+        channels: [
+          voiceChannelSections[0]!.channels[0]!,
+          { ...voiceChannelSections[0]!.channels[0]!, id: "voice-2" },
+        ],
+        totalChannelCount: 2,
+      },
+    ];
+
+    await render(
+      <WorkspaceChannelSectionList
+        isCollapseDisabled={false}
+        layout="compact"
+        onOpenChannel={jest.fn()}
+        onToggleSection={jest.fn()}
+        sections={sections}
+        selectedChannelId={null}
+        voiceStates={voiceStates}
+      />,
+    );
+
+    expect(channelIdReads).toBe(voiceStates.length);
+  });
 });

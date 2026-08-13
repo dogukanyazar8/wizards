@@ -1,4 +1,4 @@
-import type { AdminRole, ChannelType, UserStatus } from "@wizards/db";
+import type { AdminRole, ChannelType, PrismaClient, UserStatus } from "@wizards/db";
 import { prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import { writeAdminAuditLog } from "@/lib/admin/access";
@@ -329,12 +329,15 @@ export async function listAdminServerAuditTrail(take = 12) {
   }));
 }
 
-export async function listAdminServers(filters: AdminServerListFilters = {}) {
+export async function listAdminServers(
+  filters: AdminServerListFilters = {},
+  client: Pick<PrismaClient, "channel" | "server"> = prisma,
+) {
   const pagination = normalizeAdminManagementPagination(filters);
   const where = getServerWhere(filters);
 
   const [servers, total] = await Promise.all([
-    prisma.server.findMany({
+    client.server.findMany({
       orderBy: { createdAt: "desc" },
       skip: pagination.skip,
       take: pagination.limit,
@@ -354,6 +357,7 @@ export async function listAdminServers(filters: AdminServerListFilters = {}) {
             name: true,
             type: true,
           },
+          take: 12,
         },
         createdAt: true,
         description: true,
@@ -376,8 +380,34 @@ export async function listAdminServers(filters: AdminServerListFilters = {}) {
         updatedAt: true,
       },
     }),
-    prisma.server.count({ where }),
+    client.server.count({ where }),
   ]);
+
+  const channelGroups =
+    servers.length === 0
+      ? []
+      : await client.channel.groupBy({
+          by: ["serverId", "type"],
+          where: { serverId: { in: servers.map((server) => server.id) } },
+          _count: { _all: true },
+          _sum: { messageCount: true },
+        });
+  const channelCountsByServer = new Map<
+    string,
+    { byType: Partial<Record<ChannelType, number>>; totalMessages: number }
+  >();
+  for (const group of channelGroups) {
+    if (!group.serverId) {
+      continue;
+    }
+    const counts = channelCountsByServer.get(group.serverId) ?? {
+      byType: {},
+      totalMessages: 0,
+    };
+    counts.byType[group.type] = group._count._all;
+    counts.totalMessages += group._sum.messageCount ?? 0;
+    channelCountsByServer.set(group.serverId, counts);
+  }
 
   return {
     pagination: {
@@ -386,18 +416,14 @@ export async function listAdminServers(filters: AdminServerListFilters = {}) {
       totalPages: Math.max(1, Math.ceil(total / pagination.limit)),
     },
     servers: servers.map((server) => {
-      const channelCounts = server.channels.reduce(
-        (counts, channel) => {
-          counts.totalMessages += channel.messageCount;
-          counts.byType[channel.type] = (counts.byType[channel.type] ?? 0) + 1;
-          return counts;
-        },
-        { byType: {} as Partial<Record<ChannelType, number>>, totalMessages: 0 },
-      );
+      const channelCounts = channelCountsByServer.get(server.id) ?? {
+        byType: {},
+        totalMessages: 0,
+      };
 
       return {
         channelCount: server._count.channels,
-        channels: server.channels.slice(0, 12).map((channel) => ({
+        channels: server.channels.map((channel) => ({
           id: channel.id,
           messageCount: channel.messageCount,
           name: channel.name,
@@ -544,8 +570,11 @@ export function toCsv(headers: string[], rows: CsvValue[][]) {
   return [headers, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
 }
 
-export async function exportAdminActivityCsv(days: number | string | null | undefined) {
-  const snapshot = await getAdminDashboardSnapshot(days ?? DEFAULT_ACTIVITY_EXPORT_DAYS);
+export async function exportAdminActivityCsv(
+  days: number | string | null | undefined,
+  role: AdminRole,
+) {
+  const snapshot = await getAdminDashboardSnapshot(days ?? DEFAULT_ACTIVITY_EXPORT_DAYS, role);
 
   const summary = toCsv(
     ["section", "metric", "value"],
@@ -610,7 +639,7 @@ export async function exportAdminActivityCsv(days: number | string | null | unde
   );
   const topServers = toCsv(
     ["serverId", "name", "members", "channels", "messages", "public"],
-    snapshot.topServers.map((server) => [
+    (snapshot.topServers ?? []).map((server) => [
       server.id,
       server.name,
       server.memberCount,

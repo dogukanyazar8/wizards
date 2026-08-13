@@ -65,6 +65,7 @@ export const RegisterSchema = z
 
 export const ForgotPasswordSchema = z.object({
   email: z.string().email("validation.email.invalid"),
+  turnstileToken: TurnstileTokenSchema,
 });
 
 export const ResetPasswordSchema = z
@@ -72,6 +73,7 @@ export const ResetPasswordSchema = z
     password: NewPasswordSchema,
     confirmPassword: ConfirmNewPasswordSchema,
     token: z.string().min(1, "auth.passwordReset.invalidToken"),
+    turnstileToken: TurnstileTokenSchema,
   })
   .refine((data) => data.confirmPassword === data.password, {
     message: "validation.password.confirmMismatch",

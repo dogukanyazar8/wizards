@@ -65,6 +65,7 @@ const detail = {
   },
   ungroupedChannels: [
     {
+      bitrate: 64_000,
       canAccess: true,
       categoryId: null,
       id: "channel-1",
@@ -73,9 +74,13 @@ const detail = {
       name: "general",
       position: 0,
       readOnly: false,
+      rtcRegion: null,
+      slowModeDelay: 0,
       topic: null,
       type: "TEXT",
       unreadCount: 3,
+      userLimit: 0,
+      videoQualityMode: "AUTO",
     },
   ],
 } satisfies WorkspaceServerDetail;
@@ -274,6 +279,7 @@ describe("mobile server detail route logic", () => {
   it("returns a category with no channels but drops one the mobile budget emptied", async () => {
     const { mobileServerDetailRoute } = await routes;
     const channels = Array.from({ length: 40 }, (_, index) => ({
+      bitrate: 64_000,
       canAccess: true,
       categoryId: "category-full",
       id: `channel-${index}`,
@@ -282,9 +288,13 @@ describe("mobile server detail route logic", () => {
       name: `channel-${index}`,
       position: index,
       readOnly: false,
+      rtcRegion: null,
+      slowModeDelay: 0,
       topic: null,
       type: "TEXT" as const,
       unreadCount: 0,
+      userLimit: 0,
+      videoQualityMode: "AUTO" as const,
     }));
     // The aggregate budget is 80, so it takes two full categories to exhaust it
     // before a third can be emptied by it. (This fixture used to hold a single
@@ -346,6 +356,7 @@ describe("mobile server detail route logic", () => {
 
     for (const channelCount of [40, 41]) {
       const channels = Array.from({ length: channelCount }, (_, index) => ({
+        bitrate: 64_000,
         canAccess: true,
         categoryId: "category-1",
         id: `channel-${index}`,
@@ -354,9 +365,13 @@ describe("mobile server detail route logic", () => {
         name: `channel-${index}`,
         position: index,
         readOnly: false,
+        rtcRegion: null,
+        slowModeDelay: 0,
         topic: null,
         type: "TEXT" as const,
         unreadCount: 0,
+        userLimit: 0,
+        videoQualityMode: "AUTO" as const,
       }));
       const boundedDetail = {
         ...mobileProjection,
@@ -403,6 +418,7 @@ describe("mobile server detail route logic", () => {
 
     for (const channelCount of [80, 81]) {
       const firstCategoryChannels = Array.from({ length: 40 }, (_, index) => ({
+        bitrate: 64_000,
         canAccess: true,
         categoryId: "category-1",
         id: `first-${index}`,
@@ -411,9 +427,13 @@ describe("mobile server detail route logic", () => {
         name: `first-${index}`,
         position: index,
         readOnly: false,
+        rtcRegion: null,
+        slowModeDelay: 0,
         topic: null,
         type: "TEXT" as const,
         unreadCount: 0,
+        userLimit: 0,
+        videoQualityMode: "AUTO" as const,
       }));
       const secondCategoryChannels = Array.from({ length: channelCount - 40 }, (_, index) => ({
         ...firstCategoryChannels[0]!,

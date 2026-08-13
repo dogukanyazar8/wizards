@@ -8,6 +8,7 @@ import { jsonError, parseJsonBody } from "@/lib/api";
 import { enforceApiRateLimit, type ApiRateLimitAction } from "@/lib/api-rate-limit";
 import { requireMobileApiSession } from "@/lib/auth/api";
 import { createLiveKitToken } from "@/lib/livekit/server";
+import type { LiveKitTokenResponse } from "@/lib/livekit/types";
 import {
   getVoicePerformanceDurationMs,
   getVoicePerformanceErrorMetadata,
@@ -20,10 +21,7 @@ type MobileVoiceTokenSession = { userId: string };
 
 export type MobileVoiceTokenRouteDependencies = {
   authenticate(request: Request): Promise<MobileVoiceTokenSession>;
-  createToken(
-    userId: string,
-    input: MobileVoiceTokenRequest,
-  ): Promise<{ token: string; url: string }>;
+  createToken(userId: string, input: MobileVoiceTokenRequest): Promise<LiveKitTokenResponse>;
   enforceRateLimit(userId: string, action: ApiRateLimitAction): Promise<void>;
   getDurationMs(startedAt: number): number;
   getErrorMetadata(error: unknown): ReturnType<typeof getVoicePerformanceErrorMetadata>;
@@ -60,6 +58,7 @@ export async function mobileVoiceTokenPostRoute(
     const tokenResponse = await dependencies.createToken(session.userId, target);
     const response = MobileVoiceTokenResponseSchema.parse({
       ...target,
+      mediaPolicy: tokenResponse.mediaPolicy,
       provider: "livekit",
       token: tokenResponse.token,
       url: tokenResponse.url,

@@ -17,6 +17,7 @@ function applyVoiceStateUpdate(
       username: string;
       displayName: string | null;
       avatarUrl: string | null;
+      isDeafened: boolean;
       isScreenSharing?: boolean;
     }>;
   },
@@ -36,8 +37,8 @@ function applyVoiceStateUpdate(
       username: participant.username,
       avatarUrl: participant.avatarUrl,
       displayName: participant.displayName ?? existingParticipant?.displayName ?? null,
-      isScreenSharing:
-        participant.isScreenSharing ?? existingParticipant?.isScreenSharing ?? false,
+      isDeafened: participant.isDeafened,
+      isScreenSharing: participant.isScreenSharing ?? existingParticipant?.isScreenSharing ?? false,
     };
   });
 
@@ -166,6 +167,7 @@ export function useVoiceStates(serverId: string | null) {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        isDeafened: boolean;
         isScreenSharing?: boolean;
       }>;
     }) => {

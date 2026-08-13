@@ -771,6 +771,7 @@ describe("MSG-1e text channel redesign", () => {
     await waitFor(() => {
       expect(uploadMobileMessageAttachmentToUploadThing).toHaveBeenCalledWith({
         accessToken: "mobile-access-token",
+        onProgress: expect.any(Function),
         picked: expect.objectContaining({ localUri: "file:///cache/welcome.png" }),
         signal: expect.any(AbortSignal),
       });

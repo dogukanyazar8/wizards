@@ -334,6 +334,7 @@ Gerçek secret'ı terminal geçmişine, issue'ya, PR açıklamasına veya doküm
 | Observability    | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, sampling/release alanları  |
 | Attachment scan  | `CLAMAV_HOST`, `CLAMAV_PORT`, timeout ve max-byte alanları         |
 | Outbox           | `WHISPR_OUTBOX_WORKER`, batch/interval/shutdown alanları           |
+| Proxy/IP         | `TRUSTED_PROXY_HOPS` (sabit `X-Forwarded-For` hop sayısı)          |
 
 Provider yoksa ilgili özelliğin degrade/fail davranışını test edin; üretim validation'ını devre dışı bırakmayın.
 

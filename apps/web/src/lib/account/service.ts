@@ -194,13 +194,13 @@ export async function broadcastUserProfileUpdate(profile: UserProfileUpdatedPayl
     );
   }
 
-  for (const targetUserId of targetUserIds) {
-    io.to(`user:${targetUserId}`).emit("user:profile:updated", profile);
-  }
-
-  for (const membership of serverMemberships) {
-    io.to(`server:${membership.serverId}`).emit("user:profile:updated", profile);
-  }
+  // Socket.IO accepts a room array and the Redis adapter publishes this union
+  // once. Per-recipient emits made one profile edit fan out as N publishes.
+  const rooms = [
+    ...Array.from(targetUserIds, (targetUserId) => `user:${targetUserId}`),
+    ...serverMemberships.map((membership) => `server:${membership.serverId}`),
+  ];
+  io.to(rooms).emit("user:profile:updated", profile);
 }
 
 const defaultDependencies: AccountServiceDependencies = {

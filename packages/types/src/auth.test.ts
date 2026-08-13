@@ -25,7 +25,7 @@ describe("auth schemas", () => {
     assertSchemaBehaviorCoverage(authSchemas, {
       ForgotPasswordSchema: {
         schema: ForgotPasswordSchema,
-        valid: { email: "ada@example.com" },
+        valid: { email: "ada@example.com", turnstileToken: "turnstile-token" },
         invalid: { email: "not-an-email" },
       },
       LoginCredentialsSchema: {
@@ -61,6 +61,7 @@ describe("auth schemas", () => {
           confirmPassword: "correct-horse",
           password: "correct-horse",
           token: "reset-token",
+          turnstileToken: "turnstile-token",
         },
         invalid: { confirmPassword: "password", password: "password", token: "" },
       },
@@ -70,6 +71,28 @@ describe("auth schemas", () => {
         invalid: "",
       },
     });
+  });
+
+  it("requires Turnstile for password-reset email requests", () => {
+    assert.equal(ForgotPasswordSchema.safeParse({ email: "ada@example.com" }).success, false);
+    assert.equal(
+      ForgotPasswordSchema.safeParse({
+        email: "ada@example.com",
+        turnstileToken: "turnstile-token",
+      }).success,
+      true,
+    );
+  });
+
+  it("requires Turnstile before consuming a password-reset token", () => {
+    assert.equal(
+      ResetPasswordSchema.safeParse({
+        confirmPassword: "correct-horse",
+        password: "correct-horse",
+        token: "reset-token",
+      }).success,
+      false,
+    );
   });
 
   it("enforces credential email and password boundaries", () => {
@@ -166,7 +189,12 @@ describe("auth schemas", () => {
 
     assertRejects(
       ResetPasswordSchema,
-      { confirmPassword: "different", password: "correct-horse", token: "token" },
+      {
+        confirmPassword: "different",
+        password: "correct-horse",
+        token: "token",
+        turnstileToken: "turnstile-token",
+      },
       ["confirmPassword"],
     );
   });
@@ -176,10 +204,16 @@ describe("auth schemas", () => {
       confirmPassword: "12345678",
       password: "12345678",
       token: "token",
+      turnstileToken: "turnstile-token",
     });
     assertRejects(
       ResetPasswordSchema,
-      { confirmPassword: "1234567", password: "1234567", token: "token" },
+      {
+        confirmPassword: "1234567",
+        password: "1234567",
+        token: "token",
+        turnstileToken: "turnstile-token",
+      },
       ["password"],
     );
     assertRejects(
@@ -188,12 +222,18 @@ describe("auth schemas", () => {
         confirmPassword: "p".repeat(73),
         password: "p".repeat(73),
         token: "token",
+        turnstileToken: "turnstile-token",
       },
       ["password"],
     );
     assertRejects(
       ResetPasswordSchema,
-      { confirmPassword: "12345678", password: "12345678", token: "" },
+      {
+        confirmPassword: "12345678",
+        password: "12345678",
+        token: "",
+        turnstileToken: "turnstile-token",
+      },
       ["token"],
     );
   });

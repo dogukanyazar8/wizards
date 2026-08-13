@@ -5,6 +5,8 @@ import type { OtaManifestPart } from "@/lib/app/ota-manifest-service";
 
 const routes = import("./route-logic");
 
+process.env.TRUSTED_PROXY_HOPS = "1";
+
 const manifestPart: OtaManifestPart = {
   body: JSON.stringify({
     assets: [],
@@ -34,7 +36,7 @@ function request(overrides: Record<string, string> = {}) {
       "expo-protocol-version": "1",
       "expo-runtime-version": "fingerprint-uat-1",
       "user-agent": "expo-updates/57",
-      "x-real-ip": "203.0.113.10",
+      "x-forwarded-for": "203.0.113.10",
       ...overrides,
     },
   });
@@ -104,7 +106,7 @@ describe("OTA manifest route", () => {
     assert.doesNotMatch(JSON.stringify(calls), /203\.0\.113\.10|install-a/);
   });
 
-  it("ignores spoofed forwarded headers and User-Agent", async () => {
+  it("ignores attacker-prepended forwarded values and User-Agent", async () => {
     const { otaManifestRoute } = await routes;
 
     async function collect(overrides: Record<string, string>) {
@@ -123,12 +125,12 @@ describe("OTA manifest route", () => {
     const first = await collect({
       "cf-connecting-ip": "192.0.2.10",
       "user-agent": "agent-a",
-      "x-forwarded-for": "192.0.2.11",
+      "x-forwarded-for": "192.0.2.11, 203.0.113.10",
     });
     const second = await collect({
       "cf-connecting-ip": "198.51.100.10",
       "user-agent": "agent-b",
-      "x-forwarded-for": "198.51.100.11",
+      "x-forwarded-for": "198.51.100.11, 203.0.113.10",
     });
 
     assert.deepEqual(first, second);
@@ -163,7 +165,7 @@ describe("OTA manifest route", () => {
     async function collect(ip: string) {
       const keys: string[] = [];
       await otaManifestRoute(
-        request({ "x-real-ip": ip }),
+        request({ "x-forwarded-for": ip }),
         dependencies({
           enforceRateLimit: async (key: string) => {
             keys.push(key);

@@ -4,6 +4,7 @@ import {
   getUserPresenceBroadcast,
 } from "@/lib/friends/service";
 import { logError } from "@/lib/logger";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { getRedisOp } from "@/lib/redis";
 import { parseSocketPayload, SocketPresenceActivityPayloadSchema } from "@/lib/socket/schemas";
 import {
@@ -64,15 +65,34 @@ async function cleanupPresence(ctx: HandlerContext) {
   }
 }
 
-export function registerPresenceHandlers(ctx: HandlerContext): SocketHandlerRegistration {
+export function registerPresenceHandlers(
+  ctx: HandlerContext,
+  options: {
+    checkPresenceActivityAllowed?: () => Promise<boolean>;
+    getUserPresence?: typeof getUserPresenceBroadcast;
+    initialize?: typeof initializePresence;
+  } = {},
+): SocketHandlerRegistration {
   const emitSocketError = createSocketErrorEmitter(ctx.socket);
+  const getUserPresence = options.getUserPresence ?? getUserPresenceBroadcast;
+  const checkPresenceActivityAllowed =
+    options.checkPresenceActivityAllowed ??
+    (() => checkRateLimit(ctx.rateRedis, `rate:presence:${ctx.userId}`, 24, 10));
 
-  void initializePresence(ctx);
+  void (options.initialize ?? initializePresence)(ctx);
 
   ctx.socket.on("presence:activity", async (rawData) => {
     try {
       const data = parseSocketPayload(SocketPresenceActivityPayloadSchema, rawData);
-      const preferredPresence = await getUserPresenceBroadcast(ctx.userId);
+      if (data.status === ctx.socket.data.presenceStatus) {
+        return;
+      }
+
+      if (!(await checkPresenceActivityAllowed())) {
+        return;
+      }
+
+      const preferredPresence = await getUserPresence(ctx.userId);
 
       if (preferredPresence.status === "DND" || preferredPresence.status === "OFFLINE") {
         return;

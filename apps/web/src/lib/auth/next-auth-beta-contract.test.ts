@@ -35,6 +35,25 @@ describe("next-auth beta dependency contract", () => {
     assert.doesNotMatch(authSource, /next-auth\/providers\/email/);
   });
 
+  it("keeps OAuth authorization before account linking in the pinned Auth.js callback", () => {
+    const callbackSource = readWorkspaceFile(
+      "node_modules/.pnpm/@auth+core@0.41.3/node_modules/@auth/core/src/lib/actions/callback/index.ts",
+    );
+    const authorizeIndex = callbackSource.indexOf("const redirect = await handleAuthorized(");
+    const redirectIndex = callbackSource.indexOf(
+      "if (redirect) return { redirect, cookies }",
+      authorizeIndex,
+    );
+    const linkIndex = callbackSource.indexOf("await handleLoginOrRegister(", redirectIndex);
+
+    assert.ok(authorizeIndex >= 0);
+    assert.ok(redirectIndex > authorizeIndex);
+    assert.ok(linkIndex > redirectIndex);
+
+    const authSource = readWorkspaceFile("apps/web/src/auth.ts");
+    assert.match(authSource, /authorizeOAuthTwoFactorSignIn/);
+  });
+
   it("keeps a deterministic auth regression E2E spec for future Auth.js upgrades", () => {
     const specPath = join(workspaceRoot, "apps/web/e2e/specs/api/auth-regression.spec.ts");
 

@@ -84,7 +84,9 @@ export function buildServerScheduledEvent(row: ServerScheduledEventSource): Serv
 }
 
 export type ListServerScheduledEventsOptions = {
+  readonly cursor?: string;
   readonly includePast?: boolean;
+  readonly limit?: number;
 };
 
 export async function listServerScheduledEventsWithDatabase(
@@ -93,9 +95,12 @@ export async function listServerScheduledEventsWithDatabase(
   viewerId: string | null,
   options: ListServerScheduledEventsOptions = {},
 ): Promise<ServerScheduledEvent[]> {
+  const limit = Math.min(Math.max(Math.trunc(options.limit ?? 50), 1), 100);
   const rows = await database.scheduledEvent.findMany({
+    ...(options.cursor ? { cursor: { id: options.cursor }, skip: 1 } : {}),
     orderBy: [{ scheduledStartAt: "asc" }, { id: "asc" }],
     select: scheduledEventSelectForViewer(viewerId),
+    take: limit,
     where: {
       serverId,
       ...(options.includePast ? {} : { status: { in: ["SCHEDULED", "ACTIVE"] as const } }),

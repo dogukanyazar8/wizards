@@ -19,8 +19,13 @@ import {
   resolveChannelPermissions,
   resolveServerPermissions,
 } from "./permissions";
+import { isElevatedPermissions } from "./role-helpers";
 
 describe("workspace permissions", () => {
+  it("protects every permission that grants admin access", () => {
+    assert.equal(isElevatedPermissions(PermissionBits.MANAGE_CHANNELS), true);
+  });
+
   it("keeps the legacy admin seed mask stable for existing servers", () => {
     assert.equal(SERVER_ADMIN_PERMISSIONS, 15n);
     assert.equal(RolePermissionPresets.ADMIN, SERVER_ADMIN_PERMISSIONS);

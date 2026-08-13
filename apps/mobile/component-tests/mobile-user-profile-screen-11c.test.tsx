@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals
 
 const mockFetchDMDetails = jest.fn();
 const mockOpenDM = jest.fn();
+const mockCreateRequest = jest.fn();
+const mockReportUser = jest.fn();
 const mockRefetch = jest.fn();
 const mockStartCall = jest.fn();
 let mockProfileQuery: Record<string, unknown>;
@@ -22,9 +24,9 @@ jest.mock("../src/social/mobile-social-query", () => ({
   useMobileSocialMutations: () => ({
     acceptRequest: { isPending: false, mutate: jest.fn() },
     blockFriend: { isPending: false, mutate: jest.fn() },
-    createRequest: { isPending: false, mutateAsync: jest.fn() },
+    createRequest: { isPending: false, mutateAsync: mockCreateRequest },
     openDM: { isPending: false, mutateAsync: mockOpenDM },
-    reportUser: { isPending: false, mutate: jest.fn() },
+    reportUser: { isPending: false, mutate: mockReportUser },
     unblockFriend: { isPending: false, mutate: jest.fn() },
   }),
 }));
@@ -141,6 +143,7 @@ function readSectionLabelColor(screen: Awaited<ReturnType<typeof renderScreen>>)
 describe("11c full profile page", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCreateRequest.mockResolvedValue({ request: { id: "request-1" } });
     mockConversations = [
       { id: "dm-1", participants: [{ id: "user-1" }, { id: "user-2" }], type: "DM" },
     ];
@@ -353,6 +356,39 @@ describe("11c full profile page", () => {
     expect(screen.getByTestId("mobile-user-profile-add-friend")).toBeTruthy();
     expect(screen.queryByTestId("mobile-user-profile-voice-call")).toBeNull();
     expect(screen.getByText("Arkadaş olmadığınız için sesli arama kapalı")).toBeTruthy();
+  });
+
+  it("shows an error toast when a friend request fails", async () => {
+    mockProfileQuery = {
+      data: { ...baseProfile, relationship: "none", serverContext: null },
+      isError: false,
+      isPending: false,
+      refetch: mockRefetch,
+    };
+    mockCreateRequest.mockRejectedValueOnce(new Error("offline"));
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId("mobile-user-profile-add-friend"));
+
+    await waitFor(() => expect(screen.getByText("İstek gönderilemedi.")).toBeTruthy());
+  });
+
+  it("reports failure instead of treating a rejected abuse report as success", async () => {
+    mockReportUser.mockImplementationOnce((_input, options) =>
+      options?.onError?.(new Error("offline")),
+    );
+    const screen = await renderScreen();
+
+    await fireEvent.press(screen.getByTestId("mobile-user-profile-menu"));
+    await fireEvent.press(screen.getByTestId("mobile-user-profile-menu-report"));
+    await fireEvent.press(screen.getByTestId("mobile-user-profile-report-sheet-harassment"));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("Rapor gönderilemedi. Bağlantını kontrol edip tekrar dene."),
+      ).toBeTruthy(),
+    );
+    expect(screen.queryByText("Bildirimin gönderildi")).toBeNull();
   });
 
   it("offers Profili düzenle instead of the peer actions on your own page", async () => {

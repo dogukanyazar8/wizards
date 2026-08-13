@@ -53,6 +53,7 @@ export const MobileMediaUploadIntentSchema = z.discriminatedUnion("purpose", [
 ]);
 export const MobileMediaUploadCompletionResponseSchema = z
   .object({
+    cursor: z.string().min(1).max(128).optional(),
     claimId: MobileResourceIdSchema,
     expiresAt: z.string().datetime(),
     purpose: MobileMediaUploadPurposeSchema,
@@ -244,10 +245,12 @@ export const MobileServerDeleteRequestSchema = DeleteServerSchema.extend({
  */
 export const MobileServerScheduledEventsQuerySchema = z
   .object({
+    cursor: z.string().min(1).max(128).optional(),
     includePast: z
       .enum(["true", "false"])
       .optional()
       .transform((value) => value === "true"),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
   })
   .strict();
 export const MobileServerScheduledEventsResponseSchema = z
@@ -403,9 +406,10 @@ export const MobileCategoryCreateResponseSchema = z
   .strict();
 export const MobileCategoryUpdateRequestSchema = UpdateCategorySchema.strict();
 
-export const MobileChannelCreateRequestSchema = CreateChannelSchema.omit({ permissions: true })
-  .extend({ categoryId: MobileResourceIdSchema.nullable().optional() })
-  .strict();
+export const MobileChannelCreateRequestSchema = CreateChannelSchema.safeExtend({
+  categoryId: MobileResourceIdSchema.nullable().optional(),
+  permissions: z.never().optional(),
+}).strict();
 const MobileChannelReferenceSchema = z.object({ id: MobileResourceIdSchema }).strict();
 export const MobileChannelCreateResponseSchema = z
   .object({ channel: MobileChannelReferenceSchema })
@@ -417,7 +421,12 @@ const hasMobileChannelUpdate = (value: z.infer<typeof MobileChannelUpdateFieldsS
   value.name !== undefined ||
   value.categoryId !== undefined ||
   value.topic !== undefined ||
-  value.locked !== undefined;
+  value.locked !== undefined ||
+  value.bitrate !== undefined ||
+  value.rtcRegion !== undefined ||
+  value.slowModeDelay !== undefined ||
+  value.userLimit !== undefined ||
+  value.videoQualityMode !== undefined;
 export const MobileChannelUpdateRequestSchema = MobileChannelUpdateFieldsSchema.refine(
   hasMobileChannelUpdate,
   { message: "validation.form.atLeastOne" },

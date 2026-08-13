@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { ChannelType, Prisma, prisma } from "@wizards/db";
 import { getRedisOp } from "@/lib/redis";
 import {
+  buildServerOnlineKey,
   countServerOnlineMembers,
   readServerOnlineMembers,
   type ServerOnlinePresenceRedis,
@@ -411,6 +412,42 @@ export async function getServerMentionCount(userId: string, serverId: string) {
   return mentionCounts.get(serverId) ?? 0;
 }
 
+type ServerUnreadUserFanoutDependencies = {
+  getCounts: typeof getServerUnreadAndMentionCounts;
+  getSocketServer: typeof getSocketServer;
+};
+
+export async function emitServerUnreadUpdatesToUser(
+  userId: string,
+  serverIds: string[],
+  dependencies: ServerUnreadUserFanoutDependencies = {
+    getCounts: getServerUnreadAndMentionCounts,
+    getSocketServer,
+  },
+) {
+  const uniqueServerIds = normalizeIds(serverIds);
+  if (uniqueServerIds.length === 0) {
+    return { mentionCounts: new Map<string, number>(), unreadCounts: new Map<string, number>() };
+  }
+
+  // Reading each server separately repeats permission and counter queries. The
+  // existing multi-server projection keeps this fan-out to one batched read.
+  const counts = await dependencies.getCounts(userId, uniqueServerIds);
+  const io = dependencies.getSocketServer();
+
+  if (io) {
+    for (const serverId of uniqueServerIds) {
+      io.to(`user:${userId}`).emit("server:unread:update", {
+        mentionCount: counts.mentionCounts.get(serverId) ?? 0,
+        serverId,
+        unreadCount: counts.unreadCounts.get(serverId) ?? 0,
+      });
+    }
+  }
+
+  return counts;
+}
+
 export async function getServerMentionCountsBatch(userIds: string[], serverId: string) {
   const uniqueUserIds = normalizeUserIds(userIds);
   const visibleChannelIdsByUser = await getVisibleTextChannelIdsByUser(uniqueUserIds, serverId);
@@ -599,37 +636,41 @@ export async function markChannelReadStates(args: {
   `);
 }
 
-export async function getActiveChannelViewerUserIds(channelId: string) {
-  const io = getSocketServer();
-  if (!io) {
-    return [];
-  }
+type ActiveUserSetRedis = {
+  smembers(key: string): Promise<string[]>;
+  status: string;
+};
 
-  const sockets = await io.in(channelId).fetchSockets();
-  const userIds = new Set<string>();
-  for (const socket of sockets) {
-    if (socket.data.userId) {
-      userIds.add(socket.data.userId);
-    }
-  }
-
-  return [...userIds];
+export function buildChannelViewersKey(channelId: string) {
+  return `channel:${channelId}:viewers`;
 }
 
-export async function getActiveServerMemberUserIds(serverId: string) {
-  const io = getSocketServer();
-  if (!io) {
+async function readActiveUserSet(redis: ActiveUserSetRedis, key: string) {
+  if (redis.status !== "ready") {
     return [];
   }
 
-  const sockets = await io.in(`server:${serverId}`).fetchSockets();
-  return Array.from(
-    new Set(
-      sockets
-        .map((socket) => socket.data.userId)
-        .filter((userId): userId is string => typeof userId === "string"),
-    ),
-  );
+  try {
+    return Array.from(new Set((await redis.smembers(key)).filter(Boolean)));
+  } catch {
+    // These sets are derived presence hints. A Redis outage must not reject a
+    // committed message; later socket joins repopulate the missing data.
+    return [];
+  }
+}
+
+export function getActiveChannelViewerUserIds(
+  channelId: string,
+  redis: ActiveUserSetRedis = getRedisOp(),
+) {
+  return readActiveUserSet(redis, buildChannelViewersKey(channelId));
+}
+
+export function getActiveServerMemberUserIds(
+  serverId: string,
+  redis: ActiveUserSetRedis = getRedisOp(),
+) {
+  return readActiveUserSet(redis, buildServerOnlineKey(serverId));
 }
 
 let onlineServerMemberCountRedisForTest: ServerOnlinePresenceRedis | null = null;
@@ -687,19 +728,9 @@ export async function getOnlineServerMemberIds(
 }
 
 export async function emitServerUnreadUpdateToUser(userId: string, serverId: string) {
-  const [unreadCount, mentionCount] = await Promise.all([
-    getServerUnreadCount(userId, serverId),
-    getServerMentionCount(userId, serverId),
-  ]);
-  const io = getSocketServer();
-
-  if (io) {
-    io.to(`user:${userId}`).emit("server:unread:update", {
-      mentionCount,
-      serverId,
-      unreadCount,
-    });
-  }
+  const { mentionCounts, unreadCounts } = await emitServerUnreadUpdatesToUser(userId, [serverId]);
+  const mentionCount = mentionCounts.get(serverId) ?? 0;
+  const unreadCount = unreadCounts.get(serverId) ?? 0;
 
   return { mentionCount, unreadCount };
 }

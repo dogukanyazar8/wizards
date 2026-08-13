@@ -27,18 +27,42 @@ import { AvatarMark } from "./ui-atoms";
  * here reads `theme.groupChat` (Faz 3 karar C1).
  */
 
-/** HTML 282–285: the 38px header slot, two 25px tiles crossed inside it. */
+/**
+ * HTML 282–285: the 38px header slot, two 25px tiles crossed inside it — unless
+ * the group has a photo, which fills the slot on its own. Same rule as 2a's row,
+ * so the inbox and the chat cannot show a group two different faces.
+ */
 export function GroupChatHeaderPair({
   avatarPair,
+  iconUrl = null,
+  label = "",
   overflowCount,
 }: {
   readonly avatarPair: readonly GroupAvatarTile[];
+  readonly iconUrl?: string | null;
+  readonly label?: string;
   readonly overflowCount: number;
 }) {
   const styles = useGroupChatStyles();
   const tokens = useTheme().groupChat;
   const pair = getGroupAvatarPair([...avatarPair], overflowCount);
   const [first, second] = pair.tiles;
+
+  if (iconUrl) {
+    return (
+      <View style={styles.chatHeaderIcon} testID="mobile-group-chat-header-photo">
+        <AvatarMark
+          avatarBorderRadius={
+            (tokens.chatHeader.pairSize * tokens.chatHeader.tileRadius) / tokens.chatHeader.tileSize
+          }
+          dimension={tokens.chatHeader.pairSize}
+          fallbackTextStyle={styles.chatHeaderTileText}
+          imageUrl={iconUrl}
+          label={label}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.chatHeaderPair} testID="mobile-group-chat-header-pair">
@@ -83,6 +107,7 @@ export function GroupChatHeaderPair({
  */
 export function GroupChatHeader({
   avatarPair,
+  iconUrl = null,
   memberCount,
   onBack,
   onOpenInfo,
@@ -93,6 +118,8 @@ export function GroupChatHeader({
   title,
 }: {
   readonly avatarPair: readonly GroupAvatarTile[];
+  /** The group's photo, when it has one; the crossed pair is the fallback. */
+  readonly iconUrl?: string | null;
   readonly memberCount: number;
   readonly onBack: () => void;
   readonly onOpenInfo: () => void;
@@ -130,7 +157,12 @@ export function GroupChatHeader({
         style={({ pressed }) => [styles.chatHeaderPair, pressed && pressStyle]}
         testID="mobile-group-chat-identity"
       >
-        <GroupChatHeaderPair avatarPair={avatarPair} overflowCount={overflowCount} />
+        <GroupChatHeaderPair
+          avatarPair={avatarPair}
+          iconUrl={iconUrl}
+          label={title}
+          overflowCount={overflowCount}
+        />
       </Pressable>
       <Pressable
         accessibilityLabel={copy.groupInfoTitle}

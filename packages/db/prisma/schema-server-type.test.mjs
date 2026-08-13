@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
@@ -58,11 +58,11 @@ describe("server type and counter schema", () => {
     assert.match(sql, /CREATE INDEX/);
   });
 
-  it("never places the migration in the stale directory", () => {
-    const stale = readdirSync(join(prismaDir, "migrations"));
-    assert.ok(
-      !stale.some((entry) => entry.endsWith("_server_type_and_counters")),
-      "migration landed in the stale migrations/ directory; Prisma will never run it",
+  it("does not leave a Prisma-looking stale migration directory", () => {
+    assert.equal(
+      existsSync(join(prismaDir, "migrations")),
+      false,
+      "stale history must stay under _archive-pre-rebaseline, not prisma/migrations",
     );
   });
 });

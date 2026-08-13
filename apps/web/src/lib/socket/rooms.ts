@@ -19,15 +19,25 @@ export async function joinVoiceStateViewerRoomsForServer(
   serverId: string,
   channelIds: string[],
 ) {
-  await leaveVoiceStateViewerRoomsForServer(socket, serverId);
-
   const uniqueChannelIds = Array.from(new Set(channelIds.filter(Boolean)));
-  const trackedChannelIds = new Set<string>();
   let trackedChannelsByServer = socket.data.voiceStateViewerChannelsByServer;
   if (!(trackedChannelsByServer instanceof Map)) {
     trackedChannelsByServer = new Map<string, Set<string>>();
     socket.data.voiceStateViewerChannelsByServer = trackedChannelsByServer;
   }
+
+  const nextChannelIds = new Set(uniqueChannelIds);
+  const currentChannelIds = trackedChannelsByServer.get(serverId);
+  if (
+    currentChannelIds?.size === nextChannelIds.size &&
+    [...currentChannelIds].every((channelId) => nextChannelIds.has(channelId))
+  ) {
+    return;
+  }
+
+  await leaveVoiceStateViewerRoomsForServer(socket, serverId);
+
+  const trackedChannelIds = new Set<string>();
 
   for (const channelId of uniqueChannelIds) {
     await socket.join(getVoiceStateViewerRoomName(channelId));

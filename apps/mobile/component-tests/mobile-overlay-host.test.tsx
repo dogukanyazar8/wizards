@@ -338,4 +338,38 @@ describe("mobile overlay host", () => {
     expect(view.getByTestId("live-sheet-label")).toHaveTextContent("second");
     expect(mobileOverlayRegistry.getEntries()).toHaveLength(1);
   });
+
+  it("does not notify the registry for an unrelated owner rerender", async () => {
+    const stableChild = <Text testID="stable-overlay-child">Stable</Text>;
+    const stableOnClose = jest.fn();
+    const stableAnimatedStyle = {};
+
+    function Owner({ nonce }: { readonly nonce: number }) {
+      return (
+        <OverlayFixture>
+          <Text testID="owner-nonce">{nonce}</Text>
+          <OverlaySurface
+            accessibilityLabel="Close"
+            animatedBackdropStyle={stableAnimatedStyle}
+            backdropStyle={null}
+            onClose={stableOnClose}
+            open
+            style={null}
+            testID="stable-surface"
+          >
+            {stableChild}
+          </OverlaySurface>
+        </OverlayFixture>
+      );
+    }
+
+    const setSpy = jest.spyOn(mobileOverlayRegistry, "set");
+    const view = await renderHosted(<Owner nonce={1} />);
+    const callsAfterMount = setSpy.mock.calls.length;
+
+    await view.rerender(<Owner nonce={2} />);
+
+    expect(view.getByTestId("owner-nonce", anyElement)).toHaveTextContent("2");
+    expect(setSpy).toHaveBeenCalledTimes(callsAfterMount);
+  });
 });

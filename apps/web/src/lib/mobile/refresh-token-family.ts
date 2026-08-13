@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from "node:crypto";
+import { isUserSessionRevoked } from "@/lib/auth/session-revocation";
 
 const MOBILE_REFRESH_FAMILY_KEY_PREFIX = "auth:mobile-refresh-family:";
 const MOBILE_REFRESH_LEGACY_TOKEN_KEY_PREFIX = "auth:mobile-refresh:";
@@ -228,6 +229,7 @@ interface MobileRefreshTokenClaims {
 }
 
 interface MobileRefreshFamilyState {
+  createdAt: number;
   currentGeneration: number;
   currentTokenHash: string;
   expiresAt: number;
@@ -242,6 +244,7 @@ interface MobileRefreshFamilyState {
 }
 
 interface MobileRefreshSessionRecord {
+  createdAt?: number;
   expiresAt?: number;
   familyId?: string;
   userId: string;
@@ -250,6 +253,7 @@ interface MobileRefreshSessionRecord {
 
 interface MobileRefreshLegacyRecord {
   consumedAt?: number;
+  createdAt?: number;
   familyId?: string;
   generation?: number;
   sessionId: string;
@@ -422,6 +426,7 @@ function parseLegacyRecord(value: string | null): MobileRefreshLegacyRecord | nu
     if (
       !isNonEmptyString(record.sessionId) ||
       !isNonEmptyString(record.userId) ||
+      (record.createdAt !== undefined && !isNonNegativeInteger(record.createdAt)) ||
       (record.familyId !== undefined && !isNonEmptyString(record.familyId)) ||
       (record.generation !== undefined && !isNonNegativeInteger(record.generation)) ||
       (record.consumedAt !== undefined && !isNonNegativeInteger(record.consumedAt)) ||
@@ -443,6 +448,7 @@ function parseSessionRecord(value: string | null): MobileRefreshSessionRecord | 
     const record = JSON.parse(value) as Partial<MobileRefreshSessionRecord>;
     if (
       !isNonEmptyString(record.userId) ||
+      (record.createdAt !== undefined && !isNonNegativeInteger(record.createdAt)) ||
       (record.familyId !== undefined && !isNonEmptyString(record.familyId)) ||
       (record.expiresAt !== undefined && !isNonNegativeInteger(record.expiresAt)) ||
       (record.v !== undefined && record.v !== MOBILE_REFRESH_TOKEN_VERSION)
@@ -591,6 +597,7 @@ export async function createMobileRefreshFamily(input: {
   });
   const expiresAt = input.nowMs + input.tokenTtlSeconds * 1_000;
   const family: MobileRefreshFamilyState = {
+    createdAt: input.nowMs,
     currentGeneration: 0,
     currentTokenHash: successor.tokenHash,
     expiresAt,
@@ -600,6 +607,7 @@ export async function createMobileRefreshFamily(input: {
     v: MOBILE_REFRESH_TOKEN_VERSION,
   };
   const session: MobileRefreshSessionRecord = {
+    createdAt: input.nowMs,
     expiresAt,
     familyId,
     userId: input.userId,
@@ -725,6 +733,13 @@ async function rotateLegacyFamily(input: {
   if (!legacy) {
     return null;
   }
+  const legacySession = parseSessionRecord(
+    await readRedisValue(input.redis, getMobileSessionKey(legacy.sessionId)),
+  );
+  const createdAt =
+    legacy.createdAt ??
+    (legacySession?.userId === legacy.userId ? legacySession.createdAt : undefined) ??
+    0;
   const familyId = legacy.familyId ?? legacy.sessionId;
   const generation = legacy.generation ?? 0;
   const successor = createSuccessor({
@@ -749,6 +764,9 @@ async function rotateLegacyFamily(input: {
     input.secret,
   );
   const family: MobileRefreshFamilyState = {
+    // Preserve timestamps written by later legacy deployments. Zero is the
+    // fail-closed fallback only for records that genuinely predate the field.
+    createdAt,
     currentGeneration: generation + 1,
     currentTokenHash: successor.tokenHash,
     expiresAt: input.nowMs + input.tokenTtlSeconds * 1_000,
@@ -762,6 +780,7 @@ async function rotateLegacyFamily(input: {
     v: MOBILE_REFRESH_TOKEN_VERSION,
   };
   const session: MobileRefreshSessionRecord = {
+    createdAt,
     expiresAt: family.expiresAt,
     familyId,
     userId: legacy.userId,
@@ -871,6 +890,7 @@ export async function revokeMobileRefreshFamily(
 export async function isMobileRefreshFamilyActive(
   redis: MobileRefreshFamilyRedis,
   input: { sessionId: string; userId: string },
+  options: { loadDurableRevokedAfter?: (userId: string) => Promise<Date | null | undefined> } = {},
 ) {
   const session = parseSessionRecord(
     await readRedisValue(redis, getMobileSessionKey(input.sessionId)),
@@ -878,8 +898,30 @@ export async function isMobileRefreshFamilyActive(
   if (!session || session.userId !== input.userId) {
     return false;
   }
+  const revocationOptions = {
+    ...(options.loadDurableRevokedAfter
+      ? { loadDurableRevokedAfter: options.loadDurableRevokedAfter }
+      : {}),
+    redis: {
+      get: (key: string) => readRedisValue(redis, key),
+      set: (key: string, value: string, _mode: "EX", ttlSeconds: number) =>
+        redis.eval(
+          "return redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])",
+          1,
+          key,
+          value,
+          String(ttlSeconds),
+        ),
+    },
+  };
+
   if (!session.familyId) {
-    return true;
+    const revoked = await isUserSessionRevoked(
+      input.userId,
+      Math.floor((session.createdAt ?? 0) / 1_000),
+      revocationOptions,
+    );
+    return revoked === false;
   }
   const familyRaw = await readRedisValue(redis, getMobileRefreshFamilyKey(session.familyId));
   if (!familyRaw) {
@@ -887,12 +929,22 @@ export async function isMobileRefreshFamilyActive(
   }
   try {
     const family = JSON.parse(familyRaw) as Partial<MobileRefreshFamilyState>;
-    return (
-      family.v === MOBILE_REFRESH_TOKEN_VERSION &&
-      family.sessionId === input.sessionId &&
-      family.userId === input.userId &&
-      family.familyId === session.familyId
+    if (
+      family.v !== MOBILE_REFRESH_TOKEN_VERSION ||
+      !isNonNegativeInteger(family.createdAt) ||
+      family.sessionId !== input.sessionId ||
+      family.userId !== input.userId ||
+      family.familyId !== session.familyId
+    ) {
+      return false;
+    }
+
+    const revoked = await isUserSessionRevoked(
+      input.userId,
+      Math.floor(family.createdAt / 1_000),
+      revocationOptions,
     );
+    return revoked === false;
   } catch {
     return false;
   }

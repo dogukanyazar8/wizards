@@ -48,8 +48,14 @@ jest.mock("../src/app/screens/auth/auth-welcome-screen", () => {
       ReactRuntime.createElement(
         View,
         { testID: "mobile-auth-welcome-screen" },
-        ReactRuntime.createElement(Pressable, { onPress: onSignIn, testID: "mobile-auth-welcome-sign-in" }),
-        ReactRuntime.createElement(Pressable, { onPress: onSignUp, testID: "mobile-auth-welcome-sign-up" }),
+        ReactRuntime.createElement(Pressable, {
+          onPress: onSignIn,
+          testID: "mobile-auth-welcome-sign-in",
+        }),
+        ReactRuntime.createElement(Pressable, {
+          onPress: onSignUp,
+          testID: "mobile-auth-welcome-sign-up",
+        }),
         ReactRuntime.createElement(Pressable, {
           onPress: onOpenLanguagePicker,
           testID: "mobile-auth-language-picker",
@@ -75,7 +81,14 @@ jest.mock("../src/app/screens/auth/auth-login-screen", () => {
   const { Pressable, Text, View } = require("react-native");
 
   return {
-    AuthLoginScreen: ({ developmentCredentials, onBack, onForgotPassword, onRegister, onSignIn, onSocialSignIn }: any) =>
+    AuthLoginScreen: ({
+      developmentCredentials,
+      onBack,
+      onForgotPassword,
+      onRegister,
+      onSignIn,
+      onSocialSignIn,
+    }: any) =>
       ReactRuntime.createElement(
         View,
         { testID: "mobile-auth-login-screen" },
@@ -84,7 +97,10 @@ jest.mock("../src/app/screens/auth/auth-login-screen", () => {
           { testID: "mobile-auth-login-development-credentials" },
           developmentCredentials ? "available" : "absent",
         ),
-        ReactRuntime.createElement(Pressable, { onPress: onBack, testID: "mobile-auth-login-back" }),
+        ReactRuntime.createElement(Pressable, {
+          onPress: onBack,
+          testID: "mobile-auth-login-back",
+        }),
         ReactRuntime.createElement(Pressable, {
           onPress: onForgotPassword,
           testID: "mobile-auth-login-forgot-password",
@@ -93,7 +109,10 @@ jest.mock("../src/app/screens/auth/auth-login-screen", () => {
           onPress: () => void onSocialSignIn("google"),
           testID: "mobile-auth-login-social-google",
         }),
-        ReactRuntime.createElement(Pressable, { onPress: onRegister, testID: "mobile-auth-login-register" }),
+        ReactRuntime.createElement(Pressable, {
+          onPress: onRegister,
+          testID: "mobile-auth-login-register",
+        }),
         ReactRuntime.createElement(Pressable, {
           onPress: () =>
             void onSignIn({
@@ -115,8 +134,14 @@ jest.mock("../src/app/screens/auth/auth-register-screen", () => {
       ReactRuntime.createElement(
         View,
         { testID: "mobile-auth-register-screen" },
-        ReactRuntime.createElement(Pressable, { onPress: onBack, testID: "mobile-auth-register-back" }),
-        ReactRuntime.createElement(Pressable, { onPress: onSignIn, testID: "mobile-auth-register-sign-in" }),
+        ReactRuntime.createElement(Pressable, {
+          onPress: onBack,
+          testID: "mobile-auth-register-back",
+        }),
+        ReactRuntime.createElement(Pressable, {
+          onPress: onSignIn,
+          testID: "mobile-auth-register-sign-in",
+        }),
         ReactRuntime.createElement(Pressable, {
           onPress: () =>
             void onRegister({
@@ -155,26 +180,37 @@ jest.mock("../src/app/screens/auth/auth-forgot-password-screen", () => {
 import { getMobileDevLoginCredentials } from "../src/auth/mobile-dev-login";
 import { useMobileAuth } from "../src/auth/mobile-auth-context";
 import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
-import { MobileLocaleProvider, useMobileLocaleRuntime } from "../src/app/providers/mobile-locale-provider";
+import {
+  MobileLocaleProvider,
+  useMobileLocaleRuntime,
+} from "../src/app/providers/mobile-locale-provider";
 import { MobileAuthNavigator } from "../src/navigation/mobile-auth-navigator";
 
 const mockedUseMobileAuth = jest.mocked(useMobileAuth);
 const mockedGetMobileDevLoginCredentials = jest.mocked(getMobileDevLoginCredentials);
 
 const auth = {
+  error: "Oturum güvenli şekilde okunamadı.",
   openWebSignIn: jest.fn<Promise<void>, []>().mockResolvedValue(undefined),
   startSocialSignIn: jest
     .fn<Promise<{ ok: true; via: "in-app" }>, ["google"]>()
     .mockResolvedValue({ ok: true, via: "in-app" }),
-  registerWithPassword: jest.fn<Promise<{ email: string; ok: true }>, [typeof REGISTER_INPUT]>().mockResolvedValue({
-    email: REGISTER_INPUT.email,
-    ok: true,
-  }),
-  requestPasswordReset: jest.fn<Promise<{ email: string; ok: true }>, [typeof RESET_INPUT]>().mockResolvedValue({
-    email: RESET_INPUT.email,
-    ok: true,
-  }),
-  signInWithPassword: jest.fn<Promise<{ ok: true }>, [typeof LOGIN_INPUT]>().mockResolvedValue({ ok: true }),
+  registerWithPassword: jest
+    .fn<Promise<{ email: string; ok: true }>, [typeof REGISTER_INPUT]>()
+    .mockResolvedValue({
+      email: REGISTER_INPUT.email,
+      ok: true,
+    }),
+  requestPasswordReset: jest
+    .fn<Promise<{ email: string; ok: true }>, [typeof RESET_INPUT]>()
+    .mockResolvedValue({
+      email: RESET_INPUT.email,
+      ok: true,
+    }),
+  refreshSessionFromStorage: jest.fn<Promise<void>, []>().mockResolvedValue(undefined),
+  signInWithPassword: jest
+    .fn<Promise<{ ok: true }>, [typeof LOGIN_INPUT]>()
+    .mockResolvedValue({ ok: true }),
 };
 
 function MobileLocaleProbe() {
@@ -182,7 +218,9 @@ function MobileLocaleProbe() {
   return <Text testID="mobile-auth-locale-probe">{locale}</Text>;
 }
 
-async function renderNavigator(reason: "auth-required" | "checking" = "auth-required") {
+async function renderNavigator(
+  reason: "auth-required" | "checking" | "session-error" = "auth-required",
+) {
   return await render(
     <MobileThemeProvider>
       <MobileLocaleProvider>
@@ -240,6 +278,15 @@ describe("MobileAuthNavigator", () => {
     expect(view.queryByTestId("mobile-auth-welcome-screen")).toBeNull();
   });
 
+  it("keeps a secure-storage failure off the sign-in stack and offers retry", async () => {
+    const view = await renderNavigator("session-error");
+
+    expect(view.getByTestId("mobile-auth-session-error")).toBeTruthy();
+    expect(view.queryByTestId("mobile-auth-welcome-screen")).toBeNull();
+    await fireEvent.press(view.getByTestId("mobile-auth-session-retry"));
+    expect(auth.refreshSessionFromStorage).toHaveBeenCalledTimes(1);
+  });
+
   it("opens the welcome language sheet, applies the selected locale, and closes it", async () => {
     const view = await renderNavigator();
 
@@ -247,7 +294,9 @@ describe("MobileAuthNavigator", () => {
     expect(view.getByTestId("mobile-auth-language-sheet")).toBeTruthy();
     await fireEvent.press(view.getByLabelText("English"));
 
-    await waitFor(() => expect(view.getByTestId("mobile-auth-locale-probe").props.children).toBe("en"));
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-auth-locale-probe").props.children).toBe("en"),
+    );
     await waitFor(() => expect(view.queryByTestId("mobile-auth-language-sheet")).toBeNull());
   });
 
@@ -259,11 +308,15 @@ describe("MobileAuthNavigator", () => {
     const view = await renderNavigator();
 
     await fireEvent.press(view.getByTestId("mobile-auth-welcome-sign-in"));
-    expect(view.getByTestId("mobile-auth-login-development-credentials").props.children).toBe("available");
+    expect(view.getByTestId("mobile-auth-login-development-credentials").props.children).toBe(
+      "available",
+    );
 
     mockedGetMobileDevLoginCredentials.mockReturnValue(null);
     await fireEvent.press(view.getByTestId("mobile-auth-login-back"));
     await fireEvent.press(view.getByTestId("mobile-auth-welcome-sign-in"));
-    expect(view.getByTestId("mobile-auth-login-development-credentials").props.children).toBe("absent");
+    expect(view.getByTestId("mobile-auth-login-development-credentials").props.children).toBe(
+      "absent",
+    );
   });
 });

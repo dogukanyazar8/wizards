@@ -4,12 +4,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ForgotPasswordSchema, type ForgotPasswordInput } from "@wizards/types";
 import { ArrowRight, Mail, MailCheck, Send } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useCallback, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { LoginCard } from "@/components/auth/login-card";
 import { LoginPage } from "@/components/auth/login-page";
+import { TurnstileWidget } from "@/components/auth/turnstile-widget";
 import { useI18n } from "@/components/providers/locale-provider";
 import { forgotPasswordAction } from "@/lib/auth/actions";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 export default function ForgotPasswordPage() {
   const { locale, t } = useI18n();
@@ -18,12 +21,24 @@ export default function ForgotPasswordPage() {
 
   const {
     register,
+    control,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ForgotPasswordInput>({
     resolver: zodResolver(ForgotPasswordSchema),
-    defaultValues: { email: "" },
+    defaultValues: { email: "", turnstileToken: "" },
   });
+  const turnstileToken = useWatch({ control, name: "turnstileToken" });
+  const handleTurnstileTokenChange = useCallback(
+    (token: string) => {
+      setValue("turnstileToken", token, {
+        shouldDirty: true,
+        shouldValidate: Boolean(token),
+      });
+    },
+    [setValue],
+  );
 
   const onSubmit = async (values: ForgotPasswordInput) => {
     setServerError(null);
@@ -32,6 +47,7 @@ export default function ForgotPasswordPage() {
     const formData = new FormData();
     formData.set("email", values.email);
     formData.set("locale", locale);
+    formData.set("turnstileToken", values.turnstileToken);
 
     const result = await forgotPasswordAction(formData);
 
@@ -70,11 +86,7 @@ export default function ForgotPasswordPage() {
             </Link>
           </>
         ) : (
-          <form
-            className="modern-login-form"
-            onSubmit={handleSubmit(onSubmit)}
-            noValidate
-          >
+          <form className="modern-login-form" onSubmit={handleSubmit(onSubmit)} noValidate>
             <div className="modern-login-field">
               <label htmlFor="email">{t("auth.login.emailLabel")}</label>
               <div className="modern-login-input-wrap">
@@ -92,13 +104,31 @@ export default function ForgotPasswordPage() {
               ) : null}
             </div>
 
+            <input type="hidden" {...register("turnstileToken")} />
+            <div className="modern-login-turnstile">
+              <TurnstileWidget
+                action="forgot-password"
+                onTokenChange={handleTurnstileTokenChange}
+                siteKey={TURNSTILE_SITE_KEY}
+              />
+              {errors.turnstileToken ? (
+                <p className="modern-login-field-error">
+                  {t(errors.turnstileToken.message ?? "validation.turnstile.required")}
+                </p>
+              ) : null}
+            </div>
+
             {serverError ? (
               <p className="modern-login-alert" role="alert">
                 {t(serverError)}
               </p>
             ) : null}
 
-            <button className="modern-login-primary" disabled={isSubmitting} type="submit">
+            <button
+              className="modern-login-primary"
+              disabled={isSubmitting || !turnstileToken}
+              type="submit"
+            >
               <span>{isSubmitting ? t("auth.forgot.sending") : t("auth.forgot.submit")}</span>
               <Send className="h-5 w-5" />
             </button>

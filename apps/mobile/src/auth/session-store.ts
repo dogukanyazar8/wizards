@@ -1,9 +1,8 @@
-import {
-  normalizeMobileSessionSnapshot,
-} from "./session-manager";
+import { normalizeMobileSessionSnapshot } from "./session-manager";
 import type { MobileSessionSnapshot } from "./session-types";
 
 export const MOBILE_SESSION_STORAGE_KEY = "whispr.mobile.session.v1";
+const MOBILE_SESSION_CLEARED_MARKER = '{"cleared":true}';
 
 export interface MobileSecureKeyValueStorage {
   deleteItemAsync(key: string): Promise<void>;
@@ -29,7 +28,15 @@ export function createMobileSessionRepository(
 
   return {
     async clear() {
-      await storage.deleteItemAsync(storageKey);
+      // Write a durable non-session tombstone before best-effort deletion. If
+      // SecureStore deletion fails and the process dies, the next launch still
+      // normalizes this value to null instead of reviving old credentials.
+      await storage.setItemAsync(storageKey, MOBILE_SESSION_CLEARED_MARKER);
+      try {
+        await storage.deleteItemAsync(storageKey);
+      } catch {
+        // The tombstone is already durable; a later load will retry deletion.
+      }
     },
 
     async load() {
@@ -41,13 +48,21 @@ export function createMobileSessionRepository(
       try {
         const session = normalizeMobileSessionSnapshot(JSON.parse(raw));
         if (!session) {
-          await storage.deleteItemAsync(storageKey);
+          try {
+            await storage.deleteItemAsync(storageKey);
+          } catch {
+            // An invalid snapshot or tombstone is already fail-closed.
+          }
           return null;
         }
 
         return session;
       } catch {
-        await storage.deleteItemAsync(storageKey);
+        try {
+          await storage.deleteItemAsync(storageKey);
+        } catch {
+          // Corrupt storage stays unreadable and can be cleaned next launch.
+        }
         return null;
       }
     },

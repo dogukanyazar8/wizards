@@ -1,4 +1,7 @@
 import type { DMConversationDTO, DMNotifyLevel, DMPinnedMessageDTO } from "@wizards/types";
+import { leaveGroupCall } from "@/lib/dm/group-call-state";
+import { getLiveKitRoomServiceClient } from "@/lib/livekit/server";
+import { logError } from "@/lib/logger";
 
 /**
  * The minimum surface of the Socket.IO server this module touches. Depending on
@@ -17,7 +20,12 @@ export function emitGroupConversationCreated(
   io: GroupRealtimeServer,
   conversation: DMConversationDTO,
 ): void {
-  io.to(toUserRooms(conversation)).emit("dm:conversation:created", { conversation });
+  // One viewer's rendered conversation contains private counters and a
+  // history-windowed preview. Recipients invalidate and read their own view, so
+  // the shared event carries only the stable identity.
+  io.to(toUserRooms(conversation)).emit("dm:conversation:created", {
+    conversationId: conversation.id,
+  });
 }
 
 export function emitGroupMembersChanged(
@@ -32,7 +40,6 @@ export function emitGroupMembersChanged(
   ];
 
   io.to(rooms).emit("dm:conversation:members_changed", {
-    conversation: input.conversation,
     conversationId: input.conversation.id,
   });
 }
@@ -121,11 +128,10 @@ export function emitGroupMemberJoined(
   input: { conversation: DMConversationDTO; userId: string },
 ): void {
   io.to(`user:${input.userId}`).emit("dm:conversation:created", {
-    conversation: input.conversation,
+    conversationId: input.conversation.id,
   });
 
   io.to(`dm:${input.conversation.id}`).emit("dm:conversation:members_changed", {
-    conversation: input.conversation,
     conversationId: input.conversation.id,
   });
 }
@@ -144,15 +150,42 @@ export function emitGroupInviteChanged(
   });
 }
 
-export function evictRemovedGroupMember(
-  io: GroupRealtimeServer,
-  input: { conversationId: string; userId: string },
-): void {
-  io.to(`user:${input.userId}`).emit("dm:conversation:removed", {
-    conversationId: input.conversationId,
-  });
+type GroupCallEvictionDependencies = {
+  leaveCall(conversationId: string, userId: string): Promise<unknown>;
+  removeParticipant(roomName: string, userId: string): Promise<void>;
+};
 
-  // `dm:join` gates entry but never removes a socket that is already inside, so
-  // an un-evicted socket would keep receiving this group's messages.
-  io.in(`user:${input.userId}`).socketsLeave(`dm:${input.conversationId}`);
+const groupCallEvictionDefaults: GroupCallEvictionDependencies = {
+  leaveCall: leaveGroupCall,
+  removeParticipant: async (roomName, userId) => {
+    await getLiveKitRoomServiceClient().removeParticipant(roomName, userId);
+  },
+};
+
+export async function evictRemovedGroupMember(
+  io: GroupRealtimeServer | null,
+  input: { conversationId: string; userId: string },
+  dependencies: GroupCallEvictionDependencies = groupCallEvictionDefaults,
+): Promise<void> {
+  if (io) {
+    io.to(`user:${input.userId}`).emit("dm:conversation:removed", {
+      conversationId: input.conversationId,
+    });
+
+    // `dm:join` gates entry but never removes a socket that is already inside, so
+    // an un-evicted socket would keep receiving this group's messages.
+    io.in(`user:${input.userId}`).socketsLeave(`dm:${input.conversationId}`);
+  }
+
+  // Membership removal is already committed when this runs. Cleanup therefore
+  // stays best-effort and observable; throwing would make a retry unable to find
+  // the former participant while leaving the original response ambiguous.
+  await Promise.all([
+    dependencies
+      .removeParticipant(`dm:${input.conversationId}`, input.userId)
+      .catch((error) => logError("[dm] Removed group member LiveKit cleanup failed", error)),
+    dependencies
+      .leaveCall(input.conversationId, input.userId)
+      .catch((error) => logError("[dm] Removed group member call roster cleanup failed", error)),
+  ]);
 }

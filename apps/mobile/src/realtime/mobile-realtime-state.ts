@@ -100,12 +100,10 @@ export function mobileRealtimeReducer(
         status: state.visibility === "background" ? "background" : "disconnected",
       };
     case "event-received":
-      return {
-        ...state,
-        eventCount: state.eventCount + 1,
-        lastEvent: redactMobileRealtimeEventForSnapshot(action.event),
-        lastSeenAt: action.event.receivedAt,
-      };
+      // Event-rate diagnostics do not belong to connection state. Returning a
+      // new snapshot here used to publish every socket packet through the root
+      // provider even when connection status and visibility were unchanged.
+      return state;
     case "reconnect-attempt":
       return {
         ...state,

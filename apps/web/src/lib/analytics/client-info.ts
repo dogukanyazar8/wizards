@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { getTrustedClientIp } from "@/lib/security/client-ip";
+import { resolveTrustedProxyClientIp } from "@/lib/security/client-ip";
 
 export type AnalyticsClientInfo = {
   appVersion: string | null;
@@ -70,7 +70,7 @@ export function hashAnalyticsValue(value: string | null | undefined) {
 }
 
 function getIpAddress(headers: HeaderSource | null | undefined) {
-  return getTrustedClientIp({
+  return resolveTrustedProxyClientIp({
     get: (name) => readHeader(headers, name),
   });
 }

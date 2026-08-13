@@ -4,10 +4,7 @@ import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { ApiError, jsonError } from "@/lib/api";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
-import {
-  emitServerUnreadUpdateToUser,
-  markChannelReadState,
-} from "@/lib/workspace/unread-service";
+import { emitServerUnreadUpdateToUser, markChannelReadState } from "@/lib/workspace/unread-service";
 
 type RouteContext = {
   params: Promise<{
@@ -81,37 +78,40 @@ export async function PATCH(_: Request, context: RouteContext) {
     });
 
     const unreadBaseline = readState?.lastReadAt ?? membership.joinedAt;
-    const firstUnreadMessage = await prisma.message.findFirst({
-      where: {
-        channelId,
-        createdAt: {
-          gt: unreadBaseline,
+    // Both bounds use the same immutable baseline. Waiting for one before
+    // starting the other only adds a database round trip to mark-read.
+    const [firstUnreadMessage, latestMessage] = await Promise.all([
+      prisma.message.findFirst({
+        where: {
+          channelId,
+          createdAt: {
+            gt: unreadBaseline,
+          },
+          deletedAt: null,
+          threadId: null,
+          threadParentId: null,
         },
-        deletedAt: null,
-        threadId: null,
-        threadParentId: null,
-      },
-      orderBy: {
-        createdAt: "asc",
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    const latestMessage = await prisma.message.findFirst({
-      where: {
-        channelId,
-        threadId: null,
-        threadParentId: null,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      select: {
-        id: true,
-      },
-    });
+        orderBy: {
+          createdAt: "asc",
+        },
+        select: {
+          id: true,
+        },
+      }),
+      prisma.message.findFirst({
+        where: {
+          channelId,
+          threadId: null,
+          threadParentId: null,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        select: {
+          id: true,
+        },
+      }),
+    ]);
 
     await markChannelReadState({
       channelId,

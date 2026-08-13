@@ -6,7 +6,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { AdminHelpArticles } from "./admin-help-articles";
 import { AdminReleaseEditor } from "./admin-release-editor";
 import { AdminReleases } from "./admin-releases";
-import { AdminSupportReports, getAllowedBugReportStatuses } from "./admin-support-reports";
+import {
+  AdminSupportReports,
+  getAllowedBugReportStatuses,
+  getSafeSupportScreenshotUrl,
+} from "./admin-support-reports";
 
 const draftRelease = {
   changeCount: 2,
@@ -151,5 +155,13 @@ describe("admin content management panels", () => {
     assert.deepEqual(getAllowedBugReportStatuses("OPEN"), ["TRIAGED"]);
     assert.deepEqual(getAllowedBugReportStatuses("TRIAGED"), ["RESOLVED", "DISCARDED"]);
     assert.deepEqual(getAllowedBugReportStatuses("RESOLVED"), []);
+  });
+
+  it("rejects executable screenshot links at the admin sink", () => {
+    assert.equal(getSafeSupportScreenshotUrl("javascript:alert(1)"), null);
+    assert.equal(
+      getSafeSupportScreenshotUrl("https://cdn.whispr.test/report.png"),
+      "https://cdn.whispr.test/report.png",
+    );
   });
 });

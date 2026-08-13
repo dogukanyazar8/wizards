@@ -78,6 +78,21 @@ describe("mobile voice subscription contract", () => {
     assert.equal(resolveVoiceVideoQuality({ isStage: false }), VideoQuality.MEDIUM);
   });
 
+  it("asks for the top layer on visible FULL-mode surfaces", () => {
+    assert.equal(
+      resolveVoiceVideoQuality({ isStage: false, videoQualityMode: "FULL" }),
+      VideoQuality.HIGH,
+    );
+    assert.equal(
+      resolveVoiceVideoQuality({
+        isStage: false,
+        isVisible: false,
+        videoQualityMode: "FULL",
+      }),
+      VideoQuality.MEDIUM,
+    );
+  });
+
   it("pins a staged publication and releases it when the tile leaves the stage", () => {
     const publication = createPublication();
 

@@ -5,6 +5,7 @@ import { getRedisRate } from "@/lib/redis";
 
 export const API_RATE_LIMITS = {
   "app:updates:manifest": { limit: 120, windowSeconds: 60 },
+  "attachment:download": { limit: 60, windowSeconds: 60 },
   "admin:badge:read": { limit: 120, windowSeconds: 60 },
   "admin:badge:write": { limit: 20, windowSeconds: 60 },
   "admin:campaign:approve": { limit: 20, windowSeconds: 60 },
@@ -51,6 +52,8 @@ export const API_RATE_LIMITS = {
   "auth:reauth": { limit: 10, windowSeconds: 10 * 60 },
   "auth:reauth-email-challenge": { limit: 3, windowSeconds: 15 * 60 },
   "auth:reauth-email-confirm": { limit: 10, windowSeconds: 10 * 60 },
+  "auth:oauth-two-factor": { limit: 10, windowSeconds: 10 * 60 },
+  "auth:two-factor-disable": { limit: 10, windowSeconds: 10 * 60 },
   "category:create": { limit: 30, windowSeconds: 60 },
   "category:delete": { limit: 30, windowSeconds: 60 },
   "category:reorder": { limit: 20, windowSeconds: 60 },
@@ -60,6 +63,7 @@ export const API_RATE_LIMITS = {
   "channel:delete": { limit: 30, windowSeconds: 60 },
   "channel:mark-read": { limit: 180, windowSeconds: 60 },
   "channel:messages:list": { limit: 120, windowSeconds: 60 },
+  "channel:pins:list": { limit: 60, windowSeconds: 60 },
   "channel:permissions:read": { limit: 120, windowSeconds: 60 },
   "channel:permissions:update": { limit: 30, windowSeconds: 60 },
   "channel:reorder": { limit: 20, windowSeconds: 60 },
@@ -91,7 +95,11 @@ export const API_RATE_LIMITS = {
   "dm:messages:send": { limit: 120, windowSeconds: 60 },
   "dm:mute": { limit: 60, windowSeconds: 60 },
   "dm:mutual-servers:list": { limit: 120, windowSeconds: 60 },
+  "desktop:download": { limit: 30, windowSeconds: 60 },
   "friend:block": { limit: 30, windowSeconds: 10 * 60 },
+  "friend:blocked:list": { limit: 120, windowSeconds: 60 },
+  "friend:list": { limit: 120, windowSeconds: 60 },
+  "friend:pending:list": { limit: 120, windowSeconds: 60 },
   "friend:remove": { limit: 30, windowSeconds: 10 * 60 },
   "friend:request": { limit: 20, windowSeconds: 10 * 60 },
   "friend:request-action": { limit: 60, windowSeconds: 10 * 60 },
@@ -264,7 +272,9 @@ export const API_RATE_LIMITS = {
    */
   "mobile:server:user-settings:update": { limit: 60, windowSeconds: 60 },
   "notification:clear": { limit: 30, windowSeconds: 60 },
+  "notification:list": { limit: 120, windowSeconds: 60 },
   "notification:mark-read": { limit: 120, windowSeconds: 60 },
+  "notification:unread-count": { limit: 120, windowSeconds: 60 },
   "server:create": { limit: 10, windowSeconds: 60 * 60 },
   "server:delete": { limit: 5, windowSeconds: 60 * 60 },
   "server:detail": { limit: 240, windowSeconds: 60 },
@@ -291,6 +301,7 @@ export const API_RATE_LIMITS = {
   "server:profile": { limit: 240, windowSeconds: 60 },
   "server:update": { limit: 30, windowSeconds: 60 },
   "settings:update": { limit: 60, windowSeconds: 60 },
+  "settings:bootstrap": { limit: 60, windowSeconds: 60 },
   /**
    * Higher than the profile budget on purpose: opening a card fires the profile
    * read and the badge read in parallel, and a member list walks several cards

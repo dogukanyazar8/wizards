@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { ChatMessage } from "@wizards/types";
 
-import { appendMessage, OPTIMISTIC_MESSAGE_PREFIX, type MessagePages } from "./use-messages";
+import {
+  appendMessage,
+  OPTIMISTIC_MESSAGE_PREFIX,
+  patchMessageAuthors,
+  type MessagePages,
+  updateAuthorPresence,
+} from "./use-messages";
 
 function makeMessage(overrides: Partial<ChatMessage> & { id: string }): ChatMessage {
   return {
@@ -114,6 +120,37 @@ describe("appendMessage optimistic reconciliation", () => {
   it("returns the same pages object when a message is delivered twice", () => {
     const pages = makePages([makeMessage({ id: "server-1" })]);
     const next = appendMessage(pages, makeMessage({ id: "server-1" }));
+
+    assert.equal(next, pages);
+  });
+});
+
+describe("updateAuthorPresence", () => {
+  it("preserves the entire cache when the updated user has no messages", () => {
+    const pages = makePages([makeMessage({ id: "message-1" })]);
+
+    const next = updateAuthorPresence(pages, {
+      customStatus: null,
+      status: "ONLINE",
+      userId: "someone-else",
+    });
+
+    assert.equal(next, pages);
+  });
+});
+
+describe("patchMessageAuthors", () => {
+  it("preserves the entire cache when the updated profile has no messages", () => {
+    const pages = makePages([makeMessage({ id: "message-1" })]);
+
+    const next = patchMessageAuthors(pages, {
+      avatarUrl: null,
+      customStatus: null,
+      displayName: "Grace",
+      status: "ONLINE",
+      userId: "someone-else",
+      username: "grace",
+    });
 
     assert.equal(next, pages);
   });

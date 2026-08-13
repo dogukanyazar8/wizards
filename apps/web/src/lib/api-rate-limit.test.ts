@@ -102,10 +102,21 @@ describe("API rate limit configuration", () => {
 
   it("keeps high-risk actions configured", () => {
     const requiredActions: ApiRateLimitAction[] = [
+      "attachment:download",
+      "channel:pins:list",
+      "desktop:download",
+      "friend:blocked:list",
+      "friend:list",
+      "friend:pending:list",
+      "notification:list",
+      "notification:unread-count",
       "server:create",
+      "settings:bootstrap",
       "auth:reauth",
       "auth:reauth-email-challenge",
       "auth:reauth-email-confirm",
+      "auth:oauth-two-factor",
+      "auth:two-factor-disable",
       "friend:request",
       "invite:create",
       "voice:state",

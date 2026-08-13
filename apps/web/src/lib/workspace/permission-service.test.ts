@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { ChannelType, prisma } from "@wizards/db";
 import {
+  readCachedChannelPermissionSnapshot,
+  setPermissionCacheRedisForTest,
+} from "./permission-cache";
+import {
   CHANNEL_PERMISSION_FILTER_BATCH_SIZE,
   filterUserIdsByChannelPermission,
   listChannelIdsByServerForUserWithPermission,
@@ -18,6 +22,101 @@ function getUserIdInClause(args: unknown) {
 }
 
 describe("workspace permission service", () => {
+  it("does not cache a batch snapshot after a sampled revision advances", async () => {
+    const values = new Map<string, string>();
+    const redis = {
+      mget: async (...keys: string[]) => keys.map((key) => values.get(key) ?? null),
+      pipeline() {
+        const writes: Array<() => void> = [];
+        const pipeline = {
+          exec: async () => {
+            writes.forEach((write) => write());
+            return [];
+          },
+          expire: () => pipeline,
+          incr: () => pipeline,
+          set: (key: string, value: string) => {
+            writes.push(() => values.set(key, value));
+            return pipeline;
+          },
+        };
+        return pipeline;
+      },
+      status: "ready" as const,
+    };
+    const channelDelegate = prisma.channel as unknown as { findUnique: AsyncMethod };
+    const memberDelegate = prisma.serverMember as unknown as { findMany: AsyncMethod };
+    const banDelegate = prisma.serverBan as unknown as { findMany: AsyncMethod };
+    const originalChannelFindUnique = channelDelegate.findUnique;
+    const originalMemberFindMany = memberDelegate.findMany;
+    const originalBanFindMany = banDelegate.findMany;
+    const originalPermissionCacheDisabled = process.env.PERMISSION_CACHE_DISABLED;
+    const originalPermissionCacheEnabled = process.env.PERMISSION_CACHE_ENABLED;
+    process.env.PERMISSION_CACHE_ENABLED = "true";
+    delete process.env.PERMISSION_CACHE_DISABLED;
+    setPermissionCacheRedisForTest(redis as never);
+
+    channelDelegate.findUnique = async (args?: unknown) => {
+      const select = (args as { select?: { id?: boolean } }).select;
+      if (!select?.id) {
+        return { serverId: "server-1" };
+      }
+      return {
+        id: "channel-1",
+        locked: false,
+        name: "general",
+        permissionOverrides: [],
+        server: {
+          features: [],
+          messageCharacterLimit: 2000,
+          ownerId: "owner",
+          roles: [
+            {
+              id: "everyone",
+              isDefault: true,
+              name: "@everyone",
+              permissions: PermissionBits.VIEW_CHANNEL,
+            },
+          ],
+        },
+        serverId: "server-1",
+        type: ChannelType.TEXT,
+      };
+    };
+    memberDelegate.findMany = async () => {
+      values.set("permission:server:server-1:v", "1");
+      return [{ id: "member-user-1", roles: [], userId: "user-1" }];
+    };
+    banDelegate.findMany = async () => [];
+
+    try {
+      assert.deepEqual(
+        await filterUserIdsByChannelPermission(
+          "channel-1",
+          ["user-1"],
+          PermissionBits.VIEW_CHANNEL,
+        ),
+        ["user-1"],
+      );
+      assert.equal(await readCachedChannelPermissionSnapshot("user-1", "channel-1"), null);
+    } finally {
+      channelDelegate.findUnique = originalChannelFindUnique;
+      memberDelegate.findMany = originalMemberFindMany;
+      banDelegate.findMany = originalBanFindMany;
+      setPermissionCacheRedisForTest(null);
+      if (originalPermissionCacheDisabled === undefined) {
+        delete process.env.PERMISSION_CACHE_DISABLED;
+      } else {
+        process.env.PERMISSION_CACHE_DISABLED = originalPermissionCacheDisabled;
+      }
+      if (originalPermissionCacheEnabled === undefined) {
+        delete process.env.PERMISSION_CACHE_ENABLED;
+      } else {
+        process.env.PERMISSION_CACHE_ENABLED = originalPermissionCacheEnabled;
+      }
+    }
+  });
+
   it("filters channel permission fanout with bounded DB IN clauses", async () => {
     const calls = {
       channelFindUnique: 0,
@@ -91,7 +190,7 @@ describe("workspace permission service", () => {
       );
 
       assert.deepEqual(allowedUserIds, userIds);
-      assert.equal(calls.channelFindUnique, 1);
+      assert.equal(calls.channelFindUnique, 2);
       assert.equal(calls.serverMemberFindMany, 3);
       assert.equal(calls.serverBanFindMany, 3);
       assert.deepEqual(memberBatchSizes, [

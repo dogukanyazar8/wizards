@@ -68,6 +68,7 @@ import { MobileAppearanceSettingsScreen } from "./mobile-appearance-settings-scr
 import { MobileLanguageSettingsScreen } from "./mobile-language-settings-screen";
 import { MobileNotificationSettingsScreen } from "./mobile-notification-settings-screen";
 import { MobileSecuritySettingsScreen } from "./mobile-security-settings-screen";
+import { MobileDataAccountSettingsScreen } from "./mobile-data-account-settings-screen";
 import { SocialAccountQuickActions } from "../../social/social-account-screens";
 import { Button, DestructiveConfirmationSheet, Skeleton, Toggle } from "../components/kit";
 import { useToast } from "../components/kit/toast";
@@ -411,6 +412,12 @@ export function MobileProfileSettingsHub({
           iconTone="accent"
           label={profileCopy.profileHubAccount}
           onPress={() => navigateToMobileSettingsDetail("account")}
+        />
+        <MobileProfileHubRow
+          icon="archive-outline"
+          iconTone="neutral"
+          label={profileCopy.profileHubDataAccount}
+          onPress={() => navigateToMobileSettingsDetail("data-account")}
         />
         <MobileProfileHubRow
           icon="shield-checkmark-outline"
@@ -1993,6 +2000,11 @@ function getDeepLinkStatusLabel(result: MobileDeepLinkParseResult | null) {
         description: copy.deepLinkInvitePending,
         title: copy.deepLinkAccepted,
       };
+    case "account-delete-reauth":
+      return {
+        description: copy.deepLinkAuthPending,
+        title: copy.deepLinkAccepted,
+      };
     case "route":
       return {
         description: copy.deepLinkRoutePending,
@@ -2241,6 +2253,13 @@ export function ProfileSettingsScreen({
       <MobileAccountSettingsScreen
         onBack={onBack ?? (() => mobileNavigationRef.isReady() && mobileNavigationRef.goBack())}
         presence={bootstrapState.status === "ready" ? bootstrapState.payload.user.status : null}
+      />
+    );
+  }
+  if (resolvedSection === "data-account") {
+    return (
+      <MobileDataAccountSettingsScreen
+        onBack={onBack ?? (() => mobileNavigationRef.isReady() && mobileNavigationRef.goBack())}
       />
     );
   }

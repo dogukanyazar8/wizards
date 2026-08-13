@@ -129,16 +129,31 @@ const attemptedConversationIds = new Set<string>();
 const settledConversationIds = new Set<string>();
 const openedAfterSettledConversationIds = new Set<string>();
 
+/** Session telemetry must not retain every conversation a long-lived process sees. */
+const MOBILE_RECENT_DM_PREFETCH_STATS_CAP = 32;
+
+function rememberBoundedConversationId(target: Set<string>, conversationId: string): void {
+  target.delete(conversationId);
+  target.add(conversationId);
+  while (target.size > MOBILE_RECENT_DM_PREFETCH_STATS_CAP) {
+    const oldest = target.values().next().value;
+    if (oldest === undefined) {
+      return;
+    }
+    target.delete(oldest);
+  }
+}
+
 export function recordMobileRecentDMPrefetch(conversationIds: readonly string[]): void {
   for (const conversationId of conversationIds) {
-    attemptedConversationIds.add(conversationId);
+    rememberBoundedConversationId(attemptedConversationIds, conversationId);
   }
 }
 
 /** Called when a warming read resolves, which is the moment it is worth anything. */
 export function recordMobileRecentDMPrefetchSettled(conversationId: string): void {
   if (attemptedConversationIds.has(conversationId)) {
-    settledConversationIds.add(conversationId);
+    rememberBoundedConversationId(settledConversationIds, conversationId);
     // The panel reports where an open's first screenful came from, and a warmed
     // stream is neither "already in memory" nor "restored from disk".
     markMobileMessageStreamPrefetched("dm", conversationId);
@@ -149,7 +164,7 @@ export function recordMobileRecentDMPrefetchOpen(conversationId: string): void {
   // Only counted when the warm had already landed: opening a conversation whose
   // prefetch is still in flight is an ordinary open with an extra request.
   if (settledConversationIds.has(conversationId)) {
-    openedAfterSettledConversationIds.add(conversationId);
+    rememberBoundedConversationId(openedAfterSettledConversationIds, conversationId);
   }
 }
 
@@ -165,7 +180,8 @@ export function getMobileRecentDMPrefetchStats(): MobileRecentDMPrefetchStats {
   };
 }
 
-export function resetMobileRecentDMPrefetchStatsForTests(): void {
+/** Clears account-scoped identifiers on sign-out/session wipe. */
+export function resetMobileRecentDMPrefetchStats(): void {
   attemptedConversationIds.clear();
   settledConversationIds.clear();
   openedAfterSettledConversationIds.clear();

@@ -6,7 +6,7 @@ import type {
   MobileFriendsOverviewResponse,
   MobileManagedWorkspaceServerDetailResponse,
   MobileProfileResponse,
-  MobileUserProfileResponse,
+  MobileUserProfile,
 } from "@wizards/types";
 
 import { mobileQueryKeys } from "../src/query/mobile-query-keys";
@@ -182,34 +182,32 @@ function userProfileFor(
     bannerOffsetY: number | null;
     bannerUrl: string | null;
   },
-): MobileUserProfileResponse {
+): MobileUserProfile {
   return {
-    profile: {
-      badges: [],
-      bannerColor: banner.bannerColor,
-      bannerOffsetX: banner.bannerOffsetX,
-      bannerOffsetY: banner.bannerOffsetY,
-      bannerUrl: banner.bannerUrl,
-      bio: null,
-      blocked: false,
-      blockedBy: false,
-      mutualFriends: { count: 0, preview: [] },
-      mutualServers: { count: 0, preview: [] },
-      note: null,
-      presence: { customStatus: null, customStatusEmoji: null, status: "ONLINE" },
-      pronouns: null,
-      registeredAt: "2026-01-01T00:00:00.000Z",
-      relationship: self ? "none" : "friend",
-      self,
-      serverContext: null,
-      user: {
-        avatarUrl: null,
-        displayName: "Ada Test",
-        id: userId,
-        username: self ? "ada_test" : "other_test",
-      },
+    badges: [],
+    bannerColor: banner.bannerColor,
+    bannerOffsetX: banner.bannerOffsetX,
+    bannerOffsetY: banner.bannerOffsetY,
+    bannerUrl: banner.bannerUrl,
+    bio: null,
+    blocked: false,
+    blockedBy: false,
+    mutualFriends: { count: 0, preview: [] },
+    mutualServers: { count: 0, preview: [] },
+    note: null,
+    presence: { customStatus: null, customStatusEmoji: null, status: "ONLINE" },
+    pronouns: null,
+    registeredAt: "2026-01-01T00:00:00.000Z",
+    relationship: self ? "none" : "friend",
+    self,
+    serverContext: null,
+    user: {
+      avatarUrl: null,
+      displayName: "Ada Test",
+      id: userId,
+      username: self ? "ada_test" : "other_test",
     },
-  } as MobileUserProfileResponse;
+  } as MobileUserProfile;
 }
 
 describe("mobile profile banner cache contract", () => {
@@ -244,11 +242,11 @@ describe("mobile profile banner cache contract", () => {
       mobileQueryKeys.userProfile("user-1"),
       mobileQueryKeys.userProfile("user-1", "server-1"),
     ]) {
-      const patched = queryClient.getQueryData<MobileUserProfileResponse>(key)!;
-      assert.equal(patched.profile.bannerUrl, "https://cdn.whispr.team/banner.webp");
-      assert.equal(patched.profile.bannerColor, "#22A366");
-      assert.equal(patched.profile.bannerOffsetX, 0.3);
-      assert.equal(patched.profile.bannerOffsetY, 0.7);
+      const patched = queryClient.getQueryData<MobileUserProfile>(key)!;
+      assert.equal(patched.bannerUrl, "https://cdn.whispr.team/banner.webp");
+      assert.equal(patched.bannerColor, "#22A366");
+      assert.equal(patched.bannerOffsetX, 0.3);
+      assert.equal(patched.bannerOffsetY, 0.7);
     }
 
     assert.equal(queryClient.getQueryData(mobileQueryKeys.userProfile("user-other")), peer);

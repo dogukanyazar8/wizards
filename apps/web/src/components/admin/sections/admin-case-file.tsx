@@ -57,6 +57,24 @@ function accountAgeDays(createdAt: string, now: Date) {
   );
 }
 
+function olderRecordsHref(caseFile: CaseFile, relation: "evidence" | "events" | "reports") {
+  const parameterNames = {
+    evidence: "evidencePage",
+    events: "eventPage",
+    reports: "reportPage",
+  } as const;
+  const params = new URLSearchParams();
+
+  for (const key of ["evidence", "events", "reports"] as const) {
+    const page = caseFile.pagination[key].page;
+    if (page > 1 || key === relation) {
+      params.set(parameterNames[key], String(key === relation ? page + 1 : page));
+    }
+  }
+
+  return `/admin/moderation/${encodeURIComponent(caseFile.id)}?${params.toString()}`;
+}
+
 export function AdminCaseFile({
   canAct,
   caseFile,
@@ -110,6 +128,27 @@ export function AdminCaseFile({
                 </li>
               ))}
             </ol>
+            {caseFile.pagination.reports.hasOlderRecords ||
+            caseFile.pagination.events.hasOlderRecords ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {caseFile.pagination.reports.hasOlderRecords ? (
+                  <Link
+                    className="text-app-muted text-[12px] font-semibold"
+                    href={olderRecordsHref(caseFile, "reports")}
+                  >
+                    Daha eski raporlar
+                  </Link>
+                ) : null}
+                {caseFile.pagination.events.hasOlderRecords ? (
+                  <Link
+                    className="text-app-muted text-[12px] font-semibold"
+                    href={olderRecordsHref(caseFile, "events")}
+                  >
+                    Daha eski olaylar
+                  </Link>
+                ) : null}
+              </div>
+            ) : null}
           </AdminCard>
 
           <AdminCard>
@@ -157,6 +196,14 @@ export function AdminCaseFile({
                 ))}
               </ul>
             )}
+            {caseFile.pagination.evidence.hasOlderRecords ? (
+              <Link
+                className="text-app-muted mt-4 inline-flex text-[12px] font-semibold"
+                href={olderRecordsHref(caseFile, "evidence")}
+              >
+                Daha eski deliller
+              </Link>
+            ) : null}
           </AdminCard>
 
           {canAct ? (

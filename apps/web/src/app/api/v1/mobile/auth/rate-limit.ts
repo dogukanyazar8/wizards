@@ -4,7 +4,7 @@ import { ApiError } from "@/lib/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRedisRate } from "@/lib/redis";
 import {
-  createClientRateLimitIdentity,
+  createNetworkRateLimitIdentity,
   createSubjectRateLimitIdentity,
 } from "@/lib/security/client-ip";
 
@@ -40,9 +40,7 @@ export function getMobileAuthRateLimitKeys(
   action: MobileAuthRateLimitAction,
   subject: MobileAuthRateLimitSubject,
 ) {
-  const networkIdentity = createClientRateLimitIdentity({
-    fallbackNamespace: subject.namespace,
-    fallbackValue: subject.value,
+  const networkIdentity = createNetworkRateLimitIdentity({
     headers: request.headers,
   });
   const subjectIdentity = createSubjectRateLimitIdentity(subject.namespace, subject.value);

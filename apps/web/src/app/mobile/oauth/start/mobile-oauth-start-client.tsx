@@ -14,14 +14,19 @@ import {
 interface MobileOAuthStartClientProps {
   callbackUrl: string;
   provider: MobileOAuthProvider;
+  state: string;
 }
 
-export function MobileOAuthStartClient({ callbackUrl, provider }: MobileOAuthStartClientProps) {
+export function MobileOAuthStartClient({
+  callbackUrl,
+  provider,
+  state,
+}: MobileOAuthStartClientProps) {
   const [failed, setFailed] = useState(false);
   const [started, setStarted] = useState(true);
   const mobileCompleteCallbackUrl = useMemo(
-    () => buildMobileOAuthCompletePath(callbackUrl),
-    [callbackUrl],
+    () => buildMobileOAuthCompletePath(callbackUrl, state),
+    [callbackUrl, state],
   );
 
   const beginProviderSignIn = useCallback(async () => {

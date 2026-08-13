@@ -2,6 +2,8 @@ import React from "react";
 import { fireEvent, waitFor } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
+import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provider";
+import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
 
 let mockWorkspaceQuery: Record<string, unknown>;
 let mockMutations: Record<string, { isPending: boolean; mutateAsync: jest.Mock }>;
@@ -100,18 +102,31 @@ jest.mock("../src/app/components/kit", () => {
       onConfirm(): void | Promise<void>;
       open: boolean;
       testID: string;
-    }) =>
-      open
-        ? React.createElement(
-            View,
-            null,
-            React.createElement(
-              Pressable,
-              { onPress: () => void onConfirm(), testID: `${testID}-confirm` },
-              React.createElement(Text, null, "Confirm"),
-            ),
-          )
-        : null,
+    }) => {
+      const [error, setError] = React.useState(false);
+      if (!open) return null;
+      return React.createElement(
+        View,
+        { testID },
+        React.createElement(
+          Pressable,
+          {
+            onPress: () => {
+              void Promise.resolve(onConfirm()).catch(() => setError(true));
+            },
+            testID: `${testID}-confirm`,
+          },
+          React.createElement(Text, null, "Confirm"),
+        ),
+        error
+          ? React.createElement(
+              Text,
+              { testID: `${testID}-error` },
+              "İşlem tamamlanamadı. Lütfen yeniden deneyin.",
+            )
+          : null,
+      );
+    },
   };
 });
 
@@ -793,6 +808,55 @@ describe("mobile server management", () => {
     );
   });
 
+  it("keeps a channel draft when the same channel arrives in a fresh workspace detail", async () => {
+    resetMocks();
+    const props = { channelId: "channel-text", onBack: jest.fn(), serverId: "server-1" };
+    const view = await render(<MobileChannelSettingsScreen {...props} />);
+
+    await fireEvent.changeText(view.getByTestId("mobile-channel-settings-name"), "draft-name");
+    await fireEvent.changeText(view.getByTestId("mobile-channel-settings-topic"), "draft-topic");
+    const refreshedDetail = createDetail();
+    mockWorkspaceQuery = {
+      data: {
+        detail: {
+          ...refreshedDetail,
+          ungroupedChannels: refreshedDetail.ungroupedChannels.map((channel) =>
+            channel.id === "channel-text"
+              ? { ...channel, name: "server-name", topic: "server-topic" }
+              : channel,
+          ),
+        },
+      },
+      isError: false,
+      isLoading: false,
+    };
+
+    view.rerender(
+      <MobileThemeProvider>
+        <MobileLocaleProvider>
+          <MobileChannelSettingsScreen {...props} />
+        </MobileLocaleProvider>
+      </MobileThemeProvider>,
+    );
+
+    expect(view.getByTestId("mobile-channel-settings-name").props.value).toBe("draft-name");
+    expect(view.getByTestId("mobile-channel-settings-topic").props.value).toBe("draft-topic");
+  });
+
+  it("shows an inline error when invite creation fails", async () => {
+    resetMocks();
+    mockMutations.createInvite.mutateAsync.mockRejectedValueOnce(new Error("offline"));
+    const view = await render(<MobileServerInvitesScreen serverId="server-1" onBack={jest.fn()} />);
+
+    await fireEvent.press(view.getByTestId("mobile-server-invites-create"));
+
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-server-invites-create-error").props.children).toBe(
+        "Davet oluşturulamadı. Lütfen yeniden dene.",
+      ),
+    );
+  });
+
   it("renders invite cards and shares the exact canonical url", async () => {
     resetMocks();
     mockShareInvite.mockReset();
@@ -857,6 +921,38 @@ describe("mobile server management", () => {
         serverId: "server-1",
       }),
     );
+  });
+
+  it("keeps the delete sheet open and visible when invite revocation fails", async () => {
+    resetMocks();
+    mockMutations.deleteInvite.mutateAsync.mockRejectedValueOnce(new Error("offline"));
+    mockInvitesQuery = {
+      data: {
+        invites: [
+          {
+            channelId: null,
+            createdAt: "2026-07-01T00:00:00.000Z",
+            createdByDisplayName: "Ada",
+            expiresAt: null,
+            id: "invite-1",
+            maxUses: null,
+            shareUrl: "https://whispr.example/invite/abc123",
+            uses: 3,
+          },
+        ],
+      },
+      isLoading: false,
+      refetch: jest.fn().mockResolvedValue({}),
+    };
+    const view = await render(<MobileServerInvitesScreen serverId="server-1" onBack={jest.fn()} />);
+
+    await fireEvent.press(view.getByTestId("mobile-server-invite-invite-1-delete"));
+    await fireEvent.press(view.getByTestId("mobile-server-invite-delete-confirm-confirm"));
+
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-server-invite-delete-confirm-error")).toBeTruthy(),
+    );
+    expect(view.getByTestId("mobile-server-invite-delete-confirm")).toBeTruthy();
   });
 
   it("shows the invites loading skeleton while the query is pending", async () => {

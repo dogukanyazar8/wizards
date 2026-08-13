@@ -15,7 +15,7 @@ import {
   getMobileRecentDMPrefetchStats,
   recordMobileRecentDMPrefetch,
   recordMobileRecentDMPrefetchSettled,
-  resetMobileRecentDMPrefetchStatsForTests,
+  resetMobileRecentDMPrefetchStats,
 } from "../src/query/mobile-message-prefetch";
 import type { MobileNavigationRouteIntent } from "../src/navigation/mobile-navigation-types";
 
@@ -28,7 +28,7 @@ afterEach(() => {
   chatRouteTarget.setMobileChatCacheProbe(null);
   resetMobileNavigationTimingForTests();
   resetMobilePerformanceMetricsForTests();
-  resetMobileRecentDMPrefetchStatsForTests();
+  resetMobileRecentDMPrefetchStats();
 });
 
 describe("linked chat navigation timing", () => {

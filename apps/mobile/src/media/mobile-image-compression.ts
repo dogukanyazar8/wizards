@@ -58,6 +58,8 @@ export interface MobileImageOptimizationDependencies {
   encode(input: MobileImageEncodePass & { readonly uri: string }): Promise<string>;
   /** The byte count of a file on disk, or `null` when it cannot be read. */
   measure(uri: string): number | null;
+  /** Removes a rejected encoder output; the original input is never removed here. */
+  remove?: (uri: string) => void | Promise<void>;
 }
 
 export interface MobileImageOptimizationLimits {
@@ -181,6 +183,14 @@ export async function optimizeMobileImageForUpload(
   const maxBytes = limits.maxBytes ?? MOBILE_IMAGE_UPLOAD_MAX_BYTES;
   const originalBytes = input.sizeBytes ?? Number.POSITIVE_INFINITY;
 
+  const removeRejectedOutput = async (uri: string) => {
+    try {
+      await dependencies.remove?.(uri);
+    } catch {
+      // A cleanup failure must not turn a later usable pass into an upload failure.
+    }
+  };
+
   for (const pass of passes) {
     let uri: string;
     try {
@@ -194,12 +204,15 @@ export async function optimizeMobileImageForUpload(
     if (!isPositive(sizeBytes)) {
       // An unmeasurable result is exactly what must never be uploaded: the
       // declared size is what UploadThing presigns against.
+      await removeRejectedOutput(uri);
       continue;
     }
 
     if (sizeBytes <= maxBytes && sizeBytes < originalBytes) {
       return { format: pass.format, sizeBytes, uri };
     }
+
+    await removeRejectedOutput(uri);
   }
 
   return null;

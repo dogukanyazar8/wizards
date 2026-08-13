@@ -1,6 +1,6 @@
 "use client";
 
-import type { UserLayoutSettings } from "@/app/api/v1/users/me/settings/route";
+import type { UserSettingsResponse } from "@/app/api/v1/users/me/settings/route";
 import type { SettingsBootstrapPayload } from "@/lib/settings/bootstrap-types";
 
 export const settingsQueryKeys = {
@@ -14,15 +14,15 @@ export async function fetchSettingsBootstrap(): Promise<SettingsBootstrapPayload
   return res.json();
 }
 
-export async function fetchLayoutSettings(): Promise<UserLayoutSettings> {
+export async function fetchLayoutSettings(): Promise<UserSettingsResponse> {
   const res = await fetch("/api/v1/users/me/settings");
   if (!res.ok) throw new Error("Failed to fetch layout settings");
   return res.json();
 }
 
 export async function patchLayoutSettings(
-  patch: Partial<UserLayoutSettings>,
-): Promise<UserLayoutSettings> {
+  patch: Partial<UserSettingsResponse>,
+): Promise<UserSettingsResponse> {
   const res = await fetch("/api/v1/users/me/settings", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },

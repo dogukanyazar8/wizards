@@ -160,6 +160,23 @@ describe("isSocketEligibleForOnlinePresence", () => {
     );
   });
 
+  it("keeps relationship-scoped presence out of public server online sets", () => {
+    assert.equal(
+      isSocketEligibleForOnlinePresence({
+        connected: true,
+        data: { presenceStatus: "ONLINE", presenceVisibility: "FRIENDS" },
+      }),
+      false,
+    );
+    assert.equal(
+      isSocketEligibleForOnlinePresence({
+        connected: true,
+        data: { presenceStatus: "ONLINE", presenceVisibility: "NOBODY" },
+      }),
+      false,
+    );
+  });
+
   it("defaults an unset presenceStatus to eligible, matching the connect-time OFFLINE default not having been read yet", () => {
     // Callers (joinServerRoomsForUser) key off socket.data.presenceStatus,
     // which server.ts's assignSocketUserData always sets to "OFFLINE" before

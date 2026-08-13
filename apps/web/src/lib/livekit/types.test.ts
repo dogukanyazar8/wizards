@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { CreateLiveKitTokenBodySchema } from "./types";
+import { CreateLiveKitTokenBodySchema, LiveKitTokenResponseSchema } from "./types";
 
 describe("CreateLiveKitTokenBodySchema", () => {
   it("requires exactly one bounded conversation or channel identifier", () => {
@@ -27,5 +27,21 @@ describe("CreateLiveKitTokenBodySchema", () => {
         );
       }
     }
+  });
+});
+
+describe("LiveKitTokenResponseSchema", () => {
+  it("requires the server-authoritative media policy", () => {
+    const response = LiveKitTokenResponseSchema.parse({
+      mediaPolicy: { audioBitrate: 96_000, videoQualityMode: "FULL" },
+      token: "token",
+      url: "wss://eu.example.test",
+    });
+    assert.equal(response.mediaPolicy.audioBitrate, 96_000);
+    assert.equal(response.mediaPolicy.videoQualityMode, "FULL");
+    assert.equal(
+      LiveKitTokenResponseSchema.safeParse({ token: "token", url: "wss://example.test" }).success,
+      false,
+    );
   });
 });

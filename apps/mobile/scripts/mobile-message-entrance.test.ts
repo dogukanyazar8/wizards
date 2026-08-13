@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { createMobileMessageEntranceTracker } from "../src/app/components/message-entrance";
+import {
+  createMobileMessageEntranceTracker,
+  createMobileReactionEntranceTracker,
+} from "../src/app/components/message-entrance";
 
 const MOBILE_ROOT = path.join(__dirname, "..");
 
@@ -109,5 +112,24 @@ describe("mobile message entrance tracker", () => {
       /useEffect\(\(\) => \{\s*enterProgress\.value = reducedMotion/u.test(source),
       false,
     );
+  });
+});
+
+describe("mobile reaction entrance tracker", () => {
+  const reactions = (emoji: string) => [
+    { id: "m-1", reactions: [{ count: 1, emoji, userIds: ["user-1"] }] },
+  ];
+
+  it("does not animate reactions already present when the transcript opens", () => {
+    const tracker = createMobileReactionEntranceTracker();
+
+    assert.deepEqual([...tracker.select(reactions("heart"))], []);
+  });
+
+  it("animates only the reaction introduced after the transcript was seeded", () => {
+    const tracker = createMobileReactionEntranceTracker();
+    tracker.select(reactions("heart"));
+
+    assert.deepEqual([...tracker.select(reactions("sparkles"))], ["m-1:sparkles"]);
   });
 });

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import type { AdminRole } from "@wizards/db";
 import { getAdminDashboardSnapshotUncached } from "@/lib/admin/dashboard";
 import {
   composeAdminDashboardSnapshot,
@@ -38,6 +39,7 @@ describe("admin snapshot split equivalence", () => {
 
     const snapshot = await getAdminDashboardSnapshotUncached(
       SNAPSHOT_FIXTURE_DAYS,
+      "OWNER",
       client,
       SNAPSHOT_FIXTURE_NOW,
     );
@@ -57,14 +59,17 @@ describe("admin snapshot split equivalence", () => {
       loadAdminUsersSnapshot(input, client),
     ]);
 
-    const merged = mergeAdminSnapshotSlices({
-      activity,
-      audit,
-      notifications,
-      overview,
-      servers,
-      users,
-    });
+    const merged = mergeAdminSnapshotSlices(
+      {
+        activity,
+        audit,
+        notifications,
+        overview,
+        servers,
+        users,
+      },
+      "OWNER",
+    );
 
     assert.deepEqual(toPlain(merged), goldenSnapshot);
   });
@@ -72,13 +77,90 @@ describe("admin snapshot split equivalence", () => {
   it("composes the same snapshot through the shared entry point", async () => {
     const { client } = createSnapshotTestClient();
 
-    const composed = await composeAdminDashboardSnapshot(input, client);
+    const composed = await composeAdminDashboardSnapshot(input, "OWNER", client);
 
     assert.deepEqual(toPlain(composed), goldenSnapshot);
   });
 });
 
+describe("admin dashboard snapshot authorization", () => {
+  it("removes user email from dashboard projections", async () => {
+    const { client } = createSnapshotTestClient();
+    const [activity, overview, users] = await Promise.all([
+      loadAdminActivitySnapshot(input, client),
+      loadAdminOverviewSnapshot(input, client),
+      loadAdminUsersSnapshot(input, client),
+    ]);
+
+    assert.equal("email" in activity.activeSessions[0]!.user, false);
+    assert.equal("email" in overview.topUsers[0]!, false);
+    assert.equal("email" in users.latest[0]!, false);
+  });
+
+  it("merges only slices allowed for each admin role", async () => {
+    const { client } = createSnapshotTestClient();
+    const [activity, audit, notifications, overview, servers, users] = await Promise.all([
+      loadAdminActivitySnapshot(input, client),
+      loadAdminAuditSnapshot(input, client),
+      loadAdminNotificationsSnapshot(input, client),
+      loadAdminOverviewSnapshot(input, client),
+      loadAdminServersSnapshot(input, client),
+      loadAdminUsersSnapshot(input, client),
+    ]);
+    const slices = { activity, audit, notifications, overview, servers, users };
+    const expectations: ReadonlyArray<{
+      audit: boolean;
+      campaigns: boolean;
+      role: AdminRole;
+      servers: boolean;
+      users: boolean;
+    }> = [
+      { audit: true, campaigns: true, role: "OWNER", servers: true, users: true },
+      { audit: true, campaigns: true, role: "ADMIN", servers: true, users: true },
+      { audit: false, campaigns: false, role: "SUPPORT", servers: true, users: true },
+      { audit: false, campaigns: false, role: "MODERATOR", servers: true, users: true },
+      { audit: false, campaigns: false, role: "ANALYST", servers: false, users: false },
+    ];
+
+    for (const expected of expectations) {
+      const snapshot = mergeAdminSnapshotSlices(slices, expected.role);
+
+      assert.equal("recentAuditLogs" in snapshot, expected.audit, expected.role);
+      assert.equal("campaigns" in snapshot, expected.campaigns, expected.role);
+      assert.equal("topServers" in snapshot, expected.servers, expected.role);
+      assert.equal("users" in snapshot, expected.users, expected.role);
+      if (expected.audit && "recentAuditLogs" in snapshot) {
+        assert.equal("ipHash" in snapshot.recentAuditLogs[0]!, false, expected.role);
+      }
+    }
+  });
+
+  it("does not query unauthorized dashboard slices", async () => {
+    const { client, countCalls } = createSnapshotTestClient();
+
+    const snapshot = await composeAdminDashboardSnapshot(input, "ANALYST", client);
+
+    assert.equal("recentAuditLogs" in snapshot, false);
+    assert.equal("campaigns" in snapshot, false);
+    assert.equal("topServers" in snapshot, false);
+    assert.equal("users" in snapshot, false);
+    assert.equal(countCalls("adminAuditLog"), 0);
+    assert.equal(countCalls("notificationCampaign"), 0);
+    assert.equal(countCalls("server"), 0);
+  });
+});
+
 describe("admin snapshot query isolation", () => {
+  it("aggregates overview metrics in the database instead of reading user-day rows", async () => {
+    const { client, calls } = createSnapshotTestClient();
+
+    await loadAdminOverviewSnapshot(input, client);
+
+    assert.equal(calls.includes("userDailyMetric.findMany"), false);
+    assert.equal(calls.includes("userDailyMetric.groupBy:date"), true);
+    assert.equal(calls.includes("userDailyMetric.groupBy:userId"), true);
+  });
+
   it("touches only the audit log when the audit module loads", async () => {
     const { client, calls, countCalls } = createSnapshotTestClient();
 

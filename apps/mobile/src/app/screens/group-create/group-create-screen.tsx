@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
 import {
@@ -92,9 +92,19 @@ export function MobileGroupCreateScreen({
 
   const isIdentityStep = state.step === "identity";
   const busy = isPending || isSubmitting;
-  const selectedFriends = state.selectedUserIds
-    .map((userId) => friends.find((friend) => friend.id === userId))
-    .filter((friend): friend is MobileGroupCreateFriend => Boolean(friend));
+  // Both steps resolve selected ids. Share one index instead of repeating a
+  // nested scan on every render and every selected member.
+  const friendsById = useMemo(
+    () => new Map(friends.map((friend) => [friend.id, friend] as const)),
+    [friends],
+  );
+  const selectedFriends = useMemo(
+    () =>
+      state.selectedUserIds
+        .map((userId) => friendsById.get(userId))
+        .filter((friend): friend is MobileGroupCreateFriend => Boolean(friend)),
+    [friendsById, state.selectedUserIds],
+  );
 
   const clearFlash = useCallback(() => {
     for (const timer of flashTimers.current) {
@@ -264,6 +274,7 @@ export function MobileGroupCreateScreen({
           <MobileGroupMemberStep
             conversations={conversations}
             friends={friends}
+            friendsById={friendsById}
             {...(now ? { now } : {})}
             onToggleMember={handleToggleMember}
             state={state}

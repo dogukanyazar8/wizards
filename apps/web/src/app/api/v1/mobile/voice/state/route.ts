@@ -35,7 +35,9 @@ export async function POST(request: Request) {
     void emitVoiceStateUpdate({
       action: "join",
       channelId: response.channelId,
-      participants: response.participants,
+      // The mobile response schema intentionally strips web-only roster state;
+      // realtime peers still need the authoritative deafen bit from the service.
+      participants: state.participants,
       serverId: response.serverId,
       userId: session.userId,
     }).catch((error) => {

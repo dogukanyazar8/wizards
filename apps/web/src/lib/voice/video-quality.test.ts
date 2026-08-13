@@ -13,6 +13,7 @@ import {
   getScreenShareQualityPreset,
 } from "./screen-share";
 import {
+  applyVoiceAudioBitrate,
   CAMERA_DEGRADATION_PREFERENCE,
   CAMERA_SCALABILITY_MODE,
   CAMERA_VIDEO_CODEC,
@@ -27,6 +28,14 @@ import {
   isCameraQualityTier,
   normalizeCameraQualityTier,
 } from "./video-quality";
+
+it("applies the channel audio bitrate without dropping camera publish defaults", () => {
+  const publishDefaults = applyVoiceAudioBitrate({ simulcast: true, videoCodec: "vp9" }, 96_000);
+
+  assert.equal(publishDefaults.audioPreset?.maxBitrate, 96_000);
+  assert.equal(publishDefaults.simulcast, true);
+  assert.equal(publishDefaults.videoCodec, "vp9");
+});
 
 describe("web camera video quality contract", () => {
   it("publishes VP9 SVC with an explicit encoder budget per tier", () => {

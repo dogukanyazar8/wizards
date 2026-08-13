@@ -18,6 +18,7 @@ import {
   updateAccountProfile,
 } from "@/lib/account/service";
 import { ApiError } from "@/lib/api";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { logError } from "@/lib/logger";
 import type { FriendPresenceStatus } from "@/lib/friends/types";
 
@@ -123,8 +124,6 @@ function mapTwoFactorError(error: TwoFactorFailureResult["error"]) {
       return "settings.account.twoFactor.errors.alreadyEnabled";
     case "invalid_code":
       return "settings.account.twoFactor.errors.invalidCode";
-    case "invalid_credentials":
-      return "settings.account.twoFactor.errors.invalidCredentials";
     case "not_enabled":
       return "settings.account.twoFactor.errors.notEnabled";
     case "not_found":
@@ -369,6 +368,7 @@ export async function disableTwoFactorAction(input: {
   }
 
   try {
+    await enforceApiRateLimit(session.user.id, "auth:two-factor-disable");
     const result = await disableTwoFactor({
       code: input.code,
       password: input.password,
@@ -376,6 +376,12 @@ export async function disableTwoFactorAction(input: {
     });
     return result.success ? result : mapTwoFactorActionFailure(result);
   } catch (error) {
+    if (error instanceof ApiError && error.code === "RATE_LIMITED") {
+      return {
+        error: "settings.account.twoFactor.errors.rateLimited",
+        success: false,
+      };
+    }
     logError("[account] Two-factor disable failed", error);
     return {
       error: "settings.account.twoFactor.errors.unavailable",

@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { createHmac, randomBytes } from "node:crypto";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { ApiError } from "@/lib/api";
-import { authorizeMobileApiRequest, requireMobileApiSession } from "./api";
+import {
+  authorizeMobileApiRequest,
+  authorizeMobileApiSession,
+  requireMobileApiSession,
+} from "./api";
 
 const TEST_AUTH_SECRET = "test-mobile-authorization-secret";
 
@@ -69,6 +73,21 @@ afterEach(() => {
 });
 
 describe("authorizeMobileApiRequest", () => {
+  it("can return the authenticated session context for bootstrap adoption", async () => {
+    assert.deepEqual(
+      await authorizeMobileApiSession(
+        request(mintAccessToken({ sessionId: "session-bootstrap" })),
+        "mobile:bootstrap",
+        {
+          enforceRateLimit: async () => undefined,
+          findUser: async () => activeUser(),
+          isSessionActive: async () => true,
+        },
+      ),
+      { sessionId: "session-bootstrap", userId: "user-1" },
+    );
+  });
+
   it("starts the session, user, and rate-limit lookups concurrently", async () => {
     const started: string[] = [];
     let releaseSession = () => {};

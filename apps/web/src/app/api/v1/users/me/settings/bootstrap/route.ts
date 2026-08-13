@@ -1,11 +1,13 @@
 import { prisma } from "@wizards/db";
 import { ApiError, jsonError } from "@/lib/api";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { requireApiUserId } from "@/lib/auth/api";
 import { getSettingsBootstrapPayload } from "@/lib/settings/bootstrap";
 
 export async function GET() {
   try {
     const userId = await requireApiUserId();
+    await enforceApiRateLimit(userId, "settings:bootstrap");
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {

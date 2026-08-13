@@ -1,7 +1,11 @@
-import { useMemo } from "react";
+import { createElement, useMemo, type ReactNode } from "react";
 import type { MobileApiClient } from "../../api/mobile-api-client";
 import { useMobileServerMembersInfiniteQuery } from "../../workspace/mobile-server-management-query";
-import type { useMobileVoiceRuntime } from "../providers/mobile-voice-provider";
+import {
+  useMobileVoiceRuntime,
+  useMobileVoiceRuntimeState,
+} from "../providers/mobile-voice-provider";
+import { MobileVoiceScreenProvider } from "../providers/mobile-product-screen-provider";
 import {
   createMobileVoiceScreenProps,
   getMobileActiveVoiceInviteCandidates,
@@ -9,11 +13,17 @@ import {
 
 type MobileVoiceScreenPropsInput = Parameters<typeof createMobileVoiceScreenProps>[0];
 
+type MobileVoiceScreenRuntimeProviderProps = Omit<
+  Parameters<typeof useMobileVoiceScreenProps>[0],
+  "voiceRuntime"
+> & {
+  readonly children: ReactNode;
+};
+
 /**
- * `voiceRuntime` changes identity whenever room state does — participants,
- * audio levels, push-to-talk phase — which is exactly when the voice screen
- * must update. Keying the memo on the runtime keeps that live behaviour while
- * dropping the rebuilds that unrelated product-app renders used to cause.
+ * Room state comes from the voice store; actions come from the stable context.
+ * Depending on the whole runtime used to invalidate this memo for unrelated
+ * provider renders even when every screen input stayed the same.
  */
 export function useMobileVoiceScreenProps({
   apiClient,
@@ -32,7 +42,33 @@ export function useMobileVoiceScreenProps({
   readonly onSendInvite: MobileVoiceScreenPropsInput["onSendInvite"];
   readonly voiceRuntime: ReturnType<typeof useMobileVoiceRuntime>;
 }) {
-  const voiceRoomState = voiceRuntime.roomState;
+  const voiceRoomState = useMobileVoiceRuntimeState((state) => state.roomState);
+  const voiceAudioProcessing = useMobileVoiceRuntimeState((state) => state.voiceAudioProcessing);
+  const voiceInputMode = useMobileVoiceRuntimeState((state) => state.voiceInputMode);
+  const voicePushToTalkPhase = useMobileVoiceRuntimeState((state) => state.pushToTalkState.phase);
+  const voiceScreenShareAudioMuted = useMobileVoiceRuntimeState(
+    (state) => state.screenShareAudioMuted,
+  );
+  const voiceScreenShareQualityId = useMobileVoiceRuntimeState(
+    (state) => state.screenShareQualityId,
+  );
+  const {
+    beginPushToTalk,
+    endPushToTalk,
+    flipCamera,
+    refreshVoiceDevices,
+    selectAudioDeviceOutput,
+    selectAudioInput,
+    selectAudioOutput,
+    selectAudioProcessing,
+    selectNoiseSuppression,
+    selectScreenShareAudioMuted,
+    selectScreenShareQuality,
+    selectVoiceInputMode,
+    toggleCamera,
+    toggleMute,
+    toggleScreenShare,
+  } = voiceRuntime;
   // Only fetches while a room is open: the query is disabled on an empty id.
   const membersQuery = useMobileServerMembersInfiniteQuery(
     apiClient,
@@ -59,38 +95,71 @@ export function useMobileVoiceScreenProps({
         bootstrapState,
         inviteCandidates,
         inviteSendStates,
-        onBeginVoicePushToTalk: voiceRuntime.beginPushToTalk,
-        onEndVoicePushToTalk: voiceRuntime.endPushToTalk,
-        onFlipVoiceCamera: voiceRuntime.flipCamera,
+        onBeginVoicePushToTalk: beginPushToTalk,
+        onEndVoicePushToTalk: endPushToTalk,
+        onFlipVoiceCamera: flipCamera,
         onLeaveVoiceChannel,
-        onRefreshVoiceDevices: voiceRuntime.refreshVoiceDevices,
-        onSelectVoiceAudioInput: voiceRuntime.selectAudioInput,
-        onSelectVoiceAudioOutput: voiceRuntime.selectAudioOutput,
-        onSelectVoiceAudioOutputDevice: voiceRuntime.selectAudioDeviceOutput,
-        onSelectVoiceAudioProcessing: voiceRuntime.selectAudioProcessing,
-        onSelectVoiceInputMode: voiceRuntime.selectVoiceInputMode,
-        onSelectVoiceNoiseSuppression: voiceRuntime.selectNoiseSuppression,
-        onSelectVoiceScreenShareAudioMuted: voiceRuntime.selectScreenShareAudioMuted,
-        onSelectVoiceScreenShareQuality: voiceRuntime.selectScreenShareQuality,
+        onRefreshVoiceDevices: refreshVoiceDevices,
+        onSelectVoiceAudioInput: selectAudioInput,
+        onSelectVoiceAudioOutput: selectAudioOutput,
+        onSelectVoiceAudioOutputDevice: selectAudioDeviceOutput,
+        onSelectVoiceAudioProcessing: selectAudioProcessing,
+        onSelectVoiceInputMode: selectVoiceInputMode,
+        onSelectVoiceNoiseSuppression: selectNoiseSuppression,
+        onSelectVoiceScreenShareAudioMuted: selectScreenShareAudioMuted,
+        onSelectVoiceScreenShareQuality: selectScreenShareQuality,
         onSendInvite,
-        onToggleVoiceCamera: voiceRuntime.toggleCamera,
-        onToggleVoiceMute: voiceRuntime.toggleMute,
-        onToggleVoiceScreenShare: voiceRuntime.toggleScreenShare,
-        voiceAudioProcessing: voiceRuntime.voiceAudioProcessing,
-        voiceInputMode: voiceRuntime.voiceInputMode,
-        voicePushToTalkPhase: voiceRuntime.pushToTalkState.phase,
+        onToggleVoiceCamera: toggleCamera,
+        onToggleVoiceMute: toggleMute,
+        onToggleVoiceScreenShare: toggleScreenShare,
+        voiceAudioProcessing,
+        voiceInputMode,
+        voicePushToTalkPhase,
         voiceRoomState,
-        voiceScreenShareAudioMuted: voiceRuntime.screenShareAudioMuted,
-        voiceScreenShareQualityId: voiceRuntime.screenShareQualityId,
+        voiceScreenShareAudioMuted,
+        voiceScreenShareQualityId,
       }),
     [
+      beginPushToTalk,
       bootstrapState,
+      endPushToTalk,
+      flipCamera,
       inviteCandidates,
       inviteSendStates,
       onLeaveVoiceChannel,
       onSendInvite,
+      refreshVoiceDevices,
+      selectAudioDeviceOutput,
+      selectAudioInput,
+      selectAudioOutput,
+      selectAudioProcessing,
+      selectNoiseSuppression,
+      selectScreenShareAudioMuted,
+      selectScreenShareQuality,
+      selectVoiceInputMode,
+      toggleCamera,
+      toggleMute,
+      toggleScreenShare,
+      voiceAudioProcessing,
+      voiceInputMode,
+      voicePushToTalkPhase,
       voiceRoomState,
-      voiceRuntime,
+      voiceScreenShareAudioMuted,
+      voiceScreenShareQualityId,
     ],
   );
+}
+
+/**
+ * Voice room state changes at audio-meter speed. Keeping that subscription in
+ * this boundary lets the voice screen update without re-running ProductApp and
+ * rebuilding unrelated screen-provider values.
+ */
+export function MobileVoiceScreenRuntimeProvider({
+  children,
+  ...input
+}: MobileVoiceScreenRuntimeProviderProps) {
+  const voiceRuntime = useMobileVoiceRuntime();
+  const value = useMobileVoiceScreenProps({ ...input, voiceRuntime });
+  return createElement(MobileVoiceScreenProvider, { value }, children);
 }

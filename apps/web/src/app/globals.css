@@ -6015,3 +6015,27 @@ h4 {
     animation: none;
   }
 }
+/* Server-backed account density. Spacing changes; readable type and 44px targets stay fixed. */
+:root {
+  --density-control-min-height: 48px;
+  --density-row-gap: 12px;
+  --density-section-gap: 16px;
+  --density-vertical-padding: 12px;
+}
+
+:root[data-interface-density="compact"],
+[data-interface-density="compact"] {
+  --density-control-min-height: 44px;
+  --density-row-gap: 8px;
+  --density-section-gap: 12px;
+  --density-vertical-padding: 8px;
+}
+
+[data-density-control] {
+  min-height: max(44px, var(--density-control-min-height));
+  padding-block: var(--density-vertical-padding);
+}
+
+[data-density-stack] {
+  gap: var(--density-row-gap);
+}

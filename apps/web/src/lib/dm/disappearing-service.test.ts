@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
+import { prisma } from "@wizards/db";
 
 import {
+  defaultDisappearingPurgeDependencies,
   purgeExpiredDMMessages,
   type DisappearingPurgeDependencies,
   type ExpiredDMMessageRow,
@@ -58,6 +60,67 @@ function dependencies(
 }
 
 describe("purgeExpiredDMMessages", () => {
+  it("clears reply and thread references in the delete transaction before removing a batch", async () => {
+    const prismaRecord = prisma as unknown as Record<string, unknown>;
+    const messageRecord = prisma.dMMessage as unknown as Record<string, unknown>;
+    const originalTransaction = prismaRecord.$transaction;
+    const originalDeleteMany = messageRecord.deleteMany;
+    const calls: unknown[] = [];
+
+    prismaRecord.$transaction = async (callback: (tx: unknown) => Promise<unknown>) => {
+      calls.push("transaction:start");
+      const result = await callback({
+        dMMessage: {
+          async deleteMany(args: unknown) {
+            calls.push(["delete", args]);
+            return { count: 2 };
+          },
+          async updateMany(args: unknown) {
+            calls.push(["update", args]);
+            return { count: 1 };
+          },
+        },
+      });
+      calls.push("transaction:end");
+      return result;
+    };
+    messageRecord.deleteMany = async (args: unknown) => {
+      calls.push(["delete:outside-transaction", args]);
+      return { count: 2 };
+    };
+
+    try {
+      const deleted = await defaultDisappearingPurgeDependencies.deleteMessages([
+        "message-1",
+        "message-2",
+      ]);
+
+      assert.equal(deleted, 2);
+      assert.deepEqual(calls, [
+        "transaction:start",
+        [
+          "update",
+          {
+            data: { replyToId: null },
+            where: { replyToId: { in: ["message-1", "message-2"] } },
+          },
+        ],
+        [
+          "update",
+          {
+            data: { threadParentId: null },
+            where: { threadParentId: { in: ["message-1", "message-2"] } },
+          },
+        ],
+        ["delete", { where: { id: { in: ["message-1", "message-2"] } } }],
+        "transaction:end",
+      ]);
+    } finally {
+      prismaRecord.$transaction = originalTransaction;
+      messageRecord.deleteMany = originalDeleteMany;
+    }
+  });
+
   it("does nothing at all when no row is due", async () => {
     const { deps, trace } = dependencies([]);
 

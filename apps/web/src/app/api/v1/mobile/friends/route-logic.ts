@@ -103,7 +103,10 @@ export async function mobileFriendsListRoute(
 
     const pendingRequests = [...pending.incoming, ...pending.outgoing];
     const [activityByUserId, contextByUserId] = await Promise.all([
-      dependencies.resolveFriendActivity(friends.map((friend) => friend.id)),
+      dependencies.resolveFriendActivity(
+        userId,
+        friends.map((friend) => friend.id),
+      ),
       dependencies.resolveFriendRequestContext(
         userId,
         pendingRequests.map((entry) => getRequestCounterpartId(entry, userId)),

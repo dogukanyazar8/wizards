@@ -5,9 +5,11 @@ import type { MobileApiClient } from "../src/api/mobile-api-client";
 import {
   addMobileGroupMembers,
   createMobileGroup,
+  MOBILE_GROUP_INVALIDATIONS,
   removeMobileGroupMember,
   updateMobileGroup,
 } from "../src/dm/mobile-group-client";
+import { mobileQueryKeys } from "../src/query/mobile-query-keys";
 
 type Call = { options: unknown; path: string };
 
@@ -77,5 +79,11 @@ describe("Faz 5 §15.1 mobile group client", () => {
     const { client } = createClient({ conversation: { id: "dm-group-1" } });
 
     await assert.rejects(() => createMobileGroup(client, { userIds: ["user-2", "user-3"] }));
+  });
+
+  it("invalidates the group detail only after a role change", () => {
+    assert.deepEqual(MOBILE_GROUP_INVALIDATIONS.role("dm-group-1"), [
+      mobileQueryKeys.groupDetails("dm-group-1"),
+    ]);
   });
 });

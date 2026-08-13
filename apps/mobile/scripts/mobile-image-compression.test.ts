@@ -179,6 +179,7 @@ describe("optimizeMobileImageForUpload", () => {
 
   it("keeps squeezing while the result is still too big", async () => {
     const sizes = [OVER_LIMIT, OVER_LIMIT, 2_000_000];
+    const removed: string[] = [];
     let pass = 0;
     const result = await optimizeMobileImageForUpload(
       {
@@ -194,15 +195,20 @@ describe("optimizeMobileImageForUpload", () => {
           return `file:///tmp/pass-${pass}.jpg`;
         },
         measure: () => sizes[pass - 1] ?? null,
+        remove: async (uri) => {
+          removed.push(uri);
+        },
       },
     );
 
     assert.equal(result?.uri, "file:///tmp/pass-3.jpg");
     assert.equal(pass, 3);
+    assert.deepEqual(removed, ["file:///tmp/pass-1.jpg", "file:///tmp/pass-2.jpg"]);
   });
 
   /** A re-encode that came out bigger is a worse upload, so it is thrown away. */
   it("keeps the original when no pass actually saves bytes", async () => {
+    const removed: string[] = [];
     const result = await optimizeMobileImageForUpload(
       {
         height: 1_000,
@@ -214,10 +220,14 @@ describe("optimizeMobileImageForUpload", () => {
       {
         encode: async () => "file:///tmp/bigger.png",
         measure: () => MOBILE_IMAGE_UPLOAD_TARGET_BYTES * 2,
+        remove: async (uri) => {
+          removed.push(uri);
+        },
       },
     );
 
     assert.equal(result, null);
+    assert.deepEqual(removed, ["file:///tmp/bigger.png"]);
   });
 
   it("gives up rather than declaring an image that never fit", async () => {

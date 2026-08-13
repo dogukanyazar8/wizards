@@ -8,6 +8,7 @@ import { persistUserLocale } from "@/lib/locale/persistence";
 import { logError } from "@/lib/logger";
 import {
   EmailVerificationError,
+  sendRegistrationAttemptEmail,
   sendVerificationEmail,
   type EmailVerificationUser,
 } from "@/lib/auth/email-verification";
@@ -19,6 +20,7 @@ import {
 } from "@/lib/auth/password-reset";
 import { getTurnstileErrorMessageKey, verifyTurnstileToken } from "@/lib/auth/turnstile";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
+import { resolveRegistrationConflict } from "@/lib/auth/registration-policy";
 import { rollbackUnverifiedUser } from "@/lib/auth/registration-compensation";
 import { createLoginProof } from "@/lib/auth/login-proof";
 import { LOGIN_FAILED_MESSAGE_KEY } from "@/lib/auth/login-errors";
@@ -30,7 +32,7 @@ import {
   checkVerificationResendRequestRateLimit,
   checkVerificationSendRequestRateLimit,
 } from "@/lib/auth/request-rate-limits";
-import { getTrustedClientIp, type ClientIpHeaderSource } from "@/lib/security/client-ip";
+import { resolveTrustedProxyClientIp, type ClientIpHeaderSource } from "@/lib/security/client-ip";
 import { Prisma, prisma } from "@wizards/db";
 import {
   ForgotPasswordSchema,
@@ -51,6 +53,18 @@ export interface AuthActionResult {
 function getFormValue(formData: FormData, key: string): string {
   const value = formData.get(key);
   return typeof value === "string" ? value : "";
+}
+
+function getAuthActionRequestUrl(headerStore: ClientIpHeaderSource) {
+  const host = headerStore.get("host")?.split(",")[0]?.trim();
+  if (!host) {
+    // Missing request identity must never make a public E2E token acceptable.
+    return "https://invalid.invalid/";
+  }
+
+  const forwardedProtocol = headerStore.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const protocol = forwardedProtocol === "http" ? "http" : "https";
+  return `${protocol}://${host}/`;
 }
 
 async function sendVerificationEmailWithRateLimit(input: {
@@ -142,7 +156,8 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
   try {
     await verifyTurnstileToken(
       validation.data.turnstileToken,
-      getTrustedClientIp(headerStore) ?? undefined,
+      resolveTrustedProxyClientIp(headerStore) ?? undefined,
+      { requestUrl: getAuthActionRequestUrl(headerStore) },
     );
   } catch (error) {
     return {
@@ -166,6 +181,18 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
     prisma.user.findUnique({ where: { username }, select: { id: true } }),
   ]);
 
+  const registrationConflict = resolveRegistrationConflict({
+    emailExists: Boolean(existingEmail),
+    usernameExists: Boolean(existingUsername),
+  });
+
+  if (registrationConflict === "username_taken") {
+    return {
+      success: false,
+      error: "auth.register.usernameTaken",
+    };
+  }
+
   if (existingEmail) {
     if (!existingEmail.emailVerified) {
       const verificationEmail = await sendVerificationEmailWithRateLimit({
@@ -188,16 +215,17 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
       };
     }
 
-    return {
-      success: false,
-      error: "auth.register.emailTaken",
-    };
-  }
+    try {
+      await sendRegistrationAttemptEmail(existingEmail, existingEmail.locale ?? locale);
+    } catch (error) {
+      // Delivery health must not reveal whether the address belongs to a user.
+      logError("[auth] Registration-attempt email failed", error);
+    }
 
-  if (existingUsername) {
     return {
-      success: false,
-      error: "auth.register.usernameTaken",
+      email,
+      success: true,
+      message: "auth.register.checkEmailMessage",
     };
   }
 
@@ -250,8 +278,9 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return {
-        success: false,
-        error: "auth.register.emailTaken",
+        email,
+        success: true,
+        message: "auth.register.checkEmailMessage",
       };
     }
 
@@ -292,9 +321,10 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
   try {
     await verifyTurnstileToken(
       validation.data.turnstileToken,
-      getTrustedClientIp(headerStore) ?? undefined,
+      resolveTrustedProxyClientIp(headerStore) ?? undefined,
       {
         expectedAction: "login",
+        requestUrl: getAuthActionRequestUrl(headerStore),
       },
     );
   } catch (error) {
@@ -348,6 +378,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
 export async function forgotPasswordAction(formData: FormData): Promise<AuthActionResult> {
   const validation = ForgotPasswordSchema.safeParse({
     email: normalizeAuthEmail(getFormValue(formData, "email")),
+    turnstileToken: getFormValue(formData, "turnstileToken"),
   });
 
   if (!validation.success) {
@@ -374,6 +405,22 @@ export async function forgotPasswordAction(formData: FormData): Promise<AuthActi
     return {
       success: false,
       error: "auth.forgot.rateLimited",
+    };
+  }
+
+  try {
+    await verifyTurnstileToken(
+      validation.data.turnstileToken,
+      resolveTrustedProxyClientIp(headerStore) ?? undefined,
+      {
+        expectedAction: "forgot-password",
+        requestUrl: getAuthActionRequestUrl(headerStore),
+      },
+    );
+  } catch (error) {
+    return {
+      success: false,
+      error: getTurnstileErrorMessageKey(error),
     };
   }
 
@@ -423,6 +470,7 @@ export async function resetPasswordAction(formData: FormData): Promise<AuthActio
     confirmPassword: getFormValue(formData, "confirmPassword"),
     password: getFormValue(formData, "password"),
     token: getFormValue(formData, "token"),
+    turnstileToken: getFormValue(formData, "turnstileToken"),
   });
 
   if (!validation.success) {
@@ -441,6 +489,22 @@ export async function resetPasswordAction(formData: FormData): Promise<AuthActio
     return {
       success: false,
       error: "auth.passwordReset.unavailable",
+    };
+  }
+
+  try {
+    await verifyTurnstileToken(
+      validation.data.turnstileToken,
+      resolveTrustedProxyClientIp(headerStore) ?? undefined,
+      {
+        expectedAction: "reset-password",
+        requestUrl: getAuthActionRequestUrl(headerStore),
+      },
+    );
+  } catch (error) {
+    return {
+      success: false,
+      error: getTurnstileErrorMessageKey(error),
     };
   }
 
@@ -474,7 +538,7 @@ export async function resetPasswordAction(formData: FormData): Promise<AuthActio
 }
 
 export async function resendVerificationEmailAction(formData: FormData): Promise<AuthActionResult> {
-  const validation = ForgotPasswordSchema.safeParse({
+  const validation = ForgotPasswordSchema.pick({ email: true }).safeParse({
     email: normalizeAuthEmail(getFormValue(formData, "email")),
   });
 

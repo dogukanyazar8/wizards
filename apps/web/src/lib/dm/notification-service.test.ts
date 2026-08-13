@@ -64,6 +64,7 @@ describe("DM notification service helpers", () => {
         attachmentLabelKey: "chat.attachments.file",
         content: "hello",
         conversationId: "conversation-1",
+        mentionedUserIds: ["recipient"],
         messageId: "message-1",
         participants: [
           { muted: false, userId: "sender", user: { locale: "en" } },
@@ -82,6 +83,7 @@ describe("DM notification service helpers", () => {
           metadata: {
             conversationId: "conversation-1",
             messageId: "message-1",
+            mentioned: true,
             senderId: "sender",
           },
           title: "New message from Sender",
@@ -118,7 +120,13 @@ describe("DM notification service helpers", () => {
     patchMethod(
       prisma.mobilePushToken,
       "findMany",
-      async () => [{ token: "ExpoPushToken[x]", userId: "recipient" }],
+      async () => [{ platform: "android", token: "ExpoPushToken[x]", userId: "recipient" }],
+      restores,
+    );
+    patchMethod(
+      prisma.pushDeliveryAttempt,
+      "createMany",
+      async ({ data }: { data: unknown[] }) => ({ count: data.length }),
       restores,
     );
     patchMethod(

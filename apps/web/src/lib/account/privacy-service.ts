@@ -1,5 +1,5 @@
 import { MobileMediaUploadPurpose, UserStatus, prisma, type Prisma } from "@wizards/db";
-import { UTApi } from "uploadthing/server";
+import { ACCOUNT_DELETION_CONFIRMATION_PHRASE } from "@wizards/types";
 import { ApiError } from "@/lib/api";
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
 import { revokeUserSessions } from "@/lib/auth/session-revocation";
@@ -9,21 +9,24 @@ import { getSocketServer } from "@/lib/socket/runtime";
 import { invalidateServerRoomIdsCache } from "@/lib/socket/server-room-cache";
 import { invalidateMemberPermissionCache } from "@/lib/workspace/permission-cache";
 import { decrementServerMemberCounts } from "@/lib/workspace/server-member-counter";
+import { enqueueAccountStorageCleanupJob } from "@/lib/outbox/service";
+import { deleteUploadThingFileKeys } from "@/lib/account/uploadthing-cleanup";
 
-export const ACCOUNT_DELETION_CONFIRMATION = "DELETE MY ACCOUNT";
+export const ACCOUNT_DELETION_CONFIRMATION = ACCOUNT_DELETION_CONFIRMATION_PHRASE;
 const DELETED_ACCOUNT_DISPLAY_NAME = "Deleted User";
 const DELETED_ACCOUNT_MESSAGE_CONTENT = "";
-const UPLOADTHING_DELETE_BATCH_SIZE = 100;
 
 export type AccountAnonymizationDependencies = {
+  collectUploadThingFileKeys?: typeof loadAccountUploadThingFileKeys;
   clearRuntimeState: typeof clearAccountRuntimeState;
   client: Pick<typeof prisma, "$transaction" | "user">;
-  deleteUploadThingFiles: typeof deleteAccountUploadThingFiles;
+  deleteUploadThingFiles: (input: { fileKeys: string[]; userId: string }) => Promise<void>;
   now: () => Date;
   revokeSessions: typeof revokeUserSessions;
 };
 
 const defaultAccountAnonymizationDependencies: AccountAnonymizationDependencies = {
+  collectUploadThingFileKeys: loadAccountUploadThingFileKeys,
   clearRuntimeState: clearAccountRuntimeState,
   client: prisma,
   deleteUploadThingFiles: deleteAccountUploadThingFiles,
@@ -68,6 +71,12 @@ export function extractUploadThingFileKey(value: string | null | undefined) {
   const rawKey = fileMarkerIndex >= 0 ? segments[fileMarkerIndex + 1] : segments.at(-1);
 
   return rawKey ? decodeURIComponent(rawKey) : null;
+}
+
+export function createAccountDataExportDocument<TPayload extends Record<string, unknown>>(
+  payload: TPayload,
+) {
+  return { ...payload, schemaVersion: 2 as const };
 }
 
 export async function getAccountDataExport(userId: string) {
@@ -292,9 +301,8 @@ export async function getAccountDataExport(userId: string) {
     throw new ApiError("User not found", 404, "USER_NOT_FOUND");
   }
 
-  return {
+  return createAccountDataExportDocument({
     exportedAt: new Date(),
-    schemaVersion: 1,
     user,
     authentication: {
       accounts,
@@ -323,7 +331,7 @@ export async function getAccountDataExport(userId: string) {
       dailyMetrics,
       mediaUsageSessions,
     },
-  };
+  });
 }
 
 export function serializeAccountDataExport(exportData: unknown) {
@@ -353,11 +361,24 @@ async function clearAccountRuntimeState(userId: string, serverIds: string[]) {
   ]);
 }
 
-async function deleteAccountUploadThingFiles(userId: string) {
-  if (!process.env.UPLOADTHING_TOKEN) {
-    return;
-  }
+export function collectAccountUploadThingFileKeys(input: {
+  attachments: Array<{ thumbnailUrl: string | null; url: string }>;
+  user: { avatarUrl: string | null; bannerUrl: string | null } | null;
+}) {
+  return Array.from(
+    new Set(
+      [
+        input.user?.avatarUrl,
+        input.user?.bannerUrl,
+        ...input.attachments.flatMap((attachment) => [attachment.url, attachment.thumbnailUrl]),
+      ]
+        .map(extractUploadThingFileKey)
+        .filter((key): key is string => Boolean(key)),
+    ),
+  ).sort();
+}
 
+async function loadAccountUploadThingFileKeys(userId: string) {
   const attachments = await prisma.attachment.findMany({
     where: {
       OR: [{ userId }, { message: { userId } }, { dmMessage: { userId } }],
@@ -376,32 +397,11 @@ async function deleteAccountUploadThingFiles(userId: string) {
     },
   });
 
-  const fileKeys = Array.from(
-    new Set(
-      [
-        user?.avatarUrl,
-        user?.bannerUrl,
-        ...attachments.flatMap((attachment) => [attachment.url, attachment.thumbnailUrl]),
-      ]
-        .map(extractUploadThingFileKey)
-        .filter((key): key is string => Boolean(key)),
-    ),
-  );
+  return collectAccountUploadThingFileKeys({ attachments, user });
+}
 
-  if (fileKeys.length === 0) {
-    return;
-  }
-
-  const utapi = new UTApi();
-
-  for (let index = 0; index < fileKeys.length; index += UPLOADTHING_DELETE_BATCH_SIZE) {
-    const batch = fileKeys.slice(index, index + UPLOADTHING_DELETE_BATCH_SIZE);
-    const result = await utapi.deleteFiles(batch);
-
-    if (!result.success) {
-      throw new ApiError("Failed to delete uploaded files", 502, "UPLOAD_DELETE_FAILED");
-    }
-  }
+async function deleteAccountUploadThingFiles({ fileKeys }: { fileKeys: string[] }) {
+  await deleteUploadThingFileKeys(fileKeys);
 }
 
 export async function anonymizeAccount(
@@ -446,10 +446,14 @@ export async function anonymizeAccount(
   const now = dependencies.now();
   const identity = buildDeletedAccountIdentity(userId);
   const serverIds = user.serverMembers.map((membership) => membership.serverId);
-
-  await dependencies.deleteUploadThingFiles(userId);
+  // Capture immutable storage references while the account rows still exist.
+  // The destructive transaction removes those rows before irreversible storage cleanup.
+  const uploadThingFileKeys = dependencies.collectUploadThingFileKeys
+    ? await dependencies.collectUploadThingFileKeys(userId)
+    : [];
 
   await dependencies.client.$transaction(async (tx) => {
+    await enqueueAccountStorageCleanupJob(tx, { fileKeys: uploadThingFileKeys, userId });
     await tx.mobileMediaUpload.updateMany({
       where: {
         OR: [
@@ -468,6 +472,10 @@ export async function anonymizeAccount(
     });
     await tx.account.deleteMany({ where: { userId } });
     await tx.session.deleteMany({ where: { userId } });
+    await tx.authSession.deleteMany({ where: { userId } });
+    // Push tokens are stable device identifiers. Keeping one after account
+    // deletion breaks the same erasure boundary as retaining a session token.
+    await tx.mobilePushToken.deleteMany({ where: { userId } });
     await tx.emailVerificationToken.deleteMany({ where: { userId } });
     await tx.appSession.deleteMany({ where: { userId } });
     await tx.userDailyMetric.deleteMany({ where: { userId } });
@@ -604,6 +612,15 @@ export async function anonymizeAccount(
     });
   });
 
+  // Storage deletion cannot roll back. Running it only after the database
+  // commit prevents a transient transaction failure from orphaning live media.
+  try {
+    await dependencies.deleteUploadThingFiles({ fileKeys: uploadThingFileKeys, userId });
+  } catch (error) {
+    // The transaction committed a durable outbox job first. Report the fast-path
+    // failure internally and let the worker retry without making deletion look reversible.
+    logError("[account-privacy] Immediate storage cleanup failed; outbox retry scheduled", error);
+  }
   await dependencies.revokeSessions(userId, { now });
   await dependencies.clearRuntimeState(userId, serverIds);
 

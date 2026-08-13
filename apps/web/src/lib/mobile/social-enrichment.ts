@@ -7,6 +7,8 @@ import type {
 import { MOBILE_FRIEND_SUGGESTION_LIMIT } from "@wizards/types";
 
 import { canSendFriendRequest } from "@/lib/privacy-policy";
+import { profileVisibilityWhereForViewer } from "@/lib/privacy/visibility-policy";
+import { resolveVisibilityDecisions } from "@/lib/privacy/visibility-policy";
 import { VOICE_HEARTBEAT_TIMEOUT_MS } from "@/lib/voice/types";
 
 /**
@@ -49,6 +51,7 @@ function toFriendDevice(clientType: string): MobileFriendDevice | null {
  * missing answer renders as "no extra line", never as a wrong one.
  */
 export async function resolveMobileFriendActivity(
+  viewerId: string,
   userIds: readonly string[],
   now: Date = new Date(),
 ): Promise<Map<string, MobileFriendActivity>> {
@@ -57,7 +60,7 @@ export async function resolveMobileFriendActivity(
     return new Map();
   }
 
-  const [voiceStates, sessions] = await Promise.all([
+  const [voiceStates, sessions, visibilityDecisions] = await Promise.all([
     prisma.voiceState.findMany({
       where: {
         userId: { in: uniqueUserIds },
@@ -78,6 +81,7 @@ export async function resolveMobileFriendActivity(
       select: { clientType: true, lastSeenAt: true, userId: true },
       orderBy: { lastSeenAt: "desc" },
     }),
+    resolveVisibilityDecisions(viewerId, uniqueUserIds),
   ]);
 
   const voiceRoomByUserId = new Map<string, MobileFriendVoiceRoom>();
@@ -104,6 +108,9 @@ export async function resolveMobileFriendActivity(
 
   return new Map(
     uniqueUserIds.map((userId) => {
+      if (!visibilityDecisions.get(userId)?.canViewPresence) {
+        return [userId, EMPTY_ACTIVITY];
+      }
       const device = deviceByUserId.get(userId) ?? null;
       const voiceRoom = voiceRoomByUserId.get(userId) ?? null;
       return [userId, device || voiceRoom ? { device, voiceRoom } : EMPTY_ACTIVITY];
@@ -376,11 +383,16 @@ export async function listMobileFriendSuggestions(
   const [candidates, mutualServers, mutualFriends] = await Promise.all([
     prisma.user.findMany({
       where: {
-        id: { in: candidateIdList },
-        deletedAt: null,
-        isBanned: false,
-        isBot: false,
-        isSystem: false,
+        AND: [
+          profileVisibilityWhereForViewer(viewerId),
+          {
+            id: { in: candidateIdList },
+            deletedAt: null,
+            isBanned: false,
+            isBot: false,
+            isSystem: false,
+          },
+        ],
       },
       select: {
         avatarUrl: true,

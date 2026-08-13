@@ -1,5 +1,6 @@
-import { useCallback, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { FlashList } from "@shopify/flash-list";
+import { memo, useCallback, useState } from "react";
+import { Pressable, Text, View } from "react-native";
 import type { ChatMessage } from "@wizards/types";
 
 import { useMobileAuth } from "../../auth/mobile-auth-context";
@@ -31,7 +32,7 @@ import { useMessageThreadStyles } from "./message-thread-screen.styles";
  * adds the thread's own test hook and its handler shape — the layout, the
  * grouping and the long-press menu all come from the shared row.
  */
-export function ThreadReplyRow({
+export const ThreadReplyRow = memo(function ThreadReplyRow({
   currentUserId,
   message,
   onDiscardFailed,
@@ -68,7 +69,9 @@ export function ThreadReplyRow({
       />
     </View>
   );
-}
+});
+
+const getMobileThreadReplyItemType = () => "reply";
 
 export function MobileMessageThreadScreen({
   channelName,
@@ -145,6 +148,18 @@ export function MobileMessageThreadScreen({
   const alsoSendLabel = copy.messageThreadAlsoSendToChannelTemplate.replace(
     "{channel}",
     channelName ?? "",
+  );
+  const renderReply = useCallback(
+    ({ item: reply }: { item: ChatMessage }) => (
+      <ThreadReplyRow
+        currentUserId={currentUserId}
+        message={reply}
+        onDiscardFailed={discardFailedReply}
+        onRetryFailedSend={retryFailedReply}
+        onToggleReaction={toggleReaction}
+      />
+    ),
+    [currentUserId, discardFailedReply, retryFailedReply, toggleReaction],
   );
 
   return (
@@ -229,68 +244,66 @@ export function MobileMessageThreadScreen({
             </View>
           </View>
 
-          <ScrollView
+          <FlashList
             contentContainerStyle={styles.bodyContent}
+            data={replies}
+            getItemType={getMobileThreadReplyItemType}
             keyboardShouldPersistTaps="handled"
+            keyExtractor={(reply) => reply.id}
             showsVerticalScrollIndicator={false}
             style={styles.body}
-          >
-            {query.isLoading ? <MessageListSkeleton testID="mobile-thread-loading" /> : null}
-            {query.isError ? (
-              <Text style={styles.threadErrorText}>{copy.messageThreadLoadFailed}</Text>
-            ) : null}
-            {payload ? (
+            ListHeaderComponent={
               <>
-                {/* §2 "1f".2: the source message keeps the channel row shape and
-                  only changes surface — screen tone, ruled top and bottom. */}
-                <View style={styles.rootCard} testID="mobile-thread-root-message">
-                  <MessagePreviewRow
-                    currentUserId={currentUserId}
-                    message={payload.parent}
-                    mode="channel"
-                    onScreenSurface
-                    own={payload.parent.author.id === currentUserId}
-                    onToggleReaction={toggleReaction}
-                  />
-                </View>
-                {replies.length > 0 ? (
+                {query.isLoading ? <MessageListSkeleton testID="mobile-thread-loading" /> : null}
+                {query.isError ? (
+                  <Text style={styles.threadErrorText}>{copy.messageThreadLoadFailed}</Text>
+                ) : null}
+                {payload ? (
                   <>
-                    <View style={styles.replySectionRow}>
-                      <Text style={styles.replySectionLabel} testID="mobile-thread-reply-count">
-                        {copy.messageThreadReplySectionTemplate.replace(
-                          "{count}",
-                          String(replies.length),
-                        )}
-                      </Text>
-                      <View style={styles.replySectionLine} />
+                    {/* §2 "1f".2: the source message keeps the channel row shape and
+                  only changes surface — screen tone, ruled top and bottom. */}
+                    <View style={styles.rootCard} testID="mobile-thread-root-message">
+                      <MessagePreviewRow
+                        currentUserId={currentUserId}
+                        message={payload.parent}
+                        mode="channel"
+                        onScreenSurface
+                        own={payload.parent.author.id === currentUserId}
+                        onToggleReaction={toggleReaction}
+                      />
                     </View>
-                    <View style={styles.replyList}>
-                      {replies.map((reply) => (
-                        <ThreadReplyRow
-                          currentUserId={currentUserId}
-                          key={reply.id}
-                          message={reply}
-                          onDiscardFailed={discardFailedReply}
-                          onRetryFailedSend={retryFailedReply}
-                          onToggleReaction={toggleReaction}
-                        />
-                      ))}
-                      {typingUsers.length > 0 ? (
-                        <View style={styles.typingRow} testID="mobile-thread-typing-indicator">
-                          <MessageTypingDots compact testID="mobile-thread-typing-dots" />
-                          <Text numberOfLines={1} style={styles.typingText}>
-                            {typingUsers[0]!.name}
+                    {replies.length > 0 ? (
+                      <>
+                        <View style={styles.replySectionRow}>
+                          <Text style={styles.replySectionLabel} testID="mobile-thread-reply-count">
+                            {copy.messageThreadReplySectionTemplate.replace(
+                              "{count}",
+                              String(replies.length),
+                            )}
                           </Text>
+                          <View style={styles.replySectionLine} />
                         </View>
-                      ) : null}
-                    </View>
+                      </>
+                    ) : (
+                      <Text style={styles.emptyText}>{copy.messageThreadEmptyPrompt}</Text>
+                    )}
                   </>
-                ) : (
-                  <Text style={styles.emptyText}>{copy.messageThreadEmptyPrompt}</Text>
-                )}
+                ) : null}
               </>
-            ) : null}
-          </ScrollView>
+            }
+            ListFooterComponent={
+              replies.length > 0 && typingUsers.length > 0 ? (
+                <View style={styles.typingRow} testID="mobile-thread-typing-indicator">
+                  <MessageTypingDots compact testID="mobile-thread-typing-dots" />
+                  <Text numberOfLines={1} style={styles.typingText}>
+                    {typingUsers[0]!.name}
+                  </Text>
+                </View>
+              ) : null
+            }
+            renderItem={renderReply}
+            testID="mobile-thread-reply-list"
+          />
 
           <View style={styles.composerShell}>
             <DMComposer

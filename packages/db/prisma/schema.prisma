@@ -123,6 +123,36 @@ enum DmPolicy {
   NOBODY
 }
 
+enum ProfileVisibility {
+  EVERYONE
+  FRIENDS
+  NOBODY
+}
+
+enum PresenceVisibility {
+  EVERYONE
+  FRIENDS
+  NOBODY
+}
+
+enum UserDateFormat {
+  LOCALE
+  DMY
+  MDY
+  YMD
+}
+
+enum UserTimeFormat {
+  LOCALE
+  H12
+  H24
+}
+
+enum InterfaceDensity {
+  COMFORTABLE
+  COMPACT
+}
+
 // Device types for sessions
 enum DeviceType {
   WEB
@@ -439,6 +469,7 @@ model User {
   // Relations
   accounts                Account[]
   sessions                Session[]
+  authSessions            AuthSession[]
   emailVerificationTokens EmailVerificationToken[]
   accountReauthChallenges AccountReauthChallenge[]
   twoFactorRecoveryCodes   TwoFactorRecoveryCode[]
@@ -499,8 +530,9 @@ model User {
   badgeProgress           UserBadgeProgress[]
   contributorEntries      Contributor[]             @relation("ContributorUser")
 
-  @@index([email])
-  @@index([username])
+  /// `friends/service.ts:670` searches both fields with case-insensitive
+  /// `contains`. The audit migration owns direct-column pg_trgm indexes because
+  /// Prisma emits ILIKE for that filter and cannot express gin_trgm_ops here.
   @@index([status])
   @@index([premiumType])
   @@index([deletedAt])
@@ -572,6 +604,32 @@ model AppSession {
   @@index([clientType])
   @@index([clientType, startedAt])
   @@index([countryCode])
+  /// `friends/last-seen.ts:18` groups by user and takes max(lastSeenAt).
+  @@index([userId, lastSeenAt])
+  /// Admin activity and health snapshots filter on a bare startedAt range.
+  @@index([startedAt])
+}
+
+/// Durable authentication-session registry shared by web, desktop, and mobile.
+/// Deliberately excludes tokens, raw IP addresses, and user-agent strings.
+model AuthSession {
+  id          String              @id
+  userId      String
+  clientType  AnalyticsClientType @default(UNKNOWN)
+  deviceType  AnalyticsDeviceType @default(UNKNOWN)
+  os          String?             @db.VarChar(128)
+  browser     String?             @db.VarChar(128)
+  countryCode String?             @db.VarChar(2)
+  appVersion  String?             @db.VarChar(32)
+  createdAt   DateTime            @default(now())
+  lastSeenAt  DateTime            @default(now())
+  expiresAt   DateTime
+  revokedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt, lastSeenAt])
+  @@index([expiresAt])
 }
 
 model UserDailyMetric {
@@ -683,7 +741,12 @@ model UserSettings {
   // FRIENDS / NONE ladder has no third rung to offer here.
   allowGroupInvites     Boolean                   @default(true)
   showReadReceipts      Boolean                   @default(true)
-  nsfwAllowed           Boolean                   @default(false)
+  profileVisibility     ProfileVisibility         @default(EVERYONE)
+  presenceVisibility    PresenceVisibility        @default(EVERYONE)
+  timeZone              String?
+  dateFormat            UserDateFormat            @default(LOCALE)
+  timeFormat            UserTimeFormat            @default(LOCALE)
+  interfaceDensity      InterfaceDensity          @default(COMFORTABLE)
   serverRailWidth       Int                       @default(136)
   channelSidebarWidth   Int                       @default(288)
   notificationLimit     Int                       @default(5)
@@ -721,8 +784,8 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([token])
-  @@index([refreshToken])
+  /// The expired-session sweep introduced by audit prompt 01 filters expiresAt.
+  @@index([expiresAt])
 }
 
 model EmailVerificationToken {
@@ -961,6 +1024,10 @@ model FriendRequest {
 
   @@unique([senderId, receiverId])
   @@index([receiverId])
+  /// Friend lookups filter ACCEPTED requests through both sides of an OR.
+  @@index([senderId, status])
+  /// Friend lookups filter ACCEPTED requests through both sides of an OR.
+  @@index([receiverId, status])
 }
 
 model Server {
@@ -988,7 +1055,6 @@ model Server {
   vanityUrlCode               String?               @unique @map("vanity_url_code")
   afkChannelId                String?
   afkTimeout                  Int                   @default(300)
-  isNsfw                      Boolean               @default(false)
   type                        ServerType            @default(PERSONAL)
   memberCount                 Int                   @default(0)
   features                    String[]
@@ -1019,7 +1085,6 @@ model Server {
   userServerSettings UserServerSettings[] @relation("ServerUserSettings")
 
   @@index([name])
-  @@index([inviteCode])
   @@index([ownerId])
   @@index([discoverable])
   /// S3: the discovery query filters on `discoverable`/`isPublic` (not
@@ -1121,11 +1186,12 @@ model ServerInvite {
   createdAt    DateTime  @default(now())
 
   server  Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
-  channel Channel? @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  /// The channel is only a landing hint; deleting it must not delete the
+  /// server-scoped invite link.
+  channel Channel? @relation(fields: [channelId], references: [id], onDelete: SetNull)
   creator User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([serverId])
-  @@index([code])
 }
 
 model ChannelCategory {
@@ -1150,7 +1216,6 @@ model Channel {
   type                ChannelType
   topic               String?
   position            Int              @default(0)
-  isNsfw              Boolean          @default(false)
   slowModeDelay       Int              @default(0)
   lastMessageId       String?
   lastPinAt           DateTime?
@@ -1283,6 +1348,8 @@ model Attachment {
   @@index([messageId])
   @@index([dmMessageId])
   @@index([scanStatus])
+  /// Account export and deletion query attachments by uploader userId.
+  @@index([userId])
 }
 
 model MobileMediaUpload {
@@ -1334,7 +1401,6 @@ model Reaction {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId, emoji])
-  @@index([messageId])
 }
 
 model PinnedMessage {
@@ -1365,6 +1431,8 @@ model ChannelReadState {
 
   @@unique([channelId, userId])
   @@index([userId, channelId, lastReadAt])
+  /// `outbox/service.ts:470` selects recent readers by channel and lastReadAt.
+  @@index([channelId, lastReadAt])
 }
 
 model UserChannelSettings {
@@ -1510,6 +1578,8 @@ model DMMessage {
 
   conversation  DMConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   author        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// `dm/disappearing-service.ts` nulls replyToId inside the purge transaction;
+  /// keep Restrict so cleanup has one owner instead of competing FK behavior.
   reply         DMMessage?     @relation("DMMessageReply", fields: [replyToId], references: [id], onDelete: Restrict)
   replies       DMMessage[]    @relation("DMMessageReply")
   threadParent  DMMessage?     @relation("DMMessageThreadParent", fields: [threadParentId], references: [id], onDelete: Cascade)
@@ -1529,6 +1599,9 @@ model DMMessage {
   /// The purge sweep's whole predicate. Without it the worker scans every DM
   /// message once a minute.
   @@index([expiresAt])
+  /// `messages/search-service.ts:426` uses ILIKE/regex over content. The audit
+  /// migration owns its pg_trgm GIN index because Prisma cannot express the
+  /// required operator class here.
   @@unique([userId, clientNonce])
 }
 
@@ -1573,7 +1646,6 @@ model DMReaction {
   user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId, emoji])
-  @@index([messageId])
 }
 
 model Notification {
@@ -1598,6 +1670,8 @@ model Notification {
   @@index([userId, read])
   @@index([userId, createdAt])
   @@index([campaignId])
+  /// `notifications/service.ts:133` filters unread rows then orders createdAt.
+  @@index([userId, read, createdAt])
 }
 
 model MobilePushToken {
@@ -1907,6 +1981,8 @@ model ClientHealthEvent {
   @@index([kind, createdAt])
   @@index([clientType, kind, createdAt])
   @@index([appVersion, kind, createdAt])
+  /// `telemetry/client-health-rollup.ts` runs bare createdAt cutoff sweeps.
+  @@index([createdAt])
 }
 
 /// What survives the 30-day rollup: counts and latency percentiles per day,

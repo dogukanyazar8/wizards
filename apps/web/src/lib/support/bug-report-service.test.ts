@@ -32,6 +32,10 @@ function service(
 ): MobileBugReportServiceDependencies {
   return {
     createBugReport: async () => ({ createdAt: submittedAt }),
+    createBugReportWithScreenshotClaim: async (data) => ({
+      createdAt: submittedAt,
+      screenshotUrl: data.screenshotUrl ?? null,
+    }),
     deleteExpiredBugReports: async () => ({ count: 0 }),
     isUniqueTicketViolation: isUniqueConstraintError,
     now: () => submittedAt,
@@ -122,13 +126,25 @@ describe("bug report service", () => {
         written.push(data);
         return { createdAt: submittedAt };
       },
+      createBugReportWithScreenshotClaim: async (data, claim) => {
+        assert.deepEqual(claim, {
+          claimId: "550e8400-e29b-41d4-a716-446655440000",
+          now: submittedAt,
+          userId: "user-1",
+        });
+        written.push({ ...data, screenshotUrl: "https://cdn.whispr.test/report.png" });
+        return {
+          createdAt: submittedAt,
+          screenshotUrl: "https://cdn.whispr.test/report.png",
+        };
+      },
     });
 
     await submitMobileBugReport(
       {
         ...input,
         includesScreenshot: true,
-        screenshotUploadKey: "claim-safe-123",
+        screenshotUploadKey: "550e8400-e29b-41d4-a716-446655440000",
       },
       capture,
     );
@@ -136,12 +152,12 @@ describe("bug report service", () => {
       {
         ...input,
         includesScreenshot: false,
-        screenshotUploadKey: "claim-must-not-be-stored",
+        screenshotUploadKey: "550e8400-e29b-41d4-a716-446655440001",
       },
       capture,
     );
 
-    assert.equal(written[0]?.screenshotUrl, "claim-safe-123");
+    assert.equal(written[0]?.screenshotUrl, "https://cdn.whispr.test/report.png");
     assert.equal(written[1]?.screenshotUrl, null);
   });
 

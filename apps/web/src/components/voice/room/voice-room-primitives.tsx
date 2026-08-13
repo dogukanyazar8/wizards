@@ -550,12 +550,13 @@ export function VoiceParticipantTile({
   const cameraTrack =
     participant.isCameraEnabled && participant.cameraTrack ? participant.cameraTrack : null;
   const cameraPublication = participant.cameraPublication;
+  const videoQualityMode = useVoiceStore((state) => state.videoQualityMode);
 
   // A grid card is a readable surface, not a corner preview: it asks for the top
   // layer while it holds a camera and stops asking when the camera goes away.
   useEffect(() => {
-    setVoiceVideoQualityCeiling(cameraPublication, { isStage: true });
-  }, [cameraPublication]);
+    setVoiceVideoQualityCeiling(cameraPublication, { isStage: true, videoQualityMode });
+  }, [cameraPublication, videoQualityMode]);
 
   return (
     <article
@@ -962,15 +963,21 @@ export function ScreenShareStage({
   const [screenPipAspect, setScreenPipAspect] = useVideoSourceAspect(activeShare?.track ?? null);
   const activeCameraPublication = activeCameraParticipant?.cameraPublication ?? null;
   const activeSharePublication = activeShare?.publication ?? null;
+  const videoQualityMode = useVoiceStore((state) => state.videoQualityMode);
 
   // Whichever surface holds the stage asks for the top layer; the one demoted to
   // the corner preview gives it back.
   useEffect(() => {
-    setVoiceVideoQualityCeiling(activeCameraPublication, { isStage: primaryFocus === "camera" });
-  }, [activeCameraPublication, primaryFocus]);
+    setVoiceVideoQualityCeiling(activeCameraPublication, {
+      isStage: primaryFocus === "camera",
+      videoQualityMode,
+    });
+  }, [activeCameraPublication, primaryFocus, videoQualityMode]);
 
   useEffect(() => {
-    setVoiceVideoQualityCeiling(activeSharePublication, { isStage: primaryFocus === "screen" });
+    setVoiceVideoQualityCeiling(activeSharePublication, {
+      isStage: primaryFocus === "screen",
+    });
   }, [activeSharePublication, primaryFocus]);
 
   return (

@@ -25,7 +25,6 @@ import {
   MobileVoiceScreenShareUpdateEventSchema,
   MobileVoiceStateUpdateEventSchema,
   type DMConversationDTO,
-  type DMParticipantRole,
   type GroupCallStateDTO,
   type MobileBootstrapPayload,
   type MobileChannelMessagesResponse,
@@ -40,7 +39,6 @@ import {
 import {
   patchMobileGroupConversationRow,
   patchMobileGroupDetails,
-  patchMobileGroupMemberList,
   patchMobileGroupMemberRole,
   removeMobileExpiredMessages,
   type MobileGroupConversationRowPatch,
@@ -83,16 +81,6 @@ import {
 import type { MobileRealtimeActiveTargets } from "./mobile-realtime-state";
 import { applyMobileRealtimeChannelMessageEvent } from "../workspace/mobile-channel-message-state";
 import { applyMobileRealtimeNotificationEvent } from "../notifications/mobile-notification-realtime";
-
-/**
- * What a roster cached on `groupMembers` looks like from here: the one field a
- * role event moves. Kept structural so Faz 5 can widen the read without this
- * module having to know its full shape.
- */
-type MobileGroupRosterMember = {
-  readonly role?: DMParticipantRole | undefined;
-  readonly userId: string;
-};
 
 type MobileChannelMessagesInfiniteData = InfiniteData<MobileChannelMessagesResponse, string | null>;
 type MobileDMMessagesInfiniteData = InfiniteData<MobileDMMessagesResponse, string | null>;
@@ -325,10 +313,6 @@ export function createMobileRealtimeQueryBridge({
         return result.data;
       },
     );
-    if (!friendsPatched) {
-      scheduleSource("presence", null);
-    }
-
     let bootstrapPatched = false;
     queryClient.setQueryData<MobileBootstrapPayload>(mobileQueryKeys.bootstrap(), (current) => {
       const result = patchMobileRealtimeBootstrapPresence(current, parsed.data);
@@ -345,7 +329,12 @@ export function createMobileRealtimeQueryBridge({
       workspacePatched ||= result.patched;
       return result.data;
     });
-    void workspacePatched;
+    // Presence is broadcast to every workspace member, not only friends. A
+    // successful workspace patch already handled the event, so missing the
+    // friends row must not refetch the heaviest workspace read.
+    if (!friendsPatched && !workspacePatched) {
+      scheduleSource("presence", null);
+    }
 
     // An open profile card sits on its own cache entry keyed by user + server
     // context, so the friends/workspace patches above never reach it. Patched
@@ -456,10 +445,6 @@ export function createMobileRealtimeQueryBridge({
       if (parsed.success) {
         queryClient.setQueryData<DMConversationDTO>(detailsKey, (current) =>
           patchMobileGroupMemberRole(current, parsed.data),
-        );
-        queryClient.setQueryData<{ members: MobileGroupRosterMember[] }>(
-          mobileQueryKeys.groupMembers(conversationId),
-          (current) => patchMobileGroupMemberList(current, parsed.data),
         );
       }
       return true;

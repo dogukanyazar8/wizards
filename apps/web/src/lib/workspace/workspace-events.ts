@@ -9,6 +9,7 @@ import {
   removeServerOnlineMember,
   type ServerOnlinePresenceRedis,
 } from "@/lib/socket/server-online-presence";
+import { detachUserFromVoiceSurface } from "@/lib/voice/service";
 
 type WorkspaceNotificationRecord = {
   actionUrl: string | null;
@@ -63,8 +64,13 @@ export function formatRoleNameList(roleNames: string[]) {
 export async function detachUserFromServerSocketRoom(
   userId: string,
   serverId: string,
-  options: { redis?: ServerOnlinePresenceRedis } = {},
+  options: {
+    detachVoice?: typeof detachUserFromVoiceSurface;
+    redis?: ServerOnlinePresenceRedis;
+  } = {},
 ) {
+  await (options.detachVoice ?? detachUserFromVoiceSurface)(userId);
+
   const io = getSocketServer();
   if (!io) {
     return null;

@@ -6,10 +6,43 @@ import {
   logError,
   logWarning,
   redactErrorForReport,
+  redactText,
 } from "./logger";
+import { redactSentryEvent, redactText as redactSharedText } from "../../redaction";
 import { clearErrorReporter, registerErrorReporter } from "./observability/reporter";
 
 describe("structured logger", () => {
+  it("uses the same five text redactors for logger and Sentry payloads", () => {
+    const cases = [
+      "postgresql://user:pass@db.example.test/whispr",
+      "eyJaaaaaaaaaaaaaaaaaaaa.eyJbbbbbbbbbbbbbbbbbbbb.cccccccccccccccccccc",
+      "sk_test_1234567890abcdef",
+      "email=person@example.test",
+      "person@example.test",
+    ];
+
+    for (const value of cases) {
+      const loggerResult = redactText(value);
+      assert.equal(loggerResult, redactSharedText(value));
+      assert.equal(redactSentryEvent({ message: value }).message, loggerResult);
+      assert.notEqual(loggerResult, value);
+    }
+  });
+
+  it("removes credential query parameters from Sentry request data", () => {
+    const event = redactSentryEvent({
+      exception: { values: [{ value: "postgresql://user:pass@db.example.test/whispr" }] },
+      request: {
+        query_string: "page=2&token=query-secret&accountReauthToken=delete-secret",
+        url: "https://whispr.team/settings?token=query-secret&safe=value",
+      },
+    });
+
+    assert.equal(event.request?.url, "https://whispr.team/settings?safe=value");
+    assert.equal(event.request?.query_string, "page=2");
+    assert.doesNotMatch(JSON.stringify(event), /query-secret|delete-secret|user:pass/u);
+  });
+
   it("redacts credential-bearing URI userinfo before serializing nested errors", () => {
     const cause = new Error("request failed: redis://user:password@cache.example.test:6379");
     cause.stack = "Error: https://user:password@api.example.test/cause";

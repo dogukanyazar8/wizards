@@ -9,7 +9,9 @@ import {
   prefetchMobileChannelMessagesPage,
   prefetchMobileDMMessagesPage,
   prefetchMeasuredMobileDMMessagesPage,
-  resetMobileRecentDMPrefetchStatsForTests,
+  recordMobileRecentDMPrefetch,
+  recordMobileRecentDMPrefetchSettled,
+  resetMobileRecentDMPrefetchStats,
 } from "../src/query/mobile-message-prefetch";
 import {
   markMobileMessageStreamRestored,
@@ -132,7 +134,7 @@ describe("prefetchMobileDMMessagesPage", () => {
   });
 
   it("records a measured warm as a settled prefetch source", async () => {
-    resetMobileRecentDMPrefetchStatsForTests();
+    resetMobileRecentDMPrefetchStats();
     resetMobileMessageStreamSourcesForTests();
     const queryClient = createQueryClient();
     const { client } = createRecordingClient(dmPage);
@@ -156,12 +158,12 @@ describe("prefetchMobileDMMessagesPage", () => {
       "prefetch",
     );
     queryClient.clear();
-    resetMobileRecentDMPrefetchStatsForTests();
+    resetMobileRecentDMPrefetchStats();
     resetMobileMessageStreamSourcesForTests();
   });
 
   it("does not relabel a fresh SQLCipher page when prefetch is a no-op", async () => {
-    resetMobileRecentDMPrefetchStatsForTests();
+    resetMobileRecentDMPrefetchStats();
     resetMobileMessageStreamSourcesForTests();
     const queryClient = createQueryClient();
     const { client, paths } = createRecordingClient(dmPage);
@@ -186,7 +188,24 @@ describe("prefetchMobileDMMessagesPage", () => {
       "sqlcipher",
     );
     queryClient.clear();
-    resetMobileRecentDMPrefetchStatsForTests();
+    resetMobileRecentDMPrefetchStats();
     resetMobileMessageStreamSourcesForTests();
+  });
+
+  it("bounds session-scoped prefetch identifiers", () => {
+    resetMobileRecentDMPrefetchStats();
+    const ids = Array.from({ length: 33 }, (_, index) => `conversation-${index + 1}`);
+
+    recordMobileRecentDMPrefetch(ids);
+    recordMobileRecentDMPrefetchSettled(ids[0]!);
+    recordMobileRecentDMPrefetchSettled(ids.at(-1)!);
+
+    assert.deepEqual(getMobileRecentDMPrefetchStats(), {
+      attempted: 32,
+      hitRate: 0,
+      openedAfterSettled: 0,
+      settled: 1,
+    });
+    resetMobileRecentDMPrefetchStats();
   });
 });

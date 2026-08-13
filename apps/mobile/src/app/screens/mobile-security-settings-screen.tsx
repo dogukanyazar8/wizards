@@ -1,4 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import type { AuthSession } from "@wizards/types";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
@@ -10,6 +11,11 @@ import {
   useMobileAccountSettingsQuery,
   useMobileChangePasswordMutation,
 } from "../../account/mobile-account-settings-query";
+import {
+  useMobileAuthSessionsQuery,
+  useRevokeMobileAuthSessionMutation,
+  useRevokeOtherMobileAuthSessionsMutation,
+} from "../../account/mobile-auth-sessions-query";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import type { MobileSessionDiagnostics } from "../../auth/session-types";
 import { mobileCopy, type MobileLocale } from "../../locale/mobile-copy";
@@ -259,6 +265,34 @@ export function getMobilePasswordFailureMessage(
   }
 }
 
+function getMobileAuthSessionLabel(
+  session: AuthSession,
+  _locale: MobileLocale,
+  copy: {
+    securitySettingsSessionClientDesktop: string;
+    securitySettingsSessionClientMobile: string;
+    securitySettingsSessionClientUnknown: string;
+    securitySettingsSessionClientWeb: string;
+  },
+) {
+  const client =
+    session.clientType === "DESKTOP"
+      ? copy.securitySettingsSessionClientDesktop
+      : session.clientType === "MOBILE"
+        ? copy.securitySettingsSessionClientMobile
+        : session.clientType === "WEB"
+          ? copy.securitySettingsSessionClientWeb
+          : copy.securitySettingsSessionClientUnknown;
+  return [client, session.os, session.browser].filter(Boolean).join(" · ");
+}
+
+function formatMobileAuthSessionDate(value: string, locale: MobileLocale) {
+  return new Intl.DateTimeFormat(locale === "tr" ? "tr-TR" : "en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
 export function MobileSecuritySettingsScreen({
   appLockAvailability,
   appLockEnabled,
@@ -288,7 +322,10 @@ export function MobileSecuritySettingsScreen({
   const sheetPresentation = useSheetPresentation();
   const { apiClient, deviceIntegrityStatus, status } = useMobileAuth();
   const accountQuery = useMobileAccountSettingsQuery(apiClient, status === "signed-in");
+  const authSessionsQuery = useMobileAuthSessionsQuery(apiClient, status === "signed-in");
   const changePassword = useMobileChangePasswordMutation(apiClient);
+  const revokeSession = useRevokeMobileAuthSessionMutation(apiClient);
+  const revokeOtherSessions = useRevokeOtherMobileAuthSessionsMutation(apiClient);
   const [passwordSheetOpen, setPasswordSheetOpen] = useState(false);
   const [signOutSheetOpen, setSignOutSheetOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -297,6 +334,9 @@ export function MobileSecuritySettingsScreen({
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [sessionRefreshed, setSessionRefreshed] = useState(false);
+  const [sessionsSheetOpen, setSessionsSheetOpen] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<AuthSession | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<"others" | AuthSession | null>(null);
 
   const account = accountQuery.data?.account;
   const isSessionActive = sessionDiagnostics.hasSession && !sessionDiagnostics.isExpired;
@@ -305,6 +345,34 @@ export function MobileSecuritySettingsScreen({
     sessionDiagnostics.secondsUntilExpiry,
   );
   const appLockUnavailable = appLockAvailability !== "available";
+  const authSessions = authSessionsQuery.data?.sessions ?? [];
+  const otherSessionCount = authSessions.filter(({ current }) => !current).length;
+
+  const closeSessionsSheet = () => {
+    setSessionsSheetOpen(false);
+    setSelectedSession(null);
+  };
+
+  const confirmSessionRevocation = async () => {
+    const target = revokeTarget;
+    if (!target) return;
+    try {
+      if (target === "others") {
+        await revokeOtherSessions.mutateAsync();
+      } else {
+        const response = await revokeSession.mutateAsync(target.id);
+        if (response.currentSessionRevoked) {
+          closeSessionsSheet();
+          onSignOut();
+        } else {
+          setSelectedSession(null);
+        }
+      }
+      setRevokeTarget(null);
+    } catch {
+      setRevokeTarget(null);
+    }
+  };
 
   const closePasswordSheet = () => {
     setPasswordSheetOpen(false);
@@ -551,26 +619,28 @@ export function MobileSecuritySettingsScreen({
           />
         </View>
 
-        <Text style={styles.sectionHeading}>{copy.securitySettingsSoonHeading}</Text>
+        <Text style={styles.sectionHeading}>{copy.securitySettingsActiveDevices}</Text>
         <View style={styles.card}>
           <SecurityRow
-            disabled
-            hint={copy.securitySettingsActiveDevicesHint}
+            hint={
+              authSessionsQuery.isError
+                ? copy.securitySettingsActiveDevicesError
+                : copy.securitySettingsActiveDevicesHint
+            }
             icon="laptop-outline"
-            label={copy.securitySettingsActiveDevices}
-            soonLabel={copy.securitySettingsSoon}
-            testID="mobile-security-active-devices"
-            tone="muted"
-          />
-          <SecurityRow
-            disabled
-            hint={copy.securitySettingsDataExportHint}
-            icon="cloud-download-outline"
             isLast
-            label={copy.securitySettingsDataExport}
-            soonLabel={copy.securitySettingsSoon}
-            testID="mobile-security-data-export"
-            tone="muted"
+            label={copy.securitySettingsActiveDevices}
+            onPress={() => setSessionsSheetOpen(true)}
+            testID="mobile-security-active-devices"
+            tone="indigo"
+            value={
+              authSessionsQuery.isPending
+                ? copy.securitySettingsActiveDevicesLoading
+                : copy.securitySettingsActiveDevicesCount.replace(
+                    "{count}",
+                    String(authSessions.length),
+                  )
+            }
           />
         </View>
       </ScrollView>
@@ -636,6 +706,148 @@ export function MobileSecuritySettingsScreen({
           />
         </View>
       </BottomSheet>
+
+      <BottomSheet
+        accessibilityLabel={copy.securitySettingsActiveDevices}
+        onClose={closeSessionsSheet}
+        open={sessionsSheetOpen}
+        presentation={sheetPresentation}
+        sizing="content"
+        testID="mobile-security-sessions-sheet"
+      >
+        <View style={styles.sheet}>
+          <SheetHeader
+            closeAccessibilityLabel={copy.sheetCloseAction}
+            icon={selectedSession ? "phone-portrait-outline" : "laptop-outline"}
+            onClose={closeSessionsSheet}
+            subtitle={
+              selectedSession
+                ? copy.securitySettingsSessionDetailsHint
+                : copy.securitySettingsActiveDevicesHint
+            }
+            testID="mobile-security-sessions-header"
+            title={
+              selectedSession
+                ? getMobileAuthSessionLabel(selectedSession, locale, copy)
+                : copy.securitySettingsActiveDevices
+            }
+          />
+
+          {selectedSession ? (
+            <>
+              <Text style={styles.inputLabel}>{copy.securitySettingsSessionClient}</Text>
+              <Text style={styles.rowLabel}>
+                {getMobileAuthSessionLabel(selectedSession, locale, copy)}
+              </Text>
+              <Text style={styles.inputLabel}>{copy.securitySettingsSessionLocation}</Text>
+              <Text style={styles.rowLabel}>
+                {selectedSession.countryCode ?? copy.securitySettingsSessionUnknown}
+              </Text>
+              <Text style={styles.inputLabel}>{copy.securitySettingsSessionLastSeen}</Text>
+              <Text style={styles.rowLabel}>
+                {formatMobileAuthSessionDate(selectedSession.lastSeenAt, locale)}
+              </Text>
+              <Button
+                busy={revokeSession.isPending}
+                label={copy.securitySettingsSessionRevoke}
+                onPress={() => setRevokeTarget(selectedSession)}
+                testID="mobile-security-session-revoke"
+                variant="danger"
+              />
+              {revokeSession.isError ? (
+                <Text accessibilityLiveRegion="polite" style={styles.sheetError}>
+                  {copy.securitySettingsSessionRevokeError}
+                </Text>
+              ) : null}
+            </>
+          ) : authSessionsQuery.isPending ? (
+            <Text style={styles.rowHint}>{copy.securitySettingsActiveDevicesLoading}</Text>
+          ) : authSessionsQuery.isError ? (
+            <>
+              <Text style={styles.sheetError}>{copy.securitySettingsActiveDevicesError}</Text>
+              <Button
+                label={copy.securitySettingsActiveDevicesRetry}
+                onPress={() => void authSessionsQuery.refetch()}
+                testID="mobile-security-sessions-retry"
+                variant="secondary"
+              />
+            </>
+          ) : authSessions.length === 0 ? (
+            <Text style={styles.rowHint}>{copy.securitySettingsActiveDevicesEmpty}</Text>
+          ) : (
+            <>
+              {authSessions.map((session) => (
+                <Pressable
+                  accessibilityLabel={getMobileAuthSessionLabel(session, locale, copy)}
+                  accessibilityRole="button"
+                  key={session.id}
+                  onPress={() => setSelectedSession(session)}
+                  style={({ pressed }) => [
+                    styles.row,
+                    styles.rowDivider,
+                    pressed && styles.pressed,
+                  ]}
+                  testID={`mobile-security-session-${session.id}`}
+                >
+                  <SecurityIconBox
+                    icon={
+                      session.deviceType === "DESKTOP" ? "laptop-outline" : "phone-portrait-outline"
+                    }
+                    tone={session.current ? "green" : "muted"}
+                  />
+                  <View style={styles.rowText}>
+                    <Text numberOfLines={1} style={styles.rowLabel}>
+                      {getMobileAuthSessionLabel(session, locale, copy)}
+                    </Text>
+                    <Text style={styles.rowHint}>
+                      {formatMobileAuthSessionDate(session.lastSeenAt, locale)}
+                    </Text>
+                  </View>
+                  {session.current ? (
+                    <SecurityStatusBadge
+                      label={copy.securitySettingsSessionCurrent}
+                      tone="success"
+                    />
+                  ) : null}
+                  <Ionicons color={theme.text.soft} name="chevron-forward" size={16} />
+                </Pressable>
+              ))}
+              {otherSessionCount > 0 ? (
+                <Button
+                  busy={revokeOtherSessions.isPending}
+                  label={copy.securitySettingsSessionRevokeOthers}
+                  onPress={() => setRevokeTarget("others")}
+                  testID="mobile-security-session-revoke-others"
+                  variant="danger"
+                />
+              ) : null}
+              {revokeOtherSessions.isError ? (
+                <Text accessibilityLiveRegion="polite" style={styles.sheetError}>
+                  {copy.securitySettingsSessionRevokeError}
+                </Text>
+              ) : null}
+            </>
+          )}
+        </View>
+      </BottomSheet>
+
+      <DestructiveConfirmationSheet
+        body={
+          revokeTarget === "others"
+            ? copy.securitySettingsSessionRevokeOthersConfirm
+            : revokeTarget?.current
+              ? copy.securitySettingsSessionRevokeCurrentConfirm
+              : copy.securitySettingsSessionRevokeConfirm
+        }
+        busy={revokeSession.isPending || revokeOtherSessions.isPending}
+        confirmLabel={copy.securitySettingsSessionRevoke}
+        icon="log-out-outline"
+        onCancel={() => setRevokeTarget(null)}
+        onConfirm={() => void confirmSessionRevocation()}
+        open={revokeTarget !== null}
+        testID="mobile-security-session-revoke-sheet"
+        title={copy.securitySettingsSessionRevokeTitle}
+      />
 
       <DestructiveConfirmationSheet
         body={copy.securitySettingsSignOutConfirmDescription}

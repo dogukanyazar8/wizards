@@ -33,6 +33,7 @@ import { useMobileHaptics } from "../../app/providers/mobile-haptics-provider";
 import { useMobileLocaleRuntime } from "../../app/providers/mobile-locale-provider";
 import { useMobileAccountSettingsQuery } from "../../account/mobile-account-settings-query";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
+import { MobileApiError } from "../../api/mobile-api-client";
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
 import { mobileCopy } from "../../locale/mobile-copy";
 
@@ -240,25 +241,51 @@ function ProfileCardOverlay({
     return result.conversation.id;
   }, [mutations.openDM, target.userId]);
 
+  const resolveRequestErrorCopy = useCallback(
+    (error: unknown) => {
+      const serverCode = error instanceof MobileApiError ? error.serverCode : null;
+      if (serverCode === "NOT_FOUND") return labels.friendsRequestUserNotFound;
+      if (serverCode === "ALREADY_FRIENDS") return labels.friendsRequestAlreadyFriends;
+      if (serverCode === "ALREADY_PENDING") return labels.friendsRequestAlreadyPending;
+      if (serverCode === "BLOCKED" || serverCode === "FRIEND_REQUEST_POLICY")
+        return labels.friendsRequestBlocked;
+      return labels.friendsRequestFailed;
+    },
+    [labels],
+  );
+
+  const showActionFailure = useCallback(() => {
+    showToast({ title: labels.socialActionFailed, variant: "error" });
+  }, [labels.socialActionFailed, showToast]);
+
   const handleMessage = useCallback(() => {
     void (async () => {
-      const conversationId = await openConversation();
-      if (mobileNavigationRef.isReady()) {
-        mobileNavigationRef.navigate("DirectMessage", { conversationId });
+      try {
+        const conversationId = await openConversation();
+        if (mobileNavigationRef.isReady()) {
+          mobileNavigationRef.navigate("DirectMessage", { conversationId });
+        }
+        onClose();
+      } catch {
+        // A rejected DM open used to escape this void task and leave the card inert.
+        showActionFailure();
       }
-      onClose();
     })();
-  }, [onClose, openConversation]);
+  }, [onClose, openConversation, showActionFailure]);
 
   const startCall = useCallback(
     (video: boolean) => {
       void (async () => {
-        const conversationId = await openConversation();
-        await startMobileDirectCall({ conversationId, title: displayName, video });
-        onClose();
+        try {
+          const conversationId = await openConversation();
+          await startMobileDirectCall({ conversationId, title: displayName, video });
+          onClose();
+        } catch {
+          showActionFailure();
+        }
       })();
     },
-    [displayName, onClose, openConversation],
+    [displayName, onClose, openConversation, showActionFailure],
   );
 
   const handleAddFriend = useCallback(() => {
@@ -267,20 +294,28 @@ function ProfileCardOverlay({
     }
 
     void (async () => {
-      await mutations.createRequest.mutateAsync({
-        userId: profile.user.id,
-        username: profile.user.username,
-      });
-      haptics.impact();
+      try {
+        await mutations.createRequest.mutateAsync({
+          userId: profile.user.id,
+          username: profile.user.username,
+        });
+        haptics.impact();
+      } catch (error) {
+        showToast({ title: resolveRequestErrorCopy(error), variant: "error" });
+      }
     })();
-  }, [haptics, mutations.createRequest, profile]);
+  }, [haptics, mutations.createRequest, profile, resolveRequestErrorCopy, showToast]);
 
   const handleUnblock = useCallback(() => {
     void (async () => {
-      await mutations.unblockFriend.mutateAsync(target.userId);
-      onClose();
+      try {
+        await mutations.unblockFriend.mutateAsync(target.userId);
+        onClose();
+      } catch {
+        showActionFailure();
+      }
     })();
-  }, [mutations.unblockFriend, onClose, target.userId]);
+  }, [mutations.unblockFriend, onClose, showActionFailure, target.userId]);
 
   const handleBlockConfirm = useCallback(async () => {
     await mutations.blockFriend.mutateAsync(target.userId);
@@ -297,12 +332,17 @@ function ProfileCardOverlay({
     (reason: MobileUserReportReason) => {
       setReportOpen(false);
       void (async () => {
-        await mutations.reportUser.mutateAsync({ reason, userId: target.userId });
-        showToast({ title: copy.profileCardReportedToast, variant: "success" });
-        onClose();
+        try {
+          await mutations.reportUser.mutateAsync({ reason, userId: target.userId });
+          showToast({ title: copy.profileCardReportedToast, variant: "success" });
+          onClose();
+        } catch {
+          // Success feedback must follow the server acknowledgement, never the tap.
+          showToast({ title: labels.reportSubmitFailed, variant: "error" });
+        }
       })();
     },
-    [mutations.reportUser, onClose, showToast, target.userId],
+    [labels.reportSubmitFailed, mutations.reportUser, onClose, showToast, target.userId],
   );
 
   /**
@@ -322,17 +362,29 @@ function ProfileCardOverlay({
     }
 
     void (async () => {
-      await mutations.acceptRequest.mutateAsync({
-        requestId: incomingRequestId,
-        userId: profile.user.id,
-      });
-      haptics.impact();
-      showToast({
-        title: copy.profileCardRequestAcceptedToastTemplate.replace("{name}", displayName),
-        variant: "success",
-      });
+      try {
+        await mutations.acceptRequest.mutateAsync({
+          requestId: incomingRequestId,
+          userId: profile.user.id,
+        });
+        haptics.impact();
+        showToast({
+          title: copy.profileCardRequestAcceptedToastTemplate.replace("{name}", displayName),
+          variant: "success",
+        });
+      } catch (error) {
+        showToast({ title: resolveRequestErrorCopy(error), variant: "error" });
+      }
     })();
-  }, [displayName, haptics, incomingRequestId, mutations.acceptRequest, profile, showToast]);
+  }, [
+    displayName,
+    haptics,
+    incomingRequestId,
+    mutations.acceptRequest,
+    profile,
+    resolveRequestErrorCopy,
+    showToast,
+  ]);
 
   /** Declining closes the card: there is nothing left on it to act on. */
   const handleRejectRequest = useCallback(() => {
@@ -341,14 +393,25 @@ function ProfileCardOverlay({
     }
 
     void (async () => {
-      await mutations.rejectRequest.mutateAsync({
-        requestId: incomingRequestId,
-        userId: profile.user.id,
-      });
-      showToast({ title: copy.profileCardRequestRejectedToast, variant: "success" });
-      onClose();
+      try {
+        await mutations.rejectRequest.mutateAsync({
+          requestId: incomingRequestId,
+          userId: profile.user.id,
+        });
+        showToast({ title: copy.profileCardRequestRejectedToast, variant: "success" });
+        onClose();
+      } catch (error) {
+        showToast({ title: resolveRequestErrorCopy(error), variant: "error" });
+      }
     })();
-  }, [incomingRequestId, mutations.rejectRequest, onClose, profile, showToast]);
+  }, [
+    incomingRequestId,
+    mutations.rejectRequest,
+    onClose,
+    profile,
+    resolveRequestErrorCopy,
+    showToast,
+  ]);
 
   /**
    * 11c: "Profili görüntüle" and the mutual summary row both land on the full

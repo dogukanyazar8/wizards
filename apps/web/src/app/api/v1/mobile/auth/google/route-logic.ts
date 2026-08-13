@@ -20,8 +20,7 @@ export type MobileGoogleLoginRouteDependencies = {
 };
 
 const defaultMobileGoogleLoginRouteDependencies: MobileGoogleLoginRouteDependencies = {
-  createGoogleSession: ({ idToken, locale }) =>
-    createMobileGoogleSession(locale === undefined ? { idToken } : { idToken, locale }),
+  createGoogleSession: (input) => createMobileGoogleSession(input),
   enforceRateLimit: (request, subject) =>
     enforceMobileAuthRateLimit(request, "mobile:auth-google", subject),
   parseGoogleLoginRequest: (request) => parseJsonBody(request, MobileAuthGoogleLoginRequestSchema),

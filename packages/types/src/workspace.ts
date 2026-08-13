@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { CHANNEL_BITRATE_OPTIONS, CHANNEL_VIDEO_QUALITY_MODES } from "./voice-media-policy";
+
 function emptyStringToNull(value: string | null | undefined) {
   if (value == null) {
     return null;
@@ -48,6 +50,30 @@ const workspaceNameSchema = (maxLength: number, patternMessage: string) =>
 export const WorkspaceAccessLevelSchema = z.enum(["OWNER", "ADMIN", "MEMBER"]);
 
 export const WorkspaceChannelTypeSchema = z.enum(["TEXT", "VOICE"]);
+
+export const CHANNEL_SLOW_MODE_DELAYS = [
+  0, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1_800, 3_600,
+] as const;
+export const CHANNEL_USER_LIMIT_MAX = 10;
+const ChannelVideoQualityModeSchema = z.enum(CHANNEL_VIDEO_QUALITY_MODES);
+
+const channelSlowModeDelaySchema = z
+  .number()
+  .int()
+  .refine((value) => CHANNEL_SLOW_MODE_DELAYS.includes(value as never));
+const channelBitrateSchema = z
+  .number()
+  .int()
+  .refine((value) => CHANNEL_BITRATE_OPTIONS.includes(value as never));
+const channelUserLimitSchema = z.number().int().min(0).max(CHANNEL_USER_LIMIT_MAX);
+const channelRtcRegionSchema = z
+  .string()
+  .trim()
+  .min(2)
+  .max(32)
+  .regex(/^[A-Z][A-Z0-9_]*$/)
+  .or(z.literal("AUTO"))
+  .nullable();
 
 export const WorkspacePermissionKeySchema = z.enum([
   "ADMINISTRATOR",
@@ -106,6 +132,7 @@ export const WorkspaceRoleSchema = z.object({
 });
 
 export const WorkspaceChannelSchema = z.object({
+  bitrate: channelBitrateSchema.default(64_000),
   canAccess: z.boolean().default(true),
   id: z.string(),
   categoryId: z.string().nullable(),
@@ -117,7 +144,11 @@ export const WorkspaceChannelSchema = z.object({
   type: WorkspaceChannelTypeSchema,
   position: z.number().int().nonnegative(),
   readOnly: z.boolean().default(false),
+  rtcRegion: channelRtcRegionSchema.default(null),
+  slowModeDelay: channelSlowModeDelaySchema.default(0),
   unreadCount: z.number().int().nonnegative().default(0),
+  userLimit: channelUserLimitSchema.default(0),
+  videoQualityMode: ChannelVideoQualityModeSchema.default("AUTO"),
 });
 
 export const WorkspaceCategorySchema = z.object({
@@ -206,6 +237,7 @@ export const WorkspaceServerSummarySchema = z.object({
 
 export const WorkspaceServerDetailSchema = z.object({
   server: WorkspaceServerSummarySchema.extend({
+    availableRtcRegions: z.array(z.string().regex(/^[A-Z][A-Z0-9_]{1,31}$/u)).optional(),
     description: z.string().nullable(),
     /**
      * The visibility triple rides along with the detail the settings overlay
@@ -363,27 +395,65 @@ export const UpdateCategorySchema = z.object({
   name: workspaceNameSchema(48, "validation.category.pattern"),
 });
 
-export const CreateChannelSchema = z.object({
-  categoryId: z.string().nullable().optional(),
-  name: workspaceNameSchema(48, "validation.channel.pattern"),
-  permissions: WorkspaceChannelPermissionSettingsSchema.optional(),
-  topic: optionalTrimmedString(120),
-  type: WorkspaceChannelTypeSchema,
-});
+const CreateChannelFieldsSchema = z
+  .object({
+    bitrate: channelBitrateSchema.optional(),
+    categoryId: z.string().nullable().optional(),
+    name: workspaceNameSchema(48, "validation.channel.pattern"),
+    permissions: WorkspaceChannelPermissionSettingsSchema.optional(),
+    rtcRegion: channelRtcRegionSchema.optional(),
+    slowModeDelay: channelSlowModeDelaySchema.optional(),
+    topic: optionalTrimmedString(120),
+    type: WorkspaceChannelTypeSchema,
+    userLimit: channelUserLimitSchema.optional(),
+    videoQualityMode: ChannelVideoQualityModeSchema.optional(),
+  })
+  .strict();
 
-export const UpdateChannelFieldsSchema = z.object({
-  categoryId: z.string().nullable().optional(),
-  name: workspaceNameSchema(48, "validation.channel.pattern").optional(),
-  topic: optionalTrimmedString(120, true),
-  locked: z.boolean().optional(),
-});
+function rejectSettingsForWrongChannelType(
+  value: z.infer<typeof CreateChannelFieldsSchema>,
+  context: z.RefinementCtx,
+) {
+  const invalidFields =
+    value.type === "TEXT"
+      ? (["bitrate", "rtcRegion", "userLimit", "videoQualityMode"] as const)
+      : (["slowModeDelay"] as const);
+
+  for (const field of invalidFields) {
+    if (value[field] !== undefined) {
+      context.addIssue({
+        code: "custom",
+        message: "validation.channel.settingNotAvailableForType",
+        path: [field],
+      });
+    }
+  }
+}
+
+export const CreateChannelSchema = CreateChannelFieldsSchema.superRefine(
+  rejectSettingsForWrongChannelType,
+);
+
+export const UpdateChannelFieldsSchema = z
+  .object({
+    bitrate: channelBitrateSchema.optional(),
+    categoryId: z.string().nullable().optional(),
+    name: workspaceNameSchema(48, "validation.channel.pattern").optional(),
+    topic: optionalTrimmedString(120, true),
+    locked: z.boolean().optional(),
+    rtcRegion: channelRtcRegionSchema.optional(),
+    slowModeDelay: channelSlowModeDelaySchema.optional(),
+    userLimit: channelUserLimitSchema.optional(),
+    videoQualityMode: ChannelVideoQualityModeSchema.optional(),
+  })
+  .strict();
+
+const UPDATE_CHANNEL_FIELD_KEYS = Object.keys(UpdateChannelFieldsSchema.shape) as ReadonlyArray<
+  keyof z.infer<typeof UpdateChannelFieldsSchema>
+>;
 
 export const UpdateChannelSchema = UpdateChannelFieldsSchema.refine(
-  (value) =>
-    value.name !== undefined ||
-    value.categoryId !== undefined ||
-    value.topic !== undefined ||
-    value.locked !== undefined,
+  (value) => UPDATE_CHANNEL_FIELD_KEYS.some((key) => value[key] !== undefined),
   {
     message: "validation.form.atLeastOne",
   },
@@ -627,6 +697,7 @@ export const ServerPublicProfileSchema = z.object({
   canManageServer: z.boolean(),
   channelCount: z.number().int().nonnegative(),
   channels: z.array(ServerPublicProfileChannelSchema),
+  hasMoreChannels: z.boolean().optional(),
   createdAt: z.string().datetime(),
   description: z.string(),
   discoverable: z.boolean(),

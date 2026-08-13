@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { FlashList } from "@shopify/flash-list";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 
 import { Avatar, ContextMenu, EmptyState, Icon, Skeleton, useToast } from "../app/components/kit";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
@@ -24,6 +25,7 @@ import { openMobileVoiceRoom } from "../voice/mobile-voice-room-route-navigation
 import {
   MOBILE_USER_SEARCH_MIN_TERM_LENGTH,
   normalizeMobileUserSearchTerm,
+  type MobileFriend,
   type MobileUserSearchResult,
 } from "./mobile-social-client";
 import {
@@ -39,6 +41,25 @@ const USER_SEARCH_DEBOUNCE_MS = 300;
 
 type FriendsHubMode = "all" | "friends" | "requests";
 type FriendsHubSegment = "online" | "all" | "requests";
+
+type FriendsHubListItem =
+  | {
+      readonly count: number;
+      readonly id: string;
+      readonly kind: "section";
+      readonly label: string;
+      readonly testID: string;
+      readonly tone: "neutral" | "online";
+    }
+  | {
+      readonly friend: MobileFriend;
+      readonly id: string;
+      readonly index: number;
+      readonly kind: "friend";
+      readonly total: number;
+    };
+
+const getFriendsHubItemType = (item: FriendsHubListItem) => item.kind;
 
 /**
  * `scale` maps the handoff's 390pt frame onto the real screen, exactly as the
@@ -522,15 +543,71 @@ export function FriendsHub({
       (query.data?.friends ?? []).filter((friend) => matchesFriendQuery(friend, effectiveSearch)),
     [query.data?.friends, effectiveSearch],
   );
-  const onlineFriends = friends.filter((friend) => friend.status !== "OFFLINE");
-  const offlineFriends = friends.filter((friend) => friend.status === "OFFLINE");
+  const onlineFriends = useMemo(
+    () => friends.filter((friend) => friend.status !== "OFFLINE"),
+    [friends],
+  );
+  const offlineFriends = useMemo(
+    () => friends.filter((friend) => friend.status === "OFFLINE"),
+    [friends],
+  );
   const activeSegment: FriendsHubSegment = mode === "requests" ? "requests" : friendSegment;
-  const presenceLabels = {
-    DND: t.friendsStatusDnd,
-    IDLE: t.friendsStatusIdle,
-    OFFLINE: t.friendsStatusOffline,
-    ONLINE: t.friendsStatusOnline,
-  } as const;
+  const presenceLabels = useMemo(
+    () =>
+      ({
+        DND: t.friendsStatusDnd,
+        IDLE: t.friendsStatusIdle,
+        OFFLINE: t.friendsStatusOffline,
+        ONLINE: t.friendsStatusOnline,
+      }) as const,
+    [t.friendsStatusDnd, t.friendsStatusIdle, t.friendsStatusOffline, t.friendsStatusOnline],
+  );
+  const friendListItems = useMemo<FriendsHubListItem[]>(
+    () =>
+      activeSegment === "requests" || query.isLoading || query.isError
+        ? []
+        : [
+            {
+              count: onlineFriends.length,
+              id: "section:online",
+              kind: "section",
+              label: t.friendsOnline,
+              testID: "mobile-friends-group-online",
+              tone: "online",
+            },
+            ...onlineFriends.map((friend, index) => ({
+              friend,
+              id: `online:${friend.id}`,
+              index,
+              kind: "friend" as const,
+              total: onlineFriends.length,
+            })),
+            {
+              count: offlineFriends.length,
+              id: "section:offline",
+              kind: "section",
+              label: t.friendsOffline,
+              testID: "mobile-friends-group-offline",
+              tone: "neutral",
+            },
+            ...offlineFriends.map((friend, index) => ({
+              friend,
+              id: `offline:${friend.id}`,
+              index,
+              kind: "friend" as const,
+              total: offlineFriends.length,
+            })),
+          ],
+    [
+      activeSegment,
+      offlineFriends,
+      onlineFriends,
+      query.isError,
+      query.isLoading,
+      t.friendsOffline,
+      t.friendsOnline,
+    ],
+  );
 
   /**
    * §2 "1c": embedded in the Messages tabs there is exactly one search field —
@@ -579,43 +656,107 @@ export function FriendsHub({
    * ask for the microphone, then actually join. Opening the room screen alone
    * left it sitting on its loading state forever, because nothing had connected.
    */
-  const joinVoiceRoom = async (voiceRoom: MobileFriendVoiceRoom) => {
-    if (!voiceRuntime) {
+  const joinVoiceRoom = useCallback(
+    async (voiceRoom: MobileFriendVoiceRoom) => {
+      if (!voiceRuntime) {
+        openMobileVoiceRoom({
+          channelId: voiceRoom.channelId,
+          channelName: voiceRoom.channelName,
+          serverId: voiceRoom.serverId,
+        });
+        return;
+      }
+
+      const permission = await voiceRuntime.requestMicrophonePermission();
+      if (!permission.hasMicrophonePermission) {
+        showToast({ title: t.voiceRoomPermissionDenied, variant: "warning" });
+        return;
+      }
+
+      // The screen opens first: joining costs a token fetch and an ICE handshake,
+      // and waiting for it makes the pill feel dead.
       openMobileVoiceRoom({
         channelId: voiceRoom.channelId,
         channelName: voiceRoom.channelName,
         serverId: voiceRoom.serverId,
       });
-      return;
-    }
+      void voiceRuntime.joinVoiceChannel({
+        channelId: voiceRoom.channelId,
+        channelName: voiceRoom.channelName,
+        permission,
+        serverId: voiceRoom.serverId,
+      });
+    },
+    [openMobileVoiceRoom, showToast, t.voiceRoomPermissionDenied, voiceRuntime],
+  );
 
-    const permission = await voiceRuntime.requestMicrophonePermission();
-    if (!permission.hasMicrophonePermission) {
-      showToast({ title: t.voiceRoomPermissionDenied, variant: "warning" });
-      return;
-    }
+  const openDM = useCallback(
+    async (userId: string) => {
+      try {
+        const result = await mutations.openDM.mutateAsync(userId);
+        if (mobileNavigationRef.isReady()) {
+          mobileNavigationRef.navigate("DirectMessage", {
+            conversationId: result.conversation.id,
+          });
+        }
+      } catch {
+        // A voided mutation rejection otherwise turns a message tap into a dead touch.
+        showToast({ title: t.socialActionFailed, variant: "error" });
+      }
+    },
+    [mutations.openDM, showToast, t.socialActionFailed],
+  );
 
-    // The screen opens first: joining costs a token fetch and an ICE handshake,
-    // and waiting for it makes the pill feel dead.
-    openMobileVoiceRoom({
-      channelId: voiceRoom.channelId,
-      channelName: voiceRoom.channelName,
-      serverId: voiceRoom.serverId,
-    });
-    void voiceRuntime.joinVoiceChannel({
-      channelId: voiceRoom.channelId,
-      channelName: voiceRoom.channelName,
-      permission,
-      serverId: voiceRoom.serverId,
-    });
-  };
-
-  const openDM = async (userId: string) => {
-    const result = await mutations.openDM.mutateAsync(userId);
-    if (mobileNavigationRef.isReady()) {
-      mobileNavigationRef.navigate("DirectMessage", { conversationId: result.conversation.id });
-    }
-  };
+  const friendMenuActionsById = useMemo(
+    () =>
+      new Map(
+        friends.map(
+          (friend) =>
+            [
+              friend.id,
+              [
+                {
+                  icon: "chatbubble-outline" as const,
+                  id: "message",
+                  label: t.friendsOpen,
+                  onPress: () => void openDM(friend.id),
+                },
+                {
+                  destructive: true,
+                  icon: "person-remove-outline" as const,
+                  id: "remove",
+                  label: t.friendsRemove,
+                  onPress: () =>
+                    mutations.removeFriend.mutate(friend.id, {
+                      onError: () => showToast({ title: t.socialActionFailed, variant: "error" }),
+                    }),
+                },
+                {
+                  destructive: true,
+                  icon: "ban-outline" as const,
+                  id: "block",
+                  label: t.friendsBlock,
+                  onPress: () =>
+                    mutations.blockFriend.mutate(friend.id, {
+                      onError: () => showToast({ title: t.socialActionFailed, variant: "error" }),
+                    }),
+                },
+              ],
+            ] as const,
+        ),
+      ),
+    [
+      friends,
+      mutations.blockFriend,
+      mutations.removeFriend,
+      openDM,
+      showToast,
+      t.friendsBlock,
+      t.friendsOpen,
+      t.friendsRemove,
+      t.socialActionFailed,
+    ],
+  );
 
   const selectSegment = (segment: FriendsHubSegment) => {
     if (segment === "requests") {
@@ -665,201 +806,197 @@ export function FriendsHub({
    * then a custom status, then bare presence. Offline rows read `lastSeenAt`.
    * Every value here comes from M4A's friends payload; nothing is invented.
    */
-  const renderFriendDetail = (friend: (typeof friends)[number]) => {
-    if (friend.voiceRoom) {
-      return (
-        <View style={styles.socialDetailRow}>
-          <MobileLineIcon color={theme.messaging.accent} name="audio-wave" size={12} />
-          <Text
-            numberOfLines={1}
-            style={[styles.socialDetail, styles.socialDetailAccent]}
-            testID={`mobile-friend-voice-room-${friend.id}`}
-          >
-            {t.dmVoiceRoomLabel
-              .replace("{channel}", friend.voiceRoom.channelName)
-              .replace("{server}", friend.voiceRoom.serverName)}
-          </Text>
-        </View>
-      );
-    }
+  const renderFriendDetail = useCallback(
+    (friend: (typeof friends)[number]) => {
+      if (friend.voiceRoom) {
+        return (
+          <View style={styles.socialDetailRow}>
+            <MobileLineIcon color={theme.messaging.accent} name="audio-wave" size={12} />
+            <Text
+              numberOfLines={1}
+              style={[styles.socialDetail, styles.socialDetailAccent]}
+              testID={`mobile-friend-voice-room-${friend.id}`}
+            >
+              {t.dmVoiceRoomLabel
+                .replace("{channel}", friend.voiceRoom.channelName)
+                .replace("{server}", friend.voiceRoom.serverName)}
+            </Text>
+          </View>
+        );
+      }
 
-    if (friend.status === "OFFLINE") {
+      if (friend.status === "OFFLINE") {
+        return (
+          <Text numberOfLines={1} style={styles.socialDetail}>
+            {friend.lastSeenAt
+              ? formatMobileRelativeTime(friend.lastSeenAt, locale)
+              : presenceLabels.OFFLINE}
+          </Text>
+        );
+      }
+
+      if (friend.device) {
+        const deviceLabel =
+          friend.device === "MOBILE"
+            ? t.dmDeviceMobile
+            : friend.device === "DESKTOP"
+              ? t.dmDeviceDesktop
+              : t.dmDeviceWeb;
+        return (
+          <View style={styles.socialDetailRow}>
+            <MobileLineIcon
+              color={theme.messaging.groupLabel}
+              name={friend.device === "MOBILE" ? "device-mobile" : "servers"}
+              size={12}
+            />
+            <Text
+              numberOfLines={1}
+              style={[styles.socialDetail, styles.socialDetailStrong]}
+              testID={`mobile-friend-device-${friend.id}`}
+            >
+              {deviceLabel}
+            </Text>
+          </View>
+        );
+      }
+
       return (
-        <Text numberOfLines={1} style={styles.socialDetail}>
-          {friend.lastSeenAt
-            ? formatMobileRelativeTime(friend.lastSeenAt, locale)
-            : presenceLabels.OFFLINE}
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.socialDetail,
+            styles.socialDetailStrong,
+            friend.status === "ONLINE" && styles.socialDetailOnline,
+          ]}
+        >
+          {friend.customStatus ??
+            (friend.status === "ONLINE" ? t.dmFriendStatusOnline : presenceLabels[friend.status])}
         </Text>
       );
-    }
+    },
+    [locale, presenceLabels, styles, t, theme],
+  );
 
-    if (friend.device) {
-      const deviceLabel =
-        friend.device === "MOBILE"
-          ? t.dmDeviceMobile
-          : friend.device === "DESKTOP"
-            ? t.dmDeviceDesktop
-            : t.dmDeviceWeb;
+  const renderFriend = useCallback(
+    (friend: (typeof friends)[number], index: number, total: number) => {
+      const isOffline = friend.status === "OFFLINE";
+      const title = friend.displayName ?? friend.username;
       return (
-        <View style={styles.socialDetailRow}>
-          <MobileLineIcon
-            color={theme.messaging.groupLabel}
-            name={friend.device === "MOBILE" ? "device-mobile" : "servers"}
-            size={12}
-          />
-          <Text
-            numberOfLines={1}
-            style={[styles.socialDetail, styles.socialDetailStrong]}
-            testID={`mobile-friend-device-${friend.id}`}
-          >
-            {deviceLabel}
-          </Text>
-        </View>
-      );
-    }
-
-    return (
-      <Text
-        numberOfLines={1}
-        style={[
-          styles.socialDetail,
-          styles.socialDetailStrong,
-          friend.status === "ONLINE" && styles.socialDetailOnline,
-        ]}
-      >
-        {friend.customStatus ??
-          (friend.status === "ONLINE" ? t.dmFriendStatusOnline : presenceLabels[friend.status])}
-      </Text>
-    );
-  };
-
-  const renderFriend = (friend: (typeof friends)[number], index: number, total: number) => {
-    const isOffline = friend.status === "OFFLINE";
-    const title = friend.displayName ?? friend.username;
-    return (
-      <ContextMenu
-        accessibilityLabel={title}
-        actions={[
-          {
-            icon: "chatbubble-outline",
-            id: "message",
-            label: t.friendsOpen,
-            onPress: () => void openDM(friend.id),
-          },
-          {
-            destructive: true,
-            icon: "person-remove-outline",
-            id: "remove",
-            label: t.friendsRemove,
-            onPress: () => mutations.removeFriend.mutate(friend.id),
-          },
-          {
-            destructive: true,
-            icon: "ban-outline",
-            id: "block",
-            label: t.friendsBlock,
-            onPress: () => mutations.blockFriend.mutate(friend.id),
-          },
-        ]}
-        key={friend.id}
-        onOpenChange={(next) => setOpenFriendMenuId(next ? friend.id : null)}
-        onPress={() => void openDM(friend.id)}
-        open={openFriendMenuId === friend.id}
-        testID={`mobile-friend-${friend.id}`}
-      >
-        <>
-          <View style={styles.socialRow}>
-            <View style={[styles.socialAvatarWrap, isOffline ? styles.socialAvatarOffline : null]}>
-              <Avatar
-                avatarBorderRadius={friendAvatarRadius}
-                dimension={friendAvatarSize}
-                identityId={friend.id}
-                imageUrl={friend.avatarUrl}
-                label={title}
-              />
-              {friend.voiceRoom ? (
-                <View style={styles.socialVoiceTile} testID={`mobile-friend-voice-${friend.id}`}>
-                  <MobileLineIcon
-                    accessibilityLabel={t.dmVoiceRoomPresenceLabel}
-                    color={theme.messaging.accent}
-                    name="audio-wave"
-                    size={9}
-                  />
-                </View>
-              ) : (
-                <View
-                  style={[
-                    styles.socialPresenceDot,
-                    {
-                      backgroundColor: getMobilePresenceColor(
-                        getMobilePresenceTone(friend.status),
-                        theme,
-                      ),
-                    },
-                  ]}
-                  testID={`mobile-friend-presence-${friend.id}`}
-                />
-              )}
-            </View>
-            <View style={styles.socialIdentity}>
-              <Text
-                numberOfLines={1}
-                style={[styles.socialName, isOffline && styles.socialNameMuted]}
+        <ContextMenu
+          accessibilityLabel={title}
+          actions={friendMenuActionsById.get(friend.id) ?? []}
+          key={friend.id}
+          onOpenChange={(next) => setOpenFriendMenuId(next ? friend.id : null)}
+          onPress={() => void openDM(friend.id)}
+          open={openFriendMenuId === friend.id}
+          testID={`mobile-friend-${friend.id}`}
+        >
+          <>
+            <View style={styles.socialRow}>
+              <View
+                style={[styles.socialAvatarWrap, isOffline ? styles.socialAvatarOffline : null]}
               >
-                {title}
-              </Text>
-              {renderFriendDetail(friend)}
-            </View>
-            <View style={styles.socialActions}>
-              {friend.voiceRoom ? (
-                <Pressable
-                  accessibilityLabel={`${t.dmVoiceRoomJoinAction}: ${friend.voiceRoom.channelName}`}
-                  accessibilityRole="button"
-                  onPress={() => void joinVoiceRoom(friend.voiceRoom!)}
-                  style={styles.socialJoinPill}
-                  testID={`mobile-friend-join-voice-${friend.id}`}
-                >
-                  <MobileLineIcon color={theme.messaging.accent} name="mic" size={15} />
-                  <Text style={styles.socialJoinPillText}>{t.dmVoiceRoomJoinAction}</Text>
-                </Pressable>
-              ) : (
-                <Pressable
-                  accessibilityLabel={`${t.friendsOpen}: ${title}`}
-                  accessibilityRole="button"
-                  onPress={() => void openDM(friend.id)}
-                  style={[styles.socialIconButton, !isOffline && styles.socialIconButtonAccent]}
-                  testID={`mobile-friend-message-${friend.id}`}
-                >
-                  <MobileLineIcon
-                    color={isOffline ? theme.messaging.groupLabel : theme.messaging.accent}
-                    name="chat-bubble"
-                    size={17}
+                <Avatar
+                  avatarBorderRadius={friendAvatarRadius}
+                  dimension={friendAvatarSize}
+                  identityId={friend.id}
+                  imageUrl={friend.avatarUrl}
+                  label={title}
+                />
+                {friend.voiceRoom ? (
+                  <View style={styles.socialVoiceTile} testID={`mobile-friend-voice-${friend.id}`}>
+                    <MobileLineIcon
+                      accessibilityLabel={t.dmVoiceRoomPresenceLabel}
+                      color={theme.messaging.accent}
+                      name="audio-wave"
+                      size={9}
+                    />
+                  </View>
+                ) : (
+                  <View
+                    style={[
+                      styles.socialPresenceDot,
+                      {
+                        backgroundColor: getMobilePresenceColor(
+                          getMobilePresenceTone(friend.status),
+                          theme,
+                        ),
+                      },
+                    ]}
+                    testID={`mobile-friend-presence-${friend.id}`}
                   />
-                </Pressable>
-              )}
-              {/* §2 "1b": only reachable rows carry the overflow button. */}
-              {!isOffline ? (
-                <Pressable
-                  accessibilityLabel={`${t.dmFriendMoreAction}: ${title}`}
-                  accessibilityRole="button"
-                  onPress={() => setOpenFriendMenuId(friend.id)}
-                  style={styles.socialIconButton}
-                  testID={`mobile-friend-more-${friend.id}`}
+                )}
+              </View>
+              <View style={styles.socialIdentity}>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.socialName, isOffline && styles.socialNameMuted]}
                 >
-                  <MobileLineIcon
-                    color={theme.messaging.textSecondary}
-                    name="dots-vertical"
-                    size={17}
-                  />
-                </Pressable>
-              ) : null}
+                  {title}
+                </Text>
+                {renderFriendDetail(friend)}
+              </View>
+              <View style={styles.socialActions}>
+                {friend.voiceRoom ? (
+                  <Pressable
+                    accessibilityLabel={`${t.dmVoiceRoomJoinAction}: ${friend.voiceRoom.channelName}`}
+                    accessibilityRole="button"
+                    onPress={() => void joinVoiceRoom(friend.voiceRoom!)}
+                    style={styles.socialJoinPill}
+                    testID={`mobile-friend-join-voice-${friend.id}`}
+                  >
+                    <MobileLineIcon color={theme.messaging.accent} name="mic" size={15} />
+                    <Text style={styles.socialJoinPillText}>{t.dmVoiceRoomJoinAction}</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    accessibilityLabel={`${t.friendsOpen}: ${title}`}
+                    accessibilityRole="button"
+                    onPress={() => void openDM(friend.id)}
+                    style={[styles.socialIconButton, !isOffline && styles.socialIconButtonAccent]}
+                    testID={`mobile-friend-message-${friend.id}`}
+                  >
+                    <MobileLineIcon
+                      color={isOffline ? theme.messaging.groupLabel : theme.messaging.accent}
+                      name="chat-bubble"
+                      size={17}
+                    />
+                  </Pressable>
+                )}
+                {/* §2 "1b": only reachable rows carry the overflow button. */}
+                {!isOffline ? (
+                  <Pressable
+                    accessibilityLabel={`${t.dmFriendMoreAction}: ${title}`}
+                    accessibilityRole="button"
+                    onPress={() => setOpenFriendMenuId(friend.id)}
+                    style={styles.socialIconButton}
+                    testID={`mobile-friend-more-${friend.id}`}
+                  >
+                    <MobileLineIcon
+                      color={theme.messaging.textSecondary}
+                      name="dots-vertical"
+                      size={17}
+                    />
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
-          </View>
-          {index < total - 1 ? <View style={styles.listHairlineFriends} /> : null}
-        </>
-      </ContextMenu>
-    );
-  };
+            {index < total - 1 ? <View style={styles.listHairlineFriends} /> : null}
+          </>
+        </ContextMenu>
+      );
+    },
+    [
+      friendMenuActionsById,
+      joinVoiceRoom,
+      openDM,
+      openFriendMenuId,
+      renderFriendDetail,
+      styles,
+      t,
+      theme,
+    ],
+  );
 
   const renderSearchResultAction = (result: MobileUserSearchResult) => {
     const title = result.displayName ?? result.username;
@@ -940,26 +1077,37 @@ export function FriendsHub({
   };
 
   /** §2 "1b"/"1c": "ÇEVRİMİÇİ 3" — label then count, the count tinted by group. */
-  const renderGroupLabel = (
-    label: string,
-    count: number | null,
-    tone: "danger" | "neutral" | "online",
-    testID?: string,
-  ) => (
-    <View style={styles.groupLabelRow} {...(testID ? { testID } : {})}>
-      <Text style={styles.groupLabel}>{label}</Text>
-      {count === null ? null : (
-        <Text
-          style={[
-            styles.groupCount,
-            tone === "online" && styles.groupCountOnline,
-            tone === "danger" && styles.groupCountDanger,
-          ]}
-        >
-          {count}
-        </Text>
-      )}
-    </View>
+  const renderGroupLabel = useCallback(
+    (
+      label: string,
+      count: number | null,
+      tone: "danger" | "neutral" | "online",
+      testID?: string,
+    ) => (
+      <View style={styles.groupLabelRow} {...(testID ? { testID } : {})}>
+        <Text style={styles.groupLabel}>{label}</Text>
+        {count === null ? null : (
+          <Text
+            style={[
+              styles.groupCount,
+              tone === "online" && styles.groupCountOnline,
+              tone === "danger" && styles.groupCountDanger,
+            ]}
+          >
+            {count}
+          </Text>
+        )}
+      </View>
+    ),
+    [styles],
+  );
+
+  const renderFriendListItem = useCallback(
+    ({ item }: { item: FriendsHubListItem }) =>
+      item.kind === "section"
+        ? renderGroupLabel(item.label, item.count, item.tone, item.testID)
+        : renderFriend(item.friend, item.index, item.total),
+    [renderFriend, renderGroupLabel],
   );
 
   const renderPendingRow = (
@@ -1037,382 +1185,171 @@ export function FriendsHub({
   };
 
   return (
-    <ScrollView
+    <FlashList
       contentContainerStyle={styles.content}
+      data={friendListItems}
+      getItemType={getFriendsHubItemType}
       keyboardShouldPersistTaps="handled"
-      style={styles.root}
-      testID="mobile-friends-screen"
-    >
-      {embedded ? null : (
-        <View style={styles.header}>
-          <Pressable
-            accessibilityLabel={t.friendsBack}
-            accessibilityRole="button"
-            onPress={onBack}
-            style={styles.headerBack}
-            testID="mobile-friends-back"
-          >
-            <Icon name="chevron-back" size={20} />
-          </Pressable>
-          <Text accessibilityRole="header" style={styles.headerTitle}>
-            {t.friendsFriends}
-          </Text>
-          <Pressable
-            accessibilityLabel={t.friendsAddFriendAction}
-            accessibilityRole="button"
-            onPress={() => selectSegment("requests")}
-            style={styles.headerAction}
-            testID="mobile-friends-add"
-          >
-            <Icon name="person-add-outline" size={19} tone="inverse" />
-          </Pressable>
-        </View>
-      )}
-
-      {embedded ? null : (
-        <View style={styles.segmentShell} testID="mobile-friends-segments">
-          {(
-            [
-              ["online", t.friendsOnline],
-              ["all", t.friendsAll],
-              ["requests", t.friendsRequests],
-            ] as const
-          ).map(([segment, label]) => (
-            <Pressable
-              accessibilityRole="tab"
-              accessibilityState={{ selected: activeSegment === segment }}
-              key={segment}
-              onPress={() => selectSegment(segment)}
-              style={[styles.segment, activeSegment === segment && styles.segmentActive]}
-              testID={`mobile-friends-segment-${segment}`}
-            >
-              <Text
-                style={[styles.segmentText, activeSegment === segment && styles.segmentTextActive]}
+      keyExtractor={(item) => item.id}
+      ListEmptyComponent={
+        !query.isLoading &&
+        !query.isError &&
+        activeSegment !== "requests" &&
+        friends.length === 0 ? (
+          <Text style={styles.notice}>{t.friendsEmpty}</Text>
+        ) : null
+      }
+      ListHeaderComponent={
+        <>
+          {embedded ? null : (
+            <View style={styles.header}>
+              <Pressable
+                accessibilityLabel={t.friendsBack}
+                accessibilityRole="button"
+                onPress={onBack}
+                style={styles.headerBack}
+                testID="mobile-friends-back"
               >
-                {label}
+                <Icon name="chevron-back" size={20} />
+              </Pressable>
+              <Text accessibilityRole="header" style={styles.headerTitle}>
+                {t.friendsFriends}
               </Text>
-              {segment === "requests" && incoming.length > 0 ? (
-                <View style={styles.requestCount}>
-                  <Text style={styles.requestCountText}>{incoming.length}</Text>
-                </View>
-              ) : null}
-            </Pressable>
-          ))}
-        </View>
-      )}
-
-      {!embedded && activeSegment !== "requests" ? (
-        <View style={styles.searchShell}>
-          <Icon name="search" size={17} tone="muted" />
-          <TextInput
-            accessibilityLabel={t.friendsSearch}
-            autoCapitalize="none"
-            autoCorrect={false}
-            clearButtonMode="while-editing"
-            onChangeText={setSearch}
-            placeholder={t.friendsPlaceholder}
-            placeholderTextColor={theme.text.visualPlaceholder}
-            returnKeyType="search"
-            style={styles.searchInput}
-            testID="mobile-friend-search-input"
-            value={search}
-          />
-        </View>
-      ) : null}
-
-      {query.isLoading ? (
-        <View style={[styles.sectionCard, styles.loadingCard]} testID="mobile-friends-loading">
-          <View style={styles.loadingRow}>
-            <Skeleton height={theme.sizing.squircle46} width={theme.sizing.squircle46} />
-            <View style={styles.loadingText}>
-              <Skeleton height={15} width="55%" />
-              <Skeleton height={12} width="36%" />
+              <Pressable
+                accessibilityLabel={t.friendsAddFriendAction}
+                accessibilityRole="button"
+                onPress={() => selectSegment("requests")}
+                style={styles.headerAction}
+                testID="mobile-friends-add"
+              >
+                <Icon name="person-add-outline" size={19} tone="inverse" />
+              </Pressable>
             </View>
-          </View>
-          <View style={styles.loadingRow}>
-            <Skeleton height={theme.sizing.squircle46} width={theme.sizing.squircle46} />
-            <View style={styles.loadingText}>
-              <Skeleton height={15} width="48%" />
-              <Skeleton height={12} width="32%" />
+          )}
+
+          {embedded ? null : (
+            <View style={styles.segmentShell} testID="mobile-friends-segments">
+              {(
+                [
+                  ["online", t.friendsOnline],
+                  ["all", t.friendsAll],
+                  ["requests", t.friendsRequests],
+                ] as const
+              ).map(([segment, label]) => (
+                <Pressable
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: activeSegment === segment }}
+                  key={segment}
+                  onPress={() => selectSegment(segment)}
+                  style={[styles.segment, activeSegment === segment && styles.segmentActive]}
+                  testID={`mobile-friends-segment-${segment}`}
+                >
+                  <Text
+                    style={[
+                      styles.segmentText,
+                      activeSegment === segment && styles.segmentTextActive,
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                  {segment === "requests" && incoming.length > 0 ? (
+                    <View style={styles.requestCount}>
+                      <Text style={styles.requestCountText}>{incoming.length}</Text>
+                    </View>
+                  ) : null}
+                </Pressable>
+              ))}
             </View>
-          </View>
-        </View>
-      ) : null}
-      {query.isError ? (
-        <Pressable onPress={() => void query.refetch()} testID="mobile-friends-retry">
-          <Text style={[styles.notice, styles.error]}>
-            {t.friendsError} {t.friendsRetry}
-          </Text>
-        </Pressable>
-      ) : null}
-
-      {!query.isLoading && !query.isError && activeSegment !== "requests" ? (
-        <>
-          {renderGroupLabel(
-            t.friendsOnline,
-            onlineFriends.length,
-            "online",
-            "mobile-friends-group-online",
           )}
-          {onlineFriends.length > 0
-            ? onlineFriends.map((friend, index) =>
-                renderFriend(friend, index, onlineFriends.length),
-              )
-            : null}
-          {renderGroupLabel(
-            t.friendsOffline,
-            offlineFriends.length,
-            "neutral",
-            "mobile-friends-group-offline",
-          )}
-          {offlineFriends.length > 0
-            ? offlineFriends.map((friend, index) =>
-                renderFriend(friend, index, offlineFriends.length),
-              )
-            : null}
-          {friends.length === 0 ? <Text style={styles.notice}>{t.friendsEmpty}</Text> : null}
-        </>
-      ) : null}
 
-      {!query.isLoading && !query.isError && activeSegment === "requests" ? (
-        <>
-          {/*
-           * §2 "1c": the screen is three groups and nothing else. The invite
-           * card and the second search field are gone — the tab band's own
-           * search drives user lookup, so this list is not two search boxes
-           * deep, and the header FAB is the "add someone" affordance.
-           */}
-          {!hasUserSearchTerm ? null : userSearch.isLoading ? (
-            <View
-              style={[styles.sectionCard, styles.loadingCard]}
-              testID="mobile-friend-search-loading"
-            >
+          {!embedded && activeSegment !== "requests" ? (
+            <View style={styles.searchShell}>
+              <Icon name="search" size={17} tone="muted" />
+              <TextInput
+                accessibilityLabel={t.friendsSearch}
+                autoCapitalize="none"
+                autoCorrect={false}
+                clearButtonMode="while-editing"
+                onChangeText={setSearch}
+                placeholder={t.friendsPlaceholder}
+                placeholderTextColor={theme.text.visualPlaceholder}
+                returnKeyType="search"
+                style={styles.searchInput}
+                testID="mobile-friend-search-input"
+                value={search}
+              />
+            </View>
+          ) : null}
+
+          {query.isLoading ? (
+            <View style={[styles.sectionCard, styles.loadingCard]} testID="mobile-friends-loading">
               <View style={styles.loadingRow}>
                 <Skeleton height={theme.sizing.squircle46} width={theme.sizing.squircle46} />
                 <View style={styles.loadingText}>
-                  <Skeleton height={15} width="52%" />
-                  <Skeleton height={12} width="34%" />
+                  <Skeleton height={15} width="55%" />
+                  <Skeleton height={12} width="36%" />
+                </View>
+              </View>
+              <View style={styles.loadingRow}>
+                <Skeleton height={theme.sizing.squircle46} width={theme.sizing.squircle46} />
+                <View style={styles.loadingText}>
+                  <Skeleton height={15} width="48%" />
+                  <Skeleton height={12} width="32%" />
                 </View>
               </View>
             </View>
-          ) : searchResults.length === 0 ? (
-            <Text style={styles.notice} testID="mobile-friend-search-empty">
-              {t.friendsSearchNoResults}
-            </Text>
-          ) : (
-            <View style={styles.sectionCard} testID="mobile-friend-search-results">
-              {searchResults.map((result, index) => {
-                const title = result.displayName ?? result.username;
-                return (
-                  <View
-                    key={result.id}
-                    style={[
-                      styles.friendRow,
-                      index < searchResults.length - 1 && styles.friendRowBorder,
-                    ]}
-                    testID={`mobile-friend-search-row-${result.id}`}
-                  >
-                    <Avatar
-                      avatarBorderRadius={theme.sizing.squircle46Radius}
-                      dimension={theme.sizing.squircle46}
-                      identityId={result.id}
-                      imageUrl={result.avatarUrl}
-                      label={title}
-                    />
-                    <View style={styles.friendIdentity}>
-                      <Text numberOfLines={1} style={styles.friendName}>
-                        {title}
-                      </Text>
-                      <Text
-                        numberOfLines={1}
-                        style={styles.friendStatus}
-                      >{`@${result.username}`}</Text>
+          ) : null}
+          {query.isError ? (
+            <Pressable onPress={() => void query.refetch()} testID="mobile-friends-retry">
+              <Text style={[styles.notice, styles.error]}>
+                {t.friendsError} {t.friendsRetry}
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {!query.isLoading && !query.isError && activeSegment === "requests" ? (
+            <>
+              {/*
+               * §2 "1c": the screen is three groups and nothing else. The invite
+               * card and the second search field are gone — the tab band's own
+               * search drives user lookup, so this list is not two search boxes
+               * deep, and the header FAB is the "add someone" affordance.
+               */}
+              {!hasUserSearchTerm ? null : userSearch.isLoading ? (
+                <View
+                  style={[styles.sectionCard, styles.loadingCard]}
+                  testID="mobile-friend-search-loading"
+                >
+                  <View style={styles.loadingRow}>
+                    <Skeleton height={theme.sizing.squircle46} width={theme.sizing.squircle46} />
+                    <View style={styles.loadingText}>
+                      <Skeleton height={15} width="52%" />
+                      <Skeleton height={12} width="34%" />
                     </View>
-                    {renderSearchResultAction(result)}
                   </View>
-                );
-              })}
-            </View>
-          )}
-
-          {renderGroupLabel(
-            t.dmRequestsSectionIncoming,
-            incoming.length,
-            "danger",
-            "mobile-requests-group-incoming",
-          )}
-          {incoming.length > 0 ? (
-            <>
-              {incoming.map((request, index) =>
-                renderPendingRow(
-                  request.sender,
-                  resolveRequestDetail(request),
-                  <View
-                    key={`${request.id}-actions`}
-                    style={[styles.socialActions, styles.socialActionsRequest]}
-                    testID={`mobile-friend-request-actions-${request.id}`}
-                  >
-                    <Pressable
-                      accessibilityLabel={`${t.friendsAccept}: ${request.sender.username}`}
-                      accessibilityRole="button"
-                      onPress={() =>
-                        mutations.acceptRequest.mutate({
-                          requestId: request.id,
-                          userId: request.sender.id,
-                        })
-                      }
-                      style={styles.requestDecisionAccept}
-                      testID={`mobile-friend-request-accept-${request.id}`}
-                    >
-                      <MobileLineIcon color={theme.text.onPrimary} name="check" size={18} />
-                    </Pressable>
-                    <Pressable
-                      accessibilityLabel={`${t.friendsReject}: ${request.sender.username}`}
-                      accessibilityRole="button"
-                      onPress={() =>
-                        mutations.rejectRequest.mutate({
-                          requestId: request.id,
-                          userId: request.sender.id,
-                        })
-                      }
-                      style={styles.requestDecisionReject}
-                      testID={`mobile-friend-request-reject-${request.id}`}
-                    >
-                      <MobileLineIcon color={theme.messaging.groupLabel} name="close" size={17} />
-                    </Pressable>
-                  </View>,
-                  index,
-                  incoming.length,
-                  `mobile-friend-incoming-${request.id}`,
-                  { strongName: true },
-                ),
-              )}
-            </>
-          ) : (
-            <View style={styles.emptyStateWrap}>
-              <EmptyState
-                description={t.friendsEmptyRequestsDescription}
-                icon="person-add-outline"
-                testID="mobile-friend-requests-empty"
-                title={t.friendsEmptyRequestsTitle}
-              />
-            </View>
-          )}
-
-          {outgoing.length > 0 ? (
-            <>
-              {renderGroupLabel(
-                t.dmRequestsSectionOutgoing,
-                outgoing.length,
-                "neutral",
-                "mobile-requests-group-outgoing",
-              )}
-              {outgoing.map((request, index) =>
-                renderPendingRow(
-                  request.receiver,
-                  `${t.dmRequestWaiting} · ${formatMobileRelativeTime(request.createdAt, locale)}`,
-                  <Pressable
-                    accessibilityLabel={`${t.friendsCancelRequest}: ${request.receiver.username}`}
-                    accessibilityRole="button"
-                    key={`${request.id}-cancel`}
-                    onPress={() => void cancelRequest(request.id, request.receiver.id)}
-                    style={[styles.socialSmallPill, styles.socialSmallPillOutline]}
-                    testID={`mobile-friend-request-cancel-${request.id}`}
-                  >
-                    <Text style={styles.socialSmallPillOutlineText}>{t.dmRequestCancelAction}</Text>
-                  </Pressable>,
-                  index,
-                  outgoing.length,
-                  `mobile-friend-outgoing-${request.id}`,
-                  { dimmed: true },
-                ),
-              )}
-            </>
-          ) : null}
-
-          {suggestions.length > 0 ? (
-            <>
-              {renderGroupLabel(
-                t.dmRequestsSectionSuggestions,
-                null,
-                "neutral",
-                "mobile-requests-group-suggestions",
-              )}
-              {suggestions.map((suggestion, index) =>
-                renderPendingRow(
-                  suggestion,
-                  suggestion.mutualFriendCount > 0
-                    ? t.dmSuggestionMutualFriends.replace(
-                        "{count}",
-                        String(suggestion.mutualFriendCount),
-                      )
-                    : t.dmSuggestionServerMember.replace(
-                        "{server}",
-                        suggestion.mutualServerName ?? "",
-                      ),
-                  <Pressable
-                    accessibilityLabel={`${t.dmSuggestionAddAction}: ${suggestion.username}`}
-                    accessibilityRole="button"
-                    key={`${suggestion.id}-add`}
-                    onPress={() =>
-                      void sendRequest({
-                        ...suggestion,
-                        isMember: false,
-                        mutualServerCount: suggestion.mutualServerCount,
-                        pendingInviteId: null,
-                        relationship: "none",
-                        requestId: null,
-                      })
-                    }
-                    style={[styles.socialSmallPill, styles.socialSmallPillSoft]}
-                    testID={`mobile-friend-suggestion-add-${suggestion.id}`}
-                  >
-                    <MobileLineIcon color={theme.messaging.accent} name="plus" size={14} />
-                    <Text style={styles.socialSmallPillSoftText}>{t.dmSuggestionAddAction}</Text>
-                  </Pressable>,
-                  index,
-                  suggestions.length,
-                  `mobile-friend-suggestion-${suggestion.id}`,
-                ),
-              )}
-            </>
-          ) : null}
-
-          {blocked.length > 0 ? (
-            <>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ expanded: blockedExpanded }}
-                onPress={() => setBlockedExpanded((current) => !current)}
-                style={styles.collapseHeader}
-                testID="mobile-friend-blocked-toggle"
-              >
-                <Text
-                  style={styles.collapseHeaderText}
-                >{`${t.friendsBlocked} — ${blocked.length}`}</Text>
-                <Icon
-                  name={blockedExpanded ? "chevron-up" : "chevron-down"}
-                  size={18}
-                  tone="muted"
-                />
-              </Pressable>
-              {blockedExpanded ? (
-                <View style={styles.sectionCard} testID="mobile-friend-blocked-list">
-                  {blocked.map((user, index) => {
-                    const title = user.displayName ?? user.username;
+                </View>
+              ) : searchResults.length === 0 ? (
+                <Text style={styles.notice} testID="mobile-friend-search-empty">
+                  {t.friendsSearchNoResults}
+                </Text>
+              ) : (
+                <View style={styles.sectionCard} testID="mobile-friend-search-results">
+                  {searchResults.map((result, index) => {
+                    const title = result.displayName ?? result.username;
                     return (
                       <View
-                        key={user.id}
+                        key={result.id}
                         style={[
                           styles.friendRow,
-                          index < blocked.length - 1 && styles.friendRowBorder,
+                          index < searchResults.length - 1 && styles.friendRowBorder,
                         ]}
+                        testID={`mobile-friend-search-row-${result.id}`}
                       >
                         <Avatar
                           avatarBorderRadius={theme.sizing.squircle46Radius}
                           dimension={theme.sizing.squircle46}
-                          identityId={user.id}
-                          imageUrl={user.avatarUrl}
+                          identityId={result.id}
+                          imageUrl={result.avatarUrl}
                           label={title}
                         />
                         <View style={styles.friendIdentity}>
@@ -1422,26 +1359,240 @@ export function FriendsHub({
                           <Text
                             numberOfLines={1}
                             style={styles.friendStatus}
-                          >{`@${user.username}`}</Text>
+                          >{`@${result.username}`}</Text>
                         </View>
-                        <Pressable
-                          accessibilityLabel={`${t.friendsUnblock}: ${title}`}
-                          accessibilityRole="button"
-                          onPress={() => mutations.unblockFriend.mutate(user.id)}
-                          style={[styles.rowPill, styles.rowPillOutline]}
-                          testID={`mobile-friend-unblock-${user.id}`}
-                        >
-                          <Text style={styles.rowPillOutlineText}>{t.friendsUnblock}</Text>
-                        </Pressable>
+                        {renderSearchResultAction(result)}
                       </View>
                     );
                   })}
                 </View>
+              )}
+
+              {renderGroupLabel(
+                t.dmRequestsSectionIncoming,
+                incoming.length,
+                "danger",
+                "mobile-requests-group-incoming",
+              )}
+              {incoming.length > 0 ? (
+                <>
+                  {incoming.map((request, index) =>
+                    renderPendingRow(
+                      request.sender,
+                      resolveRequestDetail(request),
+                      <View
+                        key={`${request.id}-actions`}
+                        style={[styles.socialActions, styles.socialActionsRequest]}
+                        testID={`mobile-friend-request-actions-${request.id}`}
+                      >
+                        <Pressable
+                          accessibilityLabel={`${t.friendsAccept}: ${request.sender.username}`}
+                          accessibilityRole="button"
+                          onPress={() =>
+                            mutations.acceptRequest.mutate({
+                              requestId: request.id,
+                              userId: request.sender.id,
+                            })
+                          }
+                          style={styles.requestDecisionAccept}
+                          testID={`mobile-friend-request-accept-${request.id}`}
+                        >
+                          <MobileLineIcon color={theme.text.onPrimary} name="check" size={18} />
+                        </Pressable>
+                        <Pressable
+                          accessibilityLabel={`${t.friendsReject}: ${request.sender.username}`}
+                          accessibilityRole="button"
+                          onPress={() =>
+                            mutations.rejectRequest.mutate({
+                              requestId: request.id,
+                              userId: request.sender.id,
+                            })
+                          }
+                          style={styles.requestDecisionReject}
+                          testID={`mobile-friend-request-reject-${request.id}`}
+                        >
+                          <MobileLineIcon
+                            color={theme.messaging.groupLabel}
+                            name="close"
+                            size={17}
+                          />
+                        </Pressable>
+                      </View>,
+                      index,
+                      incoming.length,
+                      `mobile-friend-incoming-${request.id}`,
+                      { strongName: true },
+                    ),
+                  )}
+                </>
+              ) : (
+                <View style={styles.emptyStateWrap}>
+                  <EmptyState
+                    description={t.friendsEmptyRequestsDescription}
+                    icon="person-add-outline"
+                    testID="mobile-friend-requests-empty"
+                    title={t.friendsEmptyRequestsTitle}
+                  />
+                </View>
+              )}
+
+              {outgoing.length > 0 ? (
+                <>
+                  {renderGroupLabel(
+                    t.dmRequestsSectionOutgoing,
+                    outgoing.length,
+                    "neutral",
+                    "mobile-requests-group-outgoing",
+                  )}
+                  {outgoing.map((request, index) =>
+                    renderPendingRow(
+                      request.receiver,
+                      `${t.dmRequestWaiting} · ${formatMobileRelativeTime(request.createdAt, locale)}`,
+                      <Pressable
+                        accessibilityLabel={`${t.friendsCancelRequest}: ${request.receiver.username}`}
+                        accessibilityRole="button"
+                        key={`${request.id}-cancel`}
+                        onPress={() => void cancelRequest(request.id, request.receiver.id)}
+                        style={[styles.socialSmallPill, styles.socialSmallPillOutline]}
+                        testID={`mobile-friend-request-cancel-${request.id}`}
+                      >
+                        <Text style={styles.socialSmallPillOutlineText}>
+                          {t.dmRequestCancelAction}
+                        </Text>
+                      </Pressable>,
+                      index,
+                      outgoing.length,
+                      `mobile-friend-outgoing-${request.id}`,
+                      { dimmed: true },
+                    ),
+                  )}
+                </>
+              ) : null}
+
+              {suggestions.length > 0 ? (
+                <>
+                  {renderGroupLabel(
+                    t.dmRequestsSectionSuggestions,
+                    null,
+                    "neutral",
+                    "mobile-requests-group-suggestions",
+                  )}
+                  {suggestions.map((suggestion, index) =>
+                    renderPendingRow(
+                      suggestion,
+                      suggestion.mutualFriendCount > 0
+                        ? t.dmSuggestionMutualFriends.replace(
+                            "{count}",
+                            String(suggestion.mutualFriendCount),
+                          )
+                        : t.dmSuggestionServerMember.replace(
+                            "{server}",
+                            suggestion.mutualServerName ?? "",
+                          ),
+                      <Pressable
+                        accessibilityLabel={`${t.dmSuggestionAddAction}: ${suggestion.username}`}
+                        accessibilityRole="button"
+                        key={`${suggestion.id}-add`}
+                        onPress={() =>
+                          void sendRequest({
+                            ...suggestion,
+                            isMember: false,
+                            mutualServerCount: suggestion.mutualServerCount,
+                            pendingInviteId: null,
+                            relationship: "none",
+                            requestId: null,
+                          })
+                        }
+                        style={[styles.socialSmallPill, styles.socialSmallPillSoft]}
+                        testID={`mobile-friend-suggestion-add-${suggestion.id}`}
+                      >
+                        <MobileLineIcon color={theme.messaging.accent} name="plus" size={14} />
+                        <Text style={styles.socialSmallPillSoftText}>
+                          {t.dmSuggestionAddAction}
+                        </Text>
+                      </Pressable>,
+                      index,
+                      suggestions.length,
+                      `mobile-friend-suggestion-${suggestion.id}`,
+                    ),
+                  )}
+                </>
+              ) : null}
+
+              {blocked.length > 0 ? (
+                <>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: blockedExpanded }}
+                    onPress={() => setBlockedExpanded((current) => !current)}
+                    style={styles.collapseHeader}
+                    testID="mobile-friend-blocked-toggle"
+                  >
+                    <Text
+                      style={styles.collapseHeaderText}
+                    >{`${t.friendsBlocked} — ${blocked.length}`}</Text>
+                    <Icon
+                      name={blockedExpanded ? "chevron-up" : "chevron-down"}
+                      size={18}
+                      tone="muted"
+                    />
+                  </Pressable>
+                  {blockedExpanded ? (
+                    <View style={styles.sectionCard} testID="mobile-friend-blocked-list">
+                      {blocked.map((user, index) => {
+                        const title = user.displayName ?? user.username;
+                        return (
+                          <View
+                            key={user.id}
+                            style={[
+                              styles.friendRow,
+                              index < blocked.length - 1 && styles.friendRowBorder,
+                            ]}
+                          >
+                            <Avatar
+                              avatarBorderRadius={theme.sizing.squircle46Radius}
+                              dimension={theme.sizing.squircle46}
+                              identityId={user.id}
+                              imageUrl={user.avatarUrl}
+                              label={title}
+                            />
+                            <View style={styles.friendIdentity}>
+                              <Text numberOfLines={1} style={styles.friendName}>
+                                {title}
+                              </Text>
+                              <Text
+                                numberOfLines={1}
+                                style={styles.friendStatus}
+                              >{`@${user.username}`}</Text>
+                            </View>
+                            <Pressable
+                              accessibilityLabel={`${t.friendsUnblock}: ${title}`}
+                              accessibilityRole="button"
+                              onPress={() =>
+                                mutations.unblockFriend.mutate(user.id, {
+                                  onError: () =>
+                                    showToast({ title: t.socialActionFailed, variant: "error" }),
+                                })
+                              }
+                              style={[styles.rowPill, styles.rowPillOutline]}
+                              testID={`mobile-friend-unblock-${user.id}`}
+                            >
+                              <Text style={styles.rowPillOutlineText}>{t.friendsUnblock}</Text>
+                            </Pressable>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                </>
               ) : null}
             </>
           ) : null}
         </>
-      ) : null}
-    </ScrollView>
+      }
+      renderItem={renderFriendListItem}
+      style={styles.root}
+      testID="mobile-friends-screen"
+    />
   );
 }

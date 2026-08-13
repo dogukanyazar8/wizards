@@ -1,10 +1,12 @@
 import { E2E_TURNSTILE_TOKEN } from "./turnstile-e2e";
+import { assertE2EApiRouteEnabled } from "@/lib/e2e/route-guard";
 
 const TURNSTILE_SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+const TURNSTILE_ALWAYS_PASS_TEST_SECRET = "1x0000000000000000000000000000000AA";
 const DEFAULT_TURNSTILE_ACTION = "register";
 const TURNSTILE_VERIFY_TIMEOUT_MS = 8000;
 
-export type TurnstileAction = "login" | "register";
+export type TurnstileAction = "forgot-password" | "login" | "register" | "reset-password";
 
 type TurnstileSiteVerifyResponse = {
   action?: string;
@@ -32,6 +34,13 @@ function getTurnstileSecret() {
     throw new TurnstileVerificationError(
       "CONFIGURATION_ERROR",
       "Turnstile secret key is not configured.",
+    );
+  }
+
+  if (secret === TURNSTILE_ALWAYS_PASS_TEST_SECRET && process.env.NODE_ENV === "production") {
+    throw new TurnstileVerificationError(
+      "CONFIGURATION_ERROR",
+      "Cloudflare's public Turnstile test secret cannot be used in production.",
     );
   }
 
@@ -89,7 +98,7 @@ export function assertTurnstileActionAllowed(
 export async function verifyTurnstileToken(
   token: string,
   remoteIp?: string,
-  options: { expectedAction?: TurnstileAction } = {},
+  options: { expectedAction?: TurnstileAction; requestUrl?: URL | string } = {},
 ) {
   const normalizedToken = token.trim();
   if (
@@ -97,6 +106,9 @@ export async function verifyTurnstileToken(
     process.env.E2E_TEST_MODE === "true" &&
     (process.env.NODE_ENV !== "production" || process.env.E2E_ALLOW_PRODUCTION_BUILD === "true")
   ) {
+    // Public E2E tokens are safe only when the same local-host gate used by
+    // dedicated E2E routes approves both deployment configuration and request.
+    assertE2EApiRouteEnabled(options.requestUrl ?? "https://invalid.invalid");
     return true;
   }
 
@@ -104,9 +116,12 @@ export async function verifyTurnstileToken(
     throw new TurnstileVerificationError("INVALID_TOKEN", "Turnstile token is required.");
   }
 
+  const secret = getTurnstileSecret();
+  const usesLocalTestSecret =
+    secret === TURNSTILE_ALWAYS_PASS_TEST_SECRET && process.env.NODE_ENV !== "production";
   const body = new URLSearchParams({
     response: normalizedToken,
-    secret: getTurnstileSecret(),
+    secret,
   });
 
   if (remoteIp && remoteIp !== "unknown") {
@@ -150,11 +165,13 @@ export async function verifyTurnstileToken(
 
   assertTurnstileActionAllowed(result.action, options.expectedAction);
 
-  assertTurnstileHostnameAllowed(
-    result.hostname,
-    getExpectedTurnstileHostnames(),
-    process.env.NODE_ENV === "production",
-  );
+  if (!usesLocalTestSecret) {
+    assertTurnstileHostnameAllowed(
+      result.hostname,
+      getExpectedTurnstileHostnames(),
+      process.env.NODE_ENV === "production",
+    );
+  }
 
   return true;
 }

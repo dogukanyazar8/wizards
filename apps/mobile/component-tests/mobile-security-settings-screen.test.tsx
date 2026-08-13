@@ -50,6 +50,24 @@ const activeSession = {
   status: "signed-in" as const,
 };
 
+const authSessions = {
+  sessions: [
+    {
+      appVersion: "0.8.15",
+      browser: null,
+      clientType: "MOBILE" as const,
+      countryCode: "TR",
+      createdAt: "2026-08-13T08:00:00.000Z",
+      current: true,
+      deviceType: "MOBILE" as const,
+      expiresAt: "2026-09-12T08:00:00.000Z",
+      id: "mobile-current",
+      lastSeenAt: "2026-08-13T09:00:00.000Z",
+      os: "Android",
+    },
+  ],
+};
+
 function createQueryClient() {
   return new QueryClient({
     defaultOptions: {
@@ -91,8 +109,8 @@ function renderScreen(
 }
 
 function authenticatedApi(
-  handler: (path: string, request?: { method?: string; body?: unknown }) => unknown = () =>
-    accountSettings,
+  handler: (path: string, request?: { method?: string; body?: unknown }) => unknown = (path) =>
+    path === "/api/v1/mobile/account/sessions" ? authSessions : accountSettings,
 ) {
   return { requestJson: jest.fn(handler) };
 }
@@ -119,9 +137,7 @@ describe("secure session settings screen", () => {
     expect(
       view.getByText(copy.securitySettingsSessionExpiryHint.replace("{minutes}", "10")),
     ).toBeTruthy();
-    await waitFor(() =>
-      expect(view.getByText(copy.securitySettingsEmailVerified)).toBeTruthy(),
-    );
+    await waitFor(() => expect(view.getByText(copy.securitySettingsEmailVerified)).toBeTruthy());
     await waitFor(() => expect(view.getByText(copy.securitySettingsOn)).toBeTruthy());
   });
 
@@ -135,17 +151,44 @@ describe("secure session settings screen", () => {
     expect(view.getByText(copy.securitySettingsSessionInactive)).toBeTruthy();
   });
 
-  it("keeps unbacked rows disabled and marked as coming soon", async () => {
+  it("keeps only the still-unbacked recovery-code row marked as coming soon", async () => {
     const view = await renderScreen();
 
-    for (const testID of [
-      "mobile-security-recovery-codes",
-      "mobile-security-active-devices",
-      "mobile-security-data-export",
-    ]) {
-      expect(view.getByTestId(testID)).toBeTruthy();
-    }
-    expect(view.getAllByText(copy.securitySettingsSoon)).toHaveLength(3);
+    expect(view.getByTestId("mobile-security-recovery-codes")).toBeTruthy();
+    expect(view.queryByTestId("mobile-security-data-export")).toBeNull();
+    expect(view.getAllByText(copy.securitySettingsSoon)).toHaveLength(1);
+  });
+
+  it("opens the real device list and signs out after revoking the current session", async () => {
+    const onSignOut = jest.fn();
+    const requestJson = jest.fn(async (path: string, options?: { method?: string }) => {
+      if (path === "/api/v1/mobile/account/sessions") return authSessions;
+      if (
+        path === "/api/v1/mobile/account/sessions/mobile-current" &&
+        options?.method === "DELETE"
+      ) {
+        return { currentSessionRevoked: true, revokedSessionId: "mobile-current" };
+      }
+      return accountSettings;
+    });
+    mockUseMobileAuth.mockReturnValue({
+      apiClient: { requestJson },
+      deviceIntegrityStatus: "clean",
+      status: "signed-in",
+    });
+    const view = await renderScreen({ onSignOut });
+
+    await waitFor(() => expect(view.getByTestId("mobile-security-active-devices")).toBeTruthy());
+    await fireEvent.press(view.getByTestId("mobile-security-active-devices"));
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-security-session-mobile-current")).toBeTruthy(),
+    );
+    await fireEvent.press(view.getByTestId("mobile-security-session-mobile-current"));
+    await fireEvent.press(view.getByTestId("mobile-security-session-revoke"));
+    expect(onSignOut).not.toHaveBeenCalled();
+    await fireEvent.press(view.getByTestId("mobile-security-session-revoke-sheet-confirm"));
+
+    await waitFor(() => expect(onSignOut).toHaveBeenCalledTimes(1));
   });
 
   it("opens two-factor, refreshes the session, and toggles the app lock", async () => {
@@ -183,14 +226,21 @@ describe("secure session settings screen", () => {
     const view = await renderScreen();
 
     await fireEvent.press(view.getByTestId("mobile-security-change-password"));
-    await fireEvent.changeText(view.getByTestId("mobile-security-current-password-input"), "old-secret");
-    await fireEvent.changeText(view.getByTestId("mobile-security-new-password-input"), "new-secret-1");
-    await fireEvent.changeText(view.getByTestId("mobile-security-confirm-password-input"), "mismatch-1");
+    await fireEvent.changeText(
+      view.getByTestId("mobile-security-current-password-input"),
+      "old-secret",
+    );
+    await fireEvent.changeText(
+      view.getByTestId("mobile-security-new-password-input"),
+      "new-secret-1",
+    );
+    await fireEvent.changeText(
+      view.getByTestId("mobile-security-confirm-password-input"),
+      "mismatch-1",
+    );
     await fireEvent.press(view.getByTestId("mobile-security-password-save"));
 
-    await waitFor(() =>
-      expect(view.getByText(copy.securitySettingsPasswordMismatch)).toBeTruthy(),
-    );
+    await waitFor(() => expect(view.getByText(copy.securitySettingsPasswordMismatch)).toBeTruthy());
     expect(
       requestJson.mock.calls.some(([path]) => path === "/api/v1/mobile/account/password"),
     ).toBe(false);
@@ -208,8 +258,14 @@ describe("secure session settings screen", () => {
     const view = await renderScreen();
 
     await fireEvent.press(view.getByTestId("mobile-security-change-password"));
-    await fireEvent.changeText(view.getByTestId("mobile-security-current-password-input"), "old-secret");
-    await fireEvent.changeText(view.getByTestId("mobile-security-new-password-input"), "new-secret-1");
+    await fireEvent.changeText(
+      view.getByTestId("mobile-security-current-password-input"),
+      "old-secret",
+    );
+    await fireEvent.changeText(
+      view.getByTestId("mobile-security-new-password-input"),
+      "new-secret-1",
+    );
     await fireEvent.changeText(
       view.getByTestId("mobile-security-confirm-password-input"),
       "new-secret-1",
@@ -242,8 +298,14 @@ describe("secure session settings screen", () => {
     const view = await renderScreen();
 
     await fireEvent.press(view.getByTestId("mobile-security-change-password"));
-    await fireEvent.changeText(view.getByTestId("mobile-security-current-password-input"), "wrong-one");
-    await fireEvent.changeText(view.getByTestId("mobile-security-new-password-input"), "new-secret-1");
+    await fireEvent.changeText(
+      view.getByTestId("mobile-security-current-password-input"),
+      "wrong-one",
+    );
+    await fireEvent.changeText(
+      view.getByTestId("mobile-security-new-password-input"),
+      "new-secret-1",
+    );
     await fireEvent.changeText(
       view.getByTestId("mobile-security-confirm-password-input"),
       "new-secret-1",
@@ -263,7 +325,9 @@ describe("secure session settings screen", () => {
     await fireEvent.press(view.getByTestId("mobile-security-sign-out"));
     expect(onSignOut).not.toHaveBeenCalled();
 
-    await waitFor(() => expect(view.getByTestId("mobile-security-sign-out-sheet-confirm")).toBeTruthy());
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-security-sign-out-sheet-confirm")).toBeTruthy(),
+    );
     await fireEvent.press(view.getByTestId("mobile-security-sign-out-sheet-confirm"));
 
     await waitFor(() => expect(onSignOut).toHaveBeenCalledTimes(1));

@@ -117,4 +117,27 @@ describe("socket typing handlers", () => {
     assert.deepEqual(redisCalls, []);
     assert.deepEqual(roomEmits, []);
   });
+
+  it("resolves channel typing names from Redis and emits directly to the channel room", async () => {
+    const { ctx, handlers, roomEmits } = createTypingHandlerContext();
+    ctx.redis.hgetall = async () => ({
+      "user-1": JSON.stringify({ expiresAt: Date.now() + 3_000, username: "Ada" }),
+      "user-2": JSON.stringify({ expiresAt: Date.now() + 3_000, username: "Grace" }),
+    });
+
+    registerTypingHandlers(ctx, {
+      checkTypingEventAllowed: async () => true,
+      requireChannelPermission: async () => ({}) as never,
+    });
+
+    await handlers.get("typing:start")!("channel-1");
+
+    assert.deepEqual(roomEmits, [
+      {
+        event: "typing:update",
+        payload: { channelId: "channel-1", users: ["Ada", "Grace"] },
+        room: "channel-1",
+      },
+    ]);
+  });
 });

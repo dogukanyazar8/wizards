@@ -32,6 +32,7 @@ import { MessageAttachments } from "./message-attachments";
 import { MessageToolbar } from "./message-toolbar";
 import { LinkPreviewCard } from "./link-preview-card";
 import { useI18n } from "@/components/providers/locale-provider";
+import { useAccountPreferenceRuntime } from "@/components/providers/account-preference-provider";
 import { useSocket } from "@/hooks/use-socket";
 import {
   pinChannelMessageRequest,
@@ -606,7 +607,7 @@ function formatReactionSummary(
     : visibleNames.join(", ");
 }
 
-interface MessageItemProps {
+export interface MessageItemProps {
   mode: MessageMode;
   message: ChatMessage;
   isGrouped: boolean;
@@ -627,6 +628,41 @@ interface MessageItemProps {
   onThread: (message: ChatMessage) => void;
 }
 
+export function areMessageItemPropsEqual(prev: MessageItemProps, next: MessageItemProps) {
+  return (
+    prev.mode === next.mode &&
+    prev.message.id === next.message.id &&
+    prev.message.content === next.message.content &&
+    prev.message.attachments === next.message.attachments &&
+    prev.message.reactions === next.message.reactions &&
+    prev.message.author.avatarUrl === next.message.author.avatarUrl &&
+    prev.message.author.displayName === next.message.author.displayName &&
+    prev.message.author.status === next.message.author.status &&
+    prev.message.author.customStatus === next.message.author.customStatus &&
+    prev.authorColor === next.authorColor &&
+    prev.readReceipt?.count === next.readReceipt?.count &&
+    prev.readReceipt?.everyone === next.readReceipt?.everyone &&
+    prev.message.editedAt === next.message.editedAt &&
+    prev.message.deletedAt === next.message.deletedAt &&
+    prev.message.isPinned === next.message.isPinned &&
+    prev.message.pinnedAt === next.message.pinnedAt &&
+    prev.message.deliveryStatus === next.message.deliveryStatus &&
+    prev.message.errorMessage === next.message.errorMessage &&
+    prev.message.replyTo?.id === next.message.replyTo?.id &&
+    prev.message.threadSummary?.replyCount === next.message.threadSummary?.replyCount &&
+    prev.message.threadSummary?.lastReplyAt === next.message.threadSummary?.lastReplyAt &&
+    prev.message.threadSummary?.recentRepliers === next.message.threadSummary?.recentRepliers &&
+    prev.isGrouped === next.isGrouped &&
+    prev.currentUserId === next.currentUserId &&
+    prev.canModerate === next.canModerate &&
+    prev.onReact === next.onReact &&
+    prev.onRemoveOptimistic === next.onRemoveOptimistic &&
+    prev.onReply === next.onReply &&
+    prev.onRetry === next.onRetry &&
+    prev.onThread === next.onThread
+  );
+}
+
 export const MessageItem = React.memo(
   function MessageItem({
     mode,
@@ -642,7 +678,8 @@ export const MessageItem = React.memo(
     onRetry,
     onThread,
   }: MessageItemProps) {
-    const { locale, t } = useI18n();
+    const { t } = useI18n();
+    const { formatDate, formatTime } = useAccountPreferenceRuntime();
     const socket = useSocket();
     const queryClient = useQueryClient();
     const [isEditing, setIsEditing] = useState(false);
@@ -662,28 +699,19 @@ export const MessageItem = React.memo(
     const threadReplyCount = message.threadSummary?.replyCount ?? 0;
     const recentThreadRepliers = message.threadSummary?.recentRepliers ?? [];
     const lastThreadReplier = recentThreadRepliers[0] ?? null;
-    const formattedTime = new Date(message.createdAt).toLocaleTimeString(locale, {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const formattedTime = formatTime(message.createdAt);
     const threadLastReplyLabel = message.threadSummary?.lastReplyAt
       ? (() => {
           const replyDate = new Date(message.threadSummary.lastReplyAt);
           const today = new Date();
-          const time = replyDate.toLocaleTimeString(locale, {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
+          const time = formatTime(replyDate);
 
           if (replyDate.toDateString() === today.toDateString()) {
             return t("chat.thread.lastReplyToday", { time });
           }
 
           return t("chat.thread.lastReplyAt", {
-            date: replyDate.toLocaleDateString(locale, {
-              day: "numeric",
-              month: "short",
-            }),
+            date: formatDate(replyDate),
           });
         })()
       : null;
@@ -1325,30 +1353,7 @@ export const MessageItem = React.memo(
       </>
     );
   },
-  (prev, next) =>
-    prev.mode === next.mode &&
-    prev.message.id === next.message.id &&
-    prev.message.content === next.message.content &&
-    prev.message.attachments === next.message.attachments &&
-    prev.message.reactions === next.message.reactions &&
-    prev.message.author.status === next.message.author.status &&
-    prev.message.author.customStatus === next.message.author.customStatus &&
-    prev.message.editedAt === next.message.editedAt &&
-    prev.message.deletedAt === next.message.deletedAt &&
-    prev.message.isPinned === next.message.isPinned &&
-    prev.message.pinnedAt === next.message.pinnedAt &&
-    prev.message.deliveryStatus === next.message.deliveryStatus &&
-    prev.message.errorMessage === next.message.errorMessage &&
-    prev.message.replyTo?.id === next.message.replyTo?.id &&
-    prev.message.threadSummary?.replyCount === next.message.threadSummary?.replyCount &&
-    prev.message.threadSummary?.lastReplyAt === next.message.threadSummary?.lastReplyAt &&
-    prev.message.threadSummary?.recentRepliers === next.message.threadSummary?.recentRepliers &&
-    prev.isGrouped === next.isGrouped &&
-    prev.currentUserId === next.currentUserId &&
-    prev.canModerate === next.canModerate &&
-    prev.onReact === next.onReact &&
-    prev.onRemoveOptimistic === next.onRemoveOptimistic &&
-    prev.onReply === next.onReply &&
-    prev.onRetry === next.onRetry &&
-    prev.onThread === next.onThread,
+  // These fields used to update only because an unstable reply callback defeated
+  // memoization. Keep every rendered identity in the comparison before stabilizing it.
+  areMessageItemPropsEqual,
 );

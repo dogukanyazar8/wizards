@@ -33,7 +33,9 @@ import { getMobileMessageListAnchorConfig } from "./message-list-anchor";
 import { useMobileDeferredRowContent } from "./use-deferred-row-content";
 import {
   createMobileMessageEntranceTracker,
+  createMobileReactionEntranceTracker,
   type MobileMessageEntranceTracker,
+  type MobileReactionEntranceTracker,
 } from "./message-entrance";
 import { useMobileScreenFocus } from "../mobile-chat-keyboard-region";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
@@ -312,11 +314,13 @@ function DMChatDateSeparator({ createdAt }: { readonly createdAt: string }) {
  * created it — over 220ms, scale 1 → 1.25 → 1.
  */
 function DMChatReactionChip({
+  animate = false,
   count,
   emoji,
   mine,
   testID,
 }: {
+  readonly animate?: boolean;
   readonly count: number;
   readonly emoji: string;
   readonly mine: boolean;
@@ -326,12 +330,12 @@ function DMChatReactionChip({
   const reducedMotion = useReducedMotion() === true;
   const scale = useSharedValue(1);
   useEffect(() => {
-    if (reducedMotion) return;
+    if (reducedMotion || !animate) return;
     scale.value = withSequence(
       withTiming(1.25, { duration: 110 }),
       withTiming(1, { duration: 110 }),
     );
-  }, [reducedMotion, scale]);
+  }, [animate, reducedMotion, scale]);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   return (
@@ -346,12 +350,14 @@ function DMChatReactionChip({
 }
 
 function DMChatReactionChips({
+  animatingReactionIds,
   currentUserId,
   message,
   onLongPressReaction,
   onToggleReaction,
   own,
 }: {
+  readonly animatingReactionIds: ReadonlySet<string>;
   readonly currentUserId: string;
   readonly message: DMChatMessage;
   /** 8e reaction-detail sheet hook-up point; intentionally optional until then. */
@@ -398,6 +404,7 @@ function DMChatReactionChips({
             testID={`mobile-message-reaction-${message.id}-${reaction.emoji}`}
           >
             <DMChatReactionChip
+              animate={animatingReactionIds.has(`${message.id}:${reaction.emoji}`)}
               count={reaction.count}
               emoji={reaction.emoji}
               mine={hasOwnReaction}
@@ -435,8 +442,10 @@ const DM_AT_BOTTOM_THRESHOLD = 24;
  * channel does not and keeps its own window.
  */
 const DM_DRAW_DISTANCE = 250;
+const EMPTY_REACTION_IDS: ReadonlySet<string> = new Set<string>();
 
 export function DMChatMessageRow({
+  animatingReactionIds = EMPTY_REACTION_IDS,
   animateEntrance = false,
   currentUserId,
   groupMembers,
@@ -466,6 +475,7 @@ export function DMChatMessageRow({
   showSenderName = false,
   tailCorner,
 }: DMChatMessageGroupItem & {
+  readonly animatingReactionIds?: ReadonlySet<string>;
   /**
    * 2d §8. The list derives this from the live read states; the payload's own
    * `message.readReceipt` is the fetch-time fallback for a page that has none.
@@ -829,6 +839,7 @@ export function DMChatMessageRow({
           </View>
         ) : null}
         <DMChatReactionChips
+          animatingReactionIds={animatingReactionIds}
           currentUserId={currentUserId}
           message={message}
           onLongPressReaction={openReactionDetails}
@@ -933,6 +944,7 @@ export function areDMChatMessageRowPropsEqual(
 ): boolean {
   return (
     previous.message === next.message &&
+    previous.animatingReactionIds === next.animatingReactionIds &&
     previous.animateEntrance === next.animateEntrance &&
     previous.currentUserId === next.currentUserId &&
     previous.groupMembers === next.groupMembers &&
@@ -1244,7 +1256,16 @@ export function DMChatMessageList({
   // for why a row's own mount effect could never make it correctly.
   const entranceTrackerRef = useRef<MobileMessageEntranceTracker | null>(null);
   entranceTrackerRef.current ??= createMobileMessageEntranceTracker();
-  const enteringMessageIds = entranceTrackerRef.current.select(messages);
+  const enteringMessageIds = useMemo(
+    () => entranceTrackerRef.current!.select(messages),
+    [messages],
+  );
+  const reactionEntranceTrackerRef = useRef<MobileReactionEntranceTracker | null>(null);
+  reactionEntranceTrackerRef.current ??= createMobileReactionEntranceTracker();
+  const animatingReactionIds = useMemo(
+    () => reactionEntranceTrackerRef.current!.select(messages),
+    [messages],
+  );
   const listRef = useRef<FlashListRef<DMChatMessageGroupItem> | null>(null);
   const listAnchor = getMobileMessageListAnchorConfig();
   // §4: at the bottom the list follows new messages; away from it, the arrival
@@ -1385,6 +1406,7 @@ export function DMChatMessageList({
           ) : null}
           <MemoizedDMChatMessageRow
             {...item}
+            animatingReactionIds={animatingReactionIds}
             animateEntrance={enteringMessageIds.has(item.message.id)}
             currentUserId={currentUserId}
             isHighlighted={item.message.id === highlightedMessageId}
@@ -1425,6 +1447,7 @@ export function DMChatMessageList({
         </View>
       ),
     [
+      animatingReactionIds,
       currentUserId,
       groupMembers,
       onOpenReaders,

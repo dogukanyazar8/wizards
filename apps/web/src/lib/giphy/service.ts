@@ -11,8 +11,7 @@ const GIPHY_DEFAULT_LIMIT = 24;
 const GIPHY_MAX_LIMIT = 36;
 const GIPHY_RATING = "pg";
 const GIPHY_BUNDLE = "messaging_non_clips";
-const E2E_GIF_DATA_URL =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+const E2E_GIF_DATA_URL = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 const E2E_GIFS: GiphyGifDTO[] = [
   {
     giphyUrl: "https://giphy.com/gifs/whispr-e2e-one",
@@ -38,7 +37,13 @@ const E2E_GIFS: GiphyGifDTO[] = [
 
 export const GiphySearchQuerySchema = z.object({
   q: z.string().trim().max(50).optional().default(""),
-  limit: z.coerce.number().int().min(1).max(GIPHY_MAX_LIMIT).optional().default(GIPHY_DEFAULT_LIMIT),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(GIPHY_MAX_LIMIT)
+    .optional()
+    .default(GIPHY_DEFAULT_LIMIT),
   offset: z.coerce.number().int().min(0).max(4999).optional().default(0),
 });
 
@@ -175,7 +180,11 @@ function normalizeLocaleLanguage(locale: string | null | undefined) {
   return normalized && /^[a-z]{2}$/.test(normalized) ? normalized : "en";
 }
 
-async function enforceGiphyRateLimit(userId: string) {
+export async function enforceGiphySearchRateLimit(userId: string) {
+  if (isE2EGiphyMockEnabled()) {
+    return;
+  }
+
   try {
     const allowed = await checkRateLimit(getRedisRate(), `rate:giphy:${userId}`, 60, 60);
     if (!allowed) {
@@ -233,8 +242,6 @@ export async function listGiphyGifs(args: {
       gifs: gifs.slice(args.offset, args.offset + args.limit),
     };
   }
-
-  await enforceGiphyRateLimit(args.userId);
 
   const apiKey = getGiphyApiKey();
   const hasQuery = args.query.trim().length > 0;
@@ -307,7 +314,7 @@ export async function createGiphyAttachment(userId: string, gifId: string) {
     };
   }
 
-  await enforceGiphyRateLimit(userId);
+  await enforceGiphySearchRateLimit(userId);
 
   const apiKey = getGiphyApiKey();
   const url = new URL(`${GIPHY_API_BASE}/${encodeURIComponent(gifId)}`);

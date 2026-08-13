@@ -23,6 +23,8 @@ describe("mobile voice-message recorder contract", () => {
     assert.match(source, /discard\(\): Promise<void>/);
     assert.match(source, /new ExpoFile\(uri\)/);
     assert.match(source, /recordingFile\.delete\(\)/);
+    assert.match(source, /disposeMobileVoiceRecording/);
+    assert.match(source, /return \(\) => \{[\s\S]*void discard\(\)/);
     // The point of this guard is that nothing starts a recording on its own.
     // §2 "1h".2 added one effect, and it only samples loudness for the waveform,
     // so the ban is on what an effect may do rather than on effects existing.

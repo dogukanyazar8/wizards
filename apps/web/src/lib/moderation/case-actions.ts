@@ -40,6 +40,14 @@ export type ModerationCaseActionDependencies = {
     title: string;
     userId: string;
   }): Promise<unknown>;
+  createReporterNotifications(
+    notifications: Array<{
+      body: string;
+      dedupeKey: string;
+      title: string;
+      userId: string;
+    }>,
+  ): Promise<unknown>;
   findCase(caseId: string): Promise<ModerationCaseRow | null>;
   listReporterIds(caseId: string): Promise<string[]>;
   /**
@@ -66,7 +74,12 @@ export type ModerationCaseActionDependencies = {
   }): Promise<void>;
 };
 
-const RESOLVED_STATUSES = new Set<ModerationCaseStatus>(["ACTIONED", "DISMISSED", "CLOSED"]);
+const RESOLVED_STATUSES = new Set<ModerationCaseStatus>([
+  "ACTIONED",
+  "APPEALED",
+  "DISMISSED",
+  "CLOSED",
+]);
 
 const ACTION_STATUS: Record<ModerationCaseActionKind, ModerationCaseStatus> = {
   ban: "ACTIONED",
@@ -114,7 +127,13 @@ const defaultDependencies: ModerationCaseActionDependencies = {
         firstSeenAt: args.now,
         status: "IN_REVIEW",
       },
-      where: { assigneeId: null, id: args.caseId },
+      // Status belongs in the conditional write. A prior read can become stale,
+      // and a decided unassigned case must never be reopened by claiming it.
+      where: {
+        assigneeId: null,
+        id: args.caseId,
+        status: { notIn: [...RESOLVED_STATUSES] },
+      },
     });
 
     return result.count;
@@ -138,6 +157,16 @@ const defaultDependencies: ModerationCaseActionDependencies = {
         type: "MODERATION",
         userId: args.userId,
       },
+    }),
+  createReporterNotifications: (notifications) =>
+    prisma.notification.createMany({
+      data: notifications.map((notification) => ({
+        ...notification,
+        type: "MODERATION" as const,
+      })),
+      // A retried decision must converge on the existing reporter notice rather
+      // than turning its dedupe key into a post-commit P2002 response.
+      skipDuplicates: true,
     }),
   findCase: (caseId) =>
     prisma.moderationCase.findUnique({
@@ -395,14 +424,14 @@ export async function applyModerationCaseAction(
 
   const reporterIds = await dependencies.listReporterIds(args.caseId);
 
-  for (const reporterId of reporterIds) {
-    await dependencies.createNotification({
+  await dependencies.createReporterNotifications(
+    reporterIds.map((reporterId) => ({
       body: REPORTER_NOTIFICATION.body,
       dedupeKey: buildReporterDedupeKey(args.caseId, reporterId),
       title: REPORTER_NOTIFICATION.title,
       userId: reporterId,
-    });
-  }
+    })),
+  );
 
   return { caseId: args.caseId, status };
 }

@@ -9,7 +9,12 @@ import type {
   WorkspaceServerSummary,
 } from "@wizards/types";
 
-import { readPresenceMap } from "@/lib/presence";
+import { readPresenceState } from "@/lib/presence";
+import {
+  redactPresenceCollectionForViewer,
+  resolveVisibilityDecisions,
+  type VisibilityDecision,
+} from "@/lib/privacy/visibility-policy";
 import { getRedis } from "@/lib/redis";
 import {
   PermissionBits,
@@ -21,12 +26,29 @@ import { deriveAccessLevel } from "@/lib/workspace/role-helpers";
 import type { AccessContext, ChannelRecord, RoleRecord } from "@/lib/workspace/workspace-types";
 
 let serverMemberPresenceRedisForTest: Redis | null = null;
+let serverMemberVisibilityResolverForTest:
+  | ((viewerId: string, subjectIds: readonly string[]) => Promise<Map<string, VisibilityDecision>>)
+  | null = null;
 
 export function setServerMemberPresenceRedisForTest(redis: Redis | null) {
   if (process.env.NODE_ENV === "production") {
     throw new Error("setServerMemberPresenceRedisForTest is not available in production.");
   }
   serverMemberPresenceRedisForTest = redis;
+}
+
+export function setServerMemberVisibilityResolverForTest(
+  resolver:
+    | ((
+        viewerId: string,
+        subjectIds: readonly string[],
+      ) => Promise<Map<string, VisibilityDecision>>)
+    | null,
+) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("setServerMemberVisibilityResolverForTest is not available in production.");
+  }
+  serverMemberVisibilityResolverForTest = resolver;
 }
 
 export function toWorkspaceChannel(
@@ -37,6 +59,7 @@ export function toWorkspaceChannel(
   const counts = canAccess ? unreadCounts?.get(channel.id) : undefined;
 
   return {
+    bitrate: channel.bitrate ?? 64_000,
     canAccess,
     categoryId: channel.categoryId,
     id: channel.id,
@@ -45,9 +68,13 @@ export function toWorkspaceChannel(
     name: channel.name,
     position: channel.position,
     readOnly: channel.readOnly ?? false,
+    rtcRegion: channel.rtcRegion ?? null,
+    slowModeDelay: channel.slowModeDelay ?? 0,
     topic: canAccess ? channel.topic : null,
     type: channel.type === ChannelType.VOICE ? "VOICE" : "TEXT",
     unreadCount: counts?.unreadCount ?? 0,
+    userLimit: channel.userLimit ?? 0,
+    videoQualityMode: channel.videoQualityMode ?? "AUTO",
   };
 }
 
@@ -107,6 +134,7 @@ export function mapServerSummary(args: {
 
 export async function mapMembers(
   ownerId: string,
+  viewerId: string,
   members: Array<{
     id: string;
     nickname: string | null;
@@ -123,14 +151,25 @@ export async function mapMembers(
     };
   }>,
 ): Promise<WorkspaceMember[]> {
-  const presenceByUserId = await readPresenceMap(
-    serverMemberPresenceRedisForTest ?? getRedis(),
-    members.map((member) => ({
-      customStatus: member.user.customStatus,
-      status: "OFFLINE",
-      userId: member.user.id,
-    })),
-  );
+  const userIds = members.map((member) => member.user.id);
+  const [presenceState, visibilityDecisions] = await Promise.all([
+    readPresenceState(
+      serverMemberPresenceRedisForTest ?? getRedis(),
+      members.map((member) => ({
+        customStatus: member.user.customStatus,
+        status: "OFFLINE",
+        userId: member.user.id,
+      })),
+    ),
+    (serverMemberVisibilityResolverForTest ?? resolveVisibilityDecisions)(viewerId, userIds),
+  ]);
+  const { presenceByUserId } = redactPresenceCollectionForViewer({
+    decisions: visibilityDecisions,
+    invisibleUserIds: presenceState.hiddenUserIds,
+    lastSeenByUserId: new Map(),
+    presenceByUserId: presenceState.presenceByUserId,
+    subjectIds: userIds,
+  });
 
   return members.map((member) => {
     const roles = member.roles.map((entry) => ({

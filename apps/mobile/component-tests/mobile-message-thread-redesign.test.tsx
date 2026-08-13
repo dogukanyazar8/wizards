@@ -6,6 +6,36 @@ import type { ChatMessage, MobileChannelThreadMessagesResponse } from "@wizards/
 
 const mockRequestJson = jest.fn<(path: string, options?: unknown) => Promise<unknown>>();
 
+jest.mock("@shopify/flash-list", () => {
+  const ReactRuntime = jest.requireActual<typeof import("react")>("react");
+  const ReactNative = jest.requireActual<typeof import("react-native")>("react-native");
+  const renderSlot = (slot: any) =>
+    typeof slot === "function" ? ReactRuntime.createElement(slot) : slot;
+  return {
+    FlashList: ({
+      data = [],
+      keyExtractor,
+      ListEmptyComponent,
+      ListFooterComponent,
+      ListHeaderComponent,
+      renderItem,
+      ...props
+    }: any) => (
+      <ReactNative.View {...props} data={data}>
+        {renderSlot(ListHeaderComponent)}
+        {data.length === 0
+          ? renderSlot(ListEmptyComponent)
+          : data.map((item: unknown, index: number) => (
+              <ReactRuntime.Fragment key={keyExtractor?.(item, index) ?? index}>
+                {renderItem?.({ index, item })}
+              </ReactRuntime.Fragment>
+            ))}
+        {renderSlot(ListFooterComponent)}
+      </ReactNative.View>
+    ),
+  };
+});
+
 jest.mock("../src/auth/mobile-auth-context", () => ({
   useMobileAuth: () => ({
     apiClient: { requestJson: mockRequestJson },
@@ -65,6 +95,27 @@ function createThreadPayload(replies: readonly ChatMessage[]): MobileChannelThre
 }
 
 describe("MSG-1f thread redesign", () => {
+  it("virtualizes each reply as its own typed cell", async () => {
+    mockRequestJson.mockResolvedValue(
+      createThreadPayload([createMessage("reply-1"), createMessage("reply-2")]),
+    );
+    const view = await render(
+      <MobileMessageThreadScreen
+        contextId="channel-1"
+        messageId="root-message"
+        onBack={jest.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(view.getByTestId("mobile-thread-reply-list")).toBeTruthy());
+    const list = view.getByTestId("mobile-thread-reply-list");
+    expect(list.props.data).toHaveLength(2);
+    expect(list.props.data.map((item: unknown) => list.props.getItemType(item))).toEqual([
+      "reply",
+      "reply",
+    ]);
+  });
+
   it.each([
     ["light", lightTheme],
     ["dark", darkTheme],

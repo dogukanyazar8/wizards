@@ -3,17 +3,14 @@ import { afterEach, describe, it } from "node:test";
 
 import {
   LIVEKIT_CONNECT_RETRY_DELAYS_MS,
-  LIVEKIT_LOCAL_PARTICIPANT_PROFILE_RETRY_DELAYS_MS,
   ROOM_PARTICIPANT_SYNC_EVENTS,
   connectLiveKitRoomWithRetry,
   createReconnectTimeoutController,
   createVoiceAudioLevelMonitor,
   getParticipantAudioActivity,
-  isTransientLiveKitSignalRequestError,
   normalizeVoiceAudioLevel,
   registerRoomParticipantSyncListeners,
   shouldUpdateParticipantAudioActivity,
-  syncLiveKitLocalParticipantProfile,
   type RoomParticipantSyncEmitter,
 } from "./provider-lifecycle";
 
@@ -241,104 +238,6 @@ describe("voice provider lifecycle helpers", () => {
         }),
       /invalid token/,
     );
-  });
-
-  it("does not update the local participant profile when metadata and name are unchanged", async () => {
-    const calls: string[] = [];
-    const result = await syncLiveKitLocalParticipantProfile(
-      {
-        metadata: "profile",
-        name: "Display",
-        setMetadata: async () => {
-          calls.push("metadata");
-        },
-        setName: async () => {
-          calls.push("name");
-        },
-      },
-      {
-        metadata: "profile",
-        name: "Display",
-      },
-    );
-
-    assert.deepEqual(result, {
-      metadata: { status: "unchanged" },
-      name: { status: "unchanged" },
-    });
-    assert.deepEqual(calls, []);
-  });
-
-  it("retries transient local participant profile signal timeouts", async () => {
-    const waits: number[] = [];
-    let metadataAttempts = 0;
-    const result = await syncLiveKitLocalParticipantProfile(
-      {
-        metadata: "old",
-        name: "Display",
-        setMetadata: async () => {
-          metadataAttempts += 1;
-          if (metadataAttempts === 1) {
-            throw new Error("Request to update local metadata timed out");
-          }
-        },
-        setName: async () => undefined,
-      },
-      {
-        metadata: "next",
-        name: "Display",
-      },
-      {
-        wait: async (ms) => {
-          waits.push(ms);
-        },
-      },
-    );
-
-    assert.equal(metadataAttempts, 2);
-    assert.deepEqual(waits, [LIVEKIT_LOCAL_PARTICIPANT_PROFILE_RETRY_DELAYS_MS[0]]);
-    assert.deepEqual(result, {
-      metadata: { status: "updated" },
-      name: { status: "unchanged" },
-    });
-  });
-
-  it("stops retrying local participant profile updates when the room becomes stale", async () => {
-    let shouldContinue = true;
-    let metadataAttempts = 0;
-    const result = await syncLiveKitLocalParticipantProfile(
-      {
-        metadata: "old",
-        name: "Display",
-        setMetadata: async () => {
-          metadataAttempts += 1;
-          shouldContinue = false;
-          throw new Error("Request to update local metadata timed out");
-        },
-        setName: async () => undefined,
-      },
-      {
-        metadata: "next",
-        name: "Display",
-      },
-      {
-        shouldContinue: () => shouldContinue,
-      },
-    );
-
-    assert.equal(metadataAttempts, 1);
-    assert.equal(result.metadata.status, "skipped");
-    assert.equal(result.name.status, "unchanged");
-  });
-
-  it("classifies LiveKit signal request timeouts as transient profile sync failures", () => {
-    assert.equal(
-      isTransientLiveKitSignalRequestError(
-        new Error("Request to update local metadata timed out"),
-      ),
-      true,
-    );
-    assert.equal(isTransientLiveKitSignalRequestError(new Error("permission denied")), false);
   });
 
   it("registers and removes the participant sync LiveKit room listeners as a single owned group", () => {

@@ -448,5 +448,5 @@ test("mini voice bar is an active-session-only control surface", () => {
   assert.match(chrome, /onLeaveVoiceChannel/);
   assert.match(chrome, /mobile-mini-voice-mic/);
   assert.match(chrome, /mobile-mini-voice-leave/);
-  assert.match(productApp, /onLeaveVoiceChannel:\s*handleLeaveWorkspaceVoiceChannel/);
+  assert.match(productApp, /onLeaveVoiceChannel=\{handleLeaveWorkspaceVoiceChannel\}/);
 });

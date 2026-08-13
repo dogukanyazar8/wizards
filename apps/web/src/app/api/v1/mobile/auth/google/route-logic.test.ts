@@ -76,6 +76,24 @@ describe("mobile native Google login route", () => {
     assert.deepEqual(await response.json(), { session });
   });
 
+  it("forwards the two-factor credential to the Google session boundary", async () => {
+    let receivedInput: unknown;
+    const response = await mobileGoogleLoginRoute(
+      createRequest({ idToken, twoFactorCode: "123456" }),
+      createDependencies({
+        createGoogleSession: async (input) => {
+          receivedInput = input;
+          return { session };
+        },
+        parseGoogleLoginRequest: (request) =>
+          parseJsonBody(request, MobileAuthGoogleLoginRequestSchema),
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(receivedInput, { idToken, twoFactorCode: "123456" });
+  });
+
   it("maps a rejected identity token to its native auth status code", async () => {
     const response = await mobileGoogleLoginRoute(
       createRequest(),

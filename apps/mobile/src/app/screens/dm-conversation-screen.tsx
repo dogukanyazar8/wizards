@@ -189,6 +189,9 @@ export function DMConversationScreen({
           // the video entry point exists only on 2e.
           <GroupChatHeader
             avatarPair={group.state.details?.avatarPair ?? conversation.avatarPair ?? []}
+            // The details read is the fresher of the two: a photo set from 2e
+            // lands there before the inbox row it was opened from refetches.
+            iconUrl={group.state.details?.iconUrl ?? conversation.iconUrl ?? null}
             memberCount={
               group.state.details?.memberCount ??
               (group.state.members.length || conversation.participantCount)
@@ -392,6 +395,12 @@ export function DMConversationPreviewCard({
   const handleEditMessage = useCallback((message: MobileMessageActionTarget) => {
     setComposerIntent({ content: message.content, messageId: message.id, mode: "edit" });
   }, []);
+  // The row comparator includes this handler. Keeping it stable prevents one
+  // unrelated screen render from invalidating every mounted message bubble.
+  const handleDeleteMessage = useCallback(
+    (messageId: string) => void onDeleteMessage(messageId),
+    [onDeleteMessage],
+  );
   const handleComposerSend = useCallback(
     (
       content: string,
@@ -469,7 +478,7 @@ export function DMConversationPreviewCard({
           {...(groupTranscript ? { group: groupTranscript } : {})}
           isReactionMutationPending={isReactionMutationPending}
           messages={state.payload.messages}
-          onDeleteMessage={(messageId) => void onDeleteMessage(messageId)}
+          onDeleteMessage={handleDeleteMessage}
           onDiscardFailedMessage={onDiscardMessage}
           onEditMessage={handleEditMessage}
           {...(onForwardMessage ? { onForwardMessage: handleRequestForward } : {})}

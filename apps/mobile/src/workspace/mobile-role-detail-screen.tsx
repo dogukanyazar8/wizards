@@ -1,5 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Image, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { MobilePermissionKey } from "@wizards/types";
 
@@ -80,7 +80,8 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
   const mutations = useMobileServerManagementMutations(apiClient);
 
   const rolesQuery = useMobileServerRoleOverviewQuery(apiClient, serverId, true);
-  const role = rolesQuery.data?.roles.find((entry) => entry.id === roleId) ?? null;
+  const { data: rolesData, isFetching: rolesIsFetching, refetch: refetchRoles } = rolesQuery;
+  const role = rolesData?.roles.find((entry) => entry.id === roleId) ?? null;
   const membersQuery = useMobileServerMembersInfiniteQuery(apiClient, serverId);
   const members = useMemo(
     () => membersQuery.data?.pages.flatMap((page) => page.members) ?? [],
@@ -95,6 +96,7 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncedRoleId, setSyncedRoleId] = useState<string | null>(null);
+  const retriedMissingRoleIdRef = useRef<string | null>(null);
 
   // Hydrate the draft once the role is loaded (and re-sync if the role identity changes).
   useEffect(() => {
@@ -109,10 +111,18 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
   // Arriving from "create role" the overview cache can be one refetch behind, so
   // pull it again rather than rendering the "role not found" state.
   useEffect(() => {
-    if (!role && rolesQuery.data && !rolesQuery.isFetching) {
-      void rolesQuery.refetch();
+    if (!role && rolesData && !rolesIsFetching && retriedMissingRoleIdRef.current !== roleId) {
+      // Query observer objects change every render; keying the retry by role prevents a request loop.
+      retriedMissingRoleIdRef.current = roleId;
+      void refetchRoles();
     }
-  }, [role, rolesQuery]);
+  }, [refetchRoles, role, roleId, rolesData, rolesIsFetching]);
+
+  const fetchNextMembersPage = () => {
+    if (membersQuery.hasNextPage && !membersQuery.isFetchingNextPage) {
+      void membersQuery.fetchNextPage();
+    }
+  };
 
   const togglePermission = (key: MobilePermissionKey, next: boolean) => {
     setPermissions((previous) => {
@@ -259,7 +269,21 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
 
   return (
     <View style={styles.root} testID="mobile-role-detail-screen">
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        onScroll={({ nativeEvent }) => {
+          const remaining =
+            nativeEvent.contentSize.height -
+            nativeEvent.layoutMeasurement.height -
+            nativeEvent.contentOffset.y;
+          if (remaining <= 80) {
+            fetchNextMembersPage();
+          }
+        }}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        testID="mobile-role-detail-scroll"
+      >
         {headerNode}
 
         {!editable ? (

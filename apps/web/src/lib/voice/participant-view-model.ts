@@ -6,6 +6,7 @@ import {
   getParticipantDeafenState,
   getParticipantProfile,
   type VoiceCurrentUser,
+  type VoiceParticipantRosterEntry,
 } from "@/lib/voice/participant-mapping";
 
 export interface VoiceParticipantViewModel {
@@ -27,10 +28,11 @@ export interface VoiceParticipantViewModel {
 export function collectVoiceParticipants(
   targetRoom: Room,
   currentUser: VoiceCurrentUser,
+  roster: readonly VoiceParticipantRosterEntry[] = [],
 ): VoiceParticipantViewModel[] {
   return [targetRoom.localParticipant, ...targetRoom.remoteParticipants.values()].map(
     (participant) => {
-      const profile = getParticipantProfile(participant, currentUser);
+      const profile = getParticipantProfile(participant, currentUser, roster);
       const audioActivity = getParticipantAudioActivity(participant);
       const cameraState = getParticipantCameraState(participant);
       const isLocal = participant.identity === currentUser.id;
@@ -39,7 +41,7 @@ export function collectVoiceParticipants(
         ...profile,
         ...audioActivity,
         ...cameraState,
-        isDeafened: getParticipantDeafenState(participant),
+        isDeafened: getParticipantDeafenState(participant, roster),
         isLocal,
       };
     },

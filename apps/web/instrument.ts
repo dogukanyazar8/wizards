@@ -1,11 +1,11 @@
 // Server ve outbox worker süreçleri için Sentry başlatma girişi.
 // `node --import ./dist/instrument.js` ile uygulama kodundan ÖNCE yüklenir.
-// KURAL: Bu dosya yalnız dış paket import edebilir. Yerel modüller esbuild
-// tarafından entry başına kopyalandığından buradan import edilirse uygulama
-// bundle'ındaki instance ile ayrışır.
+// Runtime singleton'ları dış paketlerden gelir. Saf redaction modülü iki
+// bundle'a da gömülür; durum taşımadığı için instance ayrışması yaratmaz.
 import { createRequire } from "node:module";
 import type * as SentryNextjs from "@sentry/nextjs";
 import type * as PrismaInstrumentationNs from "@prisma/instrumentation";
+import { redactSentryEvent } from "./redaction";
 
 // @sentry/nextjs ve @prisma/instrumentation CJS paketlerdir. Node'un ESM
 // named-export statik analizi (cjs-module-lexer) bu paketlerin tüm export
@@ -19,16 +19,8 @@ import type * as PrismaInstrumentationNs from "@prisma/instrumentation";
 // güvenlidir çünkü Next kendi Sentry eklentisiyle doğru alt modülü seçer).
 const require = createRequire(import.meta.url);
 const Sentry = require("@sentry/nextjs") as typeof SentryNextjs;
-const { PrismaInstrumentation } = require("@prisma/instrumentation") as typeof PrismaInstrumentationNs;
-
-// KAYNAK-DOĞRU: apps/web/src/lib/logger.ts. instrument.ts import-bağımsız
-// olmak zorunda olduğundan bu iki desen kasıtlı olarak burada tekrarlanır;
-// logger.ts değişirse burayı da güncelle.
-const JWT_PATTERN = /\beyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\b/g;
-const SECRET_PATTERN = /\b(?:sk|pk|ya29|gh[opsu])_[a-zA-Z0-9_-]{16,}\b/g;
-function scrub(value: string) {
-  return value.replace(JWT_PATTERN, "[redacted-jwt]").replace(SECRET_PATTERN, "[redacted-secret]");
-}
+const { PrismaInstrumentation } =
+  require("@prisma/instrumentation") as typeof PrismaInstrumentationNs;
 
 function parseSampleRate(value: string | undefined, fallback: number) {
   const parsed = Number.parseFloat(value ?? "");
@@ -68,20 +60,7 @@ if (!dsn) {
       if (process.env.E2E_TEST_MODE === "true") {
         return null;
       }
-      if (event.message) {
-        event.message = scrub(event.message);
-      }
-      for (const value of event.exception?.values ?? []) {
-        if (value.value) {
-          value.value = scrub(value.value);
-        }
-      }
-      for (const crumb of event.breadcrumbs ?? []) {
-        if (crumb.message) {
-          crumb.message = scrub(crumb.message);
-        }
-      }
-      return event;
+      return redactSentryEvent(event);
     },
   });
   console.info("[observability] Sentry initialized for server process.");

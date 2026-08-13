@@ -524,6 +524,7 @@ export async function buildVoiceStateParticipantsForChannel(
       joinedAt: "asc",
     },
     select: {
+      selfDeaf: true,
       user: {
         select: {
           avatarUrl: true,
@@ -548,6 +549,7 @@ export async function buildVoiceStateParticipantsForChannel(
     username: state.user.username,
     displayName: state.user.displayName,
     avatarUrl: state.user.avatarUrl,
+    isDeafened: state.selfDeaf,
     isScreenSharing: screenShareValues[index] === "1",
   }));
 }
@@ -558,6 +560,7 @@ function mapSocketParticipants(participants: VoiceStateParticipantDTO[]) {
     username: participant.username,
     displayName: participant.displayName,
     avatarUrl: participant.avatarUrl,
+    isDeafened: participant.isDeafened,
     isScreenSharing: participant.isScreenSharing === true,
   }));
 }
@@ -693,41 +696,10 @@ export async function disconnectUnauthorizedVoiceParticipants(channelId: string)
     return;
   }
 
-  await prisma.voiceState.deleteMany({
-    where: {
-      channelId,
-      userId: {
-        in: unauthorizedStates.map((state) => state.userId),
-      },
-    },
-  });
-
   await Promise.all(
     unauthorizedStates.map((state) =>
-      endAllMediaUsageSessionsForVoiceSession(state.userId, state.sessionId).catch((error) => {
-        logAnalyticsError("voice unauthorized cleanup", error);
-      }),
-    ),
-  );
-
-  const redis = getRedis();
-  const roomService = getLiveKitRoomServiceClient();
-  await Promise.all(
-    unauthorizedStates.flatMap((state) => [
-      redis.del(getVoiceScreenShareStateKey(state.channelId, state.userId)).catch(() => undefined),
-      roomService
-        .removeParticipant(getVoiceRoomName(state.channelId), state.userId)
-        .catch(() => undefined),
-    ]),
-  );
-
-  await Promise.all(
-    unauthorizedStates.map((state) =>
-      emitVoiceStateUpdate({
-        action: "leave",
-        channelId: state.channelId,
-        serverId: state.serverId,
-        userId: state.userId,
+      detachUserFromVoiceSurface(state.userId, {
+        expectedSessionId: state.sessionId,
       }),
     ),
   );
@@ -757,6 +729,7 @@ export async function listVoiceStatesForServer(
     orderBy: [{ channelId: "asc" }, { joinedAt: "asc" }],
     select: {
       channelId: true,
+      selfDeaf: true,
       user: {
         select: {
           avatarUrl: true,
@@ -786,6 +759,7 @@ export async function listVoiceStatesForServer(
       username: state.user.username,
       displayName: state.user.displayName,
       avatarUrl: state.user.avatarUrl,
+      isDeafened: state.selfDeaf,
       isScreenSharing: screenShareValues[index] === "1",
     });
     grouped.set(state.channelId, participants);
@@ -797,8 +771,8 @@ export async function listVoiceStatesForServer(
   }));
 }
 
-async function enforceVoiceRoomCapacity(channelId: string, userId: string) {
-  await assertVoiceChannelCapacity({ channelId, userId });
+async function enforceVoiceRoomCapacity(channelId: string, userId: string, userLimit: number) {
+  await assertVoiceChannelCapacity({ channelId, userId, userLimit });
 }
 
 export async function releaseVoiceJoinLocks(
@@ -874,7 +848,7 @@ export async function upsertVoiceState(
     acquiredLockKeys = await acquireVoiceJoinLocks(redis, lockSpecs, lockToken);
 
     if (!isE2ETestMode()) {
-      await enforceVoiceRoomCapacity(channel.id, userId);
+      await enforceVoiceRoomCapacity(channel.id, userId, channel.userLimit);
     }
 
     const mutation = await prisma.$transaction((tx) =>
@@ -980,10 +954,94 @@ export async function clearVoiceState(
   return existingState;
 }
 
+type VoiceSurfaceSocket = {
+  data: { voiceRooms?: Set<string> };
+  leave(room: string): Promise<void> | void;
+};
+
+export type VoiceSurfaceDetachDependencies = {
+  clearState(
+    userId: string,
+    options: { expectedSessionId?: string; removeLiveKitParticipant: false },
+  ): Promise<VoiceStateClearRecord | null>;
+  emitStateUpdate(args: {
+    action: "leave";
+    channelId: string;
+    serverId: string;
+    userId: string;
+  }): Promise<void>;
+  getIo(): {
+    in(room: string): { fetchSockets(): Promise<VoiceSurfaceSocket[]> };
+  } | null;
+  removeLiveKitParticipant(channelId: string, userId: string): Promise<void>;
+};
+
+const voiceSurfaceDetachDefaults: VoiceSurfaceDetachDependencies = {
+  clearState: (userId, options) => clearVoiceState(userId, options),
+  emitStateUpdate: emitVoiceStateUpdate,
+  getIo: getSocketServer,
+  removeLiveKitParticipant: removeLiveKitVoiceParticipant,
+};
+
+/**
+ * Voice membership ends as one operation. Keeping Socket.IO, LiveKit, and the
+ * database in separate callers previously left one surface active after revocation.
+ */
+export async function detachUserFromVoiceSurface(
+  userId: string,
+  options: {
+    dependencies?: VoiceSurfaceDetachDependencies;
+    expectedSessionId?: string;
+  } = {},
+) {
+  const dependencies = options.dependencies ?? voiceSurfaceDetachDefaults;
+  const state = await dependencies.clearState(userId, {
+    ...(options.expectedSessionId ? { expectedSessionId: options.expectedSessionId } : {}),
+    removeLiveKitParticipant: false,
+  });
+  if (!state) {
+    return null;
+  }
+
+  const io = dependencies.getIo();
+  if (io) {
+    const sockets = await io.in(`user:${userId}`).fetchSockets();
+    const room = getVoiceParticipantRoomName(state.channelId);
+    for (const socket of sockets) {
+      await socket.leave(room);
+      socket.data.voiceRooms?.delete(state.channelId);
+    }
+  }
+
+  await dependencies.removeLiveKitParticipant(state.channelId, userId);
+  await dependencies.emitStateUpdate({
+    action: "leave",
+    channelId: state.channelId,
+    serverId: state.serverId,
+    userId,
+  });
+
+  return state;
+}
+
+type VoiceHeartbeatDependencies = {
+  detachUser(userId: string, options: { expectedSessionId: string }): Promise<unknown>;
+  requireMembership(
+    userId: string,
+    input: { channelId: string; serverId: string },
+  ): Promise<unknown>;
+};
+
+const voiceHeartbeatDefaults: VoiceHeartbeatDependencies = {
+  detachUser: (userId, options) => detachUserFromVoiceSurface(userId, options),
+  requireMembership: requireVoiceMembership,
+};
+
 export async function heartbeatVoiceState(
   userId: string,
   input: HeartbeatVoiceStateBody | string,
   attribution: ClientAttribution,
+  dependencies: VoiceHeartbeatDependencies = voiceHeartbeatDefaults,
 ) {
   await maybeCleanupStaleVoiceStates();
   const sessionId = typeof input === "string" ? input : input.sessionId;
@@ -1001,12 +1059,36 @@ export async function heartbeatVoiceState(
     throw new ApiError("Voice session not found", 404, "NOT_FOUND");
   }
 
+  try {
+    // Reuse the permission service's cache-aware gate. A matching session id
+    // must not keep a revoked voice membership alive.
+    await dependencies.requireMembership(userId, {
+      channelId: existingState.channelId,
+      serverId: existingState.serverId,
+    });
+  } catch (error) {
+    await dependencies.detachUser(userId, { expectedSessionId: sessionId });
+    throw error;
+  }
+
   await prisma.voiceState.update({
     where: { userId },
     data: {
       lastHeartbeat: new Date(),
+      ...(typeof input !== "string" && input.selfDeaf !== undefined
+        ? { selfDeaf: input.selfDeaf }
+        : {}),
     },
   });
+
+  if (typeof input !== "string" && input.selfDeaf !== undefined) {
+    await emitVoiceStateUpdate({
+      action: "join",
+      channelId: existingState.channelId,
+      serverId: existingState.serverId,
+      userId,
+    });
+  }
 
   if (typeof input !== "string" && input.selfVideo !== undefined) {
     // Opening a media session records the client; closing one reads it back off

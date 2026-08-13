@@ -6,7 +6,6 @@ import { requireAdminCapability } from "@/lib/admin/capabilities";
 import {
   createNotificationCampaign,
   listNotificationCampaigns,
-  sendNotificationCampaign,
 } from "@/lib/admin/notification-campaigns";
 import {
   NotificationCampaignCreateRequestSchema,
@@ -54,12 +53,15 @@ export async function POST(request: Request) {
     }
 
     await enforceApiRateLimit(admin.id, "admin:campaign:send");
-    const sentCampaign = await sendNotificationCampaign({
+    // Recipient fan-out belongs to the worker. Keeping it in this request made
+    // large campaigns hold an HTTP connection for thousands of database writes.
+    await enqueueCampaignSendJob(prisma, {
       adminUserId: admin.id,
       campaignId: campaign.id,
+      scheduledAt: new Date(),
     });
 
-    return Response.json({ campaign: sentCampaign }, { status: 201 });
+    return Response.json({ campaign, queued: true }, { status: 201 });
   } catch (error) {
     return jsonError(error);
   }

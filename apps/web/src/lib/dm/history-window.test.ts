@@ -55,10 +55,15 @@ describe("toHistoryWindowFilter", () => {
   });
 
   it("keeps the floor and the cursor in one createdAt object", () => {
-    const cursor = new Date("2026-08-11T09:00:00.000Z");
+    const createdAt = new Date("2026-08-11T09:00:00.000Z");
 
-    assert.deepEqual(toHistoryWindowFilter(FLOOR, cursor), {
-      createdAt: { gte: FLOOR, lt: cursor },
+    assert.deepEqual(toHistoryWindowFilter(FLOOR, { createdAt, id: "message-b" }), {
+      createdAt: { gte: FLOOR },
+      AND: [
+        {
+          OR: [{ createdAt: { lt: createdAt } }, { createdAt, id: { lt: "message-b" } }],
+        },
+      ],
     });
   });
 
@@ -67,9 +72,27 @@ describe("toHistoryWindowFilter", () => {
   });
 
   it("carries a cursor with no floor", () => {
-    const cursor = new Date("2026-08-11T09:00:00.000Z");
+    const createdAt = new Date("2026-08-11T09:00:00.000Z");
 
-    assert.deepEqual(toHistoryWindowFilter(null, cursor), { createdAt: { lt: cursor } });
+    assert.deepEqual(toHistoryWindowFilter(null, { createdAt, id: "message-b" }), {
+      AND: [
+        {
+          OR: [{ createdAt: { lt: createdAt } }, { createdAt, id: { lt: "message-b" } }],
+        },
+      ],
+    });
+  });
+
+  it("keeps rows sharing the cursor millisecond reachable by their id tie-breaker", () => {
+    const createdAt = new Date("2026-08-11T09:00:00.000Z");
+
+    assert.deepEqual(toHistoryWindowFilter(null, { createdAt, id: "message-b" }), {
+      AND: [
+        {
+          OR: [{ createdAt: { lt: createdAt } }, { createdAt, id: { lt: "message-b" } }],
+        },
+      ],
+    });
   });
 });
 

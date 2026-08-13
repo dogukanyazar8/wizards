@@ -14,6 +14,7 @@ function harness(overrides: Partial<ModerationCaseCountBroadcastDependencies> = 
   const emitted: { count: number; userIds: string[] }[] = [];
 
   const dependencies: ModerationCaseCountBroadcastDependencies = {
+    canReadQueue: async (userId) => userId === "admin-1" || userId === "admin-2",
     countOpenCases: async () => 7,
     emit: (_io, userIds, count) => {
       emitted.push({ count, userIds });
@@ -73,7 +74,13 @@ describe("open moderation case count broadcast", () => {
    * queue, or the number would tell a non-admin how much moderation work exists.
    */
   it("syncs the count to a queue reader on connect and to nobody else", async () => {
-    const { dependencies } = harness();
+    let listCalls = 0;
+    const { dependencies } = harness({
+      listQueueReaderUserIds: async () => {
+        listCalls += 1;
+        return ["admin-1", "admin-2"];
+      },
+    });
     const sent: { count: number }[] = [];
     const socket = {
       emit: (_event: "admin:open-case-count", data: { count: number }) => sent.push(data),
@@ -88,6 +95,7 @@ describe("open moderation case count broadcast", () => {
       sent: false,
     });
     assert.equal(sent.length, 1);
+    assert.equal(listCalls, 0);
   });
 
   it("reports zero as a real count rather than skipping the update", async () => {

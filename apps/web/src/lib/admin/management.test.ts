@@ -2,12 +2,35 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   csvEscape,
+  listAdminServers,
   normalizeAdminManagementPagination,
   parseAdminBoolean,
   toCsv,
 } from "@/lib/admin/management";
 
 describe("admin management helpers", () => {
+  it("bounds nested channel previews before rows reach Node", async () => {
+    let serverQuery: Record<string, unknown> | null = null;
+    const client = {
+      channel: { groupBy: async () => [] },
+      server: {
+        count: async () => 0,
+        findMany: async (args: Record<string, unknown>) => {
+          serverQuery = args;
+          return [];
+        },
+      },
+    } as never;
+
+    const result = await listAdminServers({}, client);
+
+    assert.deepEqual(result.servers, []);
+    assert.equal(
+      (serverQuery as unknown as { select: { channels: { take: number } } }).select.channels.take,
+      12,
+    );
+  });
+
   it("normalizes pagination safely", () => {
     assert.deepEqual(normalizeAdminManagementPagination({ limit: "25", page: "3" }), {
       limit: 25,

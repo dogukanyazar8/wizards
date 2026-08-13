@@ -1534,6 +1534,7 @@ export function ChannelSidebar({
           >
             <button
               className="inline-flex h-8 min-w-0 items-center justify-center gap-0.5 rounded-[13px] bg-[hsl(var(--surface-soft)/0.22)] px-1 text-[10.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              data-testid="create-text-channel-button"
               onClick={() =>
                 openChannelModal({
                   mode: "create",
@@ -1548,6 +1549,7 @@ export function ChannelSidebar({
             </button>
             <button
               className="inline-flex h-8 min-w-0 items-center justify-center gap-0.5 rounded-[13px] bg-[hsl(var(--surface-soft)/0.22)] px-1 text-[10.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              data-testid="create-voice-channel-button"
               onClick={() =>
                 openChannelModal({
                   mode: "create",

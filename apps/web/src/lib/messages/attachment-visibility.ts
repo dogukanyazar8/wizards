@@ -64,13 +64,9 @@ export function redactMessageAttachmentUrlsForViewer<
     ...message,
     attachments: message.attachments.map((attachment) => {
       const scanStatus = attachment.scanStatus ?? "PENDING";
-      const attachmentWithOwner = attachment as MessageAttachment & { userId?: unknown };
-      const userId =
-        typeof attachmentWithOwner.userId === "string" ? attachmentWithOwner.userId : undefined;
-      const canView = canViewAttachmentUrl(
-        userId ? { scanStatus, userId } : { scanStatus },
-        viewerId,
-      );
+      // MessageAttachment has no owner id; pretending an out-of-contract field exists made
+      // uploader visibility depend on which caller happened to enrich the runtime object.
+      const canView = canViewAttachmentUrl({ scanStatus }, viewerId);
 
       return {
         ...attachment,

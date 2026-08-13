@@ -6,7 +6,7 @@ import {
   recordMobileRecentDMPrefetch,
   recordMobileRecentDMPrefetchOpen,
   recordMobileRecentDMPrefetchSettled,
-  resetMobileRecentDMPrefetchStatsForTests,
+  resetMobileRecentDMPrefetchStats,
   selectMobileRecentDMPrefetchIds,
   shouldWarmMobileRecentDMs,
 } from "../src/query/mobile-message-prefetch";
@@ -94,7 +94,7 @@ describe("shouldWarmMobileRecentDMs", () => {
  */
 describe("mobile recent DM prefetch hit rate", () => {
   it("counts a conversation as warmed only once its read has resolved", () => {
-    resetMobileRecentDMPrefetchStatsForTests();
+    resetMobileRecentDMPrefetchStats();
     recordMobileRecentDMPrefetch(["dm-1", "dm-2"]);
     recordMobileRecentDMPrefetchSettled("dm-1");
 
@@ -104,7 +104,7 @@ describe("mobile recent DM prefetch hit rate", () => {
   });
 
   it("counts an open as a hit only when the warm had already landed", () => {
-    resetMobileRecentDMPrefetchStatsForTests();
+    resetMobileRecentDMPrefetchStats();
     recordMobileRecentDMPrefetch(["dm-1", "dm-2"]);
     recordMobileRecentDMPrefetchSettled("dm-1");
     recordMobileRecentDMPrefetchSettled("dm-2");
@@ -119,14 +119,14 @@ describe("mobile recent DM prefetch hit rate", () => {
   });
 
   it("ignores a settle for a conversation nothing tried to warm", () => {
-    resetMobileRecentDMPrefetchStatsForTests();
+    resetMobileRecentDMPrefetchStats();
     recordMobileRecentDMPrefetchSettled("dm-7");
 
     assert.equal(getMobileRecentDMPrefetchStats().settled, 0);
   });
 
   it("gives an open no credit while its warm is still in flight", () => {
-    resetMobileRecentDMPrefetchStatsForTests();
+    resetMobileRecentDMPrefetchStats();
     recordMobileRecentDMPrefetch(["dm-1"]);
 
     recordMobileRecentDMPrefetchOpen("dm-1");
@@ -138,7 +138,7 @@ describe("mobile recent DM prefetch hit rate", () => {
   });
 
   it("reports a zero rate rather than dividing by nothing", () => {
-    resetMobileRecentDMPrefetchStatsForTests();
+    resetMobileRecentDMPrefetchStats();
 
     assert.deepEqual(getMobileRecentDMPrefetchStats(), {
       attempted: 0,

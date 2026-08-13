@@ -7,6 +7,7 @@ import { recordMessageCreated } from "@/lib/analytics/service";
 import type { ClientAttribution } from "@/lib/analytics/client-attribution";
 import { processAttachmentScanJob } from "@/lib/attachments/scanner";
 import { createDMMessageNotifications } from "@/lib/dm/notification-service";
+import { deleteUploadThingFileKeys } from "@/lib/account/uploadthing-cleanup";
 import { logError } from "@/lib/logger";
 import { sendNotificationCampaign } from "@/lib/admin/notification-campaigns";
 import { getSocketServer } from "@/lib/socket/runtime";
@@ -23,8 +24,11 @@ const OUTBOX_STALE_PROCESSING_MS = 5 * 60 * 1000;
 const OUTBOX_MAX_ERROR_LENGTH = 1000;
 const OUTBOX_COMPLETED_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const OUTBOX_FAILED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+const OUTBOX_CLEANUP_BATCH_SIZE = 500;
+export const ACCOUNT_STORAGE_CLEANUP_KEYS_PER_JOB = 500;
 
 export const OUTBOX_JOB_TYPES = {
+  accountStorageCleanup: "ACCOUNT_STORAGE_CLEANUP",
   attachmentScan: "ATTACHMENT_SCAN",
   campaignSend: "CAMPAIGN_SEND",
   channelMentionNotifications: "CHANNEL_MENTION_NOTIFICATIONS",
@@ -37,6 +41,7 @@ type OutboxJobType = (typeof OUTBOX_JOB_TYPES)[keyof typeof OUTBOX_JOB_TYPES];
 
 type OutboxClient = {
   outboxJob: {
+    updateMany?(args: Prisma.OutboxJobUpdateManyArgs): Promise<{ count: number }>;
     upsert(args: Prisma.OutboxJobUpsertArgs): Promise<unknown>;
   };
 };
@@ -92,6 +97,12 @@ export const MessageCreatedAnalyticsPayloadSchema = z.object({
 const AttachmentScanPayloadSchema = z.object({
   attachmentId: z.string().min(1),
 });
+
+const AccountStorageCleanupPayloadSchema = z
+  .object({
+    fileKeys: z.array(z.string().min(1).max(512)).max(ACCOUNT_STORAGE_CLEANUP_KEYS_PER_JOB),
+  })
+  .strict();
 
 const ChannelMentionNotificationsPayloadSchema = z.object({
   channelId: z.string().min(1),
@@ -211,10 +222,35 @@ export async function enqueueCampaignSendJob(
   client: OutboxClient,
   input: { adminUserId: string; campaignId: string; scheduledAt: Date },
 ) {
+  const idempotencyKey = `campaign-send:${input.campaignId}`;
+  const payload = toJsonValue({
+    adminUserId: input.adminUserId,
+    campaignId: input.campaignId,
+  });
+  const requeued = await client.outboxJob.updateMany?.({
+    where: {
+      idempotencyKey,
+      status: { in: [OUTBOX_STATUS_COMPLETED, OUTBOX_STATUS_FAILED] },
+    },
+    data: {
+      attempts: 0,
+      availableAt: input.scheduledAt,
+      lastError: null,
+      lockedAt: null,
+      lockedBy: null,
+      payload,
+      status: OUTBOX_STATUS_PENDING,
+    },
+  });
+
+  if ((requeued?.count ?? 0) > 0) {
+    return;
+  }
+
   await enqueueOutboxJob(client, {
     availableAt: input.scheduledAt,
-    idempotencyKey: `campaign-send:${input.campaignId}`,
-    payload: { adminUserId: input.adminUserId, campaignId: input.campaignId },
+    idempotencyKey,
+    payload,
     type: OUTBOX_JOB_TYPES.campaignSend,
   });
 }
@@ -257,6 +293,21 @@ export async function enqueueAttachmentScanJob(
     }),
     type: OUTBOX_JOB_TYPES.attachmentScan,
   });
+}
+
+export async function enqueueAccountStorageCleanupJob(
+  client: OutboxClient,
+  args: { fileKeys: readonly string[]; userId: string },
+) {
+  if (args.fileKeys.length === 0) return;
+  for (let index = 0; index < args.fileKeys.length; index += ACCOUNT_STORAGE_CLEANUP_KEYS_PER_JOB) {
+    const chunk = args.fileKeys.slice(index, index + ACCOUNT_STORAGE_CLEANUP_KEYS_PER_JOB);
+    await enqueueOutboxJob(client, {
+      idempotencyKey: `account-storage-cleanup:${args.userId}:${index / ACCOUNT_STORAGE_CLEANUP_KEYS_PER_JOB}`,
+      payload: toJsonValue({ fileKeys: chunk }),
+      type: OUTBOX_JOB_TYPES.accountStorageCleanup,
+    });
+  }
 }
 
 /**
@@ -333,7 +384,17 @@ export async function enqueueDMMessageNotificationJob(
 ) {
   await enqueueOutboxJob(client, {
     idempotencyKey: `dm-message-notifications:${args.messageId}`,
-    payload: toJsonValue(args),
+    // Callers often hold a richer roster projection. Persist only fields the
+    // worker reads; a TypeScript cast never trims an object at runtime.
+    payload: toJsonValue({
+      ...args,
+      participants: args.participants.map((participant) => ({
+        muted: participant.muted,
+        notifyLevel: participant.notifyLevel,
+        userId: participant.userId,
+        user: { locale: participant.user.locale },
+      })),
+    }),
     type: OUTBOX_JOB_TYPES.dmMessageNotifications,
   });
 }
@@ -401,9 +462,19 @@ async function claimOutboxJobs(limit: number, workerId: string) {
   `);
 }
 
-async function markOutboxJobCompleted(jobId: string) {
-  await prisma.outboxJob.update({
-    where: { id: jobId },
+async function renewOutboxJobLease(jobId: string, workerId: string) {
+  const result = await prisma.outboxJob.updateMany({
+    where: { id: jobId, lockedBy: workerId, status: OUTBOX_STATUS_PROCESSING },
+    data: { lockedAt: new Date() },
+  });
+  return result.count > 0;
+}
+
+async function markOutboxJobCompleted(jobId: string, workerId: string) {
+  await prisma.outboxJob.updateMany({
+    // The worker id is the lease fence. An expired worker must not complete a
+    // claim that another replica has already recovered.
+    where: { id: jobId, lockedBy: workerId, status: OUTBOX_STATUS_PROCESSING },
     data: {
       lastError: null,
       lockedAt: null,
@@ -413,10 +484,10 @@ async function markOutboxJobCompleted(jobId: string) {
   });
 }
 
-async function markOutboxJobFailed(job: ClaimedOutboxJob, error: unknown) {
+async function markOutboxJobFailed(job: ClaimedOutboxJob, error: unknown, workerId: string) {
   const willRetry = job.attempts < job.maxAttempts;
-  await prisma.outboxJob.update({
-    where: { id: job.id },
+  await prisma.outboxJob.updateMany({
+    where: { id: job.id, lockedBy: workerId, status: OUTBOX_STATUS_PROCESSING },
     data: {
       availableAt: willRetry
         ? new Date(Date.now() + getOutboxRetryDelayMs(job.attempts))
@@ -429,7 +500,7 @@ async function markOutboxJobFailed(job: ClaimedOutboxJob, error: unknown) {
   });
 }
 
-async function processMessageCreatedAnalytics(job: ClaimedOutboxJob) {
+async function processMessageCreatedAnalytics(job: ClaimedOutboxJob, workerId: string) {
   const payload = MessageCreatedAnalyticsPayloadSchema.parse(job.payload);
   await prisma.$transaction(async (tx) => {
     await recordMessageCreated(
@@ -442,8 +513,8 @@ async function processMessageCreatedAnalytics(job: ClaimedOutboxJob) {
       { appVersion: payload.appVersion ?? null, clientType: payload.clientType },
       tx,
     );
-    await tx.outboxJob.update({
-      where: { id: job.id },
+    const completion = await tx.outboxJob.updateMany({
+      where: { id: job.id, lockedBy: workerId, status: OUTBOX_STATUS_PROCESSING },
       data: {
         lastError: null,
         lockedAt: null,
@@ -451,6 +522,9 @@ async function processMessageCreatedAnalytics(job: ClaimedOutboxJob) {
         status: OUTBOX_STATUS_COMPLETED,
       },
     });
+    if (completion.count === 0) {
+      throw new Error("Outbox lease was lost before analytics completion");
+    }
   });
 }
 
@@ -534,27 +608,33 @@ export async function processCampaignSendJob(
   return { skipped: false };
 }
 
-async function processOutboxJob(job: ClaimedOutboxJob) {
+async function processOutboxJob(job: ClaimedOutboxJob, workerId: string) {
+  if (job.type === OUTBOX_JOB_TYPES.accountStorageCleanup) {
+    const payload = AccountStorageCleanupPayloadSchema.parse(job.payload);
+    await deleteUploadThingFileKeys(payload.fileKeys);
+    await markOutboxJobCompleted(job.id, workerId);
+    return;
+  }
   if (job.type === OUTBOX_JOB_TYPES.campaignSend) {
     await processCampaignSendJob(CampaignSendPayloadSchema.parse(job.payload));
-    await markOutboxJobCompleted(job.id);
+    await markOutboxJobCompleted(job.id, workerId);
     return;
   }
 
   if (job.type === OUTBOX_JOB_TYPES.attachmentScan) {
     const payload = AttachmentScanPayloadSchema.parse(job.payload);
     await processAttachmentScanJob(payload);
-    await markOutboxJobCompleted(job.id);
+    await markOutboxJobCompleted(job.id, workerId);
     return;
   }
 
   if (job.type === OUTBOX_JOB_TYPES.messageCreatedAnalytics) {
-    await processMessageCreatedAnalytics(job);
+    await processMessageCreatedAnalytics(job, workerId);
     return;
   }
 
   await processNotificationJob(job);
-  await markOutboxJobCompleted(job.id);
+  await markOutboxJobCompleted(job.id, workerId);
 }
 
 export async function drainOutboxJobs(
@@ -568,7 +648,17 @@ export async function drainOutboxJobs(
 
   for (const job of jobs) {
     try {
-      await processOutboxJob(job);
+      if (!(await renewOutboxJobLease(job.id, workerId))) {
+        logError("[outbox] Job lease lost before processing", { jobId: job.id, workerId });
+        continue;
+      }
+    } catch (error) {
+      logError("[outbox] Job lease renewal failed", { error, jobId: job.id, workerId });
+      continue;
+    }
+
+    try {
+      await processOutboxJob(job, workerId);
     } catch (error) {
       logError("[outbox] Job failed", {
         attempts: job.attempts,
@@ -576,7 +666,16 @@ export async function drainOutboxJobs(
         jobId: job.id,
         type: job.type,
       });
-      await markOutboxJobFailed(job, error);
+      try {
+        await markOutboxJobFailed(job, error, workerId);
+      } catch (markError) {
+        // Failure bookkeeping must not abandon the rest of the claimed batch.
+        logError("[outbox] Failed to record job failure", {
+          error: markError,
+          jobId: job.id,
+          workerId,
+        });
+      }
     }
   }
 
@@ -593,7 +692,7 @@ export async function cleanupOutboxJobs(now = new Date()) {
   const completedBefore = new Date(now.getTime() - OUTBOX_COMPLETED_RETENTION_MS);
   const failedBefore = new Date(now.getTime() - OUTBOX_FAILED_RETENTION_MS);
 
-  await prisma.outboxJob.deleteMany({
+  const jobs = await prisma.outboxJob.findMany({
     where: {
       OR: [
         {
@@ -606,5 +705,14 @@ export async function cleanupOutboxJobs(now = new Date()) {
         },
       ],
     },
+    orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+    select: { id: true },
+    take: OUTBOX_CLEANUP_BATCH_SIZE,
   });
+
+  if (jobs.length === 0) {
+    return;
+  }
+
+  await prisma.outboxJob.deleteMany({ where: { id: { in: jobs.map((job) => job.id) } } });
 }

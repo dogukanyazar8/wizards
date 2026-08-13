@@ -1,7 +1,8 @@
 import { prisma } from "@wizards/db";
 import { buildGroupAvatarPair } from "@wizards/types";
 import { ApiError, jsonError } from "@/lib/api";
-import { authorizeMobileApiRequest } from "@/lib/auth/api";
+import { authorizeMobileApiSession } from "@/lib/auth/api";
+import { ensureMobileRequestAuthSession } from "@/lib/auth/auth-session-request";
 import { createServerTimingForRequest } from "@/lib/server-timing";
 import {
   MOBILE_UNREAD_COUNT_CAP,
@@ -24,18 +25,23 @@ export async function GET(request: Request) {
 
   try {
     const stopAuthTiming = timing.start("auth");
-    const userId = await authorizeMobileApiRequest(request, "mobile:bootstrap");
+    const authSession = await authorizeMobileApiSession(request, "mobile:bootstrap");
+    const { userId } = authSession;
     stopAuthTiming();
 
     const [
+      ,
       user,
       recentServerMemberships,
       serverTotalCount,
       recentDMParticipants,
       dmTotalCount,
       dmUnreadAggregate,
+      adminMembership,
+      flags,
     ] = await timing.measure("db", () =>
       Promise.all([
+        ensureMobileRequestAuthSession(request, authSession),
         prisma.user.findUnique({
           where: { id: userId },
           select: {
@@ -158,6 +164,14 @@ export async function GET(request: Request) {
             userId,
           },
         }),
+        prisma.adminMembership.findUnique({
+          where: { userId },
+          select: { role: true },
+        }),
+        evaluateFlagsForUser({
+          clientType: getAnalyticsClientInfo(request.headers).clientType,
+          userId,
+        }),
       ]),
     );
 
@@ -254,15 +268,6 @@ export async function GET(request: Request) {
         totalCount: serverTotalCount,
       },
     };
-
-    const adminMembership = await prisma.adminMembership.findUnique({
-      where: { userId },
-      select: { role: true },
-    });
-    const flags = await evaluateFlagsForUser({
-      clientType: getAnalyticsClientInfo(request.headers).clientType,
-      userId,
-    });
 
     return Response.json(
       getMobileBootstrapPayload({

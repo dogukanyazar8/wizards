@@ -11,6 +11,7 @@ import {
   getMobileRealtimeForegroundBackfillSources,
   getMobileRealtimeVisibilityFromAppState,
   mobileRealtimeReducer,
+  redactMobileRealtimeEventForSnapshot,
   shouldConnectMobileRealtime,
   shouldForceMobileRealtimeReconnect,
   summarizeMobileRealtimeConnection,
@@ -31,7 +32,7 @@ describe("mobile realtime state", () => {
     });
   });
 
-  it("tracks connection lifecycle without storing sensitive payloads", () => {
+  it("tracks connection lifecycle while redacting diagnostic message payloads", () => {
     const connected = mobileRealtimeReducer(
       mobileRealtimeReducer(createInitialMobileRealtimeSnapshot(), {
         now: 1_000,
@@ -51,11 +52,31 @@ describe("mobile realtime state", () => {
       event,
       type: "event-received",
     });
+    const redactedEvent = redactMobileRealtimeEventForSnapshot(event);
 
     assert.equal(withEvent.status, "connected");
-    assert.equal(withEvent.eventCount, 1);
-    assert.equal(withEvent.lastEvent?.conversationId, "conversation-1");
-    assert.equal(JSON.stringify(withEvent).includes("not retained"), false);
+    assert.equal(withEvent, connected);
+    assert.equal(redactedEvent.conversationId, "conversation-1");
+    assert.equal(JSON.stringify(redactedEvent).includes("not retained"), false);
+  });
+
+  it("keeps connection snapshot identity stable when a socket event arrives", () => {
+    const connected = mobileRealtimeReducer(createInitialMobileRealtimeSnapshot(), {
+      now: 1_000,
+      type: "connected",
+    });
+    const event = createMobileRealtimeEventEnvelope(
+      "typing:update",
+      { channelId: "channel-1", users: ["Ada"] },
+      2_000,
+    );
+
+    const afterEvent = mobileRealtimeReducer(connected, {
+      event,
+      type: "event-received",
+    });
+
+    assert.equal(afterEvent, connected);
   });
 
   it("disconnects in background and reconnects only for signed-in foreground sessions", () => {

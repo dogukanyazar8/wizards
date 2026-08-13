@@ -22,6 +22,7 @@ import {
   WHISPR_OVERLAY_OPEN_EVENT,
 } from "@/lib/ui/overlay-coordinator";
 import { cn } from "@/lib/utils";
+import { createRafThrottledCallback } from "@/lib/ui/raf-throttle";
 
 const QUICK_REACTIONS = [
   "\u{1F44D}",
@@ -95,7 +96,9 @@ export function MessageToolbar({
       const menu = reactionMenuRef.current;
 
       if (!button || !menu || !window.matchMedia("(min-width: 768px)").matches) {
-        setReactionMenuStyle({});
+        setReactionMenuStyle((current) =>
+          current.left === undefined && current.top === undefined ? current : {},
+        );
         return;
       }
 
@@ -108,14 +111,16 @@ export function MessageToolbar({
       const left = Math.min(Math.max(preferredLeft, safeInset), Math.max(safeInset, maxLeft));
       const top = Math.max(safeInset, buttonRect.top - menuHeight - 10);
 
-      setReactionMenuStyle({
-        left,
-        top,
-      });
+      setReactionMenuStyle((current) =>
+        current.left === left && current.top === top ? current : { left, top },
+      );
     };
 
     positionReactionMenu();
     const frameId = window.requestAnimationFrame(positionReactionMenu);
+    // The capture listener sees every descendant scroll. Keep one measurement
+    // per frame; unchanged coordinates retain state identity and skip rerender.
+    const throttledScroll = createRafThrottledCallback(positionReactionMenu);
 
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
@@ -136,14 +141,15 @@ export function MessageToolbar({
     window.addEventListener("pointerdown", handlePointerDown);
     window.addEventListener("keydown", handleEscape);
     window.addEventListener("resize", positionReactionMenu);
-    window.addEventListener("scroll", positionReactionMenu, true);
+    window.addEventListener("scroll", throttledScroll.run, true);
 
     return () => {
       window.cancelAnimationFrame(frameId);
+      throttledScroll.cancel();
       window.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleEscape);
       window.removeEventListener("resize", positionReactionMenu);
-      window.removeEventListener("scroll", positionReactionMenu, true);
+      window.removeEventListener("scroll", throttledScroll.run, true);
     };
   }, [reactionOverlayId, showReactionMenu]);
 

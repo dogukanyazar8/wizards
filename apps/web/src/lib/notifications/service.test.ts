@@ -4,7 +4,9 @@ import { prisma } from "@wizards/db";
 
 import {
   clearNotifications,
+  getUnreadCount,
   getMobileVisibleNotificationTypes,
+  listNotifications,
   markAllRead,
   markRead,
 } from "@/lib/notifications/service";
@@ -30,6 +32,8 @@ function stubNotificationTables(
   restores: Restore[],
   overrides: {
     findFirst?: (args: unknown) => Promise<unknown>;
+    findMany?: (args: unknown) => Promise<unknown>;
+    updateMany?: (args: unknown) => Promise<{ count: number }>;
   } = {},
 ) {
   const calls = {
@@ -49,10 +53,11 @@ function stubNotificationTables(
     "updateMany",
     async (args: unknown) => {
       calls.notificationUpdateMany.push(args);
-      return { count: 1 };
+      return overrides.updateMany?.(args) ?? { count: 1 };
     },
     restores,
   );
+  patchMethod(prisma.notification, "findMany", overrides.findMany ?? (async () => []), restores);
   patchMethod(
     prisma.notification,
     "deleteMany",
@@ -91,6 +96,59 @@ describe("mobile notification compatibility", () => {
     );
     assert.equal(getMobileVisibleNotificationTypes({ badgeCapable: true }).includes("BADGE"), true);
   });
+
+  it("keeps FEEDBACK rows visible to web and mobile clients", async () => {
+    const restores: Restore[] = [];
+    const queries: unknown[] = [];
+
+    patchMethod(
+      prisma.notification,
+      "findMany",
+      async (args: unknown) => {
+        queries.push(args);
+        return [
+          {
+            actionUrl: "/settings/feedback",
+            body: "Feedback updated",
+            createdAt: new Date("2026-08-12T12:00:00.000Z"),
+            id: "feedback-1",
+            metadata: null,
+            readAt: null,
+            type: "FEEDBACK",
+          },
+        ];
+      },
+      restores,
+    );
+    patchMethod(prisma.user, "findMany", async () => [], restores);
+    patchMethod(
+      prisma.notification,
+      "count",
+      async (args: unknown) => {
+        queries.push(args);
+        return 1;
+      },
+      restores,
+    );
+
+    try {
+      const rows = await listNotifications("user-1", 5);
+      const unreadCount = await getUnreadCount("user-1");
+
+      assert.equal(rows[0]?.type, "FEEDBACK");
+      assert.equal(unreadCount, 1);
+      assert.equal(
+        getMobileVisibleNotificationTypes({ badgeCapable: false }).includes("FEEDBACK"),
+        true,
+      );
+      for (const query of queries) {
+        const visibleTypes = (query as { where: { type: { in: string[] } } }).where.type.in;
+        assert.equal(visibleTypes.includes("FEEDBACK"), true);
+      }
+    } finally {
+      restoreAll(restores);
+    }
+  });
 });
 
 describe("direct message badge release", () => {
@@ -98,7 +156,7 @@ describe("direct message badge release", () => {
     const restores: Restore[] = [];
     const calls = stubNotificationTables(restores, {
       findFirst: async () => ({
-        metadata: { conversationId: "conversation-1", senderId: "sender-1" },
+        metadata: { conversationId: "conversation-1", mentioned: true, senderId: "sender-1" },
         read: false,
         type: "DM",
       }),
@@ -112,29 +170,46 @@ describe("direct message badge release", () => {
 
     assert.deepEqual(calls.dmParticipantUpdateMany, [
       {
-        where: { conversationId: "conversation-1", unreadCount: { gt: 0 }, userId: "user-1" },
-        data: { unreadCount: { decrement: 1 } },
+        where: {
+          conversationId: "conversation-1",
+          mentionCount: { gt: 0 },
+          unreadCount: { gt: 0 },
+          userId: "user-1",
+        },
+        data: {
+          mentionCount: { decrement: 1 },
+          unreadCount: { decrement: 1 },
+        },
       },
     ]);
   });
 
-  it("does not pay the counter twice for an already-read DM row", async () => {
+  it("pays the counter once when concurrent reads race", async () => {
     const restores: Restore[] = [];
+    let updateAttempt = 0;
     const calls = stubNotificationTables(restores, {
       findFirst: async () => ({
         metadata: { conversationId: "conversation-1" },
-        read: true,
         type: "DM",
       }),
+      updateMany: async () => ({ count: updateAttempt++ === 0 ? 1 : 0 }),
     });
 
     try {
+      await markRead("user-1", "notification-1");
       await markRead("user-1", "notification-1");
     } finally {
       restoreAll(restores);
     }
 
-    assert.deepEqual(calls.dmParticipantUpdateMany, []);
+    assert.equal(calls.dmParticipantUpdateMany.length, 1);
+    assert.deepEqual(
+      calls.notificationUpdateMany.map((args) => (args as { where: unknown }).where),
+      [
+        { id: "notification-1", read: false, userId: "user-1" },
+        { id: "notification-1", read: false, userId: "user-1" },
+      ],
+    );
   });
 
   it("leaves the counter alone for a DM row with no conversation in its metadata", async () => {
@@ -152,9 +227,14 @@ describe("direct message badge release", () => {
     assert.deepEqual(calls.dmParticipantUpdateMany, []);
   });
 
-  it("zeroes every conversation counter on mark-all-read", async () => {
+  it("zeroes only conversation counters named by unread rows on mark-all-read", async () => {
     const restores: Restore[] = [];
-    const calls = stubNotificationTables(restores);
+    const calls = stubNotificationTables(restores, {
+      findMany: async () => [
+        { metadata: { conversationId: "conversation-1" } },
+        { metadata: { conversationId: "conversation-1" } },
+      ],
+    });
 
     try {
       await markAllRead("user-1");
@@ -164,15 +244,17 @@ describe("direct message badge release", () => {
 
     assert.deepEqual(calls.dmParticipantUpdateMany, [
       {
-        where: { unreadCount: { gt: 0 }, userId: "user-1" },
-        data: { unreadCount: 0 },
+        where: { conversationId: { in: ["conversation-1"] }, userId: "user-1" },
+        data: { mentionCount: 0, unreadCount: 0 },
       },
     ]);
   });
 
-  it("zeroes every conversation counter on clear-all", async () => {
+  it("leaves muted conversations without notification rows alone on clear-all", async () => {
     const restores: Restore[] = [];
-    const calls = stubNotificationTables(restores);
+    const calls = stubNotificationTables(restores, {
+      findMany: async () => [{ metadata: { conversationId: "not-muted" } }],
+    });
 
     try {
       await clearNotifications("user-1");
@@ -182,8 +264,8 @@ describe("direct message badge release", () => {
 
     assert.deepEqual(calls.dmParticipantUpdateMany, [
       {
-        where: { unreadCount: { gt: 0 }, userId: "user-1" },
-        data: { unreadCount: 0 },
+        where: { conversationId: { in: ["not-muted"] }, userId: "user-1" },
+        data: { mentionCount: 0, unreadCount: 0 },
       },
     ]);
   });

@@ -1,4 +1,5 @@
 import { mobileFailedSendRegistry } from "../query/mobile-failed-send-registry";
+import { resetMobileRecentDMPrefetchStats } from "../query/mobile-message-prefetch";
 import { mobileSearchKeyRegistry } from "../query/mobile-query-keys";
 import { useMobileActiveTargetStore } from "./mobile-active-target-store";
 import { useMobileComposerDraftStore } from "./mobile-composer-draft-store";
@@ -12,4 +13,5 @@ export function resetMobileSessionState(): void {
   useMobileTypingStore.getState().reset();
   mobileSearchKeyRegistry.clear();
   mobileFailedSendRegistry.clear();
+  resetMobileRecentDMPrefetchStats();
 }

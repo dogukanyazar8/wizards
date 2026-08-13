@@ -1,5 +1,4 @@
 import { ChannelType, MessageType, prisma } from "@wizards/db";
-import type { Prisma } from "@wizards/db";
 import type { AddServerMemberInput, UpdateWorkspaceMemberRolesInput } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
@@ -15,6 +14,7 @@ import {
   getAccessContext,
 } from "@/lib/workspace/access-context";
 import { getMessageById } from "@/lib/workspace/message-service";
+import { writeWorkspaceAuditLog } from "@/lib/workspace/audit-log";
 import { invalidateMemberPermissionCache } from "@/lib/workspace/permission-cache";
 import {
   decrementServerMemberCount,
@@ -37,6 +37,27 @@ import {
   formatRoleNameList,
   serializeWorkspaceNotification,
 } from "@/lib/workspace/workspace-events";
+
+// Role mutation and removal must share one hierarchy gate or they can drift into
+// granting moderators a second path around protected-role enforcement.
+export function assertCanActOnMember(
+  access: Pick<Awaited<ReturnType<typeof getAccessContext>>, "ownerId" | "userId">,
+  member: {
+    roles: Array<{ role: Parameters<typeof isProtectedRole>[0] }>;
+    userId: string;
+  },
+) {
+  if (member.userId === access.ownerId) {
+    throw new ApiError("The server owner cannot be changed.", 403, "OWNER_PROTECTED");
+  }
+
+  if (
+    !isOwnerAccess(access) &&
+    member.roles.some((entry) => !entry.role.isDefault && isProtectedRole(entry.role))
+  ) {
+    throw new ApiError("You cannot act on a member with an elevated role.", 403, "ROLE_HIERARCHY");
+  }
+}
 
 export async function updateWorkspaceMemberRoles(
   userId: string,
@@ -80,13 +101,7 @@ export async function updateWorkspaceMemberRoles(
     throw new ApiError("Member not found", 404);
   }
 
-  if (member.userId === access.ownerId) {
-    throw new ApiError("The server owner cannot be role-modified.", 403, "OWNER_PROTECTED");
-  }
-
-  if (!isOwnerAccess(access) && member.roles.some((entry) => isProtectedRole(entry.role))) {
-    throw new ApiError("You cannot modify a member with an elevated role.", 403, "ROLE_HIERARCHY");
-  }
+  assertCanActOnMember(access, member);
 
   const requestedRoleIds = Array.from(new Set(input.roleIds));
   const roles = await prisma.role.findMany({
@@ -136,32 +151,40 @@ export async function updateWorkspaceMemberRoles(
   const addedRoleIds = requestedMutableRoleIds.filter(
     (roleId) => !existingMutableRoleIds.includes(roleId),
   );
+  const removedRoleIds = existingMutableRoleIds.filter(
+    (roleId) => !requestedMutableRoleIds.includes(roleId),
+  );
   const addedRoles = requestedMutableRoles.filter((role) => addedRoleIds.includes(role.id));
 
-  const mutations: Prisma.PrismaPromise<unknown>[] = [
-    prisma.memberRole.deleteMany({
+  await prisma.$transaction(async (tx) => {
+    await tx.memberRole.deleteMany({
       where: {
         memberId,
         roleId: {
           in: existingMutableRoleIds,
         },
       },
-    }),
-  ];
+    });
 
-  if (requestedMutableRoleIds.length > 0) {
-    mutations.push(
-      prisma.memberRole.createMany({
+    if (requestedMutableRoleIds.length > 0) {
+      await tx.memberRole.createMany({
         data: requestedMutableRoleIds.map((roleId) => ({
           memberId,
           roleId,
         })),
         skipDuplicates: true,
-      }),
-    );
-  }
+      });
+    }
 
-  await prisma.$transaction(mutations);
+    await writeWorkspaceAuditLog(tx, {
+      action: "MEMBER_ROLES_UPDATED",
+      actorId: userId,
+      metadata: { addedRoleIds, removedRoleIds },
+      serverId,
+      targetId: member.userId,
+      targetType: "USER",
+    });
+  });
 
   await invalidateMemberPermissionCache(serverId, member.userId);
 
@@ -553,30 +576,68 @@ export async function kickWorkspaceMember(userId: string, serverId: string, memb
     throw new ApiError("Use leave server instead of kicking yourself", 400);
   }
 
-  if (member.userId === access.ownerId) {
-    throw new ApiError("The server owner cannot be kicked", 403, "OWNER_PROTECTED");
-  }
+  const kickedMember = await prisma.$transaction(
+    async (tx) => {
+      // Re-read the hierarchy state in the deleting transaction so a concurrent
+      // protected-role grant cannot turn the preflight member snapshot stale.
+      const currentMember = await tx.serverMember.findFirst({
+        where: {
+          id: member.id,
+          serverId,
+        },
+        select: {
+          id: true,
+          roles: {
+            select: {
+              role: {
+                select: {
+                  id: true,
+                  isDefault: true,
+                  managed: true,
+                  permissions: true,
+                },
+              },
+            },
+          },
+          userId: true,
+        },
+      });
 
-  await prisma.$transaction(async (tx) => {
-    await tx.serverMember.delete({
-      where: {
-        id: member.id,
-      },
-    });
-    await decrementServerMemberCount(tx, serverId);
-  });
+      if (!currentMember) {
+        throw new ApiError("Member not found", 404);
+      }
+
+      assertCanActOnMember(access, currentMember);
+      await tx.serverMember.delete({
+        where: {
+          id: currentMember.id,
+        },
+      });
+      await decrementServerMemberCount(tx, serverId);
+      await writeWorkspaceAuditLog(tx, {
+        action: "MEMBER_KICKED",
+        actorId: userId,
+        metadata: { memberId: currentMember.id },
+        serverId,
+        targetId: currentMember.userId,
+        targetType: "USER",
+      });
+      return currentMember;
+    },
+    { isolationLevel: "Serializable" },
+  );
 
   await Promise.all([
-    invalidateMemberPermissionCache(serverId, member.userId),
-    invalidateServerRoomIdsCache(member.userId),
+    invalidateMemberPermissionCache(serverId, kickedMember.userId),
+    invalidateServerRoomIdsCache(kickedMember.userId),
   ]);
 
-  const io = await detachUserFromServerSocketRoom(member.userId, serverId);
+  const io = await detachUserFromServerSocketRoom(kickedMember.userId, serverId);
   io?.to(`server:${serverId}`).emit("server:settings:updated", { serverId });
-  io?.to(`user:${member.userId}`).emit("server:membership:removed", {
+  io?.to(`user:${kickedMember.userId}`).emit("server:membership:removed", {
     reason: "kicked",
     serverId,
   });
-  io?.to(`user:${member.userId}`).emit("server:settings:updated", { serverId });
+  io?.to(`user:${kickedMember.userId}`).emit("server:settings:updated", { serverId });
   await emitServerUnreadUpdatesForServer(serverId);
 }

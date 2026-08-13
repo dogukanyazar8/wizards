@@ -1,4 +1,5 @@
 import type Redis from "ioredis";
+import type { PresenceVisibility } from "@wizards/types";
 
 /**
  * `fetchSockets()` serialises every socket in a room just to count the distinct
@@ -166,6 +167,7 @@ export type OnlinePresenceSocket = {
   data: {
     onlineServerIds?: string[];
     presenceStatus?: string;
+    presenceVisibility?: PresenceVisibility;
   };
 };
 
@@ -195,7 +197,11 @@ export type OnlinePresenceSocket = {
  * not-yet-initialized socket out, not an absent field here.
  */
 export function isSocketEligibleForOnlinePresence(socket: OnlinePresenceSocket): boolean {
-  return socket.connected !== false && socket.data.presenceStatus !== "OFFLINE";
+  return (
+    socket.connected !== false &&
+    socket.data.presenceStatus !== "OFFLINE" &&
+    (socket.data.presenceVisibility ?? "EVERYONE") === "EVERYONE"
+  );
 }
 
 /**

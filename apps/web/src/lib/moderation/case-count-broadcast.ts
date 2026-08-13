@@ -7,6 +7,7 @@ import { getSocketServer } from "@/lib/socket/runtime";
 import type { AppSocketServer } from "@/lib/socket/runtime";
 
 export interface ModerationCaseCountBroadcastDependencies {
+  canReadQueue(userId: string): Promise<boolean>;
   countOpenCases(): Promise<number>;
   emit(io: AppSocketServer, userIds: string[], count: number): void;
   listQueueReaderUserIds(): Promise<string[]>;
@@ -14,6 +15,16 @@ export interface ModerationCaseCountBroadcastDependencies {
 }
 
 const defaultDependencies: ModerationCaseCountBroadcastDependencies = {
+  canReadQueue: async (userId) =>
+    Boolean(
+      await prisma.adminMembership.findFirst({
+        select: { userId: true },
+        where: {
+          role: { in: [...ADMIN_CAPABILITIES["case.read"]] },
+          userId,
+        },
+      }),
+    ),
   countOpenCases: () => countOpenModerationCases(),
   emit: (io, userIds, count) => {
     emitToUserRooms(io, userIds, "admin:open-case-count", { count });
@@ -70,8 +81,7 @@ export async function sendOpenModerationCaseCountToUser(
   socket: OpenCaseCountSocket,
   dependencies: ModerationCaseCountBroadcastDependencies = defaultDependencies,
 ): Promise<{ sent: boolean }> {
-  const readerIds = await dependencies.listQueueReaderUserIds();
-  if (!readerIds.includes(userId)) {
+  if (!(await dependencies.canReadQueue(userId))) {
     return { sent: false };
   }
 

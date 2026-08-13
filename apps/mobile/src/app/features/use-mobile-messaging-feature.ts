@@ -1070,6 +1070,15 @@ export function useMobileMessagingFeature({
 
   const handleOpenWorkspaceRoute = useCallback(
     (serverId: string, channelId: string | null) => {
+      if (
+        channelId !== null &&
+        selectedWorkspaceServerId === serverId &&
+        selectedWorkspaceChannelId === channelId &&
+        activeWorkspaceTextChannelId === channelId
+      ) {
+        return;
+      }
+
       resetChannelMessageMutation();
       setSelectedWorkspaceServerId(serverId);
       // The route already names the channel, so the message stream is keyed here
@@ -1091,7 +1100,12 @@ export function useMobileMessagingFeature({
         shouldOpenPreferredChannel: true,
       });
     },
-    [resetChannelMessageMutation],
+    [
+      activeWorkspaceTextChannelId,
+      resetChannelMessageMutation,
+      selectedWorkspaceChannelId,
+      selectedWorkspaceServerId,
+    ],
   );
 
   // One stable object for the container-level navigation actions: an inline

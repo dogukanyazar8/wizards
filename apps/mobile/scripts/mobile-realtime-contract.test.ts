@@ -34,6 +34,7 @@ describe("mobile realtime contract", () => {
     assert.deepEqual(getMobileRealtimeRefreshSources("dm:message:new"), ["dm"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("dm:conversation:updated"), ["dm"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("dm:conversation:read"), ["dm"]);
+    assert.deepEqual(getMobileRealtimeRefreshSources("dm:conversation:delivered"), ["dm"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("voice:state:update"), ["workspace"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("voice:audio-level:update"), []);
     assert.deepEqual(getMobileRealtimeRefreshSources("voice:invite:received"), []);
@@ -45,6 +46,13 @@ describe("mobile realtime contract", () => {
     assert.deepEqual(getMobileRealtimeRefreshSources("presence:update"), ["presence"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("friends:updated"), ["presence"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("user:profile:updated"), ["presence"]);
+  });
+
+  it("does not turn an unclassified event into a bootstrap refresh", () => {
+    assert.deepEqual(
+      getMobileRealtimeRefreshSources("future:event" as MobileRealtimeServerEventName),
+      [],
+    );
   });
 
   it("refreshes the server summary for every text-channel message mutation", () => {

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { getAnalyticsClientInfo, hashAnalyticsValue } from "@/lib/analytics/client-info";
 
+process.env.TRUSTED_PROXY_HOPS = "1";
+
 describe("analytics client info", () => {
   it("detects mobile browsers without storing raw IP or user-agent", () => {
     process.env.ANALYTICS_HASH_SECRET = "analytics-test";
@@ -10,7 +12,7 @@ describe("analytics client info", () => {
       "cf-ipcountry": "tr",
       "user-agent":
         "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Version/17.5 Mobile/15E148 Safari/604.1",
-      "x-real-ip": "203.0.113.10",
+      "x-forwarded-for": "203.0.113.10",
     });
 
     const info = getAnalyticsClientInfo(headers);
@@ -25,12 +27,11 @@ describe("analytics client info", () => {
     assert.ok(info.userAgentHash);
   });
 
-  it("hashes only trusted normalized X-Real-IP", () => {
+  it("hashes only the fixed-hop X-Forwarded-For client", () => {
     process.env.ANALYTICS_HASH_SECRET = "analytics-test";
     const info = getAnalyticsClientInfo({
       "cf-connecting-ip": "192.0.2.10",
-      "x-forwarded-for": "192.0.2.11",
-      "x-real-ip": "2001:0db8:0:0:0:0:0:1",
+      "x-forwarded-for": "192.0.2.11, 2001:0db8:0:0:0:0:0:1",
     });
 
     assert.equal(info.ipHash, hashAnalyticsValue("2001:db8::1"));

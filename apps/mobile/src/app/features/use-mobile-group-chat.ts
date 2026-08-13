@@ -62,6 +62,9 @@ export function useMobileGroupChat({
   const detailsQuery = useMobileGroupDetailsQuery(client, conversationId ?? "", enabled);
   const callQuery = useMobileGroupCallStateQuery(client, conversationId ?? "", enabled);
   const { dismissPinnedStrip } = useMobileGroupSettingsMutations(client);
+  // Mutation observer results are new objects on render; the command itself is
+  // stable and keeps `onDismissPin` from invalidating the group screen model.
+  const dismissPinnedStripMutate = dismissPinnedStrip.mutate;
   /**
    * §B2. The dismissal is local *and* written: the strip closes on this frame,
    * and the server remembers it so a reopen does not bring the same pin back.
@@ -99,8 +102,8 @@ export function useMobileGroupChat({
     setDismissedPinId(messageId);
     // Fire-and-forget: the strip is already closed, and a failed write only
     // means it comes back on the next cold open.
-    dismissPinnedStrip.mutate({ conversationId, messageId });
-  }, [conversationId, dismissPinnedStrip, pinnedStrip.messageId]);
+    dismissPinnedStripMutate({ conversationId, messageId });
+  }, [conversationId, dismissPinnedStripMutate, pinnedStrip.messageId]);
 
   const navigate = useCallback(
     (route: "GroupInfo" | "GroupMembers" | "GroupSettings") => {

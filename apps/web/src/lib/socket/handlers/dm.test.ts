@@ -1,22 +1,26 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { ApiError } from "@/lib/api";
-import { assertUnblockedDMParticipants } from "@/lib/dm/blocking";
-
 import type { HandlerContext } from "../context";
 import { registerDMHandlers } from "./dm";
 
 function createHandlerContextRecorder() {
   const events: string[] = [];
+  const emitted: Array<{ args: unknown[]; event: string }> = [];
+  const handlers = new Map<string, (payload: unknown) => Promise<void> | void>();
   const socket = {
     data: {
       displayName: "Ada",
       userId: "user-1",
       username: "ada",
     },
-    on(event: string) {
+    emit(event: string, ...args: unknown[]) {
+      emitted.push({ args, event });
+      return socket;
+    },
+    on(event: string, handler: (payload: unknown) => Promise<void> | void) {
       events.push(event);
+      handlers.set(event, handler);
       return socket;
     },
   };
@@ -29,7 +33,24 @@ function createHandlerContextRecorder() {
     userId: "user-1",
   } as unknown as HandlerContext;
 
-  return { ctx, events };
+  return { ctx, emitted, events, handlers };
+}
+
+type TestDMHandlerOptions = {
+  checkDeliveryAckRateLimit(args: { userId: string }): Promise<{ status: "allowed" }>;
+  isParticipant(userId: string, conversationId: string): Promise<boolean>;
+  leaveCall(conversationId: string, userId: string): Promise<null>;
+  loadParticipants(conversationId: string): Promise<unknown[]>;
+  recordDelivery(userId: string, conversationIds: string[]): Promise<void>;
+};
+
+function registerWithTestOptions(ctx: HandlerContext, options: TestDMHandlerOptions) {
+  return (
+    registerDMHandlers as unknown as (
+      context: HandlerContext,
+      options: TestDMHandlerOptions,
+    ) => ReturnType<typeof registerDMHandlers>
+  )(ctx, options);
 }
 
 describe("socket DM handlers", () => {
@@ -59,40 +80,63 @@ describe("socket DM handlers", () => {
     ]);
   });
 
-  it("checks every other participant before allowing group DM messages", async () => {
-    const checkedCandidateUserIds: string[][] = [];
+  it("rejects a delivery acknowledgement from a non-participant before recording it", async () => {
+    const { ctx, emitted, handlers } = createHandlerContextRecorder();
+    const calls: string[] = [];
 
-    await assert.rejects(
-      assertUnblockedDMParticipants({
-        currentUserId: "user-1",
-        findBlockedUserIdsForUser: async (currentUserId, candidateUserIds) => {
-          assert.equal(currentUserId, "user-1");
-          checkedCandidateUserIds.push([...candidateUserIds]);
-          return new Set(["user-3"]);
-        },
-        participants: [{ userId: "user-1" }, { userId: "user-2" }, { userId: "user-3" }],
-      }),
-      (error) => error instanceof ApiError && error.code === "BLOCKED" && error.status === 403,
-    );
+    registerWithTestOptions(ctx, {
+      async checkDeliveryAckRateLimit({ userId }) {
+        calls.push(`rate:${userId}`);
+        return { status: "allowed" };
+      },
+      async isParticipant(userId, conversationId) {
+        calls.push(`participant:${userId}:${conversationId}`);
+        return false;
+      },
+      async leaveCall() {
+        return null;
+      },
+      async loadParticipants() {
+        return [];
+      },
+      async recordDelivery() {
+        calls.push("record");
+      },
+    });
 
-    assert.deepEqual(checkedCandidateUserIds, [["user-2", "user-3"]]);
+    await handlers.get("dm:message:delivered")?.({ conversationId: "conversation-1" });
+
+    assert.deepEqual(calls, ["rate:user-1", "participant:user-1:conversation-1"]);
+    assert.deepEqual(emitted.at(-1), {
+      args: [{ code: "FORBIDDEN", message: "You are not a participant in this DM" }],
+      event: "dm:error",
+    });
   });
 
-  it("rejects group DM messages when the blocked participant is at index 1", async () => {
-    const checkedCandidateUserIds: string[][] = [];
+  it("leaves the call roster before checking whether a removed member is still authorized", async () => {
+    const { ctx, handlers } = createHandlerContextRecorder();
+    const calls: string[] = [];
 
-    await assert.rejects(
-      assertUnblockedDMParticipants({
-        currentUserId: "user-1",
-        findBlockedUserIdsForUser: async (_currentUserId, candidateUserIds) => {
-          checkedCandidateUserIds.push([...candidateUserIds]);
-          return new Set(["user-3"]);
-        },
-        participants: [{ userId: "user-2" }, { userId: "user-3" }, { userId: "user-1" }],
-      }),
-      (error) => error instanceof ApiError && error.code === "BLOCKED" && error.status === 403,
-    );
+    registerWithTestOptions(ctx, {
+      async checkDeliveryAckRateLimit() {
+        return { status: "allowed" };
+      },
+      async isParticipant() {
+        return true;
+      },
+      async leaveCall(conversationId, userId) {
+        calls.push(`leave:${conversationId}:${userId}`);
+        return null;
+      },
+      async loadParticipants(conversationId) {
+        calls.push(`participants:${conversationId}`);
+        return [];
+      },
+      async recordDelivery() {},
+    });
 
-    assert.deepEqual(checkedCandidateUserIds, [["user-2", "user-3"]]);
+    await handlers.get("dm:call:leave")?.({ conversationId: "conversation-1" });
+
+    assert.deepEqual(calls, ["leave:conversation-1:user-1", "participants:conversation-1"]);
   });
 });

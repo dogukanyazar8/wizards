@@ -27,6 +27,36 @@ export const MOBILE_VOICE_LEVEL_CHANGE_THRESHOLD = 0.025;
 export const MOBILE_VOICE_DISCONNECTED_MESSAGE =
   "Voice room connection closed. Rejoin to continue.";
 
+export function reconcileMobileVoiceForegroundInterval<Handle>(input: {
+  readonly appState: string;
+  readonly clearTimer: (handle: Handle) => void;
+  readonly current: Handle | null;
+  readonly enabled: boolean;
+  readonly intervalMs: number;
+  readonly run: () => void;
+  readonly setTimer: (run: () => void, intervalMs: number) => Handle;
+}): Handle | null {
+  if (!input.enabled || input.appState !== "active") {
+    if (input.current !== null) {
+      input.clearTimer(input.current);
+    }
+    return null;
+  }
+
+  return input.current ?? input.setTimer(input.run, input.intervalMs);
+}
+
+export async function runMobileVoiceLevelTick(input: {
+  readonly sample: () => Promise<boolean>;
+  readonly updateParticipants: () => void;
+}): Promise<void> {
+  // Backpressure rejects a tick completely. A `finally` here used to perform
+  // the expensive merge even when no native stats read happened.
+  if (await input.sample()) {
+    input.updateParticipants();
+  }
+}
+
 export const MOBILE_VOICE_UAT_LIFECYCLE_SCENARIOS: readonly MobileVoiceLifecycleScenario[] = [
   {
     id: "permission-denied",
@@ -108,10 +138,7 @@ export function validateMobileVoiceLifecycleContract(): string[] {
     }
   }
 
-  if (
-    MOBILE_VOICE_HEARTBEAT_INTERVAL_MS < 20_000 ||
-    MOBILE_VOICE_HEARTBEAT_INTERVAL_MS > 30_000
-  ) {
+  if (MOBILE_VOICE_HEARTBEAT_INTERVAL_MS < 20_000 || MOBILE_VOICE_HEARTBEAT_INTERVAL_MS > 30_000) {
     issues.push("Mobile voice heartbeat interval must stay between 20s and 30s.");
   }
 
@@ -119,10 +146,7 @@ export function validateMobileVoiceLifecycleContract(): string[] {
     issues.push("Mobile voice level ticker must stay between 75ms and 150ms.");
   }
 
-  if (
-    MOBILE_VOICE_LEVEL_CHANGE_THRESHOLD < 0.01 ||
-    MOBILE_VOICE_LEVEL_CHANGE_THRESHOLD > 0.05
-  ) {
+  if (MOBILE_VOICE_LEVEL_CHANGE_THRESHOLD < 0.01 || MOBILE_VOICE_LEVEL_CHANGE_THRESHOLD > 0.05) {
     issues.push("Mobile voice level change threshold must stay between 0.01 and 0.05.");
   }
 

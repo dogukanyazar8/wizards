@@ -5,7 +5,7 @@ import type {
   MobileFriendsOverviewResponse,
   MobileManagedWorkspaceServerDetailResponse,
   MobileProfileResponse,
-  MobileUserProfileResponse,
+  MobileUserProfile,
 } from "@wizards/types";
 
 import { mobileQueryKeys } from "./mobile-query-keys";
@@ -338,24 +338,23 @@ export function patchMobileProfileBannerCaches(input: {
 }): void {
   const { banner, queryClient, userId } = input;
 
-  queryClient.setQueriesData<MobileUserProfileResponse>(
+  queryClient.setQueriesData<MobileUserProfile>(
     { queryKey: mobileQueryKeys.userProfileRoot() },
     (current) => {
-      if (!current || current.profile.user.id !== userId) {
+      if (!current || current.user.id !== userId) {
         return current;
       }
 
-      const { profile } = current;
       if (
-        profile.bannerColor === banner.bannerColor &&
-        profile.bannerUrl === banner.bannerUrl &&
-        profile.bannerOffsetX === banner.bannerOffsetX &&
-        profile.bannerOffsetY === banner.bannerOffsetY
+        current.bannerColor === banner.bannerColor &&
+        current.bannerUrl === banner.bannerUrl &&
+        current.bannerOffsetX === banner.bannerOffsetX &&
+        current.bannerOffsetY === banner.bannerOffsetY
       ) {
         return current;
       }
 
-      return { ...current, profile: { ...profile, ...banner } };
+      return { ...current, ...banner };
     },
   );
 

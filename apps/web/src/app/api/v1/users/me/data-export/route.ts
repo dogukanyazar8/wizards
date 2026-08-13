@@ -1,25 +1,17 @@
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError } from "@/lib/api";
 import { requireApiUserId } from "@/lib/auth/api";
-import {
-  getAccountDataExport,
-  serializeAccountDataExport,
-} from "@/lib/account/privacy-service";
+import { createAccountDataExportStream } from "@/lib/account/account-data-export-stream";
+import { createAccountDataExportResponse } from "./response";
 
 export async function GET() {
   try {
     const userId = await requireApiUserId();
     await enforceApiRateLimit(userId, "user:data-export");
 
-    const exportData = await getAccountDataExport(userId);
-    const body = serializeAccountDataExport(exportData);
-
-    return new Response(body, {
-      headers: {
-        "Content-Disposition": `attachment; filename="whispr-data-export-${userId}.json"`,
-        "Content-Type": "application/json; charset=utf-8",
-      },
-    });
+    const now = new Date();
+    const stream = await createAccountDataExportStream(userId, { exportedAt: now });
+    return createAccountDataExportResponse(stream, now);
   } catch (error) {
     return jsonError(error);
   }

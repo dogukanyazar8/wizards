@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  createClientRateLimitIdentity,
+  createNetworkRateLimitIdentity,
   createSubjectRateLimitIdentity,
-  getTrustedClientIp,
   normalizeIpAddress,
+  resolveTrustedProxyClientIp,
 } from "./client-ip";
 
 describe("trusted client IP", () => {
@@ -30,74 +30,57 @@ describe("trusted client IP", () => {
     }
   });
 
-  it("trusts only one valid X-Real-IP value", () => {
-    const headers = new Headers({
-      "cf-connecting-ip": "192.0.2.50",
-      "user-agent": "spoof-a",
-      "x-forwarded-for": "192.0.2.60, 192.0.2.61",
-      "x-real-ip": "2001:0db8:0:0:0:0:0:1",
-    });
-
-    assert.equal(getTrustedClientIp(headers), "2001:db8::1");
+  it("resolves the client from the configured fixed-hop X-Forwarded-For chain", () => {
     assert.equal(
-      getTrustedClientIp(
-        new Headers({
-          "cf-connecting-ip": "192.0.2.50",
-          "x-forwarded-for": "192.0.2.60",
-        }),
-      ),
-      null,
+      resolveTrustedProxyClientIp(new Headers({ "x-forwarded-for": "192.0.2.60, 192.0.2.61" }), {
+        TRUSTED_PROXY_HOPS: "1",
+      }),
+      "192.0.2.61",
+    );
+    assert.equal(
+      resolveTrustedProxyClientIp(new Headers({ "x-forwarded-for": "192.0.2.60, 192.0.2.61" }), {
+        TRUSTED_PROXY_HOPS: "2",
+      }),
+      "192.0.2.60",
     );
   });
 
-  it("ignores spoofable headers and User-Agent in security identity", () => {
-    const first = createClientRateLimitIdentity({
-      fallbackNamespace: "email",
-      fallbackValue: "alice@example.com",
+  it("uses one untrusted bucket for missing and malformed proxy data", () => {
+    const missing = createNetworkRateLimitIdentity({
+      env: { TRUSTED_PROXY_HOPS: "1" },
+      headers: new Headers(),
+    });
+    const malformed = createNetworkRateLimitIdentity({
+      env: { TRUSTED_PROXY_HOPS: "1" },
+      headers: new Headers({ "x-forwarded-for": "192.0.2.11, invalid" }),
+    });
+    const noConfig = createNetworkRateLimitIdentity({
       headers: new Headers({
-        "cf-connecting-ip": "192.0.2.10",
-        "user-agent": "agent-a",
-        "x-forwarded-for": "192.0.2.11",
-        "x-real-ip": "198.51.100.7",
+        "x-forwarded-for": "198.51.100.7",
       }),
     });
-    const second = createClientRateLimitIdentity({
-      fallbackNamespace: "email",
-      fallbackValue: "alice@example.com",
+
+    assert.equal(missing, "untrusted");
+    assert.equal(malformed, missing);
+    assert.equal(noConfig, missing);
+    assert.doesNotMatch(missing, /alice|bob|email/u);
+  });
+
+  it("hashes a valid fixed-hop client without trusting attacker-prepended values", () => {
+    const first = createNetworkRateLimitIdentity({
+      env: { TRUSTED_PROXY_HOPS: "1" },
       headers: new Headers({
-        "cf-connecting-ip": "203.0.113.10",
-        "user-agent": "agent-b",
-        "x-forwarded-for": "203.0.113.11",
-        "x-real-ip": "198.51.100.7",
+        "x-forwarded-for": "192.0.2.11, 198.51.100.7",
       }),
+    });
+    const second = createNetworkRateLimitIdentity({
+      env: { TRUSTED_PROXY_HOPS: "1" },
+      headers: new Headers({ "x-forwarded-for": "203.0.113.11, 198.51.100.7" }),
     });
 
     assert.equal(first, second);
     assert.match(first, /^ip:[A-Za-z0-9_-]{43}$/);
-    assert.doesNotMatch(first, /198\.51\.100\.7|alice@example\.com/);
-  });
-
-  it("uses a deterministic subject fallback for missing or invalid trusted IP", () => {
-    const missing = createClientRateLimitIdentity({
-      fallbackNamespace: "email",
-      fallbackValue: "alice@example.com",
-      headers: new Headers({ "x-forwarded-for": "192.0.2.11" }),
-    });
-    const invalid = createClientRateLimitIdentity({
-      fallbackNamespace: "email",
-      fallbackValue: "alice@example.com",
-      headers: new Headers({ "x-real-ip": "invalid" }),
-    });
-    const otherSubject = createClientRateLimitIdentity({
-      fallbackNamespace: "email",
-      fallbackValue: "bob@example.com",
-      headers: new Headers(),
-    });
-
-    assert.equal(missing, invalid);
-    assert.notEqual(missing, otherSubject);
-    assert.match(missing, /^fallback:[A-Za-z0-9_-]{43}$/);
-    assert.doesNotMatch(missing, /alice@example\.com/);
+    assert.doesNotMatch(first, /198\.51\.100\.7|192\.0\.2\.11|203\.0\.113\.11/u);
   });
 
   it("namespaces and hashes secondary identities", () => {

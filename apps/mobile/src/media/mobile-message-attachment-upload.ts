@@ -24,6 +24,7 @@ function createUploadThingHelpers() {
 
 export async function uploadMobileMessageAttachmentToUploadThing(input: {
   readonly accessToken: string;
+  readonly onProgress?: (progress: { loaded: number; total: number }) => void;
   readonly picked: MobilePickedMessageAttachment;
   readonly signal?: AbortSignal;
 }): Promise<MobileMessageAttachmentDraft> {
@@ -31,6 +32,12 @@ export async function uploadMobileMessageAttachmentToUploadThing(input: {
   const rows = await helpers.uploadFiles("messageAttachmentUploader", {
     files: [input.picked.file],
     headers: { Authorization: `Bearer ${input.accessToken}` },
+    ...(input.onProgress
+      ? {
+          onUploadProgress: ({ loaded }: { loaded: number }) =>
+            input.onProgress?.({ loaded, total: input.picked.file.size }),
+        }
+      : {}),
     ...(input.signal ? { signal: input.signal } : {}),
   });
 

@@ -6,8 +6,9 @@ import {
   type MobileNotificationsResponse,
 } from "@wizards/types";
 import { ApiError } from "@/lib/api";
+import { logError } from "@/lib/logger";
 import { isLiveInvite } from "@/lib/workspace/invite-selection";
-import { emitServerUnreadUpdateToUser } from "@/lib/workspace/unread-service";
+import { emitServerUnreadUpdatesToUser } from "@/lib/workspace/unread-service";
 import type { NotificationDTO } from "./types";
 
 type NotificationRow = Prisma.NotificationGetPayload<{
@@ -33,6 +34,7 @@ type UserRow = Prisma.UserGetPayload<{
 
 const VISIBLE_NOTIFICATION_TYPES: NotificationType[] = [
   "BADGE",
+  "FEEDBACK",
   "FRIEND_REQUEST",
   "FRIEND_ACCEPTED",
   "DM",
@@ -52,6 +54,7 @@ export function getMobileVisibleNotificationTypes(options: {
 
 type VisibleNotificationType =
   | "BADGE"
+  | "FEEDBACK"
   | "FRIEND_REQUEST"
   | "FRIEND_ACCEPTED"
   | "DM"
@@ -169,7 +172,10 @@ export async function listMobileNotifications(
     .map((value) => getNotificationMetadataString(value, "channelId"))
     .filter((id): id is string => id !== null);
 
-  const [users, channels, unreadCount] = await Promise.all([
+  const inviteCodes = metadata
+    .map((value) => getNotificationMetadataString(value, "inviteCode", 96))
+    .filter((code): code is string => code !== null);
+  const [users, channels, unreadCount, openInvites] = await Promise.all([
     prisma.user.findMany({
       select: { avatarUrl: true, displayName: true, id: true, username: true },
       where: { id: { in: senderIds } },
@@ -181,6 +187,12 @@ export async function listMobileNotifications(
     prisma.notification.count({
       where: { read: false, type: { in: visibleTypes }, userId },
     }),
+    inviteCodes.length === 0
+      ? []
+      : prisma.serverInvite.findMany({
+          select: { code: true, expiresAt: true, maxUses: true, uses: true },
+          where: { code: { in: inviteCodes }, targetUserId: userId },
+        }),
   ]);
   const channelMap = new Map(channels.map((channel) => [channel.id, channel]));
   const serverIds = metadata
@@ -197,16 +209,6 @@ export async function listMobileNotifications(
   // A SERVER_INVITE row only offers accept/decline while its invite is still
   // redeemable by this user, so the codes are checked against the live rows
   // rather than trusted from the notification's own metadata.
-  const inviteCodes = metadata
-    .map((value) => getNotificationMetadataString(value, "inviteCode", 96))
-    .filter((code): code is string => code !== null);
-  const openInvites =
-    inviteCodes.length === 0
-      ? []
-      : await prisma.serverInvite.findMany({
-          select: { code: true, expiresAt: true, maxUses: true, uses: true },
-          where: { code: { in: inviteCodes }, targetUserId: userId },
-        });
   const now = Date.now();
   const openInviteCodes = new Set(
     openInvites.filter((invite) => isLiveInvite(invite, now)).map((invite) => invite.code),
@@ -380,6 +382,29 @@ function getNotificationConversationId(metadata: Prisma.JsonValue | null): strin
   return typeof conversationId === "string" && conversationId.length > 0 ? conversationId : null;
 }
 
+function isDirectMessageMention(metadata: Prisma.JsonValue | null): boolean {
+  return Boolean(
+    metadata &&
+    typeof metadata === "object" &&
+    !Array.isArray(metadata) &&
+    (metadata as Record<string, unknown>).mentioned === true,
+  );
+}
+
+function scheduleServerUnreadUpdates(userId: string, serverIds: Iterable<string>): void {
+  const uniqueServerIds = Array.from(new Set(serverIds)).filter(Boolean);
+  if (uniqueServerIds.length === 0) {
+    return;
+  }
+
+  // Bulk feed actions used to start one multi-query fan-out per server and
+  // silently discard every rejection. One batched read keeps query volume
+  // bounded; logging preserves the evidence when the background emit fails.
+  void emitServerUnreadUpdatesToUser(userId, uniqueServerIds).catch((error) => {
+    logError("notification_unread_fanout", error);
+  });
+}
+
 /**
  * A mention lives in two places: the notification row and the channel's mention
  * badge. Reading it in the notification feed has to retire both, otherwise the
@@ -397,7 +422,7 @@ async function releaseChannelMention(
   });
 
   if (scope.serverId) {
-    void emitServerUnreadUpdateToUser(userId, scope.serverId).catch(() => undefined);
+    scheduleServerUnreadUpdates(userId, [scope.serverId]);
   }
 }
 
@@ -422,9 +447,7 @@ async function releaseAllChannelMentions(userId: string): Promise<void> {
       .map((state) => state.channel?.serverId)
       .filter((serverId): serverId is string => Boolean(serverId)),
   );
-  for (const serverId of serverIds) {
-    void emitServerUnreadUpdateToUser(userId, serverId).catch(() => undefined);
-  }
+  scheduleServerUnreadUpdates(userId, serverIds);
 }
 
 /**
@@ -438,34 +461,73 @@ async function releaseAllChannelMentions(userId: string): Promise<void> {
  * drawn from, and clearing a notification is not reading the conversation.
  * `gt: 0` keeps the counter from going negative.
  */
-async function releaseDirectMessageUnread(userId: string, conversationId: string): Promise<void> {
+async function releaseDirectMessageUnread(
+  userId: string,
+  conversationId: string,
+  mentioned: boolean,
+): Promise<void> {
   await prisma.dMParticipant.updateMany({
-    where: { conversationId, unreadCount: { gt: 0 }, userId },
-    data: { unreadCount: { decrement: 1 } },
+    where: {
+      conversationId,
+      ...(mentioned ? { mentionCount: { gt: 0 } } : {}),
+      unreadCount: { gt: 0 },
+      userId,
+    },
+    data: {
+      ...(mentioned ? { mentionCount: { decrement: 1 } } : {}),
+      unreadCount: { decrement: 1 },
+    },
   });
 }
 
-/** Clears every DM badge the user owns, for the bulk read/clear actions. */
-async function releaseAllDirectMessageUnread(userId: string): Promise<void> {
+async function listUnreadDirectMessageConversationIds(userId: string): Promise<string[]> {
+  const notifications = await prisma.notification.findMany({
+    where: { read: false, type: "DM", userId },
+    select: { metadata: true },
+  });
+
+  return Array.from(
+    new Set(
+      notifications
+        .map((notification) => getNotificationConversationId(notification.metadata))
+        .filter((conversationId): conversationId is string => Boolean(conversationId)),
+    ),
+  );
+}
+
+/** Clears only DM badges backed by rows the bulk action actually consumes. */
+async function releaseAllDirectMessageUnread(
+  userId: string,
+  conversationIds: string[],
+): Promise<void> {
+  if (conversationIds.length === 0) {
+    return;
+  }
+
   await prisma.dMParticipant.updateMany({
-    where: { unreadCount: { gt: 0 }, userId },
-    data: { unreadCount: 0 },
+    // Muted conversations can have unread counters but no notification row.
+    // A feed-wide action must not erase state it never showed the user.
+    where: { conversationId: { in: conversationIds }, userId },
+    data: { mentionCount: 0, unreadCount: 0 },
   });
 }
 
 export async function markRead(userId: string, notificationId: string): Promise<void> {
   const notification = await prisma.notification.findFirst({
     where: { id: notificationId, userId },
-    select: { metadata: true, read: true, type: true },
+    select: { metadata: true, type: true },
   });
 
   if (!notification) {
     throw new ApiError("Notification not found", 404);
   }
 
-  await prisma.notification.updateMany({
+  const { count } = await prisma.notification.updateMany({
     where: {
       id: notificationId,
+      // The guard belongs to the write. Two callers may both observe the row,
+      // but only the winner may retire its badge counters.
+      read: false,
       userId,
     },
     data: {
@@ -474,9 +536,7 @@ export async function markRead(userId: string, notificationId: string): Promise<
     },
   });
 
-  // Only the first read retires the badge; re-reading an already-read row must
-  // not decrement a counter it already paid for.
-  if (notification.read) {
+  if (count !== 1) {
     return;
   }
 
@@ -491,19 +551,25 @@ export async function markRead(userId: string, notificationId: string): Promise<
   if (notification.type === "DM") {
     const conversationId = getNotificationConversationId(notification.metadata);
     if (conversationId) {
-      await releaseDirectMessageUnread(userId, conversationId);
+      await releaseDirectMessageUnread(
+        userId,
+        conversationId,
+        isDirectMessageMention(notification.metadata),
+      );
     }
   }
 }
 
 /** Mirrors the web "clear all" action: drops the user's whole notification feed. */
 export async function clearNotifications(userId: string): Promise<void> {
+  const conversationIds = await listUnreadDirectMessageConversationIds(userId);
   await prisma.notification.deleteMany({ where: { userId } });
   await releaseAllChannelMentions(userId);
-  await releaseAllDirectMessageUnread(userId);
+  await releaseAllDirectMessageUnread(userId, conversationIds);
 }
 
 export async function markAllRead(userId: string): Promise<void> {
+  const conversationIds = await listUnreadDirectMessageConversationIds(userId);
   await prisma.notification.updateMany({
     where: {
       userId,
@@ -515,7 +581,7 @@ export async function markAllRead(userId: string): Promise<void> {
     },
   });
   await releaseAllChannelMentions(userId);
-  await releaseAllDirectMessageUnread(userId);
+  await releaseAllDirectMessageUnread(userId, conversationIds);
 }
 
 export async function serializeNotificationToDTO(

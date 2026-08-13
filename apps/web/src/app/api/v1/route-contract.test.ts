@@ -10,6 +10,9 @@ const API_V1_DIR = fileURLToPath(new URL(".", import.meta.url));
 const UNAUTHENTICATED_ROUTE_PATHS = new Set([
   "app/updates/manifest",
   "app/version",
+  // OAuth completion cannot have a session yet. The route authenticates the
+  // request with a short-lived, one-time signed grant before accepting TOTP.
+  "auth/oauth-two-factor",
   "desktop/download",
   "mobile/auth/exchange",
   "mobile/auth/forgot-password",
@@ -100,6 +103,10 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   // holds MANAGE_SERVER. There is nothing else to send.
   "DELETE mobile/servers/[serverId]/events/[eventId]",
   "POST mobile/account/two-factor/setup",
+  // Session identity comes from authentication and the target session comes
+  // from the path; revoking every other session needs neither client payload.
+  "DELETE mobile/account/sessions/[sessionId]",
+  "POST mobile/account/sessions/revoke-others",
   "POST mobile/admin/cases/[caseId]/claim",
   "POST mobile/friends/requests/[id]/accept",
   "POST mobile/friends/requests/[id]/reject",
@@ -119,15 +126,100 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   // The path is the whole request: which server, joined by whoever is asking.
   "POST servers/[serverId]/join",
   "POST mobile/servers/[serverId]/join",
+  // Web twins of the mobile account-session endpoints above.
+  "DELETE users/me/sessions/[sessionId]",
+  "POST users/me/sessions/revoke-others",
 ]);
 
-const AUTH_GUARD_CALL_PATTERN =
-  /\b(?:requireApiUserId|requireBannedApiUserId|requireMobileApiUserId|requireMobileApiSession|requireAdminUser|requireAdminCapability|requireMobileAdminCapability|authorizeMobileApiRequest)\s*\(/;
+const AUTH_GUARD_NAMES = [
+  "authorizeMobileApiSession",
+  "requireApiUserId",
+  "requireApiAuthSession",
+  "requireBannedApiUserId",
+  "requireMobileApiUserId",
+  "requireMobileApiSession",
+  "requireAdminUser",
+  "requireAdminCapability",
+  "requireMobileAdminCapability",
+  "authorizeMobileApiRequest",
+] as const;
+const AUTH_GUARD_ALTERNATION = AUTH_GUARD_NAMES.join("|");
+const AUTH_GUARD_CALL_PATTERN = new RegExp(`\\b(?:${AUTH_GUARD_ALTERNATION})\\s*\\(`);
+// A `route-logic` module injects its guard so the handler stays testable: the
+// default dependency holds the real guard and the body calls it through
+// `dependencies.authenticate()`. Recognising only the direct call form let that
+// refactor move a route onto the unauthenticated allowlist without anybody
+// deciding to put it there — which is the one thing this file exists to stop.
+// Both halves are required: naming the guard without invoking it proves nothing.
+const AUTH_GUARD_DEPENDENCY_PATTERN = new RegExp(
+  `\\bauthenticate\\s*[:=]\\s*(?:${AUTH_GUARD_ALTERNATION})\\b`,
+);
+const AUTH_GUARD_DEPENDENCY_CALL_PATTERN = /\.authenticate\s*\(/;
+
+function hasAuthGuard(content: string) {
+  if (AUTH_GUARD_CALL_PATTERN.test(content)) {
+    return true;
+  }
+
+  return (
+    AUTH_GUARD_DEPENDENCY_PATTERN.test(content) && AUTH_GUARD_DEPENDENCY_CALL_PATTERN.test(content)
+  );
+}
 const HTTP_METHODS = ["GET", "POST", "PATCH", "PUT", "DELETE"] as const;
 const MUTATING_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);
 const RAW_REQUEST_BODY_CALL_PATTERN = /\b(?:request|req)\.(?:json|text|formData)\s*\(/;
 
 const EXPECTED_RATE_LIMIT_ACTIONS = [
+  {
+    action: "attachment:download",
+    method: "GET",
+    routePath: "attachments/[attachmentId]/download",
+  },
+  {
+    action: "channel:pins:list",
+    method: "GET",
+    routePath: "channels/[channelId]/pins",
+  },
+  {
+    action: "desktop:download",
+    method: "GET",
+    routePath: "desktop/download",
+  },
+  {
+    action: "friend:blocked:list",
+    method: "GET",
+    routePath: "friends/blocked",
+  },
+  {
+    action: "friend:list",
+    method: "GET",
+    routePath: "friends",
+  },
+  {
+    action: "friend:pending:list",
+    method: "GET",
+    routePath: "friends/pending",
+  },
+  {
+    action: "notification:list",
+    method: "GET",
+    routePath: "notifications",
+  },
+  {
+    action: "notification:unread-count",
+    method: "GET",
+    routePath: "notifications/unread-count",
+  },
+  {
+    action: "server:create",
+    method: "POST",
+    routePath: "servers",
+  },
+  {
+    action: "settings:bootstrap",
+    method: "GET",
+    routePath: "users/me/settings/bootstrap",
+  },
   {
     action: "server:detail",
     method: "GET",
@@ -1453,7 +1545,7 @@ describe("API v1 route contract", () => {
 
   it("keeps the unauthenticated route allowlist explicit and minimal", () => {
     const unguardedRoutes = routes
-      .filter((route) => !AUTH_GUARD_CALL_PATTERN.test(route.content))
+      .filter((route) => !hasAuthGuard(route.content))
       .map((route) => route.routePath);
 
     assert.deepEqual(unguardedRoutes, [...UNAUTHENTICATED_ROUTE_PATHS]);
@@ -1470,7 +1562,7 @@ describe("API v1 route contract", () => {
   it("requires every authenticated route to call an auth guard", () => {
     const missingGuards = routes
       .filter((route) => !UNAUTHENTICATED_ROUTE_PATHS.has(route.routePath))
-      .filter((route) => !AUTH_GUARD_CALL_PATTERN.test(route.content))
+      .filter((route) => !hasAuthGuard(route.content))
       .map((route) => route.path);
 
     assert.deepEqual(missingGuards, []);

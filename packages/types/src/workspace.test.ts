@@ -687,6 +687,81 @@ describe("workspace schemas", () => {
     ]);
   });
 
+  it("preserves channel advanced settings and rejects settings from the wrong channel type", () => {
+    const text = assertAccepts(CreateChannelSchema, {
+      name: "general",
+      slowModeDelay: 30,
+      type: "TEXT",
+    });
+    assert.equal(text?.slowModeDelay, 30);
+
+    const voice = assertAccepts(CreateChannelSchema, {
+      bitrate: 128_000,
+      name: "voice",
+      rtcRegion: "EU_WEST",
+      userLimit: 7,
+      videoQualityMode: "FULL",
+      type: "VOICE",
+    });
+    assert.equal(voice?.bitrate, 128_000);
+    assert.equal(voice?.userLimit, 7);
+    assert.equal(voice?.rtcRegion, "EU_WEST");
+    assert.equal(voice?.videoQualityMode, "FULL");
+
+    for (const slowModeDelay of [0, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1_800, 3_600]) {
+      assertAccepts(CreateChannelSchema, { name: "text", slowModeDelay, type: "TEXT" });
+    }
+    for (const bitrate of [32_000, 64_000, 96_000, 128_000]) {
+      assertAccepts(CreateChannelSchema, { bitrate, name: "voice", type: "VOICE" });
+    }
+
+    assertRejects(CreateChannelSchema, { bitrate: 64_000, name: "text", type: "TEXT" }, [
+      "bitrate",
+    ]);
+    assertRejects(CreateChannelSchema, { name: "voice", slowModeDelay: 5, type: "VOICE" }, [
+      "slowModeDelay",
+    ]);
+    assertRejects(CreateChannelSchema, { name: "voice", type: "VOICE", userLimit: 11 }, [
+      "userLimit",
+    ]);
+    assertRejects(CreateChannelSchema, { bitrate: 48_000, name: "voice", type: "VOICE" }, [
+      "bitrate",
+    ]);
+    assertRejects(CreateChannelSchema, {
+      name: "voice",
+      rtcRegion: "https://attacker.example",
+      type: "VOICE",
+    });
+    assertRejects(CreateChannelSchema, { name: "text", type: "TEXT", unexpected: true });
+  });
+
+  it("validates channel advanced settings on updates and projects them to clients", () => {
+    assertAccepts(UpdateChannelSchema, { slowModeDelay: 60 });
+    assertAccepts(UpdateChannelSchema, {
+      bitrate: 96_000,
+      rtcRegion: null,
+      userLimit: 0,
+      videoQualityMode: "AUTO",
+    });
+    assertRejects(UpdateChannelSchema, { slowModeDelay: 1 }, ["slowModeDelay"]);
+    assertRejects(UpdateChannelSchema, { userLimit: -1 }, ["userLimit"]);
+    assertRejects(UpdateChannelSchema, { videoQualityMode: "LOW" }, ["videoQualityMode"]);
+
+    const parsed = assertAccepts(WorkspaceChannelSchema, {
+      ...channel,
+      bitrate: 64_000,
+      rtcRegion: null,
+      slowModeDelay: 0,
+      userLimit: 0,
+      videoQualityMode: "AUTO",
+    });
+    assert.equal(parsed?.slowModeDelay, 0);
+    assert.equal(parsed?.bitrate, 64_000);
+    assert.equal(parsed?.userLimit, 0);
+    assert.equal(parsed?.rtcRegion, null);
+    assert.equal(parsed?.videoQualityMode, "AUTO");
+  });
+
   it("enforces reorder, invite, and role mutation boundaries", () => {
     assertRejects(
       ReorderChannelsSchema,

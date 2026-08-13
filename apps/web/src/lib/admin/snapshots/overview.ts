@@ -3,15 +3,12 @@ import { prisma } from "@wizards/db";
 import type { AdminSnapshotClient, AdminSnapshotInput } from "@/lib/admin/snapshots/client";
 import {
   ACTIVE_SESSION_WINDOW_MS,
-  addMetricRow,
   buildDailyMetricSeries,
-  emptyMetricTotals,
   getDashboardDateRange,
   getDisplayName,
   getMetricScore,
   sumMetricRows,
   trendPercent,
-  type MetricTotals,
 } from "@/lib/admin/snapshots/shared";
 
 /**
@@ -27,7 +24,8 @@ export async function loadAdminOverviewSnapshot(
   const activeSince = new Date(now.getTime() - ACTIVE_SESSION_WINDOW_MS);
 
   const [
-    metrics,
+    dailyMetricGroups,
+    userMetricGroups,
     totalUsers,
     verifiedUsers,
     bannedUsers,
@@ -37,7 +35,8 @@ export async function loadAdminOverviewSnapshot(
     totalDirectMessages,
     attachmentAggregate,
   ] = await Promise.all([
-    client.userDailyMetric.findMany({
+    client.userDailyMetric.groupBy({
+      by: ["date"],
       where: {
         date: {
           gte: previousStart,
@@ -45,7 +44,7 @@ export async function loadAdminOverviewSnapshot(
         },
       },
       orderBy: { date: "asc" },
-      select: {
+      _sum: {
         appSeconds: true,
         cameraSeconds: true,
         date: true,
@@ -55,7 +54,21 @@ export async function loadAdminOverviewSnapshot(
         screenShareSeconds: true,
         sessionCount: true,
         uploadedBytes: true,
-        userId: true,
+        voiceSeconds: true,
+      },
+    }),
+    client.userDailyMetric.groupBy({
+      by: ["userId"],
+      where: { date: { gte: rangeStart, lt: rangeEnd } },
+      _sum: {
+        appSeconds: true,
+        cameraSeconds: true,
+        dmMessageCount: true,
+        fileUploadCount: true,
+        messageCount: true,
+        screenShareSeconds: true,
+        sessionCount: true,
+        uploadedBytes: true,
         voiceSeconds: true,
       },
     }),
@@ -86,8 +99,28 @@ export async function loadAdminOverviewSnapshot(
     }),
   ]);
 
-  const currentMetricRows = metrics.filter((metric) => metric.date >= rangeStart);
-  const previousMetricRows = metrics.filter((metric) => metric.date < rangeStart);
+  const toMetricRow = (
+    group: (typeof dailyMetricGroups)[number] | (typeof userMetricGroups)[number],
+    date: Date,
+    userId: string,
+  ) => ({
+    appSeconds: group._sum.appSeconds ?? 0,
+    cameraSeconds: group._sum.cameraSeconds ?? 0,
+    date,
+    dmMessageCount: group._sum.dmMessageCount ?? 0,
+    fileUploadCount: group._sum.fileUploadCount ?? 0,
+    messageCount: group._sum.messageCount ?? 0,
+    screenShareSeconds: group._sum.screenShareSeconds ?? 0,
+    sessionCount: group._sum.sessionCount ?? 0,
+    uploadedBytes: group._sum.uploadedBytes ?? 0n,
+    userId,
+    voiceSeconds: group._sum.voiceSeconds ?? 0,
+  });
+  const metricRows = dailyMetricGroups.map((group) =>
+    toMetricRow(group, group.date, "daily-total"),
+  );
+  const currentMetricRows = metricRows.filter((metric) => metric.date >= rangeStart);
+  const previousMetricRows = metricRows.filter((metric) => metric.date < rangeStart);
   const currentTotals = sumMetricRows(currentMetricRows);
   const previousTotals = sumMetricRows(previousMetricRows);
   const activeUsers = activeUserSessions.length;
@@ -95,20 +128,18 @@ export async function loadAdminOverviewSnapshot(
   const statusMap = new Map<UserStatus, number>(
     statusGroups.map((group) => [group.status, group._count._all]),
   );
-  const totalsByUser = new Map<string, MetricTotals>();
-
-  for (const row of currentMetricRows) {
-    const totals = totalsByUser.get(row.userId) ?? emptyMetricTotals();
-    addMetricRow(totals, row);
-    totalsByUser.set(row.userId, totals);
-  }
-
-  const topUserMetrics = Array.from(totalsByUser.entries())
-    .map(([userId, metric]) => ({
-      metric,
-      score: getMetricScore(metric),
-      userId,
-    }))
+  // Prisma cannot order a group by the weighted score used by the UI without
+  // raw SQL. Grouping still collapses user-day rows to one row per user while
+  // preserving the exact ranking in JavaScript.
+  const topUserMetrics = userMetricGroups
+    .map((group) => {
+      const metric = sumMetricRows([toMetricRow(group, rangeStart, group.userId)]);
+      return {
+        metric,
+        score: getMetricScore(metric),
+        userId: group.userId,
+      };
+    })
     .sort((left, right) => right.score - left.score)
     .slice(0, 8);
   const topUserRows = topUserMetrics.length
@@ -117,7 +148,6 @@ export async function loadAdminOverviewSnapshot(
         select: {
           avatarUrl: true,
           displayName: true,
-          email: true,
           id: true,
           status: true,
           username: true,
@@ -139,7 +169,6 @@ export async function loadAdminOverviewSnapshot(
       return {
         avatarUrl: user?.avatarUrl ?? null,
         displayName: user ? getDisplayName(user) : "Unknown user",
-        email: user?.email ?? null,
         id: entry.userId,
         metrics: entry.metric,
         score: Math.round(entry.score),

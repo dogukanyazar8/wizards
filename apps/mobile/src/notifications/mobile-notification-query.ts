@@ -5,9 +5,14 @@ import {
   useQueryClient,
   type InfiniteData,
   type QueryClient,
+  type QueryKey,
 } from "@tanstack/react-query";
 
-import type { MobileNotificationFilter, MobileNotificationsResponse } from "@wizards/types";
+import type {
+  MobileNotificationFilter,
+  MobileNotificationItem,
+  MobileNotificationsResponse,
+} from "@wizards/types";
 import type { MobileApiClient } from "../api/mobile-api-client";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 import {
@@ -91,11 +96,10 @@ type MobileNotificationMutationOptionsInput = {
  * Every filtered feed hangs off the notifications root, so one prefix
  * invalidation covers them all.
  *
- * Bootstrap and the workspace details go with it: reading or clearing a mention
- * now retires the matching `ChannelReadState.mentionCount` server-side, so the
- * servers screen, the switcher sheet and the channel row are all holding numbers
- * that just changed. Both are prefix invalidations — every cached server has to
- * catch up, not only the one on screen.
+ * Bootstrap and workspace details go with it: reading or clearing a mention
+ * retires `ChannelReadState.mentionCount` server-side. A single row carries its
+ * server, so only that detail is stale; account-wide actions still invalidate
+ * the workspace prefix because they can touch multiple servers.
  *
  * The DM inbox goes with them for the same reason: a DM row read or cleared here
  * retires `DMParticipant.unreadCount` server-side, and that sum is the only
@@ -103,11 +107,16 @@ type MobileNotificationMutationOptionsInput = {
  * notifications the user has already dealt with until the inbox happens to
  * refetch.
  */
-function invalidateMobileNotifications(queryClient: QueryClient) {
-  return Promise.all([
+function invalidateMobileNotifications(
+  queryClient: QueryClient,
+  workspace?: { exact: boolean; queryKey: QueryKey },
+): void {
+  // Invalidations are follow-up reconciliation. Returning their promise from
+  // `onSuccess` kept mutation UI busy until every active refetch settled.
+  void Promise.all([
     queryClient.invalidateQueries({ queryKey: mobileQueryKeys.notificationsRoot() }),
     queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() }),
-    queryClient.invalidateQueries({ queryKey: mobileQueryKeys.workspaceRoot() }),
+    ...(workspace ? [queryClient.invalidateQueries(workspace)] : []),
     queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.dmConversations() }),
   ]);
 }
@@ -117,8 +126,16 @@ export function createMobileNotificationMarkReadMutationOptions({
   queryClient,
 }: MobileNotificationMutationOptionsInput) {
   return {
-    mutationFn: (notificationId: string) => markMobileNotificationRead(client, notificationId),
-    onSuccess: () => invalidateMobileNotifications(queryClient),
+    mutationFn: (notification: MobileNotificationItem) =>
+      markMobileNotificationRead(client, notification.id),
+    onSuccess: (_data: void, notification: MobileNotificationItem) => {
+      invalidateMobileNotifications(
+        queryClient,
+        notification.server
+          ? { exact: true, queryKey: mobileQueryKeys.workspace(notification.server.id) }
+          : undefined,
+      );
+    },
   };
 }
 
@@ -128,7 +145,12 @@ export function createMobileNotificationMarkAllReadMutationOptions({
 }: MobileNotificationMutationOptionsInput) {
   return {
     mutationFn: () => markAllMobileNotificationsRead(client),
-    onSuccess: () => invalidateMobileNotifications(queryClient),
+    onSuccess: () => {
+      invalidateMobileNotifications(queryClient, {
+        exact: false,
+        queryKey: mobileQueryKeys.workspaceRoot(),
+      });
+    },
   };
 }
 
@@ -138,7 +160,12 @@ export function createMobileNotificationClearMutationOptions({
 }: MobileNotificationMutationOptionsInput) {
   return {
     mutationFn: () => clearMobileNotifications(client),
-    onSuccess: () => invalidateMobileNotifications(queryClient),
+    onSuccess: () => {
+      invalidateMobileNotifications(queryClient, {
+        exact: false,
+        queryKey: mobileQueryKeys.workspaceRoot(),
+      });
+    },
   };
 }
 

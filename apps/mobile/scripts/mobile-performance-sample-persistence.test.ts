@@ -3,6 +3,7 @@ import { beforeEach, describe, it } from "node:test";
 import {
   createMobilePerformanceSamplePersistence,
   discardPendingMobilePerformanceSamples,
+  MOBILE_PERFORMANCE_PERSISTENCE_QUEUE_CAP,
   setActiveMobilePerformanceSamplePersistence,
 } from "../src/performance/mobile-performance-sample-persistence";
 import {
@@ -46,6 +47,27 @@ function sample(sampleId: string): MobilePerformanceSample {
 }
 
 describe("performance sample persistence", () => {
+  it("drops the oldest pending samples when instrumentation reaches its queue cap", async () => {
+    const recorder = createRecorder();
+    const persistence = createMobilePerformanceSamplePersistence({
+      debounceMs: 60_000,
+      persist: recorder.persist,
+    });
+
+    for (let index = 0; index < MOBILE_PERFORMANCE_PERSISTENCE_QUEUE_CAP + 25; index += 1) {
+      persistence.capture(sample(`sample-${index}`));
+    }
+
+    assert.equal(persistence.pendingCount(), MOBILE_PERFORMANCE_PERSISTENCE_QUEUE_CAP);
+    await persistence.flush();
+    assert.equal(recorder.batches[0]?.[0]?.sampleId, "sample-25");
+    assert.equal(
+      recorder.batches[0]?.at(-1)?.sampleId,
+      `sample-${MOBILE_PERFORMANCE_PERSISTENCE_QUEUE_CAP + 24}`,
+    );
+    persistence.dispose();
+  });
+
   beforeEach(() => {
     resetMobilePerformanceMetricsForTests();
     resetMobilePerformanceSampleObserversForTests();

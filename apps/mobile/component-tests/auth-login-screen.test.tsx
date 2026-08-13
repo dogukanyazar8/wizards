@@ -221,6 +221,33 @@ describe("AuthLoginScreen", () => {
     expect(view.queryByTestId("mobile-auth-login-error")).toBeNull();
   });
 
+  it("reveals two-factor input and sends its code on the next Google attempt", async () => {
+    const onSocialSignIn = jest
+      .fn<Promise<SocialSignInResult>, ["google", { twoFactorCode?: string }?]>()
+      .mockResolvedValueOnce({
+        message: copy.authTwoFactorRequiredNotice,
+        ok: false,
+        reason: "failed",
+        requiresTwoFactor: true,
+      })
+      .mockResolvedValueOnce({ ok: true, via: "native" });
+    const view = await renderLogin({ onSocialSignIn });
+
+    await fireEvent.press(view.getByTestId("mobile-auth-social-google"));
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-auth-login-two-factor-code-input")).toBeTruthy(),
+    );
+
+    await fireEvent.changeText(
+      view.getByTestId("mobile-auth-login-two-factor-code-input"),
+      " 123456 ",
+    );
+    await fireEvent.press(view.getByTestId("mobile-auth-social-google"));
+
+    expect(onSocialSignIn).toHaveBeenNthCalledWith(1, "google");
+    expect(onSocialSignIn).toHaveBeenNthCalledWith(2, "google", { twoFactorCode: "123456" });
+  });
+
   it("hints at the browser hand-off only when the in-app session is unavailable", async () => {
     const onSocialSignIn = jest
       .fn<Promise<SocialSignInResult>, ["google"]>()

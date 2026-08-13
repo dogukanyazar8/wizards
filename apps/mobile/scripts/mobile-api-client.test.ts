@@ -29,6 +29,21 @@ describe("mobile API client", () => {
     assert.equal(requests[0]?.headers.get("authorization"), "Bearer access-token-1234567890");
   });
 
+  it("creates an authenticated native download descriptor without fetching into JS memory", async () => {
+    const client = createMobileApiClient({
+      baseUrl: "https://whispr.team/",
+      getAccessToken: () => "access-token-1234567890",
+    });
+
+    const descriptor = await client.createDownloadRequest?.("/api/v1/users/me/data-export");
+    const headers = new Headers(descriptor?.headers);
+    assert.equal(descriptor?.url, "https://whispr.team/api/v1/users/me/data-export");
+    assert.equal(headers.get("accept"), "application/json");
+    assert.equal(headers.get("authorization"), "Bearer access-token-1234567890");
+    assert.equal(headers.get("x-whispr-client"), "mobile");
+    assert.equal(headers.get("x-whispr-client-version"), "0.8.15");
+  });
+
   it("rejects absolute, protocol-relative, and traversal paths", async () => {
     const client = createMobileApiClient({
       baseUrl: "https://whispr.team",

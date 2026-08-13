@@ -10,6 +10,7 @@ export type ClientHealthRawRow = {
   appVersion: string | null;
   clientType: AnalyticsClientType;
   createdAt: Date;
+  id: string;
   kind: ClientHealthKind;
   surface: string | null;
   valueMs: number | null;
@@ -29,7 +30,7 @@ export type ClientHealthSummaryRow = {
   surface: string;
 };
 
-export type ClientHealthRollupStore = {
+type ClientHealthRollupOperations = {
   clientHealthDailySummary: {
     upsert(args: Prisma.ClientHealthDailySummaryUpsertArgs): Promise<unknown>;
   };
@@ -37,6 +38,10 @@ export type ClientHealthRollupStore = {
     deleteMany(args: Prisma.ClientHealthEventDeleteManyArgs): Promise<{ count: number }>;
     findMany(args: Prisma.ClientHealthEventFindManyArgs): Promise<ClientHealthRawRow[]>;
   };
+};
+
+export type ClientHealthRollupStore = ClientHealthRollupOperations & {
+  $transaction<T>(operation: (client: ClientHealthRollupOperations) => Promise<T>): Promise<T>;
 };
 
 function utcDayStart(value: Date) {
@@ -96,60 +101,102 @@ export function summarizeClientHealthRows(rows: ClientHealthRawRow[]): ClientHea
 }
 
 /**
- * Summarize first, delete second: a crash between the two repeats a summary
- * upsert (idempotent through the unique key) instead of losing the rows.
+ * A whole UTC day is summarized and deleted in one transaction. Incrementing
+ * outside that transaction would double-count a retry after an upsert crash;
+ * deleting by the retention predicate would erase rows this pass never read.
  */
 export async function rollUpClientHealthEvents(
   args: { now?: Date } = {},
-  client: ClientHealthRollupStore = prisma,
+  client: ClientHealthRollupStore = prisma as unknown as ClientHealthRollupStore,
 ) {
   const now = args.now ?? new Date();
-  const cutoff = new Date(now.getTime() - CLIENT_HEALTH_RETENTION_DAYS * DAY_MS);
+  const cutoff = utcDayStart(new Date(now.getTime() - CLIENT_HEALTH_RETENTION_DAYS * DAY_MS));
 
-  const rows = await client.clientHealthEvent.findMany({
-    orderBy: { createdAt: "asc" },
-    take: ROLLUP_BATCH_SIZE,
-    where: { createdAt: { lt: cutoff } },
-    select: {
-      appVersion: true,
-      clientType: true,
-      createdAt: true,
-      kind: true,
-      surface: true,
-      valueMs: true,
-    },
-  });
+  return client.$transaction(async (tx) => {
+    let deleted = 0;
+    let summarized = 0;
 
-  if (rows.length === 0) {
-    return { deleted: 0, summarized: 0 };
-  }
-
-  const summaries = summarizeClientHealthRows(rows);
-
-  for (const summary of summaries) {
-    await client.clientHealthDailySummary.upsert({
-      create: summary,
-      update: {
-        count: summary.count,
-        p50Ms: summary.p50Ms,
-        p95Ms: summary.p95Ms,
-        p99Ms: summary.p99Ms,
-      },
-      where: {
-        date_clientType_appVersion_kind_surface: {
-          appVersion: summary.appVersion,
-          clientType: summary.clientType,
-          date: summary.date,
-          kind: summary.kind,
-          surface: summary.surface,
+    for (;;) {
+      const firstBatch = await tx.clientHealthEvent.findMany({
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        take: ROLLUP_BATCH_SIZE,
+        where: { createdAt: { lt: cutoff } },
+        select: {
+          appVersion: true,
+          clientType: true,
+          createdAt: true,
+          id: true,
+          kind: true,
+          surface: true,
+          valueMs: true,
         },
-      },
-    });
-  }
+      });
 
-  const removed = await client.clientHealthEvent.deleteMany({
-    where: { createdAt: { lt: cutoff } },
+      const first = firstBatch[0];
+      if (!first) {
+        return { deleted, summarized };
+      }
+
+      const dayStart = utcDayStart(first.createdAt);
+      const dayEnd = new Date(dayStart.getTime() + DAY_MS);
+      const rows = firstBatch.filter((row) => row.createdAt < dayEnd);
+      let cursorId = rows.at(-1)?.id;
+
+      if (rows.length === firstBatch.length && firstBatch.length === ROLLUP_BATCH_SIZE) {
+        for (;;) {
+          const batch = await tx.clientHealthEvent.findMany({
+            ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            take: ROLLUP_BATCH_SIZE,
+            where: { createdAt: { gte: dayStart, lt: dayEnd } },
+            select: {
+              appVersion: true,
+              clientType: true,
+              createdAt: true,
+              id: true,
+              kind: true,
+              surface: true,
+              valueMs: true,
+            },
+          });
+          rows.push(...batch);
+          cursorId = batch.at(-1)?.id;
+          if (batch.length < ROLLUP_BATCH_SIZE) {
+            break;
+          }
+        }
+      }
+
+      const summaries = summarizeClientHealthRows(rows);
+      for (const summary of summaries) {
+        await tx.clientHealthDailySummary.upsert({
+          create: summary,
+          update: {
+            count: { increment: summary.count },
+            p50Ms: summary.p50Ms,
+            p95Ms: summary.p95Ms,
+            p99Ms: summary.p99Ms,
+          },
+          where: {
+            date_clientType_appVersion_kind_surface: {
+              appVersion: summary.appVersion,
+              clientType: summary.clientType,
+              date: summary.date,
+              kind: summary.kind,
+              surface: summary.surface,
+            },
+          },
+        });
+      }
+
+      const ids = rows.map((row) => row.id);
+      for (let offset = 0; offset < ids.length; offset += ROLLUP_BATCH_SIZE) {
+        const removed = await tx.clientHealthEvent.deleteMany({
+          where: { id: { in: ids.slice(offset, offset + ROLLUP_BATCH_SIZE) } },
+        });
+        deleted += removed.count;
+      }
+      summarized += summaries.length;
+    }
   });
-
-  return { deleted: removed.count, summarized: summaries.length };
 }

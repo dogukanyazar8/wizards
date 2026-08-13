@@ -176,7 +176,10 @@ describe("2f bug report screen", () => {
       file: { name: "capture.jpg", size: 1_024, type: "image/jpeg" },
       localUri: "file:///tmp/bug-report.jpg",
     });
-    mockUploadImage.mockResolvedValue({ claimId: "claim-safe-123", status: "uploaded" });
+    mockUploadImage.mockResolvedValue({
+      claimId: "6f1b2a4c-9d3e-4f58-8a71-2c5d0e7b4a19",
+      status: "uploaded",
+    });
     jest.mocked(AsyncStorage.getItem).mockResolvedValue(null);
     jest.mocked(AsyncStorage.setItem).mockResolvedValue(undefined);
   });
@@ -331,7 +334,7 @@ describe("2f bug report screen", () => {
           includesDeviceInfo: false,
           includesLogs: true,
           includesScreenshot: true,
-          screenshotUploadKey: "claim-safe-123",
+          screenshotUploadKey: "6f1b2a4c-9d3e-4f58-8a71-2c5d0e7b4a19",
         }),
         method: "POST",
       }),
@@ -386,7 +389,10 @@ describe("2f queued report reconnect bridge", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseMobileNetworkStatus.mockReturnValue("online");
-    mockUploadImage.mockResolvedValue({ claimId: "claim-safe-123", status: "uploaded" });
+    mockUploadImage.mockResolvedValue({
+      claimId: "6f1b2a4c-9d3e-4f58-8a71-2c5d0e7b4a19",
+      status: "uploaded",
+    });
     jest.mocked(AsyncStorage.setItem).mockResolvedValue(undefined);
   });
 

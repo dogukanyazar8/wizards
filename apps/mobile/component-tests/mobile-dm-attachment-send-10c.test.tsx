@@ -7,7 +7,10 @@ import type { MessageAttachment, MobileDMMessagesResponse } from "@wizards/types
 import type { MobileApiClient } from "../src/api/mobile-api-client";
 import { mobileFailedSendRegistry } from "../src/query/mobile-failed-send-registry";
 import { mobileQueryKeys } from "../src/query/mobile-query-keys";
-import { useMobileDMMessageMutation } from "../src/query/use-mobile-message-mutations";
+import {
+  useMobileChannelMessageMutation,
+  useMobileDMMessageMutation,
+} from "../src/query/use-mobile-message-mutations";
 
 const conversationId = "conversation-1";
 const author = {
@@ -215,5 +218,35 @@ describe("10c DM attachment send chain", () => {
       },
       method: "POST",
     });
+  });
+
+  it("keeps the DM retry callback stable across mutation observer rerenders", async () => {
+    const { view } = await renderSendHook(createClient(jest.fn<MobileApiClient["requestJson"]>()));
+    const firstRetry = view.result.current.retryFailedMessage;
+
+    await view.rerender();
+
+    expect(view.result.current.retryFailedMessage).toBe(firstRetry);
+  });
+
+  it("keeps the channel retry callback stable across mutation observer rerenders", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
+    });
+    renderedQueryClients.push(queryClient);
+    const client = createClient(jest.fn<MobileApiClient["requestJson"]>());
+    const view = await renderHook(
+      () => useMobileChannelMessageMutation({ author, channelId: "channel-1", client }),
+      {
+        wrapper: ({ children }: { children: React.ReactNode }) => (
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        ),
+      },
+    );
+    const firstRetry = view.result.current.retryFailedMessage;
+
+    await view.rerender();
+
+    expect(view.result.current.retryFailedMessage).toBe(firstRetry);
   });
 });

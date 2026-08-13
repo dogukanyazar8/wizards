@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { ServerOnlinePresenceRedis } from "@/lib/socket/server-online-presence";
 import { setSocketServer } from "@/lib/socket/runtime";
+import * as unreadService from "./unread-service";
 import {
   MOBILE_UNREAD_COUNT_CAP,
   buildServerChannelUnreadQuery,
   buildServerUnreadTotalsQuery,
   getActiveChannelViewerUserIds,
+  getActiveServerMemberUserIds,
   getOnlineServerMemberCount,
   groupUsersByVisibleChannelIds,
 } from "./unread-service";
@@ -36,31 +38,83 @@ function buildOnlinePresenceRedis(status: ServerOnlinePresenceRedis["status"] = 
 }
 
 describe("workspace unread service", () => {
-  it("collects active channel viewers through the socket adapter", async () => {
-    let requestedRoom: string | null = null;
-    const socketServer = {
-      in(room: string) {
-        requestedRoom = room;
-
-        return {
-          async fetchSockets() {
-            return [
-              { data: { userId: "user-1" } },
-              { data: { userId: "user-2" } },
-              { data: { userId: "user-1" } },
-              { data: {} },
-            ];
-          },
+  it("reads all affected servers once before emitting one update per server", async () => {
+    type BatchEmitter = (
+      userId: string,
+      serverIds: string[],
+      dependencies: {
+        getCounts: (
+          userId: string,
+          serverIds: string[],
+        ) => Promise<{
+          mentionCounts: Map<string, number>;
+          unreadCounts: Map<string, number>;
+        }>;
+        getSocketServer: () => {
+          to: (room: string) => { emit: (event: string, payload: unknown) => void };
         };
       },
-    } as unknown as Parameters<typeof setSocketServer>[0];
+    ) => Promise<unknown>;
+    const emitter = (unreadService as unknown as { emitServerUnreadUpdatesToUser?: BatchEmitter })
+      .emitServerUnreadUpdatesToUser;
+    const countReads: Array<{ serverIds: string[]; userId: string }> = [];
+    const emissions: Array<{ event: string; payload: unknown; room: string }> = [];
 
-    setSocketServer(socketServer);
+    assert.equal(typeof emitter, "function");
+    await emitter!("user-1", ["server-1", "server-2", "server-1"], {
+      getCounts: async (userId, serverIds) => {
+        countReads.push({ serverIds, userId });
+        return {
+          mentionCounts: new Map([
+            ["server-1", 1],
+            ["server-2", 2],
+          ]),
+          unreadCounts: new Map([
+            ["server-1", 3],
+            ["server-2", 4],
+          ]),
+        };
+      },
+      getSocketServer: () => ({
+        to: (room) => ({
+          emit: (event, payload) => emissions.push({ event, payload, room }),
+        }),
+      }),
+    });
 
-    const userIds = await getActiveChannelViewerUserIds("channel-1");
+    assert.deepEqual(countReads, [{ serverIds: ["server-1", "server-2"], userId: "user-1" }]);
+    assert.deepEqual(emissions, [
+      {
+        event: "server:unread:update",
+        payload: { mentionCount: 1, serverId: "server-1", unreadCount: 3 },
+        room: "user:user-1",
+      },
+      {
+        event: "server:unread:update",
+        payload: { mentionCount: 2, serverId: "server-2", unreadCount: 4 },
+        room: "user:user-1",
+      },
+    ]);
+  });
 
-    assert.equal(requestedRoom, "channel-1");
-    assert.deepEqual(userIds.sort(), ["user-1", "user-2"]);
+  it("reads active channel viewers and server members from Redis sets", async () => {
+    const reads: string[] = [];
+    const redis = {
+      status: "ready",
+      async smembers(key: string) {
+        reads.push(key);
+        return key === "channel:channel-1:viewers" ? ["user-1", "user-2"] : ["user-2", "user-3"];
+      },
+    };
+    setSocketServer({
+      in() {
+        throw new Error("fetchSockets must not be used by active-user reads");
+      },
+    } as unknown as Parameters<typeof setSocketServer>[0]);
+
+    assert.deepEqual(await getActiveChannelViewerUserIds("channel-1", redis), ["user-1", "user-2"]);
+    assert.deepEqual(await getActiveServerMemberUserIds("server-1", redis), ["user-2", "user-3"]);
+    assert.deepEqual(reads, ["channel:channel-1:viewers", "server:server-1:online"]);
   });
 
   it("counts distinct, visible-presence members in a server room", async () => {

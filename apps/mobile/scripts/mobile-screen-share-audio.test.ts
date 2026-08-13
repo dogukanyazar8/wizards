@@ -7,6 +7,7 @@ import { Track } from "livekit-client";
 
 import {
   applyMobileScreenShareAudioMute,
+  syncMobileScreenShareAudioMute,
   resolveMobileScreenShareAudioVolume,
   type MobileScreenShareAudioRoom,
 } from "../src/voice/mobile-screen-share-audio";
@@ -46,6 +47,26 @@ function createRoom(
 }
 
 describe("mobile screen share audio mute", () => {
+  it("skips native volume writes until the mute choice or participant set changes", () => {
+    const calls: VolumeCall[] = [];
+    const room = createRoom(calls, [{ identity: "ada" }]);
+
+    let signature: string | null = null;
+    signature = syncMobileScreenShareAudioMute(room, true, signature);
+    signature = syncMobileScreenShareAudioMute(room, true, signature);
+    assert.equal(calls.length, 1);
+
+    signature = syncMobileScreenShareAudioMute(
+      createRoom(calls, [{ identity: "ada" }, { identity: "grace" }]),
+      true,
+      signature,
+    );
+    assert.equal(calls.length, 3);
+
+    syncMobileScreenShareAudioMute(room, false, signature);
+    assert.equal(calls.at(-1)?.volume, 1);
+  });
+
   it("mutes and unmutes on livekit's own gain scale", () => {
     assert.equal(resolveMobileScreenShareAudioVolume(true), 0);
     assert.equal(resolveMobileScreenShareAudioVolume(false), 1);
@@ -129,16 +150,13 @@ describe("mobile screen share audio wiring", () => {
     "utf8",
   );
 
-  it("re-asserts the mute on every participant sync, which covers a reconnect", () => {
+  it("synchronizes mute through a participant-set signature instead of every level tick", () => {
     const syncIndex = hookSource.indexOf("const updateParticipantsFromRoom = useCallback(");
-    const applyIndex = hookSource.indexOf("applyMobileScreenShareAudioMute(");
+    const applyIndex = hookSource.indexOf("syncMobileScreenShareAudioMute(");
 
     assert.ok(syncIndex > 0, "the participant sync must still exist");
     assert.ok(applyIndex > syncIndex, "the mute must be re-applied inside the participant sync");
-    assert.match(
-      hookSource,
-      /applyMobileScreenShareAudioMute\(\s*room,\s*voiceDevicePreferencesRef\.current\.screenShareAudioMuted,\s*\)/,
-    );
+    assert.match(hookSource, /syncMobileScreenShareAudioMute\(/);
   });
 
   it("stores the choice with the device preferences so it outlives the call", () => {

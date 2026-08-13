@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { MobileAuthRegisterRequestSchema } from "@wizards/types";
 
 import { parseJsonBody } from "@/lib/api";
+import { MobileNativeAuthError } from "@/lib/mobile/auth";
 import {
   mobilePasswordRegisterRoute,
   type MobilePasswordRegisterRouteDependencies,
@@ -80,5 +81,27 @@ describe("mobile password register route", () => {
     );
 
     assert.equal(response.status, 200);
+  });
+
+  it("does not reveal an existing verified email through status or response shape", async () => {
+    const request = new Request("http://localhost/api/v1/mobile/auth/register", {
+      method: "POST",
+    });
+    const accepted = await mobilePasswordRegisterRoute(request, createDependencies());
+    const existing = await mobilePasswordRegisterRoute(
+      request,
+      createDependencies({
+        registerPassword: async () => {
+          throw new MobileNativeAuthError(
+            "EMAIL_TAKEN",
+            409,
+            "An account with this email already exists.",
+          );
+        },
+      }),
+    );
+
+    assert.equal(existing.status, 200);
+    assert.deepEqual(await existing.json(), await accepted.json());
   });
 });

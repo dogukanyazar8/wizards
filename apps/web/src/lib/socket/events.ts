@@ -4,6 +4,7 @@ import type {
   DMMessagePayload,
   GroupCallStateDTO,
   MessageReaction,
+  PresenceVisibility,
   UploadedAttachmentInput,
 } from "@wizards/types";
 import type { ClientAttribution } from "@/lib/analytics/client-attribution";
@@ -265,11 +266,8 @@ export interface ServerToClientEvents {
     conversation: DMConversationDTO;
   }) => void;
   /** A group the viewer is now in. Lands in their inbox without a refetch. */
-  "dm:conversation:created": (data: { conversation: DMConversationDTO }) => void;
-  "dm:conversation:members_changed": (data: {
-    conversationId: string;
-    conversation: DMConversationDTO;
-  }) => void;
+  "dm:conversation:created": (data: { conversationId: string }) => void;
+  "dm:conversation:members_changed": (data: { conversationId: string }) => void;
   /** The viewer is no longer a participant. Drop the row, close the chat. */
   "dm:conversation:removed": (data: { conversationId: string }) => void;
   "dm:conversation:read": (data: {
@@ -349,6 +347,7 @@ export interface ServerToClientEvents {
       username: string;
       displayName: string | null;
       avatarUrl: string | null;
+      isDeafened: boolean;
       isScreenSharing?: boolean;
     }>;
   }) => void;
@@ -373,7 +372,7 @@ export interface ServerToClientEvents {
   }) => void;
   "voice:invite:status": (data: VoiceInviteStatusPayload) => void;
   "voice:audio-level:update": (data: VoiceAudioLevelPayload) => void;
-  error: (data: { code: string; message: string }) => void;
+  error: (data: { code: string; message: string; retryAfterSeconds?: number }) => void;
 }
 
 export interface InterServerEvents {
@@ -406,6 +405,7 @@ export interface SocketData {
   clientAttribution?: ClientAttribution;
   presenceCustomStatus: string | null;
   presenceStatus: FriendPresenceUpdateDto["status"];
+  presenceVisibility?: PresenceVisibility;
   /**
    * Server rooms this socket added itself to in the online-presence set (Task
    * 8). Disconnect and presence transitions read this back to know which

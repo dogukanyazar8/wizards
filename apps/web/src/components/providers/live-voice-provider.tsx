@@ -120,14 +120,17 @@ import {
   connectLiveKitRoomWithRetry,
   createReconnectTimeoutController,
   registerRoomParticipantSyncListeners,
-  syncLiveKitLocalParticipantProfile,
 } from "@/lib/voice/provider-lifecycle";
 import {
   mapVoiceScreenShareStateCache,
   mapVoiceStateCache,
   removeVoiceStateParticipantFromCache,
 } from "@/lib/voice/state-cache";
-import { VOICE_HEARTBEAT_INTERVAL_MS, type VoiceChannelStateDTO } from "@/lib/voice/types";
+import {
+  VOICE_HEARTBEAT_INTERVAL_MS,
+  type VoiceChannelStateDTO,
+  type VoiceStateParticipantDTO,
+} from "@/lib/voice/types";
 import {
   useVoiceAudioLevels,
   type RemoteVoiceAudioLevel,
@@ -139,7 +142,11 @@ import {
   isScreenShareAudioSupported,
   type ScreenShareQualityId,
 } from "@/lib/voice/screen-share";
-import { getCameraPublishOptions, getCameraRoomDefaults } from "@/lib/voice/video-quality";
+import {
+  applyVoiceAudioBitrate,
+  getCameraPublishOptions,
+  getCameraRoomDefaults,
+} from "@/lib/voice/video-quality";
 import { getVoiceRoomSubscriptionOptions } from "@/lib/voice/video-subscription";
 import {
   resumeRemoteVideoFromBackground,
@@ -159,7 +166,6 @@ const VOICE_AUDIO_HEALTH_METRICS_INTERVAL_MS = 30_000;
 const KRISP_PROCESSOR_NAME = "livekit-noise-filter";
 const KRISP_BUFFER_DROP_MS = 300;
 const KRISP_BUFFER_OVERFLOW_MS = 200;
-const LOCAL_PARTICIPANT_PROFILE_SYNC_DEBOUNCE_MS = 250;
 
 type PushToTalkPhase = "idle" | "holding" | "release-cushion";
 
@@ -231,8 +237,6 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const krispProcessorRef = useRef<KrispNoiseFilterProcessor | null>(null);
   const krispProcessorQualityRef = useRef<KrispProcessorQuality | null>(null);
   const lastEmittedScreenShareStateRef = useRef<boolean | null>(null);
-  const localParticipantProfileSyncSequenceRef = useRef(0);
-  const localParticipantProfileSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectionWarningMessageRef = useRef<string | null>(null);
   const cleanupVoiceResourcesRef = useRef<() => void>(() => undefined);
   const leaveCleanupPromiseRef = useRef<Promise<void> | null>(null);
@@ -243,6 +247,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const supportsLiveKitCloudNoiseCancellationRef = useRef(initialKrispAvailability);
   const [room, setRoom] = useState<Room | null>(null);
   const [participants, setParticipants] = useState<VoiceParticipantViewModel[]>([]);
+  const [activeVoiceRoster, setActiveVoiceRoster] = useState<VoiceStateParticipantDTO[]>([]);
   const [screenShares, setScreenShares] = useState<VoiceScreenShareViewModel[]>([]);
   const [activeScreenShareId, setActiveScreenShareIdState] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -597,7 +602,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         return;
       }
 
-      const nextParticipants = collectVoiceParticipants(targetRoom, currentUser);
+      const nextParticipants = collectVoiceParticipants(targetRoom, currentUser, activeVoiceRoster);
 
       setParticipants(nextParticipants);
       setCameraStatus((current) => {
@@ -616,7 +621,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
           : "disabled";
       });
     },
-    [currentUser],
+    [activeVoiceRoster, currentUser],
   );
 
   const emitVoiceScreenShareState = useCallback(
@@ -665,7 +670,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         return;
       }
 
-      const nextScreenShares = collectScreenShares(targetRoom, currentUser);
+      const nextScreenShares = collectScreenShares(targetRoom, currentUser, activeVoiceRoster);
       setScreenShares(nextScreenShares);
       setActiveScreenShareIdState((current) => {
         if (current && nextScreenShares.some((share) => share.id === current)) {
@@ -698,98 +703,17 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       }
       emitVoiceScreenShareState(store.activeChannelId, store.serverId, false);
     },
-    [currentUser, emitVoiceScreenShareState],
+    [activeVoiceRoster, currentUser, emitVoiceScreenShareState],
   );
 
   useEffect(() => {
-    const activeRoom = room;
-    localParticipantProfileSyncSequenceRef.current += 1;
-    const syncSequence = localParticipantProfileSyncSequenceRef.current;
-
-    if (localParticipantProfileSyncTimeoutRef.current) {
-      clearTimeout(localParticipantProfileSyncTimeoutRef.current);
-      localParticipantProfileSyncTimeoutRef.current = null;
-    }
-
-    if (!activeRoom) {
+    if (!room) {
       return;
     }
 
-    const metadata = JSON.stringify({
-      avatarUrl: currentUser.avatarUrl ?? null,
-      displayName: currentUser.displayName,
-      isDeafened,
-      username: currentUser.username,
-    });
-    const name = currentUser.displayName || currentUser.username;
-
-    syncParticipants(activeRoom);
-    syncScreenShares(activeRoom);
-
-    if (
-      connectionState !== ConnectionState.Connected ||
-      activeRoom.state !== ConnectionState.Connected
-    ) {
-      return;
-    }
-
-    const isActiveConnectedRoom = () =>
-      localParticipantProfileSyncSequenceRef.current === syncSequence &&
-      roomRef.current === activeRoom &&
-      activeRoom.state === ConnectionState.Connected;
-
-    localParticipantProfileSyncTimeoutRef.current = setTimeout(() => {
-      localParticipantProfileSyncTimeoutRef.current = null;
-
-      void syncLiveKitLocalParticipantProfile(
-        activeRoom.localParticipant,
-        {
-          metadata,
-          name,
-        },
-        {
-          shouldContinue: isActiveConnectedRoom,
-        },
-      )
-        .then((result) => {
-          if (!isActiveConnectedRoom()) {
-            return;
-          }
-
-          if (result.metadata.status === "failed") {
-            logWarning("[voice] Local participant metadata update skipped", result.metadata.error);
-          }
-
-          if (result.name.status === "failed") {
-            logWarning("[voice] Local participant name update skipped", result.name.error);
-          }
-
-          syncParticipants(activeRoom);
-          syncScreenShares(activeRoom);
-        })
-        .catch((error) => {
-          if (isActiveConnectedRoom()) {
-            logWarning("[voice] Local participant profile sync skipped", error);
-          }
-        });
-    }, LOCAL_PARTICIPANT_PROFILE_SYNC_DEBOUNCE_MS);
-
-    return () => {
-      if (localParticipantProfileSyncTimeoutRef.current) {
-        clearTimeout(localParticipantProfileSyncTimeoutRef.current);
-        localParticipantProfileSyncTimeoutRef.current = null;
-      }
-    };
-  }, [
-    connectionState,
-    currentUser.avatarUrl,
-    currentUser.displayName,
-    currentUser.username,
-    isDeafened,
-    room,
-    syncParticipants,
-    syncScreenShares,
-  ]);
+    syncParticipants(room);
+    syncScreenShares(room);
+  }, [room, syncParticipants, syncScreenShares]);
 
   const updateVoiceStatesCache = useCallback(
     (
@@ -798,11 +722,20 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       nextParticipants: Array<{
         avatarUrl: string | null;
         displayName: string | null;
+        isDeafened: boolean;
         isScreenSharing?: boolean;
         userId: string;
         username: string;
       }>,
     ) => {
+      const voiceStore = useVoiceStore.getState();
+      if (
+        voiceStore.serverId === targetServerId &&
+        voiceStore.activeChannelId === targetChannelId
+      ) {
+        setActiveVoiceRoster(nextParticipants);
+      }
+
       queryClient.setQueryData<VoiceChannelStateDTO[] | undefined>(
         voiceQueryKeys.serverStates(targetServerId),
         (current) => mapVoiceStateCache(current, targetChannelId, nextParticipants),
@@ -810,6 +743,22 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     },
     [queryClient],
   );
+
+  useEffect(() => {
+    const socket = getSocket();
+    const handleVoiceStateUpdate = (data: {
+      channelId: string;
+      participants: VoiceStateParticipantDTO[];
+      serverId: string;
+    }) => {
+      updateVoiceStatesCache(data.serverId, data.channelId, data.participants);
+    };
+
+    socket.on("voice:state:update", handleVoiceStateUpdate);
+    return () => {
+      socket.off("voice:state:update", handleVoiceStateUpdate);
+    };
+  }, [updateVoiceStatesCache]);
 
   const removeVoiceStateParticipant = useCallback(
     (targetServerId: string, targetChannelId: string, userId: string) => {
@@ -826,6 +775,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     const store = useVoiceStore.getState();
 
     return {
+      selfDeaf: store.isDeafened,
       selfVideo: isLocalCameraTrackLive(getLocalCameraTrack(activeRoom)),
       selfStream: store.isScreenSharing && store.screenShareMode === "voice",
     };
@@ -1818,6 +1768,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     lastEmittedScreenShareStateRef.current = null;
     setRoom(null);
     setParticipants([]);
+    setActiveVoiceRoster([]);
     setScreenShares([]);
     setActiveScreenShareIdState(null);
     setCameraStatus("disabled");
@@ -1985,101 +1936,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
 
       const sessionId = crypto.randomUUID();
       let voiceStateCreated = false;
-      const initialCaptureConfig = getAudioCaptureConfig(currentState.audioPreferences);
-      const cameraRoomDefaults = getCameraRoomDefaults();
-      const nextRoom = new Room({
-        // A DM call shows one fullscreen remote video, so adaptive stream only
-        // costs sharpness there; a channel room keeps it.
-        ...getVoiceRoomSubscriptionOptions({ sessionMode: isDirectCall ? "direct" : "channel" }),
-        audioCaptureDefaults: buildAudioCaptureOptions(currentState.audioPreferences, {
-          enhancedNoiseFilterActive: initialCaptureConfig.enhancedNoiseFilterActive,
-        }),
-        publishDefaults: cameraRoomDefaults.publishDefaults,
-        videoCaptureDefaults: buildCameraCaptureOptions(currentState.cameraPreferences),
-      });
-      roomRef.current = nextRoom;
-      setRoom(nextRoom);
-
-      const syncRoomParticipants = () => {
-        try {
-          applyRemoteAudioState(
-            nextRoom,
-            useVoiceStore.getState().isDeafened,
-            useVoiceStore.getState().participantVolumes,
-            DEFAULT_PARTICIPANT_VOLUME,
-            useVoiceStore.getState().screenShareVolume,
-          );
-          syncParticipants(nextRoom);
-          syncScreenShares(nextRoom);
-          // A track that subscribes while the tab is hidden would otherwise
-          // stream at full rate until the user comes back to it.
-          enforceHiddenTabRemoteVideo();
-        } catch (error) {
-          logError("[voice] Room participant sync failed", error);
-        }
-      };
-
-      registerRoomParticipantSyncListeners(nextRoom, syncRoomParticipants);
-      nextRoom.on("connectionStateChanged", (state) => {
-        setConnectionState(state);
-        syncRoomParticipants();
-
-        if (
-          state === ConnectionState.Reconnecting ||
-          state === ConnectionState.SignalReconnecting
-        ) {
-          clearReconnectTimeout();
-          setConnectionWarning(t("voice.errors.connectionUnstable"));
-          reconnectTimeoutController.schedule(() => {
-            setConnectionWarning(t("voice.errors.connectionStillReconnecting"));
-          }, RECONNECT_TIMEOUT_MS);
-          return;
-        }
-
-        clearReconnectTimeout();
-        if (state === ConnectionState.Connected) {
-          clearConnectionWarning();
-        }
-      });
-      nextRoom.on("reconnected", () => {
-        clearReconnectTimeout();
-        clearConnectionWarning();
-        if (channelId && nextServerId) {
-          void upsertVoiceState({
-            channelId,
-            serverId: nextServerId,
-            sessionId,
-          })
-            .then((state) => {
-              updateVoiceStatesCache(nextServerId, channelId, state.participants);
-            })
-            .catch(() => {
-              setErrorMessage("Voice state could not be restored.");
-            });
-        }
-        void ensureLocalMicrophonePublished(nextRoom)
-          .then((recovered) => {
-            if (!recovered) {
-              return undefined;
-            }
-
-            return applyAudioPreferencesToRoom(nextRoom);
-          })
-          .catch((error) => {
-            if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(nextRoom))) {
-              logError("[voice] Post-reconnect microphone sync skipped", error);
-              return;
-            }
-            setErrorMessage(microphoneEnableFailedMessage);
-          });
-        syncRoomParticipants();
-      });
-      nextRoom.on("disconnected", () => {
-        setConnectionState(ConnectionState.Disconnected);
-        if (roomRef.current === nextRoom && useVoiceStore.getState().sessionId) {
-          setConnectionWarning(t("voice.errors.connectionFailed"));
-        }
-      });
+      let failedRoom: Room | null = null;
 
       try {
         const tokenResponse = await measureVoicePerformance(
@@ -2092,6 +1949,107 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
               channelId ? { channelId } : { conversationId: conversationId as string },
             ),
         );
+        useVoiceStore.getState().setVideoQualityMode(tokenResponse.mediaPolicy.videoQualityMode);
+        const initialCaptureConfig = getAudioCaptureConfig(currentState.audioPreferences);
+        const cameraRoomDefaults = getCameraRoomDefaults();
+        const nextRoom = new Room({
+          // A DM call shows one fullscreen remote video, so adaptive stream only
+          // costs sharpness there; a channel room keeps it.
+          ...getVoiceRoomSubscriptionOptions({ sessionMode: isDirectCall ? "direct" : "channel" }),
+          audioCaptureDefaults: buildAudioCaptureOptions(currentState.audioPreferences, {
+            enhancedNoiseFilterActive: initialCaptureConfig.enhancedNoiseFilterActive,
+          }),
+          publishDefaults: applyVoiceAudioBitrate(
+            cameraRoomDefaults.publishDefaults,
+            tokenResponse.mediaPolicy.audioBitrate,
+          ),
+          videoCaptureDefaults: buildCameraCaptureOptions(currentState.cameraPreferences),
+        });
+        failedRoom = nextRoom;
+        roomRef.current = nextRoom;
+        setRoom(nextRoom);
+
+        const syncRoomParticipants = () => {
+          try {
+            applyRemoteAudioState(
+              nextRoom,
+              useVoiceStore.getState().isDeafened,
+              useVoiceStore.getState().participantVolumes,
+              DEFAULT_PARTICIPANT_VOLUME,
+              useVoiceStore.getState().screenShareVolume,
+            );
+            syncParticipants(nextRoom);
+            syncScreenShares(nextRoom);
+            // A track that subscribes while the tab is hidden would otherwise
+            // stream at full rate until the user comes back to it.
+            enforceHiddenTabRemoteVideo();
+          } catch (error) {
+            logError("[voice] Room participant sync failed", error);
+          }
+        };
+
+        registerRoomParticipantSyncListeners(nextRoom, syncRoomParticipants);
+        nextRoom.on("connectionStateChanged", (state) => {
+          setConnectionState(state);
+          syncRoomParticipants();
+
+          if (
+            state === ConnectionState.Reconnecting ||
+            state === ConnectionState.SignalReconnecting
+          ) {
+            clearReconnectTimeout();
+            setConnectionWarning(t("voice.errors.connectionUnstable"));
+            reconnectTimeoutController.schedule(() => {
+              setConnectionWarning(t("voice.errors.connectionStillReconnecting"));
+            }, RECONNECT_TIMEOUT_MS);
+            return;
+          }
+
+          clearReconnectTimeout();
+          if (state === ConnectionState.Connected) {
+            clearConnectionWarning();
+          }
+        });
+        nextRoom.on("reconnected", () => {
+          clearReconnectTimeout();
+          clearConnectionWarning();
+          if (channelId && nextServerId) {
+            void upsertVoiceState({
+              channelId,
+              serverId: nextServerId,
+              sessionId,
+            })
+              .then((state) => {
+                updateVoiceStatesCache(nextServerId, channelId, state.participants);
+              })
+              .catch(() => {
+                setErrorMessage("Voice state could not be restored.");
+              });
+          }
+          void ensureLocalMicrophonePublished(nextRoom)
+            .then((recovered) => {
+              if (!recovered) {
+                return undefined;
+              }
+
+              return applyAudioPreferencesToRoom(nextRoom);
+            })
+            .catch((error) => {
+              if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(nextRoom))) {
+                logError("[voice] Post-reconnect microphone sync skipped", error);
+                return;
+              }
+              setErrorMessage(microphoneEnableFailedMessage);
+            });
+          syncRoomParticipants();
+        });
+        nextRoom.on("disconnected", () => {
+          setConnectionState(ConnectionState.Disconnected);
+          if (roomRef.current === nextRoom && useVoiceStore.getState().sessionId) {
+            setConnectionWarning(t("voice.errors.connectionFailed"));
+          }
+        });
+
         supportsLiveKitCloudNoiseCancellationRef.current = isLiveKitCloudUrl(tokenResponse.url);
 
         if (!supportsLiveKitCloudNoiseCancellationRef.current) {
@@ -2239,8 +2197,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
             syncRoomParticipants();
           });
       } catch (error) {
+        const nextRoom = failedRoom;
         const isCurrentJoinAttempt =
-          joinRequestRef.current === nextJoinKey || roomRef.current === nextRoom;
+          joinRequestRef.current === nextJoinKey ||
+          (nextRoom !== null && roomRef.current === nextRoom);
         logError(
           isDirectCall ? "[voice] Direct call join failed" : "[voice] Channel join failed",
           error,
@@ -2251,14 +2211,17 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
           roomRef.current = null;
           setRoom((currentRoom) => (currentRoom === nextRoom ? null : currentRoom));
           setParticipants([]);
+          setActiveVoiceRoster([]);
           setCameraError(null);
           setCameraStatus("disabled");
           setConnectionState(ConnectionState.Disconnected);
         }
         appliedAudioPreferencesSignatureRef.current = null;
-        nextRoom.removeAllListeners();
-        await stopLocalTracks(nextRoom).catch(() => undefined);
-        await nextRoom.disconnect(true).catch(() => undefined);
+        if (nextRoom) {
+          nextRoom.removeAllListeners();
+          await stopLocalTracks(nextRoom).catch(() => undefined);
+          await nextRoom.disconnect(true).catch(() => undefined);
+        }
         await resetKrispProcessor();
         if (voiceStateCreated) {
           await deleteVoiceState({ sessionId }).catch((deleteError) => {
@@ -2269,6 +2232,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
           useVoiceStore.getState().leave();
         }
         if (isCurrentJoinAttempt) {
+          useVoiceStore.getState().setVideoQualityMode("AUTO");
           setErrorMessage(
             isMicrophonePermissionDenied(error)
               ? microphoneDeniedMessage
@@ -2609,6 +2573,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
 
     const nextDeafened = !useVoiceStore.getState().isDeafened;
     useVoiceStore.getState().setDeafened(nextDeafened);
+    const sessionId = useVoiceStore.getState().sessionId;
+    if (sessionId && useVoiceStore.getState().activeChannelId) {
+      void sendVoiceHeartbeat(sessionId, { selfDeaf: nextDeafened }).catch(() => undefined);
+    }
     applyRemoteAudioState(
       activeRoom,
       nextDeafened,

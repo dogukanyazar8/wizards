@@ -88,7 +88,9 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
   const [draft, setDraft] = useState<MobileProfileEditDraft>(() =>
     createMobileProfileEditDraft(serverBaseline),
   );
-  const baselineSignature = JSON.stringify(serverBaseline);
+  // Typing changes the draft, not the server baseline. Re-serializing the full
+  // baseline on every keystroke made this guard cost scale with editor renders.
+  const baselineSignature = useMemo(() => JSON.stringify(serverBaseline), [serverBaseline]);
   const appliedSignatureRef = useRef(baselineSignature);
 
   useEffect(() => {

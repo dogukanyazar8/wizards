@@ -1,4 +1,6 @@
 import { z } from "zod";
+
+import { VoiceMediaPolicySchema } from "./voice-media-policy";
 import { DMSystemMessageTypeSchema } from "./dm-system-message";
 import { BadgeIdSchema } from "./badges";
 import {
@@ -159,6 +161,7 @@ export const MobileAuthGoogleLoginRequestSchema = z.object({
     .max(8192)
     .regex(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/),
   locale: MobileAuthLocaleSchema,
+  twoFactorCode: z.string().trim().min(1).max(64).optional(),
 });
 
 export const MobileAuthGoogleLoginResponseSchema = z.object({
@@ -419,6 +422,7 @@ export const MobileVoiceTokenResponseSchema = z
   .object({
     channelId: z.string().min(1).max(128).optional(),
     conversationId: z.string().min(1).max(128).optional(),
+    mediaPolicy: VoiceMediaPolicySchema,
     provider: MobileVoiceTokenProviderSchema,
     token: z.string().min(16).max(8192).regex(/^\S+$/),
     url: z.string().min(1).max(512),
@@ -1323,7 +1327,7 @@ export const MobileBugReportRequestSchema = z
      * Key from the existing mobile upload flow. The screenshot rides that
      * lifecycle instead of opening a second, multipart upload path.
      */
-    screenshotUploadKey: z.string().min(1).max(256).optional(),
+    screenshotUploadKey: z.string().uuid().optional(),
   })
   .strict();
 

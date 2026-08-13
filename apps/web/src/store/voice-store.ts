@@ -371,6 +371,7 @@ interface VoiceStoreState extends PersistedVoiceStoreState {
   serverId: string | null;
   sessionId: string | null;
   sessionMode: "channel" | "direct" | null;
+  videoQualityMode: "AUTO" | "FULL";
   adminConsoleShortcut: string;
   gameOverlayPanicShortcut: string;
   pushToTalkHangoverMs: number;
@@ -414,6 +415,7 @@ interface VoiceStoreState extends PersistedVoiceStoreState {
   setToggleDeafenShortcut: (shortcut: string) => void;
   setToggleMuteShortcut: (shortcut: string) => void;
   setVoiceInputMode: (mode: VoiceInputMode) => void;
+  setVideoQualityMode: (mode: "AUTO" | "FULL") => void;
   toggleDeafen: () => void;
   toggleMute: () => void;
   setDeafened: (isDeafened: boolean) => void;
@@ -485,6 +487,7 @@ export const useVoiceStore = create<VoiceStoreState>()(
       serverId: null,
       sessionId: null,
       sessionMode: null,
+      videoQualityMode: "AUTO",
       pushToTalkHangoverMs: DEFAULT_PUSH_TO_TALK_HANGOVER_MS,
       pushToTalkShortcut: DEFAULT_PUSH_TO_TALK_SHORTCUT,
       toggleDeafenShortcut: DEFAULT_TOGGLE_DEAFEN_SHORTCUT,
@@ -505,6 +508,7 @@ export const useVoiceStore = create<VoiceStoreState>()(
           serverId: null,
           sessionId: null,
           sessionMode: null,
+          videoQualityMode: "AUTO",
           isScreenSharing: false,
           screenShareActiveSharerId: null,
           screenShareChannelId: null,
@@ -659,6 +663,7 @@ export const useVoiceStore = create<VoiceStoreState>()(
         set({
           voiceInputMode: sanitizeVoiceInputMode(mode),
         }),
+      setVideoQualityMode: (mode) => set({ videoQualityMode: mode }),
       toggleDeafen: () =>
         set((state) => ({
           isDeafened: !state.isDeafened,

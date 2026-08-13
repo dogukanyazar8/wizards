@@ -71,8 +71,18 @@ export function getMobileVoiceRoomSubscriptionOptions({
  * grid tiles cap one below so dynacast can retire it. Read lazily so importing
  * this contract never depends on the livekit-client enum being initialised.
  */
-export function resolveVoiceVideoQuality({ isStage }: { isStage: boolean }): VideoQuality {
-  return isStage ? VideoQuality.HIGH : VideoQuality.MEDIUM;
+export function resolveVoiceVideoQuality({
+  isStage,
+  isVisible = true,
+  videoQualityMode = "AUTO",
+}: {
+  isStage: boolean;
+  isVisible?: boolean;
+  videoQualityMode?: "AUTO" | "FULL";
+}): VideoQuality {
+  return isStage || (isVisible && videoQualityMode === "FULL")
+    ? VideoQuality.HIGH
+    : VideoQuality.MEDIUM;
 }
 
 /**
@@ -100,7 +110,11 @@ export type MobileVoiceQualityPublication = {
  */
 export function setVoiceVideoQualityCeiling(
   publication: MobileVoiceQualityPublication | null | undefined,
-  { isStage }: { isStage: boolean },
+  {
+    isStage,
+    isVisible = true,
+    videoQualityMode = "AUTO",
+  }: { isStage: boolean; isVisible?: boolean; videoQualityMode?: "AUTO" | "FULL" },
 ): VideoQuality | null {
   if (!publication || typeof publication.setVideoQuality !== "function") {
     return null;
@@ -111,7 +125,7 @@ export function setVoiceVideoQualityCeiling(
     return null;
   }
 
-  const quality = resolveVoiceVideoQuality({ isStage });
+  const quality = resolveVoiceVideoQuality({ isStage, isVisible, videoQualityMode });
   publication.setVideoQuality(quality);
 
   return quality;

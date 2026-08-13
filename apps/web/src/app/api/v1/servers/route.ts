@@ -24,6 +24,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const userId = await requireApiUserId();
+    await enforceApiRateLimit(userId, "server:create");
     const input = await parseJsonBody(request, CreateServerSchema);
     const created = await createWorkspaceServer(userId, input);
 

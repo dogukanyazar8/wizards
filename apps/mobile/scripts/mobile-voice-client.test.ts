@@ -26,6 +26,7 @@ describe("mobile voice client", () => {
         calls.push({ body: options.body, method: options.method, path });
         return {
           channelId: "voice-channel-1",
+          mediaPolicy: { audioBitrate: 96_000, videoQualityMode: "FULL" },
           provider: "livekit",
           token: "livekit.jwt.token.value",
           url: "wss://voice.whispr.test",
@@ -46,6 +47,7 @@ describe("mobile voice client", () => {
     ]);
     assert.equal(response.provider, "livekit");
     assert.equal(response.channelId, "voice-channel-1");
+    assert.deepEqual(response.mediaPolicy, { audioBitrate: 96_000, videoQualityMode: "FULL" });
     assert.equal(response.url, "wss://voice.whispr.test");
   });
 
@@ -56,6 +58,7 @@ describe("mobile voice client", () => {
         calls.push({ body: options.body, method: options.method, path });
         return {
           conversationId: "conversation-1",
+          mediaPolicy: { audioBitrate: 64_000, videoQualityMode: "AUTO" },
           provider: "livekit",
           token: "livekit.jwt.token.value",
           url: "wss://voice.whispr.test",

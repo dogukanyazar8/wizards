@@ -6,14 +6,10 @@ import {
   ACCOUNT_DELETION_REAUTH_PURPOSE,
   createAccountDeletionReauthTokenForVerifiedEmail,
 } from "@/lib/auth/reauth";
-import {
-  type AppLocale,
-  DEFAULT_APP_LOCALE,
-  normalizeAppLocale,
-  translate,
-} from "@/lib/locale";
+import { type AppLocale, DEFAULT_APP_LOCALE, normalizeAppLocale, translate } from "@/lib/locale";
 
 const EMAIL_REAUTH_TOKEN_BYTES = 32;
+const EMAIL_REAUTH_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,128}$/u;
 const ACCOUNT_DELETION_EMAIL_REAUTH_EXPIRY_MINUTES = 10;
 const ACCOUNT_DELETION_EMAIL_REAUTH_EXPIRY_MS =
   ACCOUNT_DELETION_EMAIL_REAUTH_EXPIRY_MINUTES * 60 * 1000;
@@ -86,8 +82,18 @@ function isResendDevSenderRestriction(error: ResendErrorLike, from: string) {
   );
 }
 
-function getAppUrl() {
-  const rawAppUrl = getFirstRequiredEnv(["APP_URL", "AUTH_URL", "NEXTAUTH_URL"]);
+function getAppUrl(env: Record<string, string | undefined> = process.env) {
+  const rawAppUrl = [env.APP_URL, env.AUTH_URL, env.NEXTAUTH_URL]
+    .map((value) => value?.trim())
+    .find(Boolean);
+
+  if (!rawAppUrl) {
+    throw new ApiError(
+      "APP_URL or AUTH_URL or NEXTAUTH_URL is required for account deletion email re-authentication.",
+      503,
+      "REAUTH_EMAIL_UNAVAILABLE",
+    );
+  }
 
   try {
     const appUrl = new URL(rawAppUrl);
@@ -97,11 +103,7 @@ function getAppUrl() {
 
     return appUrl.origin;
   } catch {
-    throw new ApiError(
-      "APP_URL must be a valid http(s) URL.",
-      503,
-      "REAUTH_EMAIL_UNAVAILABLE",
-    );
+    throw new ApiError("APP_URL must be a valid http(s) URL.", 503, "REAUTH_EMAIL_UNAVAILABLE");
   }
 }
 
@@ -118,10 +120,17 @@ export function hashAccountReauthChallengeToken(token: string) {
   return createHash("sha256").update(token, "utf8").digest("hex");
 }
 
-function buildAccountDeletionReauthUrl(token: string) {
-  const url = new URL("/settings", `${getAppUrl()}/`);
-  url.searchParams.set("accountReauthToken", token);
-  url.searchParams.set("purpose", ACCOUNT_DELETION_REAUTH_PURPOSE);
+// Query parameters are copied into browser history and request telemetry; the
+// short-lived deletion credential stays in the dedicated route path instead.
+export function buildAccountDeletionReauthUrl(
+  token: string,
+  env: Record<string, string | undefined> = process.env,
+  platform: "MOBILE" | "WEB" = "WEB",
+) {
+  if (platform === "MOBILE") {
+    return `whispr://reauth/account-delete/${encodeURIComponent(token)}`;
+  }
+  const url = new URL(`/settings/reauth/${encodeURIComponent(token)}`, `${getAppUrl(env)}/`);
   return url.toString();
 }
 
@@ -282,7 +291,10 @@ function assertEmailReauthEligibleUser(user: EmailReauthUser | null) {
   }
 }
 
-export async function sendAccountDeletionReauthEmail(userId: string) {
+export async function sendAccountDeletionReauthEmail(
+  userId: string,
+  platform: "MOBILE" | "WEB" = "WEB",
+) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -308,7 +320,7 @@ export async function sendAccountDeletionReauthEmail(userId: string) {
   const generatedChallenge = await createAccountReauthChallenge(user.id);
   const resolvedLocale = normalizeAppLocale(user.locale ?? DEFAULT_APP_LOCALE);
   const displayName = user.displayName ?? user.username;
-  const reauthUrl = buildAccountDeletionReauthUrl(generatedChallenge.token);
+  const reauthUrl = buildAccountDeletionReauthUrl(generatedChallenge.token, process.env, platform);
   const email = renderAccountDeletionReauthEmail({
     locale: resolvedLocale,
     name: displayName,
@@ -363,7 +375,7 @@ export async function sendAccountDeletionReauthEmail(userId: string) {
 
 export async function confirmAccountDeletionReauthEmail(userId: string, token: string) {
   const normalizedToken = token.trim();
-  if (!normalizedToken) {
+  if (!EMAIL_REAUTH_TOKEN_PATTERN.test(normalizedToken)) {
     throw new ApiError("Unable to verify account", 401, "REAUTH_FAILED");
   }
 

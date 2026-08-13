@@ -44,6 +44,7 @@ export async function signInMobileWithGoogleIdToken(
   input: {
     idToken: string;
     locale?: "en" | "tr";
+    twoFactorCode?: string;
   },
 ): Promise<MobileSessionSnapshotPayload> {
   const payload = await client.requestJson<unknown>(MOBILE_AUTH_GOOGLE_ENDPOINT, {

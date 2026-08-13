@@ -9,6 +9,7 @@ import {
 } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
+import { claimMobileFeedbackAttachmentUploads } from "@/lib/mobile/mobile-media-upload-service";
 
 /**
  * 2f "Sorun bildir".
@@ -56,12 +57,21 @@ export function resolveBugReportPurgeDate(createdAt: Date): Date {
 }
 
 export type SubmitMobileBugReportInput = MobileBugReportRequest & {
-  screenshotUrl?: string | null;
   userId?: string | null;
+};
+
+type BugReportScreenshotClaim = {
+  claimId: string;
+  now: Date;
+  userId: string;
 };
 
 export type MobileBugReportServiceDependencies = {
   createBugReport: (data: Prisma.BugReportUncheckedCreateInput) => Promise<{ createdAt: Date }>;
+  createBugReportWithScreenshotClaim: (
+    data: Prisma.BugReportUncheckedCreateInput,
+    claim: BugReportScreenshotClaim,
+  ) => Promise<{ createdAt: Date }>;
   deleteExpiredBugReports: (before: Date) => Promise<{ count: number }>;
   isUniqueTicketViolation: (error: unknown) => boolean;
   now: () => Date;
@@ -84,6 +94,23 @@ export function isUniqueConstraintError(error: unknown): boolean {
 
 const defaultDependencies: MobileBugReportServiceDependencies = {
   createBugReport: (data) => prisma.bugReport.create({ data, select: { createdAt: true } }),
+  createBugReportWithScreenshotClaim: (data, claim) =>
+    prisma.$transaction(async (tx) => {
+      const [screenshot] = await claimMobileFeedbackAttachmentUploads(tx, {
+        claimIds: [claim.claimId],
+        now: claim.now,
+        userId: claim.userId,
+      });
+
+      if (!screenshot) {
+        throw new ApiError("Screenshot upload is unavailable.", 409, "UPLOAD_CLAIM_UNAVAILABLE");
+      }
+
+      return tx.bugReport.create({
+        data: { ...data, screenshotUrl: screenshot.url },
+        select: { createdAt: true },
+      });
+    }),
   deleteExpiredBugReports: (before) =>
     prisma.bugReport.deleteMany({ where: { purgeAfter: { lt: before } } }),
   isUniqueTicketViolation: isUniqueConstraintError,
@@ -105,16 +132,23 @@ export async function submitMobileBugReport(
       ? { deviceInfo: input.deviceInfo as Prisma.InputJsonValue }
       : {}),
     logExcerpt: input.includesLogs && input.logExcerpt ? trimBugReportLog(input.logExcerpt) : null,
-    screenshotUrl: input.includesScreenshot
-      ? (input.screenshotUrl ?? input.screenshotUploadKey ?? null)
-      : null,
+    screenshotUrl: null,
   };
+
+  const screenshotClaim =
+    input.includesScreenshot && input.screenshotUploadKey && input.userId
+      ? {
+          claimId: input.screenshotUploadKey,
+          now: createdAt,
+          userId: input.userId,
+        }
+      : null;
 
   for (let attempt = 0; attempt < BUG_REPORT_TICKET_ATTEMPTS; attempt += 1) {
     const ticket = formatBugReportTicket(dependencies.randomTicketSequence());
 
     try {
-      const row = await dependencies.createBugReport({
+      const data = {
         appBuild: input.appBuild ?? null,
         appVersion: input.appVersion ?? null,
         body: input.body,
@@ -129,7 +163,10 @@ export async function submitMobileBugReport(
         ticket,
         userId: input.userId ?? null,
         ...attachments,
-      });
+      } satisfies Prisma.BugReportUncheckedCreateInput;
+      const row = screenshotClaim
+        ? await dependencies.createBugReportWithScreenshotClaim(data, screenshotClaim)
+        : await dependencies.createBugReport(data);
 
       return MobileBugReportResponseSchema.parse({
         createdAt: row.createdAt.toISOString(),
@@ -151,9 +188,8 @@ export async function submitMobileBugReport(
 }
 
 /**
- * The other half of the 90-day promise. There is no shared maintenance runner in
- * this app yet, so this stays a callable function: whatever schedules it later
- * calls this rather than reimplementing the window.
+ * The other half of the 90-day promise. The hourly outbox maintenance runner
+ * calls this function rather than duplicating the retention window.
  */
 export async function purgeExpiredBugReports(
   dependencies: MobileBugReportServiceDependencies = defaultDependencies,

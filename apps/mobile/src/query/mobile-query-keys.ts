@@ -75,6 +75,8 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
       [...all, "help", "articles", params.category ?? null, params.popular === true] as const,
     helpSearch: (query: string) => [...all, "help", "search", query.trim()] as const,
     accountSettings: () => [...all, "account-settings"] as const,
+    accountPreferences: () => [...all, "account-preferences"] as const,
+    authSessions: () => [...all, "auth-sessions"] as const,
     /**
      * Badges are never merged into the profile key: they go stale on a five
      * minute clock while a profile carries presence, so one key would make the
@@ -126,7 +128,6 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
      * Faz 5. One key over two shapes is how the messaging send-storm started.
      */
     groupDetails: (conversationId: string) => [...all, "group-details", conversationId] as const,
-    groupMembers: (conversationId: string) => [...all, "group-members", conversationId] as const,
     groupMedia: (conversationId: string) => [...all, "group-media", conversationId] as const,
     groupInvite: (conversationId: string) => [...all, "group-invite", conversationId] as const,
     /**

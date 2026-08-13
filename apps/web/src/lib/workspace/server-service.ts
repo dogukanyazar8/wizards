@@ -10,6 +10,7 @@ import type {
 } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
+import { getLiveKitRtcRegionKeys } from "@/lib/livekit/rtc-regions";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { invalidateServerRoomIdsCache } from "@/lib/socket/server-room-cache";
 import {
@@ -316,6 +317,7 @@ async function loadWorkspaceServerDetail(access: AccessContext): Promise<Workspa
                 position: "asc",
               },
               select: {
+                bitrate: true,
                 categoryId: true,
                 id: true,
                 locked: true,
@@ -329,8 +331,12 @@ async function loadWorkspaceServerDetail(access: AccessContext): Promise<Workspa
                   },
                 },
                 position: true,
+                rtcRegion: true,
+                slowModeDelay: true,
                 topic: true,
                 type: true,
+                userLimit: true,
+                videoQualityMode: true,
               },
               where: {
                 parentId: null,
@@ -349,6 +355,7 @@ async function loadWorkspaceServerDetail(access: AccessContext): Promise<Workspa
             position: "asc",
           },
           select: {
+            bitrate: true,
             categoryId: true,
             id: true,
             locked: true,
@@ -362,8 +369,12 @@ async function loadWorkspaceServerDetail(access: AccessContext): Promise<Workspa
               },
             },
             position: true,
+            rtcRegion: true,
+            slowModeDelay: true,
             topic: true,
             type: true,
+            userLimit: true,
+            videoQualityMode: true,
           },
           where: {
             categoryId: null,
@@ -505,7 +516,7 @@ async function loadWorkspaceServerDetail(access: AccessContext): Promise<Workspa
   });
 
   const memberRows = server.members.slice(0, SERVER_DETAIL_MEMBER_LIMIT);
-  const members = await mapMembers(server.ownerId, memberRows);
+  const members = await mapMembers(server.ownerId, userId, memberRows);
   const roles = server.roles.map(toWorkspaceRole);
 
   return {
@@ -523,6 +534,7 @@ async function loadWorkspaceServerDetail(access: AccessContext): Promise<Workspa
       allowFileUploads: mediaSettings.allowFileUploads,
       allowGifs: mediaSettings.allowGifs,
       allowMemberAdds: mediaSettings.allowMemberAdds,
+      availableRtcRegions: getLiveKitRtcRegionKeys(),
       defaultChannelId,
       description: server.description,
       discoverable: server.discoverable,
@@ -568,6 +580,7 @@ async function loadMobileWorkspaceServerDetail(access: AccessContext): Promise<{
           channels: {
             orderBy: [{ position: "asc" }, { id: "asc" }],
             select: {
+              bitrate: true,
               categoryId: true,
               id: true,
               locked: true,
@@ -581,8 +594,12 @@ async function loadMobileWorkspaceServerDetail(access: AccessContext): Promise<{
                 },
               },
               position: true,
+              rtcRegion: true,
+              slowModeDelay: true,
               topic: true,
               type: true,
+              userLimit: true,
+              videoQualityMode: true,
             },
             take: MOBILE_SERVER_DETAIL_CHANNEL_PER_CATEGORY_LIMIT + 1,
             where: {
@@ -601,6 +618,7 @@ async function loadMobileWorkspaceServerDetail(access: AccessContext): Promise<{
       channels: {
         orderBy: [{ position: "asc" }, { id: "asc" }],
         select: {
+          bitrate: true,
           categoryId: true,
           id: true,
           locked: true,
@@ -614,8 +632,12 @@ async function loadMobileWorkspaceServerDetail(access: AccessContext): Promise<{
             },
           },
           position: true,
+          rtcRegion: true,
+          slowModeDelay: true,
           topic: true,
           type: true,
+          userLimit: true,
+          videoQualityMode: true,
         },
         take: MOBILE_SERVER_DETAIL_CHANNEL_LIMIT + 1,
         where: {
@@ -787,7 +809,7 @@ async function loadWorkspaceServerMembers(
   memberPage: WorkspaceMemberPage;
   members: WorkspaceMemberWithAuthorizationRoles[];
 }> {
-  const { serverId } = access;
+  const { serverId, userId } = access;
   const limit = Math.min(
     Math.max(options.limit ?? SERVER_MEMBERS_PAGE_LIMIT, 1),
     SERVER_MEMBERS_PAGE_LIMIT,
@@ -880,7 +902,7 @@ async function loadWorkspaceServerMembers(
     ensureMobileMemberRoleBounds(rows);
   }
   const pageRows = rows.slice(0, limit);
-  const members = await mapMembers(access.ownerId, pageRows);
+  const members = await mapMembers(access.ownerId, userId, pageRows);
 
   return {
     memberPage: {

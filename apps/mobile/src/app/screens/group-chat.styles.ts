@@ -119,6 +119,23 @@ export const createGroupChatStyles = (theme: MobileTheme, scale = 1) => {
       flexGrow: 0,
       flexShrink: 0,
     },
+    /**
+     * A group that has a photo of its own draws it instead of the crossed pair:
+     * the pair is what a group looks like *until* somebody gives it a face, and
+     * a row that keeps drawing member tiles after that is the one place in the
+     * app where a group's picture does not show up. The corner curves at the
+     * same ratio the 30pt tiles do, so the slot's shape does not change.
+     */
+    groupRowIcon: {
+      width: s(group.groupRow.pairSize),
+      height: s(group.groupRow.pairSize),
+      borderRadius: s(
+        (group.groupRow.pairSize * group.groupRow.tileRadius) / group.groupRow.tileSize,
+      ),
+      overflow: "hidden",
+      flexGrow: 0,
+      flexShrink: 0,
+    },
     avatarPairTopTile: {
       position: "absolute",
       top: 0,
@@ -385,6 +402,9 @@ export const createGroupChatStyles = (theme: MobileTheme, scale = 1) => {
       color: group.sectionLabel.action,
       fontSize: s(group.sectionLabel.actionFontSize),
       fontFamily: font(group.sectionLabel.actionFontWeight),
+    },
+    memberListViewport: {
+      flex: 1,
     },
     /** HTML 171–195: a friend row in the picker. */
     pickerRow: {
@@ -766,6 +786,17 @@ export const createGroupChatStyles = (theme: MobileTheme, scale = 1) => {
       position: "relative",
       width: s(group.chatHeader.pairSize),
       height: s(group.chatHeader.pairSize),
+      flexGrow: 0,
+      flexShrink: 0,
+    },
+    /** 2a's rule in the header's own slot: the photo wins over the pair. */
+    chatHeaderIcon: {
+      width: s(group.chatHeader.pairSize),
+      height: s(group.chatHeader.pairSize),
+      borderRadius: s(
+        (group.chatHeader.pairSize * group.chatHeader.tileRadius) / group.chatHeader.tileSize,
+      ),
+      overflow: "hidden",
       flexGrow: 0,
       flexShrink: 0,
     },

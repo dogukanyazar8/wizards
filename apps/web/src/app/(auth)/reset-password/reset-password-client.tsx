@@ -4,12 +4,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ResetPasswordSchema, type ResetPasswordInput } from "@wizards/types";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, KeyRound, ShieldAlert } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useCallback, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { LoginCard } from "@/components/auth/login-card";
 import { LoginPage } from "@/components/auth/login-page";
+import { TurnstileWidget } from "@/components/auth/turnstile-widget";
 import { useI18n } from "@/components/providers/locale-provider";
 import { resetPasswordAction } from "@/lib/auth/actions";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 type ResetPasswordClientProps = {
   email?: string | undefined;
@@ -26,7 +29,9 @@ export function ResetPasswordClient({ email, status, token }: ResetPasswordClien
 
   const {
     register,
+    control,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ResetPasswordInput>({
     resolver: zodResolver(ResetPasswordSchema),
@@ -34,8 +39,19 @@ export function ResetPasswordClient({ email, status, token }: ResetPasswordClien
       confirmPassword: "",
       password: "",
       token,
+      turnstileToken: "",
     },
   });
+  const turnstileToken = useWatch({ control, name: "turnstileToken" });
+  const handleTurnstileTokenChange = useCallback(
+    (value: string) => {
+      setValue("turnstileToken", value, {
+        shouldDirty: true,
+        shouldValidate: Boolean(value),
+      });
+    },
+    [setValue],
+  );
 
   const onSubmit = async (values: ResetPasswordInput) => {
     setServerError(null);
@@ -44,6 +60,7 @@ export function ResetPasswordClient({ email, status, token }: ResetPasswordClien
     formData.set("confirmPassword", values.confirmPassword);
     formData.set("password", values.password);
     formData.set("token", values.token);
+    formData.set("turnstileToken", values.turnstileToken);
 
     const result = await resetPasswordAction(formData);
 
@@ -91,11 +108,7 @@ export function ResetPasswordClient({ email, status, token }: ResetPasswordClien
             </Link>
           </>
         ) : isTokenUsable ? (
-          <form
-            className="modern-login-form"
-            onSubmit={handleSubmit(onSubmit)}
-            noValidate
-          >
+          <form className="modern-login-form" onSubmit={handleSubmit(onSubmit)} noValidate>
             {email ? (
               <div className="modern-login-status-card is-compact">
                 <p>{t("auth.passwordReset.accountHint", { email })}</p>
@@ -160,13 +173,31 @@ export function ResetPasswordClient({ email, status, token }: ResetPasswordClien
               ) : null}
             </div>
 
+            <input type="hidden" {...register("turnstileToken")} />
+            <div className="modern-login-turnstile">
+              <TurnstileWidget
+                action="reset-password"
+                onTokenChange={handleTurnstileTokenChange}
+                siteKey={TURNSTILE_SITE_KEY}
+              />
+              {errors.turnstileToken ? (
+                <p className="modern-login-field-error">
+                  {t(errors.turnstileToken.message ?? "validation.turnstile.required")}
+                </p>
+              ) : null}
+            </div>
+
             {serverError ? (
               <p className="modern-login-alert" role="alert">
                 {t(serverError)}
               </p>
             ) : null}
 
-            <button className="modern-login-primary" disabled={isSubmitting} type="submit">
+            <button
+              className="modern-login-primary"
+              disabled={isSubmitting || !turnstileToken}
+              type="submit"
+            >
               <span>
                 {isSubmitting ? t("auth.passwordReset.saving") : t("auth.passwordReset.submit")}
               </span>

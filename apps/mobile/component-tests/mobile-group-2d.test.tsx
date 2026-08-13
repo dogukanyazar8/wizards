@@ -164,6 +164,7 @@ async function renderChat({
       conversation={
         {
           avatarPair: conversation.avatarPair,
+          iconUrl: conversation.iconUrl,
           id: conversation.id,
           lastMessageAt: conversation.lastMessageAt,
           muted: false,
@@ -241,6 +242,22 @@ describe("2d §B1 header", () => {
       conversation: buildConversation({ onlineCount: 0 }),
     });
     expect(quiet.view.queryByText("0 çevrimiçi")).toBeNull();
+  });
+
+  /**
+   * The header drew the crossed pair whatever the group looked like, so a group
+   * with a photo showed member tiles here and its photo only on 2e.
+   */
+  it("fills the identity slot with the group's photo when it has one", async () => {
+    const plain = await renderChat();
+    expect(plain.view.getByTestId("mobile-group-chat-header-pair")).toBeTruthy();
+    expect(plain.view.queryByTestId("mobile-group-chat-header-photo")).toBeNull();
+
+    const withPhoto = await renderChat({
+      conversation: buildConversation({ iconUrl: "https://utfs.io/f/group.png" }),
+    });
+    expect(withPhoto.view.getByTestId("mobile-group-chat-header-photo")).toBeTruthy();
+    expect(withPhoto.view.queryByTestId("mobile-group-chat-header-pair")).toBeNull();
   });
 
   it("opens 2e from the title", async () => {

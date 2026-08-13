@@ -1004,7 +1004,9 @@ describe("4a DM conversation redesign", () => {
     await waitFor(() =>
       expect(uploadMobileMessageAttachmentToUploadThing).toHaveBeenCalledWith({
         accessToken: "access-token",
+        onProgress: expect.any(Function),
         picked,
+        signal: expect.any(AbortSignal),
       }),
     );
     mockVoiceRecorder.isRecording = false;

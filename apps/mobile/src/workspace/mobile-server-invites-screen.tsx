@@ -37,9 +37,7 @@ function formatInviteUses(
 ): string {
   return max === null
     ? labels.serverInvitesUses.replace("{used}", String(used))
-    : labels.serverInvitesUsesLimited
-        .replace("{used}", String(used))
-        .replace("{max}", String(max));
+    : labels.serverInvitesUsesLimited.replace("{used}", String(used)).replace("{max}", String(max));
 }
 
 function formatExpiry(expiresAt: string | null, locale: string, neverLabel: string): string {
@@ -66,6 +64,7 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
   const invitesQuery = useMobileServerInvitesQuery(apiClient, serverId, true);
   const mutations = useMobileServerManagementMutations(apiClient);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<MobileServerInvite | null>(null);
   const invites = invitesQuery.data?.invites ?? [];
 
@@ -73,11 +72,13 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
     if (mutations.createInvite.isPending) {
       return;
     }
+    setCreateError(null);
     try {
       await mutations.createInvite.mutateAsync({ serverId });
       await invitesQuery.refetch();
     } catch {
-      // Failed creates leave the existing list untouched; the user can retry.
+      // Keeping the list intact is not enough: without feedback the failed tap looks successful.
+      setCreateError(labels.serverInvitesCreateError);
     }
   };
 
@@ -135,6 +136,15 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
       <View style={styles.root} testID="mobile-server-invites-screen">
         {headerNode}
         {createButton}
+        {createError ? (
+          <Text
+            accessibilityRole="alert"
+            style={styles.error}
+            testID="mobile-server-invites-create-error"
+          >
+            {createError}
+          </Text>
+        ) : null}
         <View testID="mobile-server-invites-loading">
           {[0, 1, 2].map((index) => (
             <View key={index} style={styles.skeletonCard}>
@@ -168,6 +178,16 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
         {headerNode}
         {createButton}
 
+        {createError ? (
+          <Text
+            accessibilityRole="alert"
+            style={styles.error}
+            testID="mobile-server-invites-create-error"
+          >
+            {createError}
+          </Text>
+        ) : null}
+
         {invites.length === 0 ? (
           <EmptyState
             description={labels.serverInvitesEmptyBody}
@@ -195,7 +215,9 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
                 </View>
                 <View style={styles.metaRow}>
                   <View style={styles.metaChip}>
-                    <Text style={styles.metaChipText}>{formatInviteUses(labels, invite.uses, invite.maxUses)}</Text>
+                    <Text style={styles.metaChipText}>
+                      {formatInviteUses(labels, invite.uses, invite.maxUses)}
+                    </Text>
                   </View>
                   <View style={styles.metaChip}>
                     <Text style={styles.metaChipText}>
@@ -213,7 +235,9 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
                 </Text>
                 <View style={styles.actions}>
                   <Pressable
-                    accessibilityLabel={copied ? labels.serverInvitesCopied : labels.serverInvitesCopy}
+                    accessibilityLabel={
+                      copied ? labels.serverInvitesCopied : labels.serverInvitesCopy
+                    }
                     accessibilityRole="button"
                     onPress={() => void copyInvite(invite)}
                     style={({ pressed }) => [styles.action, pressed && styles.pressed]}
@@ -224,7 +248,9 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
                       name={copied ? "checkmark" : "copy-outline"}
                       size={16}
                     />
-                    <Text style={styles.actionText}>{copied ? labels.serverInvitesCopied : labels.serverInvitesCopy}</Text>
+                    <Text style={styles.actionText}>
+                      {copied ? labels.serverInvitesCopied : labels.serverInvitesCopy}
+                    </Text>
                   </Pressable>
                   <Pressable
                     accessibilityLabel={labels.serverInvitesShare}
@@ -259,14 +285,12 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
         onCancel={() => setPendingDelete(null)}
         onConfirm={async () => {
           if (!pendingDelete) return;
-          try {
-            await mutations.deleteInvite.mutateAsync({
-              inviteId: pendingDelete.id,
-              serverId,
-            });
-          } finally {
-            setPendingDelete(null);
-          }
+          await mutations.deleteInvite.mutateAsync({
+            inviteId: pendingDelete.id,
+            serverId,
+          });
+          // Closing only after acknowledgement lets the sheet keep and display a rejection.
+          setPendingDelete(null);
         }}
         open={pendingDelete !== null}
         testID="mobile-server-invite-delete-confirm"

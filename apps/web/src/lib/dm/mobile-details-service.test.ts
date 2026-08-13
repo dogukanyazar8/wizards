@@ -20,10 +20,6 @@ describe("mobile DM details service", () => {
     const result = await getMobileDMDetails(
       { conversationId: "dm-1", cursor: "cursor-1", limit: 10, userId: "user-1" },
       {
-        countMedia: async (conversationId) => {
-          calls.push(["media", conversationId]);
-          return 0;
-        },
         getConversation: async (conversationId, userId) => {
           calls.push(["conversation", conversationId, userId]);
           return {
@@ -54,15 +50,13 @@ describe("mobile DM details service", () => {
       ["conversation", "dm-1", "user-1"],
       ["servers", "user-1", "user-2", { limit: 12 }],
       ["messages", "user-1", "dm-1", "cursor-1", 10],
-      ["media", "dm-1"],
     ]);
   });
 
-  it("reports the conversation's whole media history, not the length of the page preview", async () => {
+  it("uses the bounded message page for the approximate media header", async () => {
     const result = await getMobileDMDetails(
       { conversationId: "dm-1", limit: 30, userId: "user-1" },
       {
-        countMedia: async () => 128,
         getConversation: async (conversationId) => ({
           iconUrl: null,
           id: conversationId,
@@ -78,7 +72,7 @@ describe("mobile DM details service", () => {
       },
     );
 
-    assert.equal(result.mediaCount, 128);
+    assert.equal(result.mediaCount, 0);
     assert.equal(result.sharedAttachments.media.length, 0);
   });
 
@@ -89,7 +83,6 @@ describe("mobile DM details service", () => {
     const result = await getMobileDMDetails(
       { conversationId: "group-1", limit: 30, userId: "user-1" },
       {
-        countMedia: async () => 0,
         getConversation: async (conversationId) => ({
           iconUrl: null,
           id: conversationId,

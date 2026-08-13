@@ -41,6 +41,7 @@ const MAX_CHANNEL_PARTICIPANTS = 3;
 
 /** 6e's YÖNETİCİLER list; a server with more than this is showing a sample. */
 const MAX_PROFILE_ADMINS = 20;
+const MAX_PROFILE_CHANNELS = 40;
 
 /**
  * Presence is *not* derived from a last-seen window any more. The same card
@@ -65,6 +66,9 @@ export const SERVER_PUBLIC_PROFILE_SELECT = {
       { position: "asc" as const },
       { id: "asc" as const },
     ],
+    // Fetch one sentinel row so the response can distinguish a complete list
+    // from a bounded preview without loading every channel in a public server.
+    take: MAX_PROFILE_CHANNELS + 1,
     select: {
       _count: { select: { voiceStates: true } },
       category: { select: { id: true, name: true } },
@@ -268,7 +272,9 @@ export function buildServerPublicProfile(
     ...(membership?.roles.map((entry) => entry.role) ?? []),
   ];
 
+  const hasMoreChannels = server.channels.length > MAX_PROFILE_CHANNELS;
   const channels = server.channels
+    .slice(0, MAX_PROFILE_CHANNELS)
     .map((channel) => {
       const permissions = resolveChannelPermissions({
         memberId: membership?.id ?? null,
@@ -337,6 +343,7 @@ export function buildServerPublicProfile(
     createdAt: server.createdAt.toISOString(),
     description: server.description ?? "",
     discoverable: server.discoverable,
+    hasMoreChannels,
     iconUrl: server.iconUrl,
     inviteAddress: buildServerInviteAddress(server, env),
     isPublic: server.isPublic,

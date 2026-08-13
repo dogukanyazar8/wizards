@@ -12,6 +12,8 @@ import { useShallow } from "zustand/react/shallow";
 import { AppStartupScreen } from "@/components/app/app-startup-screen";
 import { ChannelSidebar, UserProfileFooter } from "@/components/shell/channel-sidebar";
 import { useI18n } from "@/components/providers/locale-provider";
+import { AccountPreferenceProvider } from "@/components/providers/account-preference-provider";
+import { getInterfaceDensityMetrics } from "@wizards/types";
 import { InAppSettingsOverlay } from "@/components/settings/in-app-settings-overlay";
 import { MainChannelPanel } from "@/components/shell/main-channel-panel";
 import { MobileDrawerTrigger, ServerRail } from "@/components/shell/server-rail";
@@ -24,7 +26,7 @@ import { Modal } from "@/components/ui/modal";
 import { useSocket } from "@/hooks/use-socket";
 import { useShellReadiness } from "@/hooks/use-shell-readiness";
 import { useDMConversations } from "@/hooks/use-dm-conversations";
-import { getMessagesQueryKey, type MessagePages } from "@/hooks/use-messages";
+import { getMessagesQueryKey, patchMessageAuthors, type MessagePages } from "@/hooks/use-messages";
 import { useAppearanceHydration } from "@/hooks/use-appearance-hydration";
 import { usePresenceActivity } from "@/hooks/use-presence-activity";
 import { useBodyScrollLock, useResponsiveLayout } from "@/hooks/use-responsive-layout";
@@ -98,37 +100,6 @@ type AccountUpdatedEventPayload = Omit<UserProfileUpdatedPayload, "userId"> & {
   email?: string;
   id: string;
 };
-
-function patchMessageAuthors(
-  current: MessagePages | undefined,
-  profile: UserProfileUpdatedPayload,
-): MessagePages | undefined {
-  if (!current) {
-    return current;
-  }
-
-  return {
-    ...current,
-    pages: current.pages.map((page) => ({
-      ...page,
-      messages: page.messages.map((message) =>
-        message.author.id === profile.userId
-          ? {
-              ...message,
-              author: {
-                ...message.author,
-                avatarUrl: profile.avatarUrl,
-                customStatus: profile.customStatus,
-                displayName: profile.displayName ?? profile.username,
-                status: profile.status,
-                username: profile.username,
-              },
-            }
-          : message,
-      ),
-    })),
-  };
-}
 
 function patchDMConversationParticipants(
   current: DMConversationsInfiniteData | undefined,
@@ -437,7 +408,7 @@ function getAddMemberErrorKey(error: unknown) {
 }
 
 export function WizardsShell({ children, currentUser, uploadthingEnabled }: WizardsShellProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const socket = useSocket();
   const appearanceHydratedFromHook = useAppearanceHydration();
   const params = useParams<{
@@ -1046,13 +1017,19 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const canManageContextServer = Boolean(contextServer && contextServer.accessLevel !== "MEMBER");
   const canLeaveContextServer = Boolean(contextServer && contextServer.accessLevel !== "OWNER");
   const hasPrimaryContextActions = canAddUserFromContextMenu || canManageContextServer;
+  const interfaceDensity = layoutSettings?.interfaceDensity ?? "COMFORTABLE";
+  const densityMetrics = getInterfaceDensityMetrics(interfaceDensity);
   const shellStyle = useMemo(
     () =>
       ({
         "--channel-sidebar-width": navigationSidebarWidth,
+        "--density-control-min-height": `${densityMetrics.controlMinHeight}px`,
+        "--density-row-gap": `${densityMetrics.rowGap}px`,
+        "--density-section-gap": `${densityMetrics.sectionGap}px`,
+        "--density-vertical-padding": `${densityMetrics.verticalPadding}px`,
         "--server-rail-width": `${displayServerRailWidth}px`,
       }) as CSSProperties,
-    [displayServerRailWidth, navigationSidebarWidth],
+    [densityMetrics, displayServerRailWidth, navigationSidebarWidth],
   );
 
   useEffect(() => {
@@ -1258,273 +1235,331 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   };
 
   return (
-    <div
-      className="app-shell whispr-channel-shell flex h-[100dvh] overflow-hidden bg-[radial-gradient(circle_at_16%_8%,hsl(var(--primary)/0.08),transparent_30%),radial-gradient(circle_at_88%_16%,hsl(var(--surface-highlight)/0.58),transparent_28%),linear-gradient(180deg,hsl(var(--background)),hsl(var(--surface-base)))] p-0 md:h-screen md:p-3"
-      style={shellStyle}
-      suppressHydrationWarning
-    >
-      {readiness.shouldMountSplash ? (
-        <AppStartupScreen
-          busy={!readiness.isReady}
-          className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${
-            readiness.shouldShowSplash ? "opacity-100" : "pointer-events-none opacity-0"
-          }`}
-          experience={isDesktopRuntime ? "desktop" : "default"}
-          status={readiness.status}
-          variant="overlay"
-        />
-      ) : null}
-
+    <AccountPreferenceProvider locale={locale} preferences={layoutSettings ?? null}>
       <div
-        className="hidden h-full shrink-0 md:flex"
-        style={{ width: `calc(${displayServerRailWidth}px + ${navigationSidebarWidth})` }}
+        className="app-shell whispr-channel-shell flex h-[100dvh] overflow-hidden bg-[radial-gradient(circle_at_16%_8%,hsl(var(--primary)/0.08),transparent_30%),radial-gradient(circle_at_88%_16%,hsl(var(--surface-highlight)/0.58),transparent_28%),linear-gradient(180deg,hsl(var(--background)),hsl(var(--surface-base)))] p-0 md:h-screen md:p-3"
+        data-interface-density={interfaceDensity.toLowerCase()}
+        style={shellStyle}
         suppressHydrationWarning
       >
-        <NavigationPanel
-          isMobile={false}
-          activeServerId={activeServerId}
-          activeChannelId={activeChannelId}
-          servers={servers}
-          dmUnreadCount={dmUnreadCount}
-          serversQueryLoading={serversQuery.isLoading}
-          serverDetailQueryData={serverDetailQuery.data}
-          serverDetailQueryLoading={serverDetailQuery.isLoading}
-          currentUser={visibleCurrentUser}
-          currentUserId={currentUser.id}
-          onNavigate={navigate}
-          onPrefetch={prefetch}
-          onOpenCreateServer={() => openServerModal({ mode: "create" })}
-          onOpenServerContextMenu={(serverId, event) => {
-            event.preventDefault();
-            openServerContextMenu(serverId, {
-              x: event.clientX,
-              y: event.clientY,
-            });
-          }}
-          onOpenSettings={openSettings}
-          onCurrentUserStatusChange={setCurrentUserStatus}
-          resolveServerHref={resolveServerHref}
-        />
-      </div>
+        {readiness.shouldMountSplash ? (
+          <AppStartupScreen
+            busy={!readiness.isReady}
+            className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${
+              readiness.shouldShowSplash ? "opacity-100" : "pointer-events-none opacity-0"
+            }`}
+            experience={isDesktopRuntime ? "desktop" : "default"}
+            status={readiness.status}
+            variant="overlay"
+          />
+        ) : null}
 
-      <AnimatePresence>
-        {shouldShowMobileWorkspaceDrawer ? (
-          <motion.div
-            animate={{ opacity: 1 }}
-            className="fixed inset-0 z-[70] md:hidden"
-            exit={{ opacity: 0 }}
-            initial={{ opacity: 0 }}
-          >
-            <div
-              className="absolute inset-0 bg-[hsl(var(--backdrop)/0.52)] backdrop-blur-xs"
-              data-testid="mobile-workspace-drawer-backdrop"
-              onClick={() => setMobileSidebarOpen(false)}
-            />
+        <div
+          className="hidden h-full shrink-0 md:flex"
+          style={{ width: `calc(${displayServerRailWidth}px + ${navigationSidebarWidth})` }}
+          suppressHydrationWarning
+        >
+          <NavigationPanel
+            isMobile={false}
+            activeServerId={activeServerId}
+            activeChannelId={activeChannelId}
+            servers={servers}
+            dmUnreadCount={dmUnreadCount}
+            serversQueryLoading={serversQuery.isLoading}
+            serverDetailQueryData={serverDetailQuery.data}
+            serverDetailQueryLoading={serverDetailQuery.isLoading}
+            currentUser={visibleCurrentUser}
+            currentUserId={currentUser.id}
+            onNavigate={navigate}
+            onPrefetch={prefetch}
+            onOpenCreateServer={() => openServerModal({ mode: "create" })}
+            onOpenServerContextMenu={(serverId, event) => {
+              event.preventDefault();
+              openServerContextMenu(serverId, {
+                x: event.clientX,
+                y: event.clientY,
+              });
+            }}
+            onOpenSettings={openSettings}
+            onCurrentUserStatusChange={setCurrentUserStatus}
+            resolveServerHref={resolveServerHref}
+          />
+        </div>
+
+        <AnimatePresence>
+          {shouldShowMobileWorkspaceDrawer ? (
             <motion.div
-              animate={{ x: 0 }}
-              aria-label={t("shell.mobile.workspaceNavigation")}
-              aria-modal="true"
-              className="app-shell absolute inset-y-0 left-0 flex max-w-[100vw] overflow-hidden rounded-r-[30px] shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)]"
-              data-testid="mobile-workspace-drawer"
-              exit={{ x: -24 }}
-              initial={{ x: -24 }}
-              role="dialog"
-              style={{ width: RESPONSIVE_SHELL_SIZES.mobileWorkspaceDrawerWidth }}
-              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-              suppressHydrationWarning
+              animate={{ opacity: 1 }}
+              className="fixed inset-0 z-[70] md:hidden"
+              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }}
             >
-              <NavigationPanel
-                isMobile={true}
-                activeServerId={activeServerId}
-                activeChannelId={activeChannelId}
-                servers={servers}
-                dmUnreadCount={dmUnreadCount}
-                serversQueryLoading={serversQuery.isLoading}
-                serverDetailQueryData={serverDetailQuery.data}
-                serverDetailQueryLoading={serverDetailQuery.isLoading}
-                currentUser={visibleCurrentUser}
-                currentUserId={currentUser.id}
-                onNavigate={navigate}
-                onPrefetch={prefetch}
-                onOpenCreateServer={() => openServerModal({ mode: "create" })}
-                onOpenServerContextMenu={(serverId, event) => {
-                  event.preventDefault();
-                  openServerContextMenu(serverId, {
-                    x: event.clientX,
-                    y: event.clientY,
-                  });
-                }}
-                onOpenSettings={openSettings}
-                onCurrentUserStatusChange={setCurrentUserStatus}
-                resolveServerHref={resolveServerHref}
+              <div
+                className="absolute inset-0 bg-[hsl(var(--backdrop)/0.52)] backdrop-blur-xs"
+                data-testid="mobile-workspace-drawer-backdrop"
+                onClick={() => setMobileSidebarOpen(false)}
               />
+              <motion.div
+                animate={{ x: 0 }}
+                aria-label={t("shell.mobile.workspaceNavigation")}
+                aria-modal="true"
+                className="app-shell absolute inset-y-0 left-0 flex max-w-[100vw] overflow-hidden rounded-r-[30px] shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)]"
+                data-testid="mobile-workspace-drawer"
+                exit={{ x: -24 }}
+                initial={{ x: -24 }}
+                role="dialog"
+                style={{ width: RESPONSIVE_SHELL_SIZES.mobileWorkspaceDrawerWidth }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                suppressHydrationWarning
+              >
+                <NavigationPanel
+                  isMobile={true}
+                  activeServerId={activeServerId}
+                  activeChannelId={activeChannelId}
+                  servers={servers}
+                  dmUnreadCount={dmUnreadCount}
+                  serversQueryLoading={serversQuery.isLoading}
+                  serverDetailQueryData={serverDetailQuery.data}
+                  serverDetailQueryLoading={serverDetailQuery.isLoading}
+                  currentUser={visibleCurrentUser}
+                  currentUserId={currentUser.id}
+                  onNavigate={navigate}
+                  onPrefetch={prefetch}
+                  onOpenCreateServer={() => openServerModal({ mode: "create" })}
+                  onOpenServerContextMenu={(serverId, event) => {
+                    event.preventDefault();
+                    openServerContextMenu(serverId, {
+                      x: event.clientX,
+                      y: event.clientY,
+                    });
+                  }}
+                  onOpenSettings={openSettings}
+                  onCurrentUserStatusChange={setCurrentUserStatus}
+                  resolveServerHref={resolveServerHref}
+                />
+              </motion.div>
             </motion.div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+          ) : null}
+        </AnimatePresence>
 
-      <div className="flex min-w-0 flex-1 md:gap-0">
-        <MainChannelPanel
-          channel={activeChannel}
-          fallbackTitle={
-            activeServerId
-              ? t("shell.wizards.chooseChannel")
-              : isFriendsRoute
-                ? t("friends.sidebar.friends")
-                : t("shell.wizards.directMessages")
-          }
-          icon={!activeServerId ? Users : undefined}
-          leading={
-            <MobileShellControls
-              canGoBack={showMobileBackButton}
-              onBack={handleMobileBack}
-              onMenu={() => setMobileSidebarOpen(true)}
-            />
-          }
+        <div className="flex min-w-0 flex-1 md:gap-0">
+          <MainChannelPanel
+            channel={activeChannel}
+            fallbackTitle={
+              activeServerId
+                ? t("shell.wizards.chooseChannel")
+                : isFriendsRoute
+                  ? t("friends.sidebar.friends")
+                  : t("shell.wizards.directMessages")
+            }
+            icon={!activeServerId ? Users : undefined}
+            leading={
+              <MobileShellControls
+                canGoBack={showMobileBackButton}
+                onBack={handleMobileBack}
+                onMenu={() => setMobileSidebarOpen(true)}
+              />
+            }
+          >
+            {children}
+          </MainChannelPanel>
+          {responsiveLayout.shouldMountDesktopSupportPanel &&
+          activeServerId &&
+          serverDetailQuery.data ? (
+            <ServerMemberPanel detail={serverDetailQuery.data} />
+          ) : null}
+        </div>
+
+        <ContextMenu
+          onClose={closeServerContextMenu}
+          open={serverContextMenu.open}
+          position={serverContextMenu}
         >
-          {children}
-        </MainChannelPanel>
-        {responsiveLayout.shouldMountDesktopSupportPanel &&
-        activeServerId &&
-        serverDetailQuery.data ? (
-          <ServerMemberPanel detail={serverDetailQuery.data} />
-        ) : null}
-      </div>
-
-      <ContextMenu
-        onClose={closeServerContextMenu}
-        open={serverContextMenu.open}
-        position={serverContextMenu}
-      >
-        {canAddUserFromContextMenu ? (
-          <ContextMenuItem
-            data-testid="server-context-add-user"
-            onClick={() => {
-              closeServerContextMenu();
-              if (contextServer) {
-                setAddMemberServer(contextServer);
-                setAddMemberUsername("");
-                setAddMemberSuccess(null);
-              }
-            }}
-          >
-            {t("shell.context.addUser")}
-          </ContextMenuItem>
-        ) : null}
-        {canAddUserFromContextMenu && canManageContextServer ? <ContextMenuSeparator /> : null}
-        {canManageContextServer ? (
-          <ContextMenuItem
-            data-testid="server-context-invite"
-            onClick={() => {
-              closeServerContextMenu();
-              if (contextServer) {
-                navigate(getServerHref(contextServer));
-                openInviteModal(contextServer.id);
-              }
-            }}
-          >
-            {t("shell.context.invite")}
-          </ContextMenuItem>
-        ) : null}
-        {canManageContextServer ? <ContextMenuSeparator /> : null}
-        {canManageContextServer ? (
-          <ContextMenuItem
-            data-testid="server-context-settings"
-            onClick={() => {
-              closeServerContextMenu();
-              if (contextServer) {
-                navigate(getServerHref(contextServer));
-                openServerSettings(contextServer.id);
-              }
-            }}
-          >
-            {t("shell.context.settings")}
-          </ContextMenuItem>
-        ) : null}
-        {canLeaveContextServer && hasPrimaryContextActions ? <ContextMenuSeparator /> : null}
-        {canLeaveContextServer ? (
-          <ContextMenuItem
-            destructive
-            onClick={() => {
-              if (!contextServer) {
-                return;
-              }
-
-              closeServerContextMenu();
-              leaveMutation.reset();
-              setLeaveServerCandidate(contextServer);
-            }}
-          >
-            {t("shell.context.leaveServer")}
-          </ContextMenuItem>
-        ) : null}
-      </ContextMenu>
-
-      <Modal
-        description={t("workspace.modal.addMemberDescription", {
-          server: addMemberServer?.name ?? "",
-        })}
-        onClose={() => {
-          setAddMemberServer(null);
-          setAddMemberUsername("");
-          setAddMemberSuccess(null);
-          addMemberMutation.reset();
-        }}
-        open={Boolean(addMemberServer)}
-        title={t("workspace.modal.addMemberTitle")}
-      >
-        <form
-          className="space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            addMemberMutation.mutate();
-          }}
-        >
-          <div className="space-y-2">
-            <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
-              {t("workspace.modal.addMemberUsername")}
-            </label>
-            <Input
-              autoComplete="off"
-              data-testid="add-server-member-input"
-              maxLength={32}
-              onChange={(event) => {
-                setAddMemberUsername(event.target.value);
-                if (addMemberSuccess) {
+          {canAddUserFromContextMenu ? (
+            <ContextMenuItem
+              data-testid="server-context-add-user"
+              onClick={() => {
+                closeServerContextMenu();
+                if (contextServer) {
+                  setAddMemberServer(contextServer);
+                  setAddMemberUsername("");
                   setAddMemberSuccess(null);
                 }
               }}
-              placeholder={t("workspace.modal.addMemberPlaceholder")}
-              value={addMemberUsername}
-            />
+            >
+              {t("shell.context.addUser")}
+            </ContextMenuItem>
+          ) : null}
+          {canAddUserFromContextMenu && canManageContextServer ? <ContextMenuSeparator /> : null}
+          {canManageContextServer ? (
+            <ContextMenuItem
+              data-testid="server-context-invite"
+              onClick={() => {
+                closeServerContextMenu();
+                if (contextServer) {
+                  navigate(getServerHref(contextServer));
+                  openInviteModal(contextServer.id);
+                }
+              }}
+            >
+              {t("shell.context.invite")}
+            </ContextMenuItem>
+          ) : null}
+          {canManageContextServer ? <ContextMenuSeparator /> : null}
+          {canManageContextServer ? (
+            <ContextMenuItem
+              data-testid="server-context-settings"
+              onClick={() => {
+                closeServerContextMenu();
+                if (contextServer) {
+                  navigate(getServerHref(contextServer));
+                  openServerSettings(contextServer.id);
+                }
+              }}
+            >
+              {t("shell.context.settings")}
+            </ContextMenuItem>
+          ) : null}
+          {canLeaveContextServer && hasPrimaryContextActions ? <ContextMenuSeparator /> : null}
+          {canLeaveContextServer ? (
+            <ContextMenuItem
+              destructive
+              onClick={() => {
+                if (!contextServer) {
+                  return;
+                }
+
+                closeServerContextMenu();
+                leaveMutation.reset();
+                setLeaveServerCandidate(contextServer);
+              }}
+            >
+              {t("shell.context.leaveServer")}
+            </ContextMenuItem>
+          ) : null}
+        </ContextMenu>
+
+        <Modal
+          description={t("workspace.modal.addMemberDescription", {
+            server: addMemberServer?.name ?? "",
+          })}
+          onClose={() => {
+            setAddMemberServer(null);
+            setAddMemberUsername("");
+            setAddMemberSuccess(null);
+            addMemberMutation.reset();
+          }}
+          open={Boolean(addMemberServer)}
+          title={t("workspace.modal.addMemberTitle")}
+        >
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              addMemberMutation.mutate();
+            }}
+          >
+            <div className="space-y-2">
+              <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+                {t("workspace.modal.addMemberUsername")}
+              </label>
+              <Input
+                autoComplete="off"
+                data-testid="add-server-member-input"
+                maxLength={32}
+                onChange={(event) => {
+                  setAddMemberUsername(event.target.value);
+                  if (addMemberSuccess) {
+                    setAddMemberSuccess(null);
+                  }
+                }}
+                placeholder={t("workspace.modal.addMemberPlaceholder")}
+                value={addMemberUsername}
+              />
+            </div>
+
+            {addMemberSuccess ? (
+              <div
+                className="app-success rounded-[24px] border p-4"
+                data-testid="add-server-member-success"
+              >
+                <p className="text-app-success text-xs font-semibold uppercase tracking-[0.2em]">
+                  {t("workspace.modal.addMemberSuccessTitle")}
+                </p>
+                <p className="text-app-foreground mt-2 text-sm font-medium">{addMemberSuccess}</p>
+              </div>
+            ) : null}
+
+            {addMemberMutation.error ? (
+              <div className="app-danger rounded-[24px] border p-4 text-sm font-medium">
+                {t(getAddMemberErrorKey(addMemberMutation.error))}
+              </div>
+            ) : null}
+
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  setAddMemberServer(null);
+                  setAddMemberUsername("");
+                  setAddMemberSuccess(null);
+                  addMemberMutation.reset();
+                }}
+                type="button"
+                variant="outline"
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button
+                className="w-full sm:w-auto"
+                data-testid="add-server-member-submit"
+                disabled={addMemberMutation.isPending || addMemberUsername.trim().length < 2}
+                type="submit"
+              >
+                <UserPlus className="h-4 w-4" />
+                {addMemberMutation.isPending
+                  ? t("workspace.modal.addMemberAdding")
+                  : t("workspace.modal.addMemberAction")}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        <Modal
+          className="max-w-md"
+          description={t("shell.context.leaveServerDialogDescription", {
+            name: leaveServerCandidate?.name ?? "",
+          })}
+          onClose={() => {
+            setLeaveServerCandidate(null);
+            leaveMutation.reset();
+          }}
+          open={Boolean(leaveServerCandidate)}
+          title={t("shell.context.leaveServerDialogTitle")}
+        >
+          <div className="rounded-[24px] border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] p-4">
+            <p className="text-sm font-medium text-app-foreground">
+              {t("shell.context.leaveServerDialogBody", {
+                name: leaveServerCandidate?.name ?? "",
+              })}
+            </p>
           </div>
 
-          {addMemberSuccess ? (
-            <div
-              className="app-success rounded-[24px] border p-4"
-              data-testid="add-server-member-success"
-            >
-              <p className="text-app-success text-xs font-semibold uppercase tracking-[0.2em]">
-                {t("workspace.modal.addMemberSuccessTitle")}
-              </p>
-              <p className="text-app-foreground mt-2 text-sm font-medium">{addMemberSuccess}</p>
+          {leaveMutation.error ? (
+            <div className="app-danger mt-4 rounded-[24px] border p-4 text-sm font-medium">
+              {leaveMutation.error instanceof Error
+                ? leaveMutation.error.message
+                : t("shell.context.leaveServerDialogError")}
             </div>
           ) : null}
 
-          {addMemberMutation.error ? (
-            <div className="app-danger rounded-[24px] border p-4 text-sm font-medium">
-              {t(getAddMemberErrorKey(addMemberMutation.error))}
-            </div>
-          ) : null}
-
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
-              className="w-full sm:w-auto"
+              className="w-full rounded-2xl sm:w-auto"
+              disabled={leaveMutation.isPending}
               onClick={() => {
-                setAddMemberServer(null);
-                setAddMemberUsername("");
-                setAddMemberSuccess(null);
-                addMemberMutation.reset();
+                setLeaveServerCandidate(null);
+                leaveMutation.reset();
               }}
               type="button"
               variant="outline"
@@ -1532,95 +1567,42 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
               {t("common.cancel")}
             </Button>
             <Button
-              className="w-full sm:w-auto"
-              data-testid="add-server-member-submit"
-              disabled={addMemberMutation.isPending || addMemberUsername.trim().length < 2}
-              type="submit"
+              className="w-full rounded-2xl bg-[hsl(var(--danger))] text-white hover:bg-[hsl(var(--danger)/0.9)] sm:w-auto"
+              disabled={leaveMutation.isPending || !leaveServerCandidate}
+              onClick={() => {
+                if (leaveServerCandidate) {
+                  leaveMutation.mutate(leaveServerCandidate.id);
+                }
+              }}
+              type="button"
             >
-              <UserPlus className="h-4 w-4" />
-              {addMemberMutation.isPending
-                ? t("workspace.modal.addMemberAdding")
-                : t("workspace.modal.addMemberAction")}
+              {leaveMutation.isPending
+                ? t("shell.context.leaveServerLeaving")
+                : t("shell.context.leaveServer")}
             </Button>
           </div>
-        </form>
-      </Modal>
+        </Modal>
 
-      <Modal
-        className="max-w-md"
-        description={t("shell.context.leaveServerDialogDescription", {
-          name: leaveServerCandidate?.name ?? "",
-        })}
-        onClose={() => {
-          setLeaveServerCandidate(null);
-          leaveMutation.reset();
-        }}
-        open={Boolean(leaveServerCandidate)}
-        title={t("shell.context.leaveServerDialogTitle")}
-      >
-        <div className="rounded-[24px] border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] p-4">
-          <p className="text-sm font-medium text-app-foreground">
-            {t("shell.context.leaveServerDialogBody", {
-              name: leaveServerCandidate?.name ?? "",
-            })}
-          </p>
-        </div>
+        <WorkspaceModals
+          activeServerDetail={serverDetailQuery.data ?? null}
+          onNavigate={navigate}
+          uploadthingEnabled={uploadthingEnabled}
+        />
 
-        {leaveMutation.error ? (
-          <div className="app-danger mt-4 rounded-[24px] border p-4 text-sm font-medium">
-            {leaveMutation.error instanceof Error
-              ? leaveMutation.error.message
-              : t("shell.context.leaveServerDialogError")}
-          </div>
-        ) : null}
+        <ServerSettingsOverlay
+          detail={
+            serverSettingsServerId === activeServerId ? (serverDetailQuery.data ?? null) : null
+          }
+          onOpenDeleteServer={openDeleteServerFromSettings}
+          open={Boolean(serverSettingsServerId && serverSettingsServerId === activeServerId)}
+          uploadthingEnabled={uploadthingEnabled}
+        />
 
-        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button
-            className="w-full rounded-2xl sm:w-auto"
-            disabled={leaveMutation.isPending}
-            onClick={() => {
-              setLeaveServerCandidate(null);
-              leaveMutation.reset();
-            }}
-            type="button"
-            variant="outline"
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button
-            className="w-full rounded-2xl bg-[hsl(var(--danger))] text-white hover:bg-[hsl(var(--danger)/0.9)] sm:w-auto"
-            disabled={leaveMutation.isPending || !leaveServerCandidate}
-            onClick={() => {
-              if (leaveServerCandidate) {
-                leaveMutation.mutate(leaveServerCandidate.id);
-              }
-            }}
-            type="button"
-          >
-            {leaveMutation.isPending
-              ? t("shell.context.leaveServerLeaving")
-              : t("shell.context.leaveServer")}
-          </Button>
-        </div>
-      </Modal>
-
-      <WorkspaceModals
-        activeServerDetail={serverDetailQuery.data ?? null}
-        onNavigate={navigate}
-        uploadthingEnabled={uploadthingEnabled}
-      />
-
-      <ServerSettingsOverlay
-        detail={serverSettingsServerId === activeServerId ? (serverDetailQuery.data ?? null) : null}
-        onOpenDeleteServer={openDeleteServerFromSettings}
-        open={Boolean(serverSettingsServerId && serverSettingsServerId === activeServerId)}
-        uploadthingEnabled={uploadthingEnabled}
-      />
-
-      <InAppSettingsOverlay
-        onClose={() => setSettingsOverlayOpen(false)}
-        open={settingsOverlayOpen}
-      />
-    </div>
+        <InAppSettingsOverlay
+          onClose={() => setSettingsOverlayOpen(false)}
+          open={settingsOverlayOpen}
+        />
+      </div>
+    </AccountPreferenceProvider>
   );
 }

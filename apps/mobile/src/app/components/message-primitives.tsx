@@ -46,6 +46,7 @@ import { useMessagePrimitiveStyles } from "./message-primitives.styles";
 import { useMobileMessageBodyStyle, useTheme } from "../providers/mobile-theme-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { formatMobileDateSeparator } from "../../locale/mobile-date-separator";
+import { useMobileInterfaceDensity } from "../../account/use-mobile-interface-density";
 import { MessageEmojiPicker } from "./message-emoji-picker";
 import { formatMobileRelativeTime } from "../../locale/mobile-relative-time";
 import { getActiveMobileLocale } from "../../locale/mobile-locale-preferences";
@@ -943,6 +944,44 @@ export function MessageStream({
     },
     [streamItems],
   );
+  // A new callback is meaningful row input: the memo comparator must observe
+  // handler changes, so the list keeps this one stable between real changes.
+  const renderItem = useCallback(
+    ({ item }: { item: (typeof streamItems)[number] }) => (
+      <View style={styles.messageStreamItem}>
+        {item.showDateSeparator ? (
+          <MessageDateSeparator createdAt={item.message.createdAt} />
+        ) : null}
+        <MemoizedMessagePreviewRow
+          currentUserId={currentUserId}
+          isReactionMutationPending={isReactionMutationPending}
+          message={item.message}
+          own={item.message.author.id === currentUserId}
+          {...(onOpenThread ? { onOpenThread } : {})}
+          {...(onDeleteMessage ? { onDeleteMessage } : {})}
+          {...(onDiscardFailedMessage ? { onDiscardFailedMessage } : {})}
+          {...(onEditMessage ? { onEditMessage } : {})}
+          {...(onReplyMessage ? { onReplyMessage } : {})}
+          {...(onRetryFailedMessage ? { onRetryFailedMessage } : {})}
+          onOpenReply={handleOpenReply}
+          {...(onToggleReaction ? { onToggleReaction } : {})}
+        />
+      </View>
+    ),
+    [
+      currentUserId,
+      handleOpenReply,
+      isReactionMutationPending,
+      onDeleteMessage,
+      onDiscardFailedMessage,
+      onEditMessage,
+      onOpenThread,
+      onReplyMessage,
+      onRetryFailedMessage,
+      onToggleReaction,
+      styles.messageStreamItem,
+    ],
+  );
 
   return (
     <FlashList
@@ -951,27 +990,7 @@ export function MessageStream({
       keyExtractor={(item) => item.id}
       onLoad={mobileListLoadHandlers.channelMessagesPreview}
       ref={listRef}
-      renderItem={({ item }) => (
-        <View style={styles.messageStreamItem}>
-          {item.showDateSeparator ? (
-            <MessageDateSeparator createdAt={item.message.createdAt} />
-          ) : null}
-          <MemoizedMessagePreviewRow
-            currentUserId={currentUserId}
-            isReactionMutationPending={isReactionMutationPending}
-            message={item.message}
-            own={item.message.author.id === currentUserId}
-            {...(onOpenThread ? { onOpenThread } : {})}
-            {...(onDeleteMessage ? { onDeleteMessage } : {})}
-            {...(onDiscardFailedMessage ? { onDiscardFailedMessage } : {})}
-            {...(onEditMessage ? { onEditMessage } : {})}
-            {...(onReplyMessage ? { onReplyMessage } : {})}
-            {...(onRetryFailedMessage ? { onRetryFailedMessage } : {})}
-            onOpenReply={handleOpenReply}
-            {...(onToggleReaction ? { onToggleReaction } : {})}
-          />
-        </View>
-      )}
+      renderItem={renderItem}
       showsVerticalScrollIndicator={false}
       style={styles.dmMessageList}
       testID="mobile-dm-message-list"
@@ -1037,6 +1056,7 @@ export function MessagePreviewRow({
   const styles = useMessagePrimitiveStyles();
   const theme = useTheme();
   const haptics = useMobileHaptics();
+  const interfaceDensity = useMobileInterfaceDensity();
   const isChannelMode = mode === "channel";
   const [isEmojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [isLocalMenuOpen, setLocalMenuOpen] = useState(false);
@@ -1112,6 +1132,7 @@ export function MessagePreviewRow({
       style={[
         styles.messagePreviewRow,
         isChannelMode && styles.messagePreviewRowChannel,
+        isChannelMode && interfaceDensity === "COMPACT" && styles.messagePreviewRowChannelCompact,
         isChannelMode && channelGroupContinuation && styles.messagePreviewRowChannelContinuation,
         // §2 "1e".12: the mention fill and stripe belong to the row itself, so
         // they span the full width without a negative-margin bleed.

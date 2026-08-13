@@ -9,7 +9,8 @@ import {
 } from "../src/auth/mobile-social-auth-session";
 
 const webUrl = "https://whispr.team";
-const startUrl = `${webUrl}/mobile/oauth/start?callbackUrl=%2Fchannels%2F%40me&provider=google`;
+const oauthState = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+const startUrl = `${webUrl}/mobile/oauth/start?callbackUrl=%2Fchannels%2F%40me&provider=google&state=${oauthState}`;
 const handoffToken = "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-"; // gitleaks:allow -- deterministic invalid fixture
 
 function createSession(
@@ -29,7 +30,7 @@ describe("mobile in-app social auth session", () => {
       calls.push([url, redirectUrl]);
       return {
         type: "success",
-        url: `whispr://oauth/${handoffToken}?callbackUrl=%2Fchannels%2F%40me`,
+        url: `whispr://oauth/${handoffToken}?callbackUrl=%2Fchannels%2F%40me&state=${oauthState}`,
       };
     });
 
@@ -37,6 +38,7 @@ describe("mobile in-app social auth session", () => {
     assert.deepEqual(outcome, {
       callbackPath: "/channels/@me",
       handoffToken,
+      state: oauthState,
       type: "completed",
     });
   });

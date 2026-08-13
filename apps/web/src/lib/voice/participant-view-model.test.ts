@@ -93,36 +93,47 @@ describe("voice participant view models", () => {
       remoteParticipants: new Map([["user-2", remoteParticipant]]),
     };
 
-    assert.deepEqual(collectVoiceParticipants(room as never, currentUser), [
-      {
-        audioLevel: 0.4,
-        avatarUrl: "https://example.com/me.png",
-        // The publication rides along so a tile can request its own layer.
-        cameraPublication: { isMuted: false, videoTrack: localCameraTrack },
-        cameraTrack: localCameraTrack,
-        displayName: "Current User",
-        isCameraEnabled: true,
-        isDeafened: false,
-        isLocal: true,
-        isMuted: false,
-        isSpeaking: true,
-        userId: "user-1",
-        username: "current",
-      },
-      {
-        audioLevel: 0.5,
-        avatarUrl: "https://example.com/remote.png",
-        cameraPublication: { isMuted: false, videoTrack: remoteCameraTrack },
-        cameraTrack: remoteCameraTrack,
-        displayName: "Remote User",
-        isCameraEnabled: true,
-        isDeafened: true,
-        isLocal: false,
-        isMuted: false,
-        isSpeaking: true,
-        userId: "user-2",
-        username: "remote",
-      },
-    ]);
+    assert.deepEqual(
+      collectVoiceParticipants(room as never, currentUser, [
+        {
+          avatarUrl: "https://example.com/remote.png",
+          displayName: "Remote User",
+          isDeafened: true,
+          userId: "user-2",
+          username: "remote",
+        },
+      ]),
+      [
+        {
+          audioLevel: 0.4,
+          avatarUrl: "https://example.com/me.png",
+          // The publication rides along so a tile can request its own layer.
+          cameraPublication: { isMuted: false, videoTrack: localCameraTrack },
+          cameraTrack: localCameraTrack,
+          displayName: "Current User",
+          isCameraEnabled: true,
+          isDeafened: false,
+          isLocal: true,
+          isMuted: false,
+          isSpeaking: true,
+          userId: "user-1",
+          username: "current",
+        },
+        {
+          audioLevel: 0.5,
+          avatarUrl: "https://example.com/remote.png",
+          cameraPublication: { isMuted: false, videoTrack: remoteCameraTrack },
+          cameraTrack: remoteCameraTrack,
+          displayName: "Remote User",
+          isCameraEnabled: true,
+          isDeafened: true,
+          isLocal: false,
+          isMuted: false,
+          isSpeaking: true,
+          userId: "user-2",
+          username: "remote",
+        },
+      ],
+    );
   });
 });

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   buildContentSecurityPolicy,
+  getAuthTokenDisposition,
   getAuthRouteRedirectPath,
   isMutatingApiRequestAllowed,
 } from "./proxy";
@@ -44,6 +45,46 @@ describe("API CSRF guard", () => {
         requestOrigin,
       }),
       false,
+    );
+  });
+
+  it("blocks mutating API requests when every origin signal is absent", () => {
+    assert.equal(
+      isMutatingApiRequestAllowed({
+        method: "POST",
+        pathname: "/api/v1/servers",
+        requestOrigin,
+      }),
+      false,
+    );
+  });
+
+  it("allows signal-less non-browser clients only through Bearer authentication", () => {
+    assert.equal(
+      isMutatingApiRequestAllowed({
+        authorizationHeader: "Bearer mobile-access-token",
+        method: "POST",
+        pathname: "/api/v1/mobile/support/report",
+        requestOrigin,
+      }),
+      true,
+    );
+    assert.equal(
+      isMutatingApiRequestAllowed({
+        authorizationHeader: "Bearer ignored-by-web-session-route",
+        method: "POST",
+        pathname: "/api/v1/servers",
+        requestOrigin,
+      }),
+      false,
+    );
+    assert.equal(
+      isMutatingApiRequestAllowed({
+        method: "POST",
+        pathname: "/api/v1/mobile/auth/login",
+        requestOrigin,
+      }),
+      true,
     );
   });
 
@@ -121,5 +162,31 @@ describe("auth middleware fail-closed contract", () => {
       }),
       "/login",
     );
+  });
+
+  it("treats revoked and identity-less cookies as anonymous without looping at login", () => {
+    for (const token of [{ revoked: true, sub: "user-1" }, { sub: "" }]) {
+      const disposition = getAuthTokenDisposition(token);
+      assert.deepEqual(disposition, {
+        isAuthenticated: false,
+        shouldExpireCookies: true,
+      });
+      assert.equal(
+        getAuthRouteRedirectPath({
+          hasAuthSecret: true,
+          isAuthenticated: disposition.isAuthenticated,
+          pathname: "/channels",
+        }),
+        "/login",
+      );
+      assert.equal(
+        getAuthRouteRedirectPath({
+          hasAuthSecret: true,
+          isAuthenticated: disposition.isAuthenticated,
+          pathname: "/login",
+        }),
+        null,
+      );
+    }
   });
 });

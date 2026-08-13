@@ -11,16 +11,14 @@ import {
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Accessibility,
   Award,
   BellRing,
-  Camera,
   CalendarDays,
+  Camera,
   CheckCircle2,
   ChevronRight,
   Clock3,
   Copy,
-  ExternalLink,
   Eye,
   Gamepad2,
   Globe2,
@@ -33,6 +31,7 @@ import {
   Mail,
   MessageCircle,
   MonitorUp,
+  Search,
   ShieldCheck,
   Sparkles,
   Type,
@@ -44,6 +43,12 @@ import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { UserStatus } from "@wizards/db/browser";
+import {
+  ACCOUNT_FORMAT_PREVIEW_INSTANT,
+  formatAccountDate,
+  formatAccountTime,
+  getAccountTimeZoneOptions,
+} from "@wizards/types";
 import { Button } from "@wizards/ui";
 import { useShallow } from "zustand/react/shallow";
 import type { UserLayoutSettings } from "@/app/api/v1/users/me/settings/route";
@@ -82,6 +87,9 @@ import {
   type ProfileCompletionSummary,
 } from "@/lib/account/profile-completion";
 import { AccountBadgesCard } from "@/components/settings/account-badges-card";
+import { ActiveSessionsCard } from "@/components/settings/active-sessions-card";
+import { AccountDataControls } from "@/components/settings/account-data-controls";
+import { getAccountSettingsSurface } from "@/components/settings/account-settings-surface";
 import { BADGE_QUERY_STALE_TIME_MS, badgeQueryKeys, fetchOwnBadges } from "@/lib/badges/client";
 import { fetchLayoutSettings, patchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
 import {
@@ -104,6 +112,7 @@ import {
 import type { WhisprReleaseNote } from "@/lib/app-version";
 
 const FEATURED_CONTRIBUTOR_NAME = "O\u011Fuz G\u00FC\u011F\u00FCmc\u00FCo\u011Flu";
+const ACCOUNT_SETTINGS_SURFACE = getAccountSettingsSurface();
 
 const CameraPreferencesPanel = dynamic(
   () =>
@@ -159,15 +168,9 @@ type AccountField = "displayName" | "email" | "status" | "username";
 const subscribeToHydration = () => () => {};
 const subscribeToDesktopRuntime = () => () => {};
 
-function getBrowserTimeZone() {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Istanbul";
-  } catch {
-    return "Europe/Istanbul";
-  }
-}
 type DmPolicyValue = UserLayoutSettings["dmPolicy"];
 type FriendRequestPolicyValue = UserLayoutSettings["friendRequestPolicy"];
+type VisibilityPolicyValue = UserLayoutSettings["profileVisibility"];
 
 const DM_POLICY_OPTIONS = [
   "EVERYONE",
@@ -183,6 +186,27 @@ const FRIEND_REQUEST_POLICY_OPTIONS = [
   "NOBODY",
 ] as const satisfies readonly FriendRequestPolicyValue[];
 
+const VISIBILITY_POLICY_OPTIONS = [
+  "EVERYONE",
+  "FRIENDS",
+  "NOBODY",
+] as const satisfies readonly VisibilityPolicyValue[];
+const DATE_FORMAT_OPTIONS = [
+  "LOCALE",
+  "DMY",
+  "MDY",
+  "YMD",
+] as const satisfies readonly UserLayoutSettings["dateFormat"][];
+const TIME_FORMAT_OPTIONS = [
+  "LOCALE",
+  "H12",
+  "H24",
+] as const satisfies readonly UserLayoutSettings["timeFormat"][];
+const INTERFACE_DENSITY_OPTIONS = [
+  "COMFORTABLE",
+  "COMPACT",
+] as const satisfies readonly UserLayoutSettings["interfaceDensity"][];
+
 const DESKTOP_RICH_PRESENCE_AUDIENCE_OPTIONS = [
   "nobody",
   "friends",
@@ -194,6 +218,10 @@ function getDmPolicyLabelKey(policy: DmPolicyValue) {
 
 function getFriendRequestPolicyLabelKey(policy: FriendRequestPolicyValue) {
   return `settings.account.privacy.friendRequestPolicy.${policy}`;
+}
+
+function getVisibilityPolicyLabelKey(policy: VisibilityPolicyValue) {
+  return `settings.account.visibility.${policy.toLowerCase()}`;
 }
 
 function SectionHero({
@@ -456,22 +484,6 @@ function getAccountStatusLabelKey(status: UserStatus) {
   return status === UserStatus.INVISIBLE
     ? "settings.account.status.invisible"
     : `friends.status.${status.toLowerCase()}`;
-}
-
-function getBrowserTimeZoneLabel(timeZone: string, locale: "en" | "tr") {
-  const city = timeZone.split("/").pop()?.replace(/_/g, " ") || timeZone;
-  const localizedCity = locale === "tr" && city === "Istanbul" ? "\u0130stanbul" : city;
-
-  try {
-    const parts = new Intl.DateTimeFormat("en", {
-      timeZone,
-      timeZoneName: "longOffset",
-    }).formatToParts(new Date());
-    const offset = parts.find((part) => part.type === "timeZoneName")?.value ?? "GMT+03:00";
-    return `(${offset.replace("GMT", "UTC")}) ${localizedCity}`;
-  } catch {
-    return localizedCity;
-  }
 }
 
 function getLocaleDisplayName(locale: "en" | "tr") {
@@ -941,22 +953,6 @@ function SecurityCenterCard({
           }
           title={t("settings.account.quickSuggestions.recoveryCodes.title")}
         />
-        <SuggestionRow
-          description={t("settings.account.security.sessions.description")}
-          disabled
-          icon={MonitorUp}
-          note={t("settings.account.security.sessions.note")}
-          status={<Badge tone="muted">{t("settings.account.preview")}</Badge>}
-          title={t("settings.account.security.sessions.title")}
-        />
-        <SuggestionRow
-          description={t("settings.account.security.export.description")}
-          disabled
-          icon={ExternalLink}
-          note={t("settings.account.security.export.note")}
-          status={<Badge tone="muted">{t("settings.account.preview")}</Badge>}
-          title={t("settings.account.security.export.title")}
-        />
       </div>
 
       <div className="mt-3 rounded-[16px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--background)/0.46)] p-3">
@@ -1103,8 +1099,6 @@ function SecurityCenterCard({
 function AccountPreferenceRow({
   description,
   icon: Icon,
-  preview = false,
-  previewLabel,
   title,
   value,
   onClick,
@@ -1112,8 +1106,6 @@ function AccountPreferenceRow({
   description: string;
   icon: LucideIcon;
   onClick?: () => void;
-  preview?: boolean;
-  previewLabel?: string;
   title: string;
   value: string;
 }) {
@@ -1128,7 +1120,6 @@ function AccountPreferenceRow({
       </span>
       <span className="flex min-w-0 shrink-0 items-center gap-2 text-right text-xs font-black text-app-muted">
         <span className="max-w-[8rem] truncate sm:max-w-[12rem]">{value}</span>
-        {preview && previewLabel ? <Badge tone="muted">{previewLabel}</Badge> : null}
         <ChevronRight className="h-4 w-4 shrink-0 text-app-soft" />
       </span>
     </>
@@ -1198,19 +1189,149 @@ function AccountPreferenceSelectRow<TValue extends string>({
   );
 }
 
+function AccountTimeZoneCombobox({
+  disabled,
+  locale,
+  onChange,
+  t,
+  value,
+}: {
+  disabled: boolean;
+  locale: "en" | "tr";
+  onChange: (value: string) => void;
+  t: (key: string, values?: Record<string, number | string>) => string;
+  value: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const options = useMemo(() => getAccountTimeZoneOptions({ selectedTimeZone: value }), [value]);
+  const filteredOptions = useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase(locale);
+    return normalized
+      ? options.filter((option) => option.toLocaleLowerCase(locale).includes(normalized))
+      : options;
+  }, [locale, options, query]);
+  const displayValue = value === "AUTO" ? t("settings.account.preferences.timeZone.auto") : value;
+
+  return (
+    <div
+      className="relative rounded-[15px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface)/0.72)] p-2"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setOpen(false);
+          setQuery("");
+        }
+      }}
+    >
+      <div className="flex items-start gap-2">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
+          <Clock3 className="h-3.5 w-3.5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] font-bold text-app-foreground">
+            {t("settings.account.preferences.timeZone.title")}
+          </span>
+          <span className="mt-0.5 block text-xs leading-4 text-app-muted">
+            {t("settings.account.preferences.timeZone.description")}
+          </span>
+        </span>
+      </div>
+      <div className="relative mt-2">
+        <Search
+          aria-hidden
+          className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-app-soft"
+        />
+        <input
+          aria-autocomplete="list"
+          aria-controls="account-time-zone-options"
+          aria-expanded={open}
+          aria-label={t("settings.account.preferences.timeZone.title")}
+          className="min-h-11 w-full rounded-xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface)/0.9)] pl-9 pr-3 text-xs font-bold text-app-foreground outline-hidden transition placeholder:font-medium placeholder:text-app-soft focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={disabled}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setOpen(true);
+          }}
+          onClick={() => setOpen(true)}
+          onFocus={() => setOpen(true)}
+          placeholder={displayValue}
+          role="combobox"
+          value={query}
+        />
+        {open ? (
+          <div
+            className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-[hsl(var(--border)/0.76)] bg-[hsl(var(--surface))] p-1 shadow-[0_18px_45px_hsl(var(--shadow-color)/0.18)]"
+            id="account-time-zone-options"
+            role="listbox"
+          >
+            {filteredOptions.length ? (
+              filteredOptions.map((option) => {
+                const label =
+                  option === "AUTO" ? t("settings.account.preferences.timeZone.auto") : option;
+                return (
+                  <button
+                    aria-selected={option === value}
+                    className={cn(
+                      "flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-3 text-left text-xs font-semibold transition hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                      option === value &&
+                        "bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]",
+                    )}
+                    key={option}
+                    onClick={() => {
+                      onChange(option);
+                      setOpen(false);
+                      setQuery("");
+                    }}
+                    role="option"
+                    type="button"
+                  >
+                    <span className="min-w-0 break-all">{label}</span>
+                    {option === "AUTO" ? (
+                      <span className="shrink-0 text-[10px] font-black uppercase tracking-wide text-app-soft">
+                        {Intl.DateTimeFormat().resolvedOptions().timeZone}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })
+            ) : (
+              <p className="px-3 py-4 text-center text-xs font-semibold text-app-muted">
+                {t("settings.account.preferences.timeZone.noResults")}
+              </p>
+            )}
+          </div>
+        ) : null}
+      </div>
+      <p className="mt-1.5 break-all px-1 text-[11px] font-semibold text-app-soft">
+        {displayValue}
+      </p>
+    </div>
+  );
+}
+
 function PrivacyVisibilityCard({
   dmPolicy,
   disabled,
+  error,
   friendRequestPolicy,
   onDmPolicyChange,
   onFriendRequestPolicyChange,
+  onPresenceVisibilityChange,
+  onProfileVisibilityChange,
+  presenceVisibility,
+  profileVisibility,
   t,
 }: {
   disabled: boolean;
   dmPolicy: DmPolicyValue;
+  error: string | null;
   friendRequestPolicy: FriendRequestPolicyValue;
   onDmPolicyChange: (policy: DmPolicyValue) => void;
   onFriendRequestPolicyChange: (policy: FriendRequestPolicyValue) => void;
+  onPresenceVisibilityChange: (policy: VisibilityPolicyValue) => void;
+  onProfileVisibilityChange: (policy: VisibilityPolicyValue) => void;
+  presenceVisibility: VisibilityPolicyValue;
+  profileVisibility: VisibilityPolicyValue;
   t: (key: string, values?: Record<string, number | string>) => string;
 }) {
   return (
@@ -1229,58 +1350,92 @@ function PrivacyVisibilityCard({
         </div>
       </div>
       <div className="mt-3 space-y-2">
-        <AccountPreferenceRow
-          description={t("settings.account.privacy.profile.description")}
-          icon={Eye}
-          preview
-          previewLabel={t("settings.account.preview")}
-          title={t("settings.account.privacy.profile.title")}
-          value={t("settings.account.visibility.everyone")}
-        />
-        <AccountPreferenceRow
-          description={t("settings.account.privacy.online.description")}
-          icon={UserRound}
-          preview
-          previewLabel={t("settings.account.preview")}
-          title={t("settings.account.privacy.online.title")}
-          value={t("settings.account.visibility.everyone")}
-        />
-        <AccountPreferenceSelectRow
-          description={t("settings.account.privacy.dm.description")}
-          disabled={disabled}
-          icon={MessageCircle}
-          labelForValue={(value) => t(getDmPolicyLabelKey(value))}
-          onChange={onDmPolicyChange}
-          options={DM_POLICY_OPTIONS}
-          title={t("settings.account.privacy.dmPolicy.title")}
-          value={dmPolicy}
-        />
-        <AccountPreferenceSelectRow
-          description={t("settings.account.privacy.friendRequests.description")}
-          disabled={disabled}
-          icon={UserRound}
-          labelForValue={(value) => t(getFriendRequestPolicyLabelKey(value))}
-          onChange={onFriendRequestPolicyChange}
-          options={FRIEND_REQUEST_POLICY_OPTIONS}
-          title={t("settings.account.privacy.friendRequests.title")}
-          value={friendRequestPolicy}
-        />
+        {ACCOUNT_SETTINGS_SURFACE.privacy.includes("profileVisibility") ? (
+          <AccountPreferenceSelectRow
+            description={t(
+              `settings.account.visibility.profile.${profileVisibility.toLowerCase()}`,
+            )}
+            disabled={disabled}
+            icon={Eye}
+            labelForValue={(value) => t(getVisibilityPolicyLabelKey(value))}
+            onChange={onProfileVisibilityChange}
+            options={VISIBILITY_POLICY_OPTIONS}
+            title={t("settings.account.privacy.profile.title")}
+            value={profileVisibility}
+          />
+        ) : null}
+        {ACCOUNT_SETTINGS_SURFACE.privacy.includes("presenceVisibility") ? (
+          <AccountPreferenceSelectRow
+            description={t(
+              `settings.account.visibility.presence.${presenceVisibility.toLowerCase()}`,
+            )}
+            disabled={disabled}
+            icon={UserRound}
+            labelForValue={(value) => t(getVisibilityPolicyLabelKey(value))}
+            onChange={onPresenceVisibilityChange}
+            options={VISIBILITY_POLICY_OPTIONS}
+            title={t("settings.account.privacy.online.title")}
+            value={presenceVisibility}
+          />
+        ) : null}
+        {ACCOUNT_SETTINGS_SURFACE.privacy.includes("dmPolicy") ? (
+          <AccountPreferenceSelectRow
+            description={t("settings.account.privacy.dm.description")}
+            disabled={disabled}
+            icon={MessageCircle}
+            labelForValue={(value) => t(getDmPolicyLabelKey(value))}
+            onChange={onDmPolicyChange}
+            options={DM_POLICY_OPTIONS}
+            title={t("settings.account.privacy.dmPolicy.title")}
+            value={dmPolicy}
+          />
+        ) : null}
+        {ACCOUNT_SETTINGS_SURFACE.privacy.includes("friendRequestPolicy") ? (
+          <AccountPreferenceSelectRow
+            description={t("settings.account.privacy.friendRequests.description")}
+            disabled={disabled}
+            icon={UserRound}
+            labelForValue={(value) => t(getFriendRequestPolicyLabelKey(value))}
+            onChange={onFriendRequestPolicyChange}
+            options={FRIEND_REQUEST_POLICY_OPTIONS}
+            title={t("settings.account.privacy.friendRequests.title")}
+            value={friendRequestPolicy}
+          />
+        ) : null}
+        {error ? (
+          <p
+            aria-live="polite"
+            className="rounded-lg border border-rose-500/25 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-600"
+          >
+            {error}
+          </p>
+        ) : null}
       </div>
     </section>
   );
 }
 
 function AccountPreferencesCard({
+  disabled,
   locale,
+  onChange,
   onOpenLanguageSettings,
+  settings,
   t,
-  timeZoneLabel,
 }: {
+  disabled: boolean;
   locale: "en" | "tr";
+  onChange: (patch: Partial<UserLayoutSettings>) => void;
   onOpenLanguageSettings: () => void;
+  settings: Pick<UserLayoutSettings, "dateFormat" | "interfaceDensity" | "timeFormat" | "timeZone">;
   t: (key: string, values?: Record<string, number | string>) => string;
-  timeZoneLabel: string;
 }) {
+  const intlLocale = locale === "tr" ? "tr-TR" : "en-US";
+  const formatOptions = {
+    locale: intlLocale,
+    timeZone: settings.timeZone,
+  } as const;
+
   return (
     <section className="rounded-[20px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface)/0.9)] p-3 shadow-[0_12px_32px_hsl(var(--shadow-color)/0.05)] sm:p-4">
       <div className="flex items-start gap-3">
@@ -1297,37 +1452,106 @@ function AccountPreferencesCard({
         </div>
       </div>
       <div className="mt-3 space-y-2">
-        <AccountPreferenceRow
-          description={t("settings.account.preferences.timeZone.description")}
-          icon={Clock3}
-          preview
-          previewLabel={t("settings.account.preview")}
-          title={t("settings.account.preferences.timeZone.title")}
-          value={timeZoneLabel}
-        />
-        <AccountPreferenceRow
-          description={t("settings.account.preferences.language.description")}
-          icon={Languages}
-          onClick={onOpenLanguageSettings}
-          title={t("settings.account.preferences.language.title")}
-          value={getLocaleDisplayName(locale)}
-        />
-        <AccountPreferenceRow
-          description={t("settings.account.preferences.dateFormat.description")}
-          icon={CalendarDays}
-          preview
-          previewLabel={t("settings.account.preview")}
-          title={t("settings.account.preferences.dateFormat.title")}
-          value={t("settings.account.preferences.dateFormat.value")}
-        />
-        <AccountPreferenceRow
-          description={t("settings.account.preferences.accessibility.description")}
-          icon={Accessibility}
-          preview
-          previewLabel={t("settings.account.preview")}
-          title={t("settings.account.preferences.accessibility.title")}
-          value={t("settings.account.preferences.accessibility.value")}
-        />
+        {ACCOUNT_SETTINGS_SURFACE.preferences.includes("language") ? (
+          <AccountPreferenceRow
+            description={t("settings.account.preferences.language.description")}
+            icon={Languages}
+            onClick={onOpenLanguageSettings}
+            title={t("settings.account.preferences.language.title")}
+            value={getLocaleDisplayName(locale)}
+          />
+        ) : null}
+        {ACCOUNT_SETTINGS_SURFACE.preferences.includes("timeZone") ? (
+          <AccountTimeZoneCombobox
+            disabled={disabled}
+            locale={locale}
+            onChange={(timeZone) => onChange({ timeZone })}
+            t={t}
+            value={settings.timeZone}
+          />
+        ) : null}
+        {ACCOUNT_SETTINGS_SURFACE.preferences.includes("dateFormat") ? (
+          <AccountPreferenceSelectRow
+            description={t("settings.account.preferences.dateFormat.description")}
+            disabled={disabled}
+            icon={CalendarDays}
+            labelForValue={(value) =>
+              `${t(`settings.account.preferences.dateFormat.${value}`)} · ${formatAccountDate(
+                ACCOUNT_FORMAT_PREVIEW_INSTANT,
+                { ...formatOptions, dateFormat: value },
+              )}`
+            }
+            onChange={(dateFormat) => onChange({ dateFormat })}
+            options={DATE_FORMAT_OPTIONS}
+            title={t("settings.account.preferences.dateFormat.title")}
+            value={settings.dateFormat}
+          />
+        ) : null}
+        {ACCOUNT_SETTINGS_SURFACE.preferences.includes("timeFormat") ? (
+          <AccountPreferenceSelectRow
+            description={t("settings.account.preferences.timeFormat.description")}
+            disabled={disabled}
+            icon={Clock3}
+            labelForValue={(value) =>
+              `${t(`settings.account.preferences.timeFormat.${value}`)} · ${formatAccountTime(
+                ACCOUNT_FORMAT_PREVIEW_INSTANT,
+                { ...formatOptions, timeFormat: value },
+              )}`
+            }
+            onChange={(timeFormat) => onChange({ timeFormat })}
+            options={TIME_FORMAT_OPTIONS}
+            title={t("settings.account.preferences.timeFormat.title")}
+            value={settings.timeFormat}
+          />
+        ) : null}
+        {ACCOUNT_SETTINGS_SURFACE.preferences.includes("interfaceDensity") ? (
+          <div className="rounded-[15px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface)/0.72)] p-2">
+            <div className="flex items-start gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
+                <LayoutPanelTop className="h-3.5 w-3.5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-bold text-app-foreground">
+                  {t("settings.account.preferences.accessibility.title")}
+                </span>
+                <span className="mt-0.5 block text-xs leading-4 text-app-muted">
+                  {t("settings.account.preferences.accessibility.description")}
+                </span>
+              </span>
+            </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {INTERFACE_DENSITY_OPTIONS.map((density) => (
+                <button
+                  aria-pressed={density === settings.interfaceDensity}
+                  className={cn(
+                    "min-h-11 rounded-xl border px-3 py-2 text-left transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                    density === settings.interfaceDensity
+                      ? "border-[hsl(var(--primary)/0.48)] bg-[hsl(var(--primary)/0.12)]"
+                      : "border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface)/0.9)] hover:border-[hsl(var(--primary)/0.3)]",
+                  )}
+                  disabled={disabled}
+                  key={density}
+                  onClick={() => onChange({ interfaceDensity: density })}
+                  type="button"
+                >
+                  <span className="block text-xs font-black text-app-foreground">
+                    {t(`settings.account.preferences.accessibility.${density}`)}
+                  </span>
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "mt-2 grid rounded-lg border border-[hsl(var(--border)/0.5)] bg-[hsl(var(--surface-soft)/0.6)] px-2",
+                      density === "COMPACT" ? "gap-1 py-1.5" : "gap-2 py-2.5",
+                    )}
+                  >
+                    <span className="h-1.5 w-3/4 rounded-full bg-[hsl(var(--primary)/0.32)]" />
+                    <span className="h-1.5 w-1/2 rounded-full bg-[hsl(var(--foreground)/0.14)]" />
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -1359,6 +1583,7 @@ function SettingsPanelContent({
   );
   const [isEditingAccount, setIsEditingAccount] = useState(false);
   const [accountState, setAccountState] = useState(initialAccount);
+  const [settingsSaveError, setSettingsSaveError] = useState<string | null>(null);
   const [accountDraft, setAccountDraft] = useState(initialAccount);
   const [accountFeedback, setAccountFeedback] = useState<{
     tone: "error" | "success";
@@ -1371,7 +1596,6 @@ function SettingsPanelContent({
     () => false,
   );
   const [desktopAppInfo, setDesktopAppInfo] = useState<DesktopAppInfo | null>(null);
-  const browserTimeZone = getBrowserTimeZone();
   const [accountFieldErrors, setAccountFieldErrors] = useState<
     Partial<Record<AccountField, string>>
   >({});
@@ -1538,6 +1762,7 @@ function SettingsPanelContent({
   const patchSettingsMutation = useMutation({
     mutationFn: (patch: Partial<UserLayoutSettings>) => patchLayoutSettings(patch),
     onMutate: async (patch) => {
+      setSettingsSaveError(null);
       await queryClient.cancelQueries({ queryKey: settingsQueryKeys.layout });
       const previous =
         queryClient.getQueryData<UserLayoutSettings>(settingsQueryKeys.layout) ?? null;
@@ -1551,18 +1776,25 @@ function SettingsPanelContent({
       return { previous };
     },
     onError: (_error, _patch, context) => {
+      setSettingsSaveError(t("settings.account.errors.save"));
       if (context?.previous) {
         queryClient.setQueryData(settingsQueryKeys.layout, context.previous);
         applyPersistedSettings(context.previous);
       }
     },
     onSuccess: (nextSettings) => {
+      setSettingsSaveError(null);
       queryClient.setQueryData(settingsQueryKeys.layout, nextSettings);
       applyPersistedSettings(nextSettings);
     },
   });
 
   const serverSettings = settingsQuery.data;
+
+  useEffect(() => {
+    document.documentElement.dataset.interfaceDensity =
+      serverSettings?.interfaceDensity.toLowerCase() ?? "comfortable";
+  }, [serverSettings?.interfaceDensity]);
 
   const updateServerSettings = useCallback(
     (patch: Partial<UserLayoutSettings>) => {
@@ -1736,9 +1968,10 @@ function SettingsPanelContent({
       emailVerified: accountState.emailVerified,
       username: accountState.username,
     });
-    const timeZoneLabel = getBrowserTimeZoneLabel(browserTimeZone, locale);
     const dmPolicy = serverSettings?.dmPolicy ?? "FRIENDS";
     const friendRequestPolicy = serverSettings?.friendRequestPolicy ?? "EVERYONE";
+    const profileVisibility = serverSettings?.profileVisibility ?? "EVERYONE";
+    const presenceVisibility = serverSettings?.presenceVisibility ?? "EVERYONE";
     const accountEditForm = (
       <div className="mt-3 rounded-[16px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface)/0.72)] p-2.5 sm:p-3">
         <div className="grid gap-2.5 md:grid-cols-2">
@@ -1892,19 +2125,36 @@ function SettingsPanelContent({
             <PrivacyVisibilityCard
               disabled={patchSettingsMutation.isPending}
               dmPolicy={dmPolicy}
+              error={settingsSaveError}
               friendRequestPolicy={friendRequestPolicy}
               onDmPolicyChange={(nextPolicy) => updateServerSettings({ dmPolicy: nextPolicy })}
               onFriendRequestPolicyChange={(nextPolicy) =>
                 updateServerSettings({ friendRequestPolicy: nextPolicy })
               }
+              onPresenceVisibilityChange={(nextPolicy) =>
+                updateServerSettings({ presenceVisibility: nextPolicy })
+              }
+              onProfileVisibilityChange={(nextPolicy) =>
+                updateServerSettings({ profileVisibility: nextPolicy })
+              }
+              presenceVisibility={presenceVisibility}
+              profileVisibility={profileVisibility}
               t={t}
             />
             <AccountPreferencesCard
+              disabled={patchSettingsMutation.isPending}
               locale={locale}
+              onChange={updateServerSettings}
               onOpenLanguageSettings={() => openPanel("language")}
+              settings={{
+                dateFormat: serverSettings?.dateFormat ?? "LOCALE",
+                interfaceDensity: serverSettings?.interfaceDensity ?? "COMFORTABLE",
+                timeFormat: serverSettings?.timeFormat ?? "LOCALE",
+                timeZone: serverSettings?.timeZone ?? "AUTO",
+              }}
               t={t}
-              timeZoneLabel={timeZoneLabel}
             />
+            <AccountDataControls t={t} />
           </div>
 
           <div className="space-y-3 xl:sticky xl:top-4 xl:self-start">
@@ -1924,6 +2174,7 @@ function SettingsPanelContent({
               }
               t={t}
             />
+            <ActiveSessionsCard t={t} />
           </div>
         </div>
       </div>

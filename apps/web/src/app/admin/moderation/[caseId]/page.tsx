@@ -6,12 +6,22 @@ import { getModerationCaseFile } from "@/lib/moderation/case-queries";
 
 type AdminCaseFilePageProps = {
   params: Promise<{ caseId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function AdminCaseFilePage({ params }: AdminCaseFilePageProps) {
+function pageNumber(value: string | string[] | undefined) {
+  return Number(Array.isArray(value) ? value[0] : value);
+}
+
+export default async function AdminCaseFilePage({ params, searchParams }: AdminCaseFilePageProps) {
   const admin = await requireAdminModule("case.read");
   const { caseId } = await params;
-  const caseFile = await getModerationCaseFile(caseId);
+  const query = await searchParams;
+  const caseFile = await getModerationCaseFile(caseId, {
+    evidencePage: pageNumber(query.evidencePage),
+    eventPage: pageNumber(query.eventPage),
+    reportPage: pageNumber(query.reportPage),
+  });
 
   if (!caseFile) {
     notFound();

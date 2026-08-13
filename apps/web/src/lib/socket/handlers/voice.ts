@@ -35,10 +35,40 @@ import {
   requireChannelPermissionForUser,
 } from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 import type { SocketHandlerRegistration } from ".";
 
 const VOICE_AUDIO_LEVEL_MIN_INTERVAL_MS = 40;
+const VOICE_STATE_WATCH_RATE_LIMIT = 20;
+const VOICE_SCREEN_SHARE_RATE_LIMIT = 10;
+const VOICE_SOCKET_RATE_WINDOW_SECONDS = 10;
+
+export async function runVoiceStatesWatch(input: {
+  checkRateLimit(): Promise<boolean>;
+  joinRooms(channelIds: string[]): Promise<void>;
+  listChannelIds(): Promise<string[]>;
+}) {
+  if (!(await input.checkRateLimit())) return;
+  await input.joinRooms(await input.listChannelIds());
+}
+
+export async function runVoiceScreenShareUpdate(input: {
+  authorize(): Promise<void>;
+  checkRateLimit(): Promise<boolean>;
+  emit(): Promise<void>;
+  readCurrentValue(): Promise<boolean>;
+  recordUsage(): Promise<void>;
+  value: boolean;
+  writeValue(): Promise<void>;
+}) {
+  if (!(await input.checkRateLimit())) return;
+  await input.authorize();
+  if ((await input.readCurrentValue()) === input.value) return;
+  await input.writeValue();
+  await input.recordUsage();
+  await input.emit();
+}
 
 export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistration {
   const { io, rateRedis, redis, socket, userId } = ctx;
@@ -78,14 +108,24 @@ export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistr
   socket.on("voice:states:watch", async (rawData) => {
     try {
       const data = parseSocketPayload(SocketVoiceStatesWatchPayloadSchema, rawData);
-      const visibleVoiceChannelIds = await listChannelIdsForUserWithPermission(
-        userId,
-        data.serverId,
-        PermissionBits.VIEW_CHANNEL,
-        ChannelType.VOICE,
-      );
-
-      await joinVoiceStateViewerRoomsForServer(socket, data.serverId, visibleVoiceChannelIds);
+      await runVoiceStatesWatch({
+        checkRateLimit: () =>
+          checkRateLimit(
+            rateRedis,
+            `rate:voice:states:watch:${userId}`,
+            VOICE_STATE_WATCH_RATE_LIMIT,
+            VOICE_SOCKET_RATE_WINDOW_SECONDS,
+          ),
+        joinRooms: (channelIds) =>
+          joinVoiceStateViewerRoomsForServer(socket, data.serverId, channelIds),
+        listChannelIds: () =>
+          listChannelIdsForUserWithPermission(
+            userId,
+            data.serverId,
+            PermissionBits.VIEW_CHANNEL,
+            ChannelType.VOICE,
+          ),
+      });
     } catch (error) {
       emitSocketError("VOICE_STATE_WATCH_ERROR", "Unable to watch voice state updates.", error);
     }
@@ -245,44 +285,64 @@ export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistr
   socket.on("voice:screenshare:update", async (rawData) => {
     try {
       const data = parseSocketPayload(SocketVoiceScreenSharePayloadSchema, rawData);
-      await requireChannelPermissionForUser(userId, data.channelId, PermissionBits.CONNECT_VOICE, {
-        forbiddenCode: "FORBIDDEN",
-        forbiddenMessage: "You are not allowed to join this voice channel.",
-        lockedCode: "VOICE_CHANNEL_LOCKED",
-        lockedMessage: "You are not allowed to use this locked voice channel.",
-        requiredServerId: data.serverId,
-        requiredType: ChannelType.VOICE,
-        respectLocked: true,
-      });
-      await requireChannelPermissionForUser(userId, data.channelId, PermissionBits.STREAM, {
-        forbiddenCode: "FORBIDDEN",
-        forbiddenMessage: "You are not allowed to stream in this voice channel.",
-        requiredServerId: data.serverId,
-        requiredType: ChannelType.VOICE,
-      });
-
       const screenShareStateKey = getVoiceScreenShareStateKey(data.channelId, userId);
-      if (data.isScreenSharing) {
-        await redis.set(screenShareStateKey, "1", "EX", VOICE_SCREEN_SHARE_STATE_TTL_SECONDS);
-      } else {
-        await redis.del(screenShareStateKey);
-      }
-
-      void setVoiceScreenShareUsage({
-        attribution: socket.data.clientAttribution ?? UNKNOWN_ATTRIBUTION,
-        channelId: data.channelId,
-        isScreenSharing: data.isScreenSharing,
-        serverId: data.serverId,
-        userId,
-      }).catch((error) => {
-        logAnalyticsError("voice screen-share socket update", error);
-      });
-
-      await emitVoiceScreenShareUpdate({
-        channelId: data.channelId,
-        isScreenSharing: data.isScreenSharing,
-        serverId: data.serverId,
-        userId,
+      await runVoiceScreenShareUpdate({
+        authorize: async () => {
+          await requireChannelPermissionForUser(
+            userId,
+            data.channelId,
+            PermissionBits.CONNECT_VOICE,
+            {
+              forbiddenCode: "FORBIDDEN",
+              forbiddenMessage: "You are not allowed to join this voice channel.",
+              lockedCode: "VOICE_CHANNEL_LOCKED",
+              lockedMessage: "You are not allowed to use this locked voice channel.",
+              requiredServerId: data.serverId,
+              requiredType: ChannelType.VOICE,
+              respectLocked: true,
+            },
+          );
+          await requireChannelPermissionForUser(userId, data.channelId, PermissionBits.STREAM, {
+            forbiddenCode: "FORBIDDEN",
+            forbiddenMessage: "You are not allowed to stream in this voice channel.",
+            requiredServerId: data.serverId,
+            requiredType: ChannelType.VOICE,
+          });
+        },
+        checkRateLimit: () =>
+          checkRateLimit(
+            rateRedis,
+            `rate:voice:screenshare:${userId}`,
+            VOICE_SCREEN_SHARE_RATE_LIMIT,
+            VOICE_SOCKET_RATE_WINDOW_SECONDS,
+          ),
+        emit: () =>
+          emitVoiceScreenShareUpdate({
+            channelId: data.channelId,
+            isScreenSharing: data.isScreenSharing,
+            serverId: data.serverId,
+            userId,
+          }),
+        readCurrentValue: async () => (await redis.get(screenShareStateKey)) === "1",
+        recordUsage: async () => {
+          void setVoiceScreenShareUsage({
+            attribution: socket.data.clientAttribution ?? UNKNOWN_ATTRIBUTION,
+            channelId: data.channelId,
+            isScreenSharing: data.isScreenSharing,
+            serverId: data.serverId,
+            userId,
+          }).catch((error) => {
+            logAnalyticsError("voice screen-share socket update", error);
+          });
+        },
+        value: data.isScreenSharing,
+        writeValue: async () => {
+          if (data.isScreenSharing) {
+            await redis.set(screenShareStateKey, "1", "EX", VOICE_SCREEN_SHARE_STATE_TTL_SECONDS);
+          } else {
+            await redis.del(screenShareStateKey);
+          }
+        },
       });
     } catch (error) {
       emitSocketError(

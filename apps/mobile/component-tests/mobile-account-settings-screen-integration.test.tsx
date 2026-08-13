@@ -32,6 +32,7 @@ import { ToastProvider } from "../src/app/components/kit/toast";
 import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provider";
 import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
 import { mobileQueryKeys } from "../src/query/mobile-query-keys";
+import { MOBILE_ACCOUNT_VISIBILITY_PREFERENCE_KEYS } from "../src/account/mobile-account-settings-client";
 
 const accountSettings = {
   appearance: {
@@ -68,6 +69,14 @@ const sessionUser = {
   id: "user-1",
   username: "ada",
 };
+const accountPreferences = {
+  dateFormat: "LOCALE" as const,
+  interfaceDensity: "COMFORTABLE" as const,
+  presenceVisibility: "FRIENDS" as const,
+  profileVisibility: "EVERYONE" as const,
+  timeFormat: "LOCALE" as const,
+  timeZone: "AUTO" as const,
+};
 
 function renderScreen(queryClient: QueryClient) {
   return render(
@@ -92,9 +101,18 @@ function createQueryClient() {
   });
 }
 
-function authenticatedApi(options: { profileResponse?: unknown; rejectPrivacy?: boolean }) {
+function authenticatedApi(options: {
+  profileResponse?: unknown;
+  rejectPreferences?: boolean;
+  rejectPrivacy?: boolean;
+}) {
   return {
-    requestJson: jest.fn(async (path: string, request?: { method?: string }) => {
+    requestJson: jest.fn(async (path: string, request?: { body?: unknown; method?: string }) => {
+      if (path === "/api/v1/mobile/account/preferences" && request?.method === "PATCH") {
+        if (options.rejectPreferences) throw new Error("preferences unavailable");
+        return { ...accountPreferences, ...(request.body as object) };
+      }
+      if (path === "/api/v1/mobile/account/preferences") return accountPreferences;
       if (path === "/api/v1/mobile/account/settings" && request?.method === "PATCH") {
         if (options.rejectPrivacy) throw new Error("privacy unavailable");
         return accountSettings;
@@ -110,6 +128,7 @@ describe("production mobile account settings integration", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(AsyncStorage.getItem).mockResolvedValue(null);
+    jest.mocked(AsyncStorage.removeItem).mockResolvedValue(undefined);
     jest.mocked(AsyncStorage.setItem).mockResolvedValue(undefined);
     jest.mocked(Clipboard.setStringAsync).mockResolvedValue(undefined);
   });
@@ -137,7 +156,7 @@ describe("production mobile account settings integration", () => {
     expect(queryClient.getQueryData(mobileQueryKeys.accountSettings())).toEqual(accountSettings);
   });
 
-  it("reports clipboard and local persistence success/failure through localized feedback", async () => {
+  it("loads server visibility controls, clears legacy keys, and reports clipboard failures", async () => {
     const apiClient = authenticatedApi({});
     mockUseMobileAuth.mockReturnValue({
       apiClient,
@@ -146,11 +165,6 @@ describe("production mobile account settings integration", () => {
       status: "signed-in",
     });
     const queryClient = createQueryClient();
-    jest
-      .mocked(AsyncStorage.getItem)
-      .mockImplementation(async (key) =>
-        key.includes("privacy-visibility.profile") ? "FRIENDS" : null,
-      );
     const view = await renderScreen(queryClient);
     await view.findByText("ada@example.com");
 
@@ -162,15 +176,42 @@ describe("production mobile account settings integration", () => {
     await waitFor(() => expect(view.getByText("Kullanıcı adı kopyalanamadı.")).toBeTruthy());
     await fireEvent.press(view.getByTestId("mobile-toast-dismiss"));
 
-    jest.mocked(AsyncStorage.setItem).mockImplementation(async (key) => {
-      if (key.includes("privacy-visibility.profile")) throw new Error("storage denied");
+    expect(view.getByTestId("mobile-account-profile-visibility-row")).toBeTruthy();
+    expect(view.getByTestId("mobile-account-presence-visibility-row")).toBeTruthy();
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith(
+      MOBILE_ACCOUNT_VISIBILITY_PREFERENCE_KEYS.profile,
+    );
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith(
+      MOBILE_ACCOUNT_VISIBILITY_PREFERENCE_KEYS.presence,
+    );
+    expect(AsyncStorage.getItem).not.toHaveBeenCalledWith(
+      expect.stringContaining("privacy-visibility"),
+    );
+    expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(
+      expect.stringContaining("privacy-visibility"),
+      expect.anything(),
+    );
+  });
+
+  it("rolls a rejected visibility preference back to the canonical server value", async () => {
+    const apiClient = authenticatedApi({ rejectPreferences: true });
+    mockUseMobileAuth.mockReturnValue({
+      apiClient,
+      replaceSessionUser: jest.fn(async () => true),
+      session: { user: sessionUser },
+      status: "signed-in",
     });
+    const queryClient = createQueryClient();
+    const view = await renderScreen(queryClient);
+
+    await view.findByText("ada@example.com");
     await fireEvent.press(view.getByTestId("mobile-account-profile-visibility-row"));
     await fireEvent.press(view.getByTestId("mobile-account-policy-profile-NOBODY"));
+
     await waitFor(() =>
-      expect(
-        within(view.getByTestId("mobile-account-profile-visibility-row")).getByText("Arkadaşlar"),
-      ).toBeTruthy(),
+      expect(queryClient.getQueryData(mobileQueryKeys.accountPreferences())).toEqual(
+        accountPreferences,
+      ),
     );
     expect(view.getByText("Hesap ayarı güncellenemedi. Önceki değer geri yüklendi.")).toBeTruthy();
   });
@@ -244,6 +285,7 @@ describe("production mobile account settings integration", () => {
     };
     const apiClient = {
       requestJson: jest.fn(async (path: string) => {
+        if (path === "/api/v1/mobile/account/preferences") return accountPreferences;
         if (path === "/api/v1/mobile/account/settings") return unverifiedSettings;
         if (path === "/api/v1/mobile/auth/verification-email") {
           return {
@@ -301,6 +343,7 @@ describe("production mobile account settings integration", () => {
     };
     const apiClient = {
       requestJson: jest.fn(async (path: string) => {
+        if (path === "/api/v1/mobile/account/preferences") return accountPreferences;
         if (path === "/api/v1/mobile/account/settings") return unverifiedSettings;
         throw new Error("verification transport failure");
       }),

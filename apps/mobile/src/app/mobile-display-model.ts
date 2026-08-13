@@ -13,6 +13,7 @@ import { getMobileNoiseSuppressionLabel } from "../voice/mobile-voice-noise-cont
 import { mobileCopy } from "../locale/mobile-copy";
 import type { MobileLocale } from "../locale/mobile-locale-preferences";
 import type { MobileTabId } from "../navigation/mobile-navigation";
+import { formatMobileAccountRuntimeTime } from "../account/mobile-account-preference-runtime";
 
 export type MobileConversationSummary =
   MobileBootstrapPayload["home"]["directMessages"]["recent"][number];
@@ -804,34 +805,6 @@ export function getMobileChannelPriority(channel: MobileWorkspaceChannelSummary)
   };
 }
 
-const MOBILE_TIME_FORMATTER_CACHE_MAX_LOCALES = 8;
-const mobileTimeFormatters = new Map<string, Intl.DateTimeFormat>();
-
-function getMobileTimeFormatter(locale: string): Intl.DateTimeFormat {
-  const cached = mobileTimeFormatters.get(locale);
-  if (cached) {
-    return cached;
-  }
-
-  const formatter = new Intl.DateTimeFormat(locale, {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  if (mobileTimeFormatters.size >= MOBILE_TIME_FORMATTER_CACHE_MAX_LOCALES) {
-    const oldestLocale = mobileTimeFormatters.keys().next().value;
-    if (oldestLocale !== undefined) {
-      mobileTimeFormatters.delete(oldestLocale);
-    }
-  }
-  mobileTimeFormatters.set(locale, formatter);
-  return formatter;
-}
-
 export function formatMobileDisplayTime(value: string, locale = "tr-TR"): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  return getMobileTimeFormatter(locale).format(date);
+  return formatMobileAccountRuntimeTime(value, locale);
 }

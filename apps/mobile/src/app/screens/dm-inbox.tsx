@@ -16,6 +16,7 @@ import {
   getMobileConversationTitle,
   getMobilePresenceTone,
   isMobilePresenceActive,
+  useCallback,
   useMemo,
   type MobileDMConversationListItem,
 } from "../mobile-root-screen-shared";
@@ -47,6 +48,12 @@ import type { MobileDMInboxSegment, MobileDMOnlineFriend } from "./dm-screen.typ
 const DM_INBOX_SEGMENTS: readonly MobileDMInboxSegment[] = ["conversations", "friends", "requests"];
 const EMPTY_PRESENCE_MAP: ReadonlyMap<string, string> = new Map<string, string>();
 const EMPTY_VOICE_SET: ReadonlySet<string> = new Set<string>();
+const EMPTY_ONLINE_FRIENDS: readonly MobileDMOnlineFriend[] = Object.freeze([]);
+const EMPTY_TYPING_BY_CONVERSATION_ID: Readonly<Record<string, readonly string[]>> = Object.freeze(
+  {},
+);
+// A missing typing entry must not mint a new prop and defeat the memoized row.
+const EMPTY_TYPING_NAMES: readonly string[] = Object.freeze([]);
 import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
 
 /** Horizontal swipe gesture that steps between the three inbox segments. */
@@ -276,6 +283,8 @@ export function DMInboxFilterChips({
  */
 export function GroupAvatarPairMark({
   avatarPair,
+  iconUrl = null,
+  label = "",
   overflowCount,
   ringColor,
 }: {
@@ -285,6 +294,10 @@ export function GroupAvatarPairMark({
     initials: string;
     userId: string;
   }[];
+  /** The group's own photo. It replaces the pair outright when there is one. */
+  iconUrl?: string | null;
+  /** Initials source while the photo loads. */
+  label?: string;
   overflowCount: number;
   ringColor: string;
 }) {
@@ -292,6 +305,23 @@ export function GroupAvatarPairMark({
   const groupTokens = useTheme().groupChat;
   const pair = getGroupAvatarPair([...avatarPair], overflowCount);
   const [first, second] = pair.tiles;
+
+  if (iconUrl) {
+    return (
+      <View style={styles.groupRowIcon} testID="mobile-dm-group-avatar-photo">
+        <AvatarMark
+          avatarBorderRadius={
+            (groupTokens.groupRow.pairSize * groupTokens.groupRow.tileRadius) /
+            groupTokens.groupRow.tileSize
+          }
+          dimension={groupTokens.groupRow.pairSize}
+          fallbackTextStyle={styles.avatarPairTileText}
+          imageUrl={iconUrl}
+          label={label}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.avatarPair} testID="mobile-dm-group-avatar-pair">
@@ -358,13 +388,13 @@ export function DirectMessageListCard({
   currentUserId = "",
   filter = "all",
   hasNextPage,
-  onlineFriends = [],
+  onlineFriends = EMPTY_ONLINE_FRIENDS,
   onLoadMore,
   onLongPressConversation,
   onOpenConversation,
   query = "",
   selectedConversationId,
-  typingByConversationId = {},
+  typingByConversationId = EMPTY_TYPING_BY_CONVERSATION_ID,
 }: {
   conversations: readonly MobileDMConversationListItem[];
   currentUserId?: string;
@@ -437,6 +467,48 @@ export function DirectMessageListCard({
       ),
     [onlineFriends],
   );
+  const renderItem = useCallback(
+    ({ item: entry }: { item: MobileInboxListEntry }) =>
+      entry.kind === "section" ? (
+        <View style={groupStyles.pinnedSectionRow} testID="mobile-dm-pinned-section">
+          <MobileLineIcon
+            color={theme.groupChat.pinnedSection.iconColor}
+            name="pin"
+            size={theme.groupChat.pinnedSection.icon}
+          />
+          <Text style={groupStyles.pinnedSectionLabel}>{copy.messagesPinnedSection}</Text>
+        </View>
+      ) : (
+        <>
+          <DirectMessageConversationCard
+            conversation={entry.conversation}
+            currentUserId={currentUserId}
+            {...(onLongPressConversation ? { onLongPressConversation } : {})}
+            onOpenConversation={onOpenConversation}
+            pinned={entry.pinned}
+            presenceByUserId={presenceByUserId}
+            selected={entry.conversation.id === selectedConversationId}
+            typingNames={typingByConversationId[entry.conversation.id] ?? EMPTY_TYPING_NAMES}
+            voiceUserIds={voiceUserIds}
+          />
+          {entry.last ? null : (
+            <View style={groupStyles.rowHairline} testID="mobile-dm-conversation-hairline" />
+          )}
+        </>
+      ),
+    [
+      currentUserId,
+      groupStyles,
+      onLongPressConversation,
+      onOpenConversation,
+      presenceByUserId,
+      selectedConversationId,
+      theme.groupChat.pinnedSection.icon,
+      theme.groupChat.pinnedSection.iconColor,
+      typingByConversationId,
+      voiceUserIds,
+    ],
+  );
 
   return (
     <View style={styles.dmListCard}>
@@ -460,40 +532,12 @@ export function DirectMessageListCard({
         onLoad={mobileListLoadHandlers.dmInbox}
         onEndReached={hasNextPage ? onLoadMore : undefined}
         onEndReachedThreshold={0.6}
-        renderItem={({ item: entry }) =>
-          entry.kind === "section" ? (
-            <View style={groupStyles.pinnedSectionRow} testID="mobile-dm-pinned-section">
-              <MobileLineIcon
-                color={theme.groupChat.pinnedSection.iconColor}
-                name="pin"
-                size={theme.groupChat.pinnedSection.icon}
-              />
-              <Text style={groupStyles.pinnedSectionLabel}>{copy.messagesPinnedSection}</Text>
-            </View>
-          ) : (
-            <>
-              <DirectMessageConversationCard
-                conversation={entry.conversation}
-                currentUserId={currentUserId}
-                {...(onLongPressConversation ? { onLongPressConversation } : {})}
-                onOpenConversation={onOpenConversation}
-                pinned={entry.pinned}
-                presenceByUserId={presenceByUserId}
-                selected={entry.conversation.id === selectedConversationId}
-                typingNames={typingByConversationId[entry.conversation.id] ?? []}
-                voiceUserIds={voiceUserIds}
-              />
-              {entry.last ? null : (
-                <View style={groupStyles.rowHairline} testID="mobile-dm-conversation-hairline" />
-              )}
-            </>
-          )
-        }
+        renderItem={renderItem}
         ListEmptyComponent={
           <Text style={groupStyles.filterEmptyState}>{FILTER_EMPTY_COPY[filter]}</Text>
         }
         showsVerticalScrollIndicator={false}
-        style={{ ...styles.dmConversationListViewport, ...styles.dmInboxListArea }}
+        style={styles.dmInboxConversationListViewport}
         testID="mobile-dm-conversation-list"
       />
     </View>
@@ -692,6 +736,8 @@ export const DirectMessageConversationCard = memo(function DirectMessageConversa
           // build, or a fixture written before them, still has to draw a row
           // rather than take the whole list down.
           avatarPair={conversation.avatarPair ?? []}
+          iconUrl={conversation.iconUrl}
+          label={title || copy.directMessageFallback}
           overflowCount={conversation.overflowCount ?? 0}
           ringColor={rowBackground}
         />

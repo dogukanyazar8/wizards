@@ -239,11 +239,16 @@ export async function sendDirectMessage(
 
   assertGroupPermission(toGroupAuthContext(conversation, input.userId), "sendMessage");
 
-  await assertUnblockedDMParticipants({
-    currentUserId: input.userId,
-    findBlockedUserIdsForUser: dependencies.findBlockedUserIds,
-    participants,
-  });
+  // A block still closes a 1:1 DM. In a group it only describes one pair, so
+  // letting that pair veto the whole roster would freeze an otherwise valid
+  // conversation. Group messages remain visible to every member by policy.
+  if (conversation.type !== "GROUP_DM") {
+    await assertUnblockedDMParticipants({
+      currentUserId: input.userId,
+      findBlockedUserIdsForUser: dependencies.findBlockedUserIds,
+      participants,
+    });
+  }
 
   const [replyToAuthorId] = await Promise.all([
     assertDMReplyTarget({

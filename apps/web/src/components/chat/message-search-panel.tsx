@@ -16,6 +16,7 @@ import type { MessageSearchResult } from "@wizards/types";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import { searchMessages } from "@/lib/messages/search-client";
+import { createRafThrottledCallback } from "@/lib/ui/raf-throttle";
 import type { MessageMode } from "@/hooks/use-messages";
 
 type MessageSearchPanelProps = {
@@ -109,7 +110,14 @@ export function MessageSearchPanel({
   const visibleIsLoading = canSearch && isLoading;
 
   const updatePosition = useCallback(() => {
-    setPosition(getSearchPanelPosition(anchorRef.current));
+    const nextPosition = getSearchPanelPosition(anchorRef.current);
+    setPosition((currentPosition) =>
+      currentPosition?.left === nextPosition?.left &&
+      currentPosition?.top === nextPosition?.top &&
+      currentPosition?.width === nextPosition?.width
+        ? currentPosition
+        : nextPosition,
+    );
   }, [anchorRef]);
 
   const formatter = useMemo(
@@ -125,11 +133,15 @@ export function MessageSearchPanel({
 
   useEffect(() => {
     updatePosition();
+    // Nested message-list scrolls reach this capture listener. Measure at most
+    // once per frame and keep state stable when the anchor did not move.
+    const throttledScroll = createRafThrottledCallback(updatePosition);
     window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("scroll", throttledScroll.run, true);
     return () => {
+      throttledScroll.cancel();
       window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("scroll", throttledScroll.run, true);
     };
   }, [updatePosition]);
 

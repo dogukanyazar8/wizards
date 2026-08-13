@@ -35,10 +35,12 @@ function findCall(calls: RateCall[], layer: "network" | "subject") {
 }
 
 describe("web auth request rate limits", () => {
+  process.env.TRUSTED_PROXY_HOPS = "1";
+
   it("shares login network bucket but separates accounts on the same IP", async () => {
     const alice: RateCall[] = [];
     const bob: RateCall[] = [];
-    const headers = new Headers({ "x-real-ip": "198.51.100.7" });
+    const headers = new Headers({ "x-forwarded-for": "198.51.100.7" });
 
     assert.equal(
       await checkLoginRequestRateLimit(
@@ -66,14 +68,14 @@ describe("web auth request rate limits", () => {
     await checkLoginRequestRateLimit(
       {
         email: "alice@example.com",
-        headers: new Headers({ "x-real-ip": "198.51.100.7" }),
+        headers: new Headers({ "x-forwarded-for": "198.51.100.7" }),
       },
       createDependencies(first),
     );
     await checkLoginRequestRateLimit(
       {
         email: "alice@example.com",
-        headers: new Headers({ "x-real-ip": "203.0.113.7" }),
+        headers: new Headers({ "x-forwarded-for": "203.0.113.7" }),
       },
       createDependencies(second),
     );
@@ -95,7 +97,7 @@ describe("web auth request rate limits", () => {
     await checkRegistrationRequestRateLimit(
       {
         email: "alice@example.com",
-        headers: new Headers({ "x-real-ip": "198.51.100.7" }),
+        headers: new Headers({ "x-forwarded-for": "198.51.100.7" }),
       },
       createDependencies(calls),
     );
@@ -115,14 +117,14 @@ describe("web auth request rate limits", () => {
 
     await checkPasswordResetConsumeRateLimit(
       {
-        headers: new Headers({ "x-real-ip": "198.51.100.7" }),
+        headers: new Headers({ "x-forwarded-for": "198.51.100.7" }),
         token: "reset-secret",
       },
       createDependencies(first),
     );
     await checkPasswordResetConsumeRateLimit(
       {
-        headers: new Headers({ "x-real-ip": "203.0.113.7" }),
+        headers: new Headers({ "x-forwarded-for": "203.0.113.7" }),
         token: "reset-secret",
       },
       createDependencies(second),
@@ -139,27 +141,27 @@ describe("web auth request rate limits", () => {
     );
   });
 
-  it("uses deterministic subject fallback and keeps raw identities out of keys", async () => {
+  it("uses one untrusted bucket and keeps raw identities out of keys", async () => {
     const missing: RateCall[] = [];
     const invalid: RateCall[] = [];
 
     await checkLoginRequestRateLimit(
       {
         email: "alice@example.com",
-        headers: new Headers({ "x-forwarded-for": "198.51.100.99" }),
+        headers: new Headers(),
       },
       createDependencies(missing),
     );
     await checkLoginRequestRateLimit(
       {
         email: "alice@example.com",
-        headers: new Headers({ "x-real-ip": "invalid" }),
+        headers: new Headers({ "x-forwarded-for": "invalid" }),
       },
       createDependencies(invalid),
     );
 
     assert.deepEqual(missing, invalid);
-    assert.match(findCall(missing, "network")?.key ?? "", /:network:fallback:/);
+    assert.match(findCall(missing, "network")?.key ?? "", /:network:untrusted$/);
     assert.doesNotMatch(
       missing.map(({ key }) => key).join("\n"),
       /alice@example\.com|198\.51\.100\.99/,
@@ -173,7 +175,7 @@ describe("web auth request rate limits", () => {
       await checkPasswordResetRequestRateLimit(
         {
           email: "alice@example.com",
-          headers: new Headers({ "x-real-ip": "198.51.100.7" }),
+          headers: new Headers({ "x-forwarded-for": "198.51.100.7" }),
         },
         createDependencies(calls),
       ),
@@ -197,7 +199,7 @@ describe("web auth request rate limits", () => {
       await checkVerificationResendRequestRateLimit(
         {
           email: "alice@example.com",
-          headers: new Headers({ "x-real-ip": "198.51.100.7" }),
+          headers: new Headers({ "x-forwarded-for": "198.51.100.7" }),
         },
         createDependencies(calls),
       ),
@@ -220,7 +222,7 @@ describe("web auth request rate limits", () => {
     assert.equal(
       await checkVerificationSendRequestRateLimit(
         {
-          headers: new Headers({ "x-real-ip": "198.51.100.7" }),
+          headers: new Headers({ "x-forwarded-for": "198.51.100.7" }),
           userId: "user-1",
         },
         createDependencies(calls),

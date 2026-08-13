@@ -72,3 +72,18 @@ export function applyMobileScreenShareAudioMute(
 
   return applied;
 }
+
+export function syncMobileScreenShareAudioMute(
+  room: MobileScreenShareAudioRoom | null | undefined,
+  muted: boolean,
+  previousSignature: string | null,
+): string {
+  const identities = [...(room?.remoteParticipants?.keys() ?? [])].sort();
+  const signature = `${muted ? "muted" : "audible"}:${identities.join("\u0000")}`;
+
+  if (signature !== previousSignature) {
+    applyMobileScreenShareAudioMute(room, muted);
+  }
+
+  return signature;
+}

@@ -56,12 +56,23 @@ export function getDefaultMobilePublicEnv(environment: MobileEnvironmentName) {
   return DEFAULT_PUBLIC_ENV[environment];
 }
 
-export function normalizeMobileEnvironment(value: string | undefined): MobileEnvironmentName {
+export function normalizeMobileEnvironment(
+  value: string | undefined,
+  isDevelopment = typeof __DEV__ !== "undefined" && __DEV__,
+): MobileEnvironmentName {
   if (MOBILE_ENVIRONMENTS.includes(value as MobileEnvironmentName)) {
     return value as MobileEnvironmentName;
   }
 
-  return "development";
+  // Release builds must never silently lose HTTPS enforcement because an EAS
+  // profile misspelled the environment name.
+  if (isDevelopment && value === undefined) {
+    return "development";
+  }
+
+  throw new Error(
+    `EXPO_PUBLIC_WHISPR_MOBILE_ENV must be one of: ${MOBILE_ENVIRONMENTS.join(", ")}.`,
+  );
 }
 
 function normalizeUrl(value: string | undefined, fieldName: string): string {

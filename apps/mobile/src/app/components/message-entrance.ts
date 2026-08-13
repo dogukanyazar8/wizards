@@ -27,6 +27,15 @@ export interface MobileMessageEntranceTracker {
   select(messages: readonly MobileMessageEntranceInput[]): ReadonlySet<string>;
 }
 
+export type MobileReactionEntranceInput = {
+  readonly id: string;
+  readonly reactions: readonly { readonly emoji: string }[];
+};
+
+export interface MobileReactionEntranceTracker {
+  select(messages: readonly MobileReactionEntranceInput[]): ReadonlySet<string>;
+}
+
 function parseCreatedAt(value: string): number {
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? 0 : parsed;
@@ -96,6 +105,50 @@ export function createMobileMessageEntranceTracker(): MobileMessageEntranceTrack
         if (!presentIds.has(id)) {
           entering.delete(id);
         }
+      }
+
+      return entering;
+    },
+  };
+}
+
+/**
+ * Tracks reaction chips at list scope, where an initial transcript can be
+ * distinguished from a reaction arriving on an already mounted message.
+ */
+export function createMobileReactionEntranceTracker(): MobileReactionEntranceTracker {
+  const knownMessageIds = new Set<string>();
+  const knownReactionIds = new Set<string>();
+  const entering = new Set<string>();
+  let seeded = false;
+
+  return {
+    select(messages) {
+      const presentMessageIds = new Set(messages.map((message) => message.id));
+      const presentReactionIds = new Set<string>();
+
+      for (const message of messages) {
+        const wasKnownMessage = knownMessageIds.has(message.id);
+        for (const reaction of message.reactions) {
+          const reactionId = `${message.id}:${reaction.emoji}`;
+          presentReactionIds.add(reactionId);
+          if (seeded && wasKnownMessage && !knownReactionIds.has(reactionId)) {
+            entering.add(reactionId);
+          }
+          knownReactionIds.add(reactionId);
+        }
+        knownMessageIds.add(message.id);
+      }
+
+      seeded ||= messages.length > 0;
+      for (const messageId of knownMessageIds) {
+        if (!presentMessageIds.has(messageId)) knownMessageIds.delete(messageId);
+      }
+      for (const reactionId of knownReactionIds) {
+        if (!presentReactionIds.has(reactionId)) knownReactionIds.delete(reactionId);
+      }
+      for (const reactionId of entering) {
+        if (!presentReactionIds.has(reactionId)) entering.delete(reactionId);
       }
 
       return entering;

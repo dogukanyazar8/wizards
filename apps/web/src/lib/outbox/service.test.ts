@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { prisma } from "@wizards/db";
 
 import {
   MessageCreatedAnalyticsPayloadSchema,
+  ACCOUNT_STORAGE_CLEANUP_KEYS_PER_JOB,
   OUTBOX_JOB_TYPES,
+  cleanupOutboxJobs,
+  drainOutboxJobs,
+  enqueueAccountStorageCleanupJob,
   enqueueAttachmentScanJob,
   enqueueChannelMentionNotificationJob,
   enqueueChannelThreadReplyNotificationJob,
@@ -13,6 +18,17 @@ import {
   getOutboxRetryDelayMs,
   logOutboxDrainMetrics,
 } from "./service";
+
+type Restore = () => void;
+
+function patchMethod(target: object, key: string, value: unknown, restores: Restore[]) {
+  const record = target as Record<string, unknown>;
+  const original = record[key];
+  record[key] = value;
+  restores.push(() => {
+    record[key] = original;
+  });
+}
 
 function outboxClient() {
   const jobs: Array<{ payload: unknown; type: string }> = [];
@@ -75,6 +91,273 @@ describe("message analytics attribution payload", () => {
 });
 
 describe("outbox service", () => {
+  it("persists bounded account storage cleanup keys for durable retry", async () => {
+    const { client, jobs } = outboxClient();
+
+    await enqueueAccountStorageCleanupJob(client, {
+      fileKeys: ["avatar-1", "attachment-1"],
+      userId: "user-1",
+    });
+
+    assert.deepEqual(jobs, [
+      {
+        payload: { fileKeys: ["avatar-1", "attachment-1"] },
+        type: OUTBOX_JOB_TYPES.accountStorageCleanup,
+      },
+    ]);
+  });
+
+  it("chunks arbitrarily large cleanup sets into worker-parseable jobs", async () => {
+    const { client, jobs } = outboxClient();
+    const fileKeys = Array.from(
+      { length: ACCOUNT_STORAGE_CLEANUP_KEYS_PER_JOB + 1 },
+      (_, index) => `file-${index}`,
+    );
+
+    await enqueueAccountStorageCleanupJob(client, { fileKeys, userId: "user-large" });
+
+    assert.equal(jobs.length, 2);
+    assert.equal((jobs[0]?.payload as { fileKeys: string[] }).fileKeys.length, 500);
+    assert.deepEqual((jobs[1]?.payload as { fileKeys: string[] }).fileKeys, ["file-500"]);
+  });
+
+  it("bounds retention cleanup to one ordered batch", async () => {
+    const restores: Restore[] = [];
+    let findArgs: unknown;
+    let deleteArgs: unknown;
+
+    patchMethod(
+      prisma.outboxJob,
+      "findMany",
+      async (args: unknown) => {
+        findArgs = args;
+        return [{ id: "job-1" }, { id: "job-2" }];
+      },
+      restores,
+    );
+    patchMethod(
+      prisma.outboxJob,
+      "deleteMany",
+      async (args: unknown) => {
+        deleteArgs = args;
+        return { count: 2 };
+      },
+      restores,
+    );
+
+    try {
+      const now = new Date("2026-08-12T12:00:00.000Z");
+      await cleanupOutboxJobs(now);
+
+      assert.deepEqual(findArgs, {
+        orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+        select: { id: true },
+        take: 500,
+        where: {
+          OR: [
+            {
+              status: "COMPLETED",
+              updatedAt: { lt: new Date("2026-08-05T12:00:00.000Z") },
+            },
+            {
+              status: "FAILED",
+              updatedAt: { lt: new Date("2026-07-13T12:00:00.000Z") },
+            },
+          ],
+        },
+      });
+      assert.deepEqual(deleteArgs, { where: { id: { in: ["job-1", "job-2"] } } });
+    } finally {
+      for (const restore of restores.reverse()) {
+        restore();
+      }
+    }
+  });
+
+  it("renews and completes a claimed job only under the current worker lease", async () => {
+    const restores: Restore[] = [];
+    const writes: Array<{ method: string; value: Record<string, unknown> }> = [];
+
+    patchMethod(
+      prisma,
+      "$queryRaw",
+      async () => [
+        {
+          attempts: 1,
+          id: "job-1",
+          maxAttempts: 8,
+          payload: { adminUserId: "admin-1", campaignId: "campaign-1" },
+          type: OUTBOX_JOB_TYPES.campaignSend,
+        },
+      ],
+      restores,
+    );
+    patchMethod(
+      prisma.notificationCampaign,
+      "findUnique",
+      async () => ({ status: "CANCELLED" }),
+      restores,
+    );
+    patchMethod(prisma.outboxJob, "count", async () => 0, restores);
+    patchMethod(prisma.outboxJob, "findFirst", async () => null, restores);
+    patchMethod(
+      prisma.outboxJob,
+      "update",
+      async (args: Record<string, unknown>) => {
+        writes.push({ method: "update", value: args });
+        return {};
+      },
+      restores,
+    );
+    patchMethod(
+      prisma.outboxJob,
+      "updateMany",
+      async (args: Record<string, unknown>) => {
+        writes.push({ method: "updateMany", value: args });
+        return { count: 1 };
+      },
+      restores,
+    );
+
+    try {
+      await drainOutboxJobs({ limit: 1, workerId: "worker-a" });
+
+      const renewed = writes.find(
+        ({ value }) =>
+          (value.data as Record<string, unknown> | undefined)?.lockedAt instanceof Date,
+      );
+      const completed = writes.find(
+        ({ value }) => (value.data as Record<string, unknown> | undefined)?.status === "COMPLETED",
+      );
+      assert.equal(
+        (renewed?.value.where as Record<string, unknown> | undefined)?.lockedBy,
+        "worker-a",
+      );
+      assert.equal(
+        (completed?.value.where as Record<string, unknown> | undefined)?.lockedBy,
+        "worker-a",
+      );
+      assert.equal(completed?.method, "updateMany");
+    } finally {
+      for (const restore of restores.reverse()) {
+        restore();
+      }
+    }
+  });
+
+  it("keeps storage cleanup retryable when UploadThing credentials are unavailable", async () => {
+    const restores: Restore[] = [];
+    const previousToken = process.env.UPLOADTHING_TOKEN;
+    const statuses: string[] = [];
+    delete process.env.UPLOADTHING_TOKEN;
+
+    patchMethod(
+      prisma,
+      "$queryRaw",
+      async () => [
+        {
+          attempts: 1,
+          id: "job-storage-cleanup",
+          maxAttempts: 8,
+          payload: { fileKeys: ["attachment-1"] },
+          type: OUTBOX_JOB_TYPES.accountStorageCleanup,
+        },
+      ],
+      restores,
+    );
+    patchMethod(prisma.outboxJob, "count", async () => 0, restores);
+    patchMethod(prisma.outboxJob, "findFirst", async () => null, restores);
+    patchMethod(prisma.outboxJob, "update", async () => ({}), restores);
+    patchMethod(
+      prisma.outboxJob,
+      "updateMany",
+      async (args: { data?: { status?: string } }) => {
+        if (args.data?.status) statuses.push(args.data.status);
+        return { count: 1 };
+      },
+      restores,
+    );
+
+    try {
+      await drainOutboxJobs({ limit: 1, workerId: "worker-a" });
+      assert.deepEqual(statuses, ["PENDING"]);
+    } finally {
+      if (previousToken === undefined) delete process.env.UPLOADTHING_TOKEN;
+      else process.env.UPLOADTHING_TOKEN = previousToken;
+      for (const restore of restores.reverse()) restore();
+    }
+  });
+
+  it("continues the batch when recording one job failure also fails", async () => {
+    const restores: Restore[] = [];
+    let completed = 0;
+
+    patchMethod(
+      prisma,
+      "$queryRaw",
+      async () => [
+        {
+          attempts: 1,
+          id: "job-bad",
+          maxAttempts: 8,
+          payload: {},
+          type: OUTBOX_JOB_TYPES.campaignSend,
+        },
+        {
+          attempts: 1,
+          id: "job-good",
+          maxAttempts: 8,
+          payload: { adminUserId: "admin-1", campaignId: "campaign-1" },
+          type: OUTBOX_JOB_TYPES.campaignSend,
+        },
+      ],
+      restores,
+    );
+    patchMethod(
+      prisma.notificationCampaign,
+      "findUnique",
+      async () => ({ status: "CANCELLED" }),
+      restores,
+    );
+    patchMethod(prisma.outboxJob, "count", async () => 0, restores);
+    patchMethod(prisma.outboxJob, "findFirst", async () => null, restores);
+    patchMethod(
+      prisma.outboxJob,
+      "update",
+      async (args: { data?: { status?: string } }) => {
+        if (args.data?.status === "COMPLETED") {
+          completed += 1;
+          return {};
+        }
+        throw new Error("failure update unavailable");
+      },
+      restores,
+    );
+    patchMethod(
+      prisma.outboxJob,
+      "updateMany",
+      async (args: { data?: { lastError?: string; status?: string } }) => {
+        if (args.data?.lastError) {
+          throw new Error("failure update unavailable");
+        }
+        if (args.data?.status === "COMPLETED") {
+          completed += 1;
+        }
+        return { count: 1 };
+      },
+      restores,
+    );
+
+    try {
+      await drainOutboxJobs({ limit: 2, workerId: "worker-a" });
+      assert.equal(completed, 1);
+    } finally {
+      for (const restore of restores.reverse()) {
+        restore();
+      }
+    }
+  });
+
   it("backs off retries without exceeding the worker cap", () => {
     assert.equal(getOutboxRetryDelayMs(1), 1000);
     assert.equal(getOutboxRetryDelayMs(2), 2000);
@@ -200,7 +483,13 @@ describe("notification jobs enqueue through the caller's transaction", () => {
       mentionedUserIds: [],
       messageId: "message-3",
       participants: [
-        { muted: false, notifyLevel: "ALL" as const, user: { locale: "tr" }, userId: "user-2" },
+        {
+          muted: false,
+          notifyLevel: "ALL" as const,
+          user: { locale: "tr", email: "must-not-enter-outbox", username: "hidden" },
+          userId: "user-2",
+          joinedAt: new Date("2026-08-12T00:00:00.000Z"),
+        } as never,
       ],
       senderId: "user-1",
       senderName: "Dogukan",
@@ -208,6 +497,14 @@ describe("notification jobs enqueue through the caller's transaction", () => {
 
     assert.equal(jobs.length, 1);
     assert.equal(jobs[0]?.type, OUTBOX_JOB_TYPES.dmMessageNotifications);
+    assert.deepEqual((jobs[0]?.payload as { participants: unknown[] }).participants, [
+      {
+        muted: false,
+        notifyLevel: "ALL",
+        user: { locale: "tr" },
+        userId: "user-2",
+      },
+    ]);
   });
 });
 

@@ -573,6 +573,9 @@ export function useMobileChannelMessageMutation(input: {
       queryKey,
     }),
   );
+  // TanStack replaces the observer result object on render; `mutate` is the
+  // stable command. Depending on the result made every retry consumer unstable.
+  const mutate = mutation.mutate;
 
   const discardFailedMessage = useCallback(
     (messageId: string) => {
@@ -599,10 +602,10 @@ export function useMobileChannelMessageMutation(input: {
       // The same nonce as the attempt that failed: the server may already hold
       // that message, and this is what lets it answer with the one it has.
       markMobileSendRetry(draft, entry.clientId);
-      mutation.mutate(draft);
+      mutate(draft);
       return true;
     },
-    [mutation, queryClient, queryKey, scope],
+    [mutate, queryClient, queryKey, scope],
   );
 
   return { discardFailedMessage, mutation, retryFailedMessage };
@@ -765,6 +768,9 @@ export function useMobileDMMessageMutation(input: {
       queryKey,
     }),
   );
+  // TanStack replaces the observer result object on render; `mutate` is the
+  // stable command. Depending on the result made every retry consumer unstable.
+  const mutate = mutation.mutate;
 
   const discardFailedMessage = useCallback(
     (messageId: string) => {
@@ -791,10 +797,10 @@ export function useMobileDMMessageMutation(input: {
       // The same nonce as the attempt that failed: the server may already hold
       // that message, and this is what lets it answer with the one it has.
       markMobileSendRetry(draft, entry.clientId);
-      mutation.mutate(draft);
+      mutate(draft);
       return true;
     },
-    [mutation, queryClient, queryKey, scope],
+    [mutate, queryClient, queryKey, scope],
   );
 
   return { discardFailedMessage, mutation, retryFailedMessage };

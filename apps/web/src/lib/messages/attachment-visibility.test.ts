@@ -81,7 +81,7 @@ describe("message attachment visibility", () => {
     assert.notEqual(redacted, message);
   });
 
-  it("preserves pending URLs for the uploader when redacting enriched payloads", () => {
+  it("does not infer uploader access from fields outside the public attachment DTO", () => {
     const message = {
       attachments: [
         {
@@ -94,6 +94,6 @@ describe("message attachment visibility", () => {
 
     const redacted = redactMessageAttachmentUrlsForViewer(message, "uploader-1");
 
-    assert.equal(redacted.attachments[0]?.url, "https://cdn.whispr.test/diagram.png");
+    assert.equal(redacted.attachments[0]?.url, null);
   });
 });

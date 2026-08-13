@@ -1,5 +1,5 @@
 import { FlashList } from "@shopify/flash-list";
-import { memo } from "react";
+import { memo, useCallback, useMemo } from "react";
 import type { MobileVoiceChannelState } from "@wizards/types";
 import {
   Ionicons,
@@ -29,6 +29,19 @@ import { mobileListLoadHandlers } from "../../performance/mobile-performance-met
 
 /** Stacked avatars on the live voice row; more people than this read as a count. */
 const VOICE_ROW_AVATAR_LIMIT = 3;
+const EMPTY_VOICE_STATES: readonly MobileVoiceChannelState[] = Object.freeze([]);
+
+type WorkspaceChannelListItem =
+  | {
+      readonly channel: MobileWorkspaceChannelSummary;
+      readonly id: string;
+      readonly kind: "channel";
+    }
+  | {
+      readonly id: string;
+      readonly kind: "section";
+      readonly section: MobileVisibleWorkspaceChannelSection;
+    };
 
 export function WorkspaceChannelSectionList({
   canEditCategories = false,
@@ -40,7 +53,7 @@ export function WorkspaceChannelSectionList({
   sections,
   selectedChannelId,
   unreadSectionIds,
-  voiceStates = [],
+  voiceStates = EMPTY_VOICE_STATES,
 }: {
   canEditCategories?: boolean;
   isCollapseDisabled: boolean;
@@ -61,18 +74,131 @@ export function WorkspaceChannelSectionList({
   const styles = useHomeScreenStyles();
   const theme = useTheme();
   const isRailLayout = layout === "rail";
+  // The caller already memoizes `sections`; rebuilding the flattened array here
+  // discarded that work and made FlashList treat an unchanged feed as new data.
+  const items = useMemo<WorkspaceChannelListItem[]>(
+    () =>
+      sections.flatMap((section) => [
+        { id: `section:${section.id}`, kind: "section" as const, section },
+        ...section.channels.map((channel) => ({
+          channel,
+          id: `channel:${channel.id}`,
+          kind: "channel" as const,
+        })),
+      ]),
+    [sections],
+  );
+  // Presence changes frequently. Index once per snapshot instead of scanning
+  // the full voice-state array for every visible channel row.
+  const voiceStateByChannelId = useMemo(
+    () => new Map(voiceStates.map((state) => [state.channelId, state] as const)),
+    [voiceStates],
+  );
+  const renderItem = useCallback(
+    ({ item }: { item: WorkspaceChannelListItem }) => {
+      if (item.kind === "channel") {
+        return (
+          <WorkspaceChannelCompactRow
+            channel={item.channel}
+            isSelected={item.channel.id === selectedChannelId}
+            layout={layout}
+            onOpenChannel={onOpenChannel}
+            voiceState={voiceStateByChannelId.get(item.channel.id) ?? null}
+          />
+        );
+      }
+
+      const { section } = item;
+      const headerState = getMobileCategoryHeaderState(section, section.isCollapsed);
+      const canEditSection =
+        canEditCategories && onEditSection !== undefined && section.id !== "ungrouped";
+
+      return (
+        <View
+          style={
+            isRailLayout
+              ? styles.mobileWorkspaceSectionHeaderRail
+              : styles.mobileWorkspaceSectionHeader
+          }
+        >
+          <Pressable
+            accessibilityLabel={`${section.name} ${
+              section.isCollapsed
+                ? copy.workspaceSectionExpandAction
+                : copy.workspaceSectionCollapseAction
+            }`}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isCollapseDisabled, expanded: !section.isCollapsed }}
+            disabled={isCollapseDisabled}
+            hitSlop={12}
+            onLongPress={
+              canEditSection ? () => onEditSection?.(section.id, section.name) : undefined
+            }
+            onPress={() => onToggleSection(section.id)}
+            style={({ pressed }) => [
+              styles.mobileWorkspaceSectionHeaderToggle,
+              pressed && styles.compactListRowPressed,
+            ]}
+            testID={`mobile-workspace-section-${section.id}`}
+          >
+            <MobileLineIcon
+              color={
+                headerState.isCollapsed
+                  ? theme.workspace.categoryCollapsed.chevron
+                  : theme.workspace.categoryLabel.color
+              }
+              name={headerState.isCollapsed ? "chevron-right" : "chevron-down"}
+              size={11}
+            />
+            <Text
+              style={[
+                isRailLayout
+                  ? styles.mobileWorkspaceSectionTitleRail
+                  : styles.mobileWorkspaceSectionTitle,
+                headerState.isCollapsed && styles.mobileWorkspaceSectionCollapsedLabel,
+              ]}
+            >
+              {section.name}
+            </Text>
+            <Text
+              style={[
+                styles.mobileWorkspaceSectionCountText,
+                headerState.isCollapsed && styles.mobileWorkspaceSectionCollapsedCount,
+              ]}
+              testID={`mobile-workspace-section-count-${section.id}`}
+            >
+              {section.totalChannelCount}
+            </Text>
+            {headerState.isCollapsed && unreadSectionIds?.has(section.id) === true ? (
+              <View
+                style={styles.mobileWorkspaceSectionCollapsedDot}
+                testID={`mobile-workspace-section-unread-${section.id}`}
+              />
+            ) : null}
+          </Pressable>
+        </View>
+      );
+    },
+    [
+      canEditCategories,
+      isCollapseDisabled,
+      isRailLayout,
+      layout,
+      onEditSection,
+      onOpenChannel,
+      onToggleSection,
+      selectedChannelId,
+      styles,
+      theme.workspace.categoryCollapsed.chevron,
+      theme.workspace.categoryLabel.color,
+      unreadSectionIds,
+      voiceStateByChannelId,
+    ],
+  );
+
   if (sections.length === 0) {
     return <Text style={styles.contractDescription}>{copy.workspaceNoChannels}</Text>;
   }
-
-  const items = sections.flatMap((section) => [
-    { id: `section:${section.id}`, kind: "section" as const, section },
-    ...section.channels.map((channel) => ({
-      channel,
-      id: `channel:${channel.id}`,
-      kind: "channel" as const,
-    })),
-  ]);
 
   return (
     <FlashList
@@ -85,92 +211,7 @@ export function WorkspaceChannelSectionList({
       getItemType={(item) => item.kind}
       keyExtractor={(item) => item.id}
       onLoad={mobileListLoadHandlers.workspaceChannels}
-      renderItem={({ item }) => {
-        if (item.kind === "channel") {
-          return (
-            <WorkspaceChannelCompactRow
-              channel={item.channel}
-              isSelected={item.channel.id === selectedChannelId}
-              layout={layout}
-              onOpenChannel={onOpenChannel}
-              voiceState={voiceStates.find((state) => state.channelId === item.channel.id) ?? null}
-            />
-          );
-        }
-
-        const { section } = item;
-        // 6a: chevron + label + channel count, and nothing else. A collapsed
-        // category dims and, if it is hiding unread rows, admits it with a dot.
-        const headerState = getMobileCategoryHeaderState(section, section.isCollapsed);
-        const canEditSection =
-          canEditCategories && onEditSection !== undefined && section.id !== "ungrouped";
-
-        return (
-          <View
-            style={
-              isRailLayout
-                ? styles.mobileWorkspaceSectionHeaderRail
-                : styles.mobileWorkspaceSectionHeader
-            }
-          >
-            <Pressable
-              accessibilityLabel={`${section.name} ${
-                section.isCollapsed
-                  ? copy.workspaceSectionExpandAction
-                  : copy.workspaceSectionCollapseAction
-              }`}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: isCollapseDisabled, expanded: !section.isCollapsed }}
-              disabled={isCollapseDisabled}
-              hitSlop={12}
-              onLongPress={
-                canEditSection ? () => onEditSection?.(section.id, section.name) : undefined
-              }
-              onPress={() => onToggleSection(section.id)}
-              style={({ pressed }) => [
-                styles.mobileWorkspaceSectionHeaderToggle,
-                pressed && styles.compactListRowPressed,
-              ]}
-              testID={`mobile-workspace-section-${section.id}`}
-            >
-              <MobileLineIcon
-                color={
-                  headerState.isCollapsed
-                    ? theme.workspace.categoryCollapsed.chevron
-                    : theme.workspace.categoryLabel.color
-                }
-                name={headerState.isCollapsed ? "chevron-right" : "chevron-down"}
-                size={11}
-              />
-              <Text
-                style={[
-                  isRailLayout
-                    ? styles.mobileWorkspaceSectionTitleRail
-                    : styles.mobileWorkspaceSectionTitle,
-                  headerState.isCollapsed && styles.mobileWorkspaceSectionCollapsedLabel,
-                ]}
-              >
-                {section.name}
-              </Text>
-              <Text
-                style={[
-                  styles.mobileWorkspaceSectionCountText,
-                  headerState.isCollapsed && styles.mobileWorkspaceSectionCollapsedCount,
-                ]}
-                testID={`mobile-workspace-section-count-${section.id}`}
-              >
-                {section.totalChannelCount}
-              </Text>
-              {headerState.isCollapsed && unreadSectionIds?.has(section.id) === true ? (
-                <View
-                  style={styles.mobileWorkspaceSectionCollapsedDot}
-                  testID={`mobile-workspace-section-unread-${section.id}`}
-                />
-              ) : null}
-            </Pressable>
-          </View>
-        );
-      }}
+      renderItem={renderItem}
       showsVerticalScrollIndicator={false}
       style={styles.mobileWorkspaceSectionListViewport}
       testID="mobile-workspace-channel-list"

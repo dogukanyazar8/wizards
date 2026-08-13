@@ -64,7 +64,10 @@ export type GroupRouteDependencies = {
   emitRoleChanged: typeof emitGroupRoleChanged;
   emitSettingsChanged: typeof emitGroupSettingsChanged;
   enforceRateLimit(userId: string, action: ApiRateLimitAction): Promise<void>;
-  evictRemoved: typeof evictRemovedGroupMember;
+  evictRemoved(
+    io: GroupRealtimeServer | null,
+    input: { conversationId: string; userId: string },
+  ): Promise<void> | void;
   getIo(): GroupRealtimeServer | null;
   /**
    * Faz 5 §C/§D. The read behind 2e and 2f: permissions, roster, roles, pinned
@@ -288,10 +291,9 @@ export async function groupRemoveMemberRoute(
       transferOwnershipTo === undefined ? {} : { transferOwnershipTo },
     );
     const io = dependencies.getIo();
+    await dependencies.evictRemoved(io, { conversationId, userId: targetUserId });
 
     if (io) {
-      dependencies.evictRemoved(io, { conversationId, userId: targetUserId });
-
       // The service names somebody still inside, because the read requires
       // participation: on a leave the actor is the person who just left, and
       // reading as them would come back empty and silently skip the broadcast.

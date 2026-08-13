@@ -86,7 +86,6 @@ export type TwoFactorServiceDependencies = {
 type TwoFactorError =
   | "already_enabled"
   | "invalid_code"
-  | "invalid_credentials"
   | "not_enabled"
   | "not_found"
   | "rate_limited"
@@ -543,7 +542,13 @@ export async function disableTwoFactor(
   }
 
   if (!user.passwordHash || !(await deps.comparePassword(input.password, user.passwordHash))) {
-    return { error: "invalid_credentials", success: false };
+    // Password and TOTP failures share one tracker and one public result. Splitting
+    // them turns this authenticated endpoint into a clean password oracle.
+    return recordAttemptFailure({
+      nowMs: deps.nowMs(),
+      store: deps.attemptStore,
+      userId: input.userId,
+    });
   }
 
   const secondFactor = await verifyTwoFactorCredential(

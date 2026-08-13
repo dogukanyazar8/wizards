@@ -98,7 +98,15 @@ describe("voice state API route", () => {
           calls.push(`upsert:${userId}:${input.serverId}:${input.channelId}:${input.sessionId}`);
           return {
             channelId: input.channelId,
-            participants: [{ avatarUrl: null, displayName: "Ada", userId, username: "ada" }],
+            participants: [
+              {
+                avatarUrl: null,
+                displayName: "Ada",
+                isDeafened: false,
+                userId,
+                username: "ada",
+              },
+            ],
             serverId: input.serverId,
             sessionId: input.sessionId,
           };
@@ -109,7 +117,15 @@ describe("voice state API route", () => {
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), {
       channelId: "voice-1",
-      participants: [{ avatarUrl: null, displayName: "Ada", userId: "user-1", username: "ada" }],
+      participants: [
+        {
+          avatarUrl: null,
+          displayName: "Ada",
+          isDeafened: false,
+          userId: "user-1",
+          username: "ada",
+        },
+      ],
       serverId: "server-1",
       sessionId,
     });

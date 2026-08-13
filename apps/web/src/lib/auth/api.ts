@@ -17,6 +17,7 @@ type ApiAuthSessionUser = {
 };
 
 type ApiAuthSession = {
+  authSessionId?: string | null;
   user?: ApiAuthSessionUser | null;
 } | null;
 
@@ -49,6 +50,28 @@ export async function requireApiUserId(
   });
 
   return userId;
+}
+
+export async function requireApiAuthSession(
+  dependencies: RequireApiUserIdDependencies = defaultRequireApiUserIdDependencies,
+) {
+  const session = await dependencies.auth();
+  const user = session?.user;
+  const userId = user?.id;
+  const sessionId = session?.authSessionId;
+
+  if (!userId || !sessionId) {
+    throw new ApiError("Unauthorized", 401, "UNAUTHORIZED");
+  }
+
+  dependencies.assertActiveApiUser({
+    ...(user.deletedAt === undefined ? {} : { deletedAt: user.deletedAt }),
+    emailVerified: Boolean(user.authEmailVerified),
+    id: userId,
+    isBanned: Boolean(user.isBanned),
+  });
+
+  return { sessionId, userId };
 }
 
 /**
@@ -226,6 +249,14 @@ export async function authorizeMobileApiRequest(
   action: ApiRateLimitAction,
   dependencies: AuthorizeMobileApiRequestDependencies = defaultAuthorizeMobileApiRequestDependencies,
 ): Promise<string> {
+  return (await authorizeMobileApiSession(request, action, dependencies)).userId;
+}
+
+export async function authorizeMobileApiSession(
+  request: Request,
+  action: ApiRateLimitAction,
+  dependencies: AuthorizeMobileApiRequestDependencies = defaultAuthorizeMobileApiRequestDependencies,
+): Promise<{ sessionId: string; userId: string }> {
   const claims = readMobileApiClaims(request);
   const [sessionActive, user, rateLimit] = await Promise.allSettled([
     dependencies.isSessionActive(claims),
@@ -236,5 +267,5 @@ export async function authorizeMobileApiRequest(
   assertMobileApiUserActive(claims, sessionActive, user);
   unwrapSettled(rateLimit);
 
-  return claims.userId;
+  return { sessionId: claims.sessionId, userId: claims.userId };
 }

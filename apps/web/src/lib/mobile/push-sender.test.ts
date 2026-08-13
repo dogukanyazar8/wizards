@@ -16,6 +16,7 @@ function createDeps(options: {
 }) {
   const requests: SentRequest[] = [];
   const deletedTokens: string[][] = [];
+  const loggedErrors: Array<{ error: unknown; scope: string }> = [];
   const pushAttempts: unknown[] = [];
   let call = 0;
 
@@ -50,11 +51,13 @@ function createDeps(options: {
         status,
       };
     }) as unknown as typeof fetch,
-    logError: () => undefined,
+    logError: (scope, error) => {
+      loggedErrors.push({ error, scope });
+    },
     sleep: async () => undefined,
   };
 
-  return { deletedTokens, deps, pushAttempts, requests };
+  return { deletedTokens, deps, loggedErrors, pushAttempts, requests };
 }
 
 describe("sendMobilePushToUsers", () => {
@@ -230,6 +233,38 @@ describe("sendMobilePushForNotifications", () => {
 });
 
 describe("push ticket telemetry", () => {
+  it("records and logs a batch rejected by Expo", async () => {
+    const { deps, loggedErrors, pushAttempts } = createDeps({
+      responses: [{ status: 400 }],
+      tokens: [{ platform: "android", token: "ExpoPushToken[a]", userId: "u1" }],
+    });
+
+    await sendMobilePushToUsers(
+      {
+        androidChannelId: MOBILE_PUSH_ANDROID_CHANNELS.default,
+        body: "b",
+        data: { kind: "notification" },
+        title: "t",
+        userIds: ["u1"],
+      },
+      deps,
+    );
+
+    assert.deepEqual(pushAttempts, [
+      {
+        errorCode: "ExpoHttp400",
+        notificationId: null,
+        platform: "android",
+        stage: "TICKET",
+        success: false,
+        ticketId: null,
+        userId: "u1",
+      },
+    ]);
+    assert.equal(loggedErrors.length, 1);
+    assert.equal(loggedErrors[0]?.scope, "mobile_push_batch_rejected");
+  });
+
   it("records one accepted attempt per message with the device platform", async () => {
     const { deps, pushAttempts } = createDeps({
       responses: [{ body: { data: [{ id: "ticket-1", status: "ok" }] } }],

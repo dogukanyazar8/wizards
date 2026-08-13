@@ -6,11 +6,33 @@ import { cleanupOutboxJobs, drainOutboxJobs } from "@/lib/outbox/service";
 import { rollUpClientHealthEvents as rollUpClientHealthEventsService } from "@/lib/telemetry/client-health-rollup";
 import { purgeExpiredEvidence as purgeExpiredEvidenceService } from "@/lib/moderation/evidence-service";
 import { sweepModerationCaseAlerts as sweepModerationCaseAlertsService } from "@/lib/moderation/case-alert-service";
+import { purgeExpiredBugReports as purgeExpiredBugReportsService } from "@/lib/support/bug-report-service";
+import { prisma } from "@wizards/db";
 
 const DEFAULT_OUTBOX_WORKER_BATCH_SIZE = 25;
 const DEFAULT_OUTBOX_WORKER_INTERVAL_MS = 5_000;
 const OUTBOX_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 const DEFAULT_OUTBOX_WORKER_SHUTDOWN_TIMEOUT_MS = 10_000;
+
+type ExpiredSessionCleanupClient = {
+  authSession: {
+    deleteMany(input: { where: { expiresAt: { lt: Date } } }): Promise<{ count: number }>;
+  };
+  session: {
+    deleteMany(input: { where: { expiresAt: { lt: Date } } }): Promise<{ count: number }>;
+  };
+};
+
+export async function cleanupExpiredSessions(
+  { now }: { now: Date },
+  client: ExpiredSessionCleanupClient = prisma,
+) {
+  const [legacy, auth] = await Promise.all([
+    client.session.deleteMany({ where: { expiresAt: { lt: now } } }),
+    client.authSession.deleteMany({ where: { expiresAt: { lt: now } } }),
+  ]);
+  return { count: legacy.count + auth.count };
+}
 
 let workerTimer: ReturnType<typeof setInterval> | null = null;
 let currentDrainPromise: Promise<void> | null = null;
@@ -18,10 +40,12 @@ let lastCleanupAt = 0;
 
 type StartOutboxWorkerOptions = {
   cleanupJobs?: typeof cleanupOutboxJobs;
+  cleanupExpiredSessions?: typeof cleanupExpiredSessions;
   cleanupMobileMediaUploads?: typeof cleanupMobileMediaUploadsService;
   cleanupReauthChallenges?: typeof cleanupAccountReauthChallenges;
   drainJobs?: typeof drainOutboxJobs;
   intervalMs?: number;
+  purgeExpiredBugReports?: typeof purgeExpiredBugReportsService;
   purgeExpiredEvidence?: typeof purgeExpiredEvidenceService;
   rollUpClientHealthEvents?: typeof rollUpClientHealthEventsService;
   sweepBadges?: typeof sweepBadgesService;
@@ -42,11 +66,13 @@ function readPositiveIntegerEnv(name: string, fallback: number) {
 
 export function startOutboxWorker({
   cleanupJobs = cleanupOutboxJobs,
+  cleanupExpiredSessions: cleanupExpiredSessionsForRun = cleanupExpiredSessions,
   cleanupMobileMediaUploads = cleanupMobileMediaUploadsService,
   cleanupReauthChallenges = cleanupAccountReauthChallenges,
   drainJobs = drainOutboxJobs,
   intervalMs,
   keepAlive = false,
+  purgeExpiredBugReports = purgeExpiredBugReportsService,
   purgeExpiredEvidence = purgeExpiredEvidenceService,
   rollUpClientHealthEvents = rollUpClientHealthEventsService,
   runImmediately = true,
@@ -78,20 +104,45 @@ export function startOutboxWorker({
           return;
         }
 
-        lastCleanupAt = now;
         const cleanupNow = new Date(now);
-        await cleanupJobs(cleanupNow);
-        await cleanupReauthChallenges({ now: cleanupNow });
-        await cleanupMobileMediaUploads({ now: cleanupNow });
-        await rollUpClientHealthEvents({ now: cleanupNow });
-        await purgeExpiredEvidence({ now: cleanupNow });
-        // "Open for more than a day" only becomes a notification if something
-        // periodic looks; this hourly block is the only scheduler the app has.
-        await sweepModerationCaseAlerts({ now: cleanupNow });
-        // Same reason the badge engine's periodic half rides along: recomputing
-        // `founder` and applying moderation revocations needs a clock, and this
-        // is the only one.
-        await sweepBadges({ now: cleanupNow });
+        const maintenanceTasks: Array<[name: string, run: () => Promise<unknown>]> = [
+          ["cleanupOutboxJobs", () => cleanupJobs(cleanupNow)],
+          // Session rows are bearer credentials, not history. Expired rows must
+          // leave durable storage even when no user explicitly signs out.
+          ["cleanupExpiredSessions", () => cleanupExpiredSessionsForRun({ now: cleanupNow })],
+          ["cleanupAccountReauthChallenges", () => cleanupReauthChallenges({ now: cleanupNow })],
+          ["cleanupMobileMediaUploads", () => cleanupMobileMediaUploads({ now: cleanupNow })],
+          ["rollUpClientHealthEvents", () => rollUpClientHealthEvents({ now: cleanupNow })],
+          ["purgeExpiredBugReports", () => purgeExpiredBugReports()],
+          ["purgeExpiredEvidence", () => purgeExpiredEvidence({ now: cleanupNow })],
+          // This hourly block is the application's only scheduler for stale-case
+          // alerts and periodic badge recomputation.
+          ["sweepModerationCaseAlerts", () => sweepModerationCaseAlerts({ now: cleanupNow })],
+          [
+            "sweepBadges",
+            () =>
+              sweepBadges({
+                ...(lastCleanupAt > 0 ? { lastSweepAt: new Date(lastCleanupAt) } : {}),
+                now: cleanupNow,
+              }),
+          ],
+        ];
+        let maintenanceFailed = false;
+
+        for (const [name, run] of maintenanceTasks) {
+          try {
+            await run();
+          } catch (error) {
+            maintenanceFailed = true;
+            logError(`[outbox] Maintenance task failed: ${name}`, error);
+          }
+        }
+
+        // A failed task must be retried on the next drain. Advancing before the
+        // block made one transient failure suppress every maintenance job for an hour.
+        if (!maintenanceFailed) {
+          lastCleanupAt = now;
+        }
       })
       .catch((error) => {
         logError("[outbox] Worker drain failed", error);

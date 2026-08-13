@@ -93,6 +93,23 @@ describe("mobile secure session contract", () => {
     assert.equal(await repository.load(), null);
   });
 
+  it("leaves a durable tombstone when deletion fails so restart cannot revive a session", async () => {
+    const storage = new MemorySecureStorage();
+    const repository = createMobileSessionRepository({
+      deleteItemAsync: async () => {
+        throw new Error("temporary keystore failure");
+      },
+      getItemAsync: (key) => storage.getItemAsync(key),
+      setItemAsync: (key, value) => storage.setItemAsync(key, value),
+    });
+    await repository.save(buildSession());
+
+    await repository.clear();
+
+    const repositoryAfterRestart = createMobileSessionRepository(storage);
+    assert.equal(await repositoryAfterRestart.load(), null);
+  });
+
   it("computes expiry and refresh decisions with a defensive skew", () => {
     const now = Date.UTC(2026, 5, 26, 12, 0, 0);
     const almostExpired = buildSession({

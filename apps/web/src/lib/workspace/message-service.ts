@@ -351,13 +351,10 @@ export function mapRawMessage(
       username: message.author.username,
       displayName: message.author.displayName ?? message.author.username,
       avatarUrl: message.author.avatarUrl,
-      status:
-        message.author.status === "ONLINE" ||
-        message.author.status === "IDLE" ||
-        message.author.status === "DND"
-          ? message.author.status
-          : "OFFLINE",
-      customStatus: message.author.customStatus,
+      // The member roster carries viewer-filtered presence. Raw author fields
+      // on reusable message payloads would bypass FRIENDS/NOBODY/INVISIBLE.
+      status: "OFFLINE",
+      customStatus: null,
     },
     content: message.deletedAt ? "[deleted]" : message.content,
     type: normalizeMessageType(message.type),

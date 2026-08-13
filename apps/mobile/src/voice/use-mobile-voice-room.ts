@@ -59,12 +59,14 @@ import {
   MOBILE_VOICE_HEARTBEAT_INTERVAL_MS,
   MOBILE_VOICE_LEVEL_CHANGE_THRESHOLD,
   MOBILE_VOICE_LEVEL_INTERVAL_MS,
+  reconcileMobileVoiceForegroundInterval,
+  runMobileVoiceLevelTick,
 } from "./mobile-voice-lifecycle-contract";
 import {
   resumeRemoteVideoFromBackground,
   suspendRemoteVideoForBackground,
 } from "./mobile-remote-video-background";
-import { applyMobileScreenShareAudioMute } from "./mobile-screen-share-audio";
+import { syncMobileScreenShareAudioMute } from "./mobile-screen-share-audio";
 import { shouldSuspendVoiceMediaOnAppStateChange } from "./mobile-voice-background-media";
 import {
   createInitialMobilePushToTalkState,
@@ -84,6 +86,7 @@ import {
   getNextMobileCameraFacingMode,
 } from "./mobile-camera-contract";
 import {
+  applyMobileVoiceAudioBitrate,
   enableMobileCameraWithCodecFallback,
   getMobileCameraRoomDefaults,
   type MobileCameraVideoCodec,
@@ -464,6 +467,9 @@ export function useMobileVoiceRoom({
   const roomRef = useRef<Room | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const levelTickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const appStateRef = useRef(AppState.currentState);
+  const screenShareAudioMuteSignatureRef = useRef<string | null>(null);
+  const screenShareAudioMuteRoomRef = useRef<Room | null>(null);
   /** Measured (or peer-reported) speaking state per user, keyed by user id. */
   const audioActivityRef = useRef<Map<string, MobileVoiceAudioActivity>>(new Map());
   /** Guards the stats batch so a slow device throttles itself by dropping ticks. */
@@ -557,12 +563,16 @@ export function useMobileVoiceRoom({
         return;
       }
 
-      // A reconnect, or a sharer who joined after the choice was made, arrives at
-      // full volume; the listener's mute is re-asserted on every sync rather
-      // than only at the moment they pressed the button.
-      applyMobileScreenShareAudioMute(
+      // Level ticks also refresh participant state. Native volume only changes
+      // when the preference, room, or remote participant set actually changes.
+      if (screenShareAudioMuteRoomRef.current !== room) {
+        screenShareAudioMuteRoomRef.current = room;
+        screenShareAudioMuteSignatureRef.current = null;
+      }
+      screenShareAudioMuteSignatureRef.current = syncMobileScreenShareAudioMute(
         room,
         voiceDevicePreferencesRef.current.screenShareAudioMuted,
+        screenShareAudioMuteSignatureRef.current,
       );
 
       setRoomState((current) => {
@@ -862,16 +872,16 @@ export function useMobileVoiceRoom({
    * up bridge calls.
    */
   const sampleRoomAudioActivity = useCallback(
-    async (generation: number) => {
+    async (generation: number): Promise<boolean> => {
       const room = roomRef.current;
       if (!room || audioSampleInFlightRef.current || !isCurrentSessionGeneration(generation)) {
-        return;
+        return false;
       }
 
       const sources = collectMobileVoiceAudioLevelSources(room);
       if (sources.length === 0) {
         audioActivityRef.current.clear();
-        return;
+        return true;
       }
 
       audioSampleInFlightRef.current = true;
@@ -884,7 +894,7 @@ export function useMobileVoiceRoom({
         );
 
         if (roomRef.current !== room || !isCurrentSessionGeneration(generation)) {
-          return;
+          return false;
         }
 
         const now = Date.now();
@@ -915,6 +925,7 @@ export function useMobileVoiceRoom({
             activity.delete(userId);
           }
         }
+        return true;
       } finally {
         audioSampleInFlightRef.current = false;
       }
@@ -925,11 +936,23 @@ export function useMobileVoiceRoom({
   const startLevelTicker = useCallback(
     (generation: number) => {
       clearLevelTicker();
-      levelTickerRef.current = setInterval(() => {
-        void sampleRoomAudioActivity(generation).finally(() => {
-          updateParticipantsFromRoom(generation);
-        });
-      }, MOBILE_VOICE_LEVEL_INTERVAL_MS);
+      levelTickerRef.current = reconcileMobileVoiceForegroundInterval({
+        appState: appStateRef.current,
+        clearTimer: clearInterval,
+        current: levelTickerRef.current,
+        enabled: true,
+        intervalMs: MOBILE_VOICE_LEVEL_INTERVAL_MS,
+        run: () => {
+          void runMobileVoiceLevelTick({
+            sample: () =>
+              appStateRef.current === "active"
+                ? sampleRoomAudioActivity(generation)
+                : Promise.resolve(false),
+            updateParticipants: () => updateParticipantsFromRoom(generation),
+          });
+        },
+        setTimer: setInterval,
+      });
     },
     [clearLevelTicker, sampleRoomAudioActivity, updateParticipantsFromRoom],
   );
@@ -1273,7 +1296,10 @@ export function useMobileVoiceRoom({
           // A DM call shows one fullscreen remote video, so adaptive stream only
           // costs sharpness there; a channel room keeps it.
           ...getMobileVoiceRoomSubscriptionOptions({ sessionMode: input.sessionMode }),
-          publishDefaults: cameraRoomDefaults.publishDefaults,
+          publishDefaults: applyMobileVoiceAudioBitrate(
+            cameraRoomDefaults.publishDefaults,
+            tokenResponse.mediaPolicy.audioBitrate,
+          ),
           videoCaptureDefaults: cameraRoomDefaults.videoCaptureDefaults,
         });
         const unbindRoomEvents = bindRoomEvents(room, generation);
@@ -1368,6 +1394,7 @@ export function useMobileVoiceRoom({
             serverId,
             sessionId,
             sessionMode: input.sessionMode,
+            videoQualityMode: tokenResponse.mediaPolicy.videoQualityMode,
           };
         });
 
@@ -1726,12 +1753,16 @@ export function useMobileVoiceRoom({
    */
   /**
    * A listener-side mute, stored with the device preferences so it survives the
-   * call. Applied immediately and re-applied on every room update, because
-   * livekit forgets a volume only if the participant object itself is replaced.
+   * call. Applied immediately; participant sync re-applies only when the room
+   * or remote participant set changes.
    */
   const selectScreenShareAudioMuted = useCallback(
     (muted: boolean) => {
-      applyMobileScreenShareAudioMute(roomRef.current, muted);
+      screenShareAudioMuteSignatureRef.current = syncMobileScreenShareAudioMute(
+        roomRef.current,
+        muted,
+        null,
+      );
       commitVoiceDevicePreferences({
         ...voiceDevicePreferencesRef.current,
         screenShareAudioMuted: muted,
@@ -1912,29 +1943,48 @@ export function useMobileVoiceRoom({
       return;
     }
 
-    void syncVoiceAudioRoute();
-    const interval = setInterval(() => {
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const reconcileInterval = (appState: string) => {
+      interval = reconcileMobileVoiceForegroundInterval({
+        appState,
+        clearTimer: clearInterval,
+        current: interval,
+        enabled: true,
+        intervalMs: MOBILE_VOICE_AUDIO_ROUTE_SYNC_INTERVAL_MS,
+        run: () => void syncVoiceAudioRoute(),
+        setTimer: setInterval,
+      });
+    };
+    if (AppState.currentState === "active") {
       void syncVoiceAudioRoute();
-    }, MOBILE_VOICE_AUDIO_ROUTE_SYNC_INTERVAL_MS);
+    }
+    reconcileInterval(AppState.currentState);
     // Returning from Settings or from a Bluetooth pairing sheet is the other
     // moment the route commonly changed while the app was not looking.
     const subscription = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active") {
         void syncVoiceAudioRoute();
       }
+      reconcileInterval(nextState);
     });
 
     return () => {
-      clearInterval(interval);
+      if (interval) {
+        clearInterval(interval);
+      }
       subscription.remove();
     };
   }, [roomState.status, syncVoiceAudioRoute]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
+      appStateRef.current = nextState;
       const suspendedRemoteVideoSids = backgroundSuspendedRemoteVideoSidsRef.current;
 
       if (nextState === "active") {
+        if (roomState.status === "connected") {
+          startLevelTicker(sessionGenerationRef.current);
+        }
         const activeRoom = roomRef.current;
         if (activeRoom) {
           resumeRemoteVideoFromBackground(activeRoom, suspendedRemoteVideoSids);
@@ -1943,6 +1993,8 @@ export function useMobileVoiceRoom({
         suspendedRemoteVideoSids.clear();
         return;
       }
+
+      clearLevelTicker();
 
       const room = roomRef.current;
       if (!room) {
@@ -2012,8 +2064,11 @@ export function useMobileVoiceRoom({
     return () => subscription.remove();
   }, [
     apiClient,
+    clearLevelTicker,
     pushToTalkController,
+    roomState.status,
     sendScreenShareHeartbeat,
+    startLevelTicker,
     updateParticipantsFromRoom,
     voiceInputMode,
   ]);

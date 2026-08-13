@@ -104,11 +104,17 @@ function harness(options: {
       findMany: async () => options.cases ?? [],
     },
     server: {
-      findMany: async () =>
-        (options.servers ?? []).map((server) => ({
-          _count: { members: server.members },
-          ownerId: server.ownerId,
-        })),
+      findMany: async (args: {
+        where?: { memberCount?: { gte: number }; ownerId?: { in: string[] } };
+      }) =>
+        (options.servers ?? [])
+          .filter(
+            (server) =>
+              (args.where?.memberCount === undefined ||
+                server.members >= args.where.memberCount.gte) &&
+              (args.where?.ownerId === undefined || args.where.ownerId.in.includes(server.ownerId)),
+          )
+          .map((server) => ({ memberCount: server.members, ownerId: server.ownerId })),
     },
     user: {
       findMany: async () => {
@@ -118,23 +124,52 @@ function harness(options: {
       findUnique: async () => null,
     },
     userBadge: {
+      count: async (args: {
+        where: { badge?: string; expiresAt?: { lt: Date }; revokedAt?: null };
+      }) =>
+        [...badges.values()].filter((row) => {
+          const { where } = args;
+          return (
+            (where.badge === undefined || row.badge === where.badge) &&
+            (where.revokedAt !== null || row.revokedAt === null) &&
+            (!where.expiresAt || (row.expiresAt !== null && row.expiresAt < where.expiresAt.lt))
+          );
+        }).length,
       findMany: async (args: {
         where: {
           badge?: string;
           expiresAt?: { lt: Date };
-          revokedAt?: null;
-          userId?: string;
+          revokeReason?: string;
+          revokedAt?: null | { not: null };
+          userId?: string | { in: string[] };
         };
       }) =>
         [...badges.values()].filter((row) => {
           const { where } = args;
-          if (where.userId !== undefined && row.userId !== where.userId) {
+          if (typeof where.userId === "string" && row.userId !== where.userId) {
+            return false;
+          }
+          if (
+            where.userId &&
+            typeof where.userId === "object" &&
+            !where.userId.in.includes(row.userId)
+          ) {
             return false;
           }
           if (where.badge !== undefined && row.badge !== where.badge) {
             return false;
           }
+          if (where.revokeReason !== undefined && row.revokeReason !== where.revokeReason) {
+            return false;
+          }
           if (where.revokedAt === null && row.revokedAt !== null) {
+            return false;
+          }
+          if (
+            where.revokedAt !== null &&
+            typeof where.revokedAt === "object" &&
+            row.revokedAt === null
+          ) {
             return false;
           }
           if (where.expiresAt && (row.expiresAt === null || row.expiresAt >= where.expiresAt.lt)) {
@@ -279,6 +314,30 @@ describe("badge sweep", () => {
     assert.equal(badges.get("user-9:founder")?.tier, 2);
   });
 
+  it("reads founder candidates from maintained memberCount without a full server scan", async () => {
+    const { store } = harness({});
+    const queries: Array<{ select?: Record<string, unknown>; where?: Record<string, unknown> }> =
+      [];
+    store.server.findMany = (async (args: {
+      select?: Record<string, unknown>;
+      where?: Record<string, unknown>;
+    }) => {
+      queries.push(args);
+      return [];
+    }) as typeof store.server.findMany;
+
+    await sweepBadges({ now: NOW, store }, rarityStub());
+
+    assert.equal(
+      queries.some((query) => Object.hasOwn(query.where ?? {}, "memberCount")),
+      true,
+    );
+    assert.equal(
+      queries.every((query) => query.select?.memberCount === true),
+      true,
+    );
+  });
+
   it("revokes exactly the four badges an actioned case costs", async () => {
     const { badges, store } = harness({
       badges: [
@@ -302,7 +361,7 @@ describe("badge sweep", () => {
     assert.equal(badges.get("user-1:regular")?.revokedAt, null);
   });
 
-  it("reconciles every actioned case instead of losing revocations after downtime", async () => {
+  it("filters changed moderation cases and makes the second pass write nothing", async () => {
     const { badges, store } = harness({
       badges: [badgeRow({ badge: "inviter", tier: 1, userId: "user-old" })],
     });
@@ -312,9 +371,12 @@ describe("badge sweep", () => {
       return [{ subjectId: "user-old" }];
     }) as unknown as typeof store.moderationCase.findMany;
 
-    await sweepBadges({ now: NOW, store }, rarityStub());
+    const lastSweepAt = new Date("2026-08-05T11:00:00.000Z");
+    await sweepBadges({ lastSweepAt, now: NOW, store }, rarityStub());
+    const second = await sweepBadges({ lastSweepAt, now: NOW, store }, rarityStub());
 
-    assert.equal(Object.hasOwn(queries[0]?.where ?? {}, "updatedAt"), false);
+    assert.deepEqual(queries[0]?.where?.updatedAt, { gte: lastSweepAt });
+    assert.equal(second.revoked, 0);
     assert.equal(badges.get("user-old:inviter")?.revokedAt?.toISOString(), NOW.toISOString());
   });
 
@@ -334,6 +396,21 @@ describe("badge sweep", () => {
 
     assert.equal(result.expired, 1);
     assert.ok(badges.has("user-1:event"), "an expired grant is still a record of what happened");
+  });
+
+  it("uses count for expired grants instead of materializing badge rows", async () => {
+    const { store } = harness({});
+    const findMany = store.userBadge.findMany.bind(store.userBadge);
+    store.userBadge.findMany = (async (args: { where?: { badge?: string } }) => {
+      if (args.where?.badge === "event") {
+        throw new Error("expired grants must use count");
+      }
+      return findMany(args as never);
+    }) as typeof store.userBadge.findMany;
+
+    const result = await sweepBadges({ now: NOW, store }, rarityStub());
+
+    assert.equal(result.expired, 0);
   });
 
   it("announces a sweep promotion but stays silent on a demotion", async () => {

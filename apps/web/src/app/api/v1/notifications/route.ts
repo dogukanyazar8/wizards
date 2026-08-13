@@ -1,6 +1,7 @@
 import { requireApiUserId } from "@/lib/auth/api";
 import { createServerTiming } from "@/lib/server-timing";
 import { jsonError } from "@/lib/api";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { listNotifications } from "@/lib/notifications/service";
 import { NotificationsQuerySchema } from "@/lib/notifications/types";
 import type { NextRequest } from "next/server";
@@ -11,6 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     const stopAuthTiming = timing.start("auth");
     const userId = await requireApiUserId();
+    await enforceApiRateLimit(userId, "notification:list");
     stopAuthTiming();
     const url = new URL(request.url);
     const limit = parseInt(url.searchParams.get("limit") || "5");

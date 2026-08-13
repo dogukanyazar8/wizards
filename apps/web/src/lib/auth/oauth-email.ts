@@ -2,12 +2,37 @@ export type OAuthEmailAccount = {
   access_token?: string | null;
   accessToken?: string | null;
   provider?: string | null;
+  providerAccountId?: string | null;
 };
 
 type OAuthEmailUser = {
   email?: unknown;
   id?: unknown;
 };
+
+export type OAuthTwoFactorUser = {
+  twoFactorEnabled: boolean;
+};
+
+export async function resolveOAuthPolicyUser<T>(args: {
+  account?: OAuthEmailAccount | null | undefined;
+  email: string;
+  findByAccount: (provider: string, providerAccountId: string) => Promise<T | null>;
+  findByEmail: (email: string) => Promise<T | null>;
+}): Promise<{ linked: boolean; user: T } | null> {
+  const provider = args.account?.provider?.trim() ?? "";
+  const providerAccountId = args.account?.providerAccountId?.trim() ?? "";
+
+  if (provider && providerAccountId) {
+    const linkedUser = await args.findByAccount(provider, providerAccountId);
+    if (linkedUser) {
+      return { linked: true, user: linkedUser };
+    }
+  }
+
+  const emailUser = args.email ? await args.findByEmail(args.email) : null;
+  return emailUser ? { linked: false, user: emailUser } : null;
+}
 
 type GitHubEmailRow = {
   email?: unknown;
@@ -16,6 +41,17 @@ type GitHubEmailRow = {
 };
 
 export type GitHubEmailFetch = (accessToken: string) => Promise<string | null>;
+
+export function requiresOAuthTwoFactorStepUp(user: OAuthTwoFactorUser | null | undefined): boolean {
+  return user?.twoFactorEnabled === true;
+}
+
+export function canOAuthIdentityUseTwoFactorStepUp(
+  provider: string | null | undefined,
+  linked: boolean,
+) {
+  return provider === "google" || (provider === "github" && linked);
+}
 
 export function normalizeOAuthEmail(rawValue: unknown): string {
   return typeof rawValue === "string" ? rawValue.trim().toLowerCase() : "";
@@ -121,10 +157,16 @@ export async function isGitHubOAuthEmailVerified(args: {
 
 export async function canOAuthUserSignIn(args: {
   account?: OAuthEmailAccount | null | undefined;
+  existingUser?: OAuthTwoFactorUser | null | undefined;
   fetchGitHubEmail?: GitHubEmailFetch | undefined;
   profile: unknown;
+  twoFactorVerified?: boolean | undefined;
   user: OAuthEmailUser;
 }) {
+  if (requiresOAuthTwoFactorStepUp(args.existingUser) && args.twoFactorVerified !== true) {
+    return false;
+  }
+
   if (args.account?.provider === "google" && !isGoogleEmailVerified(args.profile)) {
     return false;
   }

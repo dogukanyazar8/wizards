@@ -51,6 +51,7 @@ const SENDABLE_CAMPAIGN_STATUSES = new Set<NotificationCampaignStatus>([
   "DRAFT",
   "FAILED",
   "PENDING_APPROVAL",
+  "SENDING",
 ]);
 
 export type CampaignSendableCampaign = {
@@ -88,6 +89,7 @@ export type CampaignSendDependencies = {
   ): Promise<unknown>;
   countDeliveries(campaignId: string): Promise<CampaignDeliveryCounts>;
   createNotification(input: CampaignNotificationInput): Promise<NotificationRow>;
+  createNotificationsBatch?(inputs: CampaignNotificationInput[]): Promise<NotificationRow[]>;
   emitNotification(notification: NotificationRow): void;
   findCampaign(campaignId: string): Promise<CampaignSendableCampaign | null>;
   freezeRecipients(campaignId: string, now: Date): Promise<CampaignDeliveryCounts>;
@@ -95,6 +97,8 @@ export type CampaignSendDependencies = {
   markCampaignApprovalRequired(campaignId: string): Promise<void>;
   markCampaignSending(campaignId: string, startedAt: Date): Promise<void>;
   markDeliveryFailed(campaignId: string, userId: string, error: string): Promise<void>;
+  markDeliveriesFailed?(campaignId: string, userIds: string[], error: string): Promise<void>;
+  markDeliveriesSent?(campaignId: string, userIds: string[], sentAt: Date): Promise<void>;
   markDeliverySent(campaignId: string, userId: string, sentAt: Date): Promise<void>;
   requeueFailedDeliveries(campaignId: string): Promise<void>;
   writeAuditLog: typeof writeAdminAuditLog;
@@ -152,86 +156,49 @@ export function normalizeCampaignSegment(segment: CampaignSegment): CampaignSegm
 }
 
 export async function getCampaignRecipientIds(segment: CampaignSegment) {
+  const users = await prisma.user.findMany({
+    where: buildCampaignRecipientWhere(segment),
+    select: { id: true },
+  });
+  return users.map((user) => user.id);
+}
+
+function buildCampaignRecipientWhere(
+  segment: CampaignSegment,
+  now = new Date(),
+): Prisma.UserWhereInput {
+  const eligible: Prisma.UserWhereInput = { emailVerified: true, isBanned: false };
+
   switch (segment.type) {
-    case "ALL_USERS": {
-      const users = await prisma.user.findMany({
-        where: {
-          emailVerified: true,
-          isBanned: false,
+    case "ALL_USERS":
+      return eligible;
+    case "ONLINE_USERS":
+      return {
+        ...eligible,
+        appSessions: {
+          some: { endedAt: null, lastSeenAt: { gte: new Date(now.getTime() - 2 * 60_000) } },
         },
-        select: { id: true },
-      });
-      return users.map((user) => user.id);
-    }
-    case "ONLINE_USERS": {
-      const sessions = await prisma.appSession.findMany({
-        distinct: ["userId"],
-        where: {
-          endedAt: null,
-          lastSeenAt: { gte: new Date(Date.now() - 2 * 60_000) },
-          user: {
-            emailVerified: true,
-            isBanned: false,
+      };
+    case "RECENTLY_ACTIVE":
+      return {
+        ...eligible,
+        appSessions: {
+          some: {
+            lastSeenAt: { gte: new Date(now.getTime() - segment.days * 24 * 60 * 60_000) },
           },
         },
-        select: { userId: true },
-      });
-      return sessions.map((session) => session.userId);
-    }
-    case "RECENTLY_ACTIVE": {
-      const sessions = await prisma.appSession.findMany({
-        distinct: ["userId"],
-        where: {
-          lastSeenAt: { gte: new Date(Date.now() - segment.days * 24 * 60 * 60_000) },
-          user: {
-            emailVerified: true,
-            isBanned: false,
-          },
-        },
-        select: { userId: true },
-      });
-      return sessions.map((session) => session.userId);
-    }
-    case "CLIENT_TYPE": {
-      const sessions = await prisma.appSession.findMany({
-        distinct: ["userId"],
-        where: {
-          clientType: segment.clientType,
-          user: {
-            emailVerified: true,
-            isBanned: false,
-          },
-        },
-        select: { userId: true },
-      });
-      return sessions.map((session) => session.userId);
-    }
-    case "COUNTRY": {
-      const sessions = await prisma.appSession.findMany({
-        distinct: ["userId"],
-        where: {
-          countryCode: segment.countryCode,
-          user: {
-            emailVerified: true,
-            isBanned: false,
-          },
-        },
-        select: { userId: true },
-      });
-      return sessions.map((session) => session.userId);
-    }
-    case "USER_IDS": {
-      const users = await prisma.user.findMany({
-        where: {
-          emailVerified: true,
-          id: { in: segment.userIds },
-          isBanned: false,
-        },
-        select: { id: true },
-      });
-      return users.map((user) => user.id);
-    }
+      };
+    case "CLIENT_TYPE":
+      return { ...eligible, appSessions: { some: { clientType: segment.clientType } } };
+    case "COUNTRY":
+      return { ...eligible, appSessions: { some: { countryCode: segment.countryCode } } };
+    case "USER_IDS":
+      return { ...eligible, id: { in: segment.userIds } };
   }
+}
+
+export function countCampaignRecipients(segment: CampaignSegment) {
+  return prisma.user.count({ where: buildCampaignRecipientWhere(segment) });
 }
 
 function serializeNotification(notification: NotificationRow): NotificationSocketPayload {
@@ -266,7 +233,7 @@ export type CampaignCreateDependencies = {
 };
 
 const defaultCampaignCreateDependencies: CampaignCreateDependencies = {
-  countRecipients: async (segment) => (await getCampaignRecipientIds(segment)).length,
+  countRecipients: countCampaignRecipients,
   createCampaign: (data) =>
     prisma.notificationCampaign.create({
       data: {
@@ -377,10 +344,8 @@ export async function approveNotificationCampaign(
 }
 
 export async function previewNotificationCampaignRecipients(segment: CampaignSegment) {
-  const recipientIds = await getCampaignRecipientIds(normalizeCampaignSegment(segment));
-
   return {
-    recipientCount: recipientIds.length,
+    recipientCount: await countCampaignRecipients(normalizeCampaignSegment(segment)),
   };
 }
 
@@ -448,6 +413,24 @@ const defaultCampaignSendDependencies: CampaignSendDependencies = {
         userId: input.userId,
       },
     }),
+  createNotificationsBatch: async (inputs) => {
+    await prisma.notification.createMany({
+      data: inputs.map((input) => ({
+        actionUrl: input.actionUrl,
+        body: input.body,
+        campaignId: input.campaignId,
+        dedupeKey: input.dedupeKey,
+        imageUrl: input.imageUrl,
+        metadata: input.metadata as Prisma.InputJsonValue,
+        title: input.title,
+        type: input.type,
+        userId: input.userId,
+      })),
+    });
+    return prisma.notification.findMany({
+      where: { dedupeKey: { in: inputs.map((input) => input.dedupeKey) } },
+    });
+  },
   emitNotification: (notification) => {
     getSocketServer()
       ?.to(`user:${notification.userId}`)
@@ -494,6 +477,18 @@ const defaultCampaignSendDependencies: CampaignSendDependencies = {
     await prisma.campaignDelivery.update({
       where: { campaignId_userId: { campaignId, userId } },
       data: { error, status: "FAILED" },
+    });
+  },
+  markDeliveriesFailed: async (campaignId, userIds, error) => {
+    await prisma.campaignDelivery.updateMany({
+      where: { campaignId, status: "PENDING", userId: { in: userIds } },
+      data: { error, status: "FAILED" },
+    });
+  },
+  markDeliveriesSent: async (campaignId, userIds, sentAt) => {
+    await prisma.campaignDelivery.updateMany({
+      where: { campaignId, status: "PENDING", userId: { in: userIds } },
+      data: { error: null, sentAt, status: "SENT" },
     });
   },
   markDeliverySent: async (campaignId, userId, sentAt) => {
@@ -563,6 +558,36 @@ export async function sendNotificationCampaign(
 
   const processed = new Set<string>();
 
+  const deliverOne = async (userId: string) => {
+    try {
+      const notification = await dependencies.createNotification({
+        actionUrl: campaign.actionUrl,
+        body: campaign.body,
+        campaignId: campaign.id,
+        dedupeKey: buildCampaignDedupeKey(campaign.id, userId),
+        imageUrl: campaign.imageUrl,
+        metadata: {
+          campaignId: campaign.id,
+          senderId: args.adminUserId,
+          system: true,
+        },
+        title: campaign.title,
+        type: campaign.type,
+        userId,
+      });
+
+      await dependencies.markDeliverySent(args.campaignId, userId, new Date());
+      dependencies.emitNotification(notification);
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        await dependencies.markDeliverySent(args.campaignId, userId, new Date());
+        return;
+      }
+
+      await dependencies.markDeliveryFailed(args.campaignId, userId, describeDeliveryError(error));
+    }
+  };
+
   for (;;) {
     const batch = (
       await dependencies.listPendingUserIds(args.campaignId, CAMPAIGN_BATCH_SIZE)
@@ -574,40 +599,55 @@ export async function sendNotificationCampaign(
 
     for (const userId of batch) {
       processed.add(userId);
+    }
+
+    if (dependencies.createNotificationsBatch && dependencies.markDeliveriesSent) {
+      const inputs = batch.map((userId) => ({
+        actionUrl: campaign.actionUrl,
+        body: campaign.body,
+        campaignId: campaign.id,
+        dedupeKey: buildCampaignDedupeKey(campaign.id, userId),
+        imageUrl: campaign.imageUrl,
+        metadata: {
+          campaignId: campaign.id,
+          senderId: args.adminUserId,
+          system: true,
+        },
+        title: campaign.title,
+        type: campaign.type,
+        userId,
+      }));
 
       try {
-        const notification = await dependencies.createNotification({
-          actionUrl: campaign.actionUrl,
-          body: campaign.body,
-          campaignId: campaign.id,
-          dedupeKey: buildCampaignDedupeKey(campaign.id, userId),
-          imageUrl: campaign.imageUrl,
-          metadata: {
-            campaignId: campaign.id,
-            senderId: args.adminUserId,
-            system: true,
-          },
-          title: campaign.title,
-          type: campaign.type,
-          userId,
-        });
-
-        await dependencies.markDeliverySent(args.campaignId, userId, new Date());
-        dependencies.emitNotification(notification);
+        const notifications = await dependencies.createNotificationsBatch(inputs);
+        await dependencies.markDeliveriesSent(args.campaignId, batch, new Date());
+        for (const notification of notifications) {
+          dependencies.emitNotification(notification);
+        }
       } catch (error) {
         if (isUniqueConstraintError(error)) {
-          // The dedupe key already exists, so this person was served by an
-          // earlier run: count the row as delivered instead of sending again.
-          await dependencies.markDeliverySent(args.campaignId, userId, new Date());
+          // A duplicate identifies neither recipient in a multi-row insert.
+          // Fall back to single inserts only for this recovery path.
+          for (const userId of batch) {
+            await deliverOne(userId);
+          }
           continue;
         }
 
-        await dependencies.markDeliveryFailed(
-          args.campaignId,
-          userId,
-          describeDeliveryError(error),
-        );
+        const message = describeDeliveryError(error);
+        if (dependencies.markDeliveriesFailed) {
+          await dependencies.markDeliveriesFailed(args.campaignId, batch, message);
+        } else {
+          for (const userId of batch) {
+            await dependencies.markDeliveryFailed(args.campaignId, userId, message);
+          }
+        }
       }
+      continue;
+    }
+
+    for (const userId of batch) {
+      await deliverOne(userId);
     }
   }
 

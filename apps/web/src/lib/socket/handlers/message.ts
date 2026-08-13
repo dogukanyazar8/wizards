@@ -9,7 +9,6 @@ import {
   parseUploadedAttachmentInputs,
 } from "@/lib/messages/attachments";
 import { redactMessageAttachmentUrlsForViewer } from "@/lib/messages/attachment-visibility";
-import { ensureChannelMembership } from "@/lib/socket/channel-membership";
 import type { HandlerContext } from "@/lib/socket/context";
 import {
   emitToChannelViewers,
@@ -20,6 +19,8 @@ import { createSocketErrorEmitter } from "@/lib/socket/errors";
 import {
   checkChannelMessageEditRateLimit,
   checkChannelMessageRateLimit,
+  checkChannelSlowMode,
+  type ChannelSlowModeResult,
   shouldLogRateLimitUnavailable,
 } from "@/lib/socket/rate-limits";
 import {
@@ -55,6 +56,37 @@ import type { SocketHandlerRegistration } from ".";
 
 type CheckChannelMessageRateLimit = typeof checkChannelMessageRateLimit;
 type CheckChannelMessageEditRateLimit = typeof checkChannelMessageEditRateLimit;
+type CheckChannelSlowMode = typeof checkChannelSlowMode;
+
+export async function checkChannelSlowModeForSend(args: {
+  channelId: string;
+  check?: CheckChannelSlowMode;
+  delaySeconds: number;
+  permissions: bigint;
+  redis: HandlerContext["rateRedis"];
+  userId: string;
+}): Promise<ChannelSlowModeResult> {
+  if (hasPermission(args.permissions, PermissionBits.MANAGE_MESSAGES)) {
+    return { status: "allowed" };
+  }
+
+  return (args.check ?? checkChannelSlowMode)({
+    channelId: args.channelId,
+    delaySeconds: args.delaySeconds,
+    redis: args.redis,
+    userId: args.userId,
+  });
+}
+
+export function requireChannelReactionPermission(
+  userId: string,
+  channelId: string,
+  check: typeof requireChannelPermissionForUser = requireChannelPermissionForUser,
+) {
+  // Reactions contribute to a conversation, so read-only and locked channels
+  // use the same write gate as sending a message.
+  return check(userId, channelId, PermissionBits.SEND_MESSAGES, { respectLocked: true });
+}
 
 export function deriveMessageSendFanoutTargets(args: {
   activeChannelViewerCandidateUserIds: string[];
@@ -88,6 +120,8 @@ export function registerMessageHandlers(
   options: {
     checkChannelMessageEditRateLimit?: CheckChannelMessageEditRateLimit;
     checkChannelMessageRateLimit?: CheckChannelMessageRateLimit;
+    checkChannelSlowMode?: CheckChannelSlowMode;
+    requireChannelPermissionForUser?: typeof requireChannelPermissionForUser;
   } = {},
 ): SocketHandlerRegistration {
   const { io, rateRedis, socket, userId } = ctx;
@@ -96,6 +130,8 @@ export function registerMessageHandlers(
     options.checkChannelMessageRateLimit ?? checkChannelMessageRateLimit;
   const checkMessageEditRateLimit =
     options.checkChannelMessageEditRateLimit ?? checkChannelMessageEditRateLimit;
+  const requireMessageChannelPermission =
+    options.requireChannelPermissionForUser ?? requireChannelPermissionForUser;
 
   socket.on("message:send", async (rawData) => {
     try {
@@ -129,7 +165,7 @@ export function registerMessageHandlers(
         }
       }
 
-      const { channel, permissions } = await requireChannelPermissionForUser(
+      const { channel, permissions } = await requireMessageChannelPermission(
         userId,
         data.channelId,
         PermissionBits.SEND_MESSAGES,
@@ -145,6 +181,33 @@ export function registerMessageHandlers(
       );
 
       const canBypassMessageLimit = hasPermission(permissions, PermissionBits.MANAGE_MESSAGES);
+      const slowModeResult = await checkChannelSlowModeForSend({
+        channelId: data.channelId,
+        ...(options.checkChannelSlowMode ? { check: options.checkChannelSlowMode } : {}),
+        delaySeconds: channel.slowModeDelay,
+        permissions,
+        redis: rateRedis,
+        userId,
+      });
+      if (slowModeResult.status === "limited") {
+        socket.emit("error", {
+          code: "SLOW_MODE",
+          message: "Slow mode is active. Please wait before sending another message.",
+          retryAfterSeconds: slowModeResult.retryAfterSeconds,
+        });
+        return;
+      }
+      if (slowModeResult.status === "unavailable") {
+        logError(
+          "[socket] Channel slow mode unavailable; blocking message send",
+          slowModeResult.error,
+        );
+        socket.emit("error", {
+          code: "RATE_LIMIT_UNAVAILABLE",
+          message: "Message controls are temporarily unavailable. Please try again shortly.",
+        });
+        return;
+      }
 
       const attachmentInputs = parseUploadedAttachmentInputs(data.attachments);
       const mediaSettings = getServerMediaSettings(channel.server.features);
@@ -496,7 +559,7 @@ export function registerMessageHandlers(
         return;
       }
 
-      await ensureChannelMembership(userId, message.channelId);
+      await requireChannelReactionPermission(userId, message.channelId);
       const reactions = await setReaction(data.messageId, userId, data.emoji, true);
       await emitToChannelViewers(io, message.channelId, "message:reaction_updated", {
         messageId: data.messageId,
@@ -520,7 +583,7 @@ export function registerMessageHandlers(
         return;
       }
 
-      await ensureChannelMembership(userId, message.channelId);
+      await requireChannelReactionPermission(userId, message.channelId);
       const reactions = await setReaction(data.messageId, userId, data.emoji, false);
       await emitToChannelViewers(io, message.channelId, "message:reaction_updated", {
         messageId: data.messageId,

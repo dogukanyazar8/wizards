@@ -6,9 +6,14 @@ export type VoiceCapacityDelegate = {
   count(args: { where: { channelId: string; NOT: { userId: string } } }): Promise<number>;
 };
 
+export function resolveVoiceParticipantLimit(userLimit: number) {
+  return userLimit <= 0 ? MAX_VOICE_PARTICIPANTS : Math.min(userLimit, MAX_VOICE_PARTICIPANTS);
+}
+
 export async function assertVoiceChannelCapacity(args: {
   channelId: string;
   userId: string;
+  userLimit?: number;
   voiceState?: VoiceCapacityDelegate;
 }) {
   const voiceState = args.voiceState ?? prisma.voiceState;
@@ -19,7 +24,7 @@ export async function assertVoiceChannelCapacity(args: {
     },
   });
 
-  if (otherParticipantCount >= MAX_VOICE_PARTICIPANTS) {
+  if (otherParticipantCount >= resolveVoiceParticipantLimit(args.userLimit ?? 0)) {
     throw new ApiError("Voice channel is full", 403, "ROOM_FULL");
   }
 }

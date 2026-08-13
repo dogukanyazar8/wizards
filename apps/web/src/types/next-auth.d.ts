@@ -4,6 +4,7 @@ type WhisprDefaultSessionUser = NonNullable<DefaultSession["user"]>;
 
 declare module "next-auth" {
   interface Session {
+    authSessionId: string | null;
     user: Omit<WhisprDefaultSessionUser, "emailVerified"> & {
       id: string;
       username: string | null;
@@ -34,6 +35,8 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
+    authSessionId?: string;
+    authSessionTouchedAt?: number;
     id?: string;
     username?: string | null;
     displayName?: string | null;
@@ -47,6 +50,7 @@ declare module "next-auth/jwt" {
     rememberMe?: boolean;
     revoked?: boolean;
     revocationCheckedAt?: number;
+    sessionStartedAt?: number;
     theme?: string | null;
   }
 }

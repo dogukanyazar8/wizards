@@ -11,6 +11,7 @@ export interface NotificationDTO {
   id: string;
   type:
     | "BADGE"
+    | "FEEDBACK"
     | "FRIEND_REQUEST"
     | "FRIEND_ACCEPTED"
     | "DM"

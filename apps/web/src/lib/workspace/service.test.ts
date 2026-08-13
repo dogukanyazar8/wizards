@@ -7,7 +7,10 @@ import { setSocketServer, type AppSocketServer } from "@/lib/socket/runtime";
 import { setServerRoomIdsCacheRedisForTest } from "@/lib/socket/server-room-cache";
 import { setPermissionCacheRedisForTest } from "@/lib/workspace/permission-cache";
 import { PermissionBits } from "@/lib/workspace/permissions";
-import { setServerMemberPresenceRedisForTest } from "@/lib/workspace/server-query-helpers";
+import {
+  setServerMemberPresenceRedisForTest,
+  setServerMemberVisibilityResolverForTest,
+} from "@/lib/workspace/server-query-helpers";
 import { setOnlineServerMemberCountRedisForTest } from "@/lib/workspace/unread-service";
 import { updateWorkspaceChannelPermissions } from "./channel-permission-service";
 import {
@@ -25,6 +28,7 @@ import {
 } from "./invite-service";
 import {
   addWorkspaceServerMemberByUsername,
+  assertCanActOnMember,
   kickWorkspaceMember,
   leaveWorkspaceServer,
   updateWorkspaceMemberRoles,
@@ -61,6 +65,12 @@ async function withPatchedEnvironment(run: (restores: Restore[]) => Promise<void
   delete process.env.PERMISSION_CACHE_DISABLED;
   setPermissionCacheRedisForTest(createPermissionRedis([]) as never);
   setServerMemberPresenceRedisForTest(createPresenceRedis() as never);
+  setServerMemberVisibilityResolverForTest(
+    async (_viewerId, subjectIds) =>
+      new Map(
+        subjectIds.map((subjectId) => [subjectId, { canViewPresence: true, canViewProfile: true }]),
+      ),
+  );
   setOnlineServerMemberCountRedisForTest({ status: "wait" } as never);
 
   try {
@@ -71,6 +81,7 @@ async function withPatchedEnvironment(run: (restores: Restore[]) => Promise<void
     }
     setPermissionCacheRedisForTest(null);
     setServerMemberPresenceRedisForTest(null);
+    setServerMemberVisibilityResolverForTest(null);
     setServerRoomIdsCacheRedisForTest(null);
     setOnlineServerMemberCountRedisForTest(null);
     setSocketServer(null as unknown as AppSocketServer);
@@ -262,6 +273,7 @@ function setupMemberRoleMutation(
   let createData: Array<{ memberId: string; roleId: string }> | null = null;
   let deleteRoleIds: string[] | null = null;
   let transactionCount = 0;
+  let auditData: Record<string, unknown> | null = null;
 
   patchMethod(prisma.serverBan, "findUnique", async () => null, restores);
   patchMethod(
@@ -318,10 +330,31 @@ function setupMemberRoleMutation(
   patchMethod(
     prisma,
     "$transaction",
-    async (mutations: unknown) => {
-      assert.ok(Array.isArray(mutations));
+    async (work: unknown) => {
       transactionCount += 1;
-      return [];
+      if (Array.isArray(work)) {
+        return [];
+      }
+
+      const tx = {
+        auditLog: {
+          create: async (query: { data: Record<string, unknown> }) => {
+            auditData = query.data;
+            return {};
+          },
+        },
+        memberRole: {
+          createMany: async (query: { data: Array<{ memberId: string; roleId: string }> }) => {
+            createData = query.data;
+            return { count: query.data.length };
+          },
+          deleteMany: async (query: { where?: { roleId?: { in?: string[] } } }) => {
+            deleteRoleIds = query.where?.roleId?.in ?? [];
+            return { count: deleteRoleIds.length };
+          },
+        },
+      };
+      return (work as (transaction: typeof tx) => Promise<unknown>)(tx);
     },
     restores,
   );
@@ -345,6 +378,9 @@ function setupMemberRoleMutation(
   );
 
   return {
+    get auditData() {
+      return auditData;
+    },
     get createData() {
       return createData;
     },
@@ -358,6 +394,163 @@ function setupMemberRoleMutation(
 }
 
 describe("workspace service characterization", { concurrency: false }, () => {
+  it("allows member actions only below the owner and protected-role boundary", () => {
+    const access = { ownerId: "owner", userId: "moderator" };
+    const ordinaryRole = {
+      color: 0,
+      id: "role-member",
+      isDefault: false,
+      managed: false,
+      name: "Member",
+      permissions: PermissionBits.VIEW_CHANNEL,
+    };
+    const protectedRole = {
+      ...ordinaryRole,
+      id: "role-manager",
+      permissions: PermissionBits.MANAGE_SERVER,
+    };
+
+    assert.throws(
+      () => assertCanActOnMember(access, { roles: [], userId: "owner" }),
+      (error) => error instanceof ApiError && error.code === "OWNER_PROTECTED",
+    );
+    assert.throws(
+      () =>
+        assertCanActOnMember(access, {
+          roles: [{ role: protectedRole }],
+          userId: "manager",
+        }),
+      (error) => error instanceof ApiError && error.code === "ROLE_HIERARCHY",
+    );
+    assert.doesNotThrow(() =>
+      assertCanActOnMember(access, {
+        roles: [{ role: defaultRole() }, { role: ordinaryRole }],
+        userId: "member",
+      }),
+    );
+  });
+
+  it("rejects kicking a member with a protected role before deletion", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchMethod(prisma.serverBan, "findUnique", async () => null, restores);
+      patchMethod(
+        prisma.serverMember,
+        "findFirst",
+        async (query?: unknown) => {
+          const where = (query as { where?: { id?: string; userId?: string } }).where;
+          if (where?.userId) {
+            return accessMembership({
+              ownerId: "owner",
+              permissions: PermissionBits.KICK_MEMBERS,
+              userId: "moderator",
+            });
+          }
+          if (where?.id === "member-target") {
+            return { id: "member-target", userId: "manager" };
+          }
+          return null;
+        },
+        restores,
+      );
+      patchMethod(
+        prisma,
+        "$transaction",
+        async (callback: (tx: unknown) => Promise<unknown>) =>
+          callback({
+            serverMember: {
+              delete: async () => {
+                throw new Error("protected member must not be deleted");
+              },
+              findFirst: async () => ({
+                id: "member-target",
+                roles: [
+                  {
+                    role: {
+                      id: "role-manager",
+                      isDefault: false,
+                      managed: false,
+                      permissions: PermissionBits.MANAGE_SERVER,
+                    },
+                  },
+                ],
+                userId: "manager",
+              }),
+            },
+          }),
+        restores,
+      );
+
+      await assert.rejects(
+        () => kickWorkspaceMember("moderator", "server-1", "member-target"),
+        (error) => error instanceof ApiError && error.code === "ROLE_HIERARCHY",
+      );
+    });
+  });
+
+  it("rechecks protected roles inside the kick transaction", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      let deleteCalled = false;
+      patchMethod(prisma.serverBan, "findUnique", async () => null, restores);
+      patchMethod(
+        prisma.serverMember,
+        "findFirst",
+        async (query?: unknown) => {
+          const where = (query as { where?: { id?: string; userId?: string } }).where;
+          if (where?.userId) {
+            return accessMembership({
+              ownerId: "owner",
+              permissions: PermissionBits.KICK_MEMBERS,
+              userId: "moderator",
+            });
+          }
+          if (where?.id === "member-target") {
+            return { id: "member-target", userId: "member" };
+          }
+          return null;
+        },
+        restores,
+      );
+      patchMethod(
+        prisma,
+        "$transaction",
+        async (
+          callback: (tx: unknown) => Promise<unknown>,
+          options?: { isolationLevel?: string },
+        ) => {
+          assert.equal(options?.isolationLevel, "Serializable");
+          return callback({
+            serverMember: {
+              delete: async () => {
+                deleteCalled = true;
+                return {};
+              },
+              findFirst: async () => ({
+                id: "member-target",
+                roles: [
+                  {
+                    role: {
+                      id: "role-manager",
+                      isDefault: false,
+                      managed: false,
+                      permissions: PermissionBits.MANAGE_SERVER,
+                    },
+                  },
+                ],
+                userId: "member",
+              }),
+            },
+          });
+        },
+        restores,
+      );
+      await assert.rejects(
+        () => kickWorkspaceMember("moderator", "server-1", "member-target"),
+        (error) => error instanceof ApiError && error.code === "ROLE_HIERARCHY",
+      );
+      assert.equal(deleteCalled, false);
+    });
+  });
+
   it("keeps public server detail unchanged while exposing actor access only internally", async () => {
     await withPatchedEnvironment(async (restores) => {
       patchMethod(prisma.serverBan, "findUnique", async () => null, restores);
@@ -1089,10 +1282,28 @@ describe("workspace service characterization", { concurrency: false }, () => {
       patchMethod(
         prisma,
         "$transaction",
-        async (mutations: unknown) => {
-          assert.ok(Array.isArray(mutations));
+        async (callback: (tx: unknown) => Promise<unknown>) => {
+          const tx = {
+            auditLog: {
+              create: async () => {
+                operations.push("auditLog.create");
+                return {};
+              },
+            },
+            memberRole: {
+              createMany: async () => {
+                operations.push("memberRole.createMany.prepare");
+                return { count: 1 };
+              },
+              deleteMany: async () => {
+                operations.push("memberRole.deleteMany.prepare");
+                return { count: 0 };
+              },
+            },
+          };
+          const result = await callback(tx);
           operations.push("transaction.commit");
-          return [];
+          return result;
         },
         restores,
       );
@@ -1240,6 +1451,34 @@ describe("workspace service characterization", { concurrency: false }, () => {
       assert.deepEqual(mutation.createData, [
         { memberId: "member-target", roleId: ordinaryRole.id },
       ]);
+    });
+  });
+
+  it("writes role assignment audit data in the member-role transaction", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      const ordinaryRole = {
+        id: "role-ordinary",
+        isDefault: false,
+        managed: false,
+        name: "Ordinary",
+        permissions: 0n,
+      };
+      const mutation = setupMemberRoleMutation(restores, {
+        availableRoles: [ordinaryRole],
+      });
+
+      await updateWorkspaceMemberRoles("owner", "server-1", "member-target", {
+        roleIds: [ordinaryRole.id],
+      });
+
+      assert.deepEqual(mutation.auditData, {
+        action: "MEMBER_ROLES_UPDATED",
+        changes: { addedRoleIds: [ordinaryRole.id], removedRoleIds: [] },
+        serverId: "server-1",
+        targetId: "target",
+        targetType: "USER",
+        userId: "owner",
+      });
     });
   });
 
@@ -1657,7 +1896,6 @@ describe("workspace service characterization", { concurrency: false }, () => {
         },
         restores,
       );
-
       await assert.rejects(
         () => listWorkspaceInvites("member", "server-1"),
         (error) => error instanceof ApiError && error.status === 403,
@@ -2257,6 +2495,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
         restores,
       );
       patchMethod(prisma.channel, "findMany", async () => [{ id: "voice-1" }], restores);
+      patchMethod(prisma.voiceState, "findUnique", async () => null, restores);
 
       await leaveWorkspaceServer("member", "server-1");
 
@@ -2285,7 +2524,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
         indexOfOperation(operations, "socket.leave:leaver:voice-viewers:voice-1") <
           indexOfOperation(operations, "socket.emit:server:server-1:server:settings:updated"),
       );
-      assert.ok(operations.includes("socket.fetch:server:server-1"));
+      assert.equal(operations.includes("socket.fetch:server:server-1"), false);
     });
   });
 
@@ -2315,7 +2554,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
             });
           }
           if (where?.id === "member-target") {
-            return { id: "member-target", userId: "target" };
+            return { id: "member-target", roles: [], userId: "target" };
           }
           return null;
         },
@@ -2324,17 +2563,40 @@ describe("workspace service characterization", { concurrency: false }, () => {
       patchMethod(
         prisma,
         "$transaction",
-        async (callback: (tx: unknown) => Promise<unknown>) => {
+        async (
+          callback: (tx: unknown) => Promise<unknown>,
+          options?: { isolationLevel?: string },
+        ) => {
+          assert.equal(options?.isolationLevel, "Serializable");
           const tx = {
             $executeRaw: async () => {
               operations.push("server.memberCount.decrement");
               return 1;
+            },
+            auditLog: {
+              create: async (query: { data: Record<string, unknown> }) => {
+                operations.push("auditLog.create");
+                assert.deepEqual(query.data, {
+                  action: "MEMBER_KICKED",
+                  changes: { memberId: "member-target" },
+                  serverId: "server-1",
+                  targetId: "target",
+                  targetType: "USER",
+                  userId: "owner",
+                });
+                return {};
+              },
             },
             serverMember: {
               delete: async () => {
                 operations.push("serverMember.delete");
                 return {};
               },
+              findFirst: async () => ({
+                id: "member-target",
+                roles: [{ role: defaultRole() }],
+                userId: "target",
+              }),
             },
           };
           const result = await callback(tx);
@@ -2344,6 +2606,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
         restores,
       );
       patchMethod(prisma.channel, "findMany", async () => [{ id: "voice-1" }], restores);
+      patchMethod(prisma.voiceState, "findUnique", async () => null, restores);
 
       await kickWorkspaceMember("owner", "server-1", "member-target");
 
@@ -2352,9 +2615,15 @@ describe("workspace service characterization", { concurrency: false }, () => {
           (operation) =>
             operation === "serverMember.delete" ||
             operation === "server.memberCount.decrement" ||
+            operation === "auditLog.create" ||
             operation === "transaction.commit",
         ),
-        ["serverMember.delete", "server.memberCount.decrement", "transaction.commit"],
+        [
+          "serverMember.delete",
+          "server.memberCount.decrement",
+          "auditLog.create",
+          "transaction.commit",
+        ],
       );
       assert.ok(
         indexOfOperation(operations, "serverMember.delete") <
@@ -2368,7 +2637,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
         indexOfOperation(operations, "socket.leave:target:voice-viewers:voice-1") <
           indexOfOperation(operations, "socket.emit:user:target:server:membership:removed:kicked"),
       );
-      assert.ok(operations.includes("socket.fetch:server:server-1"));
+      assert.equal(operations.includes("socket.fetch:server:server-1"), false);
     });
   });
 

@@ -12,7 +12,7 @@ import {
   type OtaManifestRepository,
 } from "@/lib/app/ota-manifest-service";
 import {
-  createClientRateLimitIdentity,
+  createNetworkRateLimitIdentity,
   createSubjectRateLimitIdentity,
 } from "@/lib/security/client-ip";
 
@@ -90,9 +90,7 @@ function rateIdentities(request: Request, headers: z.infer<typeof OtaRequestHead
         };
 
   return {
-    network: `ota:network:${createClientRateLimitIdentity({
-      fallbackNamespace: subject.namespace,
-      fallbackValue: subject.value,
+    network: `ota:network:${createNetworkRateLimitIdentity({
       headers: request.headers,
     })}`,
     recipient: `ota:installation:${createSubjectRateLimitIdentity(

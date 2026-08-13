@@ -267,6 +267,38 @@ describe("2a §3 group row", () => {
     expect(view.queryByTestId("mobile-dm-group-avatar-pair")).toBeNull();
     expect(view.queryByTestId("mobile-dm-conversation-member-count")).toBeNull();
   });
+
+  /**
+   * The crossed pair is what a group looks like *until* somebody gives it a
+   * face. The row used to keep drawing member tiles afterwards, so the inbox was
+   * the one surface where a group's photo never showed up.
+   */
+  it("draws the group's own photo instead of the pair once it has one", async () => {
+    const view = await renderRow(group({ iconUrl: "https://utfs.io/f/group.png" }));
+
+    expect(view.getByTestId("mobile-dm-group-avatar-photo")).toBeTruthy();
+    expect(view.queryByTestId("mobile-dm-group-avatar-pair")).toBeNull();
+    // The member counter belongs to the row, not to the mark.
+    expect(view.getByTestId("mobile-dm-conversation-member-count").children.join("")).toBe("· 6");
+  });
+
+  it("keeps the slot's shape when the photo replaces the pair", () => {
+    const styles = createGroupChatStyles(lightTheme);
+    const { groupRow } = lightTheme.groupChat;
+
+    expect(styles.groupRowIcon).toMatchObject({
+      height: groupRow.pairSize,
+      overflow: "hidden",
+      width: groupRow.pairSize,
+    });
+    // Same corner ratio the 30pt tiles curve at, so the mark reads as one
+    // family. The sheet rounds every metric to a tenth on its way through the
+    // scale, hence the tolerance rather than an equality.
+    expect(styles.groupRowIcon.borderRadius).toBeCloseTo(
+      (groupRow.pairSize * groupRow.tileRadius) / groupRow.tileSize,
+      1,
+    );
+  });
 });
 
 describe("2a §4-§7 row states", () => {

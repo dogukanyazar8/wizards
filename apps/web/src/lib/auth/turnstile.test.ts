@@ -50,7 +50,118 @@ describe("Turnstile action validation", () => {
   });
 });
 
+describe("Turnstile local test credentials", () => {
+  it("accepts Cloudflare's successful dummy response during local development", async () => {
+    const mutableEnv = process.env as Record<string, string | undefined>;
+    const originalEnv = {
+      APP_URL: mutableEnv.APP_URL,
+      NODE_ENV: mutableEnv.NODE_ENV,
+      TURNSTILE_SECRET_KEY: mutableEnv.TURNSTILE_SECRET_KEY,
+    };
+    const originalFetch = globalThis.fetch;
+
+    mutableEnv.APP_URL = "http://localhost:3000";
+    mutableEnv.NODE_ENV = "development";
+    mutableEnv.TURNSTILE_SECRET_KEY = "1x0000000000000000000000000000000AA";
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          success: true,
+          hostname: "example.com",
+        }),
+        { status: 200 },
+      )) as typeof fetch;
+
+    try {
+      assert.equal(
+        await verifyTurnstileToken("XXXX.DUMMY.TOKEN.XXXX", undefined, {
+          expectedAction: "login",
+          requestUrl: "http://localhost:3000/login",
+        }),
+        true,
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+      for (const [key, value] of Object.entries(originalEnv)) {
+        if (value === undefined) {
+          delete mutableEnv[key];
+        } else {
+          mutableEnv[key] = value;
+        }
+      }
+    }
+  });
+
+  it("rejects Cloudflare's public dummy secret in production", async () => {
+    const mutableEnv = process.env as Record<string, string | undefined>;
+    const originalEnv = {
+      APP_URL: mutableEnv.APP_URL,
+      NODE_ENV: mutableEnv.NODE_ENV,
+      TURNSTILE_SECRET_KEY: mutableEnv.TURNSTILE_SECRET_KEY,
+    };
+    const originalFetch = globalThis.fetch;
+
+    mutableEnv.APP_URL = "https://app.example.test";
+    mutableEnv.NODE_ENV = "production";
+    mutableEnv.TURNSTILE_SECRET_KEY = "1x0000000000000000000000000000000AA";
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          success: true,
+          hostname: "app.example.test",
+        }),
+        { status: 200 },
+      )) as typeof fetch;
+
+    try {
+      await assert.rejects(
+        () => verifyTurnstileToken("XXXX.DUMMY.TOKEN.XXXX"),
+        (error) =>
+          error instanceof TurnstileVerificationError && error.code === "CONFIGURATION_ERROR",
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+      for (const [key, value] of Object.entries(originalEnv)) {
+        if (value === undefined) {
+          delete mutableEnv[key];
+        } else {
+          mutableEnv[key] = value;
+        }
+      }
+    }
+  });
+});
+
 describe("Turnstile E2E bypass", () => {
+  it("rejects the deterministic bypass token on a non-local request host", async () => {
+    const mutableEnv = process.env as Record<string, string | undefined>;
+    const originalEnv = {
+      APP_URL: mutableEnv.APP_URL,
+      E2E_TEST_MODE: mutableEnv.E2E_TEST_MODE,
+      NODE_ENV: mutableEnv.NODE_ENV,
+    };
+
+    try {
+      mutableEnv.APP_URL = "http://localhost:3000";
+      mutableEnv.E2E_TEST_MODE = "true";
+      mutableEnv.NODE_ENV = "test";
+
+      await assert.rejects(() =>
+        verifyTurnstileToken(E2E_TURNSTILE_TOKEN, undefined, {
+          requestUrl: "https://attacker.example/forgot-password",
+        }),
+      );
+    } finally {
+      for (const [key, value] of Object.entries(originalEnv)) {
+        if (value === undefined) {
+          delete mutableEnv[key];
+        } else {
+          mutableEnv[key] = value;
+        }
+      }
+    }
+  });
+
   it("reports the bypass as enabled only for approved E2E runs", () => {
     assert.equal(
       isE2ETurnstileBypassEnabled({
@@ -121,7 +232,12 @@ describe("Turnstile E2E bypass", () => {
     }) as typeof fetch;
 
     try {
-      assert.equal(await verifyTurnstileToken(E2E_TURNSTILE_TOKEN), true);
+      assert.equal(
+        await verifyTurnstileToken(E2E_TURNSTILE_TOKEN, undefined, {
+          requestUrl: "http://localhost/register",
+        }),
+        true,
+      );
       assert.equal(calledFetch, false);
     } finally {
       globalThis.fetch = originalFetch;
@@ -157,7 +273,12 @@ describe("Turnstile E2E bypass", () => {
     }) as typeof fetch;
 
     try {
-      assert.equal(await verifyTurnstileToken(E2E_TURNSTILE_TOKEN), true);
+      assert.equal(
+        await verifyTurnstileToken(E2E_TURNSTILE_TOKEN, undefined, {
+          requestUrl: "http://localhost/register",
+        }),
+        true,
+      );
       assert.equal(calledFetch, false);
     } finally {
       globalThis.fetch = originalFetch;

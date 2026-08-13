@@ -5,10 +5,7 @@ import { prisma } from "@wizards/db";
 import { UTApi } from "uploadthing/server";
 import { extractUploadThingFileKey } from "@/lib/account/privacy-service";
 import { getSocketServer } from "@/lib/socket/runtime";
-import {
-  serializeNotification,
-  type NotificationRecord,
-} from "@/lib/socket/notification-payload";
+import { serializeNotification, type NotificationRecord } from "@/lib/socket/notification-payload";
 
 export type AttachmentScanResult =
   | { status: "CLEAN" }
@@ -55,9 +52,15 @@ type ClamAvScanOptions = {
   timeoutMs?: number;
 };
 
+export type ScanAttachmentFetchOptions = {
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+};
+
 const DEFAULT_CLAMAV_HOST = "127.0.0.1";
 const DEFAULT_CLAMAV_PORT = 3310;
 const DEFAULT_SCAN_TIMEOUT_MS = 30_000;
+const DEFAULT_SCAN_FETCH_TIMEOUT_MS = 120_000;
 const DEFAULT_SCAN_MAX_BYTES = 32 * 1024 * 1024;
 const CLAMAV_INSTREAM_COMMAND = Buffer.from("zINSTREAM\0");
 const CLAMAV_ZERO_LENGTH_CHUNK = Buffer.alloc(4);
@@ -83,8 +86,7 @@ function getClamAvOptions(options: ClamAvScanOptions = {}): Required<ClamAvScanO
   return {
     host: options.host ?? process.env.CLAMAV_HOST?.trim() ?? DEFAULT_CLAMAV_HOST,
     maxBytes:
-      options.maxBytes ??
-      positiveIntFromEnv("ATTACHMENT_SCAN_MAX_BYTES", DEFAULT_SCAN_MAX_BYTES),
+      options.maxBytes ?? positiveIntFromEnv("ATTACHMENT_SCAN_MAX_BYTES", DEFAULT_SCAN_MAX_BYTES),
     port: options.port ?? positiveIntFromEnv("CLAMAV_PORT", DEFAULT_CLAMAV_PORT),
     timeoutMs:
       options.timeoutMs ??
@@ -193,11 +195,25 @@ export async function scanReadableWithClamAv(
   }
 }
 
-export async function scanAttachmentUrl(url: string): Promise<AttachmentScanResult> {
+export async function scanAttachmentUrl(
+  url: string,
+  options: ScanAttachmentFetchOptions = {},
+): Promise<AttachmentScanResult> {
+  // The outbox drains serially with one job in flight, so a hung download here
+  // stalls every DM notification, campaign and analytics job behind it. undici's
+  // default is 300s — exactly `OUTBOX_STALE_PROCESSING_MS`, long enough for a
+  // second replica to claim the same job — so this ceiling stays well under it.
+  const timeoutMs =
+    options.timeoutMs ??
+    positiveIntFromEnv("ATTACHMENT_SCAN_FETCH_TIMEOUT_MS", DEFAULT_SCAN_FETCH_TIMEOUT_MS);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    const response = await fetch(url, {
+    const response = await (options.fetchImpl ?? fetch)(url, {
       cache: "no-store",
       headers: { Accept: "application/octet-stream" },
+      signal: controller.signal,
     });
 
     if (!response.ok || !response.body) {
@@ -207,7 +223,10 @@ export async function scanAttachmentUrl(url: string): Promise<AttachmentScanResu
       };
     }
 
-    return scanReadableWithClamAv(
+    // Awaited rather than returned: `finally` aborts the controller, and doing
+    // that while the body is still streaming would kill the scan it is meant
+    // to clean up after.
+    return await scanReadableWithClamAv(
       Readable.fromWeb(response.body as unknown as Parameters<typeof Readable.fromWeb>[0]),
     );
   } catch (error) {
@@ -215,6 +234,11 @@ export async function scanAttachmentUrl(url: string): Promise<AttachmentScanResu
       error: error instanceof Error ? error.message : String(error),
       status: "ERROR",
     };
+  } finally {
+    clearTimeout(timer);
+    // ClamAV can answer on a partially read body (the byte ceiling), which
+    // would otherwise leave the connection open until the peer gives up.
+    controller.abort();
   }
 }
 
@@ -231,11 +255,7 @@ async function deleteUploadedFile(url: string) {
   }
 }
 
-async function notifyUploader(args: {
-  attachmentId: string;
-  filename: string;
-  userId: string;
-}) {
+async function notifyUploader(args: { attachmentId: string; filename: string; userId: string }) {
   const notification = await prisma.notification.upsert({
     where: { dedupeKey: `attachment-scan:${args.attachmentId}:infected` },
     create: {
@@ -291,15 +311,18 @@ export async function processAttachmentScanJob(
   }
 
   if (result.status === "INFECTED") {
-    await client.attachment.update({
-      where: { id: attachment.id },
-      data: { scanStatus: "INFECTED" },
-    });
+    // INFECTED is terminal at the entry gate. Persist it only after quarantine
+    // succeeds, otherwise a transient delete failure makes the public file
+    // permanently unclaimable by retries.
     await (deps.deleteUploadedFile ?? deleteUploadedFile)(attachment.url);
     await (deps.notifyUploader ?? notifyUploader)({
       attachmentId: attachment.id,
       filename: attachment.filename,
       userId: attachment.userId,
+    });
+    await client.attachment.update({
+      where: { id: attachment.id },
+      data: { scanStatus: "INFECTED" },
     });
     (deps.logger ?? console.warn)("[attachment-scan]", {
       attachmentId: attachment.id,

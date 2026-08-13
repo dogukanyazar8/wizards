@@ -16,6 +16,8 @@ import {
   normalizeMobileVoiceMeterLevel,
   VOICE_MESSAGE_METER_INTERVAL_MS,
 } from "./mobile-voice-meter";
+import { deleteMobileTemporaryFile } from "./mobile-temporary-file";
+import { disposeMobileVoiceRecording } from "./mobile-voice-recording-lifecycle";
 
 const VOICE_MESSAGE_CONTENT_TYPE = "audio/mp4";
 const VOICE_MESSAGE_FILE_NAME = "voice-message.m4a";
@@ -83,10 +85,13 @@ export function useMobileVoiceMessageRecorder(): MobileVoiceMessageRecorder {
   const levelsRef = useRef<readonly number[]>([]);
   const levelListenersRef = useRef(new Set<(levels: readonly number[]) => void>());
   const meterTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isMountedRef = useRef(true);
 
   const applyPhase = useCallback((next: MobileVoiceMessageRecorderPhase) => {
     phaseRef.current = next;
-    setPhase(next);
+    if (isMountedRef.current) {
+      setPhase(next);
+    }
   }, []);
 
   const publishLevels = useCallback((next: readonly number[]) => {
@@ -118,8 +123,6 @@ export function useMobileVoiceMessageRecorder(): MobileVoiceMessageRecorder {
       );
     }, VOICE_MESSAGE_METER_INTERVAL_MS);
   }, [publishLevels, recorder, stopMetering]);
-
-  useEffect(() => stopMetering, [stopMetering]);
 
   const start = useCallback(async () => {
     if (phaseRef.current !== "idle" && phaseRef.current !== "error") {
@@ -269,22 +272,34 @@ export function useMobileVoiceMessageRecorder(): MobileVoiceMessageRecorder {
     stopMetering();
     try {
       recordingStartedAtRef.current = null;
-      await recorder.stop();
-      const uri = recorder.uri;
-      if (uri) {
-        const recordingFile = new ExpoFile(uri);
-        if (recordingFile.exists) {
-          recordingFile.delete();
-        }
-      }
-    } catch {
-      // A discard that cannot reach the file still ends the take.
+      await disposeMobileVoiceRecording({
+        deleteFile: async (uri) => {
+          await deleteMobileTemporaryFile(uri);
+        },
+        getUri: () => recorder.uri,
+        isRecording: () => phaseRef.current === "stopping",
+        restorePlayback: releaseAudioMode,
+        settleStart: async () => undefined,
+        stop: () => recorder.stop(),
+      });
     } finally {
-      await releaseAudioMode();
       publishLevels([]);
       applyPhase("idle");
     }
   }, [applyPhase, publishLevels, recorder, releaseAudioMode, settleStart, stopMetering]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+      stopMetering();
+      levelListenersRef.current.clear();
+      // Unmount is a cancellation boundary: an in-flight prepare is settled,
+      // then the recorder, cache file, and recording audio mode are released.
+      void discard().catch(() => undefined);
+    };
+  }, [discard, stopMetering]);
 
   const getLevels = useCallback(() => levelsRef.current, []);
 

@@ -137,6 +137,7 @@ export interface MobileVoiceRoomState {
   readonly sessionId: string | null;
   readonly status: MobileVoiceRoomConnectionStatus;
   readonly updatedAt: number | null;
+  readonly videoQualityMode: "AUTO" | "FULL";
 }
 
 const SENSITIVE_VOICE_ROOM_ERROR_PATTERN =
@@ -168,6 +169,7 @@ export function createInitialMobileVoiceRoomState(): MobileVoiceRoomState {
     sessionId: null,
     status: "idle",
     updatedAt: null,
+    videoQualityMode: "AUTO",
   };
 }
 

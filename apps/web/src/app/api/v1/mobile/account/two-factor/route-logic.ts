@@ -48,8 +48,6 @@ function unwrapTwoFactorResult<T extends { success: boolean }>(
 
   const failure = result as unknown as TwoFactorFailureResult;
   switch (failure.error) {
-    case "invalid_credentials":
-      throw new ApiError("Invalid credentials", 401, "INVALID_CREDENTIALS");
     case "invalid_code":
       throw new ApiError("Invalid two-factor code", 400, "INVALID_CODE");
     case "not_found":

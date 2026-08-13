@@ -473,6 +473,13 @@ export const createDmScreenStyles = (theme: MobileTheme, scale = 1) => {
       flex: 1,
       minHeight: 0,
     },
+    // Built once with the themed stylesheet; an inline spread changed identity
+    // on every inbox render and invalidated FlashList's own prop bailout.
+    dmInboxConversationListViewport: {
+      flex: 1,
+      minHeight: 0,
+      minWidth: 0,
+    },
     dmInboxSkeletonRow: {
       height: theme.layout.dmInbox.conversationRowMinHeight,
       flexDirection: "row",

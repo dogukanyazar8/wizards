@@ -138,7 +138,7 @@ async function postExpoPushBatch(
   messages: ExpoPushMessage[],
   fetchFn: typeof fetch,
   sleep: (ms: number) => Promise<void>,
-): Promise<ExpoPushTicket[] | null> {
+): Promise<{ tickets: ExpoPushTicket[] } | { errorCode: string; status: number }> {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const response = await fetchFn(EXPO_PUSH_ENDPOINT, {
       body: JSON.stringify(messages),
@@ -151,7 +151,7 @@ async function postExpoPushBatch(
 
     if (response.ok) {
       const payload = (await response.json()) as { data?: ExpoPushTicket[] };
-      return Array.isArray(payload.data) ? payload.data : [];
+      return { tickets: Array.isArray(payload.data) ? payload.data : [] };
     }
 
     if ((response.status === 429 || response.status >= 500) && attempt === 0) {
@@ -159,10 +159,10 @@ async function postExpoPushBatch(
       continue;
     }
 
-    return null;
+    return { errorCode: `ExpoHttp${response.status}`, status: response.status };
   }
 
-  return null;
+  return { errorCode: "ExpoHttpUnknown", status: 0 };
 }
 
 async function dispatchExpoPushMessages(
@@ -175,13 +175,31 @@ async function dispatchExpoPushMessages(
   const attempts: PushDeliveryAttemptRow[] = [];
 
   for (const batch of chunk(messages, EXPO_PUSH_BATCH_SIZE)) {
-    const tickets = await postExpoPushBatch(batch, fetchFn, sleep);
-    if (!tickets) {
+    const result = await postExpoPushBatch(batch, fetchFn, sleep);
+    if ("errorCode" in result) {
+      // A rejected batch used to look identical to "no registered devices".
+      // Keep one safe log plus one synthetic ticket row per intended delivery.
+      logError(
+        "mobile_push_batch_rejected",
+        new Error(`Expo push batch rejected with HTTP ${result.status}`),
+      );
+      for (const message of batch) {
+        const owner = owners.get(message.to);
+        attempts.push({
+          errorCode: result.errorCode,
+          notificationId: message.data.notificationId ?? null,
+          platform: owner?.platform ?? "unknown",
+          stage: "TICKET",
+          success: false,
+          ticketId: null,
+          userId: owner?.userId ?? null,
+        });
+      }
       continue;
     }
 
     sentMessages += batch.length;
-    tickets.forEach((ticket, index) => {
+    result.tickets.forEach((ticket, index) => {
       const message = batch[index];
 
       if (!message) {

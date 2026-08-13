@@ -15,50 +15,56 @@ import {
 
 const webUrl = "https://whispr.team";
 const handoffToken = "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-"; // gitleaks:allow -- deterministic invalid fixture
+const oauthState = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
 describe("mobile deep link contract", () => {
   it("builds web sign-in URLs without embedding native secrets", () => {
-    const url = new URL(buildMobileWebSignInUrl(webUrl, "/channels/@me"));
+    const url = new URL(buildMobileWebSignInUrl(webUrl, oauthState, "/channels/@me"));
 
     assert.equal(url.origin, webUrl);
     assert.equal(url.pathname, "/login");
     assert.equal(url.searchParams.get("client"), "mobile");
     assert.equal(
       url.searchParams.get("callbackUrl"),
-      "/mobile/oauth/complete?callbackUrl=%2Fchannels%2F%40me",
+      `/mobile/oauth/complete?callbackUrl=%2Fchannels%2F%40me&state=${oauthState}`,
     );
     assert.equal(url.searchParams.has("token"), false);
     assert.equal(url.searchParams.has("access_token"), false);
   });
 
   it("builds web registration URLs through the same safe mobile handoff contract", () => {
-    const url = new URL(buildMobileWebRegisterUrl(webUrl, "/channels/@me"));
+    const url = new URL(buildMobileWebRegisterUrl(webUrl, oauthState, "/channels/@me"));
 
     assert.equal(url.origin, webUrl);
     assert.equal(url.pathname, "/register");
     assert.equal(url.searchParams.get("client"), "mobile");
     assert.equal(
       url.searchParams.get("callbackUrl"),
-      "/mobile/oauth/complete?callbackUrl=%2Fchannels%2F%40me",
+      `/mobile/oauth/complete?callbackUrl=%2Fchannels%2F%40me&state=${oauthState}`,
     );
     assert.equal(url.searchParams.has("token"), false);
     assert.equal(url.searchParams.has("password"), false);
   });
 
   it("starts the Google provider flow on the mobile oauth start route", () => {
-    const url = new URL(buildMobileWebSocialSignInUrl(webUrl, "google", "/channels/@me"));
+    const url = new URL(
+      buildMobileWebSocialSignInUrl(webUrl, "google", oauthState, "/channels/@me"),
+    );
 
     assert.equal(url.origin, webUrl);
     assert.equal(url.pathname, "/mobile/oauth/start");
     assert.equal(url.searchParams.get("provider"), "google");
     assert.equal(url.searchParams.get("client"), "mobile");
     assert.equal(url.searchParams.get("callbackUrl"), "/channels/@me");
+    assert.equal(url.searchParams.get("state"), oauthState);
     assert.equal(url.searchParams.has("token"), false);
     assert.equal(url.searchParams.has("id_token"), false);
   });
 
   it("falls back to the default callback when the social callback path is unsafe", () => {
-    const url = new URL(buildMobileWebSocialSignInUrl(webUrl, "google", "https://evil.test/steal"));
+    const url = new URL(
+      buildMobileWebSocialSignInUrl(webUrl, "google", oauthState, "https://evil.test/steal"),
+    );
 
     assert.equal(url.pathname, "/mobile/oauth/start");
     assert.equal(url.searchParams.get("callbackUrl"), "/channels/@me");
@@ -66,13 +72,14 @@ describe("mobile deep link contract", () => {
 
   it("parses whispr auth handoff links as one-time token intents", () => {
     const result = parseMobileDeepLink(
-      `whispr://oauth/${handoffToken}?callbackUrl=%2Fchannels%2F%40me`,
+      `whispr://oauth/${handoffToken}?callbackUrl=%2Fchannels%2F%40me&state=${oauthState}`,
       { webUrl },
     );
 
     assert.deepEqual(result, {
       intent: {
         callbackPath: "/channels/@me",
+        state: oauthState,
         token: handoffToken,
         type: "auth-handoff",
       },
@@ -80,10 +87,26 @@ describe("mobile deep link contract", () => {
     });
   });
 
+  it("rejects auth handoffs without a valid OAuth state", () => {
+    assert.deepEqual(
+      parseMobileDeepLink(`whispr://oauth/${handoffToken}?callbackUrl=%2Fchannels%2F%40me`, {
+        webUrl,
+      }),
+      { ok: false, reason: "invalid-auth-handoff" },
+    );
+    assert.deepEqual(
+      parseMobileDeepLink(
+        `whispr://oauth/${handoffToken}?callbackUrl=%2Fchannels%2F%40me&state=short`,
+        { webUrl },
+      ),
+      { ok: false, reason: "invalid-auth-handoff" },
+    );
+  });
+
   it("parses future web-origin mobile handoff links without trusting other origins", () => {
     assert.equal(
       parseMobileDeepLink(
-        `https://whispr.team/mobile/oauth/complete?handoff=${handoffToken}&callbackUrl=%2Fchannels`,
+        `https://whispr.team/mobile/oauth/complete?handoff=${handoffToken}&callbackUrl=%2Fchannels&state=${oauthState}`,
         { webUrl },
       ).ok,
       true,

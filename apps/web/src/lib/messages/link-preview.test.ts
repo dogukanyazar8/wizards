@@ -10,6 +10,43 @@ import {
 } from "./link-preview";
 
 describe("link preview SSRF guard", () => {
+  it("returns every validated address when Node requests lookup all mode", async () => {
+    const addresses = [
+      { address: "93.184.216.34", family: 4 },
+      { address: "2606:2800:220:1:248:1893:25c8:1946", family: 6 },
+    ];
+    const publicLookup = createPublicLookup(async () => addresses);
+
+    await new Promise<void>((resolve, reject) => {
+      publicLookup("example.test", { all: true }, (error, result) => {
+        try {
+          assert.ifError(error);
+          assert.deepEqual(result, addresses);
+          resolve();
+        } catch (assertionError) {
+          reject(assertionError);
+        }
+      });
+    });
+  });
+
+  it("keeps Node's single-address lookup callback shape", async () => {
+    const publicLookup = createPublicLookup(async () => [{ address: "93.184.216.34", family: 4 }]);
+
+    await new Promise<void>((resolve, reject) => {
+      publicLookup("example.test", {}, (error, address, family) => {
+        try {
+          assert.ifError(error);
+          assert.equal(address, "93.184.216.34");
+          assert.equal(family, 4);
+          resolve();
+        } catch (assertionError) {
+          reject(assertionError);
+        }
+      });
+    });
+  });
+
   it("allows public hostnames after DNS validation", async () => {
     const target = await assertPublicHttpUrl("https://example.test/path#fragment", async () => [
       { address: "93.184.216.34", family: 4 },

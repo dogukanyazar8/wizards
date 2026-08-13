@@ -6,6 +6,7 @@ import { prisma, type User as PrismaUser } from "@wizards/db";
 import { LoginCredentialsSchema } from "@wizards/types";
 import bcrypt from "bcryptjs";
 import NextAuth, { type NextAuthConfig, type NextAuthResult } from "next-auth";
+import { cookies, headers } from "next/headers";
 import type { Adapter, AdapterAccount, AdapterUser } from "next-auth/adapters";
 import { decode as decodeJwt, encode as encodeJwt } from "next-auth/jwt";
 import Credentials from "next-auth/providers/credentials";
@@ -24,15 +25,34 @@ import { isActiveAuthUser } from "@/lib/auth/access";
 import { verifyLoginProof } from "@/lib/auth/login-proof";
 import {
   canOAuthUserSignIn,
+  canOAuthIdentityUseTwoFactorStepUp,
   getOAuthProfileEmail,
   isGoogleEmailVerified,
+  resolveOAuthPolicyUser,
   type OAuthEmailAccount,
 } from "@/lib/auth/oauth-email";
+import {
+  authorizeOAuthTwoFactorSignIn,
+  getAuthJsCallbackCookieName,
+  getOAuthTwoFactorGrantCookieConfig,
+} from "@/lib/auth/oauth-two-factor";
 import {
   getAuthSessionCookieConfig,
   getAuthSessionCookieOptions,
 } from "@/lib/auth/session-cookies";
-import { isUserSessionRevoked, shouldCheckSessionRevocation } from "@/lib/auth/session-revocation";
+import {
+  applyRevokedJwtUserState,
+  completeSessionRevocationCheck,
+  ensureSessionStartedAt,
+  isUserSessionRevoked,
+  shouldCheckSessionRevocation,
+} from "@/lib/auth/session-revocation";
+import {
+  ensureAuthSession,
+  isAuthSessionActive,
+  type AuthSessionMetadata,
+} from "@/lib/auth/auth-session-service";
+import { getAnalyticsClientInfo } from "@/lib/analytics/client-info";
 import { consumeDesktopOAuthHandoffToken } from "@/lib/auth/desktop-oauth-handoff";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
 import { verifyWebLoginTwoFactor } from "@/lib/auth/web-login-two-factor";
@@ -71,6 +91,23 @@ loadAuthEnvironment();
 
 const REMEMBERED_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const SHORT_SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
+const AUTH_SESSION_TOUCH_INTERVAL_SECONDS = 5 * 60;
+
+async function getCurrentAuthSessionMetadata(): Promise<AuthSessionMetadata | null> {
+  try {
+    const info = getAnalyticsClientInfo(await headers());
+    return {
+      appVersion: info.appVersion,
+      browser: info.browser,
+      clientType: info.clientType,
+      countryCode: info.countryCode,
+      deviceType: info.deviceType,
+      os: info.os,
+    };
+  } catch {
+    return null;
+  }
+}
 
 function parseRememberMeCredential(value: unknown) {
   if (typeof value === "boolean") {
@@ -219,44 +256,6 @@ function jwtDateStringOrNull(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-function clearJwtUserState(token: {
-  authStatusHydrated?: boolean;
-  avatarUrl?: string | null;
-  deletedAt?: string | null;
-  displayName?: string | null;
-  email?: string | null;
-  emailVerified?: boolean;
-  id?: string;
-  image?: string | null;
-  isBanned?: boolean;
-  locale?: string | null;
-  name?: string | null;
-  picture?: string | null;
-  profileHydrated?: boolean;
-  revoked?: boolean;
-  sub?: string;
-  theme?: string | null;
-  username?: string | null;
-}) {
-  token.revoked = true;
-  token.id = "";
-  token.sub = "";
-  token.email = null;
-  token.name = null;
-  token.image = null;
-  token.picture = null;
-  token.username = null;
-  token.displayName = null;
-  token.avatarUrl = null;
-  token.locale = null;
-  token.theme = null;
-  token.deletedAt = null;
-  token.emailVerified = false;
-  token.isBanned = true;
-  token.authStatusHydrated = true;
-  token.profileHydrated = true;
-}
-
 function getEnvValue(...keys: string[]): string {
   for (const key of keys) {
     const value = process.env[key]?.trim() || readLocalEnvValue(key);
@@ -277,6 +276,11 @@ type OAuthAccountInput = AdapterAccount & {
   token_type?: string;
 };
 
+// Credentials for a missing account still pay bcrypt cost 12. A fixed hash
+// avoids per-request hashing while keeping unknown and wrong-password timing close.
+const WEB_MISSING_ACCOUNT_PASSWORD_HASH =
+  "$2b$12$/zC3shOXAfktTcluug7UXukRRVQVvFIvceUC4sm3kIzn6iSSGGT6m";
+
 function stringField(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
@@ -290,36 +294,60 @@ async function canOAuthUserAccessWhispr(args: {
   profile: unknown;
   user: { email?: unknown; id?: unknown };
 }) {
-  if (!(await canOAuthUserSignIn(args))) {
+  const email = getOAuthProfileEmail(args.profile) || normalizeAuthEmail(args.user.email);
+  const userSelect = {
+    deletedAt: true,
+    emailVerified: true,
+    id: true,
+    isBanned: true,
+    twoFactorEnabled: true,
+  } as const;
+  const policySubject = await resolveOAuthPolicyUser({
+    account: args.account,
+    email,
+    findByAccount: async (provider, providerAccountId) => {
+      const linkedAccount = await prisma.account.findUnique({
+        where: { provider_providerAccountId: { provider, providerAccountId } },
+        select: { user: { select: userSelect } },
+      });
+      return linkedAccount?.user ?? null;
+    },
+    findByEmail: (candidateEmail) =>
+      prisma.user.findUnique({ where: { email: candidateEmail }, select: userSelect }),
+  });
+  const existingUser = policySubject?.user ?? null;
+
+  if (!(await canOAuthUserSignIn({ ...args, existingUser: null }))) {
     return false;
   }
 
-  const email = getOAuthProfileEmail(args.profile) || normalizeAuthEmail(args.user.email);
-  const userId = stringOrEmpty(args.user.id);
-  const where =
-    email && userId
-      ? { OR: [{ email }, { id: userId }] }
-      : email
-        ? { email }
-        : userId
-          ? { id: userId }
-          : null;
-
-  if (!where) {
+  if (!existingUser) {
     return true;
   }
 
-  const existingUser = await prisma.user.findFirst({
-    where,
-    select: {
-      deletedAt: true,
-      emailVerified: true,
-      id: true,
-      isBanned: true,
-    },
-  });
+  if (!isActiveAuthUser(existingUser)) {
+    return false;
+  }
 
-  return !existingUser || isActiveAuthUser(existingUser);
+  if (!existingUser.twoFactorEnabled) {
+    return true;
+  }
+
+  // GitHub intentionally keeps automatic email linking disabled. Existing linked
+  // GitHub accounts still step up; unlinked email matches retain Auth.js's
+  // OAuthAccountNotLinked behavior and never receive an unusable challenge.
+  if (!canOAuthIdentityUseTwoFactorStepUp(args.account?.provider, policySubject?.linked === true)) {
+    return false;
+  }
+
+  const cookieStore = await cookies();
+  const grantCookie = getOAuthTwoFactorGrantCookieConfig();
+  return authorizeOAuthTwoFactorSignIn({
+    existingUser,
+    grantToken: cookieStore.get(grantCookie.name)?.value,
+    provider: args.account?.provider,
+    providerAccountId: args.account?.providerAccountId,
+  });
 }
 
 function normalizeAdapterAccount(account: OAuthAccountInput) {
@@ -537,6 +565,10 @@ const authConfig = {
     },
   },
   cookies: {
+    callbackUrl: {
+      name: getAuthJsCallbackCookieName(),
+      options: getAuthSessionCookieOptions(),
+    },
     sessionToken: {
       name: getAuthSessionCookieConfig().cookieName,
       options: getAuthSessionCookieOptions(),
@@ -646,13 +678,12 @@ const authConfig = {
           },
         });
 
-        if (!user || !user.passwordHash) {
-          return null;
-        }
+        const isPasswordValid = await bcrypt.compare(
+          password,
+          user?.passwordHash ?? WEB_MISSING_ACCOUNT_PASSWORD_HASH,
+        );
 
-        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-
-        if (!isPasswordValid) {
+        if (!user?.passwordHash || !isPasswordValid) {
           return null;
         }
 
@@ -801,30 +832,84 @@ const authConfig = {
 
       const revocationUserId = stringOrEmpty(token.id) || stringOrEmpty(token.sub);
       const nowSeconds = Math.floor(Date.now() / 1000);
+      const sessionStartedAt = ensureSessionStartedAt(token, nowSeconds);
+      if (revocationUserId && !token.authSessionId) {
+        token.authSessionId = randomBytes(24).toString("base64url");
+      }
+
+      const authSessionId = stringOrEmpty(token.authSessionId);
+      const authSessionExpiresAt = new Date((nowSeconds + getJwtSessionMaxAge(token)) * 1_000);
+      if (user && revocationUserId && authSessionId) {
+        await ensureAuthSession({
+          expiresAt: authSessionExpiresAt,
+          id: authSessionId,
+          metadata: await getCurrentAuthSessionMetadata(),
+          now: new Date(nowSeconds * 1_000),
+          userId: revocationUserId,
+        });
+        token.authSessionTouchedAt = nowSeconds;
+      }
+
       const revocationCheckedAt =
         typeof token.revocationCheckedAt === "number" ? token.revocationCheckedAt : undefined;
       if (revocationUserId && shouldCheckSessionRevocation(revocationCheckedAt, nowSeconds)) {
-        token.revocationCheckedAt = nowSeconds;
+        let authSessionActive = authSessionId
+          ? await isAuthSessionActive(revocationUserId, authSessionId)
+          : false;
+        if (authSessionActive === null && authSessionId) {
+          await ensureAuthSession({
+            expiresAt: authSessionExpiresAt,
+            id: authSessionId,
+            metadata: await getCurrentAuthSessionMetadata(),
+            now: new Date(nowSeconds * 1_000),
+            userId: revocationUserId,
+          });
+          token.authSessionTouchedAt = nowSeconds;
+          authSessionActive = true;
+        }
+
+        const globallyRevoked = await isUserSessionRevoked(revocationUserId, sessionStartedAt, {
+          loadDurableRevokedAfter: async (userId) => {
+            const user = await prisma.user.findUnique({
+              where: { id: userId },
+              select: { sessionsRevokedAfter: true },
+            });
+
+            return user?.sessionsRevokedAfter ?? null;
+          },
+        });
 
         if (
-          await isUserSessionRevoked(
-            revocationUserId,
-            typeof token.iat === "number" ? token.iat : nowSeconds,
-            {
-              loadDurableRevokedAfter: async (userId) => {
-                const user = await prisma.user.findUnique({
-                  where: { id: userId },
-                  select: { sessionsRevokedAfter: true },
-                });
-
-                return user?.sessionsRevokedAfter ?? null;
-              },
-            },
+          completeSessionRevocationCheck(
+            token,
+            globallyRevoked || authSessionActive === false,
+            nowSeconds,
           )
         ) {
-          clearJwtUserState(token);
+          const revokedUser = await prisma.user.findUnique({
+            where: { id: revocationUserId },
+            select: { deletedAt: true, isBanned: true },
+          });
+          applyRevokedJwtUserState(token, revokedUser);
           return token;
         }
+      }
+
+      const authSessionTouchedAt =
+        typeof token.authSessionTouchedAt === "number" ? token.authSessionTouchedAt : 0;
+      if (
+        revocationUserId &&
+        authSessionId &&
+        nowSeconds - authSessionTouchedAt >= AUTH_SESSION_TOUCH_INTERVAL_SECONDS
+      ) {
+        await ensureAuthSession({
+          expiresAt: authSessionExpiresAt,
+          id: authSessionId,
+          metadata: await getCurrentAuthSessionMetadata(),
+          now: new Date(nowSeconds * 1_000),
+          userId: revocationUserId,
+        });
+        token.authSessionTouchedAt = nowSeconds;
       }
 
       const tokenUserId = stringOrEmpty(token.id) || stringOrEmpty(token.sub);
@@ -863,7 +948,7 @@ const authConfig = {
           token.authStatusHydrated = true;
           token.profileHydrated = true;
         } else {
-          clearJwtUserState(token);
+          applyRevokedJwtUserState(token, null);
         }
       }
 
@@ -872,6 +957,7 @@ const authConfig = {
       return token;
     },
     async session({ session, token }) {
+      session.authSessionId = null;
       if (session.user) {
         const sessionUserId = stringOrEmpty(token.id) || stringOrEmpty(token.sub);
         if (token.revoked === true || !sessionUserId) {
@@ -890,6 +976,7 @@ const authConfig = {
           return session;
         }
 
+        session.authSessionId = stringOrNull(token.authSessionId);
         session.user.id = sessionUserId;
         session.user.username = stringOrNull(token.username);
         session.user.displayName = stringOrNull(token.displayName);

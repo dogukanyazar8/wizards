@@ -242,7 +242,24 @@ describe("sendDirectMessage permission gate", () => {
     assert.equal(payload.id, "message-1");
   });
 
-  it("refuses when somebody in the conversation has a block with the sender", async () => {
+  it("allows a group message when one roster member has a block with the sender", async () => {
+    const captured: Array<{ expiresAt?: Date | null }> = [];
+
+    const payload = await sendDirectMessage(
+      sendInput(),
+      dependencies({
+        createMessage: stubCreateMessage(captured),
+        findBlockedUserIds: async () => {
+          throw new Error("group sends must not query the roster-wide block gate");
+        },
+      }),
+    );
+
+    assert.equal(captured.length, 1);
+    assert.equal(payload.id, "message-1");
+  });
+
+  it("still refuses a one-to-one message when either participant has blocked the other", async () => {
     const captured: Array<{ expiresAt?: Date | null }> = [];
 
     await assert.rejects(
@@ -251,6 +268,7 @@ describe("sendDirectMessage permission gate", () => {
         dependencies({
           createMessage: stubCreateMessage(captured),
           findBlockedUserIds: async () => new Set(["owner-1"]),
+          loadAuthConversation: async () => conversationRow({ type: "DM" }),
         }),
       ),
       (error: unknown) => error instanceof ApiError && error.code === "BLOCKED",

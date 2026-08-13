@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  CLIENT_HEALTH_RETENTION_DAYS,
   percentileMs,
   rollUpClientHealthEvents,
   summarizeClientHealthRows,
@@ -14,6 +13,7 @@ const NOW = new Date("2026-07-27T12:00:00.000Z");
 
 function rawRow(overrides: Partial<ClientHealthRawRow> = {}): ClientHealthRawRow {
   return {
+    id: "event-1",
     appVersion: "0.8.15",
     clientType: "MOBILE",
     createdAt: new Date("2026-06-01T08:00:00.000Z"),
@@ -27,8 +27,10 @@ function rawRow(overrides: Partial<ClientHealthRawRow> = {}): ClientHealthRawRow
 function store(rows: ClientHealthRawRow[]) {
   const upserts: ClientHealthSummaryRow[] = [];
   const deletes: Date[] = [];
+  let remaining = [...rows];
 
   const client: ClientHealthRollupStore = {
+    $transaction: async (operation) => operation(client),
     clientHealthDailySummary: {
       upsert: async (args) => {
         upserts.push(args.create as ClientHealthSummaryRow);
@@ -36,11 +38,19 @@ function store(rows: ClientHealthRawRow[]) {
     },
     clientHealthEvent: {
       deleteMany: async (args) => {
-        const createdAt = args.where?.createdAt as { lt: Date };
-        deletes.push(createdAt.lt);
-        return { count: rows.length };
+        const ids = ((args.where?.id as { in?: string[] } | undefined)?.in ?? []) as string[];
+        const deleted = new Set(ids);
+        const count = remaining.filter((row) => deleted.has(row.id)).length;
+        remaining = remaining.filter((row) => !deleted.has(row.id));
+        return { count };
       },
-      findMany: async () => rows,
+      findMany: async (args) => {
+        const createdAt = args.where?.createdAt as { lt?: Date } | undefined;
+        if (createdAt?.lt) {
+          deletes.push(createdAt.lt);
+        }
+        return remaining;
+      },
     },
   };
 
@@ -56,6 +66,59 @@ describe("client health percentiles", () => {
 });
 
 describe("client health rollup", () => {
+  it("increments an existing UTC-day count instead of replacing it", async () => {
+    let update: unknown;
+    const { client } = store([rawRow()]);
+    client.clientHealthDailySummary.upsert = async (args) => {
+      update = args.update;
+    };
+
+    await rollUpClientHealthEvents({ now: NOW }, client);
+
+    assert.deepEqual(update, {
+      count: { increment: 1 },
+      p50Ms: 500,
+      p95Ms: 500,
+      p99Ms: 500,
+    });
+  });
+
+  it("pages through a large UTC day and deletes exactly the summarized ids", async () => {
+    const rows = Array.from({ length: 10_001 }, (_, index) =>
+      rawRow({ id: `event-${index + 1}`, valueMs: index + 1 }),
+    );
+    let remaining = [...rows];
+    const deletedIds: string[] = [];
+    let reads = 0;
+    let upserts = 0;
+    const { client } = store([]);
+
+    client.clientHealthEvent.findMany = async (args) => {
+      reads += 1;
+      const cursorId = (args.cursor as { id?: string } | undefined)?.id;
+      const start = cursorId ? remaining.findIndex((row) => row.id === cursorId) + 1 : 0;
+      return remaining.slice(start, start + Number(args.take ?? remaining.length));
+    };
+    client.clientHealthEvent.deleteMany = async (args) => {
+      const ids = (args.where?.id as { in?: string[] } | undefined)?.in ?? [];
+      deletedIds.push(...ids);
+      const deleted = new Set(ids);
+      remaining = remaining.filter((row) => !deleted.has(row.id));
+      return { count: ids.length };
+    };
+    client.clientHealthDailySummary.upsert = async () => {
+      upserts += 1;
+    };
+
+    const result = await rollUpClientHealthEvents({ now: NOW }, client);
+
+    assert.equal(reads, 4);
+    assert.equal(upserts, 1);
+    assert.equal(result.deleted, 10_001);
+    assert.equal(new Set(deletedIds).size, 10_001);
+    assert.equal(deletedIds.includes("event-10001"), true);
+  });
+
   it("groups a day, platform, version and kind into one row", () => {
     const summaries = summarizeClientHealthRows([
       rawRow({ createdAt: new Date("2026-06-01T08:00:00.000Z"), valueMs: 100 }),
@@ -92,10 +155,7 @@ describe("client health rollup", () => {
 
     assert.equal(upserts.length, 1);
     assert.equal(result.deleted, 1);
-    assert.equal(
-      deletes[0]?.toISOString(),
-      new Date(NOW.getTime() - CLIENT_HEALTH_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString(),
-    );
+    assert.equal(deletes[0]?.toISOString(), "2026-06-27T00:00:00.000Z");
   });
 
   it("does nothing when no row is old enough", async () => {
@@ -105,7 +165,7 @@ describe("client health rollup", () => {
 
     assert.deepEqual(result, { deleted: 0, summarized: 0 });
     assert.deepEqual(upserts, []);
-    assert.deepEqual(deletes, []);
+    assert.deepEqual(deletes, [new Date("2026-06-27T00:00:00.000Z")]);
   });
 });
 
@@ -121,6 +181,7 @@ describe("client health rollup keeps surfaces apart", () => {
       appVersion: "0.8.15",
       clientType: "MOBILE",
       createdAt,
+      id: `surface-${surface ?? "none"}-${valueMs}`,
       kind: "SCREEN_LOAD",
       surface,
       valueMs,

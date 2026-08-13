@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  prepareMobileImageAssetsSequentially,
   toMobilePickedImageBatch,
   type MobilePickerAsset,
 } from "../src/media/mobile-image-upload-contract";
@@ -26,6 +27,32 @@ const asset = (overrides: AssetOverrides = {}): MobilePickerAsset => ({
 });
 
 describe("mobile picked image batch", () => {
+  it("prepares selected images one at a time to bound native bitmap memory", async () => {
+    let active = 0;
+    let maxActive = 0;
+    const order: string[] = [];
+    const assets = [asset({ uri: "file:///tmp/one.jpg" }), asset({ uri: "file:///tmp/two.jpg" })];
+
+    const prepared = await prepareMobileImageAssetsSequentially(assets, async (entry) => {
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      order.push(`start:${entry.uri}`);
+      await Promise.resolve();
+      order.push(`end:${entry.uri}`);
+      active -= 1;
+      return entry;
+    });
+
+    assert.equal(maxActive, 1);
+    assert.deepEqual(prepared, assets);
+    assert.deepEqual(order, [
+      "start:file:///tmp/one.jpg",
+      "end:file:///tmp/one.jpg",
+      "start:file:///tmp/two.jpg",
+      "end:file:///tmp/two.jpg",
+    ]);
+  });
+
   it("keeps every accepted image, in the order the picker returned them", () => {
     const batch = toMobilePickedImageBatch(
       [

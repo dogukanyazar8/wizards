@@ -4,13 +4,14 @@ import { getMobileRuntimeConfig } from "../config/environment";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import type { MobileTabId } from "../navigation/mobile-navigation";
 import { useMobileSocialMutations } from "../social/mobile-social-query";
+import { useMobileAccountPreferenceRuntimeBridge } from "../account/use-mobile-account-preference-runtime";
 import { openMobileVoiceRoom } from "../voice/mobile-voice-room-route-navigation";
 import { MobileOverlayContentScope, MobileOverlayHost } from "./components/kit/overlay-host";
-import { MobileAppLockScreen } from "./components/mobile-app-lock-screen";
+import { MobileProductAppLockBoundary } from "./components/mobile-product-app-lock-boundary";
 import { MobileDeviceIntegrityWarning } from "./components/mobile-device-integrity-warning";
 import { createMobileNotificationsScreenProps } from "./features/mobile-notification-actions";
 import { useMobileSettingsScreenProps } from "./features/use-mobile-settings-screen-props";
-import { useMobileVoiceScreenProps } from "./features/use-mobile-voice-screen-props";
+import { MobileVoiceScreenRuntimeProvider } from "./features/use-mobile-voice-screen-props";
 import { MobileAppShell } from "./mobile-app-shell";
 import { useMobileDirectCallActions } from "./features/use-mobile-direct-call-actions";
 import { useMobileMessagingFeature } from "./features/use-mobile-messaging-feature";
@@ -25,7 +26,10 @@ import { useMobileLocaleRuntime } from "./providers/mobile-locale-provider";
 import { useMobileMediaRuntime } from "./providers/mobile-media-provider";
 import { useMobileNotificationRuntime } from "./providers/mobile-notification-provider";
 import { useMobileRealtimeRuntime } from "./providers/mobile-realtime-provider";
-import { useMobileVoiceRuntime } from "./providers/mobile-voice-provider";
+import {
+  useMobileVoiceRuntime,
+  useMobileVoiceRuntimeState,
+} from "./providers/mobile-voice-provider";
 import {
   MobileChannelScreenProvider,
   MobileMessagesScreenProvider,
@@ -33,12 +37,12 @@ import {
   MobileOverviewScreenProvider,
   MobileProductNavigationProvider,
   MobileSettingsScreenProvider,
-  MobileVoiceScreenProvider,
   type MobileMessagesScreenProps,
   type MobileOverviewScreenProps,
 } from "./providers/mobile-product-screen-provider";
 const copy = activeMobileCopy;
 const runtimeConfig = getMobileRuntimeConfig();
+
 export function MobileProductApp({
   Navigator,
 }: {
@@ -69,6 +73,11 @@ export function MobileProductApp({
   } = useMobileAuth();
   const socialMutations = useMobileSocialMutations(apiClient);
   const { locale: mobileLocale, selectLocale: handleSelectMobileLocale } = useMobileLocaleRuntime();
+  useMobileAccountPreferenceRuntimeBridge({
+    client: apiClient,
+    enabled: status === "signed-in",
+    locale: mobileLocale === "tr" ? "tr-TR" : "en-US",
+  });
   const {
     clearSelectedAsset: handleClearSelectedMediaAsset,
     requestCameraPermission: handleRequestCameraPermission,
@@ -96,6 +105,12 @@ export function MobileProductApp({
     updateDMTyping,
   } = useMobileRealtimeRuntime();
   const voiceRuntime = useMobileVoiceRuntime();
+  const activeVoiceRoomChannelId = useMobileVoiceRuntimeState((state) => state.roomState.channelId);
+  const activeVoiceRoomServerId = useMobileVoiceRuntimeState((state) => state.roomState.serverId);
+  const voiceMicrophoneStatus = useMobileVoiceRuntimeState(
+    (state) => state.permissionState.microphoneStatus,
+  );
+  const voiceInputMode = useMobileVoiceRuntimeState((state) => state.voiceInputMode);
   const {
     activeWorkspaceTextChannelId,
     activeWorkspaceVoiceChannelId,
@@ -157,7 +172,7 @@ export function MobileProductApp({
     selectedWorkspaceServerId,
     setCurrentTab,
   } = useMobileMessagingFeature({
-    activeVoiceChannelId: voiceRuntime.roomState.channelId,
+    activeVoiceChannelId: activeVoiceRoomChannelId,
     apiClient,
     currentUser: session?.user ?? null,
     isSignedIn: status === "signed-in",
@@ -185,12 +200,12 @@ export function MobileProductApp({
     subscribe: subscribeRealtime,
     syncParticipantAudioLevelFromServer: voiceRuntime.syncParticipantAudioLevelFromServer,
     syncParticipantsFromServer: voiceRuntime.syncParticipantsFromServer,
-    voiceChannelId: voiceRuntime.roomState.channelId,
-    voiceServerId: voiceRuntime.roomState.serverId,
+    voiceChannelId: activeVoiceRoomChannelId,
+    voiceServerId: activeVoiceRoomServerId,
   });
   const { permissionReadiness, permissionSummary } = useMobilePermissionSummary({
     cameraStatus: mediaState.cameraStatus,
-    microphoneStatus: voiceRuntime.permissionState.microphoneStatus,
+    microphoneStatus: voiceMicrophoneStatus,
     notificationStatus: notificationState.permissionStatus,
     photoLibraryStatus: mediaState.photoLibraryStatus,
   });
@@ -446,16 +461,7 @@ export function MobileProductApp({
     signedInUserLabel,
     status,
     syncHealth: settingsSyncHealth,
-    voiceInputMode: voiceRuntime.voiceInputMode,
-  });
-  const voiceScreenProps = useMobileVoiceScreenProps({
-    apiClient,
-    bootstrapState,
-    currentUserId: session?.user.id ?? null,
-    inviteSendStates: voiceInviteSendStates,
-    onLeaveVoiceChannel: handleLeaveWorkspaceVoiceChannel,
-    onSendInvite: handleSendVoiceInvite,
-    voiceRuntime,
+    voiceInputMode,
   });
   return (
     <MobileProductNavigationProvider value={productNavigationActions}>
@@ -464,16 +470,21 @@ export function MobileProductApp({
           <MobileNotificationsScreenProvider value={notificationsScreenProps}>
             <MobileOverviewScreenProvider value={overviewScreenProps}>
               <MobileSettingsScreenProvider value={settingsScreenProps}>
-                <MobileVoiceScreenProvider value={voiceScreenProps}>
+                <MobileVoiceScreenRuntimeProvider
+                  apiClient={apiClient}
+                  bootstrapState={bootstrapState}
+                  currentUserId={session?.user.id ?? null}
+                  inviteSendStates={voiceInviteSendStates}
+                  onLeaveVoiceChannel={handleLeaveWorkspaceVoiceChannel}
+                  onSendInvite={handleSendVoiceInvite}
+                >
                   <MobileAppShell authStatus={status}>
                     <MobileOverlayContentScope style={{ flex: 1, minWidth: 0 }}>
-                      {appLockLocked ? (
-                        <MobileAppLockScreen
-                          onRetry={() => void retryAppLockUnlock()}
-                          onSignOut={() => void signOut()}
-                          visible
-                        />
-                      ) : (
+                      <MobileProductAppLockBoundary
+                        locked={appLockLocked}
+                        onRetry={() => void retryAppLockUnlock()}
+                        onSignOut={() => void signOut()}
+                      >
                         <>
                           <MobileDeviceIntegrityWarning
                             onDismiss={dismissDeviceIntegrityWarning}
@@ -494,13 +505,13 @@ export function MobileProductApp({
                             vibrationEnabled={incomingCallAlertsEnabled}
                           />
                         </>
-                      )}
+                      </MobileProductAppLockBoundary>
                       <AboutBetaConsentSheet />
                     </MobileOverlayContentScope>
                     <MobileBugReportQueueBridge />
                   </MobileAppShell>
                   <MobileOverlayHost />
-                </MobileVoiceScreenProvider>
+                </MobileVoiceScreenRuntimeProvider>
               </MobileSettingsScreenProvider>
             </MobileOverviewScreenProvider>
           </MobileNotificationsScreenProvider>

@@ -19,7 +19,7 @@
     "db:verify:prisma7-disposable": "node scripts/verify-prisma7-disposable.mjs",
     "db:rebaseline:uat": "node scripts/rebaseline-uat-migration-history.mjs",
     "db:recover:uat-history": "node scripts/rebaseline-uat-migration-history.mjs --recover-interrupted",
-    "test": "tsx --test src/prisma.test.ts src/seed-about-model.test.ts src/seed-options.test.ts src/seed-uat-test-users.test.ts && node --test scripts/prisma7-contract.test.mjs scripts/verify-prisma7-disposable.test.mjs scripts/rebaseline-uat-migration-history.test.mjs",
+    "test": "tsx --test src/prisma.test.ts src/seed-about-model.test.ts src/seed-options.test.ts src/seed-uat-test-users.test.ts && node --test prisma/schema-auth-session.test.mjs prisma/schema-channel-settings.test.mjs prisma/schema-server-type.test.mjs prisma/schema-user-account-preferences.test.mjs scripts/prisma7-contract.test.mjs scripts/schema-index-audit.test.mjs scripts/verify-prisma7-disposable.test.mjs scripts/rebaseline-uat-migration-history.test.mjs",
     "contributors:sync": "tsx src/sync-contributors.ts",
     "build": "pnpm db:generate && node ../../scripts/quality/typescript-project-runner.mjs --project=db --mode=build",
     "dev": "echo db package ready",

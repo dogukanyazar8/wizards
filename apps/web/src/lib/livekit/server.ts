@@ -6,9 +6,13 @@ import { fileURLToPath } from "node:url";
 import { ApiError } from "@/lib/api";
 import { assertUnblockedDMParticipants } from "@/lib/dm/blocking";
 import { assertVoiceChannelCapacity } from "@/lib/voice/capacity";
+import { resolveVoiceParticipantLimit } from "@/lib/voice/capacity";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
 import type { CreateLiveKitTokenBody, LiveKitTokenResponse } from "./types";
+import { resolveLiveKitRtcUrl, parseLiveKitRtcRegionEndpoints } from "./rtc-regions";
+
+export { resolveLiveKitRtcUrl } from "./rtc-regions";
 
 const LIVEKIT_TOKEN_TTL = "1h";
 const ALLOWED_PUBLISH_SOURCES = [
@@ -20,14 +24,12 @@ const ALLOWED_PUBLISH_SOURCES = [
 const WORKSPACE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../..");
 
 let liveKitEnvLoaded = false;
-let liveKitRoomServiceClientCache:
-  | {
-      apiKey: string;
-      apiSecret: string;
-      client: RoomServiceClient;
-      serviceUrl: string;
-    }
-  | null = null;
+let liveKitRoomServiceClientCache: {
+  apiKey: string;
+  apiSecret: string;
+  client: RoomServiceClient;
+  serviceUrl: string;
+} | null = null;
 
 function loadEnvFallback(filePath: string) {
   const contents = readFileSync(filePath, "utf8");
@@ -182,25 +184,35 @@ async function resolveVoiceRoomName(userId: string, channelId: string) {
   );
 
   const roomName = `voice:${channel.id}`;
-  await assertVoiceChannelCapacity({ channelId: channel.id, userId });
+  await assertVoiceChannelCapacity({
+    channelId: channel.id,
+    userId,
+    userLimit: channel.userLimit,
+  });
 
-  return roomName;
+  return {
+    mediaPolicy: {
+      audioBitrate: channel.bitrate,
+      videoQualityMode: channel.videoQualityMode,
+    },
+    roomName,
+    rtcRegion: channel.rtcRegion,
+    userLimit: channel.userLimit,
+  };
 }
 
 async function resolveDMRoomName(userId: string, conversationId: string) {
-  const conversation = await prisma.dMConversation.findUnique({
-    where: { id: conversationId },
-    select: { id: true },
-  });
-
-  if (!conversation) {
-    throw new ApiError("Conversation not found", 404, "NOT_FOUND");
-  }
-
   const participants = await prisma.dMParticipant.findMany({
     where: { conversationId },
     select: { userId: true },
   });
+
+  // A conversation with no participant rows is indistinguishable from a
+  // missing conversation to this authorization boundary; the roster query is
+  // therefore both the existence check and the access check.
+  if (participants.length === 0) {
+    throw new ApiError("Conversation not found", 404, "NOT_FOUND");
+  }
 
   if (!participants.some((participant) => participant.userId === userId)) {
     throw new ApiError("You do not have access to this conversation", 403, "FORBIDDEN");
@@ -212,26 +224,70 @@ async function resolveDMRoomName(userId: string, conversationId: string) {
     participants,
   });
 
-  return `dm:${conversation.id}`;
+  return {
+    mediaPolicy: { audioBitrate: 64_000, videoQualityMode: "AUTO" as const },
+    roomName: `dm:${conversationId}`,
+    rtcRegion: null,
+    userLimit: 0,
+  };
 }
 
-export async function resolveLiveKitRoomName(userId: string, input: CreateLiveKitTokenBody) {
+type VoiceRoomPolicyClient = {
+  createRoom(options: { maxParticipants: number; name: string }): Promise<unknown>;
+  listRooms(names: string[]): Promise<Array<{ name?: string }>>;
+};
+
+export async function ensureVoiceRoomParticipantLimit(args: {
+  client: VoiceRoomPolicyClient;
+  roomName: string;
+  userLimit: number;
+}) {
+  const rooms = await args.client.listRooms([args.roomName]);
+  if (rooms.length > 0) {
+    return;
+  }
+
+  await args.client.createRoom({
+    maxParticipants: resolveVoiceParticipantLimit(args.userLimit),
+    name: args.roomName,
+  });
+}
+
+async function resolveLiveKitRoomTarget(userId: string, input: CreateLiveKitTokenBody) {
   if (input.channelId) {
-    return resolveVoiceRoomName(userId, input.channelId);
+    const target = await resolveVoiceRoomName(userId, input.channelId);
+    await ensureVoiceRoomParticipantLimit({
+      client: getLiveKitRoomServiceClient(),
+      roomName: target.roomName,
+      userLimit: target.userLimit,
+    });
+    return {
+      ...target,
+      url: resolveLiveKitRtcUrl(
+        target.rtcRegion,
+        getLiveKitUrl(),
+        parseLiveKitRtcRegionEndpoints(),
+      ),
+    };
   }
 
   if (input.conversationId) {
-    return resolveDMRoomName(userId, input.conversationId);
+    return { ...(await resolveDMRoomName(userId, input.conversationId)), url: getLiveKitUrl() };
   }
 
   throw new ApiError("Provide exactly one of channelId or conversationId.", 400);
+}
+
+export async function resolveLiveKitRoomName(userId: string, input: CreateLiveKitTokenBody) {
+  const target = await resolveLiveKitRoomTarget(userId, input);
+  return target.roomName;
 }
 
 export async function createLiveKitToken(
   userId: string,
   input: CreateLiveKitTokenBody,
 ): Promise<LiveKitTokenResponse> {
-  const roomName = await resolveLiveKitRoomName(userId, input);
+  const target = await resolveLiveKitRoomTarget(userId, input);
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -269,17 +325,21 @@ export async function createLiveKitToken(
     ttl: LIVEKIT_TOKEN_TTL,
   });
 
-  token.addGrant({
+  token.addGrant(buildLiveKitParticipantGrant(target.roomName));
+
+  return {
+    mediaPolicy: target.mediaPolicy,
+    token: await token.toJwt(),
+    url: target.url,
+  };
+}
+
+export function buildLiveKitParticipantGrant(roomName: string) {
+  return {
     room: roomName,
     roomJoin: true,
     canPublishSources: [...ALLOWED_PUBLISH_SOURCES],
     canPublishData: true,
     canSubscribe: true,
-    canUpdateOwnMetadata: true,
-  });
-
-  return {
-    token: await token.toJwt(),
-    url: getLiveKitUrl(),
   };
 }

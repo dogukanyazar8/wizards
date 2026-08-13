@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   AttachmentScanRetryableError,
   processAttachmentScanJob,
+  scanAttachmentUrl,
 } from "./scanner";
 
 function createAttachment(overrides: Record<string, unknown> = {}) {
@@ -123,6 +124,43 @@ describe("attachment scanner", () => {
     ]);
   });
 
+  it("leaves an infected attachment retryable when quarantine deletion fails", async () => {
+    const updates: unknown[] = [];
+    const notifications: unknown[] = [];
+
+    await assert.rejects(
+      processAttachmentScanJob(
+        { attachmentId: "attachment-1" },
+        {
+          client: {
+            attachment: {
+              async findUnique() {
+                return createAttachment();
+              },
+              async update(args: unknown) {
+                updates.push(args);
+                return createAttachment({ scanStatus: "INFECTED" });
+              },
+            },
+          },
+          async deleteUploadedFile() {
+            throw new Error("quarantine unavailable");
+          },
+          async notifyUploader(notification) {
+            notifications.push(notification);
+          },
+          async scanAttachmentUrl() {
+            return { signature: "Eicar-Test-Signature", status: "INFECTED" };
+          },
+        },
+      ),
+      /quarantine unavailable/,
+    );
+
+    assert.deepEqual(updates, []);
+    assert.deepEqual(notifications, []);
+  });
+
   it("marks scan errors fail-closed and throws for outbox retry", async () => {
     const updates: unknown[] = [];
 
@@ -161,5 +199,55 @@ describe("attachment scanner", () => {
         where: { id: "attachment-1" },
       },
     ]);
+  });
+});
+
+/**
+ * The outbox drains one job at a time, so an attachment download that never
+ * answers is not a slow scan — it is every DM notification, campaign send and
+ * analytics rollup behind it stopping too. undici's default is 300s, the same
+ * window after which a second replica reclaims the job.
+ */
+describe("attachment scan download deadline", () => {
+  it("aborts a download that never answers instead of stalling the outbox", async () => {
+    let observedSignal: AbortSignal | null = null;
+
+    const result = await scanAttachmentUrl("https://cdn.whispr.test/hangs.bin", {
+      fetchImpl: (_input, init) => {
+        const signal = (init?.signal ?? null) as AbortSignal | null;
+        observedSignal = signal;
+
+        return new Promise((_resolve, reject) => {
+          signal?.addEventListener("abort", () => {
+            reject(new Error("aborted by deadline"));
+          });
+        });
+      },
+      timeoutMs: 20,
+    });
+
+    assert.ok(observedSignal, "the download must be given an abort signal");
+    assert.equal(result.status, "ERROR");
+  });
+
+  it("passes an unaborted signal through while the download is answering", async () => {
+    let abortedDuringFetch: boolean | null = null;
+
+    const result = await scanAttachmentUrl("https://cdn.whispr.test/missing.bin", {
+      fetchImpl: (_input, init) => {
+        // Sampled here, not after the call: the deadline is released on the way
+        // out, so a live reference would always read back as aborted.
+        abortedDuringFetch = ((init?.signal ?? null) as AbortSignal | null)?.aborted ?? null;
+
+        return Promise.resolve({ body: null, ok: false, status: 404 } as unknown as Response);
+      },
+      timeoutMs: 60_000,
+    });
+
+    assert.equal(abortedDuringFetch, false);
+    assert.deepEqual(result, {
+      error: "attachment fetch failed with status 404",
+      status: "ERROR",
+    });
   });
 });
