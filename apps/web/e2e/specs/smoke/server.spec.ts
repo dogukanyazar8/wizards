@@ -124,6 +124,7 @@ test.describe("server smoke", () => {
       await editForm.locator("#channel-user-limit").fill("5");
       await editForm.locator("#channel-video-quality").selectOption("AUTO");
       await editForm.getByTestId("channel-submit-button").click();
+      await expect(editForm).toBeHidden();
 
       await page.reload();
       await expect(page.getByTestId("channel-sidebar")).toBeVisible();
