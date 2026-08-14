@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   formatE2EEnvironmentValidation,
+  resolveE2ERequestOrigin,
   validateE2EEnvironment,
   validateSafeE2EDatabaseUrl,
   validateSafeE2ERedisUrl,
@@ -21,6 +22,20 @@ const safeEnv = {
 } as const;
 
 describe("E2E environment preflight", () => {
+  it("resolves the same-origin header from the validated Playwright base URL", () => {
+    assert.equal(
+      resolveE2ERequestOrigin({ E2E_BASE_URL: "http://127.0.0.1:3000/channels/@me" }),
+      "http://127.0.0.1:3000",
+    );
+  });
+
+  it("rejects non-HTTP request origins", () => {
+    assert.throws(
+      () => resolveE2ERequestOrigin({ E2E_BASE_URL: "file:///tmp/whispr" }),
+      /must use http or https/,
+    );
+  });
+
   it("accepts isolated local Playwright configuration", () => {
     const validation = validateE2EEnvironment(safeEnv);
 
@@ -34,18 +49,9 @@ describe("E2E environment preflight", () => {
     const validation = validateE2EEnvironment({});
 
     assert.equal(validation.ok, false);
-    assert.match(
-      validation.errors.map((issue) => issue.code).join(","),
-      /e2e_test_mode_required/,
-    );
-    assert.match(
-      validation.errors.map((issue) => issue.code).join(","),
-      /database_url_required/,
-    );
-    assert.match(
-      validation.errors.map((issue) => issue.code).join(","),
-      /e2e_password_required/,
-    );
+    assert.match(validation.errors.map((issue) => issue.code).join(","), /e2e_test_mode_required/);
+    assert.match(validation.errors.map((issue) => issue.code).join(","), /database_url_required/);
+    assert.match(validation.errors.map((issue) => issue.code).join(","), /e2e_password_required/);
   });
 
   it("rejects production mode even with a test-looking database", () => {
@@ -55,10 +61,7 @@ describe("E2E environment preflight", () => {
     });
 
     assert.equal(validation.ok, false);
-    assert.match(
-      validation.errors.map((issue) => issue.code).join(","),
-      /node_env_production/,
-    );
+    assert.match(validation.errors.map((issue) => issue.code).join(","), /node_env_production/);
   });
 
   it("rejects managed or remote database hosts", () => {
@@ -67,7 +70,10 @@ describe("E2E environment preflight", () => {
       safeEnv,
     );
 
-    assert.equal(errors.some((issue) => issue.code === "database_url_not_safe"), true);
+    assert.equal(
+      errors.some((issue) => issue.code === "database_url_not_safe"),
+      true,
+    );
   });
 
   it("rejects non-test database names", () => {
@@ -76,7 +82,10 @@ describe("E2E environment preflight", () => {
       safeEnv,
     );
 
-    assert.equal(errors.some((issue) => issue.code === "database_name_not_test_like"), true);
+    assert.equal(
+      errors.some((issue) => issue.code === "database_name_not_test_like"),
+      true,
+    );
   });
 
   it("warns, but does not fail, when Redis is omitted", () => {
@@ -84,7 +93,10 @@ describe("E2E environment preflight", () => {
     const validation = validateE2EEnvironment(envWithoutRedis);
 
     assert.equal(validation.ok, true);
-    assert.equal(validation.warnings.some((issue) => issue.code === "redis_url_missing"), true);
+    assert.equal(
+      validation.warnings.some((issue) => issue.code === "redis_url_missing"),
+      true,
+    );
   });
 
   it("rejects remote app URLs for session-helper based E2E runs", () => {
@@ -94,13 +106,19 @@ describe("E2E environment preflight", () => {
     });
 
     assert.equal(validation.ok, false);
-    assert.equal(validation.errors.some((issue) => issue.code === "e2e_base_url_not_loopback"), true);
+    assert.equal(
+      validation.errors.some((issue) => issue.code === "e2e_base_url_not_loopback"),
+      true,
+    );
   });
 
   it("rejects unsafe Redis targets when Redis is configured", () => {
     const errors = validateSafeE2ERedisUrl("redis://redis.railway.internal:6379", safeEnv);
 
-    assert.equal(errors.some((issue) => issue.code === "redis_url_not_safe"), true);
+    assert.equal(
+      errors.some((issue) => issue.code === "redis_url_not_safe"),
+      true,
+    );
   });
 
   it("formats actionable diagnostics without leaking secrets", () => {

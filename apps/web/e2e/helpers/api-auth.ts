@@ -1,10 +1,10 @@
 import type { APIRequestContext, APIResponse } from "@playwright/test";
+import { resolveE2ERequestOrigin } from "@/lib/e2e/environment";
 import type { E2EUserKey } from "./test-data";
 
-async function assertSuccessfulE2EApiResponse(
-  response: APIResponse,
-  operation: string,
-) {
+const e2eRequestHeaders = { origin: resolveE2ERequestOrigin() };
+
+async function assertSuccessfulE2EApiResponse(response: APIResponse, operation: string) {
   if (response.ok()) {
     return;
   }
@@ -13,18 +13,18 @@ async function assertSuccessfulE2EApiResponse(
   throw new Error(`${operation} failed with ${response.status()}: ${body}`);
 }
 
-export async function apiLoginAs(
-  request: APIRequestContext,
-  userKey: E2EUserKey,
-): Promise<void> {
+export async function apiLoginAs(request: APIRequestContext, userKey: E2EUserKey): Promise<void> {
   const response = await request.post("/api/e2e/auth/session", {
     data: { userKey },
+    headers: e2eRequestHeaders,
   });
 
   await assertSuccessfulE2EApiResponse(response, `API login as ${userKey}`);
 }
 
 export async function apiLogout(request: APIRequestContext): Promise<void> {
-  const response = await request.delete("/api/e2e/auth/session");
+  const response = await request.delete("/api/e2e/auth/session", {
+    headers: e2eRequestHeaders,
+  });
   await assertSuccessfulE2EApiResponse(response, "API logout");
 }

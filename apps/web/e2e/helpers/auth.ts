@@ -1,10 +1,12 @@
 import type { Page } from "@playwright/test";
+import { resolveE2ERequestOrigin } from "@/lib/e2e/environment";
 import { resolveE2ETimeoutPolicy } from "@/lib/e2e/timeout-policy";
 import { expect } from "../fixtures/test";
 import { gotoAppRoute } from "./navigation";
 import { e2eUsers, e2eUserPassword, type E2EUserKey } from "./test-data";
 
 const { authRequestTimeoutMs } = resolveE2ETimeoutPolicy();
+const e2eRequestHeaders = { origin: resolveE2ERequestOrigin() };
 
 async function assertSuccessfulE2EResponse(response: Awaited<ReturnType<Page["request"]["post"]>>) {
   if (response.ok()) {
@@ -57,6 +59,7 @@ export async function loginViaUi(page: Page, userKey: E2EUserKey): Promise<void>
 export async function loginAs(page: Page, userKey: E2EUserKey): Promise<void> {
   const response = await page.request.post("/api/e2e/auth/session", {
     data: { userKey },
+    headers: e2eRequestHeaders,
     timeout: authRequestTimeoutMs,
   });
 
@@ -76,7 +79,9 @@ export async function loginAs(page: Page, userKey: E2EUserKey): Promise<void> {
 }
 
 export async function logout(page: Page): Promise<void> {
-  const response = await page.request.delete("/api/e2e/auth/session");
+  const response = await page.request.delete("/api/e2e/auth/session", {
+    headers: e2eRequestHeaders,
+  });
 
   await assertSuccessfulE2EResponse(response);
   await gotoAppRoute(page, "/login");

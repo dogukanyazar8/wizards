@@ -42,7 +42,9 @@ function readEnv(env: E2EEnvironment, key: string): string | undefined {
 function describeUrlTarget(url: URL): string {
   const databaseName = url.pathname.replace(/^\//, "");
   const port = url.port ? `:${url.port}` : "";
-  return databaseName ? `${url.protocol}//${url.hostname}${port}/${databaseName}` : `${url.protocol}//${url.hostname}${port}`;
+  return databaseName
+    ? `${url.protocol}//${url.hostname}${port}/${databaseName}`
+    : `${url.protocol}//${url.hostname}${port}`;
 }
 
 function describeOptionalUrlTarget(value: string | undefined): string | undefined {
@@ -77,7 +79,10 @@ function isTestLikeDatabaseName(databaseName: string): boolean {
   return /(^|[_-])(e2e|test)([_-]|$)/.test(databaseName) || databaseName.includes("whispr_e2e");
 }
 
-function validateLocalAppUrl(env: E2EEnvironment, key: (typeof LOCAL_APP_URL_KEYS)[number]): E2EEnvironmentIssue[] {
+function validateLocalAppUrl(
+  env: E2EEnvironment,
+  key: (typeof LOCAL_APP_URL_KEYS)[number],
+): E2EEnvironmentIssue[] {
   const value = readEnv(env, key);
   if (!value) {
     return [];
@@ -112,6 +117,21 @@ function validateLocalAppUrl(env: E2EEnvironment, key: (typeof LOCAL_APP_URL_KEY
 
 export function resolveE2EDatabaseUrl(env: E2EEnvironment = process.env): string {
   return readEnv(env, "E2E_DATABASE_URL") ?? readEnv(env, "DATABASE_URL") ?? "";
+}
+
+export function resolveE2ERequestOrigin(env: E2EEnvironment = process.env): string {
+  const value = readEnv(env, "E2E_BASE_URL") ?? "http://127.0.0.1:3000";
+  const parsed = parseUrl(value, "e2e_base_url");
+
+  if (!(parsed instanceof URL)) {
+    throw new Error(parsed.message);
+  }
+
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw new Error("E2E_BASE_URL must use http or https for Playwright requests.");
+  }
+
+  return parsed.origin;
 }
 
 export function validateSafeE2EDatabaseUrl(
@@ -238,7 +258,9 @@ export function assertSafeE2ERedisUrl(redisUrl: string, env: E2EEnvironment = pr
   }
 }
 
-export function validateE2EEnvironment(env: E2EEnvironment = process.env): E2EEnvironmentValidation {
+export function validateE2EEnvironment(
+  env: E2EEnvironment = process.env,
+): E2EEnvironmentValidation {
   const errors: E2EEnvironmentIssue[] = [];
   const warnings: E2EEnvironmentIssue[] = [];
   const databaseUrl = resolveE2EDatabaseUrl(env);
@@ -270,7 +292,8 @@ export function validateE2EEnvironment(env: E2EEnvironment = process.env): E2EEn
   } else {
     warnings.push({
       code: "redis_url_missing",
-      message: "REDIS_URL is not set. E2E can run without Redis, but realtime/rate-limit behavior will be less production-like.",
+      message:
+        "REDIS_URL is not set. E2E can run without Redis, but realtime/rate-limit behavior will be less production-like.",
       hint: "Use REDIS_URL=redis://localhost:6379 for local parity with CI.",
     });
   }
@@ -303,7 +326,9 @@ export function formatE2EEnvironmentValidation(validation: E2EEnvironmentValidat
     lines.push(`Database: ${validation.summary.databaseTarget ?? "not configured"}`);
     lines.push(`Redis: ${validation.summary.redisTarget ?? "not configured"}`);
     lines.push(`Base URL: ${validation.summary.baseUrl}`);
-    lines.push(`Web server: ${validation.summary.skipWebServer ? "external server" : "Playwright-managed server"}`);
+    lines.push(
+      `Web server: ${validation.summary.skipWebServer ? "external server" : "Playwright-managed server"}`,
+    );
   } else {
     lines.push("E2E environment preflight failed.");
     lines.push("");
@@ -332,14 +357,14 @@ export function formatE2EEnvironmentValidation(validation: E2EEnvironmentValidat
     lines.push("PowerShell quick start:");
     lines.push('$env:E2E_TEST_MODE="true"');
     lines.push('$env:E2E_DATABASE_URL="postgresql://wizards:wizards@localhost:5432/whispr_e2e"');
-    lines.push('$env:DATABASE_URL=$env:E2E_DATABASE_URL');
+    lines.push("$env:DATABASE_URL=$env:E2E_DATABASE_URL");
     lines.push('$env:REDIS_URL="redis://localhost:6379"');
     lines.push('$env:E2E_BASE_URL="http://127.0.0.1:3000"');
-    lines.push('$env:APP_URL=$env:E2E_BASE_URL');
-    lines.push('$env:AUTH_URL=$env:E2E_BASE_URL');
-    lines.push('$env:NEXTAUTH_URL=$env:E2E_BASE_URL');
+    lines.push("$env:APP_URL=$env:E2E_BASE_URL");
+    lines.push("$env:AUTH_URL=$env:E2E_BASE_URL");
+    lines.push("$env:NEXTAUTH_URL=$env:E2E_BASE_URL");
     lines.push('$env:AUTH_SECRET="whispr-e2e-auth-secret-change-me-local-only"');
-    lines.push('$env:NEXTAUTH_SECRET=$env:AUTH_SECRET');
+    lines.push("$env:NEXTAUTH_SECRET=$env:AUTH_SECRET");
     lines.push('$env:E2E_TEST_PASSWORD="<generate-a-local-random-password>"');
   }
 
