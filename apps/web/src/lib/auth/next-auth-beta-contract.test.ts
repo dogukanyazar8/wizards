@@ -67,7 +67,7 @@ describe("next-auth beta dependency contract", () => {
       "session revocation invalidates an already issued Auth.js session",
       "desktop OAuth handoff creates a one-time desktop claim URL",
       "Google and GitHub OAuth remain tied to verified provider email",
-      "registration remains covered by the auth upgrade safety net",
+      "registration keeps existing emails non-enumerating",
     ]) {
       assert.match(spec, new RegExp(requiredScenario.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     }
