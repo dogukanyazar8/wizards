@@ -75,6 +75,7 @@
     },
     "test": {
       "dependsOn": ["^test"],
+      "env": ["LIVEKIT_URL"],
       "outputs": []
     },
     "test:coverage": {
@@ -88,6 +89,7 @@
         "E2E_DATABASE_URL",
         "E2E_TEST_MODE",
         "E2E_TEST_PASSWORD",
+        "LIVEKIT_URL",
         "NEXT_PUBLIC_E2E_TEST_MODE",
         "NEXTAUTH_SECRET",
         "NEXTAUTH_URL",

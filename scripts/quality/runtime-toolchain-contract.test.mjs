@@ -18,6 +18,14 @@ const expectedNode24ActionPins = {
     sha: "a0853c24544627f65ddf259abe73b1d18a591444",
     tag: "v5.0.0",
   },
+  "actions/upload-artifact": {
+    sha: "b7c566a772e6b6bfb58ed0dc250532a479d7789f",
+    tag: "v6.0.0",
+  },
+  "gitleaks/gitleaks-action": {
+    sha: "e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e",
+    tag: "v3.0.0",
+  },
   "pnpm/action-setup": {
     sha: "fc06bc1257f339d1d5d8b3a19a8cae5388b55320",
     tag: "v5.0.0",
@@ -204,7 +212,7 @@ test("CI pins supported Node 24 action runtimes to reviewed releases", () => {
   const workflow = readText(join(".github", "workflows", "ci.yml"));
   const actionReferences = [
     ...workflow.matchAll(
-      /^\s+uses:\s*(actions\/checkout|actions\/setup-node|pnpm\/action-setup)@([a-f0-9]{40})\s+#\s+(v\d+(?:\.\d+){0,2})\s*$/gmu,
+      /^\s+uses:\s*(actions\/(?:checkout|setup-node|upload-artifact)|gitleaks\/gitleaks-action|pnpm\/action-setup)@([a-f0-9]{40})\s+#\s+(v\d+(?:\.\d+){0,2})\s*$/gmu,
     ),
   ];
 
@@ -221,6 +229,17 @@ test("CI pins supported Node 24 action runtimes to reviewed releases", () => {
     [...new Set(actionReferences.map(([, action]) => action))].sort(),
     Object.keys(expectedNode24ActionPins).sort(),
   );
+});
+
+test("Turbo exposes the LiveKit URL to unit and coverage tests", () => {
+  const turbo = readJson("turbo.json");
+
+  for (const taskName of ["test", "test:coverage"]) {
+    assert.ok(
+      turbo.tasks?.[taskName]?.env?.includes("LIVEKIT_URL"),
+      `${taskName} must pass LIVEKIT_URL through Turbo strict env mode`,
+    );
+  }
 });
 
 test("actionlint CI job is checksum-verified, fail-closed, and least-privilege", () => {

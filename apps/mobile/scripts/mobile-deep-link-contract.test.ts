@@ -15,7 +15,7 @@ import {
 
 const webUrl = "https://whispr.team";
 const handoffToken = "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-"; // gitleaks:allow -- deterministic invalid fixture
-const oauthState = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+const oauthState = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"; // gitleaks:allow -- deterministic invalid fixture
 
 describe("mobile deep link contract", () => {
   it("builds web sign-in URLs without embedding native secrets", () => {

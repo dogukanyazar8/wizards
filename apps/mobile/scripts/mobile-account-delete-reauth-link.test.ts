@@ -11,7 +11,7 @@ describe("mobile account deletion reauth deep links", () => {
       }),
       {
         intent: {
-          token: "abcdefghijklmnopqrstuvwxyzABCDEF123456",
+          token: "abcdefghijklmnopqrstuvwxyzABCDEF123456", // gitleaks:allow -- deterministic invalid fixture
           type: "account-delete-reauth",
         },
         ok: true,

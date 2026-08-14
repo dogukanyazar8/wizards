@@ -29,9 +29,10 @@ const mockVoiceRecorder = {
 };
 
 const mockNavigate = jest.fn();
+type MobileNavigationModule = typeof import("../src/navigation/mobile-navigation-ref");
 
 jest.mock("../src/navigation/mobile-navigation-ref", () => {
-  const actual = jest.requireActual<typeof import("../src/navigation/mobile-navigation-ref")>(
+  const actual: MobileNavigationModule = jest.requireActual(
     "../src/navigation/mobile-navigation-ref",
   );
   return {

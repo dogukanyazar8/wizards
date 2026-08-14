@@ -84,6 +84,66 @@
       "reason": "Historical fingerprint for a deterministic Stripe-shaped logger-redaction test fixture.",
       "owner": "@dogukanyazar8",
       "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/scripts/mobile-deep-link-contract.test.ts:generic-api-key:18",
+      "reason": "Historical fingerprint for a deterministic OAuth state fixture in the mobile deep-link contract test.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/scripts/mobile-bug-report-model.test.ts:generic-api-key:140",
+      "reason": "Historical fingerprint for a deterministic UUID claim fixture in the mobile bug-report model test.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/scripts/mobile-linking-config.test.ts:generic-api-key:11",
+      "reason": "Historical fingerprint for a deterministic OAuth state fixture in the mobile linking configuration test.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/component-tests/mobile-about-bug-report-2f.test.tsx:generic-api-key:337",
+      "reason": "Historical fingerprint for a deterministic UUID claim fixture in the mobile bug-report component test.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/scripts/mobile-social-auth-session.test.ts:generic-api-key:12",
+      "reason": "Historical fingerprint for a deterministic OAuth state fixture in the mobile social-auth session test.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/scripts/mobile-account-delete-reauth-link.test.ts:generic-api-key:14",
+      "reason": "Historical fingerprint for a deterministic reauthentication token fixture in the mobile account deletion test.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/component-tests/mobile-session-resilience.test.tsx:generic-api-key:660",
+      "reason": "Historical fingerprint for a deterministic handoff token fixture in the mobile session resilience test.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/component-tests/mobile-session-resilience.test.tsx:generic-api-key:688",
+      "reason": "Historical fingerprint for a deterministic handoff token fixture in the mobile session resilience test.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/component-tests/mobile-session-resilience.test.tsx:generic-api-key:759",
+      "reason": "Historical fingerprint for a deterministic delayed handoff token fixture in the mobile session resilience test.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/web/src/lib/auth/mobile-oauth-start.test.ts:generic-api-key:13",
+      "reason": "Historical fingerprint for a deterministic OAuth state fixture in the web mobile OAuth start test.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
     }
   ]
 }

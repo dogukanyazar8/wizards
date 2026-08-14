@@ -9,7 +9,7 @@ import {
 } from "../src/auth/mobile-social-auth-session";
 
 const webUrl = "https://whispr.team";
-const oauthState = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+const oauthState = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"; // gitleaks:allow -- deterministic invalid fixture
 const startUrl = `${webUrl}/mobile/oauth/start?callbackUrl=%2Fchannels%2F%40me&provider=google&state=${oauthState}`;
 const handoffToken = "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-"; // gitleaks:allow -- deterministic invalid fixture
 

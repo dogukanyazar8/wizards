@@ -657,7 +657,7 @@ describe("mobile session resilience", () => {
       completed =
         (await harnessValue?.completeAuthHandoff({
           callbackPath: "/channels/@me",
-          handoffToken: "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-",
+          handoffToken: "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-", // gitleaks:allow -- deterministic invalid fixture
           state: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
         })) ?? true;
     });
@@ -685,7 +685,7 @@ describe("mobile session resilience", () => {
       completed =
         (await harnessValue?.completeAuthHandoff({
           callbackPath: "/channels/@me",
-          handoffToken: "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-",
+          handoffToken: "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-", // gitleaks:allow -- deterministic invalid fixture
           state: state ?? "",
         })) ?? false;
     });
@@ -756,7 +756,7 @@ describe("mobile session resilience", () => {
     await act(async () => {
       handoffPromise = harnessValue?.completeAuthHandoff({
         callbackPath: "/channels/@me",
-        handoffToken: "latesaveabcdefghijklmnopqrstuvwxyz1234567890_-",
+        handoffToken: "latesaveabcdefghijklmnopqrstuvwxyz1234567890_-", // gitleaks:allow -- deterministic invalid fixture
         state,
       });
       await Promise.resolve();

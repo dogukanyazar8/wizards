@@ -12,3 +12,13 @@ b4229c976f3e0b083428c983f58a2e090d3e12db:apps/mobile/component-tests/mobile-abou
 b4229c976f3e0b083428c983f58a2e090d3e12db:apps/mobile/scripts/mobile-bug-report-model.test.ts:generic-api-key:137
 b4229c976f3e0b083428c983f58a2e090d3e12db:apps/web/src/lib/support/bug-report-service.test.ts:generic-api-key:131
 c5d4485b14a46db4a0273f3af644bab283a380c8:apps/web/src/lib/logger.test.ts:stripe-access-token:220
+c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/scripts/mobile-deep-link-contract.test.ts:generic-api-key:18
+c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/scripts/mobile-bug-report-model.test.ts:generic-api-key:140
+c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/scripts/mobile-linking-config.test.ts:generic-api-key:11
+c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/component-tests/mobile-about-bug-report-2f.test.tsx:generic-api-key:337
+c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/scripts/mobile-social-auth-session.test.ts:generic-api-key:12
+c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/scripts/mobile-account-delete-reauth-link.test.ts:generic-api-key:14
+c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/component-tests/mobile-session-resilience.test.tsx:generic-api-key:660
+c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/component-tests/mobile-session-resilience.test.tsx:generic-api-key:688
+c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/component-tests/mobile-session-resilience.test.tsx:generic-api-key:759
+c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/web/src/lib/auth/mobile-oauth-start.test.ts:generic-api-key:13

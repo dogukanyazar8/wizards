@@ -334,7 +334,7 @@ describe("2f bug report screen", () => {
           includesDeviceInfo: false,
           includesLogs: true,
           includesScreenshot: true,
-          screenshotUploadKey: "6f1b2a4c-9d3e-4f58-8a71-2c5d0e7b4a19",
+          screenshotUploadKey: "6f1b2a4c-9d3e-4f58-8a71-2c5d0e7b4a19", // gitleaks:allow -- deterministic invalid fixture
         }),
         method: "POST",
       }),

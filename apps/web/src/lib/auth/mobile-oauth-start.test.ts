@@ -10,7 +10,7 @@ import {
   getSafeMobileOAuthProvider,
 } from "./mobile-oauth-start";
 
-const oauthState = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+const oauthState = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"; // gitleaks:allow -- deterministic invalid fixture
 const handoffToken = "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-"; // gitleaks:allow -- deterministic invalid fixture
 
 describe("mobile OAuth start paths", () => {
