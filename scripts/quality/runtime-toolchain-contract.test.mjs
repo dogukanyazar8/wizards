@@ -242,6 +242,16 @@ test("Turbo exposes the LiveKit URL to unit and coverage tests", () => {
   }
 });
 
+test("CI declares the mobile environment before validating it", () => {
+  const workflow = readText(join(".github", "workflows", "ci.yml"));
+  const verifyJob = readWorkflowJob(workflow, "verify");
+
+  assert.match(
+    verifyJob,
+    /^      - name: Mobile quality gate\r?\n        env:\r?\n          WHISPR_MOBILE_ENV: development$/mu,
+  );
+});
+
 test("actionlint CI job is checksum-verified, fail-closed, and least-privilege", () => {
   const workflow = readText(join(".github", "workflows", "ci.yml"));
   const actionlintJob = readWorkflowJob(workflow, "actionlint");

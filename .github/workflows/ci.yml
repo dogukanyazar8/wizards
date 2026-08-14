@@ -93,6 +93,8 @@ jobs:
         run: pnpm --filter @wizards/ui test
 
       - name: Mobile quality gate
+        env:
+          WHISPR_MOBILE_ENV: development
         run: |
           pnpm --filter @wizards/mobile test
           pnpm --filter @wizards/mobile test:components
