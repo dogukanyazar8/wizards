@@ -104,6 +104,7 @@ jobs:
 
       - name: Test with coverage baseline
         env:
+          LIVEKIT_URL: ws://127.0.0.1:7880
           WEB_COVERAGE_API_E2E: "0"
         run: pnpm test:coverage
 

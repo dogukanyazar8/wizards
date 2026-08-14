@@ -252,6 +252,16 @@ test("CI declares the mobile environment before validating it", () => {
   );
 });
 
+test("CI provides a non-routable LiveKit URL to coverage tests", () => {
+  const workflow = readText(join(".github", "workflows", "ci.yml"));
+  const verifyJob = readWorkflowJob(workflow, "verify");
+
+  assert.match(
+    verifyJob,
+    /^      - name: Test with coverage baseline\r?\n        env:\r?\n          LIVEKIT_URL: ws:\/\/127\.0\.0\.1:7880$/mu,
+  );
+});
+
 test("actionlint CI job is checksum-verified, fail-closed, and least-privilege", () => {
   const workflow = readText(join(".github", "workflows", "ci.yml"));
   const actionlintJob = readWorkflowJob(workflow, "actionlint");
