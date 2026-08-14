@@ -1,12 +1,11 @@
 import type { Page } from "@playwright/test";
-import { resolveE2ERequestOrigin } from "@/lib/e2e/environment";
 import { resolveE2ETimeoutPolicy } from "@/lib/e2e/timeout-policy";
 import { expect } from "../fixtures/test";
+import { e2eRequestHeaders } from "./api-auth";
 import { gotoAppRoute } from "./navigation";
 import { e2eUsers, e2eUserPassword, type E2EUserKey } from "./test-data";
 
 const { authRequestTimeoutMs } = resolveE2ETimeoutPolicy();
-const e2eRequestHeaders = { origin: resolveE2ERequestOrigin() };
 
 async function assertSuccessfulE2EResponse(response: Awaited<ReturnType<Page["request"]["post"]>>) {
   if (response.ok()) {

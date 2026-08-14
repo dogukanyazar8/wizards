@@ -1,10 +1,8 @@
 import type { Browser, BrowserContext, Page, TestInfo } from "@playwright/test";
 import { test, expect } from "../../fixtures/test";
+import { e2eRequestHeaders } from "../../helpers/api-auth";
 import { loginAs } from "../../helpers/auth";
-import {
-  attachE2EPageDiagnostics,
-  type E2EPageDiagnosticsHandle,
-} from "../../helpers/diagnostics";
+import { attachE2EPageDiagnostics, type E2EPageDiagnosticsHandle } from "../../helpers/diagnostics";
 import {
   createIsolatedServerForMembershipTest,
   deleteIsolatedE2EServer,
@@ -57,7 +55,9 @@ async function closeLoggedInPages(pages: LoggedInPage[]): Promise<void> {
 test.describe("realtime multi-user flows", () => {
   test.describe.configure({ timeout: process.env.CI === "true" ? 45_000 : 30_000 });
 
-  test("server messages appear for another member without reload", async ({ browser }, testInfo) => {
+  test("server messages appear for another member without reload", async ({
+    browser,
+  }, testInfo) => {
     const { serverId, textChannelId } = await getE2EServerRoute();
     const alice = await openLoggedInPage(browser, "alice", testInfo);
     const bob = await openLoggedInPage(browser, "bob", testInfo);
@@ -69,15 +69,17 @@ test.describe("realtime multi-user flows", () => {
 
       await sendMessage(alice.page, message);
 
-      await expect(
-        bob.page.getByTestId("message-item").filter({ hasText: message }),
-      ).toBeVisible({ timeout: 10_000 });
+      await expect(bob.page.getByTestId("message-item").filter({ hasText: message })).toBeVisible({
+        timeout: 10_000,
+      });
     } finally {
       await closeLoggedInPages([alice, bob]);
     }
   });
 
-  test("DM messages appear for another participant without reload", async ({ browser }, testInfo) => {
+  test("DM messages appear for another participant without reload", async ({
+    browser,
+  }, testInfo) => {
     const conversationId = await getE2EDMConversationId();
     const alice = await openLoggedInPage(browser, "alice", testInfo);
     const bob = await openLoggedInPage(browser, "bob", testInfo);
@@ -89,15 +91,17 @@ test.describe("realtime multi-user flows", () => {
 
       await sendMessage(alice.page, message);
 
-      await expect(
-        bob.page.getByTestId("message-item").filter({ hasText: message }),
-      ).toBeVisible({ timeout: 10_000 });
+      await expect(bob.page.getByTestId("message-item").filter({ hasText: message })).toBeVisible({
+        timeout: 10_000,
+      });
     } finally {
       await closeLoggedInPages([alice, bob]);
     }
   });
 
-  test("friend request and acceptance update both users without reload", async ({ browser }, testInfo) => {
+  test("friend request and acceptance update both users without reload", async ({
+    browser,
+  }, testInfo) => {
     await resetFriendshipBetween("alice", "bob");
 
     const alice = await openLoggedInPage(browser, "alice", testInfo);
@@ -130,10 +134,9 @@ test.describe("realtime multi-user flows", () => {
     }
   });
 
-  test("server member add and removal update the target user's rail without reload", async (
-    { browser },
-    testInfo,
-  ) => {
+  test("server member add and removal update the target user's rail without reload", async ({
+    browser,
+  }, testInfo) => {
     const { serverId, textChannelId } = await createIsolatedServerForMembershipTest("alice");
     const alice = await openLoggedInPage(browser, "alice", testInfo);
     const bob = await openLoggedInPage(browser, "bob", testInfo);
@@ -145,6 +148,7 @@ test.describe("realtime multi-user flows", () => {
 
       const addResponse = await alice.page.request.post(`/api/v1/servers/${serverId}/members`, {
         data: { username: e2eUsers.bob.username },
+        headers: e2eRequestHeaders,
       });
 
       expect(addResponse.ok()).toBeTruthy();
@@ -158,6 +162,7 @@ test.describe("realtime multi-user flows", () => {
       const bobMemberId = await getServerMemberId(serverId, "bob");
       const kickResponse = await alice.page.request.delete(
         `/api/v1/servers/${serverId}/members/${bobMemberId}`,
+        { headers: e2eRequestHeaders },
       );
 
       expect(kickResponse.ok()).toBeTruthy();
@@ -170,10 +175,9 @@ test.describe("realtime multi-user flows", () => {
     }
   });
 
-  test("mentions notify the target user and render as highlighted text", async (
-    { browser },
-    testInfo,
-  ) => {
+  test("mentions notify the target user and render as highlighted text", async ({
+    browser,
+  }, testInfo) => {
     const { serverId, textChannelId } = await getE2EServerRoute();
     const alice = await openLoggedInPage(browser, "alice", testInfo);
     const bob = await openLoggedInPage(browser, "bob", testInfo);
@@ -196,9 +200,7 @@ test.describe("realtime multi-user flows", () => {
 
       await expect(bobMessage).toBeVisible({ timeout: 10_000 });
       await expect(
-        bobMessage
-          .getByTestId("message-mention")
-          .filter({ hasText: `@${e2eUsers.bob.username}` }),
+        bobMessage.getByTestId("message-mention").filter({ hasText: `@${e2eUsers.bob.username}` }),
       ).toBeVisible();
       await expect(bob.page.getByTestId("notification-bell-badge")).toBeVisible({
         timeout: 10_000,

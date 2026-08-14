@@ -1,5 +1,5 @@
 import { test, expect } from "../../fixtures/test";
-import { apiLoginAs } from "../../helpers/api-auth";
+import { apiLoginAs, e2eRequestHeaders } from "../../helpers/api-auth";
 import { loginAs } from "../../helpers/auth";
 import {
   addE2EServerMember,
@@ -48,6 +48,7 @@ test.describe("server smoke", () => {
         name: "x".repeat(65),
         shortName: "LONG",
       },
+      headers: e2eRequestHeaders,
     });
 
     expect(response.status()).toBe(400);
@@ -66,6 +67,7 @@ test.describe("server smoke", () => {
         data: {
           confirmationName: "Whispr E2E Membership",
         },
+        headers: e2eRequestHeaders,
       });
 
       expect(response.status()).toBe(403);

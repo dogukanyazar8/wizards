@@ -2,7 +2,7 @@ import type { APIRequestContext, APIResponse } from "@playwright/test";
 import { resolveE2ERequestOrigin } from "@/lib/e2e/environment";
 import type { E2EUserKey } from "./test-data";
 
-const e2eRequestHeaders = { origin: resolveE2ERequestOrigin() };
+export const e2eRequestHeaders = Object.freeze({ Origin: resolveE2ERequestOrigin() });
 
 async function assertSuccessfulE2EApiResponse(response: APIResponse, operation: string) {
   if (response.ok()) {

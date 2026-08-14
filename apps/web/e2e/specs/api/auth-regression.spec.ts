@@ -132,7 +132,9 @@ async function submitDuplicateRegistration(page: Page) {
 }
 
 test.describe("Auth.js upgrade regression safety net", () => {
-  test("malformed Bearer authorization header never returns a server error", async ({ request }) => {
+  test("malformed Bearer authorization header never returns a server error", async ({
+    request,
+  }) => {
     const response = await request.get("/channels", {
       headers: { authorization: "Bearer malformed" },
       maxRedirects: 0,
@@ -152,7 +154,9 @@ test.describe("Auth.js upgrade regression safety net", () => {
     await expect.poll(() => getSessionEmail(request)).toBe(e2eUsers.alice.email);
   });
 
-  test("two-factor credentials login rejects missing or incorrect second factor and accepts a valid one", async ({ request }) => {
+  test("two-factor credentials login rejects missing or incorrect second factor and accepts a valid one", async ({
+    request,
+  }) => {
     await resetE2EUserAuthState("alice");
     await enableE2EUserTwoFactor("alice");
 
@@ -194,12 +198,17 @@ test.describe("Auth.js upgrade regression safety net", () => {
     }
   });
 
-  test("registration remains covered by the auth upgrade safety net", async ({ page }) => {
+  test("registration keeps existing emails non-enumerating", async ({ page }) => {
     await submitDuplicateRegistration(page);
 
-    await expect(page.getByTestId("register-form").getByRole("alert")).toContainText(
-      /already|taken|registered|kullan|kayit|kayıt|alin|alın|email/i,
-    );
+    const verificationRegion = page.getByRole("region", {
+      name: "Whispr email verification",
+    });
+    await expect(verificationRegion).toBeVisible();
+    await expect(
+      verificationRegion.getByRole("heading", { name: "Check your inbox" }),
+    ).toBeVisible();
+    await expect(verificationRegion).toContainText(e2eUsers.alice.email);
   });
 
   test("desktop OAuth handoff creates a one-time desktop claim URL", async ({ request }) => {
@@ -252,5 +261,4 @@ test.describe("Auth.js upgrade regression safety net", () => {
       }),
     ).resolves.toBe(false);
   });
-
 });

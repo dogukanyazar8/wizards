@@ -1,5 +1,5 @@
 import { expect, test } from "../../fixtures/test";
-import { apiLoginAs } from "../../helpers/api-auth";
+import { apiLoginAs, e2eRequestHeaders } from "../../helpers/api-auth";
 import {
   addE2EServerMember,
   createIsolatedServerForMembershipTest,
@@ -77,6 +77,7 @@ test.describe("API v1 route smoke", () => {
     const response = await request.post("/api/v1/servers", {
       data: '{"name":"Plain text body"}',
       headers: {
+        ...e2eRequestHeaders,
         "Content-Type": "text/plain",
       },
     });
@@ -98,6 +99,7 @@ test.describe("API v1 route smoke", () => {
     const response = await request.post("/api/v1/servers", {
       data: oversizedBody,
       headers: {
+        ...e2eRequestHeaders,
         "Content-Type": "application/json",
       },
     });
@@ -115,6 +117,7 @@ test.describe("API v1 route smoke", () => {
       data: {
         name: "",
       },
+      headers: e2eRequestHeaders,
     });
 
     expect(response.status()).toBe(400);
@@ -131,6 +134,7 @@ test.describe("API v1 route smoke", () => {
         password: e2eUserPassword,
         purpose: "account-delete",
       },
+      headers: e2eRequestHeaders,
     });
 
     expect(response.status()).toBe(200);
@@ -150,6 +154,7 @@ test.describe("API v1 route smoke", () => {
         password: `${e2eUserPassword}-wrong`,
         purpose: "account-delete",
       },
+      headers: e2eRequestHeaders,
     });
 
     expect(response.status()).toBe(401);
@@ -165,6 +170,7 @@ test.describe("API v1 route smoke", () => {
       data: {
         confirmation: "DELETE MY ACCOUNT",
       },
+      headers: e2eRequestHeaders,
     });
 
     expect(response.status()).toBe(403);
@@ -265,7 +271,9 @@ test.describe("API v1 permission boundaries", () => {
     const bobMemberId = await getServerMemberId(serverId, "bob");
     await apiLoginAs(request, "charlie");
 
-    const response = await request.delete(`/api/v1/servers/${serverId}/members/${bobMemberId}`);
+    const response = await request.delete(`/api/v1/servers/${serverId}/members/${bobMemberId}`, {
+      headers: e2eRequestHeaders,
+    });
 
     expect(response.status()).toBe(403);
     await expect(response.json()).resolves.toMatchObject({
