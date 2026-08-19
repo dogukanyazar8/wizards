@@ -131,7 +131,7 @@ describe("voice media capability helpers", () => {
     assert.deepEqual(buildAudioCaptureOptions(preferences), {
       autoGainControl: false,
       channelCount: { ideal: 1 },
-      deviceId: "mic-1",
+      deviceId: { exact: "mic-1" },
       echoCancellation: false,
       noiseSuppression: false,
       voiceIsolation: { ideal: true },
@@ -156,16 +156,13 @@ describe("voice media capability helpers", () => {
       } as unknown as MediaDevices,
     });
 
-    assert.deepEqual(
-      buildAudioCaptureOptions(preferences, { enhancedNoiseFilterActive: true }),
-      {
-        autoGainControl: true,
-        channelCount: { ideal: 1 },
-        echoCancellation: true,
-        noiseSuppression: false,
-        voiceIsolation: false,
-      },
-    );
+    assert.deepEqual(buildAudioCaptureOptions(preferences, { enhancedNoiseFilterActive: true }), {
+      autoGainControl: true,
+      channelCount: { ideal: 1 },
+      echoCancellation: true,
+      noiseSuppression: false,
+      voiceIsolation: false,
+    });
   });
 
   it("captures live restart-affecting audio preferences in the restart signature", () => {

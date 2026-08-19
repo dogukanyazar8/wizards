@@ -64,18 +64,18 @@ spec'lerine uyarlanır; her çelişkinin kararı [G spec'inde](2026-07-27-admin-
 Kural: görselde handoff kazanır, veri/davranışta spec kazanır.
 `2026-07-27-admin-design-brief.md` bu handoff'la geçersizleşti.
 
-## Uygulama planları ve run prompt'lar
+## Uygulama planları
 
 Fazlar beş dalgada uygulanır; her dalganın planı `docs/superpowers/plans/`
-altında, başlatma prompt'u kökte:
+altındadır:
 
-| Dalga | Fazlar                       | Plan                                          | Run prompt                      |
-| ----- | ---------------------------- | --------------------------------------------- | ------------------------------- |
-| W1    | B1 + E1 (iki canlı hata)     | `plans/2026-07-27-admin-wave1-b1-e1.md`       | `CLAUDE_RUN_PROMPT_ADMIN_W1.md` |
-| W2    | A + B2 (paralel koşulabilir) | `plans/2026-07-27-admin-wave2-a-b2.md`        | `CLAUDE_RUN_PROMPT_ADMIN_W2.md` |
-| W3    | D1 + C1 + C2 + C3            | `plans/2026-07-27-admin-wave3-d1-c1-c2-c3.md` | `CLAUDE_RUN_PROMPT_ADMIN_W3.md` |
-| W4    | C4 + E2 + E3                 | `plans/2026-07-27-admin-wave4-c4-e2-e3.md`    | `CLAUDE_RUN_PROMPT_ADMIN_W4.md` |
-| W5    | D2 + F                       | `plans/2026-07-27-admin-wave5-d2-f.md`        | `CLAUDE_RUN_PROMPT_ADMIN_W5.md` |
+| Dalga | Fazlar                       | Plan                                          |
+| ----- | ---------------------------- | --------------------------------------------- |
+| W1    | B1 + E1 (iki canlı hata)     | `plans/2026-07-27-admin-wave1-b1-e1.md`       |
+| W2    | A + B2 (paralel koşulabilir) | `plans/2026-07-27-admin-wave2-a-b2.md`        |
+| W3    | D1 + C1 + C2 + C3            | `plans/2026-07-27-admin-wave3-d1-c1-c2-c3.md` |
+| W4    | C4 + E2 + E3                 | `plans/2026-07-27-admin-wave4-c4-e2-e3.md`    |
+| W5    | D2 + F                       | `plans/2026-07-27-admin-wave5-d2-f.md`        |
 
 Dalga sırası bağlayıcı: W1 → W2 → W3 → W4 → W5. Dalga içi paralellik plan
 başlıklarında.

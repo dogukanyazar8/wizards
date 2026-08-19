@@ -65,7 +65,15 @@ function fakeSocketServerReturning(sockets: unknown[]) {
 describe("detachUserFromServerSocketRoom", { concurrency: false }, () => {
   it("removes the departed user from the server's online-presence set", async () => {
     const restores: Restore[] = [];
-    patchMethod(prisma.channel, "findMany", async () => [], restores);
+    patchMethod(
+      prisma.channel,
+      "findMany",
+      async () => [
+        { id: "text-1", type: "TEXT" },
+        { id: "voice-1", type: "VOICE" },
+      ],
+      restores,
+    );
 
     const { redis, sets } = buildOnlinePresenceRedis();
     sets.set(buildServerOnlineKey("server-1"), new Set(["user-1", "user-2"]));
@@ -107,7 +115,12 @@ describe("detachUserFromServerSocketRoom", { concurrency: false }, () => {
       // transition could resurrect the user into a server they no longer
       // belong to.
       assert.deepEqual(socket.data.onlineServerIds, ["server-2"]);
-      assert.deepEqual(leftRooms, ["server:server-1"]);
+      assert.deepEqual(leftRooms, [
+        "server:server-1",
+        "text-1",
+        "voice-1",
+        "voice-viewers:voice-1",
+      ]);
       assert.deepEqual(detachedVoiceUsers, ["user-1"]);
     } finally {
       setSocketServer(null as unknown as AppSocketServer);

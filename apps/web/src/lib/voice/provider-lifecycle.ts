@@ -95,10 +95,8 @@ export function shouldUpdateParticipantAudioActivity(
   );
 }
 
-export function createVoiceAudioLevelMonitor(
-  track: MediaStreamTrack,
-): VoiceAudioLevelMonitor | null {
-  if (typeof window === "undefined" || track.readyState !== "live") {
+export function createVoiceAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") {
     return null;
   }
 
@@ -110,20 +108,40 @@ export function createVoiceAudioLevelMonitor(
   }
 
   try {
-    const audioContext = new AudioContextConstructor();
-    const analyser = audioContext.createAnalyser();
-    const source = audioContext.createMediaStreamSource(new MediaStream([track]));
+    return new AudioContextConstructor();
+  } catch {
+    return null;
+  }
+}
+
+export function createVoiceAudioLevelMonitor(
+  track: MediaStreamTrack,
+  audioContext?: AudioContext | null,
+): VoiceAudioLevelMonitor | null {
+  if (track.readyState !== "live") {
+    return null;
+  }
+
+  const ownsAudioContext = audioContext === undefined;
+  const activeAudioContext = ownsAudioContext ? createVoiceAudioContext() : audioContext;
+  if (!activeAudioContext) {
+    return null;
+  }
+
+  try {
+    const analyser = activeAudioContext.createAnalyser();
+    const source = activeAudioContext.createMediaStreamSource(new MediaStream([track]));
 
     analyser.fftSize = 512;
     analyser.smoothingTimeConstant = 0.18;
     const samples = new Uint8Array(analyser.fftSize);
     source.connect(analyser);
-    void audioContext.resume().catch(() => undefined);
+    void activeAudioContext.resume().catch(() => undefined);
 
     return {
       dispose: () => {
         source.disconnect();
-        void audioContext.close().catch(() => undefined);
+        void activeAudioContext.close().catch(() => undefined);
       },
       readLevel: () => {
         analyser.getByteTimeDomainData(samples);
@@ -139,6 +157,9 @@ export function createVoiceAudioLevelMonitor(
       },
     };
   } catch {
+    if (ownsAudioContext) {
+      void activeAudioContext.close().catch(() => undefined);
+    }
     return null;
   }
 }

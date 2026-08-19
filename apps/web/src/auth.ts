@@ -42,10 +42,10 @@ import {
 } from "@/lib/auth/session-cookies";
 import {
   applyRevokedJwtUserState,
-  completeSessionRevocationCheck,
   ensureSessionStartedAt,
   isUserSessionRevoked,
   shouldCheckSessionRevocation,
+  validateAuthSessionToken,
 } from "@/lib/auth/session-revocation";
 import {
   ensureAuthSession,
@@ -832,7 +832,7 @@ const authConfig = {
 
       const revocationUserId = stringOrEmpty(token.id) || stringOrEmpty(token.sub);
       const nowSeconds = Math.floor(Date.now() / 1000);
-      const sessionStartedAt = ensureSessionStartedAt(token, nowSeconds);
+      ensureSessionStartedAt(token, nowSeconds);
       if (revocationUserId && !token.authSessionId) {
         token.authSessionId = randomBytes(24).toString("base64url");
       }
@@ -853,39 +853,27 @@ const authConfig = {
       const revocationCheckedAt =
         typeof token.revocationCheckedAt === "number" ? token.revocationCheckedAt : undefined;
       if (revocationUserId && shouldCheckSessionRevocation(revocationCheckedAt, nowSeconds)) {
-        let authSessionActive = authSessionId
-          ? await isAuthSessionActive(revocationUserId, authSessionId)
-          : false;
-        if (authSessionActive === null && authSessionId) {
-          await ensureAuthSession({
-            expiresAt: authSessionExpiresAt,
-            id: authSessionId,
-            metadata: await getCurrentAuthSessionMetadata(),
-            now: new Date(nowSeconds * 1_000),
-            userId: revocationUserId,
-          });
-          token.authSessionTouchedAt = nowSeconds;
-          authSessionActive = true;
-        }
+        const validation = await validateAuthSessionToken(token, {
+          checkAuthSession: isAuthSessionActive,
+          checkGlobalRevocation: (userId, startedAtSeconds) =>
+            isUserSessionRevoked(userId, startedAtSeconds, {
+              loadDurableRevokedAfter: async (durableUserId) => {
+                const user = await prisma.user.findUnique({
+                  where: { id: durableUserId },
+                  select: { sessionsRevokedAfter: true },
+                });
 
-        const globallyRevoked = await isUserSessionRevoked(revocationUserId, sessionStartedAt, {
-          loadDurableRevokedAfter: async (userId) => {
-            const user = await prisma.user.findUnique({
-              where: { id: userId },
-              select: { sessionsRevokedAfter: true },
-            });
-
-            return user?.sessionsRevokedAfter ?? null;
-          },
+                return user?.sessionsRevokedAfter ?? null;
+              },
+            }),
         });
 
-        if (
-          completeSessionRevocationCheck(
-            token,
-            globallyRevoked || authSessionActive === false,
-            nowSeconds,
-          )
-        ) {
+        if (validation.status === "unavailable") {
+          throw new Error("Auth session validation is unavailable");
+        }
+
+        token.revocationCheckedAt = nowSeconds;
+        if (validation.status === "revoked") {
           const revokedUser = await prisma.user.findUnique({
             where: { id: revocationUserId },
             select: { deletedAt: true, isBanned: true },

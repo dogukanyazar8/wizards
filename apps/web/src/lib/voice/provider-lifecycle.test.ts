@@ -6,6 +6,7 @@ import {
   ROOM_PARTICIPANT_SYNC_EVENTS,
   connectLiveKitRoomWithRetry,
   createReconnectTimeoutController,
+  createVoiceAudioContext,
   createVoiceAudioLevelMonitor,
   getParticipantAudioActivity,
   normalizeVoiceAudioLevel,
@@ -105,9 +106,54 @@ describe("voice provider lifecycle helpers", () => {
   });
 
   it("returns no audio monitor for ended tracks", () => {
+    let constructorCalls = 0;
+    Object.defineProperty(browserGlobal, "window", {
+      configurable: true,
+      value: {
+        AudioContext: class {
+          constructor() {
+            constructorCalls += 1;
+          }
+        },
+      },
+      writable: true,
+    });
+
     const monitor = createVoiceAudioLevelMonitor({ readyState: "ended" } as MediaStreamTrack);
 
     assert.equal(monitor, null);
+    assert.equal(constructorCalls, 0);
+  });
+
+  it("closes an internally owned audio context when monitor initialization fails", () => {
+    const created: { context?: FakeAudioContext } = {};
+
+    class FakeAudioContext {
+      closeCalls = 0;
+
+      constructor() {
+        created.context = this;
+      }
+
+      async close() {
+        this.closeCalls += 1;
+      }
+
+      createAnalyser() {
+        throw new Error("analyser unavailable");
+      }
+    }
+
+    Object.defineProperty(browserGlobal, "window", {
+      configurable: true,
+      value: { AudioContext: FakeAudioContext },
+      writable: true,
+    });
+
+    const monitor = createVoiceAudioLevelMonitor({ readyState: "live" } as MediaStreamTrack);
+
+    assert.equal(monitor, null);
+    assert.equal(created.context?.closeCalls, 1);
   });
 
   it("creates and disposes the audio level monitor without leaking AudioContext resources", () => {
@@ -177,7 +223,12 @@ describe("voice provider lifecycle helpers", () => {
       writable: true,
     });
 
-    const monitor = createVoiceAudioLevelMonitor({ readyState: "live" } as MediaStreamTrack);
+    const audioContext = createVoiceAudioContext();
+    assert.ok(audioContext);
+    const monitor = createVoiceAudioLevelMonitor(
+      { readyState: "live" } as MediaStreamTrack,
+      audioContext,
+    );
 
     assert.ok(monitor);
     const context = created.context;

@@ -3,9 +3,10 @@ import type { Prisma } from "@wizards/db";
 import type { CreateWorkspaceRoleInput, UpdateWorkspaceRoleInput } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
+import { advanceServerAuthorizationRevision } from "@/lib/workspace/authorization-revision";
+import { publishCommittedAuthorizationRevision } from "@/lib/workspace/authorization-revision-publication";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { ensureServerPermission, getAccessContext } from "@/lib/workspace/access-context";
-import { invalidateServerPermissionCache } from "@/lib/workspace/permission-cache";
 import { PermissionBits, permissionMaskToKeys } from "@/lib/workspace/permissions";
 import {
   ensureCanWriteRolePermissions,
@@ -174,30 +175,34 @@ export async function createWorkspaceRole(
     },
   });
 
-  const role = await prisma.role.create({
-    data: {
-      color: input.color ?? DEFAULT_ROLE_COLOR,
-      isDefault: false,
-      managed: false,
-      mentionable: input.mentionable ?? false,
-      name: normalizedName,
-      permissions,
-      position: (lastRole?.position ?? 0) + 1,
-      serverId,
-    },
-    select: {
-      color: true,
-      id: true,
-      isDefault: true,
-      managed: true,
-      mentionable: true,
-      name: true,
-      permissions: true,
-      position: true,
-    },
+  const { authorizationRevision, role } = await prisma.$transaction(async (tx) => {
+    const role = await tx.role.create({
+      data: {
+        color: input.color ?? DEFAULT_ROLE_COLOR,
+        isDefault: false,
+        managed: false,
+        mentionable: input.mentionable ?? false,
+        name: normalizedName,
+        permissions,
+        position: (lastRole?.position ?? 0) + 1,
+        serverId,
+      },
+      select: {
+        color: true,
+        id: true,
+        isDefault: true,
+        managed: true,
+        mentionable: true,
+        name: true,
+        permissions: true,
+        position: true,
+      },
+    });
+    const authorizationRevision = await advanceServerAuthorizationRevision(tx, serverId);
+    return { authorizationRevision, role };
   });
 
-  await invalidateServerPermissionCache(serverId);
+  await publishCommittedAuthorizationRevision(authorizationRevision);
 
   getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
     serverId,
@@ -264,24 +269,26 @@ export async function updateWorkspaceRole(
     data.permissions = permissions;
   }
 
-  const updatedRole = await prisma.role.update({
-    data,
-    select: {
-      color: true,
-      id: true,
-      isDefault: true,
-      managed: true,
-      mentionable: true,
-      name: true,
-      permissions: true,
-      position: true,
-    },
-    where: {
-      id: roleId,
-    },
+  const { authorizationRevision, updatedRole } = await prisma.$transaction(async (tx) => {
+    const updatedRole = await tx.role.update({
+      data,
+      select: {
+        color: true,
+        id: true,
+        isDefault: true,
+        managed: true,
+        mentionable: true,
+        name: true,
+        permissions: true,
+        position: true,
+      },
+      where: { id: roleId },
+    });
+    const authorizationRevision = await advanceServerAuthorizationRevision(tx, serverId);
+    return { authorizationRevision, updatedRole };
   });
 
-  await invalidateServerPermissionCache(serverId);
+  await publishCommittedAuthorizationRevision(authorizationRevision);
 
   getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
     serverId,
@@ -315,13 +322,12 @@ export async function deleteWorkspaceRole(userId: string, serverId: string, role
     throw new ApiError("Protected roles cannot be deleted.", 403, "PROTECTED_ROLE");
   }
 
-  await prisma.role.delete({
-    where: {
-      id: roleId,
-    },
+  const authorizationRevision = await prisma.$transaction(async (tx) => {
+    await tx.role.delete({ where: { id: roleId } });
+    return advanceServerAuthorizationRevision(tx, serverId);
   });
 
-  await invalidateServerPermissionCache(serverId);
+  await publishCommittedAuthorizationRevision(authorizationRevision);
 
   getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
     serverId,

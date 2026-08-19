@@ -51,6 +51,7 @@ import {
   isScreenSharePermissionDenied,
 } from "@/lib/voice/error-classification";
 import { resolveMicrophoneCaptureRetry } from "@/lib/voice/microphone-capture-retry";
+import { canAttemptMicrophoneCapture } from "@/lib/voice/microphone-permission";
 import {
   buildAudioCaptureOptions,
   buildCameraCaptureOptions,
@@ -504,45 +505,17 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     [participantVolumes],
   );
 
-  const requestMicrophonePermission = useCallback(
-    async ({ promptWhenUnknown = false }: { promptWhenUnknown?: boolean } = {}) => {
-      if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-        return false;
-      }
+  const requestMicrophonePermission = useCallback(async () => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      return false;
+    }
 
-      const permissionState = await getMicrophonePermissionState();
-      if (permissionState === "denied") {
-        return false;
-      }
-
-      if (permissionState === "granted" || !promptWhenUnknown) {
-        return true;
-      }
-
-      // "prompt" (and browsers without the Permissions API) means the user has never answered, so
-      // querying alone cannot report access. Raise the real prompt here, otherwise the join flow
-      // reports an unmuted microphone it does not own yet.
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        for (const track of stream.getTracks()) {
-          track.stop();
-        }
-
-        return true;
-      } catch (error) {
-        if (isMicrophonePermissionDenied(error)) {
-          return false;
-        }
-
-        throw error;
-      }
-    },
-    [],
-  );
+    return canAttemptMicrophoneCapture(await getMicrophonePermissionState());
+  }, []);
 
   const prepareForVoiceJoin = useCallback(async () => {
     try {
-      const granted = await requestMicrophonePermission({ promptWhenUnknown: true });
+      const granted = await requestMicrophonePermission();
       preparedMicrophoneAccessRef.current = granted;
       return granted;
     } catch (error) {
@@ -1910,7 +1883,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         hasMicrophoneAccess = preparedMicrophoneAccess;
       } else {
         try {
-          hasMicrophoneAccess = await requestMicrophonePermission({ promptWhenUnknown: true });
+          hasMicrophoneAccess = await requestMicrophonePermission();
         } catch (error) {
           if (isMicrophonePermissionDenied(error)) {
             hasMicrophoneAccess = false;
@@ -2327,7 +2300,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       let hasMicrophoneAccess = false;
 
       try {
-        hasMicrophoneAccess = await requestMicrophonePermission({ promptWhenUnknown: true });
+        hasMicrophoneAccess = await requestMicrophonePermission();
       } catch (error) {
         if (isMicrophonePermissionDenied(error)) {
           setErrorMessage(microphoneDeniedMessage);

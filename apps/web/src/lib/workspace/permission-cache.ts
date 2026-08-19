@@ -14,24 +14,99 @@ import {
 
 const PERMISSION_CACHE_TTL_SECONDS = 45;
 const PERMISSION_CACHE_VERSION_TTL_SECONDS = 7 * 24 * 60 * 60;
+// Freshness/performance bounds only. Revocation safety comes from the exact
+// DB authorization revision in the key and compare-before-write contract.
+// Increasing either TTL must never extend a revoked grant.
 const PERMISSION_CACHE_SCHEMA_VERSION = "v2";
 
 type PermissionCacheReadOptions = {
   maxAgeSeconds?: number;
+  revisionsByUser?: ReadonlyMap<string, PermissionCacheRevisions>;
 };
 
 type PermissionCachePipeline = {
   exec(): Promise<unknown>;
-  expire(key: string, seconds: number): PermissionCachePipeline;
-  incr(key: string): PermissionCachePipeline;
+  eval?(script: string, keyCount: number, ...args: Array<number | string>): PermissionCachePipeline;
   set(key: string, value: string, mode: "EX", seconds: number): PermissionCachePipeline;
 };
 
 type PermissionCacheRedis = {
+  eval?(script: string, keyCount: number, ...args: Array<number | string>): Promise<unknown>;
   mget(...keys: string[]): Promise<Array<string | null>>;
   pipeline(): PermissionCachePipeline;
   status?: string;
 };
+
+const REVISION_DECIMAL_COMPARE_LUA = `
+local function ahead(left, right)
+  left = string.gsub(left or '0', '^0+', '')
+  right = string.gsub(right or '0', '^0+', '')
+  if left == '' then left = '0' end
+  if right == '' then right = '0' end
+  if string.len(left) ~= string.len(right) then
+    return string.len(left) > string.len(right)
+  end
+  return left > right
+end
+`;
+
+const REVISION_GUARDED_CACHE_SET_LUA = `${REVISION_DECIMAL_COMPARE_LUA}
+local currentServer = redis.call('GET', KEYS[2]) or '0'
+local currentMember = redis.call('GET', KEYS[3]) or '0'
+if ahead(currentServer, ARGV[3]) or ahead(currentMember, ARGV[4]) then
+  return 0
+end
+redis.call('SET', KEYS[2], ARGV[3], 'EX', ARGV[5])
+redis.call('SET', KEYS[3], ARGV[4], 'EX', ARGV[5])
+redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])
+return 1
+`;
+
+const PUBLISH_SERVER_REVISION_LUA = `${REVISION_DECIMAL_COMPARE_LUA}
+local current = redis.call('GET', KEYS[1]) or '0'
+if not ahead(current, ARGV[1]) then
+  redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])
+end
+return 1
+`;
+
+function assertPipelineSucceeded(result: unknown) {
+  if (!Array.isArray(result)) {
+    throw new Error("Redis pipeline returned an invalid result");
+  }
+  for (const commandResult of result) {
+    if (Array.isArray(commandResult) && commandResult[0]) {
+      throw commandResult[0];
+    }
+  }
+}
+
+function queueRevisionGuardedCacheSet(
+  pipeline: PermissionCachePipeline,
+  input: {
+    cacheKey: string;
+    memberKey: string;
+    payload: string;
+    revisions: PermissionCacheRevisions;
+    serverKey: string;
+  },
+) {
+  if (!pipeline.eval) {
+    throw new Error("Redis client does not support atomic permission-cache writes");
+  }
+  pipeline.eval(
+    REVISION_GUARDED_CACHE_SET_LUA,
+    3,
+    input.cacheKey,
+    input.serverKey,
+    input.memberKey,
+    input.payload,
+    PERMISSION_CACHE_TTL_SECONDS,
+    input.revisions.serverVersion,
+    input.revisions.memberVersion,
+    PERMISSION_CACHE_VERSION_TTL_SECONDS,
+  );
+}
 
 type PermissionCacheRole = {
   id?: string;
@@ -150,8 +225,16 @@ function permissionValueToString(permission: PermissionKey | PermissionValue) {
   return value.toString();
 }
 
-function channelPermissionSnapshotKey(channelId: string, userId: string) {
-  return `permission:${PERMISSION_CACHE_SCHEMA_VERSION}:channel:${channelId}:${userId}`;
+function revisionKeySuffix(revisions?: PermissionCacheRevisions) {
+  return revisions ? `:${revisions.serverVersion}:${revisions.memberVersion}` : "";
+}
+
+function channelPermissionSnapshotKey(
+  channelId: string,
+  userId: string,
+  revisions?: PermissionCacheRevisions,
+) {
+  return `permission:${PERMISSION_CACHE_SCHEMA_VERSION}:channel:${channelId}:${userId}${revisionKeySuffix(revisions)}`;
 }
 
 function visibleChannelListKey(args: {
@@ -159,9 +242,10 @@ function visibleChannelListKey(args: {
   serverId: string;
   type?: ChannelType;
   userId: string;
+  revisions?: PermissionCacheRevisions;
 }) {
   const typeKey = args.type ?? "ALL";
-  return `permission:${PERMISSION_CACHE_SCHEMA_VERSION}:channels:${args.serverId}:${args.userId}:${permissionValueToString(args.permission)}:${typeKey}`;
+  return `permission:${PERMISSION_CACHE_SCHEMA_VERSION}:channels:${args.serverId}:${args.userId}:${permissionValueToString(args.permission)}:${typeKey}${revisionKeySuffix(args.revisions)}`;
 }
 
 function serverVersionKey(serverId: string) {
@@ -174,6 +258,14 @@ function memberVersionKey(serverId: string, userId: string) {
 
 function parseVersion(value: string | null) {
   return value ?? "0";
+}
+
+function isRevisionAhead(current: string, sampled: string) {
+  try {
+    return BigInt(current) > BigInt(sampled);
+  } catch {
+    return true;
+  }
 }
 
 function parseBigInt(value: unknown) {
@@ -446,7 +538,9 @@ export async function readCachedChannelPermissionSnapshots(
   }
 
   try {
-    const keys = uniqueUserIds.map((userId) => channelPermissionSnapshotKey(channelId, userId));
+    const keys = uniqueUserIds.map((userId) =>
+      channelPermissionSnapshotKey(channelId, userId, options.revisionsByUser?.get(userId)),
+    );
     const values = await redis.mget(...keys);
     let hitCount = 0;
     let missCount = 0;
@@ -478,14 +572,21 @@ export async function readCachedChannelPermissionSnapshots(
       revisionKeys.add(memberVersionKey(snapshot.channel.serverId, userId));
     });
 
-    const revisions = await readRevisionMap([...revisionKeys]);
+    const revisions = options.revisionsByUser
+      ? new Map<string, string>()
+      : await readRevisionMap([...revisionKeys]);
 
     for (const entry of parsedEntries) {
       const { snapshot, userId } = entry;
+      const authoritativeRevisions = options.revisionsByUser?.get(userId);
       const currentServerVersion =
-        revisions.get(serverVersionKey(snapshot.channel.serverId)) ?? "0";
+        authoritativeRevisions?.serverVersion ??
+        revisions.get(serverVersionKey(snapshot.channel.serverId)) ??
+        "0";
       const currentMemberVersion =
-        revisions.get(memberVersionKey(snapshot.channel.serverId, userId)) ?? "0";
+        authoritativeRevisions?.memberVersion ??
+        revisions.get(memberVersionKey(snapshot.channel.serverId, userId)) ??
+        "0";
 
       if (
         snapshot.serverVersion !== currentServerVersion ||
@@ -580,25 +681,26 @@ export async function writeCachedChannelPermissionSnapshots(
       // A revocation between the permission read and this write must win. The
       // old code stamped the stale snapshot with the newer revision instead.
       if (
-        entry.revisions.memberVersion !== currentRevisions.memberVersion ||
-        entry.revisions.serverVersion !== currentRevisions.serverVersion
+        isRevisionAhead(currentRevisions.memberVersion, entry.revisions.memberVersion) ||
+        isRevisionAhead(currentRevisions.serverVersion, entry.revisions.serverVersion)
       ) {
         continue;
       }
 
       const payload = serializeSnapshot(entry.snapshot, entry.revisions);
 
-      pipeline.set(
-        channelPermissionSnapshotKey(entry.channelId, entry.userId),
-        JSON.stringify(payload),
-        "EX",
-        PERMISSION_CACHE_TTL_SECONDS,
-      );
+      queueRevisionGuardedCacheSet(pipeline, {
+        cacheKey: channelPermissionSnapshotKey(entry.channelId, entry.userId, entry.revisions),
+        memberKey: memberVersionKey(serverId, entry.userId),
+        payload: JSON.stringify(payload),
+        revisions: entry.revisions,
+        serverKey: serverVersionKey(serverId),
+      });
       writeCount += 1;
     }
 
     if (writeCount > 0) {
-      await pipeline.exec();
+      assertPipelineSucceeded(await pipeline.exec());
       recordPermissionCacheMetric({
         area: "channelSnapshot",
         count: writeCount,
@@ -618,6 +720,7 @@ export async function writeCachedChannelPermissionSnapshots(
 export async function readCachedVisibleChannelIds(args: {
   permission: PermissionKey | PermissionValue;
   maxAgeSeconds?: number;
+  revisions?: PermissionCacheRevisions;
   serverId: string;
   type?: ChannelType;
   userId: string;
@@ -625,6 +728,7 @@ export async function readCachedVisibleChannelIds(args: {
   const cached = await readCachedVisibleChannelIdsBatch({
     ...(args.maxAgeSeconds !== undefined ? { maxAgeSeconds: args.maxAgeSeconds } : {}),
     permission: args.permission,
+    ...(args.revisions ? { revisionsByUser: new Map([[args.userId, args.revisions]]) } : {}),
     serverId: args.serverId,
     userIds: [args.userId],
     ...(args.type !== undefined ? { type: args.type } : {}),
@@ -636,6 +740,7 @@ export async function readCachedVisibleChannelIds(args: {
 export async function readCachedVisibleChannelIdsBatch(args: {
   maxAgeSeconds?: number;
   permission: PermissionKey | PermissionValue;
+  revisionsByUser?: ReadonlyMap<string, PermissionCacheRevisions>;
   serverId: string;
   type?: ChannelType;
   userIds: string[];
@@ -658,6 +763,9 @@ export async function readCachedVisibleChannelIdsBatch(args: {
     const keys = uniqueUserIds.map((userId) =>
       visibleChannelListKey({
         permission: args.permission,
+        ...(args.revisionsByUser?.get(userId)
+          ? { revisions: args.revisionsByUser.get(userId)! }
+          : {}),
         serverId: args.serverId,
         userId,
         ...(args.type !== undefined ? { type: args.type } : {}),
@@ -703,15 +811,21 @@ export async function readCachedVisibleChannelIdsBatch(args: {
       revisionKeys.add(memberVersionKey(args.serverId, userId));
     });
 
-    const revisions = await readRevisionMap([...revisionKeys]);
+    const revisions = args.revisionsByUser
+      ? new Map<string, string>()
+      : await readRevisionMap([...revisionKeys]);
     const currentServerVersion = revisions.get(serverVersionKey(args.serverId)) ?? "0";
 
     for (const entry of parsedEntries) {
+      const authoritativeRevisions = args.revisionsByUser?.get(entry.userId);
       const currentMemberVersion =
-        revisions.get(memberVersionKey(args.serverId, entry.userId)) ?? "0";
+        authoritativeRevisions?.memberVersion ??
+        revisions.get(memberVersionKey(args.serverId, entry.userId)) ??
+        "0";
+      const effectiveServerVersion = authoritativeRevisions?.serverVersion ?? currentServerVersion;
 
       if (
-        entry.serverVersion !== currentServerVersion ||
+        entry.serverVersion !== effectiveServerVersion ||
         entry.memberVersion !== currentMemberVersion ||
         !isFreshEnough(entry.cachedAt, args)
       ) {
@@ -760,6 +874,7 @@ export async function readCachedVisibleChannelIdsBatch(args: {
 export async function readCachedVisibleChannelIdsByServerBatch(args: {
   maxAgeSeconds?: number;
   permission: PermissionKey | PermissionValue;
+  revisionsByServer?: ReadonlyMap<string, PermissionCacheRevisions>;
   serverIds: string[];
   type?: ChannelType;
   userId: string;
@@ -782,6 +897,9 @@ export async function readCachedVisibleChannelIdsByServerBatch(args: {
     const keys = uniqueServerIds.map((serverId) =>
       visibleChannelListKey({
         permission: args.permission,
+        ...(args.revisionsByServer?.get(serverId)
+          ? { revisions: args.revisionsByServer.get(serverId)! }
+          : {}),
         serverId,
         userId: args.userId,
         ...(args.type !== undefined ? { type: args.type } : {}),
@@ -792,7 +910,9 @@ export async function readCachedVisibleChannelIdsByServerBatch(args: {
       serverVersionKey(serverId),
       memberVersionKey(serverId, args.userId),
     ]);
-    const revisions = await readRevisionMap(revisionKeys);
+    const revisions = args.revisionsByServer
+      ? new Map<string, string>()
+      : await readRevisionMap(revisionKeys);
     let hitCount = 0;
     let missCount = 0;
     let staleCount = 0;
@@ -804,8 +924,13 @@ export async function readCachedVisibleChannelIdsByServerBatch(args: {
         missCount += 1;
         return;
       }
-      const currentServerVersion = revisions.get(serverVersionKey(serverId)) ?? "0";
-      const currentMemberVersion = revisions.get(memberVersionKey(serverId, args.userId)) ?? "0";
+      const authoritativeRevisions = args.revisionsByServer?.get(serverId);
+      const currentServerVersion =
+        authoritativeRevisions?.serverVersion ?? revisions.get(serverVersionKey(serverId)) ?? "0";
+      const currentMemberVersion =
+        authoritativeRevisions?.memberVersion ??
+        revisions.get(memberVersionKey(serverId, args.userId)) ??
+        "0";
       if (
         parsed.serverVersion !== currentServerVersion ||
         parsed.memberVersion !== currentMemberVersion ||
@@ -846,6 +971,7 @@ export async function readCachedVisibleChannelIdsByServerBatch(args: {
 export async function writeCachedVisibleChannelIds(args: {
   channelIds: string[];
   permission: PermissionKey | PermissionValue;
+  revisions?: PermissionCacheRevisions;
   serverId: string;
   type?: ChannelType;
   userId: string;
@@ -857,6 +983,7 @@ export async function writeCachedVisibleChannelIdsBatch(
   entries: Array<{
     channelIds: string[];
     permission: PermissionKey | PermissionValue;
+    revisions?: PermissionCacheRevisions;
     serverId: string;
     type?: ChannelType;
     userId: string;
@@ -877,20 +1004,38 @@ export async function writeCachedVisibleChannelIdsBatch(
     const pipeline = redis.pipeline();
 
     for (const entry of entries) {
-      pipeline.set(
-        visibleChannelListKey(entry),
-        JSON.stringify({
-          channelIds: entry.channelIds,
-          cachedAt: Date.now(),
-          memberVersion: revisions.get(memberVersionKey(entry.serverId, entry.userId)) ?? "0",
-          serverVersion: revisions.get(serverVersionKey(entry.serverId)) ?? "0",
-        }),
-        "EX",
-        PERMISSION_CACHE_TTL_SECONDS,
-      );
+      const currentRevisions = {
+        memberVersion: revisions.get(memberVersionKey(entry.serverId, entry.userId)) ?? "0",
+        serverVersion: revisions.get(serverVersionKey(entry.serverId)) ?? "0",
+      };
+      if (
+        entry.revisions &&
+        (isRevisionAhead(currentRevisions.memberVersion, entry.revisions.memberVersion) ||
+          isRevisionAhead(currentRevisions.serverVersion, entry.revisions.serverVersion))
+      ) {
+        continue;
+      }
+      const cacheRevisions = entry.revisions ?? currentRevisions;
+      const payload = JSON.stringify({
+        channelIds: entry.channelIds,
+        cachedAt: Date.now(),
+        memberVersion: cacheRevisions.memberVersion,
+        serverVersion: cacheRevisions.serverVersion,
+      });
+      if (entry.revisions) {
+        queueRevisionGuardedCacheSet(pipeline, {
+          cacheKey: visibleChannelListKey(entry),
+          memberKey: memberVersionKey(entry.serverId, entry.userId),
+          payload,
+          revisions: entry.revisions,
+          serverKey: serverVersionKey(entry.serverId),
+        });
+      } else {
+        pipeline.set(visibleChannelListKey(entry), payload, "EX", PERMISSION_CACHE_TTL_SECONDS);
+      }
     }
 
-    await pipeline.exec();
+    assertPipelineSucceeded(await pipeline.exec());
     recordPermissionCacheMetric({
       area: "visibleChannelList",
       count: entries.length,
@@ -906,38 +1051,36 @@ export async function writeCachedVisibleChannelIdsBatch(
   }
 }
 
-export async function invalidateServerPermissionCache(serverId: string) {
+export async function publishPermissionCacheRevision(input: {
+  memberVersion?: string;
+  serverId: string;
+  serverVersion: string;
+  userId?: string;
+}) {
   const redis = getReadyRedis();
   if (!redis) {
-    return;
+    return false;
+  }
+  if (!redis.eval) {
+    return false;
   }
 
-  try {
-    await redis
-      .pipeline()
-      .incr(serverVersionKey(serverId))
-      .expire(serverVersionKey(serverId), PERMISSION_CACHE_VERSION_TTL_SECONDS)
-      .exec();
-    recordPermissionCacheInvalidation("server");
-  } catch (error) {
-    logError("[permission-cache] Server permission cache invalidation failed", error);
+  await redis.eval(
+    PUBLISH_SERVER_REVISION_LUA,
+    1,
+    serverVersionKey(input.serverId),
+    input.serverVersion,
+    PERMISSION_CACHE_VERSION_TTL_SECONDS,
+  );
+  if (input.userId && input.memberVersion !== undefined) {
+    await redis.eval(
+      PUBLISH_SERVER_REVISION_LUA,
+      1,
+      memberVersionKey(input.serverId, input.userId),
+      input.memberVersion,
+      PERMISSION_CACHE_VERSION_TTL_SECONDS,
+    );
   }
-}
-
-export async function invalidateMemberPermissionCache(serverId: string, userId: string) {
-  const redis = getReadyRedis();
-  if (!redis) {
-    return;
-  }
-
-  try {
-    await redis
-      .pipeline()
-      .incr(memberVersionKey(serverId, userId))
-      .expire(memberVersionKey(serverId, userId), PERMISSION_CACHE_VERSION_TTL_SECONDS)
-      .exec();
-    recordPermissionCacheInvalidation("member");
-  } catch (error) {
-    logError("[permission-cache] Member permission cache invalidation failed", error);
-  }
+  recordPermissionCacheInvalidation(input.userId ? "member" : "server");
+  return true;
 }

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  getAuthSessionSocketRoomName,
   getVoiceParticipantRoomName,
   getVoiceStateViewerRoomName,
   joinVoiceStateViewerRoomsForServer,
@@ -9,6 +10,18 @@ import {
 } from "./rooms";
 
 describe("socket room helpers", () => {
+  it("maps durable session ids to fixed-length opaque room names", () => {
+    assert.equal(
+      getAuthSessionSocketRoomName("session-1"),
+      "auth-session:hAl4KPwxqMjSkhDfSJAahd5_0BP2hrF7530b4py3qYs",
+    );
+    assert.equal(getAuthSessionSocketRoomName("session-2").length, 56);
+    assert.notEqual(
+      getAuthSessionSocketRoomName("session-1"),
+      getAuthSessionSocketRoomName("session-2"),
+    );
+  });
+
   it("builds stable voice participant and viewer room names", () => {
     assert.equal(getVoiceParticipantRoomName("voice-1"), "voice:voice-1");
     assert.equal(getVoiceStateViewerRoomName("voice-1"), "voice-viewers:voice-1");

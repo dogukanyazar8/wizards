@@ -4,7 +4,12 @@ import { prisma } from "@wizards/db";
 
 import { ApiError } from "@/lib/api";
 import { PermissionBits } from "./permissions";
-import { listAssignableWorkspaceRoles, listMobileWorkspaceRoleOverview } from "./role-service";
+import {
+  deleteWorkspaceRole,
+  listAssignableWorkspaceRoles,
+  listMobileWorkspaceRoleOverview,
+  updateWorkspaceRole,
+} from "./role-service";
 
 type Restore = () => void;
 type UnknownRecord = Record<string, unknown>;
@@ -231,6 +236,85 @@ describe("assignable workspace roles", { concurrency: false }, () => {
           position: 0,
         },
       ]);
+    });
+  });
+
+  it("commits role permission removal and deletion with server revision outbox jobs", async () => {
+    await withRoleEnvironment({ owner: true }, async (restores) => {
+      const operations: string[] = [];
+      const originalCacheDisabled = process.env.PERMISSION_CACHE_DISABLED;
+      process.env.PERMISSION_CACHE_DISABLED = "true";
+      restores.push(() => {
+        if (originalCacheDisabled === undefined) delete process.env.PERMISSION_CACHE_DISABLED;
+        else process.env.PERMISSION_CACHE_DISABLED = originalCacheDisabled;
+      });
+      patchMethod(
+        prisma.role,
+        "findFirst",
+        async () => ({
+          color: 0,
+          id: "role-mod",
+          isDefault: false,
+          managed: false,
+          mentionable: false,
+          name: "Moderator",
+          permissions: PermissionBits.MANAGE_MESSAGES,
+          position: 1,
+        }),
+        restores,
+      );
+      patchMethod(
+        prisma,
+        "$transaction",
+        async (callback: (tx: unknown) => Promise<unknown>) => {
+          const tx = {
+            outboxJob: {
+              upsert: async () => {
+                operations.push("outbox.upsert");
+                return {};
+              },
+            },
+            role: {
+              delete: async () => {
+                operations.push("role.delete");
+                return {};
+              },
+              update: async (args: { data: { permissions?: bigint } }) => {
+                operations.push(`role.update:${args.data.permissions?.toString()}`);
+                return {
+                  color: 0,
+                  id: "role-mod",
+                  isDefault: false,
+                  managed: false,
+                  mentionable: false,
+                  name: "Moderator",
+                  permissions: args.data.permissions ?? 0n,
+                  position: 1,
+                };
+              },
+            },
+            server: {
+              update: async () => {
+                operations.push("revision.increment");
+                return { authorizationRevision: 1n };
+              },
+            },
+          };
+          const result = await callback(tx);
+          operations.push("transaction.commit");
+          return result;
+        },
+        restores,
+      );
+
+      await updateWorkspaceRole("owner", "server-1", "role-mod", { permissions: [] });
+      await deleteWorkspaceRole("owner", "server-1", "role-mod");
+
+      assert.equal(operations.includes("role.update:0"), true);
+      assert.equal(operations.includes("role.delete"), true);
+      assert.equal(operations.filter((value) => value === "revision.increment").length, 2);
+      assert.equal(operations.filter((value) => value === "outbox.upsert").length, 2);
+      assert.ok(operations.indexOf("outbox.upsert") < operations.indexOf("transaction.commit"));
     });
   });
 });

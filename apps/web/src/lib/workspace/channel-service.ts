@@ -14,7 +14,8 @@ import {
   buildChannelCreateSettings,
   buildChannelUpdateSettings,
 } from "@/lib/workspace/channel-settings";
-import { invalidateServerPermissionCache } from "@/lib/workspace/permission-cache";
+import { advanceServerAuthorizationRevision } from "@/lib/workspace/authorization-revision";
+import { publishCommittedAuthorizationRevision } from "@/lib/workspace/authorization-revision-publication";
 import { PermissionBits } from "@/lib/workspace/permissions";
 import { normalizeWorkspaceLabel } from "@/lib/workspace/workspace-label";
 
@@ -82,7 +83,7 @@ export async function createWorkspaceChannel(
       })
     : null;
 
-  const channel = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const createdChannel = await tx.channel.create({
       data: {
         ...buildChannelCreateSettings(input),
@@ -109,16 +110,19 @@ export async function createWorkspaceChannel(
       });
     }
 
-    return createdChannel;
+    return {
+      authorizationRevision: await advanceServerAuthorizationRevision(tx, serverId),
+      channel: createdChannel,
+    };
   });
 
-  await invalidateServerPermissionCache(serverId);
+  await publishCommittedAuthorizationRevision(result.authorizationRevision);
 
   getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
     serverId,
   });
 
-  return channel;
+  return result.channel;
 }
 
 export async function updateWorkspaceChannel(
@@ -232,15 +236,21 @@ export async function updateWorkspaceChannel(
     input.userLimit !== undefined ||
     input.videoQualityMode !== undefined;
 
-  await prisma.channel.update({
-    where: {
-      id: channelId,
-    },
-    data,
+  const authorizationRevision = await prisma.$transaction(async (tx) => {
+    await tx.channel.update({
+      where: {
+        id: channelId,
+      },
+      data,
+    });
+
+    return shouldInvalidateChannelPermissionMetadata
+      ? advanceServerAuthorizationRevision(tx, existingChannel.serverId!)
+      : null;
   });
 
-  if (shouldInvalidateChannelPermissionMetadata) {
-    await invalidateServerPermissionCache(existingChannel.serverId);
+  if (authorizationRevision) {
+    await publishCommittedAuthorizationRevision(authorizationRevision);
   }
 
   if (
@@ -306,19 +316,21 @@ export async function reorderWorkspaceChannels(
     }
   }
 
-  await prisma.$transaction(
-    items.map((item) =>
-      prisma.channel.update({
-        where: {
-          id: item.id,
-        },
-        data: {
-          categoryId: item.categoryId,
-          position: item.position,
-        },
-      }),
-    ),
-  );
+  await prisma.$transaction(async (tx) => {
+    await Promise.all(
+      items.map((item) =>
+        tx.channel.update({
+          where: {
+            id: item.id,
+          },
+          data: {
+            categoryId: item.categoryId,
+            position: item.position,
+          },
+        }),
+      ),
+    );
+  });
 
   getSocketServer()?.to(`server:${serverId}`).emit("server:settings:updated", {
     serverId,
@@ -350,13 +362,16 @@ export async function deleteWorkspaceChannel(
   const access = await getAccessContext(userId, channel.serverId);
   ensureServerPermission(access, PermissionBits.MANAGE_CHANNELS);
 
-  await prisma.channel.delete({
-    where: {
-      id: channelId,
-    },
+  const authorizationRevision = await prisma.$transaction(async (tx) => {
+    await tx.channel.delete({
+      where: {
+        id: channelId,
+      },
+    });
+    return advanceServerAuthorizationRevision(tx, channel.serverId!);
   });
 
-  await invalidateServerPermissionCache(channel.serverId);
+  await publishCommittedAuthorizationRevision(authorizationRevision);
 
   getSocketServer()?.to(`server:${channel.serverId}`).emit("server:settings:updated", {
     serverId: channel.serverId,

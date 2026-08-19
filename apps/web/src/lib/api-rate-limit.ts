@@ -109,6 +109,8 @@ export const API_RATE_LIMITS = {
   "link-preview": { limit: 30, windowSeconds: 60 },
   "member:add": { limit: 30, windowSeconds: 10 * 60 },
   "member:kick": { limit: 30, windowSeconds: 10 * 60 },
+  "member:ban": { limit: 30, windowSeconds: 10 * 60 },
+  "member:unban": { limit: 30, windowSeconds: 10 * 60 },
   "member:leave": { limit: 20, windowSeconds: 10 * 60 },
   "member:roles:update": { limit: 40, windowSeconds: 10 * 60 },
   // One appeal per decision; the service refuses a second one anyway.

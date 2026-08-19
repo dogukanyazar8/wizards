@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const expectedNodeVersion = "24.18.0";
 const expectedNodeRange = `>=${expectedNodeVersion} <25`;
-const expectedPackageManager = "pnpm@11.20.0";
+const expectedPackageManager = "pnpm@11.22.0";
 const expectedNodeTypes = "^24.13.3";
 const expectedNode24ActionPins = {
   "actions/checkout": {

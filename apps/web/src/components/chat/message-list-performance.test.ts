@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   findMessageVirtualIndex,
-  MESSAGE_VIRTUALIZER_SCROLL_OPTIONS,
+  MESSAGE_VIRTUALIZER_OPTIONS,
   getNewMessageAnnouncement,
   getVirtualMessageRows,
   isMessageListNearBottom,
@@ -68,6 +68,10 @@ describe("message list scroll scheduling", () => {
 });
 
 describe("message list virtualization", () => {
+  it("defers virtualizer rerenders triggered while React commits measured rows", () => {
+    assert.equal(MESSAGE_VIRTUALIZER_OPTIONS.useFlushSync, false);
+  });
+
   it("keeps a 500-message transcript bounded to the virtual window", () => {
     const messages = Array.from({ length: 500 }, (_, index) => ({ id: `message-${index}` }));
     const virtualItems = Array.from({ length: 18 }, (_, offset) => ({
@@ -85,10 +89,11 @@ describe("message list virtualization", () => {
   });
 
   it("anchors prepends and late row growth while following near-bottom appends", () => {
-    assert.deepEqual(MESSAGE_VIRTUALIZER_SCROLL_OPTIONS, {
+    assert.deepEqual(MESSAGE_VIRTUALIZER_OPTIONS, {
       anchorTo: "end",
       followOnAppend: "auto",
       scrollEndThreshold: 100,
+      useFlushSync: false,
     });
   });
 

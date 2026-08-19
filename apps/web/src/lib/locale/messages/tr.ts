@@ -832,6 +832,26 @@ export const TR_MESSAGES = {
   "voice.devices.outputUnsupported":
     "Bu tarayıcı hoparlörü doğrudan değiştiremiyor. Sistem ses çıkışını kullan.",
   "voice.devices.refresh": "Yenile",
+  "voice.microphoneTest.captureError":
+    "Whispr mikrofon testini başlatamadı. Seçili aygıtı kontrol edip tekrar dene.",
+  "voice.microphoneTest.description":
+    "Whispr’ın gönderdiği mikrofon sinyalini kontrol et; istersen seçili çıkıştan kendini dinle.",
+  "voice.microphoneTest.deviceError":
+    "Seçili mikrofon kullanılamıyor. Aygıt listesini yenile veya başka mikrofon seç.",
+  "voice.microphoneTest.headphoneWarning":
+    "Geri beslemeyi önlemek için kulaklık kullan. Dinleme yalnızca bu aygıtta kalır, kaydedilmez.",
+  "voice.microphoneTest.hearMyself": "Kendimi duy",
+  "voice.microphoneTest.idle": "Test başlatılmadı",
+  "voice.microphoneTest.level": "Giriş seviyesi",
+  "voice.microphoneTest.outputError": "Whispr dinleme sesini seçili çıkış aygıtına yönlendiremedi.",
+  "voice.microphoneTest.permissionError":
+    "Mikrofon erişimi engellenmiş. Tarayıcı ayarlarından mikrofon izni verip tekrar dene.",
+  "voice.microphoneTest.signalActive": "Sinyal algılandı",
+  "voice.microphoneTest.signalQuiet": "Sinyal algılanmadı",
+  "voice.microphoneTest.start": "Testi başlat",
+  "voice.microphoneTest.starting": "Test başlatılıyor...",
+  "voice.microphoneTest.stop": "Testi durdur",
+  "voice.microphoneTest.title": "Mikrofon testi",
   "voice.camera.blurDescription":
     "Giden kamera akışına dokunmadan yerel önizlemene gizlilik dostu yumuşak bir arka plan ekler.",
   "voice.camera.blurTitle": "Yumuşak arka plan",

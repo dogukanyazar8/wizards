@@ -24,6 +24,7 @@ import {
   type DesktopControlLaunchState,
 } from "@/components/desktop/desktop-control-launch";
 import { AudioDeviceSelect } from "@/components/voice/audio-device-select";
+import { MicrophoneTestPanel } from "@/components/voice/microphone-test-panel";
 import {
   hideDesktopGameOverlaySurface,
   openDesktopControl,
@@ -541,6 +542,8 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
             <AudioDeviceSelect kind="input" />
             <AudioDeviceSelect kind="output" />
           </div>
+
+          <MicrophoneTestPanel />
 
           {/*
             Sits above the collapsed advanced block on purpose: the share panel

@@ -38,7 +38,7 @@ copy the local image ID and do not use a floating tag.
 docker run --rm ghcr.io/dogukanyazar8/wizards-ci@sha256:<published-digest> bash -lc "node -v && pnpm -v && cargo --version && cargo-audit --version && gitleaks version && ls /ms-playwright"
 ```
 
-Expected core pins are Node `24.18.0`, pnpm `11.20.0`, and `cargo-audit
+Expected core pins are Node `24.18.0`, pnpm `11.22.0`, and `cargo-audit
 0.22.1`. The Playwright directory must contain Chromium, Firefox, and WebKit.
 
 Rebuild only when a pinned tool or a required native dependency changes. The

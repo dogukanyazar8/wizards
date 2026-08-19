@@ -20,7 +20,7 @@ describe("resolveAudioDeviceFallback", () => {
     });
   });
 
-  it("prefers the OS communications device when the selected device disappeared", () => {
+  it("prefers the system default when the selected device disappeared", () => {
     const result = resolveAudioDeviceFallback({
       devices: [
         { deviceId: DEFAULT_AUDIO_DEVICE_ID },
@@ -32,6 +32,35 @@ describe("resolveAudioDeviceFallback", () => {
 
     assert.deepEqual(result, {
       changed: true,
+      deviceId: DEFAULT_AUDIO_DEVICE_ID,
+      reason: "system-default",
+    });
+  });
+
+  it("preserves an explicit device while enumeration is still empty", () => {
+    const result = resolveAudioDeviceFallback({
+      devices: [],
+      preferredDeviceId: "mic-logitech",
+    });
+
+    assert.deepEqual(result, {
+      changed: false,
+      deviceId: "mic-logitech",
+      reason: "unverified",
+    });
+  });
+
+  it("keeps an explicit communications preference when the pseudo-device is exposed", () => {
+    const result = resolveAudioDeviceFallback({
+      devices: [
+        { deviceId: DEFAULT_AUDIO_DEVICE_ID },
+        { deviceId: DEFAULT_COMMUNICATIONS_DEVICE_ID },
+      ],
+      preferredDeviceId: DEFAULT_COMMUNICATIONS_DEVICE_ID,
+    });
+
+    assert.deepEqual(result, {
+      changed: false,
       deviceId: DEFAULT_COMMUNICATIONS_DEVICE_ID,
       reason: "system-communications",
     });
@@ -77,6 +106,19 @@ describe("resolveAudioDeviceFallback", () => {
       changed: true,
       deviceId: "mic-2",
       reason: "first-valid",
+    });
+  });
+
+  it("preserves the previous preference when enumeration has no usable device", () => {
+    const result = resolveAudioDeviceFallback({
+      devices: [{ deviceId: "" }],
+      preferredDeviceId: "mic-logitech",
+    });
+
+    assert.deepEqual(result, {
+      changed: false,
+      deviceId: "mic-logitech",
+      reason: "unverified",
     });
   });
 });

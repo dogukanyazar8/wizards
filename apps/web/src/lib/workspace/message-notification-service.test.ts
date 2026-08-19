@@ -86,6 +86,7 @@ describe("workspace message notification service", () => {
       $transaction: AsyncMethod;
       channel: { findUnique: AsyncMethod };
       mobilePushToken: { findMany: AsyncMethod };
+      server: { findUnique: AsyncMethod };
       serverBan: { findMany: AsyncMethod };
       serverMember: { findMany: AsyncMethod };
       userChannelSettings: { findMany: AsyncMethod };
@@ -95,6 +96,7 @@ describe("workspace message notification service", () => {
       channelFindUnique: prismaDelegate.channel.findUnique,
       mobilePushTokenFindMany: prismaDelegate.mobilePushToken.findMany,
       permissionCacheDisabled: process.env.PERMISSION_CACHE_DISABLED,
+      serverFindUnique: prismaDelegate.server.findUnique,
       serverBanFindMany: prismaDelegate.serverBan.findMany,
       serverMemberFindMany: prismaDelegate.serverMember.findMany,
       transaction: prismaDelegate.$transaction,
@@ -153,6 +155,10 @@ describe("workspace message notification service", () => {
       type: ChannelType.TEXT,
     });
     prismaDelegate.serverBan.findMany = async () => [];
+    prismaDelegate.server.findUnique = async () => ({
+      authorizationRevision: 0n,
+      authorizationSubjectRevisions: [],
+    });
     prismaDelegate.userChannelSettings.findMany = async () => [];
     prismaDelegate.userServerSettings.findMany = async () => [];
     prismaDelegate.$transaction = async (callback?: unknown) => {
@@ -218,6 +224,7 @@ describe("workspace message notification service", () => {
       prismaDelegate.$transaction = originals.transaction;
       prismaDelegate.channel.findUnique = originals.channelFindUnique;
       prismaDelegate.mobilePushToken.findMany = originals.mobilePushTokenFindMany;
+      prismaDelegate.server.findUnique = originals.serverFindUnique;
       prismaDelegate.serverBan.findMany = originals.serverBanFindMany;
       prismaDelegate.serverMember.findMany = originals.serverMemberFindMany;
       prismaDelegate.userChannelSettings.findMany = originals.userChannelSettingsFindMany;
@@ -234,6 +241,7 @@ describe("workspace message notification service", () => {
     const prismaDelegate = prisma as unknown as {
       $transaction: AsyncMethod;
       channel: { findUnique: AsyncMethod };
+      server: { findUnique: AsyncMethod };
       serverBan: { findMany: AsyncMethod };
       serverMember: { findMany: AsyncMethod };
       userChannelSettings: { findMany: AsyncMethod };
@@ -242,6 +250,7 @@ describe("workspace message notification service", () => {
     const originals = {
       channelFindUnique: prismaDelegate.channel.findUnique,
       permissionCacheDisabled: process.env.PERMISSION_CACHE_DISABLED,
+      serverFindUnique: prismaDelegate.server.findUnique,
       serverBanFindMany: prismaDelegate.serverBan.findMany,
       serverMemberFindMany: prismaDelegate.serverMember.findMany,
       transaction: prismaDelegate.$transaction,
@@ -295,6 +304,10 @@ describe("workspace message notification service", () => {
       type: ChannelType.TEXT,
     });
     prismaDelegate.serverBan.findMany = async () => [];
+    prismaDelegate.server.findUnique = async () => ({
+      authorizationRevision: 0n,
+      authorizationSubjectRevisions: [],
+    });
     prismaDelegate.userChannelSettings.findMany = async () => [
       { messageNotifications: "ALL", muted: true, mutedUntil: null, userId: "user-ada" },
     ];
@@ -316,6 +329,7 @@ describe("workspace message notification service", () => {
     } finally {
       prismaDelegate.$transaction = originals.transaction;
       prismaDelegate.channel.findUnique = originals.channelFindUnique;
+      prismaDelegate.server.findUnique = originals.serverFindUnique;
       prismaDelegate.serverBan.findMany = originals.serverBanFindMany;
       prismaDelegate.serverMember.findMany = originals.serverMemberFindMany;
       prismaDelegate.userChannelSettings.findMany = originals.userChannelSettingsFindMany;

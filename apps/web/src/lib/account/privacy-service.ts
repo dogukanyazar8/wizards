@@ -7,7 +7,8 @@ import { logError } from "@/lib/logger";
 import { getRedis } from "@/lib/redis";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { invalidateServerRoomIdsCache } from "@/lib/socket/server-room-cache";
-import { invalidateMemberPermissionCache } from "@/lib/workspace/permission-cache";
+import { advanceMemberAuthorizationRevision } from "@/lib/workspace/authorization-revision";
+import { publishCommittedAuthorizationRevision } from "@/lib/workspace/authorization-revision-publication";
 import { decrementServerMemberCounts } from "@/lib/workspace/server-member-counter";
 import { enqueueAccountStorageCleanupJob } from "@/lib/outbox/service";
 import { deleteUploadThingFileKeys } from "@/lib/account/uploadthing-cleanup";
@@ -342,7 +343,7 @@ export function serializeAccountDataExport(exportData: unknown) {
   );
 }
 
-async function clearAccountRuntimeState(userId: string, serverIds: string[]) {
+async function clearAccountRuntimeState(userId: string, _serverIds: string[]) {
   const io = getSocketServer();
   io?.to(`user:${userId}`).disconnectSockets(true);
 
@@ -355,10 +356,7 @@ async function clearAccountRuntimeState(userId: string, serverIds: string[]) {
     logError("[account-privacy] Failed to clear deleted account Redis state", error);
   }
 
-  await Promise.all([
-    invalidateServerRoomIdsCache(userId),
-    ...serverIds.map((serverId) => invalidateMemberPermissionCache(serverId, userId)),
-  ]);
+  await invalidateServerRoomIdsCache(userId);
 }
 
 export function collectAccountUploadThingFileKeys(input: {
@@ -452,7 +450,7 @@ export async function anonymizeAccount(
     ? await dependencies.collectUploadThingFileKeys(userId)
     : [];
 
-  await dependencies.client.$transaction(async (tx) => {
+  const authorizationRevisions = await dependencies.client.$transaction(async (tx) => {
     await enqueueAccountStorageCleanupJob(tx, { fileKeys: uploadThingFileKeys, userId });
     await tx.mobileMediaUpload.updateMany({
       where: {
@@ -515,6 +513,10 @@ export async function anonymizeAccount(
       select: { serverId: true },
       where: { userId },
     });
+    const revisions = [];
+    for (const membership of removedMemberships) {
+      revisions.push(await advanceMemberAuthorizationRevision(tx, membership.serverId, userId));
+    }
     await tx.serverMember.deleteMany({ where: { userId } });
     await decrementServerMemberCounts(
       tx,
@@ -610,7 +612,10 @@ export async function anonymizeAccount(
         username: identity.username,
       } satisfies Prisma.UserUpdateInput,
     });
+    return revisions;
   });
+
+  await Promise.all(authorizationRevisions.map(publishCommittedAuthorizationRevision));
 
   // Storage deletion cannot roll back. Running it only after the database
   // commit prevents a transient transaction failure from orphaning live media.

@@ -481,6 +481,7 @@ model User {
   serverMembers           ServerMember[]
   bannedFromServers       ServerBan[]               @relation("BanUser")
   serverBans              ServerBan[]               @relation("BanModerator")
+  serverAuthorizationSubjectRevisions ServerAuthorizationSubjectRevision[]
   serverInvites           ServerInvite[]
   groupInvites            GroupInvite[]
   messages                Message[]                 @relation("MessageAuthor")
@@ -1066,6 +1067,7 @@ model Server {
   tags                        String[]
   messageCharacterLimit       Int                   @default(2000)
   deletedMessageNoticeMinutes Int                   @default(60)
+  authorizationRevision       BigInt                @default(0)
   createdAt                   DateTime              @default(now())
   updatedAt                   DateTime              @updatedAt
 
@@ -1083,6 +1085,7 @@ model Server {
   voiceStates        VoiceState[]         @relation("VoiceStateServer")
   mediaUsageSessions MediaUsageSession[]
   userServerSettings UserServerSettings[] @relation("ServerUserSettings")
+  authorizationSubjectRevisions ServerAuthorizationSubjectRevision[]
 
   @@index([name])
   @@index([ownerId])
@@ -1123,6 +1126,19 @@ model ServerMember {
 
   @@unique([userId, serverId])
   @@index([serverId, userId])
+}
+
+model ServerAuthorizationSubjectRevision {
+  serverId  String
+  userId    String
+  revision  BigInt   @default(0)
+  updatedAt DateTime @updatedAt
+
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([serverId, userId])
+  @@index([userId])
 }
 
 model Role {

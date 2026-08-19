@@ -379,8 +379,23 @@ describe("joinPublicWorkspaceServer", () => {
               // needing message.create wired up for this fixture.
               findFirst: async () => null,
             },
+            outboxJob: {
+              upsert: async () => {
+                operations.push("tx.outboxJob.upsert");
+                return {};
+              },
+            },
             server: {
-              update: async () => ({}),
+              findUnique: async () => {
+                operations.push("tx.server.findUnique");
+                return { authorizationRevision: 0n };
+              },
+            },
+            serverAuthorizationSubjectRevision: {
+              upsert: async () => {
+                operations.push("tx.serverAuthorizationSubjectRevision.upsert");
+                return { revision: 1n };
+              },
             },
             serverBan: {
               findUnique: async () => {
@@ -407,6 +422,9 @@ describe("joinPublicWorkspaceServer", () => {
         "tx.serverBan.findUnique",
         "tx.server.reserve",
         "tx.serverMember.create",
+        "tx.serverAuthorizationSubjectRevision.upsert",
+        "tx.server.findUnique",
+        "tx.outboxJob.upsert",
         "socket.fetch:user:joiner",
         "socket.join:server:server-1",
         "socket.emit:server:server-1:server:settings:updated",

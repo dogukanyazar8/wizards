@@ -19,10 +19,12 @@ const MESSAGE_ESTIMATED_ROW_HEIGHT_PX = 84;
 const MESSAGE_VIRTUAL_OVERSCAN = 8;
 const MESSAGE_SCROLL_SETTLE_DELAY_MS = 150;
 
-export const MESSAGE_VIRTUALIZER_SCROLL_OPTIONS = {
+export const MESSAGE_VIRTUALIZER_OPTIONS = {
   anchorTo: "end",
   followOnAppend: "auto",
   scrollEndThreshold: 100,
+  // Row refs measure during React's commit; React 19 rejects a nested synchronous rerender.
+  useFlushSync: false,
 } as const;
 
 type ScrollMetrics = Pick<HTMLElement, "clientHeight" | "scrollHeight" | "scrollTop">;
@@ -199,7 +201,7 @@ function MessageListContent({
   // by design and must observe the live scroll element and measurement cache.
   // eslint-disable-next-line react-hooks/incompatible-library
   const messageVirtualizer = useVirtualizer({
-    ...MESSAGE_VIRTUALIZER_SCROLL_OPTIONS,
+    ...MESSAGE_VIRTUALIZER_OPTIONS,
     count: groupedMessages.length,
     estimateSize: () => MESSAGE_ESTIMATED_ROW_HEIGHT_PX,
     getItemKey: (index) => groupedMessages[index]?.message.id ?? `message-row-${index}`,

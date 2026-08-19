@@ -1,6 +1,7 @@
 import type { Prisma } from "@wizards/db";
 
-export type WorkspaceAuditAction = "MEMBER_KICKED" | "MEMBER_ROLES_UPDATED";
+export type WorkspaceAuditAction =
+  "MEMBER_BANNED" | "MEMBER_KICKED" | "MEMBER_ROLES_UPDATED" | "MEMBER_UNBANNED";
 
 export type WorkspaceAuditLogInput = {
   action: WorkspaceAuditAction;

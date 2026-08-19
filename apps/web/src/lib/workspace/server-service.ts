@@ -18,8 +18,9 @@ import {
   ensureServerPermission,
   getAccessContext,
 } from "@/lib/workspace/access-context";
+import { advanceServerAuthorizationRevision } from "@/lib/workspace/authorization-revision";
+import { publishCommittedAuthorizationRevision } from "@/lib/workspace/authorization-revision-publication";
 import { generateInviteCode } from "@/lib/workspace/invite-code";
-import { invalidateServerPermissionCache } from "@/lib/workspace/permission-cache";
 import {
   getBoundedMobileServerUnreadSummary,
   getOnlineServerMemberCount,
@@ -1289,28 +1290,34 @@ export async function updateWorkspaceServer(
     input.allowFileUploads !== undefined ||
     input.allowMemberAdds !== undefined;
 
-  await prisma.server.update({
-    where: {
-      id: serverId,
-    },
-    data,
+  const authorizationRevision = await prisma.$transaction(async (tx) => {
+    await tx.server.update({
+      where: {
+        id: serverId,
+      },
+      data,
+    });
+
+    if (input.deletedMessageNoticeMinutes !== undefined) {
+      await tx.$executeRaw`
+        UPDATE "Message"
+        SET "placeholderExpiresAt" =
+          "deletedAt" + (${input.deletedMessageNoticeMinutes}::int * INTERVAL '1 minute')
+        WHERE "deletedAt" IS NOT NULL
+          AND "placeholderRemovedAt" IS NULL
+          AND "channelId" IN (
+            SELECT "id" FROM "Channel" WHERE "serverId" = ${serverId}
+          )
+      `;
+    }
+
+    return shouldInvalidateChannelPermissionMetadata
+      ? advanceServerAuthorizationRevision(tx, serverId)
+      : null;
   });
 
-  if (input.deletedMessageNoticeMinutes !== undefined) {
-    await prisma.$executeRaw`
-      UPDATE "Message"
-      SET "placeholderExpiresAt" =
-        "deletedAt" + (${input.deletedMessageNoticeMinutes}::int * INTERVAL '1 minute')
-      WHERE "deletedAt" IS NOT NULL
-        AND "placeholderRemovedAt" IS NULL
-        AND "channelId" IN (
-          SELECT "id" FROM "Channel" WHERE "serverId" = ${serverId}
-        )
-    `;
-  }
-
-  if (shouldInvalidateChannelPermissionMetadata) {
-    await invalidateServerPermissionCache(serverId);
+  if (authorizationRevision) {
+    await publishCommittedAuthorizationRevision(authorizationRevision);
   }
 
   const detail = await getWorkspaceServerDetail(userId, serverId);
@@ -1376,7 +1383,7 @@ export async function deleteWorkspaceServer(
   });
 
   const now = new Date();
-  await prisma.$transaction(async (tx) => {
+  const authorizationRevision = await prisma.$transaction(async (tx) => {
     await tx.mobileMediaUpload.updateMany({
       where: {
         purpose: MobileMediaUploadPurpose.SERVER_ICON,
@@ -1385,14 +1392,16 @@ export async function deleteWorkspaceServer(
       },
       data: { cleanupAfter: now },
     });
+    const revision = await advanceServerAuthorizationRevision(tx, serverId);
     await tx.server.delete({
       where: {
         id: serverId,
       },
     });
+    return revision;
   });
 
-  await invalidateServerPermissionCache(serverId);
+  await publishCommittedAuthorizationRevision(authorizationRevision);
   await Promise.all(members.map((member) => invalidateServerRoomIdsCache(member.userId)));
 
   const io = getSocketServer();

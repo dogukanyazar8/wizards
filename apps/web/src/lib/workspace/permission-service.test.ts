@@ -34,6 +34,7 @@ describe("workspace permission service", () => {
             return [];
           },
           expire: () => pipeline,
+          eval: () => pipeline,
           incr: () => pipeline,
           set: (key: string, value: string) => {
             writes.push(() => values.set(key, value));
@@ -45,9 +46,11 @@ describe("workspace permission service", () => {
       status: "ready" as const,
     };
     const channelDelegate = prisma.channel as unknown as { findUnique: AsyncMethod };
+    const serverDelegate = prisma.server as unknown as { findUnique: AsyncMethod };
     const memberDelegate = prisma.serverMember as unknown as { findMany: AsyncMethod };
     const banDelegate = prisma.serverBan as unknown as { findMany: AsyncMethod };
     const originalChannelFindUnique = channelDelegate.findUnique;
+    const originalServerFindUnique = serverDelegate.findUnique;
     const originalMemberFindMany = memberDelegate.findMany;
     const originalBanFindMany = banDelegate.findMany;
     const originalPermissionCacheDisabled = process.env.PERMISSION_CACHE_DISABLED;
@@ -55,6 +58,11 @@ describe("workspace permission service", () => {
     process.env.PERMISSION_CACHE_ENABLED = "true";
     delete process.env.PERMISSION_CACHE_DISABLED;
     setPermissionCacheRedisForTest(redis as never);
+
+    serverDelegate.findUnique = async () => ({
+      authorizationRevision: 0n,
+      authorizationSubjectRevisions: [],
+    });
 
     channelDelegate.findUnique = async (args?: unknown) => {
       const select = (args as { select?: { id?: boolean } }).select;
@@ -101,6 +109,7 @@ describe("workspace permission service", () => {
       assert.equal(await readCachedChannelPermissionSnapshot("user-1", "channel-1"), null);
     } finally {
       channelDelegate.findUnique = originalChannelFindUnique;
+      serverDelegate.findUnique = originalServerFindUnique;
       memberDelegate.findMany = originalMemberFindMany;
       banDelegate.findMany = originalBanFindMany;
       setPermissionCacheRedisForTest(null);
@@ -130,13 +139,20 @@ describe("workspace permission service", () => {
       (_, index) => `user-${index + 1}`,
     );
     const channelDelegate = prisma.channel as unknown as { findUnique: AsyncMethod };
+    const serverDelegate = prisma.server as unknown as { findUnique: AsyncMethod };
     const memberDelegate = prisma.serverMember as unknown as { findMany: AsyncMethod };
     const banDelegate = prisma.serverBan as unknown as { findMany: AsyncMethod };
     const originalChannelFindUnique = channelDelegate.findUnique;
+    const originalServerFindUnique = serverDelegate.findUnique;
     const originalMemberFindMany = memberDelegate.findMany;
     const originalBanFindMany = banDelegate.findMany;
     const originalPermissionCacheDisabled = process.env.PERMISSION_CACHE_DISABLED;
     process.env.PERMISSION_CACHE_DISABLED = "true";
+
+    serverDelegate.findUnique = async () => ({
+      authorizationRevision: 0n,
+      authorizationSubjectRevisions: [],
+    });
 
     channelDelegate.findUnique = async () => {
       calls.channelFindUnique += 1;
@@ -205,6 +221,7 @@ describe("workspace permission service", () => {
       ]);
     } finally {
       channelDelegate.findUnique = originalChannelFindUnique;
+      serverDelegate.findUnique = originalServerFindUnique;
       memberDelegate.findMany = originalMemberFindMany;
       banDelegate.findMany = originalBanFindMany;
       if (originalPermissionCacheDisabled === undefined) {
@@ -237,6 +254,8 @@ describe("workspace permission service", () => {
       calls.serverFindUnique += 1;
 
       return {
+        authorizationRevision: 0n,
+        authorizationSubjectRevisions: [],
         ownerId: "owner",
         roles: [
           {
@@ -327,7 +346,9 @@ describe("workspace permission service", () => {
       assert.deepEqual(calls, {
         channelFindMany: 1,
         serverBanFindMany: 1,
-        serverFindUnique: 1,
+        // Revision-before-read plus compare-before-write add two fixed server
+        // reads for the whole batch, never one read per user/channel.
+        serverFindUnique: 3,
         serverMemberFindMany: 1,
       });
     } finally {
@@ -348,18 +369,42 @@ describe("workspace permission service", () => {
       channelFindMany: 0,
       roleFindMany: 0,
       serverBanFindMany: 0,
+      serverFindMany: 0,
       serverMemberFindMany: 0,
     };
     const channelDelegate = prisma.channel as unknown as { findMany: AsyncMethod };
+    const serverDelegate = prisma.server as unknown as { findMany: AsyncMethod };
     const roleDelegate = prisma.role as unknown as { findMany: AsyncMethod };
     const memberDelegate = prisma.serverMember as unknown as { findMany: AsyncMethod };
     const banDelegate = prisma.serverBan as unknown as { findMany: AsyncMethod };
     const originalChannelFindMany = channelDelegate.findMany;
+    const originalServerFindMany = serverDelegate.findMany;
     const originalRoleFindMany = roleDelegate.findMany;
     const originalMemberFindMany = memberDelegate.findMany;
     const originalBanFindMany = banDelegate.findMany;
     const originalPermissionCacheDisabled = process.env.PERMISSION_CACHE_DISABLED;
     process.env.PERMISSION_CACHE_DISABLED = "true";
+
+    serverDelegate.findMany = async () => {
+      calls.serverFindMany += 1;
+      return [
+        {
+          authorizationRevision: 0n,
+          authorizationSubjectRevisions: [],
+          id: "server-1",
+        },
+        {
+          authorizationRevision: 0n,
+          authorizationSubjectRevisions: [],
+          id: "server-2",
+        },
+        {
+          authorizationRevision: 0n,
+          authorizationSubjectRevisions: [],
+          id: "server-3",
+        },
+      ];
+    };
 
     memberDelegate.findMany = async () => {
       calls.serverMemberFindMany += 1;
@@ -464,10 +509,12 @@ describe("workspace permission service", () => {
         channelFindMany: 1,
         roleFindMany: 1,
         serverBanFindMany: 1,
+        serverFindMany: 2,
         serverMemberFindMany: 1,
       });
     } finally {
       channelDelegate.findMany = originalChannelFindMany;
+      serverDelegate.findMany = originalServerFindMany;
       roleDelegate.findMany = originalRoleFindMany;
       memberDelegate.findMany = originalMemberFindMany;
       banDelegate.findMany = originalBanFindMany;

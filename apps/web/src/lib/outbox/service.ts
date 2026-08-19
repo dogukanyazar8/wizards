@@ -11,6 +11,8 @@ import { deleteUploadThingFileKeys } from "@/lib/account/uploadthing-cleanup";
 import { logError } from "@/lib/logger";
 import { sendNotificationCampaign } from "@/lib/admin/notification-campaigns";
 import { getSocketServer } from "@/lib/socket/runtime";
+import { publishPermissionCacheRevision } from "@/lib/workspace/permission-cache";
+import { PERMISSION_CACHE_REVISION_JOB_TYPE } from "@/lib/workspace/authorization-revision";
 import {
   createChannelMentionNotifications,
   createChannelThreadReplyNotification,
@@ -35,6 +37,7 @@ export const OUTBOX_JOB_TYPES = {
   channelThreadReplyNotification: "CHANNEL_THREAD_REPLY_NOTIFICATION",
   dmMessageNotifications: "DM_MESSAGE_NOTIFICATIONS",
   messageCreatedAnalytics: "MESSAGE_CREATED_ANALYTICS",
+  permissionCacheRevision: PERMISSION_CACHE_REVISION_JOB_TYPE,
 } as const;
 
 type OutboxJobType = (typeof OUTBOX_JOB_TYPES)[keyof typeof OUTBOX_JOB_TYPES];
@@ -97,6 +100,20 @@ export const MessageCreatedAnalyticsPayloadSchema = z.object({
 const AttachmentScanPayloadSchema = z.object({
   attachmentId: z.string().min(1),
 });
+
+export const PermissionCacheRevisionPayloadSchema = z
+  .object({
+    memberVersion: z.string().regex(/^\d+$/).optional(),
+    serverId: z.string().min(1),
+    serverVersion: z.string().regex(/^\d+$/),
+    userId: z.string().min(1).optional(),
+  })
+  .refine(
+    (payload) =>
+      (payload.memberVersion === undefined && payload.userId === undefined) ||
+      (payload.memberVersion !== undefined && payload.userId !== undefined),
+    "memberVersion and userId must be provided together",
+  );
 
 const AccountStorageCleanupPayloadSchema = z
   .object({
@@ -630,6 +647,21 @@ async function processOutboxJob(job: ClaimedOutboxJob, workerId: string) {
 
   if (job.type === OUTBOX_JOB_TYPES.messageCreatedAnalytics) {
     await processMessageCreatedAnalytics(job, workerId);
+    return;
+  }
+
+  if (job.type === OUTBOX_JOB_TYPES.permissionCacheRevision) {
+    const payload = PermissionCacheRevisionPayloadSchema.parse(job.payload);
+    const revision = {
+      serverId: payload.serverId,
+      serverVersion: payload.serverVersion,
+      ...(payload.memberVersion !== undefined ? { memberVersion: payload.memberVersion } : {}),
+      ...(payload.userId !== undefined ? { userId: payload.userId } : {}),
+    };
+    if (!(await publishPermissionCacheRevision(revision))) {
+      throw new Error("Redis is unavailable for permission-cache revision publication");
+    }
+    await markOutboxJobCompleted(job.id, workerId);
     return;
   }
 

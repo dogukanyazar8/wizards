@@ -8,10 +8,7 @@ export type AudioDeviceFallbackOption = {
 };
 
 export type AudioDeviceFallbackReason =
-  | "first-valid"
-  | "selected"
-  | "system-communications"
-  | "system-default";
+  "first-valid" | "selected" | "system-communications" | "system-default" | "unverified";
 
 export type AudioDeviceFallbackResult = {
   changed: boolean;
@@ -55,6 +52,25 @@ export function resolveAudioDeviceFallback({
     };
   }
 
+  if (!devices.some((device) => isValidDeviceId(device.deviceId))) {
+    return {
+      changed: false,
+      deviceId: normalizedPreferred,
+      reason: "unverified",
+    };
+  }
+
+  if (
+    normalizedPreferred === DEFAULT_COMMUNICATIONS_DEVICE_ID &&
+    hasDevice(devices, DEFAULT_COMMUNICATIONS_DEVICE_ID)
+  ) {
+    return {
+      changed: false,
+      deviceId: DEFAULT_COMMUNICATIONS_DEVICE_ID,
+      reason: "system-communications",
+    };
+  }
+
   if (
     normalizedPreferred !== DEFAULT_COMMUNICATIONS_DEVICE_ID &&
     hasDevice(devices, normalizedPreferred)
@@ -66,23 +82,19 @@ export function resolveAudioDeviceFallback({
     };
   }
 
+  if (hasDevice(devices, DEFAULT_AUDIO_DEVICE_ID)) {
+    return {
+      changed: true,
+      deviceId: DEFAULT_AUDIO_DEVICE_ID,
+      reason: "system-default",
+    };
+  }
+
   if (hasDevice(devices, DEFAULT_COMMUNICATIONS_DEVICE_ID)) {
     return {
       changed: normalizedPreferred !== DEFAULT_COMMUNICATIONS_DEVICE_ID,
       deviceId: DEFAULT_COMMUNICATIONS_DEVICE_ID,
       reason: "system-communications",
-    };
-  }
-
-  if (
-    normalizedPreferred === DEFAULT_AUDIO_DEVICE_ID ||
-    hasDevice(devices, DEFAULT_AUDIO_DEVICE_ID) ||
-    devices.length === 0
-  ) {
-    return {
-      changed: normalizedPreferred !== DEFAULT_AUDIO_DEVICE_ID,
-      deviceId: DEFAULT_AUDIO_DEVICE_ID,
-      reason: "system-default",
     };
   }
 
@@ -96,8 +108,8 @@ export function resolveAudioDeviceFallback({
   }
 
   return {
-    changed: normalizedPreferred !== DEFAULT_AUDIO_DEVICE_ID,
-    deviceId: DEFAULT_AUDIO_DEVICE_ID,
-    reason: "system-default",
+    changed: false,
+    deviceId: normalizedPreferred,
+    reason: "unverified",
   };
 }

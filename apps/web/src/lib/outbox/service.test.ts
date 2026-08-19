@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { prisma } from "@wizards/db";
+import { setPermissionCacheRedisForTest } from "@/lib/workspace/permission-cache";
 
 import {
   MessageCreatedAnalyticsPayloadSchema,
@@ -284,6 +285,71 @@ describe("outbox service", () => {
     } finally {
       if (previousToken === undefined) delete process.env.UPLOADTHING_TOKEN;
       else process.env.UPLOADTHING_TOKEN = previousToken;
+      for (const restore of restores.reverse()) restore();
+    }
+  });
+
+  it("keeps permission revision publication pending until Redis recovers", async () => {
+    const restores: Restore[] = [];
+    const statuses: string[] = [];
+    const previousCacheEnabled = process.env.PERMISSION_CACHE_ENABLED;
+    process.env.PERMISSION_CACHE_ENABLED = "true";
+
+    patchMethod(
+      prisma,
+      "$queryRaw",
+      async () => [
+        {
+          attempts: 1,
+          id: "job-permission-revision",
+          maxAttempts: 8,
+          payload: {
+            memberVersion: "9",
+            serverId: "server-1",
+            serverVersion: "4",
+            userId: "user-1",
+          },
+          type: OUTBOX_JOB_TYPES.permissionCacheRevision,
+        },
+      ],
+      restores,
+    );
+    patchMethod(prisma.outboxJob, "count", async () => 0, restores);
+    patchMethod(prisma.outboxJob, "findFirst", async () => null, restores);
+    patchMethod(prisma.outboxJob, "update", async () => ({}), restores);
+    patchMethod(
+      prisma.outboxJob,
+      "updateMany",
+      async (args: { data?: { status?: string } }) => {
+        if (args.data?.status) statuses.push(args.data.status);
+        return { count: 1 };
+      },
+      restores,
+    );
+
+    const baseRedis = {
+      mget: async () => [],
+      pipeline: () => ({
+        exec: async () => [],
+        set() {
+          return this;
+        },
+      }),
+      status: "ready",
+    };
+
+    try {
+      setPermissionCacheRedisForTest(baseRedis as never);
+      await drainOutboxJobs({ limit: 1, workerId: "worker-a" });
+      assert.deepEqual(statuses, ["PENDING"]);
+
+      setPermissionCacheRedisForTest({ ...baseRedis, eval: async () => 1 } as never);
+      await drainOutboxJobs({ limit: 1, workerId: "worker-a" });
+      assert.deepEqual(statuses, ["PENDING", "COMPLETED"]);
+    } finally {
+      setPermissionCacheRedisForTest(null);
+      if (previousCacheEnabled === undefined) delete process.env.PERMISSION_CACHE_ENABLED;
+      else process.env.PERMISSION_CACHE_ENABLED = previousCacheEnabled;
       for (const restore of restores.reverse()) restore();
     }
   });

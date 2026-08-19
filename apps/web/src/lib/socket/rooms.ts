@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type { AppSocket } from "@/lib/socket/context";
 
 type VoiceStateViewerSocket = {
@@ -8,6 +10,11 @@ type VoiceStateViewerSocket = {
 
 export function getVoiceStateViewerRoomName(channelId: string) {
   return `voice-viewers:${channelId}`;
+}
+
+export function getAuthSessionSocketRoomName(sessionId: string) {
+  const digest = createHash("sha256").update(sessionId).digest("base64url");
+  return `auth-session:${digest}`;
 }
 
 export function getVoiceParticipantRoomName(channelId: string) {

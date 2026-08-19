@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 
 type AudioDeviceKind = "audioinput" | "audiooutput";
 
+export type AudioDeviceEnumerationStatus = "error" | "loading" | "ready" | "unsupported";
+
 export type AudioDeviceOption = {
   deviceId: string;
   groupId: string;
@@ -12,6 +14,7 @@ export type AudioDeviceOption = {
 };
 
 type AudioDevicesState = {
+  enumerationStatus: AudioDeviceEnumerationStatus;
   inputDevices: AudioDeviceOption[];
   isLoading: boolean;
   outputDevices: AudioDeviceOption[];
@@ -49,7 +52,10 @@ function toAudioDeviceOption(device: MediaDeviceInfo): AudioDeviceOption | null 
 export function useAudioDevices(): AudioDevicesState {
   const [inputDevices, setInputDevices] = useState<AudioDeviceOption[]>([]);
   const [outputDevices, setOutputDevices] = useState<AudioDeviceOption[]>([]);
-  const [isLoading, setIsLoading] = useState(canEnumerateDevices);
+  const [enumerationStatus, setEnumerationStatus] = useState<AudioDeviceEnumerationStatus>(() =>
+    canEnumerateDevices() ? "loading" : "unsupported",
+  );
+  const isLoading = enumerationStatus === "loading";
   const supportsDeviceEnumeration = canEnumerateDevices();
   const supportsOutputSelection = canSelectAudioOutput();
 
@@ -57,11 +63,11 @@ export function useAudioDevices(): AudioDevicesState {
     if (!canEnumerateDevices()) {
       setInputDevices([]);
       setOutputDevices([]);
-      setIsLoading(false);
+      setEnumerationStatus("unsupported");
       return;
     }
 
-    setIsLoading(true);
+    setEnumerationStatus("loading");
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const audioDevices = devices.flatMap((device) => {
@@ -71,11 +77,11 @@ export function useAudioDevices(): AudioDevicesState {
 
       setInputDevices(audioDevices.filter((device) => device.kind === "audioinput"));
       setOutputDevices(audioDevices.filter((device) => device.kind === "audiooutput"));
+      setEnumerationStatus("ready");
     } catch {
       setInputDevices([]);
       setOutputDevices([]);
-    } finally {
-      setIsLoading(false);
+      setEnumerationStatus("error");
     }
   }, []);
 
@@ -116,16 +122,13 @@ export function useAudioDevices(): AudioDevicesState {
         });
         setInputDevices(audioDevices.filter((device) => device.kind === "audioinput"));
         setOutputDevices(audioDevices.filter((device) => device.kind === "audiooutput"));
+        setEnumerationStatus("ready");
       })
       .catch(() => {
         if (!cancelled) {
           setInputDevices([]);
           setOutputDevices([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoading(false);
+          setEnumerationStatus("error");
         }
       });
 
@@ -137,6 +140,7 @@ export function useAudioDevices(): AudioDevicesState {
   }, [refreshDevices]);
 
   return {
+    enumerationStatus,
     inputDevices,
     isLoading,
     outputDevices,

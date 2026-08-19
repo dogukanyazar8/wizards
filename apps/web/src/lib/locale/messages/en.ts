@@ -831,6 +831,27 @@ export const EN_MESSAGES = {
   "voice.devices.outputUnsupported":
     "This browser cannot switch speakers directly. Use the system sound output instead.",
   "voice.devices.refresh": "Refresh",
+  "voice.microphoneTest.captureError":
+    "Whispr could not start the microphone test. Check the selected device and try again.",
+  "voice.microphoneTest.description":
+    "Check the microphone signal sent by Whispr, then optionally monitor it through your selected output.",
+  "voice.microphoneTest.deviceError":
+    "The selected microphone is unavailable. Refresh the device list or select another microphone.",
+  "voice.microphoneTest.headphoneWarning":
+    "Use headphones to prevent feedback. Monitoring stays on this device and is never recorded.",
+  "voice.microphoneTest.hearMyself": "Hear myself",
+  "voice.microphoneTest.idle": "Test not started",
+  "voice.microphoneTest.level": "Input level",
+  "voice.microphoneTest.outputError":
+    "Whispr could not route monitoring to the selected output device.",
+  "voice.microphoneTest.permissionError":
+    "Microphone access is blocked. Allow microphone access in browser settings and try again.",
+  "voice.microphoneTest.signalActive": "Signal detected",
+  "voice.microphoneTest.signalQuiet": "No signal detected",
+  "voice.microphoneTest.start": "Start test",
+  "voice.microphoneTest.starting": "Starting test...",
+  "voice.microphoneTest.stop": "Stop test",
+  "voice.microphoneTest.title": "Microphone test",
   "voice.camera.blurDescription":
     "Adds a soft, privacy-friendly backdrop to your local preview while we keep the outgoing camera track untouched.",
   "voice.camera.blurTitle": "Soft backdrop",

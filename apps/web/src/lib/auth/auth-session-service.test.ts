@@ -177,4 +177,42 @@ describe("auth session service", () => {
     assert.equal(store.records.get("current")?.revokedAt, null);
     assert.equal(store.records.get("foreign")?.revokedAt, null);
   });
+
+  it("disconnects only durable sessions that were actually revoked", async () => {
+    const store = new MemoryAuthSessionStore();
+    const disconnectedSessions: string[] = [];
+    const disconnectSockets = (sessionId: string) => {
+      disconnectedSessions.push(sessionId);
+    };
+    store.records.set("current", record({ id: "current" }));
+    store.records.set("other-1", record({ id: "other-1" }));
+    store.records.set("other-2", record({ id: "other-2" }));
+    store.records.set("foreign", record({ id: "foreign", userId: "user-2" }));
+
+    assert.equal(
+      await revokeAuthSession("user-1", "foreign", {
+        disconnectSockets,
+        now,
+        store,
+      }),
+      null,
+    );
+    assert.equal(
+      (
+        await revokeAuthSession("user-1", "other-1", {
+          disconnectSockets,
+          now,
+          store,
+        })
+      )?.id,
+      "other-1",
+    );
+    await revokeOtherAuthSessions("user-1", "current", {
+      disconnectSockets,
+      now,
+      store,
+    });
+
+    assert.deepEqual(disconnectedSessions, ["other-1", "other-2"]);
+  });
 });

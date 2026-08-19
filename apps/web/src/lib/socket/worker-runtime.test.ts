@@ -4,8 +4,9 @@ import { describe, it } from "node:test";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { io as createSocketClient, type Socket as ClientSocket } from "socket.io-client";
 
-import { getSocketServer, setSocketServer } from "./runtime";
+import { disconnectAuthSessionSockets, getSocketServer, setSocketServer } from "./runtime";
 import { createSocketServerWithRedisAdapter } from "./redis-adapter";
+import { getAuthSessionSocketRoomName } from "./rooms";
 import { closeHeadlessSocketServer, initHeadlessSocketServer } from "./worker-runtime";
 
 type TestRedisMessageListener = (message: unknown, channel: string) => void;
@@ -19,6 +20,7 @@ class TestRedisPubSubBus {
   }
 
   publish(channel: string, message: unknown) {
+    const deliveredMessage = typeof message === "string" ? Buffer.from(message) : message;
     const listeners = [
       ...Array.from(this.channelListeners.get(channel) ?? []),
       ...Array.from(this.patternListeners.entries()).flatMap(([pattern, listeners]) =>
@@ -27,7 +29,7 @@ class TestRedisPubSubBus {
     ];
 
     for (const listener of listeners) {
-      queueMicrotask(() => listener(message, channel));
+      queueMicrotask(() => listener(deliveredMessage, channel));
     }
   }
 
@@ -224,19 +226,21 @@ describe("headless socket worker runtime", () => {
       await Promise.all([clientConnected, socketJoined]);
       const receivedNotification = waitForClientEvent(client, "notification:new");
 
-      getSocketServer()?.to("user:user-1").emit("notification:new", {
-        actionUrl: null,
-        body: "Mentioned you from the worker",
-        createdAt: new Date(0).toISOString(),
-        id: "notification-redis-relay",
-        imageUrl: null,
-        metadata: null,
-        read: false,
-        readAt: null,
-        title: "Worker mention",
-        type: "MENTION",
-        userId: "user-1",
-      });
+      getSocketServer()
+        ?.to("user:user-1")
+        .emit("notification:new", {
+          actionUrl: null,
+          body: "Mentioned you from the worker",
+          createdAt: new Date(0).toISOString(),
+          id: "notification-redis-relay",
+          imageUrl: null,
+          metadata: null,
+          read: false,
+          readAt: null,
+          title: "Worker mention",
+          type: "MENTION",
+          userId: "user-1",
+        });
 
       assert.deepEqual(await receivedNotification, {
         actionUrl: null,
@@ -253,6 +257,76 @@ describe("headless socket worker runtime", () => {
       });
     } finally {
       client?.disconnect();
+      await closeHeadlessSocketServer(workerIo);
+      await closeWebSocketServer(webIo, httpServer);
+    }
+  });
+
+  it("disconnects only the targeted auth session across Redis adapter instances", async () => {
+    const bus = new TestRedisPubSubBus();
+    const adapterKey = `worker-runtime-disconnect-test-${Date.now()}`;
+    const httpServer = createServer();
+    const webIo = createSocketServerWithRedisAdapter({
+      adapterFactory: createAdapter(bus.createClient(), bus.createClient(), {
+        key: adapterKey,
+        requestsTimeout: 100,
+      }),
+      httpServer,
+    });
+    const workerIo = initHeadlessSocketServer({
+      adapterFactory: createAdapter(bus.createClient(), bus.createClient(), {
+        key: adapterKey,
+        requestsTimeout: 100,
+      }),
+      setRuntimeSocketServer: setSocketServer,
+    });
+    let targetedClient: ClientSocket | null = null;
+    let siblingClient: ClientSocket | null = null;
+
+    try {
+      const joinedSessionIds = new Set<string>();
+      let resolveSocketsJoined: (() => void) | null = null;
+      const socketsJoined = new Promise<void>((resolve) => {
+        resolveSocketsJoined = resolve;
+      });
+      webIo.on("connection", async (socket) => {
+        const sessionId = String(socket.handshake.auth.sessionId);
+        await socket.join(getAuthSessionSocketRoomName(sessionId));
+        joinedSessionIds.add(sessionId);
+        if (joinedSessionIds.size === 2) resolveSocketsJoined?.();
+      });
+
+      await new Promise<void>((resolve) => {
+        httpServer.listen(0, "127.0.0.1", () => resolve());
+      });
+      const address = httpServer.address();
+      assert.ok(address && typeof address === "object");
+
+      targetedClient = createSocketClient(`http://127.0.0.1:${address.port}`, {
+        auth: { sessionId: "target-session" },
+        reconnection: false,
+        transports: ["websocket"],
+      });
+      siblingClient = createSocketClient(`http://127.0.0.1:${address.port}`, {
+        auth: { sessionId: "sibling-session" },
+        reconnection: false,
+        transports: ["websocket"],
+      });
+      await Promise.all([
+        waitForClientEvent(targetedClient, "connect"),
+        waitForClientEvent(siblingClient, "connect"),
+        socketsJoined,
+      ]);
+      const targetedDisconnected = waitForClientEvent(targetedClient, "disconnect");
+
+      disconnectAuthSessionSockets("target-session", workerIo);
+
+      await targetedDisconnected;
+      assert.equal(targetedClient.connected, false);
+      assert.equal(siblingClient.connected, true);
+    } finally {
+      targetedClient?.disconnect();
+      siblingClient?.disconnect();
       await closeHeadlessSocketServer(workerIo);
       await closeWebSocketServer(webIo, httpServer);
     }

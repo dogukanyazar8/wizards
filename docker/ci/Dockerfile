@@ -52,7 +52,7 @@ RUN apt-get update \
 
 # pnpm comes from the repository's packageManager pin, not from npm -g.
 RUN corepack enable \
-  && corepack prepare pnpm@11.20.0 --activate \
+  && corepack prepare pnpm@11.22.0 --activate \
   && pnpm --version \
   && chmod -R a+rX "${COREPACK_HOME}"
 

@@ -71,7 +71,10 @@ export function buildAudioCaptureOptions(
   };
 
   if (audioPreferences.inputDeviceId !== DEFAULT_AUDIO_DEVICE_ID) {
-    options.deviceId = audioPreferences.inputDeviceId;
+    // A scalar deviceId is only a preference in MediaTrackConstraints. That lets Chrome silently
+    // keep the system default when another valid input exists, so the UI can say Logitech while
+    // the published track is a silent virtual microphone. An explicit user choice must be exact.
+    options.deviceId = { exact: audioPreferences.inputDeviceId };
   }
 
   return options;

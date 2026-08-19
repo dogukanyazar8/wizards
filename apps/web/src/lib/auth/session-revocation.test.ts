@@ -7,6 +7,7 @@ import {
   isUserSessionRevoked,
   revokeUserSessions,
   shouldCheckSessionRevocation,
+  validateAuthSessionToken,
 } from "./session-revocation";
 
 class MemoryRevocationRedis {
@@ -35,6 +36,113 @@ class MemoryRevocationRedis {
 }
 
 describe("session revocation", () => {
+  it("authorizes an active durable web session", async () => {
+    const result = await validateAuthSessionToken(
+      {
+        authSessionId: "session-1",
+        id: "user-1",
+        sessionStartedAt: 100,
+      },
+      {
+        checkAuthSession: async () => true,
+        checkGlobalRevocation: async () => false,
+      },
+    );
+
+    assert.deepEqual(result, {
+      identity: {
+        authSessionId: "session-1",
+        sessionStartedAtSeconds: 100,
+        userId: "user-1",
+      },
+      status: "active",
+    });
+  });
+
+  it("rejects a revoked durable AuthSession", async () => {
+    const result = await validateAuthSessionToken(
+      { authSessionId: "session-1", id: "user-1", sessionStartedAt: 100 },
+      {
+        checkAuthSession: async () => false,
+        checkGlobalRevocation: async () => false,
+      },
+    );
+
+    assert.equal(result.status, "revoked");
+  });
+
+  it("rejects a session issued at or before sessionsRevokedAfter", async () => {
+    const result = await validateAuthSessionToken(
+      { authSessionId: "session-1", id: "user-1", sessionStartedAt: 100 },
+      {
+        checkAuthSession: async () => true,
+        checkGlobalRevocation: async () => true,
+      },
+    );
+
+    assert.equal(result.status, "revoked");
+  });
+
+  it("rejects token.revoked before consulting Redis or Postgres", async () => {
+    let controlChecks = 0;
+
+    const result = await validateAuthSessionToken(
+      {
+        authSessionId: "session-1",
+        id: "user-1",
+        revoked: true,
+        sessionStartedAt: 100,
+      },
+      {
+        checkAuthSession: async () => {
+          controlChecks += 1;
+          return true;
+        },
+        checkGlobalRevocation: async () => {
+          controlChecks += 1;
+          return false;
+        },
+      },
+    );
+
+    assert.equal(result.status, "revoked");
+    assert.equal(controlChecks, 0);
+  });
+
+  it("rejects a signed token without a durable session identity", async () => {
+    const result = await validateAuthSessionToken(
+      { id: "user-1", sessionStartedAt: 100 },
+      {
+        checkAuthSession: async () => true,
+        checkGlobalRevocation: async () => false,
+      },
+    );
+
+    assert.equal(result.status, "revoked");
+  });
+
+  it("fails closed when a revocation control is unavailable", async () => {
+    const databaseFailure = await validateAuthSessionToken(
+      { authSessionId: "session-1", id: "user-1", sessionStartedAt: 100 },
+      {
+        checkAuthSession: async () => {
+          throw new Error("database unavailable");
+        },
+        checkGlobalRevocation: async () => false,
+      },
+    );
+    const redisAndDatabaseFailure = await validateAuthSessionToken(
+      { authSessionId: "session-1", id: "user-1", sessionStartedAt: 100 },
+      {
+        checkAuthSession: async () => true,
+        checkGlobalRevocation: async () => undefined,
+      },
+    );
+
+    assert.equal(databaseFailure.status, "unavailable");
+    assert.equal(redisAndDatabaseFailure.status, "unavailable");
+  });
+
   it("marks all sessions issued before the revocation timestamp as revoked", async () => {
     const redis = new MemoryRevocationRedis();
     const result = await revokeUserSessions("user-1", {
@@ -61,6 +169,23 @@ describe("session revocation", () => {
 
     assert.equal(result.ok, false);
     assert.equal(result.revokedAfter.toISOString(), "2026-05-14T12:00:00.000Z");
+  });
+
+  it("disconnects all user sockets even when Redis marker persistence fails", async () => {
+    const redis = new MemoryRevocationRedis();
+    const disconnectedUsers: string[] = [];
+    redis.failSet = true;
+
+    const result = await revokeUserSessions("user-1", {
+      disconnectSockets: (userId: string) => {
+        disconnectedUsers.push(userId);
+      },
+      now: new Date("2026-05-14T12:00:00.000Z"),
+      redis,
+    } as never);
+
+    assert.equal(result.ok, false);
+    assert.deepEqual(disconnectedUsers, ["user-1"]);
   });
 
   it("falls back to a durable revocation timestamp when Redis is unavailable", async () => {

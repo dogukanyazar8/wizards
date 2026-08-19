@@ -76,14 +76,20 @@ export async function detachUserFromServerSocketRoom(
     return null;
   }
 
-  const voiceChannels = await prisma.channel.findMany({
-    where: { serverId, type: ChannelType.VOICE },
-    select: { id: true },
+  const serverChannels = await prisma.channel.findMany({
+    where: { serverId },
+    select: { id: true, type: true },
   });
-  const voiceChannelIds = voiceChannels.map((channel) => channel.id);
+  const channelIds = serverChannels.map((channel) => channel.id);
+  const voiceChannelIds = serverChannels
+    .filter((channel) => channel.type === ChannelType.VOICE)
+    .map((channel) => channel.id);
   const sockets = await io.in(`user:${userId}`).fetchSockets();
   for (const socket of sockets) {
     await socket.leave(`server:${serverId}`);
+    for (const channelId of channelIds) {
+      await socket.leave(channelId);
+    }
     await leaveVoiceStateViewerRoomsForServer(socket, serverId, voiceChannelIds);
     // This socket may still be present in other servers; only drop the one it
     // was just forced out of, so a later presence transition (which trusts

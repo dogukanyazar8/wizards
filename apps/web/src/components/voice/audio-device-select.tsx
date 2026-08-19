@@ -12,18 +12,15 @@ import {
 } from "react";
 import { useI18n } from "@/components/providers/locale-provider";
 import { useVoiceState } from "@/components/providers/voice-provider";
-import { useAudioDevices, type AudioDeviceOption } from "@/hooks/use-audio-devices";
-import {
-  DEFAULT_COMMUNICATIONS_DEVICE_ID,
-  resolveAudioDeviceFallback,
-} from "@/lib/voice/audio-device-fallback";
+import { useAudioDevices } from "@/hooks/use-audio-devices";
+import { resolveAudioDeviceFallback } from "@/lib/voice/audio-device-fallback";
+import { buildAudioDeviceOptions } from "@/lib/voice/audio-device-options";
 import {
   announceOverlayOpen,
   getOverlayOpenDetail,
   WHISPR_OVERLAY_OPEN_EVENT,
 } from "@/lib/ui/overlay-coordinator";
 import { cn } from "@/lib/utils";
-import { DEFAULT_AUDIO_DEVICE_ID } from "@/store/voice-store";
 
 type AudioDeviceSelectProps = {
   kind: "input" | "output";
@@ -33,22 +30,6 @@ type AudioDeviceSelectProps = {
 
 const subscribeToHydration = () => () => {};
 
-function getFallbackLabel(
-  device: AudioDeviceOption,
-  index: number,
-  t: (key: string, values?: Record<string, number | string>) => string,
-) {
-  if (device.label) {
-    return device.label;
-  }
-
-  if (device.kind === "audioinput") {
-    return t("voice.devices.inputFallback", { count: index + 1 });
-  }
-
-  return t("voice.devices.outputFallback", { count: index + 1 });
-}
-
 function getDefaultDeviceLabel(kind: "input" | "output", t: (key: string) => string) {
   return kind === "input" ? t("voice.devices.defaultInput") : t("voice.devices.defaultOutput");
 }
@@ -57,37 +38,6 @@ function getCommunicationsDeviceLabel(kind: "input" | "output", t: (key: string)
   return kind === "input"
     ? t("voice.devices.communicationsInput")
     : t("voice.devices.communicationsOutput");
-}
-
-function withDefaultOption(
-  kind: "input" | "output",
-  devices: AudioDeviceOption[],
-  t: (key: string, values?: Record<string, number | string>) => string,
-) {
-  const defaultLabel = getDefaultDeviceLabel(kind, t);
-  const normalizedDevices = devices.map((device, index) => ({
-    ...device,
-    label:
-      device.deviceId === DEFAULT_AUDIO_DEVICE_ID
-        ? defaultLabel
-        : device.deviceId === DEFAULT_COMMUNICATIONS_DEVICE_ID
-          ? getCommunicationsDeviceLabel(kind, t)
-          : getFallbackLabel(device, index, t),
-  }));
-
-  if (normalizedDevices.some((device) => device.deviceId === DEFAULT_AUDIO_DEVICE_ID)) {
-    return normalizedDevices;
-  }
-
-  return [
-    {
-      deviceId: DEFAULT_AUDIO_DEVICE_ID,
-      groupId: "",
-      kind: kind === "input" ? "audioinput" : "audiooutput",
-      label: defaultLabel,
-    } satisfies AudioDeviceOption,
-    ...normalizedDevices,
-  ];
 }
 
 export function AudioDeviceSelect({
@@ -108,6 +58,7 @@ export function AudioDeviceSelect({
   const [isOpenRequested, setIsOpenRequested] = useState(false);
   const { audioPreferences, setAudioPreference } = useVoiceState();
   const {
+    enumerationStatus,
     inputDevices,
     isLoading,
     outputDevices,
@@ -120,7 +71,18 @@ export function AudioDeviceSelect({
   const devices = kind === "input" ? inputDevices : outputDevices;
   const selectedDeviceId =
     kind === "input" ? audioPreferences.inputDeviceId : audioPreferences.outputDeviceId;
-  const options = useMemo(() => withDefaultOption(kind, devices, t), [devices, kind, t]);
+  const options = useMemo(
+    () =>
+      buildAudioDeviceOptions(kind === "input" ? "audioinput" : "audiooutput", devices, {
+        communications: getCommunicationsDeviceLabel(kind, t),
+        default: getDefaultDeviceLabel(kind, t),
+        fallback: (index) =>
+          t(kind === "input" ? "voice.devices.inputFallback" : "voice.devices.outputFallback", {
+            count: index + 1,
+          }),
+      }),
+    [devices, kind, t],
+  );
   const selectedLabel =
     options.find((device) => device.deviceId === selectedDeviceId)?.label ??
     getDefaultDeviceLabel(kind, t);
@@ -144,6 +106,10 @@ export function AudioDeviceSelect({
   );
 
   useEffect(() => {
+    if (enumerationStatus !== "ready" || devices.length === 0) {
+      return;
+    }
+
     const fallback = resolveAudioDeviceFallback({
       devices,
       preferredDeviceId: selectedDeviceId,
@@ -158,7 +124,7 @@ export function AudioDeviceSelect({
     } else {
       setAudioPreference("outputDeviceId", fallback.deviceId);
     }
-  }, [devices, kind, selectedDeviceId, setAudioPreference]);
+  }, [devices, enumerationStatus, kind, selectedDeviceId, setAudioPreference]);
 
   useEffect(() => {
     const handleOverlayOpen = (event: Event) => {

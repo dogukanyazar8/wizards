@@ -1,5 +1,6 @@
 import { logError } from "@/lib/logger";
 import { getRedis } from "@/lib/redis";
+import { disconnectUserSockets } from "@/lib/socket/runtime";
 
 const SESSION_REVOCATION_TTL_SECONDS = 60 * 60 * 24 * 8;
 const SESSION_REVOCATION_NEGATIVE_CACHE_SECONDS = 60;
@@ -13,6 +14,7 @@ type SessionRevocationRedis = {
 type DurableSessionRevocationLookup = (userId: string) => Promise<Date | null | undefined>;
 
 type RevocableJwtToken = {
+  authSessionId?: string;
   authStatusHydrated?: boolean;
   avatarUrl?: string | null;
   deletedAt?: string | null;
@@ -36,11 +38,86 @@ type RevocableJwtToken = {
   username?: string | null;
 };
 
+export type AuthSessionIdentity = {
+  authSessionId: string;
+  sessionStartedAtSeconds: number;
+  userId: string;
+};
+
+export type AuthSessionValidationResult = {
+  identity?: AuthSessionIdentity;
+  status: "active" | "revoked" | "unavailable";
+};
+
+type AuthSessionValidationOptions = {
+  checkAuthSession(userId: string, sessionId: string): Promise<boolean | null>;
+  checkGlobalRevocation(
+    userId: string,
+    sessionStartedAtSeconds: number,
+  ): Promise<boolean | undefined>;
+};
+
 export type SessionRevocationResult = {
   ok: boolean;
   revokedAfter: Date;
   revokedAfterSeconds: number;
 };
+
+function nonEmptyTokenString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+export function parseAuthSessionIdentity(token: RevocableJwtToken): AuthSessionIdentity | null {
+  const userId = nonEmptyTokenString(token.id) ?? nonEmptyTokenString(token.sub);
+  const authSessionId = nonEmptyTokenString(token.authSessionId);
+  const sessionStartedAtSeconds =
+    typeof token.sessionStartedAt === "number" ? token.sessionStartedAt : token.iat;
+
+  if (
+    !userId ||
+    !authSessionId ||
+    typeof sessionStartedAtSeconds !== "number" ||
+    !Number.isInteger(sessionStartedAtSeconds) ||
+    sessionStartedAtSeconds < 0
+  ) {
+    return null;
+  }
+
+  return { authSessionId, sessionStartedAtSeconds, userId };
+}
+
+export async function validateAuthSessionToken(
+  token: RevocableJwtToken,
+  options: AuthSessionValidationOptions,
+): Promise<AuthSessionValidationResult> {
+  if (token.revoked === true) {
+    return { status: "revoked" };
+  }
+
+  const identity = parseAuthSessionIdentity(token);
+  if (!identity) {
+    return { status: "revoked" };
+  }
+
+  try {
+    const [authSessionActive, globallyRevoked] = await Promise.all([
+      options.checkAuthSession(identity.userId, identity.authSessionId),
+      options.checkGlobalRevocation(identity.userId, identity.sessionStartedAtSeconds),
+    ]);
+
+    if (globallyRevoked === undefined) {
+      return { identity, status: "unavailable" };
+    }
+
+    return {
+      identity,
+      status: authSessionActive === true && !globallyRevoked ? "active" : "revoked",
+    };
+  } catch (error) {
+    logError("[auth] Failed to validate durable session", error);
+    return { identity, status: "unavailable" };
+  }
+}
 
 export function getSessionRevocationKey(userId: string) {
   return `auth:session-revoked-after:${userId}`;
@@ -48,6 +125,21 @@ export function getSessionRevocationKey(userId: string) {
 
 function toUnixSeconds(value: Date) {
   return Math.floor(value.getTime() / 1000);
+}
+
+export function isSessionGloballyRevoked(
+  sessionStartedAtSeconds: number,
+  revokedAfterSeconds: number,
+) {
+  return sessionStartedAtSeconds <= revokedAfterSeconds;
+}
+
+export function isDurableAuthSessionActive(
+  session: { expiresAt: Date; revokedAt: Date | null; userId: string },
+  userId: string,
+  now: Date,
+) {
+  return session.userId === userId && session.revokedAt === null && session.expiresAt > now;
 }
 
 export function shouldCheckSessionRevocation(
@@ -121,7 +213,11 @@ export function applyRevokedJwtUserState(
 
 export async function revokeUserSessions(
   userId: string,
-  options: { now?: Date; redis?: SessionRevocationRedis } = {},
+  options: {
+    disconnectSockets?: (userId: string) => Promise<void> | void;
+    now?: Date;
+    redis?: SessionRevocationRedis;
+  } = {},
 ): Promise<SessionRevocationResult> {
   const revokedAfter = options.now ?? new Date();
   const revokedAfterSeconds = toUnixSeconds(revokedAfter);
@@ -131,6 +227,7 @@ export async function revokeUserSessions(
   }
 
   const redis = options.redis ?? getRedis();
+  let ok = false;
 
   try {
     await redis.set(
@@ -139,11 +236,18 @@ export async function revokeUserSessions(
       "EX",
       SESSION_REVOCATION_TTL_SECONDS,
     );
-    return { ok: true, revokedAfter, revokedAfterSeconds };
+    ok = true;
   } catch (error) {
     logError("[auth] Failed to mark user sessions revoked", error);
-    return { ok: false, revokedAfter, revokedAfterSeconds };
   }
+
+  try {
+    await (options.disconnectSockets ?? disconnectUserSockets)(trimmedUserId);
+  } catch (error) {
+    logError("[auth] Failed to disconnect revoked user sockets", error);
+  }
+
+  return { ok, revokedAfter, revokedAfterSeconds };
 }
 
 async function cacheRevocationValue(
@@ -180,7 +284,7 @@ export async function isUserSessionRevoked(
     const revokedAfterSeconds = value ? Number.parseInt(value, 10) : NaN;
 
     if (Number.isInteger(revokedAfterSeconds) && revokedAfterSeconds > 0) {
-      return sessionStartedAtSeconds <= revokedAfterSeconds;
+      return isSessionGloballyRevoked(sessionStartedAtSeconds, revokedAfterSeconds);
     }
     if (revokedAfterSeconds === 0 && !options.loadDurableRevokedAfter) {
       return false;
@@ -208,7 +312,7 @@ export async function isUserSessionRevoked(
       SESSION_REVOCATION_TTL_SECONDS,
     );
 
-    return sessionStartedAtSeconds <= durableRevokedAfterSeconds;
+    return isSessionGloballyRevoked(sessionStartedAtSeconds, durableRevokedAfterSeconds);
   } catch (error) {
     logError("[auth] Failed to check durable session revocation", error);
     return undefined;

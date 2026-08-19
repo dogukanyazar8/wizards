@@ -138,7 +138,6 @@ animasyonsuz
 animasyonu
 animated
 animation
-anl
 anlamda
 anlamsal
 annotate
@@ -275,7 +274,6 @@ ayn
 ayna
 aynen
 ayr
-ayrac
 aza
 azure
 babel
@@ -286,6 +284,7 @@ backend
 backfill
 backfillable
 background
+backlog
 backoff
 backup
 badge
@@ -324,7 +323,6 @@ before
 begin
 behavior
 behavioral
-beklentisi
 bekleyen
 bekliyor
 belirtti
@@ -426,7 +424,6 @@ bridged
 brief
 broadcast
 broadcasts
-broken
 browser
 browserslist
 bubble
@@ -487,6 +484,7 @@ callbacks
 callers
 calls
 callstyle
+cam
 camera
 campaign
 campaigns
@@ -771,7 +769,6 @@ cropped
 cross
 crud
 crypto
-cryptographic
 cryptography
 csp
 csrf
@@ -899,7 +896,6 @@ description
 descriptions
 descriptor
 deseninin
-desenleri
 deserialize
 design
 desktop
@@ -943,7 +939,6 @@ dikkat
 dil
 dili
 dilimi
-diliyle
 dimension
 dimensions
 dims
@@ -1066,7 +1061,6 @@ durumda
 durumday
 durumlar
 durumu
-duruyoruz
 duvar
 duzeltilir
 duzeltmeleri
@@ -1119,7 +1113,6 @@ ekilmedi
 ekirde
 ekl
 ekle
-ekleme
 eklemem
 eklendi
 eklenebilirlik
@@ -1158,7 +1151,6 @@ elapsed
 ele
 element
 elements
-elendir
 elenenler
 elevated
 elevation
@@ -1229,7 +1221,6 @@ enum
 enumerate
 enumeration
 env
-envanter
 envanteri
 envelope
 environment
@@ -1276,12 +1267,10 @@ esnext
 establish
 established
 etiket
-etiketleme
 etilmez
 etk
 etki
 etkile
-etkilenen
 etkinle
 etkinlik
 etkisi
@@ -1382,7 +1371,6 @@ family
 fan
 fanout
 fark
-farkl
 farthest
 fatal
 fatih
@@ -1463,6 +1451,7 @@ flow
 flowchart
 flows
 flush
+flushsync
 fmt
 fns
 focal
@@ -1483,7 +1472,6 @@ for
 forbidden
 force
 foreground
-forgery
 forget
 forgot
 form
@@ -1525,7 +1513,6 @@ function
 functionality
 funnel
 future
-galerisi
 game
 gap
 gaps
@@ -1541,9 +1528,7 @@ gecirmek
 gecmisi
 gelen
 geli
-gelip
 gelistirme
-gelme
 gelmezse
 gen
 genel
@@ -1561,7 +1546,6 @@ ger
 gercekten
 gerek
 gereken
-gerekirse
 gerekiyor
 gerekli
 gerekmeyen
@@ -1575,7 +1559,6 @@ getir
 getirdi
 getirmek
 gev
-gez
 gezinme
 gfm
 gibi
@@ -1595,6 +1578,7 @@ given
 gizlilik
 glob
 global
+globally
 globals
 glow
 glyph
@@ -1641,7 +1625,6 @@ gtk
 guard
 guards
 guest
-guidance
 guide
 guncelleme
 guvenligi
@@ -1652,7 +1635,6 @@ haftal
 hakk
 hakkinda
 hale
-hali
 halihaz
 halo
 halt
@@ -1680,6 +1662,7 @@ harness
 has
 hash
 hashes
+hat
 hata
 hatada
 hatalar
@@ -1692,7 +1675,6 @@ have
 havuzu
 hayalet
 haz
-hazir
 hdel
 head
 headed
@@ -1714,7 +1696,6 @@ help
 helper
 helpers
 hepsi
-hepsini
 her
 herkese
 hero
@@ -1733,8 +1714,6 @@ hijyeni
 hint
 hints
 hipotezler
-his
-hissi
 histogram
 historical
 history
@@ -1785,7 +1764,6 @@ iddia
 ide
 idempotency
 idempotent
-identification
 identifier
 identities
 identity
@@ -1793,8 +1771,6 @@ idiom
 idiomatic
 idle
 ids
-ifadeyi
-ifle
 ifre
 ifremi
 ift
@@ -1820,7 +1796,6 @@ ilebilirlik
 ilemez
 ilen
 ilerleme
-iletildi
 ilgili
 ili
 ilk
@@ -1854,7 +1829,6 @@ imzalama
 imzalar
 inactive
 inbox
-incele
 inceleme
 incelemede
 incelemesi
@@ -1904,7 +1878,6 @@ initialized
 initializer
 initials
 injected
-injection
 inline
 input
 inputs
@@ -2007,7 +1980,6 @@ its
 iyi
 iyile
 iyimser
-iyisini
 iyor
 izgi
 izgileri
@@ -2058,7 +2030,6 @@ kampanya
 kampanyalar
 kan
 kanal
-kanala
 kanali
 kanallar
 kanit
@@ -2114,7 +2085,6 @@ kay
 kayb
 kaybelen
 kaybolan
-kaybolma
 kayboluyor
 kayd
 kayda
@@ -2125,6 +2095,7 @@ kayna
 kaynak
 kaynaklar
 kazan
+kazanabilece
 keep
 keeps
 kenar
@@ -2174,7 +2145,6 @@ kiti
 kitleye
 klama
 klar
-klavye
 kleme
 klemeler
 klemelerinde
@@ -2200,7 +2170,6 @@ konfigi
 konsol
 konsolu
 konsolunda
-kontratlar
 kontrol
 kontrolc
 kontroller
@@ -2504,7 +2473,6 @@ matrisi
 matrix
 max
 maximize
-maya
 maybe
 maz
 mazl
@@ -2526,7 +2494,6 @@ mekanizmas
 meleme
 meler
 meleri
-meli
 member
 members
 membership
@@ -2552,6 +2519,7 @@ mesajlar
 mesi
 mesine
 message
+messagelist
 messages
 messaging
 meta
@@ -2591,7 +2559,6 @@ migrations
 milestone
 millis
 mimari
-mimarinin
 mimarisi
 mime
 min
@@ -2603,14 +2570,12 @@ minor
 mint
 minutes
 mirror
-misconfiguration
 misi
 misin
 mismatch
 missed
 missing
 missingsecret
-mission
 mix
 miyiz
 mjs
@@ -2649,7 +2614,6 @@ modern
 modernizasyon
 modernizasyonu
 modernization
-modernle
 modes
 modifiers
 mods
@@ -2671,7 +2635,6 @@ mounted
 mounting
 mouse
 move
-msg
 msvc
 multi
 multipart
@@ -2731,7 +2694,6 @@ ndaki
 ndal
 ndan
 nde
-ndeki
 nden
 nder
 nderim
@@ -2739,7 +2701,6 @@ ndermiyor
 ndirme
 near
 neden
-nedeni
 nedenleri
 nedir
 needs
@@ -2782,7 +2743,6 @@ nine
 ninja
 nizleme
 nizlemesi
-nizleyici
 nla
 nlama
 nlendiririz
@@ -2809,7 +2769,6 @@ normal
 normalization
 normalize
 normalized
-normu
 not
 note
 notes
@@ -2959,12 +2918,10 @@ otomatik
 otomatikle
 oturum
 oturumlar
-oturumun
 otuz
 out
 outbox
 outcome
-outdated
 outfit
 outgoing
 output
@@ -3098,7 +3055,6 @@ person
 phanesi
 phase
 phases
-pheli
 phone
 photo
 phrase
@@ -3123,7 +3079,6 @@ plain
 plaintext
 plan
 planda
-plandan
 plane
 planinin
 planlar
@@ -3213,10 +3168,8 @@ previews
 previous
 prewarm
 primary
-primitifleri
 primitive
 primitives
-principles
 prior
 priorities
 priority
@@ -3249,6 +3202,7 @@ proje
 project
 projection
 projects
+projedeki
 projeksiyonunu
 projeler
 projelerini
@@ -3266,7 +3220,6 @@ prompts
 promptu
 promptun
 promptuna
-promptunun
 proof
 properties
 property
@@ -3303,7 +3256,6 @@ publisher
 publishing
 pull
 pulse
-punto
 pure
 purge
 purpose
@@ -3347,7 +3299,6 @@ rank
 rapor
 rapora
 raporcuya
-raporda
 rapordan
 raporlama
 raporlar
@@ -3362,7 +3313,6 @@ rating
 ratio
 rationale
 raw
-rayla
 rda
 rdan
 rde
@@ -3510,7 +3460,6 @@ replica
 replies
 reply
 repo
-repoda
 repoint
 report
 reported
@@ -3532,6 +3481,7 @@ reserve
 reserved
 reset
 resettable
+residual
 resilience
 resizable
 resize
@@ -3575,11 +3525,12 @@ returned
 returning
 reusable
 rev
+revalidate
+revalidation
 revamp
 reversible
 revi
 review
-reviewer
 revin
 revision
 revisions
@@ -3655,7 +3606,9 @@ row
 rows
 rozet
 rozeti
+rozetl
 rozetler
+rozetleri
 rozetlerim
 rozetlerin
 rsc
@@ -3664,7 +3617,6 @@ rtc
 rtl
 rtp
 rubber
-rula
 rulama
 rulamas
 rulan
@@ -3692,7 +3644,6 @@ ruyor
 saat
 saatlik
 sabit
-sabitleme
 sabitlenir
 sabitlenmi
 sabitler
@@ -3720,7 +3671,6 @@ sanitize
 sans
 sapma
 sapmalar
-sapman
 sarp
 sat
 save
@@ -3794,7 +3744,6 @@ seferinde
 segment
 segments
 sekme
-sekmeleri
 sekmesini
 select
 selected
@@ -3963,7 +3912,6 @@ social
 socket
 sockets
 soft
-software
 sohbet
 sohbeti
 sohbetler
@@ -4010,12 +3958,10 @@ spark
 spawn
 speaking
 spec
-specific
 specifiers
 specify
 specs
 speed
-spesifikasyonu
 spike
 spinner
 splash
@@ -4065,7 +4011,6 @@ status
 statuses
 stay
 ste
-stekler
 stemci
 stenen
 step
@@ -4358,7 +4303,6 @@ tirmeliyiz
 tirmesinde
 title
 titles
-tla
 tlar
 tleri
 tls
@@ -4390,7 +4334,6 @@ topic
 topics
 topla
 toplamda
-toplayarak
 toplu
 topluluk
 topolojisi
@@ -4589,7 +4532,6 @@ uygula
 uygulama
 uygulamada
 uygulamadaki
-uygulamadan
 uygulamalar
 uygulamalarda
 uygulaman
@@ -4610,7 +4552,6 @@ uyulmazsa
 uyum
 uyumlulu
 uyumluluk
-uyumu
 uzla
 uzun
 vaka
@@ -4620,6 +4561,8 @@ valid
 validate
 validated
 validation
+validator
+validity
 valkey
 value
 values
@@ -4632,9 +4575,7 @@ variants
 varl
 vars
 varsay
-varsayma
 varyant
-vde
 vdesinde
 vec
 vector
@@ -4655,7 +4596,6 @@ verify
 veriler
 verimli
 verir
-verirsen
 verisi
 veritaban
 veritabani
@@ -4693,7 +4633,6 @@ volume
 volumes
 vote
 vulnerability
-vulnerable
 wait
 waits
 walk
@@ -4812,16 +4751,13 @@ yaz
 yazar
 yazarken
 yazma
-yazmadan
 yazmalar
 year
 yedi
 yelik
-yen
 yeni
 yeniden
 yenileme
-yenilemesi
 yenilik
 yenilikler
 yenin
@@ -4891,11 +4827,8 @@ zeltmesi
 zeltmeyi
 zem
 zemini
-zen
 zeni
-zenle
 zenleme
-zenlendi
 zenleyici
 zer
 zere

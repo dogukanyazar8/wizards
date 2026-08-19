@@ -1,5 +1,8 @@
 import { prisma } from "@wizards/db";
 import type { AuthSessionsResponse } from "@wizards/types";
+import { logError } from "@/lib/logger";
+import { isDurableAuthSessionActive } from "@/lib/auth/session-revocation";
+import { disconnectAuthSessionSockets } from "@/lib/socket/runtime";
 
 export type AuthSessionClientType = "WEB" | "DESKTOP" | "MOBILE" | "UNKNOWN";
 export type AuthSessionDeviceType = "DESKTOP" | "MOBILE" | "TABLET" | "UNKNOWN";
@@ -177,31 +180,62 @@ export async function isAuthSessionActive(
 ): Promise<boolean | null> {
   const row = await (options.store ?? prismaAuthSessionStore).find(sessionId);
   if (!row) return null;
-  return (
-    row.userId === userId && row.revokedAt === null && row.expiresAt > (options.now ?? new Date())
+  return isDurableAuthSessionActive(row, userId, options.now ?? new Date());
+}
+
+type AuthSessionRevocationOptions = {
+  disconnectSockets?: (sessionId: string) => Promise<void> | void;
+  now?: Date;
+  store?: AuthSessionStore;
+};
+
+async function notifyRevokedAuthSessions(
+  sessions: AuthSessionRecord[],
+  disconnectSockets: (sessionId: string) => Promise<void> | void,
+) {
+  await Promise.all(
+    sessions.map(async ({ id }) => {
+      try {
+        await disconnectSockets(id);
+      } catch (error) {
+        logError(`[auth] Failed to disconnect revoked session ${id}`, error);
+      }
+    }),
   );
 }
 
-export function revokeAuthSession(
+export async function revokeAuthSession(
   userId: string,
   sessionId: string,
-  options: { now?: Date; store?: AuthSessionStore } = {},
+  options: AuthSessionRevocationOptions = {},
 ) {
-  return (options.store ?? prismaAuthSessionStore).revoke(
+  const revokedSession = await (options.store ?? prismaAuthSessionStore).revoke(
     sessionId,
     userId,
     options.now ?? new Date(),
   );
+  if (revokedSession) {
+    await notifyRevokedAuthSessions(
+      [revokedSession],
+      options.disconnectSockets ?? disconnectAuthSessionSockets,
+    );
+  }
+  return revokedSession;
 }
 
-export function revokeOtherAuthSessions(
+export async function revokeOtherAuthSessions(
   userId: string,
   currentSessionId: string,
-  options: { now?: Date; store?: AuthSessionStore } = {},
+  options: AuthSessionRevocationOptions = {},
 ) {
-  return (options.store ?? prismaAuthSessionStore).revokeOthers(
+  const revokedSessions = await (options.store ?? prismaAuthSessionStore).revokeOthers(
     userId,
     currentSessionId,
     options.now ?? new Date(),
   );
+  await notifyRevokedAuthSessions(
+    revokedSessions,
+    options.disconnectSockets ?? disconnectAuthSessionSockets,
+  );
+  return revokedSessions;
 }

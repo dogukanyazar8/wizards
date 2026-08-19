@@ -244,7 +244,7 @@ Hiçbir sayı düşmedi.
 8. **Jest worker sızıntısı kod tabanında duruyor ve Faz 5'e ait değil.** `npx jest` tam süiti "A worker process has failed to exit gracefully" uyarısı veriyor. Kök neden `useMobileWorkspaceQuery`'nin 1 günlük `gcTime`'ı: toplanmayan sorgu gerçek bir `setTimeout` bırakıyor. Doğrulandı — `npx jest component-tests/mobile-server-management.test.tsx` (bu fazın dokunmadığı, önceden var olan süit) tek başına "Jest did not exit" diyor. Faz 5'in iki yeni süiti `QueryClient.clear()` ile temiz çıkıyor; aynı kalıp diğer süitlere de uygulanmalı. Süit sayısı, test sayısı ve exit code etkilenmiyor.
 9. **`graphify update .` Windows dosya kilidine takılıyor** (Faz 1 §6.7 duruyor): arka plandaki `graphify watch` `graph.json`'ı tutuyor, komut 2-3 denemede bir geçiyor.
 10. **Faz 3-4'ün duran borçları** (tsvector `english`, sunucu geneli arama sayfalanmıyor, haftalık sayım ham `Message` üzerinden, kategori sürükle-bırak yok, sahibe "önce sahipliği devret" uyarısı yok, `mutedUntil` yazılmıyor) bu fazda kapanmadı.
-11. **`.railway-config-pull-29632/`** çalışma ağacında duruyor (Faz 4 §8.8).
+11. **Çözüldü (2026-08-18):** Faz 4 §8.8'de belirtilen `.railway-config-pull-29632/` çalışma ağacından kaldırıldı.
 
 ---
 

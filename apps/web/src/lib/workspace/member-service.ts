@@ -2,6 +2,8 @@ import { ChannelType, MessageType, prisma } from "@wizards/db";
 import type { AddServerMemberInput, UpdateWorkspaceMemberRolesInput } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
+import { advanceMemberAuthorizationRevision } from "@/lib/workspace/authorization-revision";
+import { publishCommittedAuthorizationRevision } from "@/lib/workspace/authorization-revision-publication";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import { sendMobilePushForNotifications } from "@/lib/mobile/push-sender";
 import { getSocketServer } from "@/lib/socket/runtime";
@@ -15,7 +17,6 @@ import {
 } from "@/lib/workspace/access-context";
 import { getMessageById } from "@/lib/workspace/message-service";
 import { writeWorkspaceAuditLog } from "@/lib/workspace/audit-log";
-import { invalidateMemberPermissionCache } from "@/lib/workspace/permission-cache";
 import {
   decrementServerMemberCount,
   incrementServerMemberCount,
@@ -156,7 +157,7 @@ export async function updateWorkspaceMemberRoles(
   );
   const addedRoles = requestedMutableRoles.filter((role) => addedRoleIds.includes(role.id));
 
-  await prisma.$transaction(async (tx) => {
+  const authorizationRevision = await prisma.$transaction(async (tx) => {
     await tx.memberRole.deleteMany({
       where: {
         memberId,
@@ -184,9 +185,10 @@ export async function updateWorkspaceMemberRoles(
       targetId: member.userId,
       targetType: "USER",
     });
+    return advanceMemberAuthorizationRevision(tx, serverId, member.userId);
   });
 
-  await invalidateMemberPermissionCache(serverId, member.userId);
+  await publishCommittedAuthorizationRevision(authorizationRevision);
 
   const io = getSocketServer();
   io?.to(`server:${serverId}`).emit("server:settings:updated", {
@@ -247,7 +249,7 @@ export async function leaveWorkspaceServer(userId: string, serverId: string) {
     throw new ApiError("Transfer ownership or delete the server instead", 400);
   }
 
-  await prisma.$transaction(async (tx) => {
+  const authorizationRevision = await prisma.$transaction(async (tx) => {
     await tx.serverMember.delete({
       where: {
         userId_serverId: {
@@ -257,10 +259,11 @@ export async function leaveWorkspaceServer(userId: string, serverId: string) {
       },
     });
     await decrementServerMemberCount(tx, serverId);
+    return advanceMemberAuthorizationRevision(tx, serverId, userId);
   });
 
   await Promise.all([
-    invalidateMemberPermissionCache(serverId, userId),
+    publishCommittedAuthorizationRevision(authorizationRevision),
     invalidateServerRoomIdsCache(userId),
   ]);
 
@@ -486,7 +489,13 @@ export async function addWorkspaceServerMemberByUsername(
       },
     });
 
+    const authorizationRevision = await advanceMemberAuthorizationRevision(
+      tx,
+      serverId,
+      targetUser.id,
+    );
     return {
+      authorizationRevision,
       message: systemMessage,
       notification,
       targetChannelId,
@@ -494,7 +503,7 @@ export async function addWorkspaceServerMemberByUsername(
   });
 
   await Promise.all([
-    invalidateMemberPermissionCache(serverId, targetUser.id),
+    publishCommittedAuthorizationRevision(result.authorizationRevision),
     invalidateServerRoomIdsCache(targetUser.id),
   ]);
 
@@ -622,22 +631,27 @@ export async function kickWorkspaceMember(userId: string, serverId: string, memb
         targetId: currentMember.userId,
         targetType: "USER",
       });
-      return currentMember;
+      const authorizationRevision = await advanceMemberAuthorizationRevision(
+        tx,
+        serverId,
+        currentMember.userId,
+      );
+      return { authorizationRevision, member: currentMember };
     },
     { isolationLevel: "Serializable" },
   );
 
   await Promise.all([
-    invalidateMemberPermissionCache(serverId, kickedMember.userId),
-    invalidateServerRoomIdsCache(kickedMember.userId),
+    publishCommittedAuthorizationRevision(kickedMember.authorizationRevision),
+    invalidateServerRoomIdsCache(kickedMember.member.userId),
   ]);
 
-  const io = await detachUserFromServerSocketRoom(kickedMember.userId, serverId);
+  const io = await detachUserFromServerSocketRoom(kickedMember.member.userId, serverId);
   io?.to(`server:${serverId}`).emit("server:settings:updated", { serverId });
-  io?.to(`user:${kickedMember.userId}`).emit("server:membership:removed", {
+  io?.to(`user:${kickedMember.member.userId}`).emit("server:membership:removed", {
     reason: "kicked",
     serverId,
   });
-  io?.to(`user:${kickedMember.userId}`).emit("server:settings:updated", { serverId });
+  io?.to(`user:${kickedMember.member.userId}`).emit("server:settings:updated", { serverId });
   await emitServerUnreadUpdatesForServer(serverId);
 }

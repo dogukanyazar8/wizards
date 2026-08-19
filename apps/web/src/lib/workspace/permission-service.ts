@@ -2,13 +2,17 @@ import { prisma } from "@wizards/db";
 import type { ChannelType } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import {
+  authorizationRevisionsEqual,
+  readAuthorizationRevisionsForUserAcrossServers,
+  readServerAuthorizationRevisions,
+  type AuthorizationRevision,
+} from "@/lib/workspace/authorization-revision";
+import {
   readCachedChannelPermissionSnapshot,
   readCachedChannelPermissionSnapshots,
   readCachedVisibleChannelIds,
   readCachedVisibleChannelIdsBatch,
   readCachedVisibleChannelIdsByServerBatch,
-  samplePermissionCacheRevisions,
-  samplePermissionCacheRevisionsForUsers,
   writeCachedChannelPermissionSnapshot,
   writeCachedChannelPermissionSnapshots,
   writeCachedVisibleChannelIds,
@@ -266,15 +270,24 @@ export async function getChannelPermissionContext(
   userId: string,
   channelId: string,
   options: {
+    revisions?: AuthorizationRevision;
+    serverId?: string;
     requiredServerId?: string;
     requiredType?: ChannelType;
   } = {},
 ) {
-  const serverId = await getChannelPermissionServerId(channelId);
+  const serverId = options.serverId ?? (await getChannelPermissionServerId(channelId));
 
   // Sample before reading overrides and membership roles. Otherwise a
   // concurrent revocation can be cached under the revision that revoked it.
-  const revisions = await samplePermissionCacheRevisions(serverId, userId);
+  const revisions =
+    options.revisions ??
+    (
+      await readServerAuthorizationRevisions(prisma as never, serverId, [userId])
+    ).revisionsByUser.get(userId);
+  if (!revisions) {
+    throw new ApiError("Channel not found", 404, "CHANNEL_NOT_FOUND");
+  }
   const channel = await prisma.channel.findUnique({
     where: { id: channelId },
     select: {
@@ -371,7 +384,16 @@ export async function requireChannelPermissionForUser(
     respectLocked?: boolean;
   } = {},
 ) {
-  const cacheReadOptions = getPermissionCacheReadOptions(permission, options.cacheMaxAgeSeconds);
+  const serverId = await getChannelPermissionServerId(channelId);
+  const revisionRead = await readServerAuthorizationRevisions(prisma as never, serverId, [userId]);
+  const revisions = revisionRead.revisionsByUser.get(userId);
+  if (!revisionRead.serverExists || !revisions) {
+    throw new ApiError("Channel not found", 404, "CHANNEL_NOT_FOUND");
+  }
+  const cacheReadOptions = {
+    ...getPermissionCacheReadOptions(permission, options.cacheMaxAgeSeconds),
+    revisionsByUser: revisionRead.revisionsByUser,
+  };
   const cachedSnapshot = await readCachedChannelPermissionSnapshot(
     userId,
     channelId,
@@ -387,18 +409,23 @@ export async function requireChannelPermissionForUser(
     };
   }
 
-  const contextOptions: { requiredServerId?: string; requiredType?: ChannelType } = {};
+  const contextOptions: {
+    requiredServerId?: string;
+    requiredType?: ChannelType;
+    revisions: AuthorizationRevision;
+    serverId: string;
+  } = { revisions, serverId };
   if (options.requiredServerId !== undefined) {
     contextOptions.requiredServerId = options.requiredServerId;
   }
   if (options.requiredType !== undefined) {
     contextOptions.requiredType = options.requiredType;
   }
-  const { channel, context, revisions } = await getChannelPermissionContext(
-    userId,
-    channelId,
-    contextOptions,
-  );
+  const {
+    channel,
+    context,
+    revisions: resolvedRevisions,
+  } = await getChannelPermissionContext(userId, channelId, contextOptions);
 
   let permissions: bigint;
   try {
@@ -426,12 +453,17 @@ export async function requireChannelPermissionForUser(
     );
   }
 
-  await writeCachedChannelPermissionSnapshot({
-    channelId,
-    revisions,
-    snapshot: createChannelPermissionSnapshot({ channel, context, permissions }),
-    userId,
-  });
+  const currentRevisions = (
+    await readServerAuthorizationRevisions(prisma as never, channel.serverId, [userId])
+  ).revisionsByUser.get(userId);
+  if (authorizationRevisionsEqual(resolvedRevisions, currentRevisions)) {
+    await writeCachedChannelPermissionSnapshot({
+      channelId,
+      revisions: resolvedRevisions,
+      snapshot: createChannelPermissionSnapshot({ channel, context, permissions }),
+      userId,
+    });
+  }
 
   return {
     channel,
@@ -520,8 +552,20 @@ export async function filterUserIdsByChannelPermission(
     return [];
   }
 
+  const serverId = await getChannelPermissionServerId(channelId);
+  const sampledRevisionRead = await readServerAuthorizationRevisions(
+    prisma as never,
+    serverId,
+    uniqueUserIds,
+  );
+  if (!sampledRevisionRead.serverExists) {
+    return [];
+  }
   const allowedUserIds = new Set<string>();
-  const cacheReadOptions = getPermissionCacheReadOptions(permission, options.cacheMaxAgeSeconds);
+  const cacheReadOptions = {
+    ...getPermissionCacheReadOptions(permission, options.cacheMaxAgeSeconds),
+    revisionsByUser: sampledRevisionRead.revisionsByUser,
+  };
   const uncachedUserIds: string[] = [];
 
   for (const batchUserIds of chunkChannelPermissionUserIds(uniqueUserIds)) {
@@ -547,10 +591,7 @@ export async function filterUserIdsByChannelPermission(
     return uniqueUserIds.filter((userId) => allowedUserIds.has(userId));
   }
 
-  const serverId = await getChannelPermissionServerId(channelId);
-  // Sample every uncached member before reading channel/default roles or member
-  // roles; batch fanout must obey the same revocation ordering as single-user checks.
-  const sampledRevisions = await samplePermissionCacheRevisionsForUsers(serverId, uncachedUserIds);
+  const sampledRevisions = sampledRevisionRead.revisionsByUser;
   const channel = await getChannelPermissionTarget(channelId);
   if (channel.serverId !== serverId) {
     throw new ApiError(
@@ -590,7 +631,7 @@ export async function filterUserIdsByChannelPermission(
     const bannedUserIds = new Set(bans.map((ban) => ban.userId));
     const snapshotsToCache: Array<{
       channelId: string;
-      revisions: Awaited<ReturnType<typeof samplePermissionCacheRevisions>>;
+      revisions: AuthorizationRevision;
       snapshot: CachedChannelPermissionSnapshot;
       userId: string;
     }> = [];
@@ -644,7 +685,14 @@ export async function filterUserIdsByChannelPermission(
       }
     }
 
-    await writeCachedChannelPermissionSnapshots(snapshotsToCache);
+    const currentRevisions = (
+      await readServerAuthorizationRevisions(prisma as never, serverId, batchUserIds)
+    ).revisionsByUser;
+    await writeCachedChannelPermissionSnapshots(
+      snapshotsToCache.filter((entry) =>
+        authorizationRevisionsEqual(entry.revisions, currentRevisions.get(entry.userId)),
+      ),
+    );
   }
 
   return uniqueUserIds.filter((userId) => allowedUserIds.has(userId));
@@ -683,9 +731,18 @@ export async function listChannelIdsForUsersWithPermission(
     return channelIdsByUser;
   }
 
+  const sampledRevisionRead = await readServerAuthorizationRevisions(
+    prisma as never,
+    serverId,
+    uniqueUserIds,
+  );
+  if (!sampledRevisionRead.serverExists) {
+    return channelIdsByUser;
+  }
   const cachedChannelIdsByUser = await readCachedVisibleChannelIdsBatch({
     ...getPermissionCacheReadOptions(permission),
     permission,
+    revisionsByUser: sampledRevisionRead.revisionsByUser,
     serverId,
     userIds: uniqueUserIds,
     ...(type !== undefined ? { type } : {}),
@@ -757,6 +814,7 @@ export async function listChannelIdsForUsersWithPermission(
   const cacheEntries: Array<{
     channelIds: string[];
     permission: PermissionKey | PermissionValue;
+    revisions: AuthorizationRevision;
     serverId: string;
     type?: ChannelType;
     userId: string;
@@ -792,13 +850,21 @@ export async function listChannelIdsForUsersWithPermission(
     cacheEntries.push({
       channelIds,
       permission,
+      revisions: sampledRevisionRead.revisionsByUser.get(membership.userId)!,
       serverId,
       userId: membership.userId,
       ...(type !== undefined ? { type } : {}),
     });
   }
 
-  await writeCachedVisibleChannelIdsBatch(cacheEntries);
+  const currentRevisions = (
+    await readServerAuthorizationRevisions(prisma as never, serverId, uncachedUserIds)
+  ).revisionsByUser;
+  await writeCachedVisibleChannelIdsBatch(
+    cacheEntries.filter((entry) =>
+      authorizationRevisionsEqual(entry.revisions, currentRevisions.get(entry.userId)),
+    ),
+  );
 
   return channelIdsByUser;
 }
@@ -809,9 +875,17 @@ export async function listChannelIdsForUserWithPermission(
   permission: PermissionKey | PermissionValue = PermissionBits.VIEW_CHANNEL,
   type?: ChannelType,
 ) {
+  const sampledRevisionRead = await readServerAuthorizationRevisions(prisma as never, serverId, [
+    userId,
+  ]);
+  const sampledRevisions = sampledRevisionRead.revisionsByUser.get(userId);
+  if (!sampledRevisionRead.serverExists || !sampledRevisions) {
+    return [];
+  }
   const cacheKeyArgs = {
     ...getPermissionCacheReadOptions(permission),
     permission,
+    revisions: sampledRevisions,
     serverId,
     userId,
     ...(type !== undefined ? { type } : {}),
@@ -848,13 +922,19 @@ export async function listChannelIdsForUserWithPermission(
     )
     .map((channel) => channel.id);
 
-  await writeCachedVisibleChannelIds({
-    channelIds,
-    permission,
-    serverId,
-    userId,
-    ...(type !== undefined ? { type } : {}),
-  });
+  const currentRevisions = (
+    await readServerAuthorizationRevisions(prisma as never, serverId, [userId])
+  ).revisionsByUser.get(userId);
+  if (authorizationRevisionsEqual(sampledRevisions, currentRevisions)) {
+    await writeCachedVisibleChannelIds({
+      channelIds,
+      permission,
+      revisions: sampledRevisions,
+      serverId,
+      userId,
+      ...(type !== undefined ? { type } : {}),
+    });
+  }
 
   return channelIds;
 }
@@ -873,12 +953,18 @@ export async function listChannelIdsByServerForUserWithPermission(
     return channelIdsByServer;
   }
 
+  const sampledRevisionsByServer = await readAuthorizationRevisionsForUserAcrossServers(
+    prisma as never,
+    uniqueServerIds,
+    userId,
+  );
   // Cold bootstrap can contain 50 servers. Read every visibility key and both
   // revision families in batched Redis commands instead of one command set per
   // server.
   const cachedChannelIdsByServer = await readCachedVisibleChannelIdsByServerBatch({
     ...getPermissionCacheReadOptions(permission),
     permission,
+    revisionsByServer: sampledRevisionsByServer,
     serverIds: uniqueServerIds,
     userId,
     ...(type !== undefined ? { type } : {}),
@@ -976,6 +1062,7 @@ export async function listChannelIdsByServerForUserWithPermission(
   const cacheEntries: Array<{
     channelIds: string[];
     permission: PermissionKey | PermissionValue;
+    revisions: AuthorizationRevision;
     serverId: string;
     type?: ChannelType;
     userId: string;
@@ -1012,13 +1099,23 @@ export async function listChannelIdsByServerForUserWithPermission(
     cacheEntries.push({
       channelIds,
       permission,
+      revisions: sampledRevisionsByServer.get(serverId)!,
       serverId,
       userId,
       ...(type !== undefined ? { type } : {}),
     });
   }
 
-  await writeCachedVisibleChannelIdsBatch(cacheEntries);
+  const currentRevisionsByServer = await readAuthorizationRevisionsForUserAcrossServers(
+    prisma as never,
+    uncachedServerIds,
+    userId,
+  );
+  await writeCachedVisibleChannelIdsBatch(
+    cacheEntries.filter((entry) =>
+      authorizationRevisionsEqual(entry.revisions, currentRevisionsByServer.get(entry.serverId)),
+    ),
+  );
 
   return channelIdsByServer;
 }

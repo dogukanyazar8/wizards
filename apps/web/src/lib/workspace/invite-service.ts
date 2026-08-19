@@ -22,13 +22,14 @@ import {
   getAccessContext,
 } from "@/lib/workspace/access-context";
 import { generateInviteCode } from "@/lib/workspace/invite-code";
+import { advanceMemberAuthorizationRevision } from "@/lib/workspace/authorization-revision";
+import { publishCommittedAuthorizationRevision } from "@/lib/workspace/authorization-revision-publication";
 import {
   isLiveInvite,
   selectActiveLinkInvite,
   toMobileServerInvite,
 } from "@/lib/workspace/invite-selection";
 import { getMessageById } from "@/lib/workspace/message-service";
-import { invalidateMemberPermissionCache } from "@/lib/workspace/permission-cache";
 import {
   emitServerUnreadUpdatesForServer,
   getActiveChannelViewerUserIds,
@@ -619,6 +620,7 @@ type ServerMembershipCreationMessage = {
 };
 
 type ServerMembershipCreationResult = {
+  authorizationRevision: Awaited<ReturnType<typeof advanceMemberAuthorizationRevision>>;
   message: ServerMembershipCreationMessage | null;
 };
 
@@ -680,7 +682,14 @@ async function createServerMembership(
     null;
 
   if (!targetChannelId) {
-    return { message: null };
+    return {
+      authorizationRevision: await advanceMemberAuthorizationRevision(
+        tx,
+        input.serverId,
+        input.userId,
+      ),
+      message: null,
+    };
   }
 
   const message = await tx.message.create({
@@ -693,6 +702,11 @@ async function createServerMembership(
   });
 
   return {
+    authorizationRevision: await advanceMemberAuthorizationRevision(
+      tx,
+      input.serverId,
+      input.userId,
+    ),
     message: {
       channelId: targetChannelId,
       createdAt: message.createdAt,
@@ -713,10 +727,11 @@ async function createServerMembership(
 async function finishServerMembershipCreation(
   serverId: string,
   userId: string,
+  authorizationRevision: Awaited<ReturnType<typeof advanceMemberAuthorizationRevision>>,
   message: ServerMembershipCreationMessage | null,
 ): Promise<void> {
   await Promise.all([
-    invalidateMemberPermissionCache(serverId, userId),
+    publishCommittedAuthorizationRevision(authorizationRevision),
     invalidateServerRoomIdsCache(userId),
   ]);
 
@@ -893,7 +908,12 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
       });
     });
 
-    await finishServerMembershipCreation(invite.server.id, userId, transactionResult.message);
+    await finishServerMembershipCreation(
+      invite.server.id,
+      userId,
+      transactionResult.authorizationRevision,
+      transactionResult.message,
+    );
 
     // Outside the transaction on purpose: the join is already committed, and a
     // badge counter must never be able to roll it back or hold it open.
@@ -1067,7 +1087,12 @@ export async function joinPublicWorkspaceServer(
     throw error;
   }
 
-  await finishServerMembershipCreation(serverId, userId, transactionResult.message);
+  await finishServerMembershipCreation(
+    serverId,
+    userId,
+    transactionResult.authorizationRevision,
+    transactionResult.message,
+  );
 
   return { alreadyMember: false, serverId };
 }

@@ -29,6 +29,9 @@ blob-report
 # Graphify local cache; keep the main graphify-out reports tracked separately.
 graphify-out/cache/
 
+# Graphify dated backup snapshots are local and reproducible; keep only current outputs tracked.
+/graphify-out/20??-??-??/
+
 # TypeScript incremental build output
 *.tsbuildinfo
 
@@ -39,17 +42,7 @@ apps/mobile/artifacts/
 /design_handoff_whispr_mobile/
 
 # Local cross-platform verification evidence
-/artifacts/
 results.sarif
-!/artifacts/
-/artifacts/*
-!/artifacts/redesign/
-!/artifacts/redesign/**/
-/artifacts/redesign/**/*.*
-!/artifacts/redesign/**/*-light.png
-!/artifacts/redesign/**/*-dark.png
-!/artifacts/redesign/**/*-light-manifest.json
-!/artifacts/redesign/**/*-dark-manifest.json
 
 target
 apps/desktop/.tauri

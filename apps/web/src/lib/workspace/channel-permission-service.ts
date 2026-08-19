@@ -5,18 +5,16 @@ import type {
 } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
+import { advanceServerAuthorizationRevision } from "@/lib/workspace/authorization-revision";
+import { publishCommittedAuthorizationRevision } from "@/lib/workspace/authorization-revision-publication";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { disconnectUnauthorizedVoiceParticipants } from "@/lib/voice/service";
-import {
-  ensureServerPermission,
-  getAccessContext,
-} from "@/lib/workspace/access-context";
+import { ensureServerPermission, getAccessContext } from "@/lib/workspace/access-context";
 import {
   applyChannelPermissionMutation,
   inferChannelPermissionSettings,
   prepareChannelPermissionMutation,
 } from "@/lib/workspace/channel-permission-logic";
-import { invalidateServerPermissionCache } from "@/lib/workspace/permission-cache";
 import { PermissionBits } from "@/lib/workspace/permissions";
 
 export async function getWorkspaceChannelPermissionSettings(
@@ -125,7 +123,7 @@ export async function updateWorkspaceChannelPermissions(
     (override) => override.targetType === "ROLE",
   );
 
-  await prisma.$transaction(async (tx) => {
+  const authorizationRevision = await prisma.$transaction(async (tx) => {
     await tx.channel.update({
       data: {
         locked: permissionMutation.nextLocked,
@@ -142,9 +140,10 @@ export async function updateWorkspaceChannelPermissions(
       existingRoleOverrides,
       presetPermissions: permissionMutation.presetPermissions,
     });
+    return advanceServerAuthorizationRevision(tx, channel.serverId!);
   });
 
-  await invalidateServerPermissionCache(channel.serverId);
+  await publishCommittedAuthorizationRevision(authorizationRevision);
 
   if (channel.type === ChannelType.VOICE) {
     await disconnectUnauthorizedVoiceParticipants(channelId);

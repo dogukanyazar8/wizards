@@ -231,7 +231,7 @@ export interface ServerToClientEvents {
     unreadCount: number;
   }) => void;
   "server:membership:removed": (data: {
-    reason: "deleted" | "kicked" | "left";
+    reason: "banned" | "deleted" | "kicked" | "left";
     serverId: string;
   }) => void;
   "server:membership:added": (data: { serverId: string }) => void;
@@ -393,6 +393,9 @@ export interface InterServerEvents {
 }
 
 export interface SocketData {
+  authSessionClientType?: "MOBILE" | "WEB";
+  authSessionId?: string;
+  authSessionStartedAtSeconds?: number;
   userId: string;
   username: string;
   displayName: string;

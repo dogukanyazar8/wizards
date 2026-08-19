@@ -10,6 +10,8 @@ import {
 import { getAnalyticsClientInfo } from "@/lib/analytics/client-info";
 import { resolveVerifiedAttribution } from "@/lib/analytics/client-attribution";
 import { getAuthSessionCookieConfig } from "@/lib/auth/session-cookies";
+import { isAuthSessionActive } from "@/lib/auth/auth-session-service";
+import { isUserSessionRevoked } from "@/lib/auth/session-revocation";
 import { logError } from "@/lib/logger";
 import {
   getBearerTokenFromHeaderValue,
@@ -19,6 +21,11 @@ import {
 import { sendOpenModerationCaseCountToUser } from "@/lib/moderation/case-count-broadcast";
 import { getRedisOp, getRedisRate } from "@/lib/redis";
 import { createHandlerContext } from "@/lib/socket/context";
+import {
+  authenticateMobileSocketToken,
+  authenticateWebSocketToken,
+  type SocketAuthUser,
+} from "@/lib/socket/authentication";
 import { registerSocketHandlers } from "@/lib/socket/handlers";
 import { markPresenceSocketActive } from "@/lib/socket/presence-helpers";
 import { createSocketServerWithRedisAdapter } from "@/lib/socket/redis-adapter";
@@ -30,6 +37,8 @@ import {
 import { readCachedServerRoomIds, writeCachedServerRoomIds } from "@/lib/socket/server-room-cache";
 import { setSocketServer } from "@/lib/socket/runtime";
 import { installSocketDrainHandlers } from "@/lib/socket/drain-signals";
+import { getAuthSessionSocketRoomName } from "@/lib/socket/rooms";
+import { installSocketSessionRevalidation } from "@/lib/socket/session-revalidation";
 import type { SocketData } from "./events";
 
 const SOCKET_MAX_HTTP_BUFFER_SIZE = 1_048_576;
@@ -139,18 +148,9 @@ export function getSocketMobileBearerToken(input: {
   return getBearerTokenFromHeaderValue(getFirstHeaderValue(input.authorizationHeader));
 }
 
-async function authenticateMobileSocketToken(rawToken: string) {
-  const claims = verifyMobileAccessToken(rawToken);
-  if (!claims?.scopes.includes("mobile:bootstrap")) {
-    return null;
-  }
-
-  if (!(await isMobileAccessSessionActive(claims))) {
-    return null;
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: claims.userId },
+async function loadSocketAuthUser(userId: string) {
+  return prisma.user.findUnique({
+    where: { id: userId },
     select: {
       customStatus: true,
       deletedAt: true,
@@ -158,36 +158,54 @@ async function authenticateMobileSocketToken(rawToken: string) {
       emailVerified: true,
       id: true,
       isBanned: true,
+      sessionsRevokedAfter: true,
       settings: { select: { presenceVisibility: true } },
       username: true,
     },
   });
-
-  return isActiveSocketAuthUser(user) ? user : null;
 }
 
-type SocketAuthUser = {
-  customStatus: string | null;
-  deletedAt: Date | null;
-  displayName: string | null;
-  emailVerified: Date | boolean | null;
-  id: string;
-  isBanned: boolean;
-  settings: { presenceVisibility: "EVERYONE" | "FRIENDS" | "NOBODY" } | null;
-  username: string;
-};
-
-function isActiveSocketAuthUser(user: SocketAuthUser | null | undefined): user is SocketAuthUser {
-  return Boolean(user && !user.deletedAt && !user.isBanned && user.emailVerified);
+async function loadSocketAuthSessions(sessionIds: string[]) {
+  return prisma.authSession.findMany({
+    select: {
+      createdAt: true,
+      expiresAt: true,
+      id: true,
+      revokedAt: true,
+      user: {
+        select: {
+          deletedAt: true,
+          id: true,
+          isBanned: true,
+          sessionsRevokedAfter: true,
+        },
+      },
+      userId: true,
+    },
+    where: { id: { in: sessionIds } },
+  });
 }
 
-function assignSocketUserData(socket: { data: SocketData }, user: SocketAuthUser) {
-  socket.data.userId = user.id;
-  socket.data.username = user.username;
-  socket.data.displayName = user.displayName ?? user.username;
-  socket.data.presenceCustomStatus = user.customStatus ?? null;
+function assignSocketUserData(
+  socket: { data: SocketData },
+  authentication: {
+    authSessionId: string;
+    authSessionStartedAtSeconds?: number;
+    clientType: "MOBILE" | "WEB";
+    user: SocketAuthUser;
+  },
+) {
+  socket.data.authSessionClientType = authentication.clientType;
+  socket.data.authSessionId = authentication.authSessionId;
+  if (authentication.authSessionStartedAtSeconds !== undefined) {
+    socket.data.authSessionStartedAtSeconds = authentication.authSessionStartedAtSeconds;
+  }
+  socket.data.userId = authentication.user.id;
+  socket.data.username = authentication.user.username;
+  socket.data.displayName = authentication.user.displayName ?? authentication.user.username;
+  socket.data.presenceCustomStatus = authentication.user.customStatus ?? null;
   socket.data.presenceStatus = "OFFLINE";
-  socket.data.presenceVisibility = user.settings?.presenceVisibility ?? "EVERYONE";
+  socket.data.presenceVisibility = authentication.user.settings?.presenceVisibility ?? "EVERYONE";
 }
 
 export function resolveSocketRequestOrigin(input: {
@@ -500,6 +518,10 @@ export function initSocketServer(httpServer: HTTPServer) {
   });
   setSocketServer(io);
   installSocketDrainHandlers(io);
+  const stopSessionRevalidation = installSocketSessionRevalidation(io, {
+    loadSessions: loadSocketAuthSessions,
+  });
+  httpServer.once("close", stopSessionRevalidation);
 
   io.use(async (socket, next) => {
     try {
@@ -509,12 +531,16 @@ export function initSocketServer(httpServer: HTTPServer) {
       });
 
       if (mobileBearerToken) {
-        const mobileUser = await authenticateMobileSocketToken(mobileBearerToken);
-        if (!mobileUser) {
+        const mobileAuthentication = await authenticateMobileSocketToken(mobileBearerToken, {
+          checkSession: isMobileAccessSessionActive,
+          loadUser: loadSocketAuthUser,
+          verifyToken: verifyMobileAccessToken,
+        });
+        if (!mobileAuthentication) {
           return next(new Error("Unauthorized"));
         }
 
-        assignSocketUserData(socket, mobileUser);
+        assignSocketUserData(socket, mobileAuthentication);
         next();
         return;
       }
@@ -540,29 +566,24 @@ export function initSocketServer(httpServer: HTTPServer) {
         secureCookie,
       });
 
-      if (!token?.id || typeof token.id !== "string") {
+      if (!token) {
         return next(new Error("Unauthorized"));
       }
 
-      const user = await prisma.user.findUnique({
-        where: { id: token.id },
-        select: {
-          customStatus: true,
-          deletedAt: true,
-          displayName: true,
-          emailVerified: true,
-          id: true,
-          isBanned: true,
-          settings: { select: { presenceVisibility: true } },
-          username: true,
-        },
+      const webAuthentication = await authenticateWebSocketToken(token, {
+        checkAuthSession: isAuthSessionActive,
+        checkGlobalRevocation: (userId, startedAtSeconds, loadUser) =>
+          isUserSessionRevoked(userId, startedAtSeconds, {
+            loadDurableRevokedAfter: async () => (await loadUser())?.sessionsRevokedAfter ?? null,
+          }),
+        loadUser: loadSocketAuthUser,
       });
 
-      if (!isActiveSocketAuthUser(user)) {
+      if (!webAuthentication) {
         return next(new Error("Unauthorized"));
       }
 
-      assignSocketUserData(socket, user);
+      assignSocketUserData(socket, webAuthentication);
       next();
     } catch {
       next(new Error("Unauthorized"));
@@ -575,6 +596,12 @@ export function initSocketServer(httpServer: HTTPServer) {
   io.on("connection", (socket) => {
     const ctx = createHandlerContext({ io, rateRedis, redis, socket });
     const userId = ctx.userId;
+    const authSessionId = socket.data.authSessionId;
+    if (!authSessionId) {
+      socket.disconnect(true);
+      return;
+    }
+    socket.join([`user:${userId}`, getAuthSessionSocketRoomName(authSessionId)]);
     const appSessionKey = `socket:${socket.id}`;
     const clientInfo = getAnalyticsClientInfo(
       mergeHandshakeAttribution(socket.handshake.headers, socket.handshake.auth),
@@ -609,7 +636,6 @@ export function initSocketServer(httpServer: HTTPServer) {
     socket.data.voiceStateViewerChannelsByServer = new Map<string, Set<string>>();
     socket.data.presenceCustomStatus = socket.data.presenceCustomStatus ?? null;
     socket.data.presenceStatus = socket.data.presenceStatus ?? "OFFLINE";
-    socket.join(`user:${userId}`);
     void (async () => {
       try {
         await joinServerRoomsForUser(socket, userId);

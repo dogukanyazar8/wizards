@@ -954,7 +954,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   );
   useEffect(() => {
     const handleServerMembershipRemoved = (data: {
-      reason: "deleted" | "kicked" | "left";
+      reason: "banned" | "deleted" | "kicked" | "left";
       serverId: string;
     }) => {
       removeServerAccess(data.serverId);

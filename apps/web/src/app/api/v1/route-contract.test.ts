@@ -117,6 +117,8 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "DELETE servers/[serverId]/invites/[inviteId]",
   "DELETE servers/[serverId]/categories/[categoryId]",
   "DELETE servers/[serverId]/members/[memberId]",
+  // The path identifies the exact server ban to remove; no body is accepted.
+  "DELETE servers/[serverId]/bans/[userId]",
   "DELETE servers/[serverId]/members/me",
   // Mobile twin: the session says who leaves, the path says which server.
   "DELETE mobile/servers/[serverId]/members/me",

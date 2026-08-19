@@ -310,4 +310,4 @@ sunucunun/tercihin kıpırdamaması, ve değişiklik yoksa **aynı bootstrap nes
 6. **Faz 3'ün 5 numaralı borcu duruyor:** arama açıkken filtre şeridi gizli (04 §A0.4).
 7. **Faz 5 uyarısı:** `mobile-servers-6c.test.tsx` `BottomSheet`'i mock'luyor; profil "⋯"
    menüsü aynı bileşeni kullanacaksa aynı mock kalıbı gerekir.
-8. **`.railway-config-pull-29632/`** çalışma ağacında duruyor (bu paketle ilgisi yok, temizlenmeli).
+8. **Çözüldü (2026-08-18):** Bu paketle ilgisiz `.railway-config-pull-29632/` çalışma ağacından kaldırıldı.

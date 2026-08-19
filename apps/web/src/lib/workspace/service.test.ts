@@ -57,6 +57,41 @@ function patchMethod(target: object, key: string, value: unknown, restores: Rest
   });
 }
 
+function withAuthorizationRevisionClient<T extends Record<string, unknown>>(tx: T): T {
+  const existingServer = (tx.server ?? {}) as Record<string, unknown>;
+  return {
+    ...tx,
+    outboxJob: {
+      upsert: async () => ({}),
+    },
+    server: {
+      ...existingServer,
+      findUnique: async (args?: unknown) => {
+        const select = (args as { select?: { authorizationRevision?: boolean } } | undefined)
+          ?.select;
+        if (select?.authorizationRevision) {
+          return { authorizationRevision: 0n, authorizationSubjectRevisions: [] };
+        }
+        const existing = existingServer.findUnique as
+          ((args?: unknown) => Promise<unknown>) | undefined;
+        return existing?.(args);
+      },
+      update: async (args?: unknown) => {
+        const data = (args as { data?: { authorizationRevision?: unknown } } | undefined)?.data;
+        if (data?.authorizationRevision) {
+          return { authorizationRevision: 1n };
+        }
+        const existing = existingServer.update as
+          ((args?: unknown) => Promise<unknown>) | undefined;
+        return existing?.(args);
+      },
+    },
+    serverAuthorizationSubjectRevision: {
+      upsert: async () => ({ revision: 1n }),
+    },
+  } as T;
+}
+
 async function withPatchedEnvironment(run: (restores: Restore[]) => Promise<void>) {
   const restores: Restore[] = [];
   const originalPermissionCacheEnabled = process.env.PERMISSION_CACHE_ENABLED;
@@ -100,6 +135,17 @@ async function withPatchedEnvironment(run: (restores: Restore[]) => Promise<void
 
 function createPermissionRedis(operations: string[]) {
   return {
+    eval: async (_script: string, keyCount: number, ...args: Array<number | string>) => {
+      const keys = args.slice(0, keyCount).map(String);
+      if (keys.some((key) => key.includes("permission:member:"))) {
+        operations.push("permission-cache.member");
+      } else if (keys.some((key) => key.includes("permission:server:"))) {
+        operations.push("permission-cache.server");
+      } else {
+        operations.push("permission-cache.write");
+      }
+      return 1;
+    },
     mget: async (...keys: string[]) => keys.map(() => null),
     pipeline() {
       const keys: string[] = [];
@@ -115,6 +161,10 @@ function createPermissionRedis(operations: string[]) {
           return [];
         },
         expire() {
+          return this;
+        },
+        eval() {
+          keys.push("permission-cache:atomic-write");
           return this;
         },
         incr(key: string) {
@@ -354,7 +404,9 @@ function setupMemberRoleMutation(
           },
         },
       };
-      return (work as (transaction: typeof tx) => Promise<unknown>)(tx);
+      return (work as (transaction: typeof tx) => Promise<unknown>)(
+        withAuthorizationRevisionClient(tx),
+      );
     },
     restores,
   );
@@ -1179,7 +1231,9 @@ describe("workspace service characterization", { concurrency: false }, () => {
               },
             },
           };
-          const result = await (callback as (transaction: typeof tx) => Promise<unknown>)(tx);
+          const result = await (callback as (transaction: typeof tx) => Promise<unknown>)(
+            withAuthorizationRevisionClient(tx),
+          );
           operations.push("transaction.commit");
           return result;
         },
@@ -1301,7 +1355,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
               },
             },
           };
-          const result = await callback(tx);
+          const result = await callback(withAuthorizationRevisionClient(tx));
           operations.push("transaction.commit");
           return result;
         },
@@ -1604,6 +1658,23 @@ describe("workspace service characterization", { concurrency: false }, () => {
         },
         restores,
       );
+      patchMethod(
+        prisma,
+        "$transaction",
+        async (callback: unknown) =>
+          (callback as (transaction: unknown) => Promise<unknown>)(
+            withAuthorizationRevisionClient({
+              $executeRaw: async () => 0,
+              server: {
+                update: async () => {
+                  operations.push("server.update");
+                  return {};
+                },
+              },
+            }),
+          ),
+        restores,
+      );
       patchMethod(prisma.server, "findUniqueOrThrow", async () => ({ type: "PERSONAL" }), restores);
       patchMethod(
         prisma.server,
@@ -1729,7 +1800,9 @@ describe("workspace service characterization", { concurrency: false }, () => {
               },
             },
           };
-          const result = await (callback as (transaction: typeof tx) => Promise<unknown>)(tx);
+          const result = await (callback as (transaction: typeof tx) => Promise<unknown>)(
+            withAuthorizationRevisionClient(tx),
+          );
           operations.push("transaction.commit");
           return result;
         },
@@ -1808,7 +1881,9 @@ describe("workspace service characterization", { concurrency: false }, () => {
               },
             },
           };
-          const result = await (callback as (transaction: typeof tx) => Promise<unknown>)(tx);
+          const result = await (callback as (transaction: typeof tx) => Promise<unknown>)(
+            withAuthorizationRevisionClient(tx),
+          );
           operations.push("transaction.commit");
           return result;
         },
@@ -2418,6 +2493,22 @@ describe("workspace service characterization", { concurrency: false }, () => {
         restores,
       );
       patchMethod(
+        prisma,
+        "$transaction",
+        async (callback: unknown) =>
+          (callback as (transaction: unknown) => Promise<unknown>)(
+            withAuthorizationRevisionClient({
+              channel: {
+                update: async () => {
+                  operations.push("channel.update");
+                  return {};
+                },
+              },
+            }),
+          ),
+        restores,
+      );
+      patchMethod(
         prisma.voiceState,
         "findMany",
         async () => {
@@ -2488,7 +2579,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
               },
             },
           };
-          const result = await callback(tx);
+          const result = await callback(withAuthorizationRevisionClient(tx));
           operations.push("transaction.commit");
           return result;
         },
@@ -2599,7 +2690,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
               }),
             },
           };
-          const result = await callback(tx);
+          const result = await callback(withAuthorizationRevisionClient(tx));
           operations.push("transaction.commit");
           return result;
         },
@@ -2711,7 +2802,9 @@ describe("workspace service characterization", { concurrency: false }, () => {
               },
             },
           };
-          const result = await (callback as (transaction: typeof tx) => Promise<unknown>)(tx);
+          const result = await (callback as (transaction: typeof tx) => Promise<unknown>)(
+            withAuthorizationRevisionClient(tx),
+          );
           operations.push("transaction.commit");
           return result;
         },
@@ -2786,10 +2879,12 @@ describe("workspace service characterization", { concurrency: false }, () => {
         prisma,
         "$transaction",
         async (callback: unknown) =>
-          (callback as (transaction: unknown) => Promise<unknown>)({
-            mobileMediaUpload: { updateMany: async () => ({ count: 0 }) },
-            server: { delete: async () => ({}) },
-          }),
+          (callback as (transaction: unknown) => Promise<unknown>)(
+            withAuthorizationRevisionClient({
+              mobileMediaUpload: { updateMany: async () => ({ count: 0 }) },
+              server: { delete: async () => ({}) },
+            }),
+          ),
         restores,
       );
 

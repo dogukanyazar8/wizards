@@ -3,8 +3,7 @@ import { describe, it } from "node:test";
 import { ChannelType } from "@wizards/db";
 import {
   type CachedChannelPermissionSnapshot,
-  invalidateMemberPermissionCache,
-  invalidateServerPermissionCache,
+  publishPermissionCacheRevision,
   readCachedChannelPermissionSnapshot,
   readCachedVisibleChannelIdsBatch,
   readCachedVisibleChannelIdsByServerBatch,
@@ -17,6 +16,8 @@ import { PermissionBits } from "./permissions";
 class MemoryRedis {
   private readonly values = new Map<string, string>();
   mgetCalls = 0;
+  failNextPipelineCommand = false;
+  failNextEval = false;
 
   setRaw(key: string, value: string) {
     this.values.set(key, value);
@@ -27,16 +28,51 @@ class MemoryRedis {
     return keys.map((key) => this.values.get(key) ?? null);
   }
 
+  async eval(_script: string, keyCount: number, ...args: Array<number | string>) {
+    if (this.failNextEval) {
+      this.failNextEval = false;
+      throw new Error("simulated Redis eval failure");
+    }
+    const keys = args.slice(0, keyCount).map(String);
+    const values = args.slice(keyCount).map(String);
+    if (keyCount === 1) {
+      this.values.set(keys[0]!, values[0]!);
+      return 1;
+    }
+    const [cacheKey, serverKey, memberKey] = keys;
+    const [payload, , serverVersion, memberVersion] = values;
+    if (
+      BigInt(this.values.get(serverKey!) ?? "0") > BigInt(serverVersion!) ||
+      BigInt(this.values.get(memberKey!) ?? "0") > BigInt(memberVersion!)
+    ) {
+      return 0;
+    }
+    this.values.set(serverKey!, serverVersion!);
+    this.values.set(memberKey!, memberVersion!);
+    this.values.set(cacheKey!, payload!);
+    return 1;
+  }
+
   pipeline() {
     const operations: Array<() => void> = [];
     const pipeline = {
       exec: async () => {
+        if (this.failNextPipelineCommand) {
+          this.failNextPipelineCommand = false;
+          return [[new Error("simulated pipeline command failure"), null]];
+        }
         for (const operation of operations) {
           operation();
         }
         return [];
       },
       expire: () => pipeline,
+      eval: (_script: string, keyCount: number, ...args: Array<number | string>) => {
+        operations.push(() => {
+          void this.eval(_script, keyCount, ...args);
+        });
+        return pipeline;
+      },
       incr: (key: string) => {
         operations.push(() => {
           const current = Number.parseInt(this.values.get(key) ?? "0", 10);
@@ -132,6 +168,9 @@ describe("workspace permission cache", () => {
       const cachedBeforeInvalidation = await readCachedChannelPermissionSnapshot(
         "user-1",
         "channel-1",
+        {
+          revisionsByUser: new Map([["user-1", { memberVersion: "0", serverVersion: "0" }]]),
+        },
       );
       assert.equal(cachedBeforeInvalidation?.permissions, PermissionBits.VIEW_CHANNEL);
       assert.equal(cachedBeforeInvalidation?.channel.name, "general");
@@ -140,8 +179,13 @@ describe("workspace permission cache", () => {
         messageCharacterLimit: 2000,
       });
 
-      await invalidateServerPermissionCache("server-1");
-      assert.equal(await readCachedChannelPermissionSnapshot("user-1", "channel-1"), null);
+      await publishPermissionCacheRevision({ serverId: "server-1", serverVersion: "1" });
+      assert.equal(
+        await readCachedChannelPermissionSnapshot("user-1", "channel-1", {
+          revisionsByUser: new Map([["user-1", { memberVersion: "0", serverVersion: "1" }]]),
+        }),
+        null,
+      );
 
       await writeCachedChannelPermissionSnapshot({
         channelId: "channel-1",
@@ -149,8 +193,18 @@ describe("workspace permission cache", () => {
         snapshot: createSnapshot(),
         userId: "user-1",
       });
-      await invalidateMemberPermissionCache("server-1", "user-1");
-      assert.equal(await readCachedChannelPermissionSnapshot("user-1", "channel-1"), null);
+      await publishPermissionCacheRevision({
+        memberVersion: "1",
+        serverId: "server-1",
+        serverVersion: "1",
+        userId: "user-1",
+      });
+      assert.equal(
+        await readCachedChannelPermissionSnapshot("user-1", "channel-1", {
+          revisionsByUser: new Map([["user-1", { memberVersion: "1", serverVersion: "1" }]]),
+        }),
+        null,
+      );
     });
   });
 
@@ -171,12 +225,140 @@ describe("workspace permission cache", () => {
     });
   });
 
+  it("does not publish a visible-channel result under a revision sampled after its DB read", async () => {
+    await withPermissionCacheEnabled(async () => {
+      const redis = new MemoryRedis();
+      setPermissionCacheRedisForTest(redis);
+
+      const staleEntry = {
+        channelIds: ["private-channel"],
+        permission: PermissionBits.VIEW_CHANNEL,
+        revisions: { memberVersion: "0", serverVersion: "0" },
+        serverId: "server-1",
+        type: ChannelType.TEXT,
+        userId: "user-1",
+      };
+
+      // Deterministic revocation: state was read at revision 0, then the DB
+      // transaction committed revision 1 before compare-before-write.
+      redis.setRaw("permission:server:server-1:v", "1");
+      await writeCachedVisibleChannelIdsBatch([staleEntry]);
+
+      const readArgs = {
+        permission: PermissionBits.VIEW_CHANNEL,
+        revisionsByUser: new Map([["user-1", { memberVersion: "0", serverVersion: "1" }]]),
+        serverId: "server-1",
+        type: ChannelType.TEXT,
+        userIds: ["user-1"],
+      };
+      const cached = await readCachedVisibleChannelIdsBatch(readArgs);
+
+      assert.equal(cached.has("user-1"), false);
+    });
+  });
+
+  it("rejects an old VIEW_CHANNEL grant when Redis invalidation partially fails", async () => {
+    await withPermissionCacheEnabled(async () => {
+      const redis = new MemoryRedis();
+      setPermissionCacheRedisForTest(redis);
+      await writeCachedVisibleChannelIdsBatch([
+        {
+          channelIds: ["private-channel"],
+          permission: PermissionBits.VIEW_CHANNEL,
+          revisions: { memberVersion: "0", serverVersion: "0" },
+          serverId: "server-1",
+          type: ChannelType.TEXT,
+          userId: "user-1",
+        },
+      ]);
+
+      redis.failNextPipelineCommand = true;
+      await writeCachedVisibleChannelIdsBatch([
+        {
+          channelIds: ["private-channel"],
+          permission: PermissionBits.VIEW_CHANNEL,
+          revisions: { memberVersion: "0", serverVersion: "0" },
+          serverId: "server-1",
+          type: ChannelType.TEXT,
+          userId: "user-1",
+        },
+      ]);
+      redis.failNextEval = true;
+      await assert.rejects(
+        publishPermissionCacheRevision({
+          memberVersion: "1",
+          serverId: "server-1",
+          serverVersion: "0",
+          userId: "user-1",
+        }),
+        /simulated Redis eval failure/,
+      );
+
+      const readArgs = {
+        permission: PermissionBits.VIEW_CHANNEL,
+        revisionsByUser: new Map([["user-1", { memberVersion: "1", serverVersion: "0" }]]),
+        serverId: "server-1",
+        type: ChannelType.TEXT,
+        userIds: ["user-1"],
+      };
+      const cached = await readCachedVisibleChannelIdsBatch(readArgs);
+
+      assert.equal(cached.has("user-1"), false);
+    });
+  });
+
+  it("retries monotonic revision publication safely after Redis recovery", async () => {
+    await withPermissionCacheEnabled(async () => {
+      const redis = new MemoryRedis();
+      setPermissionCacheRedisForTest(redis);
+      redis.failNextEval = true;
+
+      await assert.rejects(
+        publishPermissionCacheRevision({
+          memberVersion: "1",
+          serverId: "server-1",
+          serverVersion: "0",
+          userId: "user-1",
+        }),
+        /simulated Redis eval failure/,
+      );
+
+      assert.equal(
+        await publishPermissionCacheRevision({
+          memberVersion: "1",
+          serverId: "server-1",
+          serverVersion: "0",
+          userId: "user-1",
+        }),
+        true,
+      );
+
+      await writeCachedVisibleChannelIdsBatch([
+        {
+          channelIds: [],
+          permission: PermissionBits.VIEW_CHANNEL,
+          revisions: { memberVersion: "1", serverVersion: "0" },
+          serverId: "server-1",
+          userId: "user-1",
+        },
+      ]);
+      const cached = await readCachedVisibleChannelIdsBatch({
+        permission: PermissionBits.VIEW_CHANNEL,
+        revisionsByUser: new Map([["user-1", { memberVersion: "1", serverVersion: "0" }]]),
+        serverId: "server-1",
+        userIds: ["user-1"],
+      });
+      assert.deepEqual(cached.get("user-1"), []);
+    });
+  });
+
   it("treats visible channel list batches as stale per server and member version", async () => {
     await withPermissionCacheEnabled(async () => {
       await writeCachedVisibleChannelIdsBatch([
         {
           channelIds: ["channel-1"],
           permission: PermissionBits.VIEW_CHANNEL,
+          revisions: { memberVersion: "0", serverVersion: "0" },
           serverId: "server-1",
           type: ChannelType.TEXT,
           userId: "user-1",
@@ -184,6 +366,7 @@ describe("workspace permission cache", () => {
         {
           channelIds: ["channel-2"],
           permission: PermissionBits.VIEW_CHANNEL,
+          revisions: { memberVersion: "0", serverVersion: "0" },
           serverId: "server-1",
           type: ChannelType.TEXT,
           userId: "user-2",
@@ -192,6 +375,10 @@ describe("workspace permission cache", () => {
 
       const cachedBeforeInvalidation = await readCachedVisibleChannelIdsBatch({
         permission: PermissionBits.VIEW_CHANNEL,
+        revisionsByUser: new Map([
+          ["user-1", { memberVersion: "0", serverVersion: "0" }],
+          ["user-2", { memberVersion: "0", serverVersion: "0" }],
+        ]),
         serverId: "server-1",
         type: ChannelType.TEXT,
         userIds: ["user-1", "user-2"],
@@ -199,9 +386,18 @@ describe("workspace permission cache", () => {
       assert.deepEqual(cachedBeforeInvalidation.get("user-1"), ["channel-1"]);
       assert.deepEqual(cachedBeforeInvalidation.get("user-2"), ["channel-2"]);
 
-      await invalidateMemberPermissionCache("server-1", "user-1");
+      await publishPermissionCacheRevision({
+        memberVersion: "1",
+        serverId: "server-1",
+        serverVersion: "0",
+        userId: "user-1",
+      });
       const cachedAfterMemberInvalidation = await readCachedVisibleChannelIdsBatch({
         permission: PermissionBits.VIEW_CHANNEL,
+        revisionsByUser: new Map([
+          ["user-1", { memberVersion: "1", serverVersion: "0" }],
+          ["user-2", { memberVersion: "0", serverVersion: "0" }],
+        ]),
         serverId: "server-1",
         type: ChannelType.TEXT,
         userIds: ["user-1", "user-2"],
@@ -209,9 +405,13 @@ describe("workspace permission cache", () => {
       assert.equal(cachedAfterMemberInvalidation.has("user-1"), false);
       assert.deepEqual(cachedAfterMemberInvalidation.get("user-2"), ["channel-2"]);
 
-      await invalidateServerPermissionCache("server-1");
+      await publishPermissionCacheRevision({ serverId: "server-1", serverVersion: "1" });
       const cachedAfterServerInvalidation = await readCachedVisibleChannelIdsBatch({
         permission: PermissionBits.VIEW_CHANNEL,
+        revisionsByUser: new Map([
+          ["user-1", { memberVersion: "1", serverVersion: "1" }],
+          ["user-2", { memberVersion: "0", serverVersion: "1" }],
+        ]),
         serverId: "server-1",
         type: ChannelType.TEXT,
         userIds: ["user-1", "user-2"],

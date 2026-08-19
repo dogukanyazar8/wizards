@@ -269,6 +269,17 @@ describe("account privacy service", { concurrency: false }, () => {
                   return [{ serverId: "server-surviving" }];
                 },
               },
+              server: {
+                async findUnique() {
+                  return { authorizationRevision: 0n };
+                },
+              },
+              serverAuthorizationSubjectRevision: {
+                async upsert() {
+                  operations.push("authorizationRevision.increment");
+                  return { revision: 1n };
+                },
+              },
             },
             {
               get(target, property) {
