@@ -20,35 +20,39 @@ describe("attempt tracker", () => {
     const store = createMemoryAttemptStore();
     const identifier = "account-1";
 
-    assert.deepEqual(
-      await tracker.recordFailure({ identifier, nowMs: 100, store }),
-      { failures: 1, locked: false },
-    );
-    assert.deepEqual(
-      await tracker.recordFailure({ identifier, nowMs: 100, store }),
-      { failures: 2, locked: false },
-    );
-    assert.deepEqual(
-      await tracker.recordFailure({ identifier, nowMs: 100, store }),
-      { failures: 3, locked: true, retryAfterSeconds: 1 },
-    );
-    assert.deepEqual(
-      await tracker.assertAllowed({ identifier, nowMs: 500, store }),
-      { allowed: false, retryAfterSeconds: 1 },
-    );
+    assert.deepEqual(await tracker.recordFailure({ identifier, nowMs: 100, store }), {
+      failures: 1,
+      locked: false,
+    });
+    assert.deepEqual(await tracker.recordFailure({ identifier, nowMs: 100, store }), {
+      failures: 2,
+      locked: false,
+    });
+    assert.deepEqual(await tracker.recordFailure({ identifier, nowMs: 100, store }), {
+      failures: 3,
+      locked: true,
+      retryAfterSeconds: 1,
+    });
+    assert.deepEqual(await tracker.assertAllowed({ identifier, nowMs: 500, store }), {
+      allowed: false,
+      retryAfterSeconds: 1,
+    });
 
-    assert.deepEqual(
-      await tracker.recordFailure({ identifier, nowMs: 1_100, store }),
-      { failures: 4, locked: true, retryAfterSeconds: 2 },
-    );
-    assert.deepEqual(
-      await tracker.recordFailure({ identifier, nowMs: 3_100, store }),
-      { failures: 5, locked: true, retryAfterSeconds: 4 },
-    );
-    assert.deepEqual(
-      await tracker.recordFailure({ identifier, nowMs: 7_100, store }),
-      { failures: 6, locked: true, retryAfterSeconds: 4 },
-    );
+    assert.deepEqual(await tracker.recordFailure({ identifier, nowMs: 1_100, store }), {
+      failures: 4,
+      locked: true,
+      retryAfterSeconds: 2,
+    });
+    assert.deepEqual(await tracker.recordFailure({ identifier, nowMs: 3_100, store }), {
+      failures: 5,
+      locked: true,
+      retryAfterSeconds: 4,
+    });
+    assert.deepEqual(await tracker.recordFailure({ identifier, nowMs: 7_100, store }), {
+      failures: 6,
+      locked: true,
+      retryAfterSeconds: 4,
+    });
   });
 
   it("resets failures without affecting other account identifiers", async () => {
@@ -120,11 +124,7 @@ describe("attempt tracker", () => {
     const calls: Array<{ args: Array<number | string>; keyCount: number; script: string }> = [];
     const redis = {
       async del() {},
-      async eval(
-        script: string,
-        keyCount: number,
-        ...args: Array<number | string>
-      ) {
+      async eval(script: string, keyCount: number, ...args: Array<number | string>) {
         calls.push({ args, keyCount, script });
         return [5, 120_000];
       },
@@ -145,14 +145,7 @@ describe("attempt tracker", () => {
     );
     assert.equal(calls.length, 1);
     assert.equal(calls[0]?.keyCount, 1);
-    assert.deepEqual(calls[0]?.args, [
-      "rate:test:account:account-1",
-      90_000,
-      2,
-      1_000,
-      4_000,
-      60,
-    ]);
+    assert.deepEqual(calls[0]?.args, ["rate:test:account:account-1", 90_000, 2, 1_000, 4_000, 60]);
     assert.match(calls[0]?.script ?? "", /redis\.call\(\s*"SET"/);
   });
 });

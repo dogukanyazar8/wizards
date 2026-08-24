@@ -13,7 +13,7 @@ test.describe("server smoke", () => {
     const serverName = `Whispr Smoke ${Date.now()}`;
 
     await loginAs(page, "alice");
-    await gotoAppRoute(page, "/channels/@me", { readyTestId: "create-server-button" });
+    await gotoAppRoute(page, "/messages", { readyTestId: "create-server-button" });
     await page.getByTestId("create-server-button").click();
 
     await expect(page.getByTestId("server-create-form")).toBeVisible();
@@ -33,7 +33,7 @@ test.describe("server smoke", () => {
 
   test("server creation rejects empty and overlong names", async ({ page, request }) => {
     await loginAs(page, "alice");
-    await gotoAppRoute(page, "/channels/@me", { readyTestId: "create-server-button" });
+    await gotoAppRoute(page, "/messages", { readyTestId: "create-server-button" });
     await page.getByTestId("create-server-button").click();
 
     await expect(page.getByTestId("server-create-form")).toBeVisible();

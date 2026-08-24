@@ -4,11 +4,7 @@ import type { ChatMessage, MessageAttachment } from "@wizards/types";
 
 import { getDmSharedAttachmentSummary } from "./details";
 
-function attachment(
-  id: string,
-  contentType: string,
-  filename = `${id}.bin`,
-): MessageAttachment {
+function attachment(id: string, contentType: string, filename = `${id}.bin`): MessageAttachment {
   return {
     contentType,
     filename,

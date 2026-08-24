@@ -17,7 +17,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
   return {
     authenticate: async () => "user-1",
     enforceRateLimit: async () => undefined,
-    joinServer: async () => ({ alreadyMember: false, serverId: "server-1" }),
+    joinServer: async () => ({ alreadyMember: false, name: "Whispr", serverId: "server-1" }),
     ...overrides,
   };
 }
@@ -40,13 +40,17 @@ describe("server join route logic", () => {
         },
         joinServer: async (userId: string, serverId: string) => {
           calls.push(`service:${userId}:${serverId}`);
-          return { alreadyMember: false, serverId };
+          return { alreadyMember: false, name: "Whispr", serverId };
         },
       }),
     );
 
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { success: true });
+    assert.deepEqual(await response.json(), {
+      name: "Whispr",
+      serverId: "server-1",
+      success: true,
+    });
     assert.deepEqual(calls, ["auth", "rate:user-1:server:join-public", "service:user-1:server-1"]);
   });
 
@@ -57,12 +61,16 @@ describe("server join route logic", () => {
       request(),
       context(),
       dependencies({
-        joinServer: async () => ({ alreadyMember: true, serverId: "server-1" }),
+        joinServer: async () => ({ alreadyMember: true, name: "Whispr", serverId: "server-1" }),
       }),
     );
 
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { success: true });
+    assert.deepEqual(await response.json(), {
+      name: "Whispr",
+      serverId: "server-1",
+      success: true,
+    });
   });
 
   it("maps a banned-user error from the service to its status and code", async () => {

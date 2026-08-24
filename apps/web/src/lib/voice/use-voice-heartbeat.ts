@@ -60,7 +60,9 @@ export function createVoiceHeartbeatController<TimerHandle>(
   };
 }
 
-export function createVoiceHeartbeatTimerApi(): VoiceHeartbeatTimerApi<ReturnType<typeof setInterval>> {
+export function createVoiceHeartbeatTimerApi(): VoiceHeartbeatTimerApi<
+  ReturnType<typeof setInterval>
+> {
   return {
     clearInterval: (handle) => globalThis.clearInterval(handle),
     setInterval: (callback, ms) => globalThis.setInterval(callback, ms),

@@ -54,8 +54,19 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "DELETE channels/[channelId]/messages",
   "DELETE channels/[channelId]/messages/[messageId]/pin",
   "POST channels/[channelId]/messages/[messageId]/pin",
+  // Bahsedilmeler Ş2 / K3. Takip düğmesinin tek bilgisi yönüdür ve onu HTTP metodu taşıyor:
+  // `PUT` takip eder, `DELETE` bırakır. Gövde uydurmak, tek bit için bir şema demekti.
+  "DELETE channels/[channelId]/messages/[messageId]/thread-follow",
+  "PUT channels/[channelId]/messages/[messageId]/thread-follow",
   "PATCH channels/[channelId]/read",
+  // Interest state is the HTTP method; event id and viewer identity are already in the request.
+  "DELETE discover/events/[eventId]/interest",
+  "POST discover/events/[eventId]/interest",
   "DELETE dm/[conversationId]",
+  // karar #7. The pin to remove is the path; there is nothing else to send.
+  "DELETE dm/[conversationId]/pins/[messageId]",
+  // karar #1. Withdrawing a vote names no option — that is the whole point.
+  "DELETE polls/[pollId]/vote",
   // Unpinning names nothing but the group: the path is the whole request and
   // the new state arrives over the socket.
   "DELETE dm/groups/[conversationId]/pin",
@@ -80,6 +91,9 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "DELETE mobile/channels/[channelId]/messages/[messageId]",
   "DELETE mobile/channels/[channelId]/messages/[messageId]/pin",
   "POST mobile/channels/[channelId]/messages/[messageId]/pin",
+  // Web ikizi gibi takip yönünü HTTP metodu taşır; istek gövdesi yoktur.
+  "DELETE mobile/channels/[channelId]/messages/[messageId]/thread-follow",
+  "PUT mobile/channels/[channelId]/messages/[messageId]/thread-follow",
   // Hiding a conversation is the viewer's own switch; the path says which one.
   "DELETE mobile/dm/[conversationId]",
   "DELETE mobile/dm/[conversationId]/messages/[messageId]",
@@ -281,6 +295,11 @@ const EXPECTED_RATE_LIMIT_ACTIONS = [
     action: "server:join-public",
     method: "POST",
     routePath: "servers/[serverId]/join",
+  },
+  {
+    action: "server:join",
+    method: "POST",
+    routePath: "servers/join",
   },
   {
     action: "mobile:message:search",

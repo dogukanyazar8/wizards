@@ -8,6 +8,7 @@ import { MOBILE_LINE_ICON_DEFINITIONS } from "../src/design/mobile-line-icon-def
 import { createGroupChatStyles } from "../src/app/screens/group-chat.styles";
 import { lightTheme } from "../src/design/themes";
 import { MobileGroupInfoScreen } from "../src/app/screens/group-info/group-info-screen";
+import { MobileGroupInvitePreviewScreen } from "../src/app/screens/group-info/group-invite-preview-screen";
 import { MobileGroupMembersScreen } from "../src/app/screens/group-info/group-members-screen";
 import { MobileGroupSettingsScreen } from "../src/app/screens/group-settings/group-settings-screen";
 import { mobileCopy } from "../src/locale/mobile-copy";
@@ -154,6 +155,21 @@ const openInvite: GroupInviteDTO = {
 };
 
 describe("2e §C1 identity and quick actions", () => {
+  it("resolves a stored legacy avatar colour for display and editing", async () => {
+    const { view } = await renderInfo();
+    const initials = view.getByText("WM");
+    const avatarStyle = (initials.parent?.props.style as readonly unknown[]).flat(2);
+
+    expect(avatarStyle).toContainEqual(
+      expect.objectContaining({ backgroundColor: "hsl(235 86% 65%)" }),
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-group-info-edit"));
+    expect(
+      view.getByTestId("mobile-group-create-color-primary").props.accessibilityState.selected,
+    ).toBe(true);
+  });
+
   it("draws the pencil only for somebody who may edit the info", async () => {
     const { view } = await renderInfo();
     expect(view.getByTestId("mobile-group-info-edit")).toBeTruthy();
@@ -241,6 +257,33 @@ describe("2e §C1 identity and quick actions", () => {
     expect(view.getByText(copy.groupRoleYou)).toBeTruthy();
     // Owner and admin both read "YÖNETİCİ"; the tint is what separates them.
     expect(view.getAllByText(copy.groupRoleOwner).length).toBe(2);
+  });
+});
+
+describe("group invite preview identity", () => {
+  it("resolves a semantic avatar token to a native colour", async () => {
+    const view = await render(
+      <MobileGroupInvitePreviewScreen
+        onBack={jest.fn()}
+        onJoin={jest.fn()}
+        preview={{
+          alreadyMember: false,
+          avatarColor: "success",
+          code: "ABCDEFGHJKLM",
+          iconUrl: null,
+          joinable: true,
+          memberCount: 4,
+          name: "Mobil Ekip",
+          reason: null,
+        }}
+      />,
+    );
+    const initials = view.getByText("ME");
+    const avatarStyle = (initials.parent?.props.style as readonly unknown[]).flat(2);
+
+    expect(avatarStyle).toContainEqual(
+      expect.objectContaining({ backgroundColor: "hsl(154 60% 42%)" }),
+    );
   });
 });
 

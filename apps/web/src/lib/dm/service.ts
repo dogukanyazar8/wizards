@@ -17,6 +17,7 @@ import {
 import { Prisma, prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import { buildGroupReadReceipt } from "@/lib/dm/group-presentation";
+import { POLL_SELECT, mapPollToDTO, type RawPoll } from "@/lib/polls/presentation";
 import { areFriends, getBlockStatus, haveMutualServers } from "@/lib/friends/helpers";
 import { resolveLastSeenAtByUserId } from "@/lib/friends/last-seen";
 import { getRedis } from "@/lib/redis";
@@ -63,6 +64,7 @@ export const dmAttachmentSelect = {
   width: true,
   height: true,
   duration: true,
+  waveform: true,
   thumbnailUrl: true,
   scanStatus: true,
 } as const;
@@ -82,9 +84,30 @@ export const dmMessageInclude = {
   author: { select: dmAuthorSelect },
   attachments: { select: dmAttachmentSelect },
   reply: { include: dmReplyInclude },
+  /**
+   * Mesajlar karar #1. A to-one relation, so a page of messages costs one extra
+   * statement rather than one per row, and only poll messages carry any rows.
+   */
+  poll: { select: POLL_SELECT },
 } as const;
 
+/**
+ * Bir satırın çizmesi için gereken en çok katılımcı.
+ *
+ * Satır iki tile ve iki sayaç çiziyor; tile'lar görüntüleyeni **dışlayarak**
+ * seçiliyor (`buildGroupAvatarPair`), o yüzden ilk sekiz kayıt her durumda
+ * yeter. Sınır olmadan 250 üyeli bir grup, hiç çizilmeyecek 250 katılımcı
+ * satırını (her biri kullanıcı kaydıyla birlikte) her liste sayfasında
+ * getiriyordu.
+ */
+export const DM_ROW_PARTICIPANT_TAKE = 8;
+
 export const dmConversationInclude = {
+  /**
+   * Kesin üye sayısı. `participants.length` okumak, katılımcı listesi
+   * sınırlandığı anda **yalan** söylerdi; sayım veritabanında yapılıyor.
+   */
+  _count: { select: { participants: true } },
   participants: {
     orderBy: { joinedAt: "asc" },
     select: {
@@ -126,6 +149,21 @@ export const dmConversationInclude = {
   },
 } as const;
 
+/**
+ * Liste yolunun include'u: aynı şekil, **sınırlı** katılımcı okuması.
+ *
+ * Tek bir konuşma açılırken tam roster gerekiyor (üye listesi, roller, çevrimiçi
+ * sayacı); elli konuşmalık bir liste sayfasında gerekmiyor ve orada bedeli
+ * konuşma başına üye sayısı kadar satır + o kadar presence sorgusu.
+ */
+export const dmConversationRowInclude = {
+  ...dmConversationInclude,
+  participants: {
+    ...dmConversationInclude.participants,
+    take: DM_ROW_PARTICIPANT_TAKE,
+  },
+} as const;
+
 type DMMessageNode = {
   id: string;
   conversationId: string;
@@ -133,6 +171,11 @@ type DMMessageNode = {
   content: string;
   replyToId: string | null;
   threadParentId: string | null;
+  /**
+   * Mesajlar §6.1. Ana sohbete de gönderilmiş bir thread yanıtı. İsteğe bağlı:
+   * elle kurulmuş eski fikstürler kolonu tanımıyor ve sıradan bir mesaj okunur.
+   */
+  alsoSentToChannel?: boolean;
   forwardedAt: Date | null;
   editedAt: Date | null;
   deletedAt: Date | null;
@@ -178,6 +221,12 @@ type DMMessageNode = {
     userId: string;
   }>;
   reply?: DMMessageNode | null;
+  /**
+   * Mesajlar karar #1. Optional for the same reason `reply` is: hand-built test
+   * nodes and reply previews do not select it, and a message without a poll is
+   * every message but a handful.
+   */
+  poll?: RawPoll | null;
 };
 
 type RawDMMessage = Prisma.DMMessageGetPayload<{
@@ -522,6 +571,7 @@ function mapDMReply(
     content: message.deletedAt ? "" : message.content,
     replyToId: message.replyToId,
     threadParentId: message.threadParentId,
+    alsoSentToChannel: message.alsoSentToChannel ?? false,
     threadSummary: threadSummaryByMessageId.get(message.id) ?? createEmptyThreadSummary(),
     forwardedAt: message.forwardedAt?.toISOString() ?? null,
     editedAt: message.editedAt?.toISOString() ?? null,
@@ -548,6 +598,9 @@ function mapDMReply(
     })),
     reactions: groupDMReactions(reactionsByMessageId.get(message.id) ?? message.reactions ?? []),
     replyTo: nextReply,
+    // `mapPollToDTO` is the single mapper: the message payload, `GET /v1/polls`
+    // and the socket broadcast all read `canSeeVoters` from the same line.
+    poll: message.poll ? mapPollToDTO(message.poll, viewerId) : null,
     systemType: message.systemType ?? null,
     systemTargetUserIds: message.systemTargetUserIds ?? [],
     systemValue: message.systemValue ?? null,
@@ -747,11 +800,20 @@ function mapDMConversationDTOWithPresence(
     description: conversation.description,
     disappearingAfter: conversation.disappearingAfter,
     historyVisibility: conversation.historyVisibility,
-    memberCount: conversation.participants.length,
+    memberCount: conversation._count?.participants ?? conversation.participants.length,
     notifyLevel: viewer?.notifyLevel ?? "ALL",
     // Everybody who is not offline, the viewer included — 2d §1 reads
     // "6 üye · 3 çevrimiçi" against the same member count.
-    onlineCount: participants.filter((participant) => participant.status !== "OFFLINE").length,
+    //
+    // Satır kipinde **verilmiyor**: katılımcı okuması sınırlı ve yüklenmiş
+    // birkaç kişiyi saymak "3 çevrimiçi" yerine "2 çevrimiçi" yazmak olurdu.
+    // Eksik bir sayaç, yanlış bir sayaçtan iyi — başlık tam konuşmayı çekiyor.
+    ...(rosterMode === "full"
+      ? {
+          onlineCount: participants.filter((participant) => participant.status !== "OFFLINE")
+            .length,
+        }
+      : {}),
     overflowCount: avatarPair.overflowCount,
     permissions: {
       addMembers: conversation.permAddMembers,
@@ -1067,7 +1129,7 @@ export async function listDirectMessages(
     },
     include: {
       conversation: {
-        include: dmConversationInclude,
+        include: dmConversationRowInclude,
       },
     },
   });
@@ -1321,7 +1383,13 @@ export async function listDMMessages(
   const messages = await prisma.dMMessage.findMany({
     where: {
       conversationId,
-      threadParentId: null,
+      // §6.1: kök mesajlar **ve** yazarının ana sohbete de gönderdiği thread
+      // yanıtları. Yalnız `threadParentId: null` olsaydı işaretlenen kutu hiçbir
+      // şey değiştirmezdi.
+      //
+      // `AND` içinde: `toUnexpiredFilter` de bir `OR` üretiyor ve iki `OR` aynı
+      // nesnede yan yana durursa ikincisi birincisini **sessizce** ezer.
+      AND: [{ OR: [{ threadParentId: null }, { alsoSentToChannel: true }] }],
       placeholderRemovedAt: null,
       // 2c §7. Served by the existing `[conversationId, createdAt]` index.
       ...toHistoryWindowFilter(membership.historyFromAt, cursorMessage),

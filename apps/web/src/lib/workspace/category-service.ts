@@ -1,12 +1,13 @@
 import { prisma } from "@wizards/db";
-import type { CreateCategoryInput, ReorderCategoriesInput, UpdateCategoryInput } from "@wizards/types";
+import type {
+  CreateCategoryInput,
+  ReorderCategoriesInput,
+  UpdateCategoryInput,
+} from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
 import { getSocketServer } from "@/lib/socket/runtime";
-import {
-  ensureServerPermission,
-  getAccessContext,
-} from "@/lib/workspace/access-context";
+import { ensureServerPermission, getAccessContext } from "@/lib/workspace/access-context";
 import { PermissionBits } from "@/lib/workspace/permissions";
 import { normalizeWorkspaceLabel } from "@/lib/workspace/workspace-label";
 

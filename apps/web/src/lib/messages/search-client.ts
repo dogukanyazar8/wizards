@@ -59,14 +59,10 @@ export async function searchMessages({
       ? `/api/v1/channels/${conversationId}/messages/search`
       : `/api/v1/dm/${conversationId}/messages/search`;
   const response = await fetch(`${base}?${params.toString()}`);
-  const payload = (await response.json().catch(() => null)) as
-    | { error?: string }
-    | null;
+  const payload = (await response.json().catch(() => null)) as { error?: string } | null;
 
   if (!response.ok) {
-    throw new Error(
-      typeof payload?.error === "string" ? payload.error : "Message search failed",
-    );
+    throw new Error(typeof payload?.error === "string" ? payload.error : "Message search failed");
   }
 
   return MessageSearchResponseSchema.parse(payload);

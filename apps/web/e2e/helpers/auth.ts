@@ -52,7 +52,7 @@ export async function loginViaUi(page: Page, userKey: E2EUserKey): Promise<void>
     password: e2eUserPassword,
   });
   await submitLoginForm(page);
-  await expect(page).toHaveURL(/\/channels/);
+  await expect(page).toHaveURL(/\/messages/);
 }
 
 export async function loginAs(page: Page, userKey: E2EUserKey): Promise<void> {
@@ -63,7 +63,7 @@ export async function loginAs(page: Page, userKey: E2EUserKey): Promise<void> {
   });
 
   await assertSuccessfulE2EResponse(response);
-  await gotoAppRoute(page, "/channels/@me");
+  await gotoAppRoute(page, "/messages");
   await expect(
     page
       .locator(
@@ -105,7 +105,7 @@ export async function logoutViaUi(page: Page): Promise<void> {
 }
 
 export async function expectLoggedIn(page: Page): Promise<void> {
-  await expect(page).toHaveURL(/\/channels/);
+  await expect(page).toHaveURL(/\/messages/);
 }
 
 export async function expectLoggedOut(page: Page): Promise<void> {

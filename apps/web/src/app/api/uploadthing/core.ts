@@ -309,7 +309,18 @@ export const uploadRouter: FileRouter = {
     .middleware(({ req }) => requireMessageUploadUser({ req }))
     .onUploadComplete(createMessageAttachment),
   messageAttachmentUploader: f({
+    // karar #5. Üç ses tipi: Safari `audio/mp4`, Chrome/Firefox `audio/webm`,
+    // bazı Firefox sürümleri `audio/ogg`. `MESSAGE_AUDIO_CONTENT_TYPES` ile
+    // aynı küme; biri eksik kalsaydı kayıt alınır ama yüklenemezdi.
     "audio/mp4": {
+      maxFileCount: 5,
+      maxFileSize: "16MB",
+    },
+    "audio/ogg": {
+      maxFileCount: 5,
+      maxFileSize: "16MB",
+    },
+    "audio/webm": {
       maxFileCount: 5,
       maxFileSize: "16MB",
     },

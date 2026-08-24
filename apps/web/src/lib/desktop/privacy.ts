@@ -26,12 +26,8 @@ const DESKTOP_STREAMING_EXECUTABLE_WHITELIST: ReadonlySet<string> = new Set(
   DESKTOP_STREAMING_EXECUTABLE_NAMES,
 );
 
-export function sanitizeDesktopRichPresenceAudience(
-  value: unknown,
-): DesktopRichPresenceAudience {
-  return value === "friends" || value === "nobody"
-    ? value
-    : DEFAULT_DESKTOP_RICH_PRESENCE_AUDIENCE;
+export function sanitizeDesktopRichPresenceAudience(value: unknown): DesktopRichPresenceAudience {
+  return value === "friends" || value === "nobody" ? value : DEFAULT_DESKTOP_RICH_PRESENCE_AUDIENCE;
 }
 
 function normalizeDesktopProcessBasename(value: unknown) {
@@ -45,10 +41,7 @@ function normalizeDesktopProcessBasename(value: unknown) {
   }
 
   const basename = rawBasename.replace(/\s+/g, " ").trim();
-  if (
-    basename.length === 0 ||
-    basename.length > MAX_DESKTOP_STREAMING_EXECUTABLE_NAME_LENGTH
-  ) {
+  if (basename.length === 0 || basename.length > MAX_DESKTOP_STREAMING_EXECUTABLE_NAME_LENGTH) {
     return null;
   }
 

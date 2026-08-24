@@ -1,5 +1,10 @@
 import { Image, Pressable, Text, View } from "react-native";
-import { toGroupAvatarInitials, type GroupInvitePreviewDTO } from "@wizards/types";
+import {
+  getGroupAvatarColorHsl,
+  mapLegacyGroupAvatarColor,
+  toGroupAvatarInitials,
+  type GroupInvitePreviewDTO,
+} from "@wizards/types";
 
 import { copy } from "../../mobile-root-screen-shared";
 import { MobileLineIcon } from "../../../design/mobile-line-icons";
@@ -56,6 +61,9 @@ export function MobileGroupInvitePreviewScreen({
   const blocked = preview ? resolveBlockedReason(preview) : copy.groupInviteNotFound;
   const label = preview?.name ?? "";
   const canJoin = preview?.joinable === true && !preview.alreadyMember && !busy;
+  const avatarColor = preview?.avatarColor
+    ? getGroupAvatarColorHsl(mapLegacyGroupAvatarColor(preview.avatarColor))
+    : tokens.bottomBar.buttonBg;
 
   return (
     <View style={styles.screen} testID="mobile-group-invite-preview-screen">
@@ -80,12 +88,7 @@ export function MobileGroupInvitePreviewScreen({
       </View>
       <View style={[styles.detailBody, { flex: 1 }]}>
         <View style={styles.infoIdentity}>
-          <View
-            style={[
-              styles.infoAvatar,
-              { backgroundColor: preview?.avatarColor ?? tokens.bottomBar.buttonBg },
-            ]}
-          >
+          <View style={[styles.infoAvatar, { backgroundColor: avatarColor }]}>
             {preview?.iconUrl ? (
               <Image source={{ uri: preview.iconUrl }} style={styles.mediaTileImage} />
             ) : (

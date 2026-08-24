@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  emitConversationPinsChanged,
   emitConversationNotifyChanged,
   emitConversationPinChanged,
   emitGroupConversationCreated,
@@ -11,6 +12,7 @@ import {
   emitGroupPinChanged,
   emitGroupRoleChanged,
   emitGroupSettingsChanged,
+  emitPollUpdated,
   evictRemovedGroupMember,
 } from "./group-realtime";
 
@@ -274,6 +276,34 @@ describe("Faz 1 group state events", () => {
       conversationId: "dm-1",
       pinnedAt: "2026-08-11T09:00:00.000Z",
     });
+  });
+
+  it("broadcast pin invalidation carries no count or message identity", () => {
+    const { emitted, io } = buildIo();
+
+    emitConversationPinsChanged(io, { conversationId: "group-1" });
+
+    assert.deepEqual(emitted, [
+      {
+        args: [{ conversationId: "group-1" }],
+        event: "dm:conversation:pins",
+        rooms: ["dm:group-1"],
+      },
+    ]);
+  });
+
+  it("broadcast poll invalidation carries only conversation and poll identity", () => {
+    const { emitted, io } = buildIo();
+
+    emitPollUpdated(io, { conversationId: "group-1", pollId: "poll-1" });
+
+    assert.deepEqual(emitted, [
+      {
+        args: [{ conversationId: "group-1", pollId: "poll-1" }],
+        event: "poll:updated",
+        rooms: ["dm:group-1"],
+      },
+    ]);
   });
 });
 

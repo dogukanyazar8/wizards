@@ -135,3 +135,95 @@ test("screen-share stage state survives share membership changes", () => {
   assert.doesNotMatch(source, /screenShareSessionKey/u);
   assert.doesNotMatch(source, /key=\{screenShareSessionKey\}/u);
 });
+
+test("Ana Sayfa surfaces reject arbitrary px while existing screens stay out of scope", async () => {
+  const eslint = new ESLint({
+    cwd: fileURLToPath(new URL("..", import.meta.url)),
+  });
+
+  const scopedConfig = await eslint.calculateConfigForFile(
+    "src/components/home/home-command-center.tsx",
+  );
+  const [severity, ...patterns] = scopedConfig.rules["no-restricted-syntax"];
+
+  assert.equal(severity, 2);
+  assert.deepEqual(
+    patterns.map((pattern) => pattern.selector.split("[")[0]),
+    ["Literal", "TemplateElement"],
+  );
+  assert.ok(patterns.every((pattern) => pattern.selector.includes("px")));
+  assert.ok(patterns.every((pattern) => pattern.message.includes("Arbitrary px")));
+
+  // Faz 6'nın yan ekranları aynı kapının içinde: yeni yüzeyler ilk commit'ten
+  // itibaren rem tabanlı kalır, 1208'lik borca eklenmez.
+  const sideScreensConfig = await eslint.calculateConfigForFile(
+    "src/components/screens/mentions-screen.tsx",
+  );
+
+  assert.equal(sideScreensConfig.rules["no-restricted-syntax"]?.[0], 2);
+
+  // Mesajlar paketinin yeni yüzeyleri de aynı kapının içinde doğar.
+  for (const messagesSurface of [
+    "src/components/messages/messages-rail.tsx",
+    "src/lib/messages/metrics.ts",
+  ]) {
+    const messagesConfig = await eslint.calculateConfigForFile(messagesSurface);
+
+    assert.equal(
+      messagesConfig.rules["no-restricted-syntax"]?.[0],
+      2,
+      `${messagesSurface} arbitrary px kuralının dışında kalmış`,
+    );
+  }
+
+  // Bahsedilmeler paketi aynı kapıdan giriyor; kapsam kod yazılmadan önce açıldı.
+  for (const mentionsSurface of [
+    "src/components/mentions/mention-card.tsx",
+    "src/lib/mentions/metrics.ts",
+  ]) {
+    const mentionsConfig = await eslint.calculateConfigForFile(mentionsSurface);
+
+    assert.equal(
+      mentionsConfig.rules["no-restricted-syntax"]?.[0],
+      2,
+      `${mentionsSurface} arbitrary px kuralının dışında kalmış`,
+    );
+  }
+
+  const legacyConfig = await eslint.calculateConfigForFile(
+    "src/components/shell/channel-sidebar.tsx",
+  );
+
+  assert.equal(legacyConfig.rules["no-restricted-syntax"]?.[0] ?? 0, 0);
+});
+
+test("the arbitrary px rule fires on px and stays quiet on rem and hairline", async () => {
+  const eslint = new ESLint({
+    cwd: fileURLToPath(new URL("..", import.meta.url)),
+  });
+  const filePath = "src/components/home/arbitrary-px-probe.tsx";
+  const lintRestrictedSyntax = async (source) => {
+    const [result] = await eslint.lintText(source, { filePath });
+
+    return result.messages
+      .filter((message) => message.ruleId === "no-restricted-syntax")
+      .map((message) => message.line);
+  };
+
+  assert.deepEqual(
+    await lintRestrictedSyntax('export const Probe = () => <div className="w-[272px]" />;\n'),
+    [1],
+  );
+  assert.deepEqual(
+    await lintRestrictedSyntax(
+      "export const Probe = () => <div className={`text-[13px] ${extra}`} />;\n",
+    ),
+    [1],
+  );
+  assert.deepEqual(
+    await lintRestrictedSyntax(
+      'export const Probe = () => <div className="w-[17rem] border-[max(1px,0.0625rem)]" />;\n',
+    ),
+    [],
+  );
+});

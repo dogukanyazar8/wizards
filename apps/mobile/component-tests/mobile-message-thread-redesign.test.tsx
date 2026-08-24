@@ -199,25 +199,27 @@ describe("MSG-1f thread redesign", () => {
   );
 
   it("renders the thread header, source block and channel-format replies", async () => {
-    mockRequestJson.mockResolvedValue(
-      createThreadPayload([
-        createMessage("reply-1", {
-          author: {
-            avatarUrl: null,
-            displayName: "Ogi",
-            id: "user-3",
-            status: "ONLINE",
-            username: "ogi_uat",
-          },
-          content: "Denedim, çok akıcı",
-          threadParentId: "root-message",
-        }),
-        createMessage("reply-2", {
-          content: "Tepki sayacına basınca liste açılsın mı?",
-          reactions: [{ count: 3, emoji: "💯", userIds: ["user-1"] }],
-          threadParentId: "root-message",
-        }),
-      ]),
+    mockRequestJson.mockImplementation(async (path) =>
+      path.endsWith("/thread-follow")
+        ? { following: false }
+        : createThreadPayload([
+            createMessage("reply-1", {
+              author: {
+                avatarUrl: null,
+                displayName: "Ogi",
+                id: "user-3",
+                status: "ONLINE",
+                username: "ogi_uat",
+              },
+              content: "Denedim, çok akıcı",
+              threadParentId: "root-message",
+            }),
+            createMessage("reply-2", {
+              content: "Tepki sayacına basınca liste açılsın mı?",
+              reactions: [{ count: 3, emoji: "💯", userIds: ["user-1"] }],
+              threadParentId: "root-message",
+            }),
+          ]),
     );
 
     const view = await render(
@@ -237,6 +239,9 @@ describe("MSG-1f thread redesign", () => {
       ),
     ).toBeTruthy();
     expect(view.getByTestId("mobile-thread-follow-toggle")).toBeTruthy();
+    expect(view.getByTestId("mobile-thread-follow-toggle").props.accessibilityState).toMatchObject({
+      selected: false,
+    });
     expect(view.getByTestId("mobile-thread-options-button")).toBeTruthy();
     expect(view.getByLabelText(copy.channelBackAction)).toBeTruthy();
     expect(
@@ -248,6 +253,38 @@ describe("MSG-1f thread redesign", () => {
       StyleSheet.flatten(view.getByTestId("mobile-channel-message-row-reply-1").props.style),
     ).toMatchObject({ paddingHorizontal: 16, paddingVertical: 6 });
     expect(view.getByTestId("mobile-message-reaction-reply-2-💯")).toBeTruthy();
+  });
+
+  it("takip durumunu mobil PUT ile iyimser açar", async () => {
+    mockRequestJson.mockImplementation(async (path, options) => {
+      if (path.endsWith("/thread-follow")) {
+        return { following: (options as { method?: string } | undefined)?.method === "PUT" };
+      }
+      return createThreadPayload([]);
+    });
+
+    const view = await render(
+      <MobileMessageThreadScreen
+        contextId="channel-1"
+        messageId="root-message"
+        onBack={jest.fn()}
+      />,
+    );
+    const toggle = await view.findByTestId("mobile-thread-follow-toggle");
+    await waitFor(() => expect(toggle.props.accessibilityState.selected).toBe(false));
+    await fireEvent.press(toggle);
+
+    await waitFor(() =>
+      expect(mockRequestJson).toHaveBeenCalledWith(
+        "/api/v1/mobile/channels/channel-1/messages/root-message/thread-follow",
+        { method: "PUT" },
+      ),
+    );
+    await waitFor(() =>
+      expect(
+        view.getByTestId("mobile-thread-follow-toggle").props.accessibilityState.selected,
+      ).toBe(true),
+    );
   });
 
   it("sends the also-send flag from its checked default and clears it when unticked", async () => {

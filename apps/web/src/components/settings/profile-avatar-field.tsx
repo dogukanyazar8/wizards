@@ -414,8 +414,10 @@ export function ProfileAvatarField({
           </span>
         </div>
 
+        {/* `text-amber-600` koyu temada AA'yı geçmiyordu (axe: serious color-contrast).
+            Uyarı rengi zaten token'da: `--warning-readable` iki temada da okunur. */}
         {!uploadthingEnabled ? (
-          <p className="mt-3 rounded-xl border border-amber-400/25 bg-amber-400/10 px-2.5 py-1.5 text-xs font-semibold leading-4 text-amber-600">
+          <p className="mt-3 rounded-xl border border-[hsl(var(--warning)/0.28)] bg-[hsl(var(--warning)/0.12)] px-2.5 py-1.5 text-xs font-semibold leading-4 text-[var(--warning-readable)]">
             {t("settings.account.avatar.uploadsDisabled")}
           </p>
         ) : null}

@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type CSSProperties,
+} from "react";
 import {
   closestCenter,
   DndContext,
@@ -27,12 +34,14 @@ import {
   Edit3,
   GripVertical,
   Hash,
+  Headphones,
   LogOut,
   Mic,
   MoreHorizontal,
   Plus,
   Search,
   Settings2,
+  SlidersHorizontal,
   Trash2,
   UserPlus,
   Volume2,
@@ -40,7 +49,6 @@ import {
 import { Button } from "@wizards/ui";
 import type { WorkspaceChannel, WorkspaceServerDetail } from "@wizards/types";
 import { useShallow } from "zustand/react/shallow";
-import { FriendsSidebar } from "@/components/friends/friends-sidebar";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import { useSocket } from "@/hooks/use-socket";
@@ -48,9 +56,10 @@ import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components
 import { Modal } from "@/components/ui/modal";
 import { ChannelItem } from "@/components/shell/channel-item";
 import { ChannelSidebarSkeleton } from "@/components/shell/shell-skeletons";
-import { NotificationBell } from "@/components/shared/notification-bell";
 import { AudioDeviceSelect } from "@/components/voice/audio-device-select";
+import { useOptionalFocusControls } from "@/components/providers/focus-controls-provider";
 import { useVoiceState } from "@/components/providers/voice-provider";
+import { hairline, HOME_METRICS, HOME_TYPE_SCALE, pxToRem } from "@/lib/home/metrics";
 import { cn } from "@/lib/utils";
 import {
   applyCategoryReorder,
@@ -283,20 +292,60 @@ const USER_STATUS_OPTIONS: Array<{
   { key: "friends.status.offline", value: "OFFLINE" },
 ];
 
-function getStatusDotClass(status: PresenceStatus) {
+/**
+ * Presence → token. SPEC §2.5: kullanıcı ayağındaki nokta ve avatar halkası **aynı** renkten
+ * türer; renk paletten değil token'dan gelir (§1 "yeni renk yok").
+ */
+function getPresenceToken(status: PresenceStatus) {
   if (status === "ONLINE") {
-    return "bg-emerald-400 shadow-[0_0_0_3px_hsl(var(--success)/0.12)]";
+    return "success";
   }
 
   if (status === "IDLE") {
-    return "bg-amber-400 shadow-[0_0_0_3px_hsl(var(--warning)/0.12)]";
+    return "warning";
   }
 
   if (status === "DND") {
-    return "bg-rose-500 shadow-[0_0_0_3px_hsl(var(--danger)/0.12)]";
+    return "danger";
   }
 
-  return "bg-slate-400 shadow-[0_0_0_3px_hsl(var(--muted)/0.18)]";
+  return "text-muted";
+}
+
+/**
+ * SPEC §2.5 — kullanıcı ayağının kutusu: üst kenar 1px `--border`, zemin `--surface-card`,
+ * padding `14 10`. Mobil güvenli alan padding'in üzerine biner, kırpılmaz.
+ */
+export const FOOTER_WRAPPER_STYLE: CSSProperties = {
+  background: "hsl(var(--surface-card))",
+  borderTop: `${hairline(HOME_METRICS.panel.footerBorderTopWidth)} solid hsl(var(--border))`,
+  paddingBottom: `max(${pxToRem(HOME_METRICS.panel.footerPaddingY)}, env(safe-area-inset-bottom))`,
+  paddingLeft: pxToRem(HOME_METRICS.panel.footerPaddingX),
+  paddingRight: pxToRem(HOME_METRICS.panel.footerPaddingX),
+  paddingTop: pxToRem(HOME_METRICS.panel.footerPaddingY),
+};
+
+/** SPEC §2.5 — kullanıcı ayağındaki üç ikon butonunun ortak kutusu. */
+const FOOTER_ACTION_STYLE: CSSProperties = {
+  borderRadius: pxToRem(HOME_METRICS.panel.footerActionRadius),
+  height: pxToRem(HOME_METRICS.panel.footerActionSize),
+  width: pxToRem(HOME_METRICS.panel.footerActionSize),
+};
+
+const FOOTER_ACTION_ICON_STYLE: CSSProperties = {
+  height: pxToRem(HOME_METRICS.panel.footerActionIconSize),
+  width: pxToRem(HOME_METRICS.panel.footerActionIconSize),
+};
+
+const FOOTER_ACTION_ICON_STROKE = HOME_METRICS.panel.footerActionIconStrokeWidth;
+
+function getStatusDotStyle(status: PresenceStatus): CSSProperties {
+  const token = getPresenceToken(status);
+
+  return {
+    background: `hsl(var(--${token}))`,
+    boxShadow: `0 0 0 ${pxToRem(3)} hsl(var(--${token}) / 0.14)`,
+  };
 }
 
 export function UserProfileFooter({
@@ -312,14 +361,12 @@ export function UserProfileFooter({
     sourceStatus: PresenceStatus;
     value: PresenceStatus;
   } | null>(null);
-  const [activeUserPopup, setActiveUserPopup] = useState<
-    "notifications" | "quick" | "status" | null
-  >(null);
+  const [activeUserPopup, setActiveUserPopup] = useState<"quick" | "status" | null>(null);
   const [isIdleTimeoutMenuRequested, setIsIdleTimeoutMenuRequested] = useState(false);
   const userBarRef = useRef<HTMLDivElement | null>(null);
   const { idleTimeoutMinutes, setIdleTimeoutMinutes } = usePresenceIdleTimeoutPreference();
   const { isDeafened, isMuted, leaveChannel, toggleDeafen, toggleMute } = useVoiceState();
-  const isNotificationPopupOpen = activeUserPopup === "notifications";
+  const focusMinutesLeft = useOptionalFocusControls()?.minutesLeft ?? null;
   const isQuickMenuOpen = activeUserPopup === "quick";
   const isStatusMenuOpen = activeUserPopup === "status";
   const status = statusOverride?.sourceStatus === user.status ? statusOverride.value : user.status;
@@ -330,7 +377,7 @@ export function UserProfileFooter({
     setActiveUserPopup(null);
   }, []);
 
-  const toggleUserPopup = useCallback((popup: "notifications" | "quick" | "status") => {
+  const toggleUserPopup = useCallback((popup: "quick" | "status") => {
     setIsIdleTimeoutMenuRequested(false);
     setActiveUserPopup((current) => (current === popup ? null : popup));
   }, []);
@@ -407,52 +454,99 @@ export function UserProfileFooter({
     value: "ONLINE" as const,
   };
 
+  const presenceToken = getPresenceToken(status);
+
   return (
     <div
-      className="relative flex min-h-[3.25rem] w-full min-w-0 translate-y-[4px] items-center rounded-[18px] pl-0 pr-1"
+      className="relative flex w-full min-w-0 items-center"
       data-notification-popup-anchor="user"
       data-testid="user-bar"
       data-user-bar-anchor="true"
       ref={userBarRef}
     >
-      <div className="flex w-full min-w-0 items-center gap-3">
-        <div className="relative shrink-0 drop-shadow-[0_10px_20px_hsl(var(--shadow-color)/0.08)]">
+      <div
+        className="flex w-full min-w-0 items-center"
+        style={{ gap: pxToRem(HOME_METRICS.panel.footerGap) }}
+      >
+        <div className="relative shrink-0">
+          {/* SPEC §2.5: halka presence renginden türer. Odak modu Faz 3'te gelince warning halkası
+              bunun üstüne biner; şimdiden sabitlenmez. */}
           <Avatar
             alt={user.displayName}
-            className="h-9 w-9 sm:h-10 sm:w-10"
+            className="rounded-full"
             fallback={user.displayName}
             src={user.avatarUrl}
+            style={{
+              boxShadow: `0 0 0 ${pxToRem(HOME_METRICS.panel.footerAvatarRingInner)} hsl(var(--${presenceToken}) / 0.55), 0 0 0 ${pxToRem(HOME_METRICS.panel.footerAvatarRingOuter)} hsl(var(--${presenceToken}) / 0.2)`,
+              fontSize: pxToRem(HOME_METRICS.panel.footerAvatarFontSize),
+              height: pxToRem(HOME_METRICS.panel.footerAvatarSize),
+              width: pxToRem(HOME_METRICS.panel.footerAvatarSize),
+            }}
           />
           <span
             aria-hidden="true"
-            className={cn(
-              "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[hsl(var(--surface-card))]",
-              getStatusDotClass(status),
-            )}
+            className="absolute bottom-0 right-0 rounded-full"
+            style={{
+              border: `${pxToRem(HOME_METRICS.panel.footerPresenceDotBorderWidth)} solid hsl(var(--surface-card))`,
+              height: pxToRem(HOME_METRICS.panel.footerPresenceDotSize),
+              width: pxToRem(HOME_METRICS.panel.footerPresenceDotSize),
+              ...getStatusDotStyle(status),
+            }}
           />
         </div>
 
         <div className="min-w-0 flex-1 basis-0">
-          <p className="truncate text-[13px] font-extrabold leading-5 tracking-[-0.01em] text-app-foreground">
+          <p
+            className="truncate text-app-foreground"
+            style={{
+              fontSize: pxToRem(HOME_TYPE_SCALE.cardRowName.size),
+              fontWeight: HOME_TYPE_SCALE.cardRowName.weight,
+              lineHeight: HOME_TYPE_SCALE.cardRowName.lineHeight,
+            }}
+          >
             {user.displayName}
           </p>
-          <p className="truncate text-[10.5px] font-semibold text-app-muted">@{user.username}</p>
-          <div className="relative mt-0.5 inline-flex max-w-full align-top">
+          <div
+            className="relative inline-flex max-w-full align-top"
+            style={{ marginTop: pxToRem(HOME_METRICS.panel.footerStatusMarginTop) }}
+          >
+            {/* Görsel kutu tasarımın yüksekliğinde kalır; `after` sözde öğesi düzeni bozmadan
+                işaretçi hedefini 44px'e çıkarır (SPEC §8.2.5 tıklama hedefi tabanı). */}
             <button
               aria-expanded={isStatusMenuOpen}
               aria-haspopup="listbox"
               aria-label={t("shell.user.status")}
-              className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-transparent p-0 text-left text-[10.5px] font-semibold text-app-muted transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
+              className="relative inline-flex max-w-full items-center rounded-full bg-transparent p-0 text-left text-app-muted transition after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 after:content-[''] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
               disabled={isUpdatingStatus}
               onClick={() => toggleUserPopup("status")}
+              style={{
+                fontSize: pxToRem(HOME_METRICS.panel.trailingTimeFontSize),
+                fontWeight: 600,
+                gap: pxToRem(HOME_METRICS.panel.footerStatusGap),
+                lineHeight: HOME_TYPE_SCALE.cardRowName.lineHeight,
+              }}
               title={t("shell.user.statusTitle")}
               type="button"
             >
               <span
-                className={cn("h-2.5 w-2.5 shrink-0 rounded-full", getStatusDotClass(status))}
+                className="shrink-0 rounded-full"
+                style={{
+                  height: pxToRem(HOME_METRICS.panel.footerStatusDotSize),
+                  width: pxToRem(HOME_METRICS.panel.footerStatusDotSize),
+                  ...getStatusDotStyle(status),
+                }}
               />
-              <span className="truncate">{t(currentStatusOption.key)}</span>
-              <ChevronDown className="h-3 w-3 shrink-0 text-app-soft" />
+              <span className="truncate">
+                {/*
+                  Faz 5 §3.3 — odak açıkken satır pencereyi söyler, durumu değil. Sayı üst
+                  çubuktaki pill ve `Durumun` kartıyla **aynı** kaynaktan (`FocusControlsProvider`)
+                  gelir; burada ikinci bir geri sayım kurulmaz.
+                  i18n: `home.presence.focusRow`
+                */}
+                {focusMinutesLeft === null
+                  ? t(currentStatusOption.key)
+                  : `Odak modu · ${focusMinutesLeft} dk`}
+              </span>
             </button>
 
             {isStatusMenuOpen ? (
@@ -478,7 +572,8 @@ export function UserProfileFooter({
                       type="button"
                     >
                       <span
-                        className={cn("h-2.5 w-2.5 rounded-full", getStatusDotClass(option.value))}
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={getStatusDotStyle(option.value)}
                       />
                       <span>{t(option.key)}</span>
                     </button>
@@ -489,67 +584,66 @@ export function UserProfileFooter({
           </div>
         </div>
 
-        <div className="ml-4 flex shrink-0 items-center gap-0.5">
+        {/* SPEC §2.5: üç ikon butonu 28×28, yarıçap 9, muted; hover'da surface-soft + foreground. */}
+        <div
+          className="flex shrink-0 items-center"
+          style={{ gap: pxToRem(HOME_METRICS.panel.footerActionGap) }}
+        >
           <button
             aria-label={t("shell.user.toggleMute")}
+            aria-pressed={isMuted}
             className={cn(
-              "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+              "inline-flex shrink-0 items-center justify-center transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
               isMuted
-                ? "bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
-                : "text-app-foreground",
+                ? "bg-[hsl(var(--danger)/0.12)] text-[hsl(var(--danger))]"
+                : "text-app-muted hover:bg-[hsl(var(--surface-soft))] hover:text-app-foreground",
             )}
             onClick={() => {
               void toggleMute();
             }}
+            style={FOOTER_ACTION_STYLE}
             type="button"
           >
-            <Mic className={cn("h-4 w-4", isMuted && "text-[hsl(var(--danger))]")} />
+            <Mic style={FOOTER_ACTION_ICON_STYLE} strokeWidth={FOOTER_ACTION_ICON_STROKE} />
           </button>
 
           <button
             aria-label={t("shell.user.toggleDeafen")}
+            aria-pressed={isDeafened}
             className={cn(
-              "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+              "inline-flex shrink-0 items-center justify-center transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
               isDeafened
-                ? "bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
-                : "text-app-foreground",
+                ? "bg-[hsl(var(--danger)/0.12)] text-[hsl(var(--danger))]"
+                : "text-app-muted hover:bg-[hsl(var(--surface-soft))] hover:text-app-foreground",
             )}
             onClick={() => {
               void toggleDeafen();
             }}
+            style={FOOTER_ACTION_STYLE}
             type="button"
           >
-            <Volume2 className={cn("h-4 w-4", isDeafened && "text-[hsl(var(--danger))]")} />
+            <Headphones style={FOOTER_ACTION_ICON_STYLE} strokeWidth={FOOTER_ACTION_ICON_STROKE} />
           </button>
 
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] transition hover:bg-[hsl(var(--surface-soft)/0.68)]">
-            <NotificationBell
-              className="h-8 w-8 rounded-full hover:bg-transparent"
-              onOpenChange={(nextOpen) => {
-                if (nextOpen) {
-                  setIsIdleTimeoutMenuRequested(false);
-                  setActiveUserPopup("notifications");
-                  return;
-                }
-
-                setActiveUserPopup((current) => (current === "notifications" ? null : current));
-              }}
-              open={isNotificationPopupOpen}
-            />
-          </div>
-
           <button
+            aria-expanded={isQuickMenuOpen}
             aria-label={t("shell.user.appearanceSettings")}
             className={cn(
-              "inline-flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
-              isQuickMenuOpen && "bg-[hsl(var(--primary)/0.18)]",
+              "inline-flex items-center justify-center transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+              isQuickMenuOpen
+                ? "bg-[hsl(var(--surface-soft))] text-app-foreground"
+                : "text-app-muted hover:bg-[hsl(var(--surface-soft))] hover:text-app-foreground",
             )}
             data-testid="user-settings-button"
             onClick={() => toggleUserPopup("quick")}
+            style={FOOTER_ACTION_STYLE}
             title={t("shell.user.appearanceSettingsTitle")}
             type="button"
           >
-            <Settings2 className="h-4 w-4" />
+            <SlidersHorizontal
+              style={FOOTER_ACTION_ICON_STYLE}
+              strokeWidth={FOOTER_ACTION_ICON_STROKE}
+            />
           </button>
         </div>
 
@@ -1195,17 +1289,18 @@ export function ChannelSidebar({
         className="app-sidebar flex h-full w-full min-w-0 flex-col overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0"
         data-testid="channel-sidebar"
       >
-        <div className="min-h-0 flex-1 p-4">
-          <FriendsSidebar
-            currentUserId={currentUser.id}
-            onNavigate={onNavigate}
-            onPrefetch={onPrefetch}
-          />
-        </div>
+        {/*
+          Detay yoksa sunucu bilinmiyor demek (yükleme bitti, cevap gelmedi).
+          Burada eskiden arkadaş listesi çiziliyordu; Mesajlar kendi rotasına ve
+          kendi rayına taşınınca bu, **sunucu** sütununda alakasız bir ekran
+          oldu. Boş bırakmak, yanlış bir ekran göstermekten iyi.
+        */}
+        <div className="min-h-0 flex-1 p-4" data-testid="channel-sidebar-empty" />
         {showUserFooter ? (
           <div
-            className="flex min-h-[4.25rem] items-center justify-start border-t border-[hsl(var(--border)/0.78)] py-2 pl-3 pr-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-2"
+            className="flex items-center"
             data-notification-popup-anchor="controls-border"
+            style={FOOTER_WRAPPER_STYLE}
           >
             <UserProfileFooter
               user={currentUser}
@@ -1641,8 +1736,9 @@ export function ChannelSidebar({
 
       {showUserFooter ? (
         <div
-          className="flex min-h-[4.25rem] items-center justify-start border-t border-[hsl(var(--border)/0.78)] py-2 pl-0 pr-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-2"
+          className="flex items-center"
           data-notification-popup-anchor="controls-border"
+          style={FOOTER_WRAPPER_STYLE}
         >
           <UserProfileFooter
             user={currentUser}

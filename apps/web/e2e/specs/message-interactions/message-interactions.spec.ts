@@ -1,10 +1,7 @@
 import type { Browser, BrowserContext, Locator, Page, TestInfo } from "@playwright/test";
 import { test, expect } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
-import {
-  attachE2EPageDiagnostics,
-  type E2EPageDiagnosticsHandle,
-} from "../../helpers/diagnostics";
+import { attachE2EPageDiagnostics, type E2EPageDiagnosticsHandle } from "../../helpers/diagnostics";
 import { getE2EDMConversationId, getE2EServerRoute } from "../../helpers/db";
 import { sendComposerMessage } from "../../helpers/messages";
 import { gotoDmConversationRoute, gotoTextChannelRoute } from "../../helpers/navigation";
@@ -83,6 +80,22 @@ async function clickMessageAction(message: Locator, actionTestId: string): Promi
   await visibleAction.click();
 }
 
+/**
+ * Düzenle/sil hover şeridinde **değil**, `...` menüsünde (SPEC-MESAJLAR §5.3).
+ * Şerit beş eylem taşıyor (tepki, yanıtla, sabitle, thread, daha fazla); yıkıcı
+ * ve nadir eylemler menüye indi, bu yüzden önce menü açılıyor.
+ */
+async function clickMessageMenuAction(message: Locator, actionTestId: string): Promise<void> {
+  await message.hover();
+  await message.locator('[data-testid="message-action-more"]:visible').first().click();
+
+  const action = message.locator(`[data-testid="${actionTestId}"]:visible`).first();
+
+  await expect(action).toBeVisible({ timeout: 10_000 });
+  await expect(action).toBeEnabled({ timeout: 10_000 });
+  await action.click();
+}
+
 async function openReactionPicker(page: Page, message: Locator): Promise<void> {
   await message.hover();
   await message.getByTestId("message-action-react").first().click();
@@ -107,7 +120,13 @@ test.describe("message interactions", () => {
     const messageList = page.getByTestId("message-list");
     await expect(messageList).toBeVisible({ timeout: 10_000 });
     await expect(messageList).toHaveAttribute("role", "log");
-    await expect(messageList).toHaveAttribute("aria-live", "polite");
+    /*
+     * Liste `aria-live="off"`: her kaydırmada onlarca satır DOM'a girip
+     * çıkıyor ve `polite` bunların hepsini okuturdu. Duyuru ayrı, `sr-only`
+     * bir bölgeden yapılıyor — yalnız yeni gelen mesaj için (SPEC §5.2).
+     */
+    await expect(messageList).toHaveAttribute("aria-live", "off");
+    await expect(page.locator('[aria-live="polite"][aria-atomic="true"].sr-only')).toHaveCount(1);
   });
 
   test("search panel behaves like a dismissible dialog", async ({ page }) => {
@@ -126,7 +145,7 @@ test.describe("message interactions", () => {
     await expect(searchPanel).toBeHidden({ timeout: 10_000 });
   });
 
-  test("thread panel opens as an accessible dialog and closes with Escape", async ({ page }) => {
+  test("thread panel opens as an accessible column and closes with Escape", async ({ page }) => {
     const { serverId, textChannelId } = await getE2EServerRoute();
     const content = `Thread accessibility target ${Date.now()}`;
 
@@ -139,6 +158,16 @@ test.describe("message interactions", () => {
 
     const threadPanel = page.getByTestId("thread-panel");
     await expect(threadPanel).toBeVisible({ timeout: 10_000 });
+
+    /*
+     * SPEC §6: panel geniş ekranda ana alanın **yanında** duran bir sütun, üstüne
+     * binen bir diyalog değil — bu yüzden `complementary`. Diyalog rolü ve odak
+     * tuzağı yalnız 1100px altında, panel sohbetin üstüne bindiğinde doğru olur.
+     */
+    await expect(threadPanel).toHaveAttribute("role", "complementary");
+    await expect(threadPanel).not.toHaveAttribute("aria-modal", "true");
+
+    await page.setViewportSize({ height: 900, width: 1024 });
     await expect(threadPanel).toHaveAttribute("role", "dialog");
     await expect(threadPanel).toHaveAttribute("aria-modal", "true");
 
@@ -192,7 +221,7 @@ test.describe("message interactions", () => {
     await sendMessage(page, original);
 
     const message = await waitForActionableMessage(page, original);
-    await message.getByTestId("message-action-edit").first().click();
+    await clickMessageMenuAction(message, "message-menu-edit");
     await expect(page.getByTestId("message-editor")).toBeVisible();
     await page.getByTestId("message-editor-input").fill(edited);
     await page.getByTestId("message-editor-save").click();
@@ -215,7 +244,7 @@ test.describe("message interactions", () => {
     await sendMessage(page, content);
 
     const message = await waitForActionableMessage(page, content);
-    await clickMessageAction(message, "message-action-delete");
+    await clickMessageMenuAction(message, "message-menu-delete");
 
     await expect(page.getByTestId("message-delete-dialog")).toBeVisible();
     expect(browserDialogs).toHaveLength(0);
@@ -246,10 +275,9 @@ test.describe("message interactions", () => {
     await expect(replyMessage).toContainText(original);
   });
 
-  test("user profile popup opens and closes from a message avatar", async (
-    { browser },
-    testInfo,
-  ) => {
+  test("user profile popup opens and closes from a message avatar", async ({
+    browser,
+  }, testInfo) => {
     const { serverId, textChannelId } = await getE2EServerRoute();
     const alice = await openLoggedInPage(browser, "alice", testInfo);
     const bob = await openLoggedInPage(browser, "bob", testInfo);

@@ -2,10 +2,7 @@ import { requireApiUserId } from "@/lib/auth/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError } from "@/lib/api";
 import { listDMThreadMessages } from "@/lib/dm/service";
-import {
-  DMConversationParamsSchema,
-  DMMessagesQuerySchema,
-} from "@/lib/dm/types";
+import { DMConversationParamsSchema, DMMessagesQuerySchema } from "@/lib/dm/types";
 import { z } from "zod";
 
 const DMThreadParamsSchema = DMConversationParamsSchema.extend({
@@ -28,13 +25,7 @@ export async function GET(request: Request, context: RouteContext) {
     });
 
     return Response.json(
-      await listDMThreadMessages(
-        userId,
-        conversationId,
-        messageId,
-        query.cursor,
-        query.limit,
-      ),
+      await listDMThreadMessages(userId, conversationId, messageId, query.cursor, query.limit),
     );
   } catch (error) {
     return jsonError(error);

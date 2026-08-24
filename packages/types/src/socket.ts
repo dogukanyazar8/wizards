@@ -8,6 +8,7 @@ import {
   type MessageThreadSummary,
 } from "./messages";
 import { DMSystemMessageTypeSchema, type DMSystemMessageTypeValue } from "./dm-system-message";
+import { PollDTOSchema, type PollDTO } from "./poll";
 import {
   DMNotifyLevelSchema,
   DMParticipantRoleSchema,
@@ -69,6 +70,13 @@ export interface DMMessagePayload {
   attachments: DMMessageAttachmentPayload[];
   reactions: MessageReaction[];
   replyTo: DMMessagePayload | null;
+  /**
+   * Mesajlar karar #1. Present only on the rare message that carries a poll, so
+   * the hot payload does not grow for the other 99%. Carried inline rather than
+   * fetched by id: a card that appears and then fills in a beat later reads as a
+   * loading bug on a message that has already arrived.
+   */
+  poll?: PollDTO | null | undefined;
   /** Client-side optimistic state — the server never sends this field. */
   deliveryStatus?: "sending" | "failed" | undefined;
   /**
@@ -95,6 +103,11 @@ export interface DMMessagePayload {
    * the design only ever draws it under the last one.
    */
   readReceipt?: DMReadReceipt | undefined;
+  /**
+   * Mesajlar §6.1. Yazarının ana sohbete de gönderdiği bir thread yanıtı.
+   * İsteğe bağlı: alanı tanımayan eski bir istemci yükü ayrıştırmayı sürdürsün.
+   */
+  alsoSentToChannel?: boolean | undefined;
   /**
    * K3. When this message is swept, or null when it is permanent. Optional
    * because the field shipped after the UAT backend and an older payload must
@@ -238,6 +251,7 @@ export const DMMessagePayloadSchema: z.ZodType<DMMessagePayload> = z.lazy(() =>
     content: z.string(),
     replyToId: z.string().nullable(),
     threadParentId: z.string().nullable(),
+    alsoSentToChannel: z.boolean().optional(),
     threadSummary: MessageThreadSummarySchema.optional(),
     forwardedAt: z.string().nullable().optional(),
     editedAt: z.string().nullable(),
@@ -248,6 +262,7 @@ export const DMMessagePayloadSchema: z.ZodType<DMMessagePayload> = z.lazy(() =>
     attachments: z.array(DMMessageAttachmentSchema, { error: "Expected array" }),
     reactions: z.array(MessageReactionSchema, { error: "Expected array" }),
     replyTo: DMMessagePayloadSchema.nullable(),
+    poll: PollDTOSchema.nullable().optional(),
     deliveryStatus: z.enum(["sending", "failed"]).optional(),
     clientNonce: z.string().min(1).max(128).nullable().optional(),
     systemType: DMSystemMessageTypeSchema.nullable().default(null),

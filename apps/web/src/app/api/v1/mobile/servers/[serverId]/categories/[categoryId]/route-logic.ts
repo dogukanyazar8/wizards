@@ -10,8 +10,7 @@ import { requireMobileApiUserId } from "@/lib/auth/api";
 import { deleteWorkspaceCategory, updateWorkspaceCategory } from "@/lib/workspace/category-service";
 
 type MobileServerCategoryRateLimitAction =
-  | "mobile:server:categories:delete"
-  | "mobile:server:categories:update";
+  "mobile:server:categories:delete" | "mobile:server:categories:update";
 
 export type MobileServerCategoryRouteContext = {
   params: Promise<Record<string, string>>;

@@ -5,18 +5,21 @@ import {
   buildMobileChannelMessagePath,
   buildMobileChannelMessageReactionPath,
   buildMobileChannelMessageThreadPath,
+  buildMobileChannelThreadFollowPath,
   buildMobileChannelMarkReadPath,
   buildMobileChannelMessagesPath,
   buildMobileChannelSendMessagePath,
   buildMobileWorkspaceServerPath,
   deleteMobileChannelMessage,
   fetchMobileChannelMessageThread,
+  fetchMobileChannelThreadFollow,
   fetchMobileChannelMessages,
   fetchMobileWorkspaceServer,
   markMobileChannelRead,
   MOBILE_CHANNEL_MESSAGES_LIMIT,
   sendMobileChannelMessage,
   setMobileChannelMessageReaction,
+  setMobileChannelThreadFollow,
   updateMobileChannelMessage,
 } from "../src/workspace/mobile-workspace-client";
 
@@ -185,6 +188,37 @@ describe("mobile workspace client", () => {
       buildMobileChannelMessageThreadPath({ ...input, cursor: "cursor 2" }),
       `/api/v1/mobile/channels/channel%2Fid%201/messages/message%2Fid%201/thread?limit=${MOBILE_CHANNEL_MESSAGES_LIMIT}&cursor=cursor+2`,
     );
+    assert.equal(
+      buildMobileChannelThreadFollowPath(input),
+      "/api/v1/mobile/channels/channel%2Fid%201/messages/message%2Fid%201/thread-follow",
+    );
+  });
+
+  it("reads and writes real thread follow state", async () => {
+    const requests: Array<{ options: MobileApiRequestOptions | undefined; path: string }> = [];
+    const client: MobileApiClient = {
+      async requestJson<TResponse>(path: string, options?: MobileApiRequestOptions) {
+        requests.push({ options, path });
+        return { following: options?.method !== "DELETE" } as TResponse;
+      },
+    };
+    const input = { channelId: "channel-1", messageId: "message-1" };
+
+    assert.equal((await fetchMobileChannelThreadFollow(client, input)).following, true);
+    assert.equal(
+      (await setMobileChannelThreadFollow(client, { ...input, following: false })).following,
+      false,
+    );
+    assert.deepEqual(requests, [
+      {
+        options: undefined,
+        path: "/api/v1/mobile/channels/channel-1/messages/message-1/thread-follow",
+      },
+      {
+        options: { method: "DELETE" },
+        path: "/api/v1/mobile/channels/channel-1/messages/message-1/thread-follow",
+      },
+    ]);
   });
 
   it("marks an accessible text channel read through the bearer-auth contract", async () => {

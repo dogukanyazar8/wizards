@@ -1,7 +1,6 @@
 const DESKTOP_UPDATE_ORIGIN = "https://updates.whispr.team";
 const DESKTOP_DOWNLOAD_ROUTE = "/api/v1/desktop/download";
-const DEFAULT_DESKTOP_DOWNLOAD_MANIFEST_URL =
-  `${DESKTOP_UPDATE_ORIGIN}/desktop/canary/latest.json`;
+const DEFAULT_DESKTOP_DOWNLOAD_MANIFEST_URL = `${DESKTOP_UPDATE_ORIGIN}/desktop/canary/latest.json`;
 
 const DESKTOP_MANIFEST_RINGS = new Set(["canary", "stable", "uat"]);
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
@@ -38,9 +37,7 @@ function assertSafeManifestUrl(manifestUrl: URL) {
     !ring ||
     !DESKTOP_MANIFEST_RINGS.has(ring)
   ) {
-    throw new Error(
-      "Desktop download manifest must be a Whispr HTTPS latest.json endpoint.",
-    );
+    throw new Error("Desktop download manifest must be a Whispr HTTPS latest.json endpoint.");
   }
 
   return ring;

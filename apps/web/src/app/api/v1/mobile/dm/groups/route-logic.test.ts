@@ -60,7 +60,7 @@ describe("mobile group routes", () => {
     const actions: string[] = [];
     const response = await mobileGroupCreateRoute(
       new Request("https://whispr.test/api/v1/mobile/dm/groups", {
-        body: JSON.stringify({ userIds: ["user-2", "user-3"] }),
+        body: JSON.stringify({ name: "Takım", userIds: ["user-2", "user-3"] }),
         headers: { "content-type": "application/json" },
         method: "POST",
       }),

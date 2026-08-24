@@ -28,11 +28,7 @@ export type AttemptTrackerConfig = {
 };
 
 type AttemptRedis = Pick<AttemptStore, "del" | "get" | "set"> & {
-  eval: (
-    script: string,
-    keyCount: number,
-    ...args: Array<number | string>
-  ) => Promise<unknown>;
+  eval: (script: string, keyCount: number, ...args: Array<number | string>) => Promise<unknown>;
 };
 
 const RECORD_ATTEMPT_FAILURE_SCRIPT = `
@@ -111,10 +107,7 @@ function validateConfig(config: AttemptTrackerConfig) {
   if (!Number.isFinite(config.initialBackoffMs) || config.initialBackoffMs <= 0) {
     throw new RangeError("Attempt tracker initialBackoffMs must be positive.");
   }
-  if (
-    !Number.isFinite(config.maxBackoffMs) ||
-    config.maxBackoffMs < config.initialBackoffMs
-  ) {
+  if (!Number.isFinite(config.maxBackoffMs) || config.maxBackoffMs < config.initialBackoffMs) {
     throw new RangeError("Attempt tracker maxBackoffMs must cover the initial backoff.");
   }
   if (!Number.isInteger(config.windowSeconds) || config.windowSeconds <= 0) {
@@ -154,10 +147,7 @@ async function writeAttemptState(
   await store.set(key, JSON.stringify(state), "EX", windowSeconds);
 }
 
-async function recordFailureWithFallback(
-  store: AttemptStore,
-  input: AtomicAttemptFailureInput,
-) {
+async function recordFailureWithFallback(store: AttemptStore, input: AtomicAttemptFailureInput) {
   const previous = await readAttemptState(store, input.key);
   if (previous.lockedUntilMs && previous.lockedUntilMs > input.nowMs) {
     return previous;
@@ -255,11 +245,7 @@ export function createAttemptTracker(config: AttemptTrackerConfig) {
   }
 
   return {
-    async assertAllowed(args: {
-      identifier: string;
-      nowMs: number;
-      store: AttemptStore;
-    }) {
+    async assertAllowed(args: { identifier: string; nowMs: number; store: AttemptStore }) {
       const state = await readAttemptState(args.store, getKey(args.identifier));
       if (state.lockedUntilMs && state.lockedUntilMs > args.nowMs) {
         return {
@@ -271,11 +257,7 @@ export function createAttemptTracker(config: AttemptTrackerConfig) {
       return { allowed: true as const };
     },
     getKey,
-    async recordFailure(args: {
-      identifier: string;
-      nowMs: number;
-      store: AttemptStore;
-    }) {
+    async recordFailure(args: { identifier: string; nowMs: number; store: AttemptStore }) {
       const input = {
         ...normalizedConfig,
         key: getKey(args.identifier),

@@ -27,7 +27,11 @@ export async function POST(request: Request) {
     );
 
     if (!isAllowed) {
-      throw new ApiError("Too many voice token requests. Please try again shortly.", 429, "RATE_LIMITED");
+      throw new ApiError(
+        "Too many voice token requests. Please try again shortly.",
+        429,
+        "RATE_LIMITED",
+      );
     }
 
     const input = await parseJsonBody(request, CreateLiveKitTokenBodySchema);

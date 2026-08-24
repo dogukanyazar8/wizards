@@ -7,6 +7,7 @@ import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { MobileLineIcon } from "../../design/mobile-line-icons";
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
 import { useMobileChannelMessageThreadQuery } from "../../query/mobile-message-thread-query";
+import { useMobileChannelThreadFollow } from "../../query/mobile-thread-follow-query";
 import { useMobileChannelThreadMessageReactionMutation } from "../../query/use-mobile-message-mutations";
 import { useMobileChannelThreadReplyMutation } from "../../query/use-mobile-thread-reply-mutation";
 import type { MobileChannelTypingUser } from "../../realtime/mobile-typing-state";
@@ -105,9 +106,10 @@ export function MobileMessageThreadScreen({
   });
   // §2 "1f".5: the box ships ticked, and the flag really rides the send payload.
   const [alsoSendToChannel, setAlsoSendToChannel] = useState(true);
-  const [isFollowingThread, setFollowingThread] = useState(true);
   const [composerIntent, setComposerIntent] = useState<MobileComposerIntent | null>(null);
   const query = useMobileChannelMessageThreadQuery(apiClient, contextId, messageId);
+  const threadFollow = useMobileChannelThreadFollow(apiClient, contextId, messageId);
+  const isFollowingThread = threadFollow.query.data?.following ?? true;
   const payload = query.data;
   const replies = payload?.messages ?? [];
   const reactionMutation = useMobileChannelThreadMessageReactionMutation({
@@ -192,10 +194,14 @@ export function MobileMessageThreadScreen({
               <Pressable
                 accessibilityLabel={copy.messageThreadFollowAction}
                 accessibilityRole="button"
-                accessibilityState={{ selected: isFollowingThread }}
+                accessibilityState={{
+                  busy: threadFollow.mutation.isPending,
+                  selected: isFollowingThread,
+                }}
+                disabled={threadFollow.mutation.isPending}
                 onPress={() => {
                   selection();
-                  setFollowingThread((current) => !current);
+                  threadFollow.mutation.mutate(!isFollowingThread);
                 }}
                 style={({ pressed }) => [
                   styles.followPill,

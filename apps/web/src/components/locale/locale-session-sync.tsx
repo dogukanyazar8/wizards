@@ -18,9 +18,7 @@ export function LocaleSessionSync({ preferredLocale }: LocaleSessionSyncProps) {
 
     const nextLocale = normalizeAppLocale(preferredLocale);
     const storedLocale =
-      typeof window === "undefined"
-        ? null
-        : window.localStorage.getItem(APP_LOCALE_STORAGE_KEY);
+      typeof window === "undefined" ? null : window.localStorage.getItem(APP_LOCALE_STORAGE_KEY);
 
     if (storedLocale && normalizeAppLocale(storedLocale) !== nextLocale) {
       return;

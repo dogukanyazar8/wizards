@@ -25,6 +25,7 @@ import {
   type MobilePushSenderDeps,
 } from "@/lib/mobile/push-sender";
 import type { HandlerContext } from "@/lib/socket/context";
+import type { MessageSendAck } from "@/lib/socket/events";
 import { createDMErrorEmitter, createSafeDMErrorEmitter } from "@/lib/socket/errors";
 import {
   checkDMDeliveryAckRateLimit,
@@ -49,6 +50,19 @@ import type { SocketHandlerRegistration } from ".";
 
 /** How long an unanswered DM call keeps ringing before both sides give up. */
 const DM_CALL_RING_TTL_MS = 45_000;
+
+function createDMMessageSendAcknowledger(acknowledge?: (result: MessageSendAck) => void) {
+  let acknowledged = false;
+
+  return (result: MessageSendAck) => {
+    if (acknowledged) {
+      return;
+    }
+
+    acknowledged = true;
+    acknowledge?.(result);
+  };
+}
 
 /**
  * Rings every callee's mobile devices alongside the socket signal. Exported for
@@ -517,7 +531,13 @@ export function registerDMHandlers(
     }
   });
 
-  socket.on("dm:message:send", async (rawData) => {
+  socket.on("dm:message:send", async (rawData, rawAcknowledge) => {
+    const acknowledge = createDMMessageSendAcknowledger(rawAcknowledge);
+    const fail = (code: Parameters<typeof emitDMError>[0], message: string) => {
+      emitDMError(code, message);
+      acknowledge({ code, message, ok: false });
+    };
+
     try {
       const data = parseSocketPayload(SocketDMMessageSendPayloadSchema, rawData);
       const rateLimitResult = await checkDMMessageRateLimits({
@@ -527,12 +547,12 @@ export function registerDMHandlers(
       });
 
       if (rateLimitResult.status === "global") {
-        emitDMError("RATE_LIMITED", "Too many DM messages. Please slow down.");
+        fail("RATE_LIMITED", "Too many DM messages. Please slow down.");
         return;
       }
 
       if (rateLimitResult.status === "conversation") {
-        emitDMError("RATE_LIMITED", "Too many DM messages. Maximum 30 per minute.");
+        fail("RATE_LIMITED", "Too many DM messages. Maximum 30 per minute.");
         return;
       }
 
@@ -547,7 +567,7 @@ export function registerDMHandlers(
         }
 
         if (!rateLimitResult.allowDuringGrace) {
-          emitDMError(
+          fail(
             "RATE_LIMIT_UNAVAILABLE",
             "DM message controls are temporarily unavailable. Please try again shortly.",
           );
@@ -556,7 +576,10 @@ export function registerDMHandlers(
       }
 
       try {
-        await sendDirectMessage({
+        const message = await sendDirectMessage({
+          // §6.1: yalnız gerçek bir thread yanıtında anlamlı; servis de bunu
+          // `threadParentId` ile birlikte değerlendiriyor.
+          alsoSendToChannel: data.alsoSendToChannel === true,
           attachments: data.attachments,
           attribution: socket.data.clientAttribution ?? UNKNOWN_ATTRIBUTION,
           clientNonce: data.clientNonce ?? null,
@@ -571,14 +594,17 @@ export function registerDMHandlers(
           threadParentId: data.threadParentId ?? null,
           userId,
         });
+        acknowledge({ messageId: message.id, ok: true });
       } catch (validationError) {
-        emitDMError(
+        const code =
           validationError instanceof ApiError &&
-            (validationError.code === "FORBIDDEN" ||
-              validationError.code === "BLOCKED" ||
-              validationError.code === "NOT_FOUND")
+          (validationError.code === "FORBIDDEN" ||
+            validationError.code === "BLOCKED" ||
+            validationError.code === "NOT_FOUND")
             ? validationError.code
-            : "VALIDATION_ERROR",
+            : "VALIDATION_ERROR";
+        fail(
+          code,
           validationError instanceof Error ? validationError.message : "Invalid message payload.",
         );
         return;
@@ -586,6 +612,7 @@ export function registerDMHandlers(
 
       await options.stopDMTyping?.(data.conversationId);
     } catch (error) {
+      acknowledge({ code: "NOT_FOUND", message: "Unable to send DM message.", ok: false });
       emitSafeDMError("NOT_FOUND", "Unable to send DM message.", error);
     }
   });

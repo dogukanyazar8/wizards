@@ -54,7 +54,9 @@ async function requestPublicAttachmentUrl(
         return;
       }
 
-      reject(new ApiError("Attachment could not be downloaded.", 502, "ATTACHMENT_DOWNLOAD_FAILED"));
+      reject(
+        new ApiError("Attachment could not be downloaded.", 502, "ATTACHMENT_DOWNLOAD_FAILED"),
+      );
     };
 
     const request = client.request(

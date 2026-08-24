@@ -118,6 +118,9 @@ export function mapDMMessageToChatMessage(message: DMMessagePayload): ChatMessag
     editedAt: message.editedAt,
     deletedAt: message.deletedAt,
     deletedById: message.deletedById,
+    // karar #1: anket mesajın kendisiyle aynı yükte geliyor. Burada
+    // taşınmasaydı, sunucu anketi gönderse bile satır onu hiç görmezdi.
+    poll: message.poll ?? null,
     systemType: message.systemType,
     systemTargetUserIds: message.systemTargetUserIds,
     systemValue: message.systemValue,

@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import {
   GROUP_AVATAR_COLORS,
+  getGroupAvatarColorHsl,
+  mapLegacyGroupAvatarColor,
   toGroupAvatarInitials,
   type DMConversationDTO,
   type GroupCreateState,
@@ -108,6 +110,9 @@ export function MobileGroupInfoScreen({
   const quickActions = getGroupQuickActions(capabilities);
   const tiles = getGroupMediaTiles(media.items, media.total);
   const memberCount = conversation?.memberCount ?? members.length;
+  const avatarColor = conversation?.avatarColor
+    ? getGroupAvatarColorHsl(mapLegacyGroupAvatarColor(conversation.avatarColor))
+    : tokens.bottomBar.buttonBg;
   const title =
     conversation?.name?.trim() ??
     (conversation ? formatCreatedAtMeta(memberCount, null, locale) : "");
@@ -165,12 +170,7 @@ export function MobileGroupInfoScreen({
         style={{ flex: 1 }}
       >
         <View style={styles.infoIdentity}>
-          <View
-            style={[
-              styles.infoAvatar,
-              { backgroundColor: conversation?.avatarColor ?? tokens.bottomBar.buttonBg },
-            ]}
-          >
+          <View style={[styles.infoAvatar, { backgroundColor: avatarColor }]}>
             {conversation?.iconUrl ? (
               <Image source={{ uri: conversation.iconUrl }} style={styles.mediaTileImage} />
             ) : (
@@ -508,8 +508,9 @@ function MobileGroupIdentityEditor({
     : null;
   const [state, setState] = useState<GroupCreateState>({
     // P2: the fallback is the palette's own first swatch, never a literal.
-    avatarColor: (conversation.avatarColor ??
-      GROUP_AVATAR_COLORS[0]) as GroupCreateState["avatarColor"],
+    avatarColor: conversation.avatarColor
+      ? mapLegacyGroupAvatarColor(conversation.avatarColor)
+      : GROUP_AVATAR_COLORS[0],
     description: conversation.description ?? "",
     historyVisibility: conversation.historyVisibility ?? "LAST_30D",
     inviteEnabled: false,

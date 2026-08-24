@@ -58,6 +58,9 @@ const PRIVILEGED_PERMISSION_CACHE_PERMISSIONS: PermissionValue[] = [
   PermissionBits.TIMEOUT_MEMBERS,
   PermissionBits.VIEW_AUDIT_LOG,
   PermissionBits.MENTION_EVERYONE,
+  // Etkinlikler K4 — yeni bit akranlarıyla aynı önbellek penceresini alır; geri alınmış bir
+  // `MANAGE_EVENTS` rolü `MENTION_EVERYONE`den daha uzun süre bayat kalmamalı.
+  PermissionBits.MANAGE_EVENTS,
   PermissionBits.MUTE_MEMBERS,
   PermissionBits.DEAFEN_MEMBERS,
   PermissionBits.MOVE_MEMBERS,

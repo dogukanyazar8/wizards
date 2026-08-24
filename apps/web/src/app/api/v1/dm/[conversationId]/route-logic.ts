@@ -10,28 +10,25 @@ type RouteContext = {
 
 export type DirectMessageConversationRouteDependencies = {
   enforceApiRateLimit: typeof enforceApiRateLimit;
-  getDirectMessageConversationForUser: (
-    conversationId: string,
-    userId: string,
-  ) => Promise<unknown>;
+  getDirectMessageConversationForUser: (conversationId: string, userId: string) => Promise<unknown>;
   hideDirectMessage: typeof hideDirectMessage;
   jsonError: typeof jsonError;
   requireApiUserId: typeof requireApiUserId;
 };
 
-const defaultDirectMessageConversationRouteDependencies: DirectMessageConversationRouteDependencies = {
-  enforceApiRateLimit,
-  getDirectMessageConversationForUser,
-  hideDirectMessage,
-  jsonError,
-  requireApiUserId,
-};
+const defaultDirectMessageConversationRouteDependencies: DirectMessageConversationRouteDependencies =
+  {
+    enforceApiRateLimit,
+    getDirectMessageConversationForUser,
+    hideDirectMessage,
+    jsonError,
+    requireApiUserId,
+  };
 
 export async function getDirectMessageConversationRoute(
   _: Request,
   context: RouteContext,
-  dependencies: DirectMessageConversationRouteDependencies =
-    defaultDirectMessageConversationRouteDependencies,
+  dependencies: DirectMessageConversationRouteDependencies = defaultDirectMessageConversationRouteDependencies,
 ) {
   try {
     const userId = await dependencies.requireApiUserId();
@@ -51,8 +48,7 @@ export async function getDirectMessageConversationRoute(
 export async function deleteDirectMessageConversationRoute(
   _: Request,
   context: RouteContext,
-  dependencies: DirectMessageConversationRouteDependencies =
-    defaultDirectMessageConversationRouteDependencies,
+  dependencies: DirectMessageConversationRouteDependencies = defaultDirectMessageConversationRouteDependencies,
 ) {
   try {
     const userId = await dependencies.requireApiUserId();

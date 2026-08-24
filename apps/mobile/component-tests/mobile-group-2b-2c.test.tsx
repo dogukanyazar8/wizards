@@ -5,6 +5,7 @@ import { GROUP_SELECTABLE_MAX } from "@wizards/types";
 
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 import { MobileGroupCreateScreen } from "../src/app/screens/group-create/group-create-screen";
+import { MobileGroupMemberStep } from "../src/app/screens/group-create/member-step";
 import { createGroupChatStyles } from "../src/app/screens/group-chat.styles";
 import { lightTheme } from "../src/design/themes";
 import { mobileCopy } from "../src/locale/mobile-copy";
@@ -117,7 +118,7 @@ describe("2b §8 selection floor", () => {
     const { view } = await renderScreen();
 
     await pick(view, "user-2", "user-3");
-    expect(view.getByTestId("mobile-group-create-counter")).toHaveTextContent("3/32");
+    expect(view.getByTestId("mobile-group-create-counter")).toHaveTextContent("3/250");
   });
 });
 
@@ -214,32 +215,43 @@ describe("2b §7 closed to invites", () => {
 });
 
 describe("2b §8 ceiling", () => {
-  it("freezes the unpicked rows at 31 and still lets a pick be undone", async () => {
-    const many = Array.from({ length: GROUP_SELECTABLE_MAX + 1 }, (_, index) =>
-      friend(`bulk-${index}`, `Kişi ${index}`),
+  it("freezes the unpicked rows at the ceiling and keeps picked rows interactive", async () => {
+    const selectedUserIds = Array.from(
+      { length: GROUP_SELECTABLE_MAX },
+      (_, index) => `bulk-${index}`,
     );
+    const many = [
+      ...selectedUserIds.map((id, index) => friend(id, `Kişi ${index}`)),
+      friend("bulk-overflow", "Kişi taşan"),
+    ];
+    const onToggleMember = jest.fn();
     const view = await render(
-      <MobileGroupCreateScreen
+      <MobileGroupMemberStep
+        conversations={[]}
         friends={many}
+        friendsById={new Map(many.map((entry) => [entry.id, entry]))}
         now={NOW}
-        onCancel={() => {}}
-        onCreated={() => {}}
-        onSubmit={(async () => conversationResult()) as never}
+        onToggleMember={onToggleMember}
+        state={{
+          avatarColor: "primary",
+          description: "",
+          historyVisibility: "ALL",
+          inviteEnabled: true,
+          name: "",
+          permAddMembers: "ALL",
+          selectedUserIds,
+          step: "members",
+        }}
       />,
     );
 
-    for (let index = 0; index < GROUP_SELECTABLE_MAX; index += 1) {
-      await fireEvent.press(view.getByTestId(`mobile-group-create-friend-bulk-${index}`));
-    }
-
-    const overflowRow = view.getByTestId(`mobile-group-create-friend-bulk-${GROUP_SELECTABLE_MAX}`);
+    const overflowRow = view.getByTestId("mobile-group-create-friend-bulk-overflow");
     expect(overflowRow.props.accessibilityState.disabled).toBe(true);
 
-    // The ceiling must never be a dead end: an already-picked row still toggles.
+    const selectedRow = view.getByTestId("mobile-group-create-friend-bulk-0");
+    expect(selectedRow.props.accessibilityState.disabled).toBe(false);
     await fireEvent.press(view.getByTestId("mobile-group-create-friend-bulk-0"));
-    expect(
-      view.getByTestId("mobile-group-create-friend-bulk-0").props.accessibilityState.checked,
-    ).toBe(false);
+    expect(onToggleMember).toHaveBeenCalledWith("bulk-0");
   });
 });
 
@@ -302,18 +314,22 @@ describe("2c identity step", () => {
     return rendered;
   }
 
-  it("shows the live hint while the name is empty and submits that exact name", async () => {
+  it("shows the live hint but requires an explicit group name before submit", async () => {
     const { onSubmit, view } = await openIdentity();
 
     expect(view.getByTestId("mobile-group-create-hint")).toBeTruthy();
     // §4.4: the hint is the name, not a sentence about it.
     expect(view.getByText("Atakan ve UAT Test")).toBeTruthy();
 
+    const submit = view.getByTestId("mobile-group-create-submit");
+    expect(submit.props.accessibilityState.disabled).toBe(true);
+    await fireEvent.press(submit);
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    await fireEvent.changeText(view.getByTestId("mobile-group-create-name-input"), "Mobil Ekip");
     await fireEvent.press(view.getByTestId("mobile-group-create-submit"));
     const request = (onSubmit.mock.calls[0] as unknown as [Record<string, unknown>])[0];
-    // An empty name is left out entirely, so the server derives it with the
-    // same rule the hint just printed.
-    expect("name" in request).toBe(false);
+    expect(request.name).toBe("Mobil Ekip");
     expect(request.userIds).toEqual(["user-2", "user-3"]);
   });
 
@@ -376,10 +392,10 @@ describe("2c identity step", () => {
             typeof entry === "object" && entry !== null && "width" in entry,
         );
 
-    await fireEvent.press(swatch("1B8A55"));
+    await fireEvent.press(swatch("success"));
 
     // Same box picked or not: the ring is reserved, never grown into.
-    expect(boxOf("1B8A55")).toEqual(boxOf("4F46E5"));
+    expect(boxOf("success")).toEqual(boxOf("primary"));
     // 2c §2's `0 0 0 2px zemin, 0 0 0 4px renk`: a 28pt swatch in a 36pt box,
     // so the five of them keep the design's `28 + 8` pitch and stay on one row.
     expect(styles.colorSwatchButton.width).toBe(styles.colorSwatch.width + 8);
@@ -388,11 +404,11 @@ describe("2c identity step", () => {
     expect(styles.colorSwatchRow.alignItems).toBe("center");
     expect(styles.colorSwatchRow.flexWrap).toBeUndefined();
     expect(
-      (swatch("1B8A55").props.style as readonly unknown[])
+      (swatch("success").props.style as readonly unknown[])
         .flat(2)
         .some((entry) =>
           typeof entry === "object" && entry !== null && "borderColor" in entry
-            ? (entry as { borderColor: string }).borderColor === "#1B8A55"
+            ? (entry as { borderColor: string }).borderColor === "hsl(154 60% 42%)"
             : false,
         ),
     ).toBe(true);
@@ -428,27 +444,40 @@ describe("2c identity step", () => {
   it("carries the colour and the KATILIM trio into the request", async () => {
     const { onSubmit, view } = await openIdentity();
 
-    await fireEvent.press(view.getByTestId("mobile-group-create-color-1B8A55"));
-    await fireEvent.press(view.getByTestId("mobile-group-create-invite-toggle"));
+    await fireEvent.press(view.getByTestId("mobile-group-create-color-success"));
+    await fireEvent.changeText(view.getByTestId("mobile-group-create-name-input"), "Mobil Ekip");
     await fireEvent.press(view.getByTestId("mobile-group-create-submit"));
 
     const request = (onSubmit.mock.calls[0] as unknown as [Record<string, unknown>])[0];
-    expect(request.avatarColor).toBe("#1B8A55");
+    expect(request.avatarColor).toBe("success");
     expect(request.inviteEnabled).toBe(true);
-    expect(request.historyVisibility).toBe("LAST_30D");
+    expect(request.historyVisibility).toBe("ALL");
     expect(request.permAddMembers).toBe("ALL");
   });
 
-  it("starts with the invite link off (K2)", async () => {
+  it("starts with the invite link on", async () => {
     const { onSubmit, view } = await openIdentity();
 
     expect(
       view.getByTestId("mobile-group-create-invite-toggle").props.accessibilityState.checked,
-    ).toBe(false);
+    ).toBe(true);
 
+    await fireEvent.changeText(view.getByTestId("mobile-group-create-name-input"), "Mobil Ekip");
     await fireEvent.press(view.getByTestId("mobile-group-create-submit"));
     const request = (onSubmit.mock.calls[0] as unknown as [Record<string, unknown>])[0];
-    expect(request.inviteEnabled).toBe(false);
+    expect(request.inviteEnabled).toBe(true);
+  });
+
+  it("offers the create-history choices in their product order", async () => {
+    const { view } = await openIdentity();
+
+    await fireEvent.press(view.getByTestId("mobile-group-create-history-row"));
+
+    expect(view.getByTestId("mobile-group-create-history-sheet-ALL")).toBeTruthy();
+    expect(view.getByTestId("mobile-group-create-history-sheet-LAST_30D")).toBeTruthy();
+    expect(view.getByTestId("mobile-group-create-history-sheet-LAST_7D")).toBeTruthy();
+    expect(view.getByTestId("mobile-group-create-history-sheet-NONE")).toBeTruthy();
+    expect(view.queryByTestId("mobile-group-create-history-sheet-LAST_24H")).toBeNull();
   });
 
   it("returns to the picker from Düzenle with the selection intact", async () => {

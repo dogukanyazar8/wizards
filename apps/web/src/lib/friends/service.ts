@@ -279,7 +279,7 @@ async function createFriendRequestNotification(
       body: translate(locale, "friends.notification.request.body", {
         name: senderName,
       }),
-      actionUrl: "/channels/@me",
+      actionUrl: "/messages",
       metadata: {
         friendRequestId: requestId,
         senderId: sender.id,
@@ -367,7 +367,7 @@ async function createFriendAcceptedNotification(
       body: translate(locale, "friends.notification.accepted.body", {
         name: receiverName,
       }),
-      actionUrl: "/channels/@me",
+      actionUrl: "/messages",
       metadata: {
         friendRequestId: requestId,
         senderId: receiver.id,
@@ -766,6 +766,9 @@ export async function listFriends(userId: string): Promise<FriendDto[]> {
       // their last-seen would undo the mode they chose.
       lastSeenAt: hiddenUserIds.has(friend.id) ? null : (lastSeenByUserId.get(friend.id) ?? null),
       presence,
+      // The invite sheet this list feeds shows no voice room, so it does not pay
+      // for the read. `queries.ts` is the copy the Ana Sayfa strip calls.
+      voiceRoom: null,
     };
   });
 }

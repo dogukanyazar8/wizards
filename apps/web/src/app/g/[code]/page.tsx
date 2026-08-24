@@ -64,7 +64,7 @@ function GroupInviteErrorCard({
         <p className="text-app-muted mt-3 text-sm leading-7">{message}</p>
         <Link
           className="app-panel-soft text-app-foreground mt-6 inline-flex rounded-2xl border px-4 py-2 text-sm font-medium transition hover:opacity-90"
-          href="/channels/@me"
+          href="/messages"
         >
           {t("groupInvite.error.back")}
         </Link>

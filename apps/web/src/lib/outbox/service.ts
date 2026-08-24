@@ -8,15 +8,23 @@ import type { ClientAttribution } from "@/lib/analytics/client-attribution";
 import { processAttachmentScanJob } from "@/lib/attachments/scanner";
 import { createDMMessageNotifications } from "@/lib/dm/notification-service";
 import { deleteUploadThingFileKeys } from "@/lib/account/uploadthing-cleanup";
+import {
+  processScheduledEventCreatedNotificationsJob,
+  processScheduledEventReminderJob,
+  ScheduledEventCreatedNotificationsPayloadSchema,
+  ScheduledEventReminderPayloadSchema,
+} from "@/lib/events/notifications";
 import { logError } from "@/lib/logger";
 import { sendNotificationCampaign } from "@/lib/admin/notification-campaigns";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { publishPermissionCacheRevision } from "@/lib/workspace/permission-cache";
 import { PERMISSION_CACHE_REVISION_JOB_TYPE } from "@/lib/workspace/authorization-revision";
 import {
+  createChannelEveryoneNotifications,
   createChannelMentionNotifications,
   createChannelThreadReplyNotification,
 } from "@/lib/workspace/message-notification-service";
+import { createRoleMentionNotifications } from "@/lib/workspace/role-mention-service";
 
 const OUTBOX_STATUS_PENDING = "PENDING";
 const OUTBOX_STATUS_PROCESSING = "PROCESSING";
@@ -36,8 +44,22 @@ export const OUTBOX_JOB_TYPES = {
   channelMentionNotifications: "CHANNEL_MENTION_NOTIFICATIONS",
   channelThreadReplyNotification: "CHANNEL_THREAD_REPLY_NOTIFICATION",
   dmMessageNotifications: "DM_MESSAGE_NOTIFICATIONS",
+  /** Bahsedilmeler Ş2 / K2 — `@herkes` yalnız bildirim üretir, `MessageMention` satırı yazmaz. */
+  everyoneMentionNotifications: "EVERYONE_MENTION_NOTIFICATIONS",
   messageCreatedAnalytics: "MESSAGE_CREATED_ANALYTICS",
   permissionCacheRevision: PERMISSION_CACHE_REVISION_JOB_TYPE,
+  /** Bahsedilmeler Ş2 / K1 — rol üyelerine fan-out. */
+  roleMentionNotifications: "ROLE_MENTION_NOTIFICATIONS",
+  /**
+   * Etkinlikler Ş3 / §3 — `POST /events` sunucu üyelerine bildirim yazar. Fan-out senkron
+   * yazılmaz: 2.000 üyeli bir sunucuda oluşturma isteği bildirimlerin altında kalırdı.
+   */
+  scheduledEventCreatedNotifications: "SCHEDULED_EVENT_CREATED_NOTIFICATIONS",
+  /**
+   * Etkinlikler Ş3 / K5 — `availableAt = startsAt − minutesBefore`. Kuyruğun kendisi
+   * zamanlayıcıdır; ayrı bir timer süreci yok.
+   */
+  scheduledEventReminder: "SCHEDULED_EVENT_REMINDER",
 } as const;
 
 type OutboxJobType = (typeof OUTBOX_JOB_TYPES)[keyof typeof OUTBOX_JOB_TYPES];
@@ -126,6 +148,35 @@ const ChannelMentionNotificationsPayloadSchema = z.object({
   channelName: z.string(),
   content: z.string(),
   messageId: z.string().min(1),
+  senderId: z.string().min(1),
+  senderName: z.string(),
+  serverId: z.string().min(1),
+  skipUserIds: z.array(z.string()).default([]),
+});
+
+const EveryoneMentionNotificationsPayloadSchema = z.object({
+  channelId: z.string().min(1),
+  channelName: z.string(),
+  content: z.string(),
+  messageId: z.string().min(1),
+  senderId: z.string().min(1),
+  senderName: z.string(),
+  serverId: z.string().min(1),
+  skipUserIds: z.array(z.string()).default([]),
+});
+
+const RoleMentionNotificationsPayloadSchema = z.object({
+  channelId: z.string().min(1),
+  channelName: z.string(),
+  content: z.string(),
+  messageId: z.string().min(1),
+  /**
+   * `Role.mentionable = false` bir rol için gönderenin `MENTION_EVERYONE` izni **gönderim
+   * anında** ölçülür; drenaj anında ölçülseydi arada kaldırılmış bir izin, kullanıcının
+   * yazarken sahip olduğu bir bahsetmeyi sessizce yutardı. `null` = gönderim yolunda izin
+   * bitleri elde yoktu, worker kendisi okur.
+   */
+  senderCanMentionRestrictedRoles: z.boolean().nullable().default(null),
   senderId: z.string().min(1),
   senderName: z.string(),
   serverId: z.string().min(1),
@@ -358,6 +409,45 @@ export async function enqueueChannelMentionNotificationJob(
   });
 }
 
+export async function enqueueRoleMentionNotificationJob(
+  client: OutboxClient,
+  args: {
+    channelId: string;
+    channelName: string;
+    content: string;
+    messageId: string;
+    senderCanMentionRestrictedRoles: boolean | null;
+    senderId: string;
+    senderName: string;
+    serverId: string;
+  },
+) {
+  await enqueueOutboxJob(client, {
+    idempotencyKey: `role-mention-notifications:${args.messageId}`,
+    payload: toJsonValue(args),
+    type: OUTBOX_JOB_TYPES.roleMentionNotifications,
+  });
+}
+
+export async function enqueueEveryoneMentionNotificationJob(
+  client: OutboxClient,
+  args: {
+    channelId: string;
+    channelName: string;
+    content: string;
+    messageId: string;
+    senderId: string;
+    senderName: string;
+    serverId: string;
+  },
+) {
+  await enqueueOutboxJob(client, {
+    idempotencyKey: `everyone-mention-notifications:${args.messageId}`,
+    payload: toJsonValue(args),
+    type: OUTBOX_JOB_TYPES.everyoneMentionNotifications,
+  });
+}
+
 export async function enqueueChannelThreadReplyNotificationJob(
   client: OutboxClient,
   args: {
@@ -578,6 +668,39 @@ async function processNotificationJob(job: ClaimedOutboxJob) {
     return;
   }
 
+  if (job.type === OUTBOX_JOB_TYPES.roleMentionNotifications) {
+    const payload = RoleMentionNotificationsPayloadSchema.parse(job.payload);
+    await createRoleMentionNotifications(withSocketServer(payload));
+    return;
+  }
+
+  if (job.type === OUTBOX_JOB_TYPES.everyoneMentionNotifications) {
+    const payload = EveryoneMentionNotificationsPayloadSchema.parse(job.payload);
+    // Aynı okuma imleci kuralı: mesaj indiğinde kanalı açık tutan kimse bildirim almaz.
+    const message = await prisma.message.findUnique({
+      where: { id: payload.messageId },
+      select: { createdAt: true },
+    });
+    const readStates = message
+      ? await prisma.channelReadState.findMany({
+          where: { channelId: payload.channelId, lastReadAt: { gte: message.createdAt } },
+          select: { lastReadAt: true, userId: true },
+        })
+      : [];
+
+    await createChannelEveryoneNotifications(
+      withSocketServer({
+        ...payload,
+        skipUserIds: resolveOutboxChannelSkipUserIds(
+          message?.createdAt ?? new Date(),
+          readStates,
+          payload.skipUserIds,
+        ),
+      }),
+    );
+    return;
+  }
+
   if (job.type === OUTBOX_JOB_TYPES.channelThreadReplyNotification) {
     const payload = ChannelThreadReplyNotificationPayloadSchema.parse(job.payload);
     await createChannelThreadReplyNotification(withSocketServer(payload));
@@ -647,6 +770,24 @@ async function processOutboxJob(job: ClaimedOutboxJob, workerId: string) {
 
   if (job.type === OUTBOX_JOB_TYPES.messageCreatedAnalytics) {
     await processMessageCreatedAnalytics(job, workerId);
+    return;
+  }
+
+  /**
+   * Etkinlikler Ş3. Gövdeler `lib/events/notifications.ts`te: bu dosya bugün dokuz iş
+   * tipinin gövdesini taşıyor ve etkinlik metinleriyle birlikte büyümesin diye ayrıldı.
+   */
+  if (job.type === OUTBOX_JOB_TYPES.scheduledEventReminder) {
+    await processScheduledEventReminderJob(ScheduledEventReminderPayloadSchema.parse(job.payload));
+    await markOutboxJobCompleted(job.id, workerId);
+    return;
+  }
+
+  if (job.type === OUTBOX_JOB_TYPES.scheduledEventCreatedNotifications) {
+    await processScheduledEventCreatedNotificationsJob(
+      ScheduledEventCreatedNotificationsPayloadSchema.parse(job.payload),
+    );
+    await markOutboxJobCompleted(job.id, workerId);
     return;
   }
 

@@ -20,6 +20,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
     joinServerByInvite: async () => ({
       alreadyMember: false,
       channelId: "channel-1",
+      name: "Whispr",
       serverId: "server-1",
     }),
     parseBody: parseJsonBody,
@@ -48,7 +49,12 @@ describe("mobile server join route logic", () => {
         },
         joinServerByInvite: async (userId: string, inviteCode: string) => {
           calls.push(`service:${userId}:${inviteCode}`);
-          return { alreadyMember: false, channelId: "channel-1", serverId: "server-1" };
+          return {
+            alreadyMember: false,
+            channelId: "channel-1",
+            name: "Whispr",
+            serverId: "server-1",
+          };
         },
         parseBody,
       }),
@@ -77,7 +83,12 @@ describe("mobile server join route logic", () => {
         dependencies({
           joinServerByInvite: async () => {
             serviceCalled = true;
-            return { alreadyMember: false, channelId: "channel-1", serverId: "server-1" };
+            return {
+              alreadyMember: false,
+              channelId: "channel-1",
+              name: "Whispr",
+              serverId: "server-1",
+            };
           },
         }),
       );
@@ -96,6 +107,7 @@ describe("mobile server join route logic", () => {
         joinServerByInvite: async () => ({
           alreadyMember: false,
           channelId: "channel-1",
+          name: "Whispr",
           serverId: "",
         }),
       }),

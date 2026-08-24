@@ -21,9 +21,7 @@ export function ReplyPreview({ replyTo, onCancel }: ReplyPreviewProps) {
       <span className="text-app-muted shrink-0 text-xs">
         {t("chat.reply.replyingTo", { author: replyTo.authorName })}
       </span>
-      <p className="text-app-foreground flex-1 truncate text-xs">
-        {replyTo.content}
-      </p>
+      <p className="text-app-foreground flex-1 truncate text-xs">{replyTo.content}</p>
       <button
         aria-label={t("chat.reply.cancel")}
         className="text-app-muted hover:text-app-foreground shrink-0 transition"

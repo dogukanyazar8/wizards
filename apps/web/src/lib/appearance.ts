@@ -1,3 +1,5 @@
+import { HOME_METRICS } from "@/lib/home/metrics";
+
 export type WizardsThemeId =
   | "theme-light"
   | "theme-ash"
@@ -30,8 +32,7 @@ export type WizardsThemeId =
 export type WizardsThemeCategory = "simple" | "advanced";
 
 export type WizardsThemePreview =
-  | { kind: "solid"; color: string }
-  | { kind: "gradient"; stops: [string, string, string] };
+  { kind: "solid"; color: string } | { kind: "gradient"; stops: [string, string, string] };
 
 export type WizardsThemeDefinition = {
   category: WizardsThemeCategory;
@@ -274,9 +275,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
 ];
 
 export const WIZARDS_THEME_IDS = WIZARDS_THEMES.map((theme) => theme.id);
-export const SIMPLE_WIZARDS_THEMES = WIZARDS_THEMES.filter(
-  (theme) => theme.category === "simple",
-);
+export const SIMPLE_WIZARDS_THEMES = WIZARDS_THEMES.filter((theme) => theme.category === "simple");
 export const ADVANCED_WIZARDS_THEMES = WIZARDS_THEMES.filter(
   (theme) => theme.category === "advanced",
 );
@@ -292,9 +291,7 @@ export const WIZARDS_THEME_MAP = Object.fromEntries(
   WIZARDS_THEMES.map((theme) => [theme.id, theme]),
 ) as Record<WizardsThemeId, WizardsThemeDefinition>;
 
-export function normalizeWizardsThemeId(
-  value: string | null | undefined,
-): WizardsThemeId {
+export function normalizeWizardsThemeId(value: string | null | undefined): WizardsThemeId {
   if (!value) {
     return DEFAULT_WIZARDS_THEME;
   }
@@ -330,9 +327,15 @@ export const DEFAULT_SERVER_RAIL_ICON_SIZE = 40;
 export const MIN_SERVER_RAIL_ICON_SIZE = 34;
 export const MAX_SERVER_RAIL_ICON_SIZE = 54;
 export const SERVER_RAIL_ICON_SIZE_STEP = 2;
-export const COMPACT_SERVER_RAIL_WIDTH = 68;
-export const COMPACT_SERVER_RAIL_ICON_SIZE = 36;
-export const COMPACT_SERVER_RAIL_TOUCH_SIZE = 44;
+/**
+ * Kabuk rayının tek genişliği — SPEC-ANA-SAYFA §2.1 (74). Eski adı `COMPACT_SERVER_RAIL_WIDTH`
+ * idi; "compact" bir varyant değil, tek ray olduğu için ad düzeltildi. Değer ölçü sözlüğünden
+ * okunur, ikinci bir kaynak yok.
+ */
+export const SERVER_RAIL_WIDTH = HOME_METRICS.rail.width;
+/** Ray ikonunun kutusu ve tıklama hedefi aynıdır: 44×44 (§2.1, §8.2.5 tabanı). */
+export const SERVER_RAIL_ICON_SIZE = HOME_METRICS.rail.iconSize;
+export const SERVER_RAIL_TOUCH_SIZE = HOME_METRICS.rail.iconSize;
 export const DEFAULT_CHANNEL_SIDEBAR_WIDTH = 244;
 export const MIN_CHANNEL_SIDEBAR_WIDTH = 244;
 export const MAX_CHANNEL_SIDEBAR_WIDTH = 244;
@@ -393,17 +396,11 @@ export function clampServerRailWidth(value: number) {
 }
 
 export function clampExpandedServerRailWidth(value: number) {
-  return Math.min(
-    MAX_SERVER_RAIL_WIDTH,
-    Math.max(EXPANDED_MIN_SERVER_RAIL_WIDTH, value),
-  );
+  return Math.min(MAX_SERVER_RAIL_WIDTH, Math.max(EXPANDED_MIN_SERVER_RAIL_WIDTH, value));
 }
 
 export function clampServerRailIconSize(value: number) {
-  return Math.min(
-    MAX_SERVER_RAIL_ICON_SIZE,
-    Math.max(MIN_SERVER_RAIL_ICON_SIZE, value),
-  );
+  return Math.min(MAX_SERVER_RAIL_ICON_SIZE, Math.max(MIN_SERVER_RAIL_ICON_SIZE, value));
 }
 
 export function readStoredServerRailWidth() {
@@ -426,17 +423,11 @@ export function writeStoredServerRailWidth(value: number) {
     return;
   }
 
-  window.localStorage.setItem(
-    SERVER_RAIL_WIDTH_STORAGE_KEY,
-    String(clampServerRailWidth(value)),
-  );
+  window.localStorage.setItem(SERVER_RAIL_WIDTH_STORAGE_KEY, String(clampServerRailWidth(value)));
 }
 
 export function clampChannelSidebarWidth(value: number) {
-  return Math.min(
-    MAX_CHANNEL_SIDEBAR_WIDTH,
-    Math.max(MIN_CHANNEL_SIDEBAR_WIDTH, value),
-  );
+  return Math.min(MAX_CHANNEL_SIDEBAR_WIDTH, Math.max(MIN_CHANNEL_SIDEBAR_WIDTH, value));
 }
 
 export function clampMainPanelWidth(value: number) {

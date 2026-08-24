@@ -78,7 +78,9 @@ describe("Faz 5 §15.1 mobile group client", () => {
   it("refuses a response whose conversation does not match the shared schema", async () => {
     const { client } = createClient({ conversation: { id: "dm-group-1" } });
 
-    await assert.rejects(() => createMobileGroup(client, { userIds: ["user-2", "user-3"] }));
+    await assert.rejects(() =>
+      createMobileGroup(client, { name: "Yayın Ekibi", userIds: ["user-2", "user-3"] }),
+    );
   });
 
   it("invalidates the group detail only after a role change", () => {

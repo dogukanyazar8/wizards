@@ -38,6 +38,12 @@ export const SocketMessageSendPayloadSchema = z
 
 export const SocketDMMessageSendPayloadSchema = z
   .object({
+    /**
+     * Mesajlar §6.1. Thread yanıtı ana sohbete de düşsün mü. `threadParentId`
+     * yokken anlamsız ve sunucu onu yok sayıyor — bir kök mesajın "ana sohbete
+     * de gönderilmesi" diye bir şey yok.
+     */
+    alsoSendToChannel: z.boolean().optional(),
     attachments: z.array(UploadedAttachmentInputSchema).max(SOCKET_ATTACHMENT_MAX_COUNT).optional(),
     clientNonce: SocketClientNonceSchema,
     conversationId: SocketIdSchema,

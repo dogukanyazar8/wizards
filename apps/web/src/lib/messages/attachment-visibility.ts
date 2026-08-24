@@ -3,6 +3,7 @@ import type { AttachmentScanStatus, MessageAttachment } from "@wizards/types";
 export type AttachmentVisibilityInput = {
   contentType: string;
   duration: number | null;
+  waveform?: string | null;
   filename: string;
   height: number | null;
   id: string;
@@ -45,6 +46,10 @@ export function mapAttachmentForViewer(
     ...(attachment.width ? { width: attachment.width } : {}),
     ...(attachment.height ? { height: attachment.height } : {}),
     duration: attachment.duration ?? undefined,
+    // Dalga formu URL'nin arkasında saklanmaz: kutunun kendisi bir içerik değil,
+    // uzunluğun şeklidir. Tarama bekleyen bir ek için de çizilir ve çizilmesi
+    // gereken tek şey odur.
+    waveform: attachment.waveform ?? undefined,
     thumbnailUrl: canViewUrl ? (attachment.thumbnailUrl ?? undefined) : undefined,
     scanStatus,
   };

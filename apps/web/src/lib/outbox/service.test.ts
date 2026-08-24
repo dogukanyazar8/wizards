@@ -14,7 +14,9 @@ import {
   enqueueChannelMentionNotificationJob,
   enqueueChannelThreadReplyNotificationJob,
   enqueueDMMessageNotificationJob,
+  enqueueEveryoneMentionNotificationJob,
   enqueueMessageCreatedAnalyticsJob,
+  enqueueRoleMentionNotificationJob,
   resolveOutboxChannelSkipUserIds,
   getOutboxRetryDelayMs,
   logOutboxDrainMetrics,
@@ -537,6 +539,50 @@ describe("notification jobs enqueue through the caller's transaction", () => {
 
     assert.equal(jobs.length, 1);
     assert.equal(jobs[0]?.type, OUTBOX_JOB_TYPES.channelThreadReplyNotification);
+  });
+
+  /**
+   * Bahsedilmeler Ş2 / tuzak #9: rol fan-out'u gönderim yolunda koşmaz. İş, mesajı yazan
+   * işlemin içinde kuyruklanır — kuyruklama başarısızsa mesaj da yazılmaz.
+   */
+  it("writes the role mention job with the transaction client", async () => {
+    const { client, jobs } = outboxClient();
+
+    await enqueueRoleMentionNotificationJob(client, {
+      channelId: "channel-1",
+      channelName: "genel",
+      content: "@tasarım bak",
+      messageId: "message-1",
+      senderCanMentionRestrictedRoles: false,
+      senderId: "user-1",
+      senderName: "Dogukan",
+      serverId: "server-1",
+    });
+
+    assert.equal(jobs.length, 1);
+    assert.equal(jobs[0]?.type, OUTBOX_JOB_TYPES.roleMentionNotifications);
+    assert.equal(
+      (jobs[0]?.payload as { senderCanMentionRestrictedRoles: boolean })
+        .senderCanMentionRestrictedRoles,
+      false,
+    );
+  });
+
+  it("writes the everyone mention job with the transaction client", async () => {
+    const { client, jobs } = outboxClient();
+
+    await enqueueEveryoneMentionNotificationJob(client, {
+      channelId: "channel-1",
+      channelName: "genel",
+      content: "@everyone bak",
+      messageId: "message-1",
+      senderId: "user-1",
+      senderName: "Dogukan",
+      serverId: "server-1",
+    });
+
+    assert.equal(jobs.length, 1);
+    assert.equal(jobs[0]?.type, OUTBOX_JOB_TYPES.everyoneMentionNotifications);
   });
 
   it("writes the DM job with the transaction client", async () => {

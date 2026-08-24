@@ -24,7 +24,7 @@ const safeEnv = {
 describe("E2E environment preflight", () => {
   it("resolves the same-origin header from the validated Playwright base URL", () => {
     assert.equal(
-      resolveE2ERequestOrigin({ E2E_BASE_URL: "http://127.0.0.1:3000/channels/@me" }),
+      resolveE2ERequestOrigin({ E2E_BASE_URL: "http://127.0.0.1:3000/messages" }),
       "http://127.0.0.1:3000",
     );
   });

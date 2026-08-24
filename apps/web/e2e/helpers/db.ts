@@ -4,11 +4,29 @@ import { ChannelType, type AttachmentScanStatus } from "@wizards/db";
 import { createE2EPrismaClient } from "../setup/e2e-database";
 import { PermissionBits, SERVER_ADMIN_PERMISSIONS } from "../../src/lib/workspace/permissions";
 import { processAttachmentScanJob } from "../../src/lib/attachments/scanner";
-import { getRedisRate } from "../../src/lib/redis";
+import { getRedisOp, getRedisRate } from "../../src/lib/redis";
+import {
+  addServerOnlineMember,
+  buildServerOnlineKey,
+} from "../../src/lib/socket/server-online-presence";
 import { applyServerMediaSettings } from "../../src/lib/workspace/server-features";
 import { e2eServer, e2eUsers, type E2EUserKey } from "./test-data";
 
 type E2EPrismaClient = ReturnType<typeof createE2EPrismaClient>;
+
+const E2E_DISCOVER_FEATURE = "E2E_DISCOVER";
+const E2E_DISCOVER_PANEL_SERVER_NAME = "Oyun Kulübü Türkiye";
+const E2E_DISCOVER_JOIN_SERVER_NAME = "Startup Türkiye";
+const E2E_DISCOVER_ONLINE_LEADER_NAME = E2E_DISCOVER_PANEL_SERVER_NAME;
+
+export type E2EDiscoverFixture = {
+  joinServerId: string;
+  joinServerName: string;
+  onlineLeaderName: string;
+  panelServerId: string;
+  panelServerName: string;
+  serverCount: number;
+};
 
 async function findE2EUserId(prisma: E2EPrismaClient, userKey: E2EUserKey): Promise<string> {
   const user = await prisma.user.findUnique({
@@ -32,6 +50,212 @@ export async function withE2EDatabase<T>(
     return await callback(prisma);
   } finally {
     await prisma.$disconnect();
+  }
+}
+
+/**
+ * Ş10 parity turunun gerçek API'yi besleyen disposable verisi.
+ *
+ * Veri yalnız `_e2e` güvenlik kapısından geçen Prisma istemcisiyle yazılır. Sunucu adları
+ * referans ekranın ilk görünümünü okunur kılar; kalan kayıtlar 200 kart kaydırma ölçümünü ve
+ * beş kategori sayacının her biri için tam 40 sonucunu üretir.
+ */
+export async function seedE2EDiscoverData(
+  input: { serverCount?: number } = {},
+): Promise<E2EDiscoverFixture> {
+  const serverCount = input.serverCount ?? 200;
+  if (serverCount !== 200) {
+    throw new Error("Keşfet parity seed'i kategori matrisini korumak için tam 200 sunucu ister.");
+  }
+
+  await cleanupE2EDiscoverData();
+
+  const fixture = await withE2EDatabase(async (prisma) => {
+    const [aliceId, bobId] = await Promise.all([
+      findE2EUserId(prisma, "alice"),
+      findE2EUserId(prisma, "bob"),
+    ]);
+    await prisma.$transaction([
+      prisma.user.update({ data: { locale: "tr" }, where: { id: aliceId } }),
+      prisma.userSettings.update({ data: { locale: "tr" }, where: { userId: aliceId } }),
+    ]);
+    const categories = ["OYUN", "IS", "CALISMA", "KISISEL", "DESTEK"] as const;
+    const specialNames = new Map<number, string>([
+      [0, "Whispr Topluluğu"],
+      [1, E2E_DISCOVER_JOIN_SERVER_NAME],
+      [5, E2E_DISCOVER_PANEL_SERVER_NAME],
+      [10, "Retro Oyuncular"],
+      [15, "Turnuva Arena"],
+      [20, "İndie Oyun Geliştirme"],
+      [22, "Dil Değişimi"],
+      [27, "Sessiz Çalışma Odası"],
+      [32, "Kodlama Maratonu"],
+      [37, "Sınav Hazırlık"],
+      [44, "Whispr Destek"],
+    ]);
+    const now = Date.now();
+    const servers = Array.from({ length: serverCount }, (_, index) => {
+      const category = categories[index % categories.length]!;
+      const ordinal = index + 1;
+      const name =
+        specialNames.get(index) ?? `Keşfet Topluluğu ${String(ordinal).padStart(3, "0")}`;
+      const memberCount =
+        index === 0 ? 60_000 : index === 1 ? 50_000 : index === 5 ? 48_200 : 20_000 - index;
+
+      return {
+        category,
+        createdAt: new Date(now - index * 60_000),
+        description:
+          name === "Dil Değişimi"
+            ? "Anadilde konuşanlarla eşleşerek pratik yap; sekiz dil için ayrı sesli odalar."
+            : `${name} için gerçek E2E topluluk açıklaması.`,
+        discoverable: true,
+        features: ["E2E_TEST", E2E_DISCOVER_FEATURE, ...(index === 0 ? ["FEATURED"] : [])],
+        inviteCode: `D${ordinal.toString(36).toUpperCase().padStart(7, "0")}`,
+        isPublic: true,
+        languages: ["tr", "en"],
+        memberCount,
+        name,
+        ownerId: bobId,
+        shortName: `D${ordinal.toString(36).toUpperCase().padStart(2, "0")}`.slice(0, 4),
+        tags:
+          category === "OYUN"
+            ? ["turnuva", "sohbet"]
+            : category === "CALISMA"
+              ? ["pratik", "üretkenlik"]
+              : ["topluluk", "Türkçe"],
+      };
+    });
+
+    await prisma.server.createMany({ data: servers });
+    const [joinServer, panelServer] = await Promise.all([
+      prisma.server.findFirst({
+        select: { id: true, name: true },
+        where: { features: { has: E2E_DISCOVER_FEATURE }, name: E2E_DISCOVER_JOIN_SERVER_NAME },
+      }),
+      prisma.server.findFirst({
+        select: { id: true, name: true },
+        where: { features: { has: E2E_DISCOVER_FEATURE }, name: E2E_DISCOVER_PANEL_SERVER_NAME },
+      }),
+    ]);
+    if (!joinServer || !panelServer) {
+      throw new Error("Keşfet E2E sunucuları oluşturulamadı.");
+    }
+
+    await prisma.serverMember.create({ data: { serverId: panelServer.id, userId: bobId } });
+    const channels = await Promise.all(
+      [
+        ["genel", "TEXT"],
+        ["eğlence", "TEXT"],
+        ["sahne", "TEXT"],
+        ["turnuva", "TEXT"],
+        ["Oyun Sohbeti", "VOICE"],
+      ].map(([name, type], index) =>
+        prisma.channel.create({
+          data: {
+            memberCount: 48_200 - index * 1_000,
+            name: name!,
+            position: index,
+            serverId: panelServer.id,
+            type: type as "TEXT" | "VOICE",
+          },
+          select: { id: true, type: true },
+        }),
+      ),
+    );
+    const windowStart = new Date();
+    windowStart.setUTCMinutes(0, 0, 0);
+    windowStart.setUTCHours(windowStart.getUTCHours() - 1);
+    await prisma.discoverChannelActivity.createMany({
+      data: channels
+        .filter((channel) => channel.type === "TEXT")
+        .map((channel, index) => ({
+          channelId: channel.id,
+          messageCount: 340 - index * 55,
+          windowStart,
+        })),
+    });
+    await prisma.scheduledEvent.createMany({
+      data: [
+        {
+          creatorId: aliceId,
+          entityType: "EXTERNAL",
+          externalLocation: "Topluluk sahnesi",
+          isPublic: true,
+          kind: "COMMUNITY",
+          name: "Topluluk sohbeti: Whispr yol haritası",
+          scheduledEndAt: new Date(now + 25 * 60 * 60 * 1_000),
+          scheduledStartAt: new Date(now + 24 * 60 * 60 * 1_000),
+          serverId: panelServer.id,
+          status: "SCHEDULED",
+        },
+        {
+          creatorId: aliceId,
+          entityType: "EXTERNAL",
+          externalLocation: "Atölye",
+          isPublic: true,
+          kind: "WORKSHOP",
+          name: "Tasarım sistemi atölyesi",
+          scheduledEndAt: new Date(now + 50 * 60 * 60 * 1_000),
+          scheduledStartAt: new Date(now + 48 * 60 * 60 * 1_000),
+          serverId: panelServer.id,
+          status: "SCHEDULED",
+        },
+      ],
+    });
+
+    return {
+      joinServerId: joinServer.id,
+      joinServerName: joinServer.name,
+      onlineLeaderName: E2E_DISCOVER_ONLINE_LEADER_NAME,
+      panelServerId: panelServer.id,
+      panelServerName: panelServer.name,
+      serverCount,
+    };
+  });
+
+  if (process.env.REDIS_URL) {
+    await setE2EUserPresenceOnline("bob");
+    await addServerOnlineMember(getRedisOp(), fixture.panelServerId, await getE2EUserId("bob"));
+  }
+  return fixture;
+}
+
+export async function resetE2EDiscoverMembership(userKey: E2EUserKey = "alice"): Promise<void> {
+  await withE2EDatabase(async (prisma) => {
+    const userId = await findE2EUserId(prisma, userKey);
+    await prisma.serverMember.deleteMany({
+      where: { server: { features: { has: E2E_DISCOVER_FEATURE } }, userId },
+    });
+  });
+}
+
+export async function cleanupE2EDiscoverData(): Promise<void> {
+  const deletedServerIds = await withE2EDatabase(async (prisma) => {
+    const alice = await prisma.user.findUnique({
+      select: { id: true },
+      where: { email: e2eUsers.alice.email },
+    });
+    const discoverServers = await prisma.server.findMany({
+      select: { id: true },
+      where: { features: { has: E2E_DISCOVER_FEATURE } },
+    });
+    await prisma.$transaction([
+      prisma.server.deleteMany({ where: { features: { has: E2E_DISCOVER_FEATURE } } }),
+      ...(alice
+        ? [
+            prisma.user.update({ data: { locale: "en" }, where: { id: alice.id } }),
+            prisma.userSettings.update({ data: { locale: "en" }, where: { userId: alice.id } }),
+          ]
+        : []),
+    ]);
+    return discoverServers.map((server) => server.id);
+  });
+  if (process.env.REDIS_URL) {
+    if (deletedServerIds.length > 0) {
+      await getRedisOp().del(...deletedServerIds.map(buildServerOnlineKey));
+    }
+    await clearE2EUserPresence("bob");
   }
 }
 
@@ -144,6 +368,25 @@ export async function resetE2EUserPreferences(userKey: E2EUserKey): Promise<void
   });
 }
 
+/**
+ * Ana Sayfa 1a Faz 8 §1 — parity matrisinin tema ekseni.
+ *
+ * `applyParityTheme` yalnız `localStorage` + kök sınıfı yazar. Oturum açık kullanıcıda
+ * `ThemeSessionSync` hesabın kayıtlı temasını (`User.theme`, varsayılan `theme-dark`)
+ * uygulayıp bunu **ezer** — `theme-light` isteyip `theme-dark` ölçülürdü (Faz 4 §6.1).
+ * Tema eksenini gerçek yapan tek şey kaynağı da ayarlamak: oturum bu kolondan besleniyor.
+ */
+export async function setE2EUserTheme(userKey: E2EUserKey, theme: string): Promise<void> {
+  await withE2EDatabase(async (prisma) => {
+    const userId = await findE2EUserId(prisma, userKey);
+
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: userId }, data: { theme } }),
+      prisma.userSettings.update({ where: { userId }, data: { theme } }),
+    ]);
+  });
+}
+
 export async function getE2EUserPreferences(userKey: E2EUserKey): Promise<{
   channelSidebarWidth: number;
   desktopNotifications: boolean;
@@ -196,6 +439,57 @@ export async function getE2EUserPreferences(userKey: E2EUserKey): Promise<{
       notificationSound: user.notificationSettings?.notificationSound ?? true,
       notificationSoundFile: user.notificationSettings?.notificationSoundFile ?? "default",
     };
+  });
+}
+
+/**
+ * Ana Sayfa 1a Faz 6 §8 — "Ana Sayfa'da ölü link yok" turu `Takvim` butonunu da
+ * tıklamak zorunda, ama buton yalnız gerçek bir yaklaşan etkinlik varken çizilir
+ * ("Sıradaki" kartı boşken ayak satırı hiç yok). Tohum veride etkinlik olmadığı
+ * için tur onu kendisi kurar; idempotenttir, ikinci koşuda ikinci satır açmaz.
+ */
+export async function ensureE2EUpcomingEvent(userKey: E2EUserKey = "alice"): Promise<string> {
+  return withE2EDatabase(async (prisma) => {
+    const creatorId = await findE2EUserId(prisma, userKey);
+    const server = await prisma.server.findFirst({
+      where: { name: e2eServer.name },
+      select: { id: true },
+    });
+
+    if (!server) {
+      throw new Error("E2E server was not seeded.");
+    }
+
+    const name = "E2E yaklaşan etkinlik";
+    const scheduledStartAt = new Date(Date.now() + 60 * 60 * 1000);
+    const existing = await prisma.scheduledEvent.findFirst({
+      where: { name, serverId: server.id },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await prisma.scheduledEvent.update({
+        where: { id: existing.id },
+        data: { scheduledStartAt, status: "SCHEDULED" },
+      });
+
+      return existing.id;
+    }
+
+    const created = await prisma.scheduledEvent.create({
+      data: {
+        creatorId,
+        entityType: "EXTERNAL",
+        externalLocation: "E2E",
+        name,
+        scheduledStartAt,
+        serverId: server.id,
+        status: "SCHEDULED",
+      },
+      select: { id: true },
+    });
+
+    return created.id;
   });
 }
 
@@ -351,6 +645,71 @@ export async function getE2EAttachmentNotification(
     });
 
     return notification;
+  });
+}
+
+/**
+ * Ana Sayfa 1a Faz 8 §4.1 — "Görünmez" kullanıcı fikstürü.
+ *
+ * Görünmezlik veritabanı kolonu değil, **canlı soket + OFFLINE yayını** birleşimidir
+ * (`lib/presence.ts`). API üzerinden koşan bir test tarayıcı soketi açmaz, o yüzden soket
+ * katmanının yazdığı iki anahtar burada birebir üretilir: `presence:<id>` durumu ve
+ * `presence:socket-set:<id>` içindeki taze bağlantı damgası.
+ */
+export async function setE2EUserInvisible(userKey: E2EUserKey): Promise<void> {
+  const userId = await getE2EUserId(userKey);
+  const redis = getRedisOp();
+
+  await redis.hset(`presence:${userId}`, { customStatus: "", status: "INVISIBLE" });
+  await redis.zadd(`presence:socket-set:${userId}`, Date.now(), `e2e-${userId}`);
+}
+
+export async function setE2EUserPresenceOnline(userKey: E2EUserKey): Promise<void> {
+  const userId = await getE2EUserId(userKey);
+  const redis = getRedisOp();
+
+  await redis.hset(`presence:${userId}`, { customStatus: "", status: "ONLINE" });
+  await redis.zadd(`presence:socket-set:${userId}`, Date.now(), `e2e-${userId}`);
+}
+
+export async function clearE2EUserPresence(userKey: E2EUserKey): Promise<void> {
+  const userId = await getE2EUserId(userKey);
+  const redis = getRedisOp();
+
+  await redis.del(`presence:${userId}`);
+  await redis.del(`presence:socket-set:${userId}`);
+}
+
+/**
+ * Sesli odaya "girmiş" bir kullanıcı — `VoiceState` satırı taze bir kalp atışıyla.
+ * `listHomeLiveRooms` bayat kalp atışını canlı oda saymaz, o yüzden damga şimdi atılır.
+ */
+export async function joinE2EVoiceStateInDb(input: {
+  channelId: string;
+  serverId: string;
+  userKey: E2EUserKey;
+}): Promise<void> {
+  await withE2EDatabase(async (prisma) => {
+    const userId = await findE2EUserId(prisma, input.userKey);
+    const now = new Date();
+
+    await prisma.voiceState.upsert({
+      where: { userId },
+      create: {
+        channelId: input.channelId,
+        joinedAt: now,
+        lastHeartbeat: now,
+        serverId: input.serverId,
+        sessionId: `e2e-${userId}`,
+        userId,
+      },
+      update: {
+        channelId: input.channelId,
+        joinedAt: now,
+        lastHeartbeat: now,
+        serverId: input.serverId,
+      },
+    });
   });
 }
 

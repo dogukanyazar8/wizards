@@ -3,10 +3,7 @@
 import type { DesktopPlatformCapabilities, DesktopPlatformFeature } from "@/lib/desktop/controls";
 
 export type DesktopNativeMediaFeatureId =
-  | "hardwareEncode"
-  | "livekitCustomTrack"
-  | "nativeScreenCapture"
-  | "systemAudioCapture";
+  "hardwareEncode" | "livekitCustomTrack" | "nativeScreenCapture" | "systemAudioCapture";
 
 export interface DesktopNativeMediaResearchItem {
   fallback: string;
@@ -75,7 +72,9 @@ export function getDesktopNativeMediaResearchItems(
   ];
 }
 
-export function isNativeMediaCaptureProductionReady(capabilities: DesktopPlatformCapabilities | null) {
+export function isNativeMediaCaptureProductionReady(
+  capabilities: DesktopPlatformCapabilities | null,
+) {
   if (!capabilities) {
     return false;
   }

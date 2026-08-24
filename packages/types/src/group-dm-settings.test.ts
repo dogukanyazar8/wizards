@@ -16,9 +16,13 @@ import {
   GroupPinDismissRequestSchema,
   GroupPinMessageRequestSchema,
   GroupDisappearingWindowSchema,
+  StoredGroupAvatarColorSchema,
+  getGroupAvatarColorHsl,
+  getGroupAvatarColorTone,
   getGroupCapabilities,
   getGroupMemberActions,
   isGroupNameWithinLimit,
+  mapLegacyGroupAvatarColor,
   pickNextMemberNameColor,
   resolveDisappearingExpiry,
   resolveHistoryFloor,
@@ -290,8 +294,14 @@ describe("GroupDMSettingsUpdateRequestSchema", () => {
     assert.equal(GroupDMSettingsUpdateRequestSchema.parse({ avatarColor: null }).avatarColor, null);
   });
 
-  it("rejects a history window that is not one of the four", () => {
-    assert.throws(() => GroupDMSettingsUpdateRequestSchema.parse({ historyVisibility: "LAST_7D" }));
+  it("accepts the seven-day window the Mesajlar create screen offers", () => {
+    assert.deepEqual(GroupDMSettingsUpdateRequestSchema.parse({ historyVisibility: "LAST_7D" }), {
+      historyVisibility: "LAST_7D",
+    });
+  });
+
+  it("rejects a history window that is not one of the five", () => {
+    assert.throws(() => GroupDMSettingsUpdateRequestSchema.parse({ historyVisibility: "LAST_1H" }));
   });
 });
 
@@ -362,11 +372,53 @@ describe("palette constants", () => {
     );
   });
 
-  it("keeps the five group avatar colours in design order", () => {
+  it("keeps the six group avatar swatches in design order", () => {
     assert.deepEqual(
       [...GROUP_AVATAR_COLORS],
-      ["#4F46E5", "#1B8A55", "#C77A2B", "#C2185B", "#1E2235"],
+      ["primary", "success", "warning", "danger", "info", "accent"],
     );
+  });
+
+  it("maps every legacy hex onto a swatch and never returns undefined", () => {
+    assert.equal(mapLegacyGroupAvatarColor("#4F46E5"), "primary");
+    assert.equal(mapLegacyGroupAvatarColor("#1B8A55"), "success");
+    assert.equal(mapLegacyGroupAvatarColor("#C77A2B"), "warning");
+    assert.equal(mapLegacyGroupAvatarColor("#C2185B"), "danger");
+    // The old "no colour" slate has no successor swatch; a fresh group's first
+    // swatch is a better answer than a tile with no colour.
+    assert.equal(mapLegacyGroupAvatarColor("#1E2235"), "primary");
+    // Nothing ever forced the stored casing.
+    assert.equal(mapLegacyGroupAvatarColor("#4f46e5"), "primary");
+    assert.equal(mapLegacyGroupAvatarColor("  #1B8A55 "), "success");
+  });
+
+  it("passes a swatch name through and falls back for anything else", () => {
+    assert.equal(mapLegacyGroupAvatarColor("accent"), "accent");
+    assert.equal(mapLegacyGroupAvatarColor(null), "primary");
+    assert.equal(mapLegacyGroupAvatarColor(""), "primary");
+    assert.equal(mapLegacyGroupAvatarColor("#ABCDEF"), "primary");
+  });
+
+  it("gives the three light swatches dark ink", () => {
+    assert.deepEqual(
+      GROUP_AVATAR_COLORS.filter((color) => getGroupAvatarColorTone(color) === "dark"),
+      ["success", "warning", "info"],
+    );
+  });
+
+  it("resolves a swatch to an hsl() string for platforms without CSS variables", () => {
+    assert.equal(getGroupAvatarColorHsl("info"), "hsl(199 89% 48%)");
+    assert.equal(getGroupAvatarColorHsl("accent"), "hsl(291 64% 55%)");
+  });
+
+  it("normalizes a stored legacy value through the read schema", () => {
+    assert.equal(StoredGroupAvatarColorSchema.parse("#C77A2B"), "warning");
+    assert.equal(StoredGroupAvatarColorSchema.parse("danger"), "danger");
+  });
+
+  it("keeps new hex out of the write schema", () => {
+    // Reading tolerates the hex already in the table; writing must not add more.
+    assert.throws(() => GroupAvatarColorSchema.parse("#4F46E5"));
   });
 
   it("accepts every avatar colour through the schema", () => {

@@ -26,9 +26,7 @@ if (dsn && process.env.NEXT_PUBLIC_E2E_TEST_MODE !== "true") {
 
   Sentry.setTag(
     "app_surface",
-    typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
-      ? "desktop"
-      : "web",
+    typeof window !== "undefined" && "__TAURI_INTERNALS__" in window ? "desktop" : "web",
   );
 }
 

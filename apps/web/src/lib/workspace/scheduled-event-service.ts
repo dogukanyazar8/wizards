@@ -6,9 +6,17 @@ import type {
 } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
+import {
+  applyEventRsvpCounters,
+  writeEventRsvpRow,
+  type ScheduledEventRsvpStatus,
+} from "@/lib/events/mutations";
+import {
+  cancelEventReminderJobs,
+  rescheduleEventReminderJobs,
+} from "@/lib/events/reminder-scheduler";
 import { getSocketServer } from "@/lib/socket/runtime";
-import { ensureServerPermission, getAccessContext } from "@/lib/workspace/access-context";
-import { PermissionBits } from "@/lib/workspace/permissions";
+import { ensureEventPermission, getAccessContext } from "@/lib/workspace/access-context";
 
 /**
  * `ScheduledEvent` shipped in the schema long before anything wrote to it (no
@@ -29,7 +37,11 @@ export const SERVER_SCHEDULED_EVENT_SELECT = {
   entityType: true,
   externalLocation: true,
   id: true,
+  /** K1 — `GOING` sayısı. Adı korundu, anlamı daraldı; `maybeCount` ikizi. */
   interestedCount: true,
+  isPublic: true,
+  kind: true,
+  maybeCount: true,
   name: true,
   scheduledEndAt: true,
   scheduledStartAt: true,
@@ -46,7 +58,8 @@ function scheduledEventSelectForViewer(viewerId: string | null) {
   return {
     ...SERVER_SCHEDULED_EVENT_SELECT,
     interests: {
-      select: { id: true },
+      // K1 — `status` de gelir: `viewerInterested` "yanıt var mı", `rsvpStatus` "hangi yanıt".
+      select: { id: true, status: true },
       take: 1,
       where: viewerId === null ? { id: "" } : { userId: viewerId },
     },
@@ -56,7 +69,10 @@ function scheduledEventSelectForViewer(viewerId: string | null) {
 export type ServerScheduledEventSource = Prisma.ScheduledEventGetPayload<{
   select: typeof SERVER_SCHEDULED_EVENT_SELECT;
 }> & {
-  readonly interests: readonly { readonly id: string }[];
+  readonly interests: readonly {
+    readonly id: string;
+    readonly status: ScheduledEventRsvpStatus;
+  }[];
 };
 
 /** Pure so the projection can be asserted without a database. */
@@ -74,7 +90,12 @@ export function buildServerScheduledEvent(row: ServerScheduledEventSource): Serv
     // The counter is maintained transactionally, but a payload that has gone
     // negative would fail the schema and take the whole profile down with it.
     interestedCount: Math.max(0, row.interestedCount),
+    isPublic: row.isPublic,
+    kind: row.kind,
+    maybeCount: Math.max(0, row.maybeCount),
     name: row.name,
+    // K1/K12 — tek kaynak: `viewerInterested` bunun boolean izdüşümü, tersi değil.
+    rsvpStatus: row.interests[0]?.status ?? null,
     scheduledEndAt: row.scheduledEndAt?.toISOString() ?? null,
     scheduledStartAt: row.scheduledStartAt.toISOString(),
     serverId: row.serverId,
@@ -216,7 +237,7 @@ export async function createServerScheduledEvent(
 ): Promise<ServerScheduledEvent> {
   const { prisma } = await import("@wizards/db");
   const access = await getAccessContext(userId, serverId);
-  ensureServerPermission(access, PermissionBits.MANAGE_SERVER);
+  ensureEventPermission(access);
 
   return createServerScheduledEventWithDatabase(prisma, userId, serverId, input);
 }
@@ -287,6 +308,19 @@ export async function updateServerScheduledEventWithDatabase(
     where: { id: eventId },
   });
 
+  /**
+   * K5 — saat değiştiyse **bütün** hatırlatma işleri yeniden zamanlanır. Hatırlatma anahtarı
+   * `startsAt` taşıdığı için yeni anahtarlar kendiliğinden farklıdır; eskileri toplu
+   * `CANCELLED`a çekmeyen bir güncelleme, kullanıcıya iki bildirim gönderirdi.
+   */
+  if (input.scheduledStartAt !== undefined) {
+    await rescheduleEventReminderJobs(database, {
+      eventId,
+      now: new Date(),
+      startsAt: new Date(input.scheduledStartAt),
+    });
+  }
+
   notifyServerScheduledEventsChanged(serverId);
 
   return buildServerScheduledEvent(updated as ServerScheduledEventSource);
@@ -300,7 +334,7 @@ export async function updateServerScheduledEvent(
 ): Promise<ServerScheduledEvent> {
   const { prisma } = await import("@wizards/db");
   const access = await getAccessContext(userId, serverId);
-  ensureServerPermission(access, PermissionBits.MANAGE_SERVER);
+  ensureEventPermission(access);
 
   return updateServerScheduledEventWithDatabase(prisma, userId, serverId, eventId, input);
 }
@@ -322,6 +356,10 @@ export async function cancelServerScheduledEventWithDatabase(
     where: { id: eventId },
   });
 
+  // İptal edilen etkinliğin bekleyen hatırlatması kalmaz: "başlamasına 10 dk" diyen bir
+  // bildirim, iptal edildiğini okumuş bir kullanıcıya gitmemeli.
+  await cancelEventReminderJobs(database, { eventId });
+
   notifyServerScheduledEventsChanged(serverId);
 
   return buildServerScheduledEvent(cancelled as ServerScheduledEventSource);
@@ -334,17 +372,21 @@ export async function cancelServerScheduledEvent(
 ): Promise<ServerScheduledEvent> {
   const { prisma } = await import("@wizards/db");
   const access = await getAccessContext(userId, serverId);
-  ensureServerPermission(access, PermissionBits.MANAGE_SERVER);
+  ensureEventPermission(access);
 
   return cancelServerScheduledEventWithDatabase(prisma, userId, serverId, eventId);
 }
 
 /**
- * Idempotent by construction: the counter only moves when the interest row
- * actually appeared or disappeared. `skipDuplicates` on the insert and the
- * affected-row count on the delete are what make a double tap a no-op rather
- * than a double increment, and both halves run in one transaction so the
- * counter cannot drift away from the rows it counts.
+ * Idempotent by construction: the counter only moves when the interest row actually changed.
+ *
+ * K1 sonrası satır iki niyeti birden taşıyor (`GOING` / `MAYBE`), dolayısıyla "sil ve bir
+ * azalt" artık yeterli değil: silinen satır `MAYBE` ise düşmesi gereken sayaç `maybeCount`.
+ * Karar `lib/events/mutations.ts`teki tek yerde duruyor; mobil ucun kendi kopyasını taşıması,
+ * iki sayacın ayrışmasının en kısa yolu olurdu.
+ *
+ * Mobil sözleşmesi kırılmaz (K12): gövde hâlâ `{ interested: boolean }` ve `true` **`GOING`**
+ * demek — mobilde `Hatırlat` düğmesinin anlamı bu.
  */
 export async function setServerScheduledEventInterestWithDatabase(
   database: PrismaClient,
@@ -356,32 +398,12 @@ export async function setServerScheduledEventInterestWithDatabase(
   await findServerScheduledEvent(database, serverId, eventId);
 
   return database.$transaction(async (transaction) => {
-    if (interested) {
-      const { count } = await transaction.scheduledEventInterest.createMany({
-        data: [{ eventId, userId }],
-        skipDuplicates: true,
-      });
-
-      if (count > 0) {
-        await transaction.scheduledEvent.update({
-          data: { interestedCount: { increment: 1 } },
-          select: { id: true },
-          where: { id: eventId },
-        });
-      }
-    } else {
-      const { count } = await transaction.scheduledEventInterest.deleteMany({
-        where: { eventId, userId },
-      });
-
-      if (count > 0) {
-        await transaction.scheduledEvent.update({
-          data: { interestedCount: { decrement: 1 } },
-          select: { id: true },
-          where: { id: eventId },
-        });
-      }
-    }
+    const written = await writeEventRsvpRow(transaction, {
+      eventId,
+      rsvp: interested ? "GOING" : null,
+      userId,
+    });
+    await applyEventRsvpCounters(transaction, eventId, written.delta);
 
     const row = await transaction.scheduledEvent.findUniqueOrThrow({
       select: scheduledEventSelectForViewer(userId),

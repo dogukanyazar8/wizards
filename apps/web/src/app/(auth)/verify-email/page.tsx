@@ -64,7 +64,8 @@ function getViewModel(result: EmailVerificationResult): VerifyEmailViewModel {
 function getToneClasses(tone: VerifyEmailViewModel["tone"]) {
   if (tone === "success") {
     return {
-      badge: "border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.12)] text-[hsl(var(--success))]",
+      badge:
+        "border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.12)] text-[hsl(var(--success))]",
       panel:
         "border-[hsl(var(--success)/0.28)] bg-[linear-gradient(135deg,hsl(var(--success)/0.13),hsl(var(--surface-card)/0.58))]",
     };
@@ -72,14 +73,16 @@ function getToneClasses(tone: VerifyEmailViewModel["tone"]) {
 
   if (tone === "warning") {
     return {
-      badge: "border-[hsl(var(--warning)/0.3)] bg-[hsl(var(--warning)/0.13)] text-[hsl(var(--warning))]",
+      badge:
+        "border-[hsl(var(--warning)/0.3)] bg-[hsl(var(--warning)/0.13)] text-[hsl(var(--warning))]",
       panel:
         "border-[hsl(var(--warning)/0.3)] bg-[linear-gradient(135deg,hsl(var(--warning)/0.13),hsl(var(--surface-card)/0.58))]",
     };
   }
 
   return {
-    badge: "border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.12)] text-[hsl(var(--danger))]",
+    badge:
+      "border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.12)] text-[hsl(var(--danger))]",
     panel:
       "border-[hsl(var(--danger)/0.28)] bg-[linear-gradient(135deg,hsl(var(--danger)/0.12),hsl(var(--surface-card)/0.58))]",
   };
@@ -112,9 +115,7 @@ export default async function VerifyEmailPage({ searchParams }: VerifyEmailPageP
           <h1 className="text-app-foreground text-4xl font-semibold tracking-tight">
             {t(viewModel.titleKey)}
           </h1>
-          <p className="text-app-muted mt-3 text-sm leading-7">
-            {t(viewModel.bodyKey)}
-          </p>
+          <p className="text-app-muted mt-3 text-sm leading-7">{t(viewModel.bodyKey)}</p>
         </div>
       </div>
 

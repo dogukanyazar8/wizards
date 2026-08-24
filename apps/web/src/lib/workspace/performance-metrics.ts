@@ -264,10 +264,7 @@ export function recordUnreadFanoutMetric(args: {
   unreadFanoutMetrics.totalUnreadQueryCount += args.unreadQueryCount;
   unreadFanoutMetrics.totalVisibilityGroupCount += args.visibilityGroupCount;
   unreadFanoutMetrics.totalVisibleUserCount += args.visibleUserCount;
-  unreadFanoutMetrics.maxDurationMs = Math.max(
-    unreadFanoutMetrics.maxDurationMs,
-    args.durationMs,
-  );
+  unreadFanoutMetrics.maxDurationMs = Math.max(unreadFanoutMetrics.maxDurationMs, args.durationMs);
   unreadFanoutMetrics.maxTargetUserCount = Math.max(
     unreadFanoutMetrics.maxTargetUserCount,
     args.targetUserCount,

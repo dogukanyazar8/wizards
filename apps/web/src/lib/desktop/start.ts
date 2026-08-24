@@ -17,10 +17,10 @@ function getLoginDestination(callbackUrl: string) {
 function hasAuthenticatedSession(payload: unknown) {
   return Boolean(
     payload &&
-      typeof payload === "object" &&
-      "user" in payload &&
-      (payload as { user?: unknown }).user &&
-      typeof (payload as { user?: unknown }).user === "object",
+    typeof payload === "object" &&
+    "user" in payload &&
+    (payload as { user?: unknown }).user &&
+    typeof (payload as { user?: unknown }).user === "object",
   );
 }
 

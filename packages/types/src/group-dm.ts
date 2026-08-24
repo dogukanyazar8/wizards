@@ -9,8 +9,16 @@ import {
 } from "./group-dm-settings";
 import { DMConversationDTOSchema } from "./socket";
 
-/** Creator included. Instagram's ceiling; keeps avatar stacks and fan-out sane. */
-export const GROUP_DM_MAX_PARTICIPANTS = 32;
+/**
+ * Creator included. Was 32; the Mesajlar screen's footer reads "en çok 250 üye"
+ * (karar #3).
+ *
+ * The ceiling is a **fan-out** number, not a UI one: every message written to a
+ * 250-member group updates 249 `DMParticipant.unreadCount` rows and reaches 249
+ * sockets. Anything that walks the roster per member has to become a set-based
+ * statement before this ceiling is safe to reach.
+ */
+export const GROUP_DM_MAX_PARTICIPANTS = 250;
 /** Creator + 2. Creator + 1 is already a 1:1 DM. */
 export const GROUP_DM_MIN_PARTICIPANTS = 3;
 
@@ -70,7 +78,15 @@ export const GroupDMCreateRequestSchema = z
      * Absent and `false` both mean "no invite row is minted".
      */
     inviteEnabled: z.boolean().optional(),
-    name: GroupNameSchema.optional(),
+    /**
+     * Required at creation (karar: the modal's "Grubu oluştur" stays disabled
+     * until the field is filled). Renaming still accepts a blank through
+     * `GroupDMUpdateRequestSchema` — clearing a name and never giving one are
+     * different acts, and only the second one is what this screen forbids.
+     */
+    name: GroupNameSchema.refine((value) => value !== null, {
+      message: "Group name is required",
+    }),
     permAddMembers: GroupPermissionLevelSchema.optional(),
     // The creator is implicit, so the client sends one fewer than the floor
     // and one fewer than the ceiling.

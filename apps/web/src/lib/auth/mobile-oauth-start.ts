@@ -25,7 +25,7 @@ export function getSafeMobileOAuthState(value: unknown): string | null {
 }
 
 export function buildMobileOAuthCompletePath(callbackUrl: string, state: string) {
-  const safeCallbackUrl = getSafeAuthRedirectPath(callbackUrl, "/channels/@me");
+  const safeCallbackUrl = getSafeAuthRedirectPath(callbackUrl, "/messages");
   const safeState = getSafeMobileOAuthState(state);
   if (!safeState) {
     throw new Error("Invalid mobile OAuth state.");
@@ -40,7 +40,7 @@ export function buildMobileOAuthStartPath(
   provider: MobileOAuthProvider,
   state: string,
 ) {
-  const safeCallbackUrl = getSafeAuthRedirectPath(callbackUrl, "/channels/@me");
+  const safeCallbackUrl = getSafeAuthRedirectPath(callbackUrl, "/messages");
   const safeState = getSafeMobileOAuthState(state);
   if (!safeState) {
     throw new Error("Invalid mobile OAuth state.");
@@ -51,7 +51,7 @@ export function buildMobileOAuthStartPath(
 }
 
 export function buildMobileOAuthHandoffUrl(token: string, callbackUrl: string, state: string) {
-  const safeCallbackUrl = getSafeAuthRedirectPath(callbackUrl, "/channels/@me");
+  const safeCallbackUrl = getSafeAuthRedirectPath(callbackUrl, "/messages");
   const safeState = getSafeMobileOAuthState(state);
   if (!safeState) {
     throw new Error("Invalid mobile OAuth state.");

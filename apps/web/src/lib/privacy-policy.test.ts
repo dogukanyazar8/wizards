@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import {
-  canSendFriendRequest,
-  canStartDirectMessage,
-} from "./privacy-policy";
+import { canSendFriendRequest, canStartDirectMessage } from "./privacy-policy";
 
 describe("privacy policy helpers", () => {
   it("enforces direct message policies", () => {

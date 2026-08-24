@@ -193,7 +193,7 @@ function ImageLightboxContent({ image, onClose }: ImageLightboxProps) {
     >
       {image?.url ? (
         <div className="space-y-4" data-testid="image-lightbox">
-          <div className="flex flex-col gap-3 rounded-[24px] border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.68)] p-3 shadow-[0_16px_40px_hsl(var(--shadow-color)/0.08)] sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-[1.5rem] border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.68)] p-3 shadow-[0_16px_40px_hsl(var(--shadow-color)/0.08)] sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.66)] text-app-soft">
                 <FileImage className="h-5 w-5" />
@@ -202,7 +202,7 @@ function ImageLightboxContent({ image, onClose }: ImageLightboxProps) {
                 <span className="block truncate text-sm font-semibold text-app-foreground">
                   {image.filename}
                 </span>
-                <span className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-app-soft">
+                <span className="mt-1 flex flex-wrap items-center gap-2 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-app-soft">
                   <span>{attachmentKind}</span>
                   <span aria-hidden="true">/</span>
                   <span>{formatAttachmentSize(image.size)}</span>
@@ -274,7 +274,7 @@ function ImageLightboxContent({ image, onClose }: ImageLightboxProps) {
 
           <div
             className={cn(
-              "relative overflow-hidden rounded-[30px] border border-[hsl(var(--border)/0.72)] shadow-inner",
+              "relative overflow-hidden rounded-[1.875rem] border border-[hsl(var(--border)/0.72)] shadow-inner",
               isGif
                 ? "mx-auto w-fit max-w-full bg-black"
                 : "bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.12),transparent_34%),hsl(var(--surface-soft)/0.42)]",
@@ -342,8 +342,8 @@ function ImageLightboxContent({ image, onClose }: ImageLightboxProps) {
                   className={cn(
                     "transition-transform duration-150",
                     isGif
-                      ? "block max-h-[min(68dvh,720px)] max-w-full rounded-[28px] object-contain shadow-none"
-                      : "h-full w-full rounded-[22px] object-contain shadow-[0_24px_70px_hsl(var(--shadow-color)/0.18)]",
+                      ? "block max-h-[min(68dvh,720px)] max-w-full rounded-[1.75rem] object-contain shadow-none"
+                      : "h-full w-full rounded-[1.375rem] object-contain shadow-[0_24px_70px_hsl(var(--shadow-color)/0.18)]",
                   )}
                   draggable={false}
                   onDragStart={(event) => event.preventDefault()}
@@ -357,7 +357,7 @@ function ImageLightboxContent({ image, onClose }: ImageLightboxProps) {
             </div>
             {!isGif ? (
               <div className="pointer-events-none absolute inset-x-4 bottom-4 flex justify-center">
-                <span className="rounded-full border border-white/54 bg-white/82 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600 shadow-xs backdrop-blur">
+                <span className="rounded-full border border-white/54 bg-white/82 px-3 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--text-secondary))] shadow-xs backdrop-blur">
                   {attachmentKind}
                 </span>
               </div>

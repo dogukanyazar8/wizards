@@ -2,9 +2,11 @@ import { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import {
   GROUP_AVATAR_COLORS,
+  GROUP_CREATE_HISTORY_OPTIONS,
   GROUP_DM_DESCRIPTION_MAX_LENGTH,
   GROUP_DM_NAME_MAX_LENGTH,
   canSubmitGroup,
+  getGroupAvatarColorHsl,
   toGroupAvatarInitials,
   type GroupAvatarColor,
   type GroupCreateState,
@@ -30,7 +32,6 @@ import { getFriendLabel, type MobileGroupCreateFriend } from "./member-step";
 
 type IdentitySheet = "history" | "permission" | null;
 
-const HISTORY_OPTIONS: readonly GroupHistoryVisibility[] = ["NONE", "LAST_24H", "LAST_30D", "ALL"];
 const PERMISSION_OPTIONS: readonly GroupPermissionLevel[] = ["ALL", "ADMINS"];
 
 /**
@@ -112,7 +113,10 @@ export function MobileGroupIdentityStep({
               />
             ) : (
               <View
-                style={[styles.identityAvatar, { backgroundColor: state.avatarColor }]}
+                style={[
+                  styles.identityAvatar,
+                  { backgroundColor: getGroupAvatarColorHsl(state.avatarColor) },
+                ]}
                 testID="mobile-group-create-avatar"
               >
                 <Text style={styles.identityAvatarInitials}>
@@ -186,12 +190,20 @@ export function MobileGroupIdentityStep({
                         style={[
                           styles.colorSwatchButton,
                           selected
-                            ? [styles.colorSwatchButtonSelected, { borderColor: color }]
+                            ? [
+                                styles.colorSwatchButtonSelected,
+                                { borderColor: getGroupAvatarColorHsl(color) },
+                              ]
                             : null,
                         ]}
                         testID={`mobile-group-create-color-${color.replace("#", "")}`}
                       >
-                        <View style={[styles.colorSwatch, { backgroundColor: color }]} />
+                        <View
+                          style={[
+                            styles.colorSwatch,
+                            { backgroundColor: getGroupAvatarColorHsl(color) },
+                          ]}
+                        />
                       </Pressable>
                     );
                   })}
@@ -457,7 +469,7 @@ export function MobileGroupIdentityStep({
           setSheet(null);
         }}
         open={sheet === "history"}
-        options={HISTORY_OPTIONS.map((value) => ({
+        options={GROUP_CREATE_HISTORY_OPTIONS.map((value: GroupHistoryVisibility) => ({
           label: formatHistoryLabel(value, copy),
           value,
         }))}

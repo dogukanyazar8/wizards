@@ -186,7 +186,7 @@ describe("sendMobilePushForNotifications", () => {
     await sendMobilePushForNotifications(
       [
         {
-          actionUrl: "/channels/@me/c1",
+          actionUrl: "/messages/c1",
           body: "hello",
           id: "n1",
           title: "Ada",
@@ -194,7 +194,7 @@ describe("sendMobilePushForNotifications", () => {
           userId: "u1",
         },
         {
-          actionUrl: "/channels/@me/c1",
+          actionUrl: "/messages/c1",
           body: "merhaba",
           id: "n2",
           title: "Ada",
@@ -212,7 +212,7 @@ describe("sendMobilePushForNotifications", () => {
       ["ExpoPushToken[u2]", "merhaba"],
     ]);
     assert.deepEqual(messages[0]!.data, {
-      actionUrl: "/channels/@me/c1",
+      actionUrl: "/messages/c1",
       kind: "notification",
       notificationId: "n1",
       type: "DM",

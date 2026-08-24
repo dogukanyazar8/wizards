@@ -17,7 +17,7 @@ describe("mobile auth exchange route", () => {
         return { session: { schemaVersion: 1 } } as never;
       },
       parseRequest: async () => ({
-        callbackPath: "/channels/@me",
+        callbackPath: "/messages",
         handoffToken: "h".repeat(48),
       }),
     };

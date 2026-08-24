@@ -31,10 +31,7 @@ test.describe("auth smoke", () => {
     await submitLoginForm(page);
 
     await expect(page).toHaveURL(/\/login/);
-    await expectLoginAlert(
-      page,
-      /invalid|email|password|hatal|gecersiz|geçersiz|sifre|şifre/i,
-    );
+    await expectLoginAlert(page, /invalid|email|password|hatal|gecersiz|geçersiz|sifre|şifre/i);
   });
 
   test("login and logout update presence", async ({ page }) => {

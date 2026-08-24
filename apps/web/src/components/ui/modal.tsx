@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
@@ -11,17 +11,27 @@ type ModalProps = {
   className?: string;
   closeLabel?: string;
   description?: string;
+  headerIcon?: React.ReactNode;
+  hideHeader?: boolean;
+  initialFocusRef?: React.RefObject<HTMLElement | null>;
   onClose: () => void;
   open: boolean;
   overlayClassName?: string;
   title: string;
 };
 
+const subscribeToHydration = () => () => {};
+const getClientHydrationSnapshot = () => true;
+const getServerHydrationSnapshot = () => false;
+
 export function Modal({
   children,
   className,
   closeLabel = "Close modal",
   description,
+  headerIcon,
+  hideHeader = false,
+  initialFocusRef,
   onClose,
   open,
   overlayClassName,
@@ -32,13 +42,18 @@ export function Modal({
   const previousActiveElementRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
   const descriptionId = useId();
+  const mounted = useSyncExternalStore(
+    subscribeToHydration,
+    getClientHydrationSnapshot,
+    getServerHydrationSnapshot,
+  );
 
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
 
   useEffect(() => {
-    if (!open) {
+    if (!mounted || !open) {
       return;
     }
 
@@ -50,7 +65,7 @@ export function Modal({
       'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     );
 
-    (focusable?.[0] ?? dialog)?.focus();
+    (initialFocusRef?.current ?? focusable?.[0] ?? dialog)?.focus();
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -90,9 +105,9 @@ export function Modal({
       window.removeEventListener("keydown", handleEscape);
       previousActiveElementRef.current?.focus();
     };
-  }, [open]);
+  }, [initialFocusRef, mounted, open]);
 
-  if (typeof document === "undefined") {
+  if (!mounted || typeof document === "undefined") {
     return null;
   }
 
@@ -126,29 +141,38 @@ export function Modal({
             tabIndex={-1}
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-app-foreground text-xl font-semibold" id={titleId}>
-                  {title}
-                </h2>
-                {description ? (
-                  <p className="text-app-muted mt-1 text-sm" id={descriptionId}>
-                    {description}
-                  </p>
-                ) : null}
+            {hideHeader ? (
+              <h2 className="sr-only" id={titleId}>
+                {title}
+              </h2>
+            ) : (
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex min-w-0 items-start gap-3">
+                  {headerIcon ? <div className="shrink-0">{headerIcon}</div> : null}
+                  <div className="min-w-0">
+                    <h2 className="text-app-foreground text-xl font-semibold" id={titleId}>
+                      {title}
+                    </h2>
+                    {description ? (
+                      <p className="text-app-muted mt-1 text-sm" id={descriptionId}>
+                        {description}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <button
+                  aria-label={closeLabel}
+                  className="app-panel-soft text-app-muted flex min-h-11 min-w-11 items-center justify-center rounded-full border p-2 transition hover:opacity-90 hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:min-h-0 sm:min-w-0"
+                  onClick={onClose}
+                  type="button"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
+            )}
 
-              <button
-                aria-label={closeLabel}
-                className="app-panel-soft text-app-muted flex min-h-11 min-w-11 items-center justify-center rounded-full border p-2 transition hover:opacity-90 hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:min-h-0 sm:min-w-0"
-                onClick={onClose}
-                type="button"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="mt-6">{children}</div>
+            <div className={hideHeader ? undefined : "mt-6"}>{children}</div>
           </motion.div>
         </motion.div>
       ) : null}

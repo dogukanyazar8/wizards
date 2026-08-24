@@ -254,12 +254,7 @@ export async function requireAccountDeletionReauthToken(
       (user.passwordHash && verifyAccountDeletionReauthToken(userId, user.passwordHash, token)) ||
       (!user.passwordHash &&
         user.emailVerified &&
-        verifyAccountDeletionEmailReauthToken(
-          userId,
-          user.email,
-          user.emailVerifiedAt,
-          token,
-        ))
+        verifyAccountDeletionEmailReauthToken(userId, user.email, user.emailVerifiedAt, token))
     )
   ) {
     throw new ApiError(

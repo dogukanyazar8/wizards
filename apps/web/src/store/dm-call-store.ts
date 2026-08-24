@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import {
   createIncomingCall,
+  createJoiningCall,
   createOutgoingCall,
   markCallConnected,
   markCallConnecting,
@@ -26,6 +27,8 @@ type DMCallStoreState = {
     peer: DMCallPeer;
     video: boolean;
   }) => void;
+  /** Entering a call that is already running; no ring, so no ring deadline. */
+  startJoining: (input: { conversationId: string; peer?: DMCallPeer | null }) => void;
   setConnecting: (video?: boolean) => void;
   setConnected: (video?: boolean) => void;
   setMinimized: (minimized: boolean) => void;
@@ -48,6 +51,12 @@ export const useDMCallStore = create<DMCallStoreState>((set) => ({
       errorMessage: null,
       isMinimized: false,
       session: createIncomingCall({ conversationId, expiresAt, peer, video }),
+    }),
+  startJoining: ({ conversationId, peer }) =>
+    set({
+      errorMessage: null,
+      isMinimized: false,
+      session: createJoiningCall({ conversationId, peer: peer ?? null }),
     }),
   setConnecting: (video) =>
     set((state) => ({

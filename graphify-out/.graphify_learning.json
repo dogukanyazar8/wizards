@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-18T14:36:35.048638+00:00",
+  "generated_at": "2026-08-21T16:52:46.669867+00:00",
   "nodes": {
     "apps_desktop_package": {
       "code_fingerprint": "dca80724c74ed8b5f42bb1393fd082b657bec9adb1c9e03dc8ec6acdbeec4a65",
@@ -12,7 +12,7 @@
           "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
         }
       ],
-      "score": 0.631179469,
+      "score": 0.587625763,
       "source_file": "apps/desktop/package.json",
       "status": "tentative",
       "uses": 1
@@ -28,7 +28,7 @@
           "q": "lokalde web ve desktop projelerini nasıl çalıştıracağım."
         }
       ],
-      "score": 0.883346051,
+      "score": 0.822391922,
       "source_file": "apps/desktop/package.json",
       "status": "tentative",
       "uses": 1
@@ -49,7 +49,7 @@
           "q": "desktop ve mobile release Azure da yapilabilir mi?"
         }
       ],
-      "score": 1.507941125,
+      "score": 1.403887636,
       "source_file": "apps/desktop/RELEASE.md",
       "status": "preferred",
       "uses": 2
@@ -65,7 +65,7 @@
           "q": "Peki artık desktop ve mobile için release'i nasıl alacağım?"
         }
       ],
-      "score": 0.850431007,
+      "score": 0.791748136,
       "source_file": "apps/desktop/RELEASE.md",
       "status": "tentative",
       "uses": 1
@@ -81,7 +81,7 @@
           "q": "desktop native geliştirmesinde ne durumdayız, neler yaptık neler kaldı?"
         }
       ],
-      "score": 0.769992958,
+      "score": 0.716860609,
       "source_file": "apps/desktop/scripts/desktop-release-workflow.mjs",
       "status": "tentative",
       "uses": 1
@@ -97,7 +97,7 @@
           "q": "desktop native geliştirmesinde ne durumdayız, neler yaptık neler kaldı?"
         }
       ],
-      "score": 0.769992958,
+      "score": 0.716860609,
       "source_file": "apps/desktop/scripts/run-windows-measurement.mjs",
       "status": "tentative",
       "uses": 1
@@ -128,7 +128,7 @@
           "q": "lokalimde bulunan iki tane self hosted runner ubuntu sanal makineyi projemizin CI/CD süreçlerinde en verimli şekilde kullanıyor muyuz? Görev paylaşımı, iş paylaşımı, doğru düzgün optimize performanslı bir şekilde yapılıyor mu?"
         }
       ],
-      "score": 2.855782033,
+      "score": 2.65872256,
       "source_file": "apps/desktop/src-tauri/tauri.conf.json",
       "status": "preferred",
       "uses": 4
@@ -144,7 +144,7 @@
           "q": "APK derlerken EXPO_PUBLIC_WHISPR_BUILD_ID valid Git SHA hatası neden oluşuyor ve nasıl düzeltilir?"
         }
       ],
-      "score": 0.717054785,
+      "score": 0.667575365,
       "source_file": "apps/mobile/app.config.js",
       "status": "tentative",
       "uses": 1
@@ -160,7 +160,7 @@
           "q": "Local Auth.js MissingSecret error"
         }
       ],
-      "score": 0.883801369,
+      "score": 0.822815821,
       "source_file": "apps/mobile/component-tests/mobile-auth-navigation.test.tsx",
       "status": "tentative",
       "uses": 1
@@ -176,7 +176,7 @@
           "q": "6 7 8 9 10 11 12 13 14 maddelerini ayrı scriptlerle otomatikleştirebilir miyiz; reset ve txt export istiyorum"
         }
       ],
-      "score": 0.65941761,
+      "score": 0.613915367,
       "source_file": "apps/mobile/MIGRATION_PHASE_0.md",
       "status": "tentative",
       "uses": 1
@@ -202,7 +202,7 @@
           "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
         }
       ],
-      "score": 1.931395137,
+      "score": 1.798121763,
       "source_file": "apps/mobile/package.json",
       "status": "preferred",
       "uses": 3
@@ -224,7 +224,7 @@
           "q": "Yapmam gereken cihaz testlerini sırasıyla talimatlarınla paylaşır mısın?"
         }
       ],
-      "score": 0.867964525,
+      "score": 0.808071777,
       "source_file": "apps/mobile/package.json",
       "status": "contested",
       "uses": 2,
@@ -246,7 +246,7 @@
           "q": "APK derlerken EXPO_PUBLIC_WHISPR_BUILD_ID valid Git SHA hatası neden oluşuyor ve nasıl düzeltilir?"
         }
       ],
-      "score": 1.451334111,
+      "score": 1.351186715,
       "source_file": "apps/mobile/scripts/build-android-uat.ps1",
       "status": "preferred",
       "uses": 2
@@ -262,7 +262,7 @@
           "q": "APK derlerken EXPO_PUBLIC_WHISPR_BUILD_ID valid Git SHA hatası neden oluşuyor ve nasıl düzeltilir?"
         }
       ],
-      "score": 0.717054785,
+      "score": 0.667575365,
       "source_file": "apps/mobile/scripts/mobile-app-config-contract.test.ts",
       "status": "tentative",
       "uses": 1
@@ -278,7 +278,7 @@
           "q": "lokal build almak istediğimde ekteki hatayı alıyorum, nedir sorun çözer misin"
         }
       ],
-      "score": 0.734279326,
+      "score": 0.68361135,
       "source_file": "apps/mobile/scripts/mobile-build-env-parity.test.ts",
       "status": "tentative",
       "uses": 1
@@ -309,7 +309,7 @@
           "q": "06-15 mobil cihaz performans testlerinin düzeltme gereksinimi ve 15 tekrar çalıştırma hazırlığı"
         }
       ],
-      "score": 2.878428152,
+      "score": 2.679806013,
       "source_file": "apps/mobile/scripts/mobile-performance-device-scripts.test.ts",
       "status": "preferred",
       "uses": 4
@@ -325,7 +325,7 @@
           "q": "Tüm mobil yavaşlıkları ve gecikmeleri endüstri seviyesinde giderecek, test tekrarı ve commit olmadan uygulanabilir prompt hazırla."
         }
       ],
-      "score": 0.720288006,
+      "score": 0.670585482,
       "source_file": "apps/mobile/scripts/mobile-realtime-state.test.ts",
       "status": "tentative",
       "uses": 1
@@ -341,7 +341,7 @@
           "q": "Versiyon - Kod Adı - Build nedir; mobilde yeni güncelleme yayınlama yolu nasıl olmalı?"
         }
       ],
-      "score": 0.647276321,
+      "score": 0.602611872,
       "source_file": "apps/mobile/scripts/mobile-release-workflow.mjs",
       "status": "tentative",
       "uses": 1
@@ -357,7 +357,7 @@
           "q": "SQLCipher purge ACK timeout hangi testte ve neden oldu?"
         }
       ],
-      "score": 0.701742274,
+      "score": 0.653319474,
       "source_file": "apps/mobile/scripts/performance-device/10-sqlcipher.ps1",
       "status": "tentative",
       "uses": 1
@@ -373,7 +373,7 @@
           "q": "son testte hata aldım, sorunu inceleyip çözer misin? tap-dm Report contains fewer than 15 samples"
         }
       ],
-      "score": 0.71981906,
+      "score": 0.670148895,
       "source_file": "apps/mobile/scripts/performance-device/15-tap-dm.ps1",
       "status": "tentative",
       "uses": 1
@@ -409,7 +409,7 @@
           "q": "06-15 mobil cihaz performans testlerinin düzeltme gereksinimi ve 15 tekrar çalıştırma hazırlığı"
         }
       ],
-      "score": 7.761234356,
+      "score": 7.225680615,
       "source_file": "apps/mobile/scripts/performance-device/WhisprPerformanceDevice.psm1",
       "status": "preferred",
       "uses": 11
@@ -435,7 +435,7 @@
           "q": "Admin yayin akisinda yeni surum olusturup yayinladim; Denetle neden tepki vermiyor ve nasil test ederim?"
         }
       ],
-      "score": 1.96083766,
+      "score": 1.825532644,
       "source_file": "apps/mobile/src/about/android-apk-update-controller.ts",
       "status": "preferred",
       "uses": 3
@@ -451,7 +451,7 @@
           "q": "1c Yenilikler ekranı mevcut 01-03 katmanlarıyla nasıl bağlanır?"
         }
       ],
-      "score": 0.63087771,
+      "score": 0.587344826,
       "source_file": "apps/mobile/src/about/mobile-about-model.ts",
       "status": "tentative",
       "uses": 1
@@ -467,7 +467,7 @@
           "q": "sürüm geçmişi ekranında da sürüm notları alınamadı hatasını alıyorum, bunu da çözer misin en güvenli en hızlı şekilde."
         }
       ],
-      "score": 0.639675594,
+      "score": 0.595535623,
       "source_file": "apps/mobile/src/about/mobile-about-queries.ts",
       "status": "tentative",
       "uses": 1
@@ -483,7 +483,7 @@
           "q": "Adım 13 2h puanlama sheet'i nasıl uygulanır?"
         }
       ],
-      "score": 0.64057562,
+      "score": 0.596373544,
       "source_file": "apps/mobile/src/about/mobile-rating-model.ts",
       "status": "tentative",
       "uses": 1
@@ -499,7 +499,7 @@
           "q": "Mobil APK güncelleme sayfasında indirme, doğrulama ve kurulum durumları nasıl modelleniyor?"
         }
       ],
-      "score": 0.653759572,
+      "score": 0.608647755,
       "source_file": "apps/mobile/src/about/mobile-update-controller.ts",
       "status": "tentative",
       "uses": 1
@@ -515,7 +515,7 @@
           "q": "1A Hakkında sağ üst kopyala eylemi ve beta katılım toast okunabilirliği nerede çözülür?"
         }
       ],
-      "score": 0.640761564,
+      "score": 0.596546658,
       "source_file": "apps/mobile/src/about/open-about-beta-consent.ts",
       "status": "tentative",
       "uses": 1
@@ -531,7 +531,7 @@
           "q": "[$caveman] Faz 1 için gerekli her şeyi hazırla, sonrasında onaylayacağım, ardından geliştireceğiz."
         }
       ],
-      "score": 0.886901036,
+      "score": 0.8257016,
       "source_file": "apps/mobile/src/account/mobile-account-settings-client.ts",
       "status": "tentative",
       "uses": 1
@@ -552,7 +552,7 @@
           "q": "tüm testleri tamamladım. sonuçları detaylı bir şekilde inceleyip, mobil uygulamadaki yavaşlık sorununun nedenleri ve çözümlerini eksiksiz bir şekilde analiz eder misin"
         }
       ],
-      "score": 1.440404847,
+      "score": 1.34101161,
       "source_file": "apps/mobile/src/api/mobile-api-client.ts",
       "status": "preferred",
       "uses": 2
@@ -568,7 +568,7 @@
           "q": "Test 10 SQLCipher 15 tekrarda neden sqlcipher 0 sample veriyor ve nasil duzeltilir?"
         }
       ],
-      "score": 0.717872109,
+      "score": 0.66833629,
       "source_file": "apps/mobile/src/app/features/use-mobile-dm-route-state.ts",
       "status": "tentative",
       "uses": 1
@@ -584,7 +584,7 @@
           "q": "Tüm mobil yavaşlıkları ve gecikmeleri endüstri seviyesinde giderecek, test tekrarı ve commit olmadan uygulanabilir prompt hazırla."
         }
       ],
-      "score": 0.720288006,
+      "score": 0.670585482,
       "source_file": "apps/mobile/src/app/features/use-mobile-messaging-feature.ts",
       "status": "tentative",
       "uses": 1
@@ -615,7 +615,7 @@
           "q": "testleri tamamladım ve ekteki hatayı aldım, sorun nedir inceler misin?"
         }
       ],
-      "score": 2.847807452,
+      "score": 2.651298254,
       "source_file": "apps/mobile/src/app/providers/mobile-performance-automation-provider.tsx",
       "status": "preferred",
       "uses": 4
@@ -631,7 +631,7 @@
           "q": "Test 11 prefetch-network neden ACK timeout oluyor ve tekrarlanabilir cihaz test süreci nasıl düzeltilir?"
         }
       ],
-      "score": 0.718508741,
+      "score": 0.668928993,
       "source_file": "apps/mobile/src/app/providers/mobile-performance-automation-provider.tsx",
       "status": "tentative",
       "uses": 1
@@ -652,7 +652,7 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 1.350026263,
+      "score": 1.256869481,
       "source_file": "apps/mobile/src/app/providers/mobile-realtime-provider.tsx",
       "status": "preferred",
       "uses": 2
@@ -668,7 +668,7 @@
           "q": "Whispr mobile splash görsel dili Discord Slack Teams Zoom gibi olmalı; kaç ekran ve hangi mesajlar?"
         }
       ],
-      "score": 0.596827848,
+      "score": 0.55564453,
       "source_file": "apps/mobile/src/app/providers/mobile-theme-provider.tsx",
       "status": "tentative",
       "uses": 1
@@ -684,7 +684,7 @@
           "q": "1A ekranındaki ve diğer ilgili ekranlarda sağ üstteki Bildir butonunun ikon tasarımını HTML 1a/ilgili About handoff tasarımıyla eşleştir"
         }
       ],
-      "score": 0.639589917,
+      "score": 0.595455859,
       "source_file": "apps/mobile/src/app/screens/about/about-icons.tsx",
       "status": "tentative",
       "uses": 1
@@ -700,7 +700,7 @@
           "q": "1A ekranındaki ve diğer ilgili ekranlarda sağ üstteki Bildir butonunun ikon tasarımını HTML 1a/ilgili About handoff tasarımıyla eşleştir"
         }
       ],
-      "score": 0.639589917,
+      "score": 0.595455859,
       "source_file": "apps/mobile/src/app/screens/about/about-icons.tsx",
       "status": "tentative",
       "uses": 1
@@ -721,7 +721,7 @@
           "q": "1c Yenilikler ekranı mevcut 01-03 katmanlarıyla nasıl bağlanır?"
         }
       ],
-      "score": 1.270341126,
+      "score": 1.182682912,
       "source_file": "apps/mobile/src/app/screens/about/about-primitives.tsx",
       "status": "preferred",
       "uses": 2
@@ -737,7 +737,7 @@
           "q": "1A ekranındaki ve diğer ilgili ekranlarda sağ üstteki Bildir butonunun ikon tasarımını HTML 1a/ilgili About handoff tasarımıyla eşleştir"
         }
       ],
-      "score": 0.639589917,
+      "score": 0.595455859,
       "source_file": "apps/mobile/src/app/screens/about/about-primitives.tsx",
       "status": "tentative",
       "uses": 1
@@ -753,7 +753,7 @@
           "q": "Adım 13 2h puanlama sheet'i nasıl uygulanır?"
         }
       ],
-      "score": 0.64057562,
+      "score": 0.596373544,
       "source_file": "apps/mobile/src/app/screens/about/about-rating-sheet.tsx",
       "status": "tentative",
       "uses": 1
@@ -769,7 +769,7 @@
           "q": "Mobil APK güncelleme sayfasında indirme, doğrulama ve kurulum durumları nasıl modelleniyor?"
         }
       ],
-      "score": 0.653759572,
+      "score": 0.608647755,
       "source_file": "apps/mobile/src/app/screens/about/about-update-sheet.tsx",
       "status": "tentative",
       "uses": 1
@@ -785,7 +785,7 @@
           "q": "1c Yenilikler ekranı mevcut 01-03 katmanlarıyla nasıl bağlanır?"
         }
       ],
-      "score": 0.63087771,
+      "score": 0.587344826,
       "source_file": "apps/mobile/src/app/screens/about/about-whats-new-card.tsx",
       "status": "tentative",
       "uses": 1
@@ -801,7 +801,7 @@
           "q": "Hakkında ekranında yenilikler özeti ve tüm yenilikler ekranı neden görünmüyor?"
         }
       ],
-      "score": 0.631095531,
+      "score": 0.587547616,
       "source_file": "apps/mobile/src/app/screens/about/about-whats-new-screen.tsx",
       "status": "tentative",
       "uses": 1
@@ -827,7 +827,7 @@
           "q": "1A ekranındaki ve diğer ilgili ekranlarda sağ üstteki Bildir butonunun ikon tasarımını HTML 1a/ilgili About handoff tasarımıyla eşleştir"
         }
       ],
-      "score": 1.919916723,
+      "score": 1.787435402,
       "source_file": "apps/mobile/src/app/screens/about/about-whats-new-screen.tsx",
       "status": "preferred",
       "uses": 3
@@ -843,7 +843,7 @@
           "q": "Whispr logosunun üstünde garip bir beyaz çizgi görüntülüyorum, bunu düzeltir misin?"
         }
       ],
-      "score": 0.639463416,
+      "score": 0.595338086,
       "source_file": "apps/mobile/src/app/screens/auth/auth-welcome-brand-mark.tsx",
       "status": "tentative",
       "uses": 1
@@ -859,7 +859,7 @@
           "q": "Versiyon - Kod Adı - Build nedir; mobilde yeni güncelleme yayınlama yolu nasıl olmalı?"
         }
       ],
-      "score": 0.647276321,
+      "score": 0.602611872,
       "source_file": "apps/mobile/src/app/screens/mobile-about-settings-screen.tsx",
       "status": "tentative",
       "uses": 1
@@ -875,7 +875,7 @@
           "q": "Hakkında ekranında yenilikler özeti ve tüm yenilikler ekranı neden görünmüyor?"
         }
       ],
-      "score": 0.631095531,
+      "score": 0.587547616,
       "source_file": "apps/mobile/src/app/screens/mobile-about-settings-screen.tsx",
       "status": "tentative",
       "uses": 1
@@ -896,7 +896,7 @@
           "q": "Yapmam gereken cihaz testlerini sırasıyla talimatlarınla paylaşır mısın?"
         }
       ],
-      "score": 1.318538244,
+      "score": 1.227554251,
       "source_file": "apps/mobile/src/app/screens/mobile-performance-diagnostics-screen.tsx",
       "status": "preferred",
       "uses": 2
@@ -912,7 +912,7 @@
           "q": "github actionsdan mobile release build aldığımda uygulamadaki google girişi android işletim sistemi yerine tarayıcıda devam ediyor, buradaki sorun nedir, nasıl düzeltebilirim?"
         }
       ],
-      "score": 0.721471411,
+      "score": 0.671687228,
       "source_file": "apps/mobile/src/auth/mobile-auth-context.tsx",
       "status": "tentative",
       "uses": 1
@@ -928,7 +928,7 @@
           "q": "github actionsdan mobile release build aldığımda uygulamadaki google girişi android işletim sistemi yerine tarayıcıda devam ediyor, buradaki sorun nedir, nasıl düzeltebilirim?"
         }
       ],
-      "score": 0.721471411,
+      "score": 0.671687228,
       "source_file": "apps/mobile/src/auth/mobile-google-signin-client.ts",
       "status": "tentative",
       "uses": 1
@@ -944,7 +944,7 @@
           "q": "github actionsdan mobile release build aldığımda uygulamadaki google girişi android işletim sistemi yerine tarayıcıda devam ediyor, buradaki sorun nedir, nasıl düzeltebilirim?"
         }
       ],
-      "score": 0.721471411,
+      "score": 0.671687228,
       "source_file": "apps/mobile/src/auth/mobile-google-signin-client.ts",
       "status": "tentative",
       "uses": 1
@@ -960,7 +960,7 @@
           "q": "00-ortak-baglam.md okuyup 20-mobil-medya-yasam-dongusu.md dosyasını uygula; uygulanmışsa bildir"
         }
       ],
-      "score": 0.874379936,
+      "score": 0.814044501,
       "source_file": "apps/mobile/src/media/mobile-image-compression.ts",
       "status": "tentative",
       "uses": 1
@@ -976,7 +976,7 @@
           "q": "00-ortak-baglam.md okuyup 20-mobil-medya-yasam-dongusu.md dosyasını uygula; uygulanmışsa bildir"
         }
       ],
-      "score": 0.874379936,
+      "score": 0.814044501,
       "source_file": "apps/mobile/src/media/mobile-upload-watchdog.ts",
       "status": "tentative",
       "uses": 1
@@ -992,7 +992,7 @@
           "q": "Mobil uygulamada navigation bar için hangi ikon paketini kullanıyoruz?"
         }
       ],
-      "score": 0.571148385,
+      "score": 0.531737044,
       "source_file": "apps/mobile/src/navigation/mobile-bottom-tab-bar.tsx",
       "status": "tentative",
       "uses": 1
@@ -1008,7 +1008,7 @@
           "q": "Yapmam gereken cihaz testlerini sırasıyla talimatlarınla paylaşır mısın?"
         }
       ],
-      "score": 0.659120634,
+      "score": 0.613638884,
       "source_file": "apps/mobile/src/navigation/mobile-chat-transition.ts",
       "status": "tentative",
       "uses": 1
@@ -1024,7 +1024,7 @@
           "q": "Fix Android InteractionManager deprecation and expo-notifications cancelled fetch warnings safely"
         }
       ],
-      "score": 0.639654758,
+      "score": 0.595516225,
       "source_file": "apps/mobile/src/navigation/mobile-tab-bar-host.tsx",
       "status": "tentative",
       "uses": 1
@@ -1040,7 +1040,7 @@
           "q": "Düzeltmeyi yapıp testi çalıştırma komutlarını verir misin?"
         }
       ],
-      "score": 0.703886661,
+      "score": 0.65531589,
       "source_file": "apps/mobile/src/performance/mobile-event-loop-lag.ts",
       "status": "tentative",
       "uses": 1
@@ -1056,7 +1056,7 @@
           "q": "Railway UAT ortamında workspace-performance metrikleri tanımlı, mobil için log tutuyor muyuz inceler misin?"
         }
       ],
-      "score": 0.62717343,
+      "score": 0.583896155,
       "source_file": "apps/mobile/src/performance/mobile-health-reporter.ts",
       "status": "tentative",
       "uses": 1
@@ -1072,7 +1072,7 @@
           "q": "Fix Android InteractionManager deprecation and expo-notifications cancelled fetch warnings safely"
         }
       ],
-      "score": 0.639654758,
+      "score": 0.595516225,
       "source_file": "apps/mobile/src/performance/mobile-idle-task.ts",
       "status": "tentative",
       "uses": 1
@@ -1088,7 +1088,7 @@
           "q": "tüm testleri tamamladım. sonuçları detaylı bir şekilde inceleyip, mobil uygulamadaki yavaşlık sorununun nedenleri ve çözümlerini eksiksiz bir şekilde analiz eder misin"
         }
       ],
-      "score": 0.720116841,
+      "score": 0.670426128,
       "source_file": "apps/mobile/src/performance/mobile-navigation-timing.ts",
       "status": "tentative",
       "uses": 1
@@ -1109,7 +1109,7 @@
           "q": "Railway UAT ortamında workspace-performance metrikleri tanımlı, mobil için log tutuyor muyuz inceler misin?"
         }
       ],
-      "score": 1.28659104,
+      "score": 1.197811522,
       "source_file": "apps/mobile/src/performance/mobile-performance-metrics.ts",
       "status": "preferred",
       "uses": 2
@@ -1125,7 +1125,7 @@
           "q": "00-ortak-baglam.md okuyup 20-mobil-medya-yasam-dongusu.md dosyasını uygula; uygulanmışsa bildir"
         }
       ],
-      "score": 0.874379936,
+      "score": 0.814044501,
       "source_file": "apps/mobile/src/performance/mobile-performance-sample-persistence.ts",
       "status": "tentative",
       "uses": 1
@@ -1141,7 +1141,7 @@
           "q": "tüm testleri tamamladım. sonuçları detaylı bir şekilde inceleyip, mobil uygulamadaki yavaşlık sorununun nedenleri ve çözümlerini eksiksiz bir şekilde analiz eder misin"
         }
       ],
-      "score": 0.720116841,
+      "score": 0.670426128,
       "source_file": "apps/mobile/src/performance/mobile-startup-phases.ts",
       "status": "tentative",
       "uses": 1
@@ -1157,7 +1157,7 @@
           "q": "Fix Android InteractionManager deprecation and expo-notifications cancelled fetch warnings safely"
         }
       ],
-      "score": 0.639654758,
+      "score": 0.595516225,
       "source_file": "apps/mobile/src/performance/mobile-telemetry-instruments.ts",
       "status": "tentative",
       "uses": 1
@@ -1178,7 +1178,7 @@
           "q": "tüm testleri tamamladım. sonuçları detaylı bir şekilde inceleyip, mobil uygulamadaki yavaşlık sorununun nedenleri ve çözümlerini eksiksiz bir şekilde analiz eder misin"
         }
       ],
-      "score": 1.440404847,
+      "score": 1.34101161,
       "source_file": "apps/mobile/src/query/mobile-message-prefetch.ts",
       "status": "preferred",
       "uses": 2
@@ -1194,7 +1194,7 @@
           "q": "Test 11 prefetch-network neden ACK timeout oluyor ve tekrarlanabilir cihaz test süreci nasıl düzeltilir?"
         }
       ],
-      "score": 0.718508741,
+      "score": 0.668928993,
       "source_file": "apps/mobile/src/query/mobile-message-prefetch.ts",
       "status": "tentative",
       "uses": 1
@@ -1210,7 +1210,7 @@
           "q": "Test 10 SQLCipher 15 tekrarda neden sqlcipher 0 sample veriyor ve nasil duzeltilir?"
         }
       ],
-      "score": 0.717872109,
+      "score": 0.66833629,
       "source_file": "apps/mobile/src/query/mobile-message-queries.ts",
       "status": "tentative",
       "uses": 1
@@ -1226,7 +1226,7 @@
           "q": "Test 11 prefetch-network neden ACK timeout oluyor ve tekrarlanabilir cihaz test süreci nasıl düzeltilir?"
         }
       ],
-      "score": 0.718508741,
+      "score": 0.668928993,
       "source_file": "apps/mobile/src/query/mobile-message-stream-cache.ts",
       "status": "tentative",
       "uses": 1
@@ -1242,7 +1242,7 @@
           "q": "Mobil açılışında modern splash, yüklemeler ve performans kontrolleri nasıl tasarlanmalı?"
         }
       ],
-      "score": 0.588876423,
+      "score": 0.548241782,
       "source_file": "apps/mobile/src/query/mobile-query-cache-policy.ts",
       "status": "tentative",
       "uses": 1
@@ -1258,7 +1258,7 @@
           "q": "Fix Android InteractionManager deprecation and expo-notifications cancelled fetch warnings safely"
         }
       ],
-      "score": 0.639654758,
+      "score": 0.595516225,
       "source_file": "apps/mobile/src/query/mobile-recent-dm-prefetch.ts",
       "status": "tentative",
       "uses": 1
@@ -1274,7 +1274,7 @@
           "q": "Test 10 SQLCipher 15 tekrarda neden sqlcipher 0 sample veriyor ve nasil duzeltilir?"
         }
       ],
-      "score": 0.717872109,
+      "score": 0.66833629,
       "source_file": "apps/mobile/src/query/use-mobile-message-stream-persistence.ts",
       "status": "tentative",
       "uses": 1
@@ -1300,7 +1300,7 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 1.994466468,
+      "score": 1.856840939,
       "source_file": "apps/mobile/src/release/mobile-release-contract.ts",
       "status": "preferred",
       "uses": 3
@@ -1316,13 +1316,13 @@
           "q": "00-ortak-baglam.md okuyup 20-mobil-medya-yasam-dongusu.md dosyasını uygula; uygulanmışsa bildir"
         }
       ],
-      "score": 0.874379936,
+      "score": 0.814044501,
       "source_file": "apps/mobile/src/voice/use-mobile-voice-room.ts",
       "status": "tentative",
       "uses": 1
     },
     "apps_web_playwright_config": {
-      "code_fingerprint": "3f6cbef70b109844463f7d78cbebdadb9f9386be91d102bb72b9cdcb83a563e0",
+      "code_fingerprint": "9b945a8bfeaf8afcf8241ef3323e708fed6ce23cb46fc3b4ea66cb91961651ce",
       "label": "playwright.config.ts",
       "last": "2026-07-29T16:37:03.750272+00:00",
       "provenance": [
@@ -1332,7 +1332,7 @@
           "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
         }
       ],
-      "score": 0.631179469,
+      "score": 0.587625763,
       "source_file": "apps/web/playwright.config.ts",
       "status": "tentative",
       "uses": 1
@@ -1348,13 +1348,13 @@
           "q": "Sentry GET /admin/releases ApiError Unauthorized nedir?"
         }
       ],
-      "score": 0.645595751,
+      "score": 0.601047268,
       "source_file": "apps/web/src/app/admin/releases/page.tsx",
       "status": "tentative",
       "uses": 1
     },
     "apps_web_src_app_api_uploadthing_core": {
-      "code_fingerprint": "069c706edd671c3f6fce6c625ac71e116424f43cd6197ab255446db63eb27211",
+      "code_fingerprint": "6319a244f7b12f32e229e2f45184997630d20a0d0888e3ccc70854ba94e51788",
       "label": "uploadthing/core.ts",
       "last": "2026-07-31T05:43:51.973015+00:00",
       "provenance": [
@@ -1369,7 +1369,7 @@
           "q": "Ekteki guvenlik geri bildirimleri gercekten bulgu mu?"
         }
       ],
-      "score": 1.308127684,
+      "score": 1.217862058,
       "source_file": "apps/web/src/app/api/uploadthing/core.ts",
       "status": "preferred",
       "uses": 2
@@ -1385,7 +1385,7 @@
           "q": "Railway UAT ortamı build fail verdi, inceleyip çözer misin sorunu"
         }
       ],
-      "score": 0.643844025,
+      "score": 0.599416417,
       "source_file": "apps/web/src/app/api/v1/admin/help/articles/route.ts",
       "status": "tentative",
       "uses": 1
@@ -1401,7 +1401,7 @@
           "q": "Railway UAT ortamı build fail verdi, inceleyip çözer misin sorunu"
         }
       ],
-      "score": 0.643844025,
+      "score": 0.599416417,
       "source_file": "apps/web/src/app/api/v1/admin/help/articles/route-logic.ts",
       "status": "tentative",
       "uses": 1
@@ -1422,13 +1422,13 @@
           "q": "11-moderasyon-ve-denetim-izi.md A seçeneğini uygula"
         }
       ],
-      "score": 1.757030858,
+      "score": 1.635789261,
       "source_file": "apps/web/src/app/api/v1/admin/moderation/cases/route.ts",
       "status": "preferred",
       "uses": 2
     },
     "apps_web_src_app_api_v1_route_contract_test": {
-      "code_fingerprint": "f0d2a53cc452739afe0050e4de3f795cafd0b5d29e124d46d2772b276dbf67c8",
+      "code_fingerprint": "b4df466b798f5bbf44b862870b6e4687ccd77a854eec84e88c0848bf4a9619b0",
       "label": "route-contract.test.ts",
       "last": "2026-07-30T13:15:12.930779+00:00",
       "provenance": [
@@ -1438,7 +1438,7 @@
           "q": "Railway UAT ortamı build fail verdi, inceleyip çözer misin sorunu"
         }
       ],
-      "score": 0.643844025,
+      "score": 0.599416417,
       "source_file": "apps/web/src/app/api/v1/route-contract.test.ts",
       "status": "tentative",
       "uses": 1
@@ -1454,7 +1454,7 @@
           "q": "Aktif oturumlar, profil ve çevrimiçi görünürlük, saat dilimi, tarih formatı, erişilebilirlik, veri dışa aktarma ve hesap silmeyi gerçek özellik yapmak için 5 aşamalı plan"
         }
       ],
-      "score": 0.886596015,
+      "score": 0.825417626,
       "source_file": "apps/web/src/app/api/v1/users/me/data-export/route.ts",
       "status": "tentative",
       "uses": 1
@@ -1470,13 +1470,29 @@
           "q": "[$caveman] Faz 1 için gerekli her şeyi hazırla, sonrasında onaylayacağım, ardından geliştireceğiz."
         }
       ],
-      "score": 0.886901036,
+      "score": 0.8257016,
       "source_file": "apps/web/src/app/api/v1/users/me/settings/route.ts",
       "status": "tentative",
       "uses": 1
     },
+    "apps_web_src_components_brand_brand_logo": {
+      "code_fingerprint": "19d427528d3d23429d374da30e13db820478ea9c18f1aab00605a68042db89b4",
+      "label": "brand-logo.tsx",
+      "last": "2026-08-21T09:44:27.293477+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-21T09:44:27.293477+00:00",
+          "outcome": "useful",
+          "q": "Whispr web ve desktop ana sayfa shell renkleri, seçili nav/sunucu ve logo animasyonu hangi dosyalarda uygulanır?"
+        }
+      ],
+      "score": 0.993151088,
+      "source_file": "apps/web/src/components/brand/brand-logo.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
     "apps_web_src_components_chat_link_preview_card": {
-      "code_fingerprint": "48ff35c0c62ad062dfc966d192f387df00df851616405b212c890198a1a9249f",
+      "code_fingerprint": "aa727b494fc4dfab75b4eaa7645aadc0550074d1c6504bd943fb558a64614144",
       "label": "link-preview-card.tsx",
       "last": "2026-08-12T18:45:05.146859+00:00",
       "provenance": [
@@ -1486,13 +1502,13 @@
           "q": "Mesaj dökümü sanallaştırılmıyor. Yan bulgu: link önizleme sorgu patlaması. Bu bulgudaki sorun nedir tam olarak"
         }
       ],
-      "score": 0.874028575,
+      "score": 0.813717386,
       "source_file": "apps/web/src/components/chat/link-preview-card.tsx",
       "status": "tentative",
       "uses": 1
     },
     "apps_web_src_components_chat_message_list": {
-      "code_fingerprint": "5b76b26c893921a13f784eee5aecb349c703080bff97e02638ef9092470ebe79",
+      "code_fingerprint": "1b4e08a0700f2ea3c12053d78d5547375d9886948f456ac269626870f50c126d",
       "label": "message-list.tsx",
       "last": "2026-08-18T10:03:07.051248+00:00",
       "provenance": [
@@ -1507,13 +1523,13 @@
           "q": "Mesaj dökümü sanallaştırılmıyor. Yan bulgu: link önizleme sorgu patlaması. Bu bulgudaki sorun nedir tam olarak"
         }
       ],
-      "score": 1.869650395,
+      "score": 1.740637636,
       "source_file": "apps/web/src/components/chat/message-list.tsx",
       "status": "preferred",
       "uses": 2
     },
     "apps_web_src_components_chat_message_list_message_virtualizer_options": {
-      "code_fingerprint": "5b76b26c893921a13f784eee5aecb349c703080bff97e02638ef9092470ebe79",
+      "code_fingerprint": "1b4e08a0700f2ea3c12053d78d5547375d9886948f456ac269626870f50c126d",
       "label": "MESSAGE_VIRTUALIZER_OPTIONS",
       "last": "2026-08-18T10:03:07.051248+00:00",
       "provenance": [
@@ -1523,29 +1539,45 @@
           "q": "MessageList içinde flushSync lifecycle console hatasını yan etkisiz düzelt"
         }
       ],
-      "score": 0.99562182,
+      "score": 0.926920249,
       "source_file": "apps/web/src/components/chat/message-list.tsx",
       "status": "tentative",
       "uses": 1
     },
-    "apps_web_src_components_servers_server_discovery_screen_discoverycard": {
-      "code_fingerprint": "8699f02b389ce68ebc54fd39c7727ea70c0ec758cf257784d6bb6c881c39f912",
-      "label": "DiscoveryCard()",
-      "last": "2026-08-13T05:48:11.224734+00:00",
+    "apps_web_src_components_dm_group_create_dialog": {
+      "code_fingerprint": "050715252aa956a27e5cee6c9e3d3c396ffa5549285deee94e75a91cddf2e79b",
+      "label": "group-create-dialog.tsx",
+      "last": "2026-08-21T11:07:48.365275+00:00",
       "provenance": [
         {
-          "date": "2026-08-13T05:48:11.224734+00:00",
+          "date": "2026-08-21T11:07:48.365275+00:00",
           "outcome": "useful",
-          "q": "[$caveman] ultra. Whispr'a topluluk sunucuları ekleyelim, oyun - iş - çalışma - kişisel - destek kategorileriyle alakalı dünyada sıkça kullanılan toplamda 20 tane topluluk sunucu ekleyeceğim, sence hangi sunucuları eklemem lazım? Örnek olarak pubg, lol, programlama, destek gibi sunucular ekleyeceğim, analiz edip fikirlerini önerilerini paylaşır mısın"
+          "q": "Whispr web ve desktop Mesajlar ekranındaki iki aşamalı grup oluşturma penceresi ile Mesajlar ve Arkadaşlar tema renklerini hangi kaynak bileşenler yönetiyor?"
         }
       ],
-      "score": 0.883377456,
-      "source_file": "apps/web/src/components/servers/server-discovery-screen.tsx",
+      "score": 0.994480193,
+      "source_file": "apps/web/src/components/dm/group-create-dialog.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_web_src_components_dm_group_create_dialog_groupcreatedialog": {
+      "code_fingerprint": "050715252aa956a27e5cee6c9e3d3c396ffa5549285deee94e75a91cddf2e79b",
+      "label": "GroupCreateDialog()",
+      "last": "2026-08-21T11:07:48.365275+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-21T11:07:48.365275+00:00",
+          "outcome": "useful",
+          "q": "Whispr web ve desktop Mesajlar ekranındaki iki aşamalı grup oluşturma penceresi ile Mesajlar ve Arkadaşlar tema renklerini hangi kaynak bileşenler yönetiyor?"
+        }
+      ],
+      "score": 0.994480193,
+      "source_file": "apps/web/src/components/dm/group-create-dialog.tsx",
       "status": "tentative",
       "uses": 1
     },
     "apps_web_src_components_settings_settings_panel": {
-      "code_fingerprint": "e427c41814d0faeb501d7cd7c3cbff9d9aa4ab01f6cef310a5e02e980f7c4b04",
+      "code_fingerprint": "b5143e2984f44a225a65964d6ebb981cd8f391f0fbdd7e4ed9a380593e5fb268",
       "label": "settings-panel.tsx",
       "last": "2026-08-13T09:56:17.385359+00:00",
       "provenance": [
@@ -1555,8 +1587,24 @@
           "q": "[$caveman] Faz 1 için gerekli her şeyi hazırla, sonrasında onaylayacağım, ardından geliştireceğiz."
         }
       ],
-      "score": 0.886901036,
+      "score": 0.8257016,
       "source_file": "apps/web/src/components/settings/settings-panel.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_web_src_components_shell_app_nav_panel_appnavpanelcomponent": {
+      "code_fingerprint": "2896a4b54dd449b72ee75da280fd21a6faaeebe0946e01710cd81ad2d34ac6d6",
+      "label": "AppNavPanelComponent()",
+      "last": "2026-08-21T09:44:27.293477+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-21T09:44:27.293477+00:00",
+          "outcome": "useful",
+          "q": "Whispr web ve desktop ana sayfa shell renkleri, seçili nav/sunucu ve logo animasyonu hangi dosyalarda uygulanır?"
+        }
+      ],
+      "score": 0.993151088,
+      "source_file": "apps/web/src/components/shell/app-nav-panel.tsx",
       "status": "tentative",
       "uses": 1
     },
@@ -1571,13 +1619,29 @@
           "q": "NSFW tamamen kaldırılarak yavaş mod, ses bitrate, kullanıcı limiti, RTC bölgesi ve video kalitesini gerçek özellik yapan üç aşamalı geliştirme planı"
         }
       ],
-      "score": 0.890097424,
+      "score": 0.828677425,
       "source_file": "apps/web/src/components/shell/workspace-modals.tsx",
       "status": "tentative",
       "uses": 1
     },
+    "apps_web_src_components_ui_modal_modal": {
+      "code_fingerprint": "4922d3b6fd248726d10df44f612beef20b10e5cf960bae3e66de3af1cc2a5cc3",
+      "label": "Modal()",
+      "last": "2026-08-21T11:07:48.365275+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-21T11:07:48.365275+00:00",
+          "outcome": "useful",
+          "q": "Whispr web ve desktop Mesajlar ekranındaki iki aşamalı grup oluşturma penceresi ile Mesajlar ve Arkadaşlar tema renklerini hangi kaynak bileşenler yönetiyor?"
+        }
+      ],
+      "score": 0.994480193,
+      "source_file": "apps/web/src/components/ui/modal.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
     "apps_web_src_hooks_use_messages": {
-      "code_fingerprint": "7633075eac2c0b6ccec19d018bbb1fb558f92c30d87168a8fda384915f04c22b",
+      "code_fingerprint": "d6c41c8ab4e0d0a9ae936860055e4a642effd57aace4ac936220a8286d25424f",
       "label": "use-messages.ts",
       "last": "2026-08-12T18:45:05.146859+00:00",
       "provenance": [
@@ -1587,13 +1651,13 @@
           "q": "Mesaj dökümü sanallaştırılmıyor. Yan bulgu: link önizleme sorgu patlaması. Bu bulgudaki sorun nedir tam olarak"
         }
       ],
-      "score": 0.874028575,
+      "score": 0.813717386,
       "source_file": "apps/web/src/hooks/use-messages.ts",
       "status": "tentative",
       "uses": 1
     },
     "apps_web_src_lib_account_privacy_service": {
-      "code_fingerprint": "a397a92ec46133788824a8f900ac93dca319e82f21b69b026f8462361af54012",
+      "code_fingerprint": "497092dc2f70a2dc55d6b5ec929cdd66372c3c3e7fb3571f8f1078752aa9291d",
       "label": "privacy-service.ts",
       "last": "2026-08-13T09:56:17.385359+00:00",
       "provenance": [
@@ -1613,7 +1677,7 @@
           "q": "10-arka-plan-isleri-ve-gizlilik.md uygulanmış mı ve uygulanabilir mi?"
         }
       ],
-      "score": 2.645398708,
+      "score": 2.462856459,
       "source_file": "apps/web/src/lib/account/privacy-service.ts",
       "status": "preferred",
       "uses": 3
@@ -1629,7 +1693,7 @@
           "q": "Sentry GET /admin/releases ApiError Unauthorized nedir?"
         }
       ],
-      "score": 0.645595751,
+      "score": 0.601047268,
       "source_file": "apps/web/src/lib/admin/access.ts",
       "status": "tentative",
       "uses": 1
@@ -1645,7 +1709,7 @@
           "q": "Sentry GET /admin/releases ApiError Unauthorized nedir?"
         }
       ],
-      "score": 0.645595751,
+      "score": 0.601047268,
       "source_file": "apps/web/src/lib/admin/module-access.ts",
       "status": "tentative",
       "uses": 1
@@ -1666,7 +1730,7 @@
           "q": "10-arka-plan-isleri-ve-gizlilik.md uygulanmış mı ve uygulanabilir mi?"
         }
       ],
-      "score": 1.745338877,
+      "score": 1.62490407,
       "source_file": "apps/web/src/lib/admin/notification-campaigns.ts",
       "status": "preferred",
       "uses": 2
@@ -1682,13 +1746,13 @@
           "q": "00-ortak-baglam.md okuyup 14-sunucu-sorgu-maliyeti.md uygula; zaten uygulanmışsa bildir"
         }
       ],
-      "score": 0.87343722,
+      "score": 0.813166836,
       "source_file": "apps/web/src/lib/analytics/service.ts",
       "status": "tentative",
       "uses": 1
     },
     "apps_web_src_lib_api_rate_limit": {
-      "code_fingerprint": "2ac7f5fb3266e2b51580f8cd89863b4ed883bc0b23752880302587032b1566f3",
+      "code_fingerprint": "ca57ebfbe39d08182a7dcee86b7366d5dab9a3ab672ae4e4dffa30a2231c01d6",
       "label": "api-rate-limit.ts",
       "last": "2026-08-12T17:58:36.704141+00:00",
       "provenance": [
@@ -1698,7 +1762,7 @@
           "q": "00-ortak-baglam.md okuyup 13-sunucu-sicak-yollar.md uygula"
         }
       ],
-      "score": 0.873377073,
+      "score": 0.81311084,
       "source_file": "apps/web/src/lib/api-rate-limit.ts",
       "status": "tentative",
       "uses": 1
@@ -1714,7 +1778,7 @@
           "q": "Which reported security findings require fixes, and how should related work be grouped into implementation prompts?"
         }
       ],
-      "score": 0.654138742,
+      "score": 0.609000761,
       "source_file": "apps/web/src/lib/auth/actions.ts",
       "status": "tentative",
       "uses": 1
@@ -1730,7 +1794,7 @@
           "q": "Which reported security findings require fixes, and how should related work be grouped into implementation prompts?"
         }
       ],
-      "score": 0.654138742,
+      "score": 0.609000761,
       "source_file": "apps/web/src/lib/auth/oauth-email.ts",
       "status": "tentative",
       "uses": 1
@@ -1746,7 +1810,7 @@
           "q": "Aktif oturumlar, profil ve çevrimiçi görünürlük, saat dilimi, tarih formatı, erişilebilirlik, veri dışa aktarma ve hesap silmeyi gerçek özellik yapmak için 5 aşamalı plan"
         }
       ],
-      "score": 0.886596015,
+      "score": 0.825417626,
       "source_file": "apps/web/src/lib/auth/reauth-email.ts",
       "status": "tentative",
       "uses": 1
@@ -1762,7 +1826,7 @@
           "q": "İlk üç güvenlik bulgusu en güvenli ve performanslı biçimde düzeltildi mi; Railway UAT değişikliği gerekiyor mu?"
         }
       ],
-      "score": 0.657776372,
+      "score": 0.612387381,
       "source_file": "apps/web/src/lib/auth/request-rate-limits.ts",
       "status": "tentative",
       "uses": 1
@@ -1783,7 +1847,7 @@
           "q": "Aktif oturumlar, profil ve çevrimiçi görünürlük, saat dilimi, tarih formatı, erişilebilirlik, veri dışa aktarma ve hesap silmeyi gerçek özellik yapmak için 5 aşamalı plan"
         }
       ],
-      "score": 1.774237078,
+      "score": 1.651808189,
       "source_file": "apps/web/src/lib/auth/session-revocation.ts",
       "status": "preferred",
       "uses": 2
@@ -1799,7 +1863,7 @@
           "q": "Faz 2 aktif oturumlar ve cihazlar hangi mevcut veri yollarina baglanmali?"
         }
       ],
-      "score": 0.887641064,
+      "score": 0.826390563,
       "source_file": "apps/web/src/lib/auth/session-revocation.ts",
       "status": "tentative",
       "uses": 1
@@ -1815,7 +1879,7 @@
           "q": "Which reported security findings require fixes, and how should related work be grouped into implementation prompts?"
         }
       ],
-      "score": 0.654138742,
+      "score": 0.609000761,
       "source_file": "apps/web/src/lib/auth/totp.ts",
       "status": "tentative",
       "uses": 1
@@ -1836,7 +1900,7 @@
           "q": "İlk üç güvenlik bulgusu en güvenli ve performanslı biçimde düzeltildi mi; Railway UAT değişikliği gerekiyor mu?"
         }
       ],
-      "score": 1.541209758,
+      "score": 1.434860611,
       "source_file": "apps/web/src/lib/auth/totp-secret-encryption.ts",
       "status": "preferred",
       "uses": 2
@@ -1852,7 +1916,7 @@
           "q": "Invalid Whispr web environment invalid TOTP_SECRET_ENCRYPTION_KEYS"
         }
       ],
-      "score": 0.883433386,
+      "score": 0.82247323,
       "source_file": "apps/web/src/lib/auth/totp-secret-encryption.ts",
       "status": "tentative",
       "uses": 1
@@ -1868,7 +1932,7 @@
           "q": "Ekteki guvenlik geri bildirimleri gercekten bulgu mu?"
         }
       ],
-      "score": 0.653988942,
+      "score": 0.608861297,
       "source_file": "apps/web/src/lib/auth/totp.ts",
       "status": "tentative",
       "uses": 1
@@ -1894,7 +1958,7 @@
           "q": "Ekteki guvenlik geri bildirimleri gercekten bulgu mu?"
         }
       ],
-      "score": 1.965904056,
+      "score": 1.830249439,
       "source_file": "apps/web/src/lib/auth/two-factor.ts",
       "status": "preferred",
       "uses": 3
@@ -1910,7 +1974,7 @@
           "q": "10-arka-plan-isleri-ve-gizlilik.md uygulanmış mı ve uygulanabilir mi?"
         }
       ],
-      "score": 0.871901657,
+      "score": 0.811737233,
       "source_file": "apps/web/src/lib/badges/badge-sweep.ts",
       "status": "tentative",
       "uses": 1
@@ -1941,7 +2005,7 @@
           "q": "Lokalde tum CI/CD surecini Azure a gecirmek icin yaptigimiz calismalar ne durumda?"
         }
       ],
-      "score": 2.856335099,
+      "score": 2.659237462,
       "source_file": "apps/web/src/lib/deployment/railway-contract.test.ts",
       "status": "preferred",
       "uses": 4
@@ -1962,7 +2026,7 @@
           "q": "Lokalde tum CI/CD surecini Azure a gecirmek icin yaptigimiz calismalar ne durumda?"
         }
       ],
-      "score": 1.315008745,
+      "score": 1.224268301,
       "source_file": "apps/web/src/lib/deployment/railway-contract.test.ts",
       "status": "preferred",
       "uses": 2
@@ -1978,7 +2042,7 @@
           "q": "desktop native geliştirmesinde ne durumdayız, neler yaptık neler kaldı?"
         }
       ],
-      "score": 0.769992958,
+      "score": 0.716860609,
       "source_file": "apps/web/src/lib/desktop/updater.ts",
       "status": "tentative",
       "uses": 1
@@ -1994,13 +2058,13 @@
           "q": "00-ortak-baglam.md okuyup 14-sunucu-sorgu-maliyeti.md uygula; zaten uygulanmışsa bildir"
         }
       ],
-      "score": 0.87343722,
+      "score": 0.813166836,
       "source_file": "apps/web/src/lib/dm/disappearing-worker.ts",
       "status": "tentative",
       "uses": 1
     },
     "apps_web_src_lib_dm_realtime_service": {
-      "code_fingerprint": "23a52ea899f55ffb48a06e99eecd251a15ddaa90814770e186c5ba36bbdca9e7",
+      "code_fingerprint": "3cb09c81b2d69d794398336fec2671e5d8b41864ef9639f474882ccd0de79f99",
       "label": "realtime-service.ts",
       "last": "2026-07-29T14:31:31.690089+00:00",
       "provenance": [
@@ -2010,7 +2074,7 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.629909422,
+      "score": 0.586443353,
       "source_file": "apps/web/src/lib/dm/realtime-service.ts",
       "status": "tentative",
       "uses": 1
@@ -2036,7 +2100,7 @@
           "q": "Invalid Whispr web environment invalid TOTP_SECRET_ENCRYPTION_KEYS"
         }
       ],
-      "score": 2.650784737,
+      "score": 2.467870832,
       "source_file": "apps/web/src/lib/env.ts",
       "status": "preferred",
       "uses": 3
@@ -2052,7 +2116,7 @@
           "q": "NSFW tamamen kaldırılarak yavaş mod, ses bitrate, kullanıcı limiti, RTC bölgesi ve video kalitesini gerçek özellik yapan üç aşamalı geliştirme planı"
         }
       ],
-      "score": 0.890097424,
+      "score": 0.828677425,
       "source_file": "apps/web/src/lib/livekit/server.ts",
       "status": "tentative",
       "uses": 1
@@ -2073,13 +2137,13 @@
           "q": "Ekteki guvenlik geri bildirimleri gercekten bulgu mu?"
         }
       ],
-      "score": 1.308127684,
+      "score": 1.217862058,
       "source_file": "apps/web/src/lib/messages/link-preview.ts",
       "status": "preferred",
       "uses": 2
     },
     "apps_web_src_lib_mobile_auth": {
-      "code_fingerprint": "9b33d5fa91e0dac4d0462b31a34a3f458deb43b97e0d6ddf5efbc019616c4527",
+      "code_fingerprint": "ef5b509c835c184e89e73761fe89c7354552b370d60d9c89beb10aa5f53da988",
       "label": "mobile/auth.ts",
       "last": "2026-07-31T05:43:51.973015+00:00",
       "provenance": [
@@ -2089,7 +2153,7 @@
           "q": "Which reported security findings require fixes, and how should related work be grouped into implementation prompts?"
         }
       ],
-      "score": 0.654138742,
+      "score": 0.609000761,
       "source_file": "apps/web/src/lib/mobile/auth.ts",
       "status": "tentative",
       "uses": 1
@@ -2110,7 +2174,7 @@
           "q": "İlk üç güvenlik bulgusu en güvenli ve performanslı biçimde düzeltildi mi; Railway UAT değişikliği gerekiyor mu?"
         }
       ],
-      "score": 1.545417436,
+      "score": 1.438777944,
       "source_file": "apps/web/src/lib/mobile/refresh-token-family.ts",
       "status": "preferred",
       "uses": 2
@@ -2126,13 +2190,13 @@
           "q": "00-ortak-baglam.md okuyup 13-sunucu-sicak-yollar.md uygula"
         }
       ],
-      "score": 0.873377073,
+      "score": 0.81311084,
       "source_file": "apps/web/src/lib/moderation/case-count-broadcast.ts",
       "status": "tentative",
       "uses": 1
     },
     "apps_web_src_lib_outbox_service": {
-      "code_fingerprint": "ec87eed1837cb6ae29f8c523d9a14c123df5f06f76dedff4a0ae7661f58dc6e8",
+      "code_fingerprint": "1111b63154120a9d38bb9373708a08cca43b445830a32d0fcb25ba4ab19268ff",
       "label": "outbox/service.ts",
       "last": "2026-08-12T18:02:54.221215+00:00",
       "provenance": [
@@ -2142,13 +2206,13 @@
           "q": "00-ortak-baglam.md okuyup 14-sunucu-sorgu-maliyeti.md uygula; zaten uygulanmışsa bildir"
         }
       ],
-      "score": 0.87343722,
+      "score": 0.813166836,
       "source_file": "apps/web/src/lib/outbox/service.ts",
       "status": "tentative",
       "uses": 1
     },
     "apps_web_src_lib_outbox_worker": {
-      "code_fingerprint": "863c9b22417a76b25170417a3a254e16a9b97276699fcd1c217b03faec895c5e",
+      "code_fingerprint": "83626e059ba932239ae1020c497957edb13226e0a12d75ee944d74fbdc1d0d2e",
       "label": "worker.ts",
       "last": "2026-08-13T06:00:21.481748+00:00",
       "provenance": [
@@ -2163,7 +2227,7 @@
           "q": "10-arka-plan-isleri-ve-gizlilik.md uygulanmış mı ve uygulanabilir mi?"
         }
       ],
-      "score": 1.755451639,
+      "score": 1.634319014,
       "source_file": "apps/web/src/lib/outbox/worker.ts",
       "status": "preferred",
       "uses": 2
@@ -2199,7 +2263,7 @@
           "q": "200 dolarlik Azure kredisi hangi proje sureclerinde fayda saglar?"
         }
       ],
-      "score": 4.28363002,
+      "score": 3.98804378,
       "source_file": "apps/web/src/lib/prisma-test-environment.test.ts",
       "status": "preferred",
       "uses": 6
@@ -2215,29 +2279,13 @@
           "q": "İlk üç güvenlik bulgusu en güvenli ve performanslı biçimde düzeltildi mi; Railway UAT değişikliği gerekiyor mu?"
         }
       ],
-      "score": 0.657776372,
+      "score": 0.612387381,
       "source_file": "apps/web/src/lib/security/client-ip.ts",
       "status": "tentative",
       "uses": 1
     },
-    "apps_web_src_lib_servers_server_discovery_service_discoveryidrow": {
-      "code_fingerprint": "879aba1cc5a072fe91ce010d56b9b6a6817cfea5b02c3c399a6a9c416f8f383f",
-      "label": "DiscoveryIdRow",
-      "last": "2026-08-13T05:48:11.224734+00:00",
-      "provenance": [
-        {
-          "date": "2026-08-13T05:48:11.224734+00:00",
-          "outcome": "useful",
-          "q": "[$caveman] ultra. Whispr'a topluluk sunucuları ekleyelim, oyun - iş - çalışma - kişisel - destek kategorileriyle alakalı dünyada sıkça kullanılan toplamda 20 tane topluluk sunucu ekleyeceğim, sence hangi sunucuları eklemem lazım? Örnek olarak pubg, lol, programlama, destek gibi sunucular ekleyeceğim, analiz edip fikirlerini önerilerini paylaşır mısın"
-        }
-      ],
-      "score": 0.883377456,
-      "source_file": "apps/web/src/lib/servers/server-discovery-service.ts",
-      "status": "tentative",
-      "uses": 1
-    },
     "apps_web_src_lib_socket_handlers_message": {
-      "code_fingerprint": "aa3f9450ba10f0ef11e1fde2d5e6fa82c6f1d7b3e033457543d36a284e2b888c",
+      "code_fingerprint": "1376ded8d07ee31aef77f2b73e921b230967599e77c0b089c2a52d01d5d4883b",
       "label": "message.ts",
       "last": "2026-07-29T14:31:31.690089+00:00",
       "provenance": [
@@ -2247,7 +2295,7 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.629909422,
+      "score": 0.586443353,
       "source_file": "apps/web/src/lib/socket/handlers/message.ts",
       "status": "tentative",
       "uses": 1
@@ -2263,7 +2311,7 @@
           "q": "00-ortak-baglam.md okuyup 13-sunucu-sicak-yollar.md uygula"
         }
       ],
-      "score": 0.873377073,
+      "score": 0.81311084,
       "source_file": "apps/web/src/lib/socket/handlers/typing.ts",
       "status": "tentative",
       "uses": 1
@@ -2279,7 +2327,7 @@
           "q": "10-arka-plan-isleri-ve-gizlilik.md uygulanmış mı ve uygulanabilir mi?"
         }
       ],
-      "score": 0.871901657,
+      "score": 0.811737233,
       "source_file": "apps/web/src/lib/support/bug-report-service.ts",
       "status": "tentative",
       "uses": 1
@@ -2295,7 +2343,7 @@
           "q": "10-arka-plan-isleri-ve-gizlilik.md uygulanmış mı ve uygulanabilir mi?"
         }
       ],
-      "score": 0.871901657,
+      "score": 0.811737233,
       "source_file": "apps/web/src/lib/telemetry/client-health-rollup.ts",
       "status": "tentative",
       "uses": 1
@@ -2311,13 +2359,13 @@
           "q": "NSFW tamamen kaldırılarak yavaş mod, ses bitrate, kullanıcı limiti, RTC bölgesi ve video kalitesini gerçek özellik yapan üç aşamalı geliştirme planı"
         }
       ],
-      "score": 0.890097424,
+      "score": 0.828677425,
       "source_file": "apps/web/src/lib/voice/capacity.ts",
       "status": "tentative",
       "uses": 1
     },
     "apps_web_src_lib_workspace_category_service": {
-      "code_fingerprint": "870fdf7bc5f3cab6b32acf5375857bf01e6e515939a5549e47b736c4bc14cc54",
+      "code_fingerprint": "58af9e82f7d334b2fc116a3d45dc81809f88f869f9cedeaccf04a6a3c9bb1f6d",
       "label": "category-service.ts",
       "last": "2026-08-13T13:29:32.465935+00:00",
       "provenance": [
@@ -2327,7 +2375,7 @@
           "q": "Tüm yaptığımız değişikliklerden sonra web uygulamasındaki bir sunucu içerisinde kategori ve kanal oluşturma ekranlarını yeniden tasarlayacağım. Bu menülerde hangi içeriklerin seçeneklerin olması gerekiyor özetle sıralar mısın?"
         }
       ],
-      "score": 0.889940884,
+      "score": 0.828531687,
       "source_file": "apps/web/src/lib/workspace/category-service.ts",
       "status": "tentative",
       "uses": 1
@@ -2343,13 +2391,13 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.629909422,
+      "score": 0.586443353,
       "source_file": "apps/web/src/lib/workspace/channel-message-send-service.ts",
       "status": "tentative",
       "uses": 1
     },
     "apps_web_src_lib_workspace_channel_service": {
-      "code_fingerprint": "8e4669d6ddcc1a62ab9d84373b5839595355df2cb084f4e90848cf4ee3029c28",
+      "code_fingerprint": "0862385ad3c5a711a87ccbff13121c51293798ac07c0b1fc56fd4450665f2122",
       "label": "channel-service.ts",
       "last": "2026-08-13T13:40:30.175855+00:00",
       "provenance": [
@@ -2364,13 +2412,13 @@
           "q": "Tüm yaptığımız değişikliklerden sonra web uygulamasındaki bir sunucu içerisinde kategori ve kanal oluşturma ekranlarını yeniden tasarlayacağım. Bu menülerde hangi içeriklerin seçeneklerin olması gerekiyor özetle sıralar mısın?"
         }
       ],
-      "score": 1.780038308,
+      "score": 1.657209112,
       "source_file": "apps/web/src/lib/workspace/channel-service.ts",
       "status": "preferred",
       "uses": 2
     },
     "apps_web_src_lib_workspace_member_service_kickworkspacemember": {
-      "code_fingerprint": "3bbdaf41ef3c49ac19c9fe72c457d376c3653b63181f54071b886886508cc7c1",
+      "code_fingerprint": "c8cbfe546e9678f0c1e5d08d15afad89dea82485530abf2bcab68aaeb7320c7f",
       "label": "kickWorkspaceMember()",
       "last": "2026-08-12T18:18:19.652933+00:00",
       "provenance": [
@@ -2380,13 +2428,13 @@
           "q": "11-moderasyon-ve-denetim-izi.md A seçeneğini uygula"
         }
       ],
-      "score": 0.873653402,
+      "score": 0.813368101,
       "source_file": "apps/web/src/lib/workspace/member-service.ts",
       "status": "tentative",
       "uses": 1
     },
     "apps_web_src_lib_workspace_message_service": {
-      "code_fingerprint": "1f9f7e460ded8bad96e1f83fc21d926d9bb0c11fa11ef27955d1513c1096c024",
+      "code_fingerprint": "f0cb48b3c439ee70ec8304d3d1a41abe8371500893ec45b93153776e06a9c80a",
       "label": "message-service.ts",
       "last": "2026-07-29T14:31:31.690089+00:00",
       "provenance": [
@@ -2396,13 +2444,13 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.629909422,
+      "score": 0.586443353,
       "source_file": "apps/web/src/lib/workspace/message-service.ts",
       "status": "tentative",
       "uses": 1
     },
     "apps_web_src_lib_workspace_performance_metrics": {
-      "code_fingerprint": "d2c5f8f6b24537bdc81a9e236e24300411d02fdb0a8c855cbbb1d4d3b3f1cb46",
+      "code_fingerprint": "cfcf92b42a5b0231e3b9a42cab54fcb4a01a2d41a15b2fe17525d5d66c47dbec",
       "label": "performance-metrics.ts",
       "last": "2026-07-29T14:31:31.690089+00:00",
       "provenance": [
@@ -2417,13 +2465,13 @@
           "q": "Railway UAT ortamında workspace-performance metrikleri tanımlı, mobil için log tutuyor muyuz inceler misin?"
         }
       ],
-      "score": 1.257082853,
+      "score": 1.170339508,
       "source_file": "apps/web/src/lib/workspace/performance-metrics.ts",
       "status": "preferred",
       "uses": 2
     },
     "apps_web_src_lib_workspace_permission_service": {
-      "code_fingerprint": "f936291c36faf1a5c8864a3ce9c69f6eaf71c62a52828286572f259eceb29dba",
+      "code_fingerprint": "8d626c1428ea51537dd697bbc452662a68eb6f4788e264fae814c20f1d54f536",
       "label": "permission-service.ts",
       "last": "2026-08-12T18:02:54.221215+00:00",
       "provenance": [
@@ -2433,13 +2481,13 @@
           "q": "00-ortak-baglam.md okuyup 14-sunucu-sorgu-maliyeti.md uygula; zaten uygulanmışsa bildir"
         }
       ],
-      "score": 0.87343722,
+      "score": 0.813166836,
       "source_file": "apps/web/src/lib/workspace/permission-service.ts",
       "status": "tentative",
       "uses": 1
     },
     "apps_web_src_lib_workspace_server_service": {
-      "code_fingerprint": "88a2518e64a39bd6ebb01acba7f1fcbe92a248fcfafd1a8c9f60d6a3d0ba3aa0",
+      "code_fingerprint": "bc530f1338fa78b6c3eeb5ca9d8d0e3ad92811998ce396a78f8df99a5b84a034",
       "label": "server-service.ts",
       "last": "2026-08-13T13:40:30.175855+00:00",
       "provenance": [
@@ -2449,7 +2497,7 @@
           "q": "NSFW tamamen kaldırılarak yavaş mod, ses bitrate, kullanıcı limiti, RTC bölgesi ve video kalitesini gerçek özellik yapan üç aşamalı geliştirme planı"
         }
       ],
-      "score": 0.890097424,
+      "score": 0.828677425,
       "source_file": "apps/web/src/lib/workspace/server-service.ts",
       "status": "tentative",
       "uses": 1
@@ -2470,7 +2518,7 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 1.503286495,
+      "score": 1.399554193,
       "source_file": "apps/web/src/lib/workspace/unread-service.ts",
       "status": "preferred",
       "uses": 2
@@ -2486,7 +2534,7 @@
           "q": "Which reported security findings require fixes, and how should related work be grouped into implementation prompts?"
         }
       ],
-      "score": 0.654138742,
+      "score": 0.609000761,
       "source_file": "apps/web/src/proxy.ts",
       "status": "tentative",
       "uses": 1
@@ -2502,7 +2550,7 @@
           "q": "Ekteki guvenlik geri bildirimleri gercekten bulgu mu?"
         }
       ],
-      "score": 0.653988942,
+      "score": 0.608861297,
       "source_file": "apps/web/src/proxy.ts",
       "status": "tentative",
       "uses": 1
@@ -2518,7 +2566,7 @@
           "q": "Faz 2 aktif oturumlar ve cihazlar hangi mevcut veri yollarina baglanmali?"
         }
       ],
-      "score": 0.887641064,
+      "score": 0.826390563,
       "source_file": "apps/web/src/types/next-auth.d.ts",
       "status": "tentative",
       "uses": 1
@@ -2534,7 +2582,7 @@
           "q": "desktop native geliştirmesinde ne durumdayız, neler yaptık neler kaldı?"
         }
       ],
-      "score": 0.769992958,
+      "score": 0.716860609,
       "source_file": "docs/desktop/desktop-native-evolution.md",
       "status": "tentative",
       "uses": 1
@@ -2550,7 +2598,7 @@
           "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
         }
       ],
-      "score": 0.631179469,
+      "score": 0.587625763,
       "source_file": "docs/development/windows-onboarding.md",
       "status": "tentative",
       "uses": 1
@@ -2566,7 +2614,7 @@
           "q": "Yapmam gereken cihaz testlerini sırasıyla talimatlarınla paylaşır mısın?"
         }
       ],
-      "score": 0.659120634,
+      "score": 0.613638884,
       "source_file": "docs/operations/mobile-component-device-testing.md",
       "status": "tentative",
       "uses": 1
@@ -2582,7 +2630,7 @@
           "q": "Adım 13 2h puanlama sheet'i nasıl uygulanır?"
         }
       ],
-      "score": 0.64057562,
+      "score": 0.596373544,
       "source_file": "docs/prompts/hakkinda-redesign/13-2h-puanlama.md",
       "status": "tentative",
       "uses": 1
@@ -2598,7 +2646,7 @@
           "q": "desktop native geliştirmesinde ne durumdayız, neler yaptık neler kaldı?"
         }
       ],
-      "score": 0.769992958,
+      "score": 0.716860609,
       "source_file": "docs/superpowers/plans/2026-08-05-desktop-macos-transparent-window-build.md",
       "status": "tentative",
       "uses": 1
@@ -2629,7 +2677,7 @@
           "q": "Performans cihaz scripti neden 30 tekrar boyunca bitmiyor, DM deep-link nasıl düzeltilir ve ilerleme nasıl gösterilir?"
         }
       ],
-      "score": 2.841035772,
+      "score": 2.644993845,
       "source_file": "docs/superpowers/specs/2026-07-31-mobile-performance-device-automation-design.md",
       "status": "preferred",
       "uses": 4
@@ -2645,7 +2693,7 @@
           "q": "desktop native geliştirmesinde ne durumdayız, neler yaptık neler kaldı?"
         }
       ],
-      "score": 0.769992958,
+      "score": 0.716860609,
       "source_file": "docs/superpowers/specs/2026-08-05-desktop-macos-transparent-window-build-design.md",
       "status": "tentative",
       "uses": 1
@@ -2661,7 +2709,7 @@
           "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
         }
       ],
-      "score": 0.631179469,
+      "score": 0.587625763,
       "source_file": "package.json",
       "status": "tentative",
       "uses": 1
@@ -2677,7 +2725,7 @@
           "q": "Projedeki kullanıcıların kazanabileceği tüm rozetleri listeler misin?"
         }
       ],
-      "score": 0.891927931,
+      "score": 0.83038162,
       "source_file": "packages/types/src/badges.ts",
       "status": "tentative",
       "uses": 1
@@ -2693,7 +2741,7 @@
           "q": "Projedeki kullanıcıların kazanabileceği tüm rozetleri listeler misin?"
         }
       ],
-      "score": 0.891927931,
+      "score": 0.83038162,
       "source_file": "packages/types/src/badges.ts",
       "status": "tentative",
       "uses": 1
@@ -2729,7 +2777,7 @@
           "q": "lokalimde bulunan iki tane self hosted runner ubuntu sanal makineyi projemizin CI/CD süreçlerinde en verimli şekilde kullanıyor muyuz? Görev paylaşımı, iş paylaşımı, doğru düzgün optimize performanslı bir şekilde yapılıyor mu?"
         }
       ],
-      "score": 3.474013603,
+      "score": 3.234293875,
       "source_file": "packages/types/src/mobile-messaging-redesign.test.ts",
       "status": "preferred",
       "uses": 5
@@ -2745,7 +2793,7 @@
           "q": "Mobil açılışında modern splash, yüklemeler ve performans kontrolleri nasıl tasarlanmalı?"
         }
       ],
-      "score": 0.588876423,
+      "score": 0.548241782,
       "source_file": "packages/types/src/mobile.ts",
       "status": "tentative",
       "uses": 1
@@ -2761,13 +2809,13 @@
           "q": "[$caveman] Faz 1 için gerekli her şeyi hazırla, sonrasında onaylayacağım, ardından geliştireceğiz."
         }
       ],
-      "score": 0.886901036,
+      "score": 0.8257016,
       "source_file": "packages/types/src/mobile-social.ts",
       "status": "tentative",
       "uses": 1
     },
     "packages_types_src_workspace_createcategoryschema": {
-      "code_fingerprint": "233294a020f66cf680d71fefd42e36cc9e85b1d7a872f6c04ae4ddf87fa5e812",
+      "code_fingerprint": "c942608701dd06991ed3729a48ee0d60b1cbb33bd16ce485506ee98c755fbd0c",
       "label": "CreateCategorySchema",
       "last": "2026-08-13T13:29:32.465935+00:00",
       "provenance": [
@@ -2777,13 +2825,13 @@
           "q": "Tüm yaptığımız değişikliklerden sonra web uygulamasındaki bir sunucu içerisinde kategori ve kanal oluşturma ekranlarını yeniden tasarlayacağım. Bu menülerde hangi içeriklerin seçeneklerin olması gerekiyor özetle sıralar mısın?"
         }
       ],
-      "score": 0.889940884,
+      "score": 0.828531687,
       "source_file": "packages/types/src/workspace.ts",
       "status": "tentative",
       "uses": 1
     },
     "packages_types_src_workspace_createchannelschema": {
-      "code_fingerprint": "233294a020f66cf680d71fefd42e36cc9e85b1d7a872f6c04ae4ddf87fa5e812",
+      "code_fingerprint": "c942608701dd06991ed3729a48ee0d60b1cbb33bd16ce485506ee98c755fbd0c",
       "label": "CreateChannelSchema",
       "last": "2026-08-13T13:29:32.465935+00:00",
       "provenance": [
@@ -2793,7 +2841,7 @@
           "q": "Tüm yaptığımız değişikliklerden sonra web uygulamasındaki bir sunucu içerisinde kategori ve kanal oluşturma ekranlarını yeniden tasarlayacağım. Bu menülerde hangi içeriklerin seçeneklerin olması gerekiyor özetle sıralar mısın?"
         }
       ],
-      "score": 0.889940884,
+      "score": 0.828531687,
       "source_file": "packages/types/src/workspace.ts",
       "status": "tentative",
       "uses": 1
@@ -2809,7 +2857,7 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.629909422,
+      "score": 0.586443353,
       "source_file": "apps/web/tsconfig.server.json",
       "status": "tentative",
       "uses": 1
@@ -2825,7 +2873,7 @@
           "q": "Railway UAT ve production ortamlarında son güncellemeler ve local WIP sonrası hangi değişkenler eksik?"
         }
       ],
-      "score": 0.883549982,
+      "score": 0.822581781,
       "source_file": "turbo.json",
       "status": "tentative",
       "uses": 1
@@ -2841,7 +2889,7 @@
           "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
         }
       ],
-      "score": 0.631179469,
+      "score": 0.587625763,
       "source_file": "scripts/quality/typescript-typecheck-runner.mjs",
       "status": "tentative",
       "uses": 1

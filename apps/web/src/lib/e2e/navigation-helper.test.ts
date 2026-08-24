@@ -13,7 +13,7 @@ describe("Playwright app-route navigation helper", () => {
         gotoCount += 1;
         if (gotoCount === 1) {
           throw new Error(
-            'page.goto: Navigation to "http://127.0.0.1/channels/server/channel" is interrupted by another navigation to "http://127.0.0.1/channels/@me"',
+            'page.goto: Navigation to "http://127.0.0.1/channels/server/channel" is interrupted by another navigation to "http://127.0.0.1/messages"',
           );
         }
 

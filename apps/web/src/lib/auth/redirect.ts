@@ -1,6 +1,20 @@
-export const DEFAULT_AUTH_REDIRECT_PATH = "/channels";
+/**
+ * Girişten sonra varsayılan hedef. Mesajlar kendi rotasına taşındı (`/messages`);
+ * eskisi (`/channels`) sunucu tarafında oraya yönleniyor ve varsayılan olarak
+ * bırakılsaydı her giriş bir yönlendirme turu daha ödeyecekti.
+ */
+export const DEFAULT_AUTH_REDIRECT_PATH = "/messages";
 
-const SAFE_AUTH_REDIRECT_PREFIXES = ["/channels", "/settings", "/invite"] as const;
+/**
+ * Girişten sonra dönülmesine **izin verilen** yol önekleri.
+ *
+ * Bu bir güvenlik sınırı: liste dışındaki her hedef sessizce varsayılana düşer,
+ * böylece `?callbackUrl=` ile açık yönlendirme yapılamaz. `/channels` listede
+ * kalıyor çünkü dolaşımdaki eski bağlantılar (bildirim, e-posta, yer imi) hâlâ
+ * oraya işaret ediyor ve oradan `/messages`'a yönleniyor; listeden çıkarmak o
+ * bağlantıları giriş ekranında varsayılana düşürürdü.
+ */
+const SAFE_AUTH_REDIRECT_PREFIXES = ["/messages", "/channels", "/settings", "/invite"] as const;
 const SAFE_AUTH_REDIRECT_EXACT_PATHS = [
   "/desktop/oauth/complete",
   "/mobile/oauth/complete",

@@ -5,11 +5,38 @@ import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { GripVertical } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
-import { COMPACT_SERVER_RAIL_ICON_SIZE, COMPACT_SERVER_RAIL_TOUCH_SIZE } from "@/lib/appearance";
+import { SERVER_RAIL_ICON_SIZE, SERVER_RAIL_TOUCH_SIZE } from "@/lib/appearance";
+import { HOME_METRICS, pxToRem } from "@/lib/home/metrics";
+import { getServerAccentStyle, getServerInitial } from "@/lib/home/server-identity";
 import { cn } from "@/lib/utils";
+
+const { rail } = HOME_METRICS;
+
+/** Ray rozetinin metni; iki temada da beyaz olan tek token (§1 "yeni renk yok"). */
+const ON_ACCENT_COLOR = "hsl(var(--primary-foreground))";
+
+/** SPEC §2.1 — okunmamış rozeti: 17×17, yarıçap 6, danger, 2px `--surface-rail` kenar. */
+const RAIL_BADGE_STYLE = {
+  background: "hsl(var(--danger))",
+  border: `${pxToRem(rail.badgeBorderWidth)} solid hsl(var(--surface-rail))`,
+  borderRadius: pxToRem(rail.badgeRadius),
+  color: ON_ACCENT_COLOR,
+  fontSize: pxToRem(rail.badgeFontSize),
+  fontWeight: 600,
+  height: pxToRem(rail.badgeHeight),
+  lineHeight: 1,
+  minWidth: pxToRem(rail.badgeMinWidth),
+  padding: `0 ${pxToRem(rail.badgePaddingX)}`,
+  right: pxToRem(rail.badgeOffsetRight),
+  top: pxToRem(rail.badgeOffsetTop),
+} as const;
+
+const DISPLAY_FONT = "[font-family:var(--font-display),sans-serif]";
 
 type ServerIconProps = {
   active?: boolean;
+  /** Tint sunucu kimliğinden türer; tasarımdaki W/O/P/T/G renkleri örnek veridir (§2.1). */
+  serverId: string;
   badgeCount?: number;
   className?: string;
   fallback: string;
@@ -29,6 +56,7 @@ type ServerIconProps = {
 
 export function ServerIcon({
   active,
+  serverId,
   badgeCount = 0,
   className,
   fallback,
@@ -48,10 +76,12 @@ export function ServerIcon({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null);
   const preview = labelPreview ?? fallback;
-  const resolvedIconSize = iconSize ?? (showLabel ? 40 : COMPACT_SERVER_RAIL_ICON_SIZE);
+  const resolvedIconSize = iconSize ?? (showLabel ? 40 : SERVER_RAIL_ICON_SIZE);
+  // Rayın ikon kutusu tıklama hedefinin kendisidir (44); çevresine pay eklenmez (§2.1).
   const resolvedTouchSize = showLabel
     ? Math.max(56, resolvedIconSize + 14)
-    : Math.max(COMPACT_SERVER_RAIL_TOUCH_SIZE, resolvedIconSize + 8);
+    : Math.max(SERVER_RAIL_TOUCH_SIZE, resolvedIconSize);
+  const accent = getServerAccentStyle(serverId, "rail");
 
   const showTooltip = () => {
     if (!buttonRef.current) return;
@@ -67,7 +97,24 @@ export function ServerIcon({
   useEffect(() => () => setTooltipPos(null), []);
 
   return (
-    <div className="relative flex w-full items-center justify-center">
+    <div
+      className="relative flex w-full items-center justify-center"
+      style={showLabel ? undefined : { padding: `${pxToRem(rail.itemPaddingY)} 0` }}
+    >
+      {/* SPEC §2.1 — aktif sunucunun sol seçim çubuğu: 4.5×34, yalnız sağ ucu yuvarlak. */}
+      {active && !showLabel ? (
+        <span
+          aria-hidden="true"
+          className="absolute left-0 top-1/2 -translate-y-1/2 bg-[hsl(var(--primary))]"
+          style={{
+            borderRadius: `0 ${pxToRem(rail.activeIndicatorRadiusEnd)} ${pxToRem(
+              rail.activeIndicatorRadiusEnd,
+            )} 0`,
+            height: pxToRem(rail.activeIndicatorHeight),
+            width: pxToRem(rail.activeIndicatorWidth),
+          }}
+        />
+      ) : null}
       <motion.button
         ref={buttonRef}
         aria-current={active ? "page" : undefined}
@@ -75,12 +122,7 @@ export function ServerIcon({
         className={cn(
           "group relative outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.7)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background)/0.72)]",
           !showLabel &&
-            cn(
-              "mx-auto flex items-center justify-center rounded-[16px] transition-all duration-150",
-              active
-                ? "bg-[hsl(var(--primary)/0.1)] shadow-[0_0_0_4px_hsl(var(--primary)/0.08)] ring-1 ring-[hsl(var(--primary)/0.28)]"
-                : "hover:bg-[hsl(var(--primary)/0.08)]",
-            ),
+            "mx-auto flex items-center justify-center transition-transform duration-150",
           showLabel &&
             "flex w-full items-center gap-2.5 rounded-[22px] border px-2.5 text-left transition-all duration-200",
           showLabel && reorderable && "pr-5",
@@ -104,35 +146,61 @@ export function ServerIcon({
         onMouseLeave={hideTooltip}
         data-testid={testId}
         type="button"
-        whileHover={showLabel ? { scale: 1.018, x: 1 } : { scale: 1.035, y: -1 }}
+        whileHover={
+          showLabel ? { scale: 1.018, x: 1 } : active ? {} : { y: -HOME_METRICS.motion.hoverLift }
+        }
         whileTap={showLabel ? { scale: 0.985 } : { scale: 0.97 }}
         style={{
-          height: resolvedTouchSize,
-          width: showLabel ? undefined : resolvedTouchSize,
+          borderRadius: showLabel ? undefined : pxToRem(rail.iconRadius),
+          height: showLabel ? resolvedTouchSize : pxToRem(resolvedTouchSize),
+          width: showLabel ? undefined : pxToRem(resolvedTouchSize),
         }}
       >
-        <Avatar
-          alt={label}
-          className={cn(
-            "transition-all duration-200",
-            active
-              ? cn(
-                  showLabel ? "rounded-[15px]" : "rounded-[14px]",
-                  "border-[hsl(var(--primary)/0.56)] bg-[hsl(var(--primary)/0.17)] shadow-[0_0_0_3px_hsl(var(--primary)/0.12)] ring-2 ring-[hsl(var(--primary)/0.34)]",
-                )
-              : cn(
-                  showLabel ? "rounded-[16px]" : "rounded-[13px]",
-                  "bg-[hsl(var(--surface-soft)/0.7)] shadow-none ring-1 ring-transparent group-hover:bg-[hsl(var(--surface-card)/0.86)] group-hover:ring-[hsl(var(--primary)/0.16)]",
-                  !showLabel && "group-hover:rounded-[14px]",
-                ),
-          )}
-          fallback={fallback}
-          style={{
-            height: resolvedIconSize,
-            width: resolvedIconSize,
-          }}
-          src={iconUrl}
-        />
+        {showLabel || iconUrl ? (
+          <Avatar
+            alt={label}
+            className={cn(
+              "transition-all duration-200",
+              showLabel && (active ? "rounded-[15px]" : "rounded-[16px]"),
+              active
+                ? "border-[hsl(var(--primary)/0.56)] bg-[hsl(var(--primary)/0.17)]"
+                : "bg-[hsl(var(--surface-soft)/0.7)] ring-1 ring-transparent",
+            )}
+            fallback={fallback}
+            style={{
+              borderRadius: showLabel ? undefined : pxToRem(rail.iconRadius),
+              height: showLabel ? resolvedIconSize : pxToRem(resolvedIconSize),
+              width: showLabel ? resolvedIconSize : pxToRem(resolvedIconSize),
+            }}
+            src={iconUrl}
+          />
+        ) : (
+          /* SPEC §2.1 — ikonsuz sunucu: 44×44 kutu, baş harf 600/15 display. Aktif olan dolu
+             `--primary`, diğerleri kimlikten türeyen tint. */
+          <span
+            aria-hidden="true"
+            className={cn(DISPLAY_FONT, "grid place-items-center uppercase transition-colors")}
+            style={{
+              background: active ? "hsl(var(--primary))" : accent.background,
+              borderRadius: pxToRem(rail.iconRadius),
+              boxShadow: active
+                ? `${pxToRem(HOME_METRICS.shadow.activeServerIcon.offsetX)} ${pxToRem(
+                    HOME_METRICS.shadow.activeServerIcon.offsetY,
+                  )} ${pxToRem(HOME_METRICS.shadow.activeServerIcon.blur)} ${pxToRem(
+                    HOME_METRICS.shadow.activeServerIcon.spread,
+                  )} hsl(var(--primary))`
+                : undefined,
+              color: active ? ON_ACCENT_COLOR : accent.color,
+              fontSize: pxToRem(rail.iconFontSize),
+              fontWeight: 600,
+              height: pxToRem(resolvedIconSize),
+              lineHeight: 1,
+              width: pxToRem(resolvedIconSize),
+            }}
+          >
+            {getServerInitial({ name: fallback, shortName: labelPreview ?? null })}
+          </span>
+        )}
         {showLabel ? (
           <span className="min-w-0 flex-1 truncate text-[12px] font-semibold uppercase tracking-[0.08em] text-app-foreground">
             {preview}
@@ -144,30 +212,29 @@ export function ServerIcon({
             className="pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[hsl(var(--muted-foreground)/0.46)] opacity-0 transition group-hover:opacity-100"
           />
         ) : null}
-        {mentionCount > 0 ? (
-          <span
-            aria-hidden="true"
-            className={cn(
-              "pointer-events-none absolute inline-flex min-w-[1.35rem] items-center justify-center whitespace-nowrap rounded-full border border-[hsl(var(--background)/0.5)] bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--ambient-1)))] px-1.5 py-0.5 text-[9px] font-black leading-none text-[hsl(var(--primary-foreground))] shadow-[0_8px_20px_hsl(var(--primary)/0.28)]",
-              showLabel ? "left-8 top-7" : "bottom-0 right-0 translate-x-[24%] translate-y-[18%]",
-            )}
-            data-testid={testId ? `${testId}-mention-badge` : undefined}
-          >
-            @{mentionCount > 99 ? "99+" : mentionCount}
-          </span>
-        ) : badgeCount > 0 ? (
-          <span
-            aria-hidden="true"
-            className={cn(
-              "pointer-events-none absolute inline-flex min-w-[1.05rem] items-center justify-center whitespace-nowrap rounded-full border border-[hsl(var(--background)/0.42)] bg-[hsl(var(--danger)/0.92)] px-1 py-0.5 text-[9px] font-bold leading-none text-white shadow-[0_7px_16px_hsl(var(--danger)/0.24)]",
-              showLabel ? "left-8 top-7" : "bottom-0 right-0 translate-x-[24%] translate-y-[18%]",
-            )}
-            data-testid={testId ? `${testId}-unread-badge` : undefined}
-          >
-            {badgeCount > 99 ? "99+" : badgeCount}
-          </span>
-        ) : null}
       </motion.button>
+
+      {/* SPEC §2.1: rozet ikon kutusunun değil, ray satırının sağ üstüne oturur (`top:1 right:12`).
+          Bahsedilme rozeti aynı geometriyi taşır, yalnız metni "@n"dir. */}
+      {mentionCount > 0 ? (
+        <span
+          aria-hidden="true"
+          className={cn(DISPLAY_FONT, "pointer-events-none absolute grid place-items-center")}
+          data-testid={testId ? `${testId}-mention-badge` : undefined}
+          style={RAIL_BADGE_STYLE}
+        >
+          @{mentionCount > 99 ? "99+" : mentionCount}
+        </span>
+      ) : badgeCount > 0 ? (
+        <span
+          aria-hidden="true"
+          className={cn(DISPLAY_FONT, "pointer-events-none absolute grid place-items-center")}
+          data-testid={testId ? `${testId}-unread-badge` : undefined}
+          style={RAIL_BADGE_STYLE}
+        >
+          {badgeCount > 99 ? "99+" : badgeCount}
+        </span>
+      ) : null}
 
       {tooltipPos !== null &&
         typeof document !== "undefined" &&

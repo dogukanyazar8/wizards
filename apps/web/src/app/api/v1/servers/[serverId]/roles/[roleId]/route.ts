@@ -2,10 +2,7 @@ import { UpdateWorkspaceRoleSchema } from "@wizards/types";
 import { requireApiUserId } from "@/lib/auth/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
-import {
-  deleteWorkspaceRole,
-  updateWorkspaceRole,
-} from "@/lib/workspace/role-service";
+import { deleteWorkspaceRole, updateWorkspaceRole } from "@/lib/workspace/role-service";
 
 type RouteContext = {
   params: Promise<{

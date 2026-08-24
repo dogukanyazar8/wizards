@@ -8,6 +8,7 @@ import {
   MobileMessageDeleteResponseSchema,
   MobileMessageReactionResponseSchema,
   MobileManagedWorkspaceServerDetailResponseSchema,
+  ThreadFollowStateSchema,
   type MobileChannelMessagesResponse,
   type MobileChannelMarkReadResponse,
   type MobileChannelMessagePinResponse,
@@ -18,6 +19,7 @@ import {
   type MobileMessageDeleteResponse,
   type MobileMessageReactionResponse,
   type MobileManagedWorkspaceServerDetailResponse,
+  type ThreadFollowState,
 } from "@wizards/types";
 import type { MobileApiClient } from "../api/mobile-api-client";
 
@@ -130,6 +132,31 @@ export function buildMobileChannelMessageThreadPath(input: {
   }
 
   return `${buildMobileChannelMessagePath(input)}/thread?${params.toString()}`;
+}
+
+export function buildMobileChannelThreadFollowPath(input: {
+  channelId: string;
+  messageId: string;
+}): string {
+  return `${buildMobileChannelMessagePath(input)}/thread-follow`;
+}
+
+export async function fetchMobileChannelThreadFollow(
+  client: MobileApiClient,
+  input: { channelId: string; messageId: string },
+): Promise<ThreadFollowState> {
+  const payload = await client.requestJson<unknown>(buildMobileChannelThreadFollowPath(input));
+  return ThreadFollowStateSchema.parse(payload);
+}
+
+export async function setMobileChannelThreadFollow(
+  client: MobileApiClient,
+  input: { channelId: string; following: boolean; messageId: string },
+): Promise<ThreadFollowState> {
+  const payload = await client.requestJson<unknown>(buildMobileChannelThreadFollowPath(input), {
+    method: input.following ? "PUT" : "DELETE",
+  });
+  return ThreadFollowStateSchema.parse(payload);
 }
 
 export type SendMobileChannelMessageInput = {

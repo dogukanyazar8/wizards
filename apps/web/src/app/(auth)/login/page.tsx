@@ -20,10 +20,5 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     redirect(resolution.redirectTo);
   }
 
-  return (
-    <LoginClient
-      authError={resolution.authError}
-      callbackUrl={resolution.callbackUrl}
-    />
-  );
+  return <LoginClient authError={resolution.authError} callbackUrl={resolution.callbackUrl} />;
 }

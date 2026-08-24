@@ -1,4 +1,8 @@
-import type { MessageAttachment, MobileDMAttachmentItem, MobileDMAttachmentsTab } from "@wizards/types";
+import type {
+  MessageAttachment,
+  MobileDMAttachmentItem,
+  MobileDMAttachmentsTab,
+} from "@wizards/types";
 import {
   MESSAGE_FILE_CONTENT_TYPES,
   MESSAGE_IMAGE_CONTENT_TYPES,

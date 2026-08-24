@@ -58,7 +58,7 @@ function MemberRoleBadge({ role }: { role: DMParticipantDTO["role"] }) {
   return (
     <span
       className={cn(
-        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em]",
+        "shrink-0 rounded-full px-2 py-0.5 text-[0.625rem] font-black uppercase tracking-[0.12em]",
         role === "OWNER"
           ? "bg-[hsl(var(--warning)/0.14)] text-[hsl(var(--warning))]"
           : "bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]",
@@ -141,14 +141,14 @@ export function DmGroupDetailsPanel({
         "flex h-full min-h-0 flex-col overflow-hidden bg-[hsl(var(--background)/0.88)] text-app-foreground backdrop-blur-xl",
         variant === "panel" && "border-l border-[hsl(var(--border)/0.42)]",
         variant === "drawer" &&
-          "h-full rounded-l-[30px] border-l border-[hsl(var(--border)/0.54)] shadow-[0_28px_74px_hsl(var(--shadow-color)/0.18)]",
+          "h-full rounded-l-[1.875rem] border-l border-[hsl(var(--border)/0.54)] shadow-[0_28px_74px_hsl(var(--shadow-color)/0.18)]",
         className,
       )}
       data-testid="dm-group-details-panel"
     >
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3.5 py-3.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-app-soft">
+          <p className="text-[0.6875rem] font-black uppercase tracking-[0.18em] text-app-soft">
             {t("dm.details.title")}
           </p>
           {onClose ? (
@@ -163,7 +163,7 @@ export function DmGroupDetailsPanel({
           ) : null}
         </div>
 
-        <section className="flex items-center gap-3 rounded-[24px] bg-[hsl(var(--surface-soft)/0.48)] p-3.5">
+        <section className="flex items-center gap-3 rounded-[1.5rem] bg-[hsl(var(--surface-soft)/0.48)] p-3.5">
           <Avatar
             alt={title}
             className="h-14 w-14 text-base"
@@ -191,14 +191,14 @@ export function DmGroupDetailsPanel({
         {/* §D3.1: no pin, no card — never an empty one. */}
         {conversation.pinnedMessage ? (
           <button
-            className="flex min-w-0 items-center gap-2.5 rounded-[20px] bg-[hsl(var(--surface-soft)/0.48)] px-3 py-2.5 text-left transition hover:bg-[hsl(var(--surface-soft)/0.7)]"
+            className="flex min-w-0 items-center gap-2.5 rounded-[1.25rem] bg-[hsl(var(--surface-soft)/0.48)] px-3 py-2.5 text-left transition hover:bg-[hsl(var(--surface-soft)/0.7)]"
             data-testid="dm-group-pinned-card"
             onClick={() => onOpenPinnedMessage?.(conversation.pinnedMessage!.id)}
             type="button"
           >
             <Pin className="h-4 w-4 shrink-0 text-[hsl(var(--primary))]" />
             <span className="min-w-0">
-              <span className="block text-[11px] font-black uppercase tracking-[0.16em] text-[hsl(var(--primary))]">
+              <span className="block text-[0.6875rem] font-black uppercase tracking-[0.16em] text-[hsl(var(--primary))]">
                 {t("dm.group.pinnedMessage")}
               </span>
               <span className="block truncate text-xs font-semibold text-app-muted">
@@ -309,7 +309,7 @@ export function DmGroupDetailsPanel({
         ) : null}
 
         <section className="flex flex-col gap-1.5">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-app-soft">
+          <p className="text-[0.6875rem] font-black uppercase tracking-[0.18em] text-app-soft">
             {t("dm.group.membersTitle")}
           </p>
           <ul className="flex flex-col gap-1">
@@ -337,14 +337,14 @@ export function DmGroupDetailsPanel({
                   <Avatar alt={label} className="h-8 w-8" fallback={label} src={member.avatarUrl} />
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold">{label}</span>
                   {member.userId === currentUserId ? (
-                    <span className="shrink-0 text-[11px] font-black text-app-soft">
+                    <span className="shrink-0 text-[0.6875rem] font-black text-app-soft">
                       {t("dm.group.selfLabel")}
                     </span>
                   ) : null}
                   <MemberRoleBadge role={role} />
                   {onSetMemberRole && (may("promote") || may("demote")) ? (
                     <button
-                      className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-black text-app-muted transition hover:text-[hsl(var(--primary))]"
+                      className="shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-black text-app-muted transition hover:text-[hsl(var(--primary))]"
                       data-testid={`dm-group-role-toggle-${member.userId}`}
                       disabled={isPending}
                       onClick={() =>

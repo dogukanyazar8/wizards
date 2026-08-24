@@ -19,13 +19,15 @@ export const MESSAGE_FILE_CONTENT_TYPES = [
   "text/plain",
 ] as const;
 
-export const MESSAGE_VIDEO_CONTENT_TYPES = [
-  "video/mp4",
-  "video/quicktime",
-  "video/webm",
-] as const;
+export const MESSAGE_VIDEO_CONTENT_TYPES = ["video/mp4", "video/quicktime", "video/webm"] as const;
 
-export const MESSAGE_AUDIO_CONTENT_TYPES = ["audio/mp4"] as const;
+/**
+ * Mesajlar karar #5. `audio/mp4` Safari'nin `MediaRecorder`'ının ürettiği tip;
+ * Chrome ve Firefox `audio/webm` veriyor ve `audio/ogg` da bazı Firefox
+ * sürümlerinde çıkıyor. Üçü de listede olmasaydı kayıt tarayıcıların çoğunda
+ * alınır ama **yüklenemezdi** — hata da kaydın sonunda görünürdü.
+ */
+export const MESSAGE_AUDIO_CONTENT_TYPES = ["audio/mp4", "audio/webm", "audio/ogg"] as const;
 
 export const MESSAGE_ATTACHMENT_CONTENT_TYPES = [
   ...MESSAGE_IMAGE_CONTENT_TYPES,
@@ -45,9 +47,7 @@ const MESSAGE_IMAGE_CONTENT_TYPE_SET = new Set<string>(MESSAGE_IMAGE_CONTENT_TYP
 const MESSAGE_FILE_CONTENT_TYPE_SET = new Set<string>(MESSAGE_FILE_CONTENT_TYPES);
 const MESSAGE_VIDEO_CONTENT_TYPE_SET = new Set<string>(MESSAGE_VIDEO_CONTENT_TYPES);
 const MESSAGE_AUDIO_CONTENT_TYPE_SET = new Set<string>(MESSAGE_AUDIO_CONTENT_TYPES);
-const MESSAGE_ATTACHMENT_CONTENT_TYPE_SET = new Set<string>(
-  MESSAGE_ATTACHMENT_CONTENT_TYPES,
-);
+const MESSAGE_ATTACHMENT_CONTENT_TYPE_SET = new Set<string>(MESSAGE_ATTACHMENT_CONTENT_TYPES);
 const MESSAGE_ATTACHMENT_EXTENSIONS_BY_TYPE = new Map<string, string[]>([
   ["application/pdf", [".pdf"]],
   ["application/msword", [".doc"]],
@@ -58,6 +58,10 @@ const MESSAGE_ATTACHMENT_EXTENSIONS_BY_TYPE = new Map<string, string[]>([
   ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", [".xlsx"]],
   ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", [".docx"]],
   ["audio/mp4", [".m4a"]],
+  // karar #5. `buildVoiceMessageFilename` bu iki uzantıyı üretiyor; eşleşmeyen
+  // bir uzantı `createPendingMessageAttachmentUpload` tarafından reddedilirdi.
+  ["audio/ogg", [".ogg", ".oga"]],
+  ["audio/webm", [".webm"]],
   ["image/gif", [".gif"]],
   ["image/jpeg", [".jpg", ".jpeg"]],
   ["image/png", [".png"]],
@@ -82,6 +86,8 @@ export const MESSAGE_ATTACHMENT_ACCEPT = [
   ".pdf",
   ".ppt",
   ".pptx",
+  ".oga",
+  ".ogg",
   ".rtf",
   ".txt",
   ".xls",

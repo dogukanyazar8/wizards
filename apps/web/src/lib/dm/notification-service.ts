@@ -107,7 +107,7 @@ export async function createDMMessageNotifications(args: {
       const locale = normalizeAppLocale(participant.user.locale);
 
       return {
-        actionUrl: `/channels/@me/${args.conversationId}`,
+        actionUrl: `/messages/${args.conversationId}`,
         body: args.content.length > 0 ? args.content : translate(locale, args.attachmentLabelKey),
         dedupeKey: `dm-message:${args.messageId}:${participant.userId}`,
         metadata: {

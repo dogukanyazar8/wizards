@@ -1,12 +1,5 @@
-import type {
-  DMConversationDTO,
-  DMParticipantDTO,
-  DMMessagePayload,
-} from "@wizards/types";
-import {
-  DMConversationDTOSchema,
-  DMMessagePayloadSchema,
-} from "@wizards/types";
+import type { DMConversationDTO, DMParticipantDTO, DMMessagePayload } from "@wizards/types";
+import { DMConversationDTOSchema, DMMessagePayloadSchema } from "@wizards/types";
 import { z } from "zod";
 
 export type DMErrorCode = "NOT_FRIENDS" | "BLOCKED" | "NOT_FOUND";

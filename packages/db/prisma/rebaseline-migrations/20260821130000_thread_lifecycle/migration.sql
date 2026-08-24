@@ -1,0 +1,3 @@
+ALTER TABLE "Message"
+  ADD COLUMN IF NOT EXISTS "threadClosedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "threadClosedById" TEXT;

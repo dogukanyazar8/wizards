@@ -125,12 +125,23 @@ describe("listServerScheduledEventsWithDatabase", () => {
   });
 });
 
-type InterestCall = { kind: "create" | "delete" | "increment" | "decrement" };
+type InterestCall = {
+  kind: "create" | "delete" | "decrement" | "flip" | "increment";
+  status?: "GOING" | "MAYBE";
+};
 
+/**
+ * K1 sonrası çağrı sırası değişti: hedef durum önce **karşı yanıttaki** satırı çevirmeyi
+ * dener (`updateMany`), olmazsa yaratır; geri alma iki `deleteMany` ile hangi sayacın
+ * düşeceğini öğrenir. Sahte istemci bu sırayı olduğu gibi kaydeder.
+ */
 function buildInterestDatabase(options: {
   affectedRows: number;
   calls: InterestCall[];
   event?: Record<string, unknown> | null;
+  flippedRows?: number;
+  goingRows?: number;
+  maybeRows?: number;
 }) {
   const transaction = {
     scheduledEvent: {
@@ -147,9 +158,18 @@ function buildInterestDatabase(options: {
         options.calls.push({ kind: "create" });
         return { count: options.affectedRows };
       },
-      deleteMany: async () => {
-        options.calls.push({ kind: "delete" });
-        return { count: options.affectedRows };
+      deleteMany: async (args: { where: { status: "GOING" | "MAYBE" } }) => {
+        options.calls.push({ kind: "delete", status: args.where.status });
+        return {
+          count:
+            args.where.status === "GOING"
+              ? (options.goingRows ?? options.affectedRows)
+              : (options.maybeRows ?? 0),
+        };
+      },
+      updateMany: async (args: { where: { status: "GOING" | "MAYBE" } }) => {
+        options.calls.push({ kind: "flip", status: args.where.status });
+        return { count: options.flippedRows ?? 0 };
       },
     },
   };
@@ -169,7 +189,12 @@ describe("setServerScheduledEventInterestWithDatabase", () => {
 
     await setServerScheduledEventInterestWithDatabase(database, "u1", "s1", "e1", true);
 
-    assert.deepEqual(calls, [{ kind: "create" }, { kind: "increment" }]);
+    // Önce `MAYBE` satırı aranır (yok), sonra satır yaratılır, sonra sayaç artar.
+    assert.deepEqual(calls, [
+      { kind: "flip", status: "MAYBE" },
+      { kind: "create" },
+      { kind: "increment" },
+    ]);
   });
 
   it("is idempotent: a repeated tap inserts nothing and leaves the counter alone", async () => {
@@ -178,7 +203,7 @@ describe("setServerScheduledEventInterestWithDatabase", () => {
 
     await setServerScheduledEventInterestWithDatabase(database, "u1", "s1", "e1", true);
 
-    assert.deepEqual(calls, [{ kind: "create" }]);
+    assert.deepEqual(calls, [{ kind: "flip", status: "MAYBE" }, { kind: "create" }]);
   });
 
   it("decrements only when a row was really removed", async () => {
@@ -200,8 +225,45 @@ describe("setServerScheduledEventInterestWithDatabase", () => {
       false,
     );
 
-    assert.deepEqual(removed, [{ kind: "delete" }, { kind: "decrement" }]);
-    assert.deepEqual(missing, [{ kind: "delete" }]);
+    assert.deepEqual(removed, [
+      { kind: "delete", status: "GOING" },
+      { kind: "delete", status: "MAYBE" },
+      { kind: "decrement" },
+    ]);
+    assert.deepEqual(missing, [
+      { kind: "delete", status: "GOING" },
+      { kind: "delete", status: "MAYBE" },
+    ]);
+  });
+
+  it("K1 — silinen satır MAYBE ise düşen sayaç maybeCount olur, interestedCount değil", async () => {
+    const calls: InterestCall[] = [];
+    // `GOING` silmesi 0 satır, `MAYBE` silmesi 1 satır etkiler.
+    const database = buildInterestDatabase({
+      affectedRows: 0,
+      calls,
+      goingRows: 0,
+      maybeRows: 1,
+    });
+
+    await setServerScheduledEventInterestWithDatabase(database, "u1", "s1", "e1", false);
+
+    assert.deepEqual(calls, [
+      { kind: "delete", status: "GOING" },
+      { kind: "delete", status: "MAYBE" },
+      // `update` sahtesi `interestedCount.increment` yoksa "decrement" diyor; asıl iddia
+      // `mutations.test.ts`te: `MAYBE → null` deltası `{ going: 0, maybe: -1 }`.
+      { kind: "decrement" },
+    ]);
+  });
+
+  it("K1 — mevcut MAYBE satırı GOING'e çevrilir, ikinci satır yaratılmaz", async () => {
+    const calls: InterestCall[] = [];
+    const database = buildInterestDatabase({ affectedRows: 0, calls, flippedRows: 1 });
+
+    await setServerScheduledEventInterestWithDatabase(database, "u1", "s1", "e1", true);
+
+    assert.deepEqual(calls, [{ kind: "flip", status: "MAYBE" }, { kind: "increment" }]);
   });
 
   it("refuses an event that belongs to another server", async () => {
@@ -223,6 +285,10 @@ describe("cancelServerScheduledEventWithDatabase", () => {
   it("sets the status instead of deleting the row", async () => {
     let captured: Record<string, unknown> | null = null;
     const database = {
+      outboxJob: {
+        // İptal, bekleyen hatırlatma işlerini de kapatır (K5).
+        updateMany: async () => ({ count: 0 }),
+      },
       scheduledEvent: {
         findFirst: async () => ({ id: "e1" }),
         update: async (args: Record<string, unknown>) => {

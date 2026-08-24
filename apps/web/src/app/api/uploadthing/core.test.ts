@@ -7,6 +7,11 @@ import { isUploadUserAllowed, resolveMessageUploadUserId, uploadRouter } from ".
 const existingRouteConfigs = {
   messageAttachmentUploader: {
     "audio/mp4": { maxFileCount: 5, maxFileSize: "16MB" },
+    // Üç ses tipi de listede: Safari `audio/mp4`, Chrome/Firefox `audio/webm`,
+    // bazı Firefox sürümleri `audio/ogg`. Biri eksik kalırsa sesli mesaj o
+    // tarayıcıda kaydedilir ama yüklenemez.
+    "audio/ogg": { maxFileCount: 5, maxFileSize: "16MB" },
+    "audio/webm": { maxFileCount: 5, maxFileSize: "16MB" },
     "application/msword": { maxFileCount: 5, maxFileSize: "16MB" },
     "application/pdf": { maxFileCount: 5, maxFileSize: "16MB" },
     "application/rtf": { maxFileCount: 5, maxFileSize: "16MB" },

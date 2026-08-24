@@ -27,8 +27,76 @@ export const GROUP_MEMBER_NAME_COLORS = [
   "#4F46E5",
 ] as const;
 
-/** The five swatches 2c §2 offers for a group's own avatar. */
-export const GROUP_AVATAR_COLORS = ["#4F46E5", "#1B8A55", "#C77A2B", "#C2185B", "#1E2235"] as const;
+/**
+ * The six swatches the Mesajlar group-create modal offers (karar #4).
+ *
+ * These are **token names**, not colours. A hex list could not follow the app's
+ * 23 palettes — a group created under one palette would keep the other palette's
+ * indigo forever — and it put a raw `#4F46E5` in every component that drew a
+ * group tile, which the token audit rejects.
+ *
+ * Resolution is the platform's job, because the two platforms resolve
+ * differently: the web reads `hsl(var(--primary))` so the live palette applies,
+ * while React Native has no CSS variables and reads
+ * `GROUP_AVATAR_COLOR_HSL`. `info` and `accent` have no token in `globals.css`
+ * and are the design's two approved literals on both sides.
+ */
+export const GROUP_AVATAR_COLORS = [
+  "primary",
+  "success",
+  "warning",
+  "danger",
+  "info",
+  "accent",
+] as const;
+
+/**
+ * Reference HSL triples, for surfaces that cannot read a CSS variable.
+ *
+ * `primary` is the **default** palette's indigo; the web must not use this value
+ * — it reads the live token instead, or a group tile stops following the user's
+ * chosen palette. The other five are fixed across palettes.
+ */
+export const GROUP_AVATAR_COLOR_HSL = {
+  primary: "235 86% 65%",
+  success: "154 60% 42%",
+  warning: "39 90% 56%",
+  danger: "352 84% 60%",
+  info: "199 89% 48%",
+  accent: "291 64% 55%",
+} as const;
+
+/**
+ * Which text colour reads on the swatch. The three light swatches take the
+ * design's dark ink (`hsl(222 30% 14%)`); the rest take white.
+ *
+ * A tone rather than a colour: the caller owns the value, so this module keeps
+ * carrying no colours it does not have to.
+ */
+export const GROUP_AVATAR_COLOR_TONE = {
+  primary: "light",
+  success: "dark",
+  warning: "dark",
+  danger: "light",
+  info: "dark",
+  accent: "light",
+} as const;
+
+/**
+ * The five hex swatches this list used to hold, mapped onto the six names.
+ *
+ * `#1E2235` was the "no colour" slate and has no successor swatch; it resolves
+ * to `primary`, which is what a fresh group draws. Existing rows are never
+ * rewritten — the mapping happens on read, so a conversation nobody opens keeps
+ * its stored value and a later reader still resolves it the same way.
+ */
+export const LEGACY_GROUP_AVATAR_COLOR_MAP = {
+  "#4F46E5": "primary",
+  "#1B8A55": "success",
+  "#C77A2B": "warning",
+  "#C2185B": "danger",
+  "#1E2235": "primary",
+} as const;
 
 /** 2c §5 shows `0/120`. */
 export const GROUP_DM_DESCRIPTION_MAX_LENGTH = 120;
@@ -41,12 +109,74 @@ export const GROUP_AVATAR_TILE_COUNT = 2;
 
 export type GroupMemberNameColor = (typeof GROUP_MEMBER_NAME_COLORS)[number];
 export type GroupAvatarColor = (typeof GROUP_AVATAR_COLORS)[number];
+export type GroupAvatarColorTone = (typeof GROUP_AVATAR_COLOR_TONE)[GroupAvatarColor];
+
+export function isGroupAvatarColor(value: unknown): value is GroupAvatarColor {
+  return typeof value === "string" && (GROUP_AVATAR_COLORS as readonly string[]).includes(value);
+}
+
+/**
+ * Normalises whatever the database holds into a swatch name.
+ *
+ * Accepts a name (new rows), a known legacy hex (old rows, case-insensitive
+ * because nothing ever forced the casing) and anything else — an unknown value
+ * is a row from a future or corrupted write, and the first swatch is a better
+ * answer than a tile with no colour at all.
+ */
+export function mapLegacyGroupAvatarColor(value: string | null | undefined): GroupAvatarColor {
+  if (isGroupAvatarColor(value)) {
+    return value;
+  }
+
+  const legacy = value?.trim().toUpperCase();
+  if (legacy && legacy in LEGACY_GROUP_AVATAR_COLOR_MAP) {
+    return LEGACY_GROUP_AVATAR_COLOR_MAP[legacy as keyof typeof LEGACY_GROUP_AVATAR_COLOR_MAP];
+  }
+
+  return GROUP_AVATAR_COLORS[0];
+}
+
+/** `"dark"` when the swatch is light enough to need dark ink on it. */
+export function getGroupAvatarColorTone(color: GroupAvatarColor): GroupAvatarColorTone {
+  return GROUP_AVATAR_COLOR_TONE[color];
+}
+
+/**
+ * `hsl(...)` string for a platform with no CSS variables (React Native). The web
+ * must not call this for `primary` — see `GROUP_AVATAR_COLOR_HSL`.
+ */
+export function getGroupAvatarColorHsl(color: GroupAvatarColor): string {
+  return `hsl(${GROUP_AVATAR_COLOR_HSL[color]})`;
+}
 
 export const DMParticipantRoleSchema = z.enum(["OWNER", "ADMIN", "MEMBER"]);
 export const DMNotifyLevelSchema = z.enum(["ALL", "MENTIONS", "NONE"]);
 export const GroupPermissionLevelSchema = z.enum(["ALL", "ADMINS"]);
-export const GroupHistoryVisibilitySchema = z.enum(["NONE", "LAST_24H", "LAST_30D", "ALL"]);
+export const GroupHistoryVisibilitySchema = z.enum([
+  "NONE",
+  "LAST_24H",
+  "LAST_7D",
+  "LAST_30D",
+  "ALL",
+]);
 export const GroupAvatarColorSchema = z.enum(GROUP_AVATAR_COLORS);
+
+/**
+ * Read-side schema: accepts a stored legacy hex as well as a name and always
+ * yields a name. Write paths keep using `GroupAvatarColorSchema`, so no new hex
+ * can enter — only the ones already in the table come back out.
+ */
+export const StoredGroupAvatarColorSchema = z
+  .string()
+  .transform((value) => mapLegacyGroupAvatarColor(value));
+
+/**
+ * The four options the group-create screen draws, in the design's order
+ * (karar #9). `LAST_24H` stays in the enum for conversations that already carry
+ * it and for the group settings panel; the create screen simply does not offer
+ * it.
+ */
+export const GROUP_CREATE_HISTORY_OPTIONS = ["ALL", "LAST_30D", "LAST_7D", "NONE"] as const;
 /** K3 / 2f §4. The four windows the disappearing-messages row offers. */
 export const GroupDisappearingWindowSchema = z.enum(["OFF", "H24", "D7", "D90"]);
 
@@ -247,6 +377,8 @@ export function resolveHistoryFloor(
       return new Date(joinedAt.getTime());
     case "LAST_24H":
       return new Date(joinedAt.getTime() - DAY_MS);
+    case "LAST_7D":
+      return new Date(joinedAt.getTime() - 7 * DAY_MS);
     case "LAST_30D":
       return new Date(joinedAt.getTime() - 30 * DAY_MS);
     case "ALL":

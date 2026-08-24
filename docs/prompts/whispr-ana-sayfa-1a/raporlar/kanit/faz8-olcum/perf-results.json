@@ -1,0 +1,82 @@
+{
+  "loginStatus": 200,
+  "homeOpen": {
+    "distinctPaths": [
+      "/api/v1/app/awaiting",
+      "/api/v1/app/recent",
+      "/api/v1/app/summary",
+      "/api/v1/app/version",
+      "/api/v1/dm",
+      "/api/v1/events/upcoming",
+      "/api/v1/friends",
+      "/api/v1/notifications/unread-count",
+      "/api/v1/servers",
+      "/api/v1/users/me/settings",
+      "/api/v1/voice/live"
+    ],
+    "peakConcurrent": 11,
+    "totalApiRequests": 11
+  },
+  "paint": {
+    "cls": 0.06497087357717474,
+    "firstContentfulPaint": 1012,
+    "firstPaint": 1012,
+    "largestContentfulPaint": 1012
+  },
+  "summaryLatency": {
+    "max": 11.700000000011642,
+    "min": 9.900000000023283,
+    "p50": 10.699999999982538,
+    "p95": 11.699999999982538,
+    "samples": 20
+  },
+  "scaleStep": {
+    "withinStep": 0,
+    "rootFontAfterWithin": 16,
+    "acrossStep": 8,
+    "rootFontAfterAcross": 18
+  },
+  "focus": {
+    "open": {
+      "body": {
+        "focus": {
+          "active": true,
+          "expiresAt": "2026-08-20T04:10:40.055Z",
+          "minutesLeft": 5,
+          "totalMinutes": 5
+        },
+        "presence": "DND"
+      },
+      "status": 200
+    },
+    "afterExpiry": {
+      "focus": null,
+      "presence": "DND"
+    },
+    "elapsedMinutes": 5.2,
+    "topBarText": "Günaydın, Alice E2E\n\n20 Ağustos Perşembe\n\nAra veya komut çalıştır\nCtrl K"
+  },
+  "hiddenTab": {
+    "hiddenMinutes": 5,
+    "requestsBeforeHide": 37,
+    "requestsDuringHidden": 5,
+    "requestsInTenSecondsAfterReturn": 0,
+    "visibilityStateWhileHidden": "hidden"
+  },
+  "soak": {
+    "heapAfterBytes": 23855010,
+    "heapBeforeBytes": 79559527,
+    "intervalsAfter": 2,
+    "intervalsBefore": 2,
+    "minutes": 10,
+    "totalApiRequests": 47
+  },
+  "eventProbe": {
+    "body": {
+      "next": null,
+      "totalCount": 0,
+      "upcoming": []
+    },
+    "status": 200
+  }
+}

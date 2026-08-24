@@ -4,6 +4,14 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getRedisRate } from "@/lib/redis";
 
 export const API_RATE_LIMITS = {
+  /**
+   * Ana Sayfa 1a, Faz 3 §4. The home screen opens six reads in parallel and
+   * refreshes them from socket events, never from a poll — these budgets are
+   * sized for a person moving between surfaces, not for a timer.
+   */
+  "app:awaiting": { limit: 120, windowSeconds: 60 },
+  "app:recent": { limit: 120, windowSeconds: 60 },
+  "app:summary": { limit: 120, windowSeconds: 60 },
   "app:updates:manifest": { limit: 120, windowSeconds: 60 },
   "attachment:download": { limit: 60, windowSeconds: 60 },
   "admin:badge:read": { limit: 120, windowSeconds: 60 },
@@ -95,7 +103,15 @@ export const API_RATE_LIMITS = {
   "dm:messages:send": { limit: 120, windowSeconds: 60 },
   "dm:mute": { limit: 60, windowSeconds: 60 },
   "dm:mutual-servers:list": { limit: 120, windowSeconds: 60 },
+  /** Mesajlar karar #6. One search per keystroke burst, not per keystroke. */
+  "dm:messages:search": { limit: 30, windowSeconds: 60 },
+  "dm:pins:list": { limit: 120, windowSeconds: 60 },
+  "dm:pins:write": { limit: 30, windowSeconds: 60 },
   "desktop:download": { limit: 30, windowSeconds: 60 },
+  "discover:channels": { limit: 120, windowSeconds: 60 },
+  "discover:events": { limit: 120, windowSeconds: 60 },
+  "discover:people": { limit: 120, windowSeconds: 60 },
+  "discover:servers": { limit: 240, windowSeconds: 60 },
   "friend:block": { limit: 30, windowSeconds: 10 * 60 },
   "friend:blocked:list": { limit: 120, windowSeconds: 60 },
   "friend:list": { limit: 120, windowSeconds: 60 },
@@ -103,6 +119,9 @@ export const API_RATE_LIMITS = {
   "friend:remove": { limit: 30, windowSeconds: 10 * 60 },
   "friend:request": { limit: 20, windowSeconds: 10 * 60 },
   "friend:request-action": { limit: 60, windowSeconds: 10 * 60 },
+  /** Mesajlar karar #8. Suggestions are a mutual-friend aggregate; not cheap. */
+  "friend:suggestions": { limit: 30, windowSeconds: 60 },
+  "friend:sort": { limit: 60, windowSeconds: 60 },
   "giphy:attachment": { limit: 60, windowSeconds: 60 },
   "invite:create": { limit: 20, windowSeconds: 10 * 60 },
   "invite:revoke": { limit: 60, windowSeconds: 10 * 60 },
@@ -115,6 +134,13 @@ export const API_RATE_LIMITS = {
   "member:roles:update": { limit: 40, windowSeconds: 10 * 60 },
   // One appeal per decision; the service refuses a second one anyway.
   "moderation:appeal": { limit: 5, windowSeconds: 60 * 60 },
+  /**
+   * Mesajlar karar #1. Voting is a tap, so the bucket is wide; creating a poll
+   * writes a message and up to six option rows, so that one is narrow.
+   */
+  "poll:create": { limit: 5, windowSeconds: 60 },
+  "poll:read": { limit: 120, windowSeconds: 60 },
+  "poll:vote": { limit: 20, windowSeconds: 60 },
   "message:search": { limit: 80, windowSeconds: 60 },
   "mobile:auth-exchange": { limit: 20, windowSeconds: 10 * 60 },
   "mobile:auth-forgot-password": { limit: 5, windowSeconds: 60 * 60 },
@@ -300,6 +326,10 @@ export const API_RATE_LIMITS = {
   // invite code, a public server's id is enumerable straight off the discovery
   // list, so this budget has to hold on its own without a secret backing it.
   "server:join-public": { limit: 10, windowSeconds: 60 * 60 },
+  // Web twin of mobile:server:join -- spending an invite code, not an
+  // enumerable server id, so it carries the same 20/10min ceiling its mobile
+  // sibling does rather than server:join-public's secret-free budget.
+  "server:join": { limit: 20, windowSeconds: 10 * 60 },
   "server:profile": { limit: 240, windowSeconds: 60 },
   "server:update": { limit: 30, windowSeconds: 60 },
   "settings:update": { limit: 60, windowSeconds: 60 },
@@ -325,8 +355,47 @@ export const API_RATE_LIMITS = {
   "roles:list": { limit: 120, windowSeconds: 60 },
   "roles:update": { limit: 40, windowSeconds: 60 },
   "message:pin": { limit: 60, windowSeconds: 60 },
+  /** The calendar view asks per month; the upcoming card asks on focus. */
+  "events:calendar": { limit: 60, windowSeconds: 60 },
+  "events:upcoming": { limit: 120, windowSeconds: 60 },
+  /** Faz 6: the "Etkinlikler" list pages forward while the reader scrolls. */
+  "events:list": { limit: 120, windowSeconds: 60 },
+  /**
+   * Etkinlikler Ş3 — yazma yolu. `Katıl` / `Belki` bir tıklamanın karşılığı ve iki tık
+   * arasında kararsız kalan biri kısa sürede birkaç kez gidip gelebilir; oluşturma bir
+   * modalın sonucu ve bildirim fan-out'u tetiklediği için dar tutuluyor.
+   */
+  "events:create": { limit: 12, windowSeconds: 60 },
+  "events:rsvp": { limit: 60, windowSeconds: 60 },
+  "events:reminder": { limit: 60, windowSeconds: 60 },
+  /** `.ics` bir indirme; sekme başına bir kez tıklanır. */
+  "events:ics": { limit: 30, windowSeconds: 60 },
+  /**
+   * Etkinlikler Ş2 — 326 px detay paneli. Bir kart tıklamasının karşılığı, artı
+   * `{n} kişi daha` bağlantısının 8'erlik sayfaları; listeden dar, sayaçtan geniş değil.
+   */
+  "events:detail": { limit: 120, windowSeconds: 60 },
+  /** Cursor paging over "my mentions". */
+  "mentions:list": { limit: 120, windowSeconds: 60 },
+  /**
+   * Bahsedilmeler Ş3. Sayaçlar akışla birlikte ve her socket olayından sonra okunur, bu
+   * yüzden listeden yüksek; bağlam paneli kart başına bir kez açılır, durum yazımı bir
+   * tıklamanın karşılığıdır.
+   */
+  "mentions:counts": { limit: 240, windowSeconds: 60 },
+  "mentions:context": { limit: 120, windowSeconds: 60 },
+  "mentions:state": { limit: 240, windowSeconds: 60 },
+  /** Geri alma da aynı uçtan geçiyor; ikisi birlikte dakikada 20 kez anlamlı değil. */
+  "mentions:read-all": { limit: 20, windowSeconds: 60 },
+  /** Bahsedilmeler Ş2. Thread panelindeki tek düğme; bir tıklamanın karşılığı. */
+  "mentions:thread-follow": { limit: 60, windowSeconds: 60 },
+  /** Debounced 200 ms client-side; this is the ceiling behind that. */
+  "search:command": { limit: 60, windowSeconds: 60 },
+  /** Presence and focus writes are deliberate acts, not a stream. */
+  "user:presence:update": { limit: 30, windowSeconds: 60 },
   "voice:heartbeat": { limit: 240, windowSeconds: 60 },
   "voice:state": { limit: 60, windowSeconds: 60 },
+  "voice:live:list": { limit: 60, windowSeconds: 60 },
   "voice:states:list": { limit: 30, windowSeconds: 60 },
 } as const;
 

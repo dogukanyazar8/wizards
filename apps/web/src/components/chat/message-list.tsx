@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useVirtualizer, type VirtualItem } from "@tanstack/react-virtual";
-import type { ChatMessage } from "@wizards/types";
+import type { ChatMessage, DMParticipantRole } from "@wizards/types";
 import { MessageItem } from "./message-item";
 import {
   DmSystemMessage,
@@ -13,6 +13,12 @@ import { useI18n } from "@/components/providers/locale-provider";
 import { useAccountPreferenceRuntime } from "@/components/providers/account-preference-provider";
 import { useMessages, type MessageMode } from "@/hooks/use-messages";
 import { useSocket } from "@/hooks/use-socket";
+import { DISPLAY_FONT } from "@/components/home/home-primitives";
+import { MessageListSkeleton } from "@/components/messages/message-list-skeleton";
+import { MESSAGES_METRICS, pxToRem } from "@/lib/messages/metrics";
+import { cn } from "@/lib/utils";
+
+const messageListMetrics = MESSAGES_METRICS.messageList;
 
 const MESSAGE_GROUP_WINDOW_MS = 5 * 60 * 1000;
 const MESSAGE_ESTIMATED_ROW_HEIGHT_PX = 84;
@@ -103,6 +109,27 @@ interface MessageListProps {
    * conversation it already holds. Empty for a channel and for a 1:1.
    */
   senderColors?: Readonly<Record<string, string>> | undefined;
+  /**
+   * Mesajlar §5.4. `userId → DMParticipantRole`, çağıranın zaten elinde tuttuğu
+   * konuşmadan bir kez çözülür. Kanalda ve 1:1'de boş.
+   */
+  participantRoles?: Readonly<Record<string, DMParticipantRole>> | undefined;
+  /**
+   * Mesajlar §5.4. Bahsetme şeridinin girdisi; satır bunu gövdedeki
+   * `@kullanıcıadı` ile karşılaştırır.
+   */
+  currentUsername?: string | undefined;
+  /**
+   * Mesajlar karar #1. Ş6'nın anket kartını üreten geri çağrı. Liste anketi
+   * bilmez; yalnız satıra hangi düğümün geçeceğini sorar.
+   */
+  renderPollSlot?: ((message: ChatMessage) => React.ReactNode) | undefined;
+  /** Mesajlar karar #7. DM sabitlerini konuşma tutuyor; satır yalnız haber verir. */
+  onTogglePin?: ((messageId: string, pinned: boolean) => void) | undefined;
+  /** SPEC §5.3 `Mesajı ilet`. */
+  onForward?: ((messageId: string) => void) | undefined;
+  /** SPEC §6.1. Thread panelini kimlikle açar. */
+  onOpenThread?: ((messageId: string) => void) | undefined;
   onRemoveOptimistic: (id: string) => void;
   onReply: (id: string, author: string, content: string) => void;
   onRetry: (id: string) => void;
@@ -121,6 +148,12 @@ function MessageListContent({
   initialUnreadMessageId = null,
   participants = [],
   senderColors,
+  participantRoles,
+  currentUsername,
+  renderPollSlot,
+  onTogglePin,
+  onForward,
+  onOpenThread,
   onRemoveOptimistic,
   onReply,
   onRetry,
@@ -528,11 +561,11 @@ function MessageListContent({
       yesterday.setDate(today.getDate() - 1);
 
       if (date.toDateString() === today.toDateString()) {
-        return t("chat.date.today");
+        return t("messages.conversation.dateToday");
       }
 
       if (date.toDateString() === yesterday.toDateString()) {
-        return t("chat.date.yesterday");
+        return t("messages.conversation.dateYesterday");
       }
 
       return formatDate(date);
@@ -570,11 +603,22 @@ function MessageListContent({
       <div
         ref={listRef}
         onScroll={handleScroll}
-        className="relative min-w-0 flex-1 space-y-0 overflow-y-auto overflow-x-hidden overscroll-contain scroll-pb-[max(7.5rem,calc(env(safe-area-inset-bottom)+6.75rem))] bg-transparent px-2.5 py-1 sm:px-4 md:px-5 md:py-2"
+        className="relative min-w-0 flex-1 space-y-0 overflow-y-auto overflow-x-hidden overscroll-contain scroll-pb-[max(7.5rem,calc(env(safe-area-inset-bottom)+6.75rem))] bg-transparent"
         aria-label={t("chat.list.ariaLabel")}
         aria-live="off"
         data-testid="message-list"
         role="log"
+        style={{
+          // SPEC §5.3: dikey boşluk listede, yatay boşluk **satırda**. Yatayı
+          // buraya koymak sabitlenen şeridi ve tarih ayracını da içeri iter ve
+          // ayracın çizgisi kenara ulaşmazdı.
+          paddingBottom: pxToRem(messageListMetrics.paddingBottom),
+          paddingTop: pxToRem(messageListMetrics.paddingTop),
+          // Satır yatay boşluğu bir değişkene yazılıyor çünkü satır onu
+          // **duyarlı** kullanıyor (dar ekranda dar, `sm` üstünde SPEC ölçüsü) ve
+          // Tailwind'in duyarlı sınıfı satır içi bir `style` ile verilemez.
+          ["--m-row-pad-x" as string]: pxToRem(messageListMetrics.rowPaddingX),
+        }}
       >
         <div ref={observerRef} className="absolute left-0 top-0 h-px w-full" />
 
@@ -594,10 +638,18 @@ function MessageListContent({
           </div>
         ) : null}
 
+        {/*
+          SPEC-MESAJLAR §10: yükleme durumu artık ortada duran bir metin değil,
+          gerçek satır ölçüsünü taşıyan altı satırlık iskelet. Ekran okuyucu
+          için iskelet `aria-hidden`; durumu aşağıdaki `sr-only` bölge söylüyor.
+        */}
         {isLoading && allMessages.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-app-muted">
-            <div className="animate-pulse">{t("chat.list.loading")}</div>
-          </div>
+          <>
+            <span className="sr-only" role="status">
+              {t("chat.list.loading")}
+            </span>
+            <MessageListSkeleton />
+          </>
         ) : null}
 
         {error && !isLoading ? (
@@ -611,7 +663,7 @@ function MessageListContent({
 
         {!error && allMessages.length === 0 && !isLoading ? (
           <div className="flex h-full items-center justify-center px-4 text-app-muted">
-            <div className="max-w-[18rem] rounded-[22px] bg-[hsl(var(--surface-card)/0.74)] px-5 py-4 text-center shadow-[0_14px_32px_hsl(var(--shadow-color)/0.045)] backdrop-blur-xl">
+            <div className="max-w-[18rem] rounded-[1.375rem] bg-[hsl(var(--surface-card)/0.74)] px-5 py-4 text-center shadow-[0_14px_32px_hsl(var(--shadow-color)/0.045)] backdrop-blur-xl">
               <p className="text-sm font-bold text-app-foreground">{t("chat.list.emptyTitle")}</p>
               <p className="mt-1 text-xs leading-5 text-app-muted">
                 {t("chat.list.emptyDescription")}
@@ -638,15 +690,38 @@ function MessageListContent({
             >
               {showDateSeparator ? (
                 <div
-                  className="sticky top-2 z-10 my-2 flex items-center gap-2 px-1 text-[10px] font-bold uppercase tracking-[0.18em] text-app-soft"
+                  className={cn(
+                    "sticky top-2 z-10 flex items-center uppercase text-app-soft",
+                    DISPLAY_FONT,
+                  )}
                   data-testid="message-date-separator"
                   role="separator"
+                  style={{
+                    fontSize: pxToRem(messageListMetrics.dividerChipFontSize),
+                    fontWeight: 600,
+                    gap: pxToRem(messageListMetrics.dividerGap),
+                    letterSpacing: messageListMetrics.dividerChipTracking,
+                    margin: `${pxToRem(messageListMetrics.dividerMarginY)} 0`,
+                    padding: `0 ${pxToRem(messageListMetrics.rowPaddingX)}`,
+                  }}
                 >
-                  <span className="h-px flex-1 bg-[hsl(var(--border)/0.62)]" />
-                  <span className="rounded-full border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.9)] px-2.5 py-0.5 shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)] backdrop-blur-xl">
+                  <span
+                    className="flex-1 bg-[hsl(var(--border)/0.5)]"
+                    style={{ height: pxToRem(messageListMetrics.dividerRuleHeight) }}
+                  />
+                  <span
+                    className="bg-[hsl(var(--surface-soft)/0.7)]"
+                    style={{
+                      borderRadius: pxToRem(messageListMetrics.dividerChipRadius),
+                      padding: `${pxToRem(messageListMetrics.dividerChipPaddingY)} ${pxToRem(messageListMetrics.dividerChipPaddingX)}`,
+                    }}
+                  >
                     {formatDateSeparator(message.createdAt)}
                   </span>
-                  <span className="h-px flex-1 bg-[hsl(var(--border)/0.62)]" />
+                  <span
+                    className="flex-1 bg-[hsl(var(--border)/0.5)]"
+                    style={{ height: pxToRem(messageListMetrics.dividerRuleHeight) }}
+                  />
                 </div>
               ) : null}
               {/* §19.3: a group event is a note about the conversation, so it is
@@ -666,6 +741,11 @@ function MessageListContent({
                   mode={mode}
                   message={message}
                   isGrouped={isGrouped}
+                  {...(currentUsername ? { currentUsername } : {})}
+                  {...(participantRoles?.[message.author.id]
+                    ? { authorRole: participantRoles[message.author.id] }
+                    : {})}
+                  {...(renderPollSlot ? { pollSlot: renderPollSlot(message) } : {})}
                   {...(senderColors?.[message.author.id]
                     ? { authorColor: senderColors[message.author.id] }
                     : {})}
@@ -684,6 +764,9 @@ function MessageListContent({
                   onReply={handleReply}
                   onRetry={onRetry}
                   onThread={onThread}
+                  {...(onTogglePin ? { onTogglePin } : {})}
+                  {...(onForward ? { onForward } : {})}
+                  {...(onOpenThread ? { onOpenThread } : {})}
                 />
               )}
             </div>

@@ -44,6 +44,7 @@ export type {
   NotificationType,
   PremiumType,
   PushAttemptStage,
+  ServerCategory,
   ServerType,
   User,
   UserReportReason,

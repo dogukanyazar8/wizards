@@ -327,3 +327,285 @@ describe("channel message notification enqueue", () => {
     }
   });
 });
+
+describe("Bahsedilmeler Ş2 — role, everyone and thread follow write path", () => {
+  type FanOutAsyncMethod = (...args: never[]) => Promise<unknown>;
+
+  type SendHarness = {
+    followUpserts: Array<Record<string, unknown>>;
+    outboxPayloads: Map<string, Record<string, unknown>>;
+    restore(): void;
+    upsertKeys: string[];
+  };
+
+  function stubSend(options: {
+    content: string;
+    threadClosedAt?: Date | null;
+    threadParentAuthorId?: string;
+  }): SendHarness {
+    const upsertKeys: string[] = [];
+    const outboxPayloads = new Map<string, Record<string, unknown>>();
+    const followUpserts: Array<Record<string, unknown>> = [];
+    const createdAt = new Date("2026-08-21T09:00:00.000Z");
+
+    const tx = {
+      attachment: { findMany: async () => [], update: async () => ({}) },
+      message: {
+        create: async () => ({ id: "message-1" }),
+        findFirst: async () => ({
+          id: "parent-1",
+          threadClosedAt: options.threadClosedAt ?? null,
+          userId: options.threadParentAuthorId ?? "user-author",
+        }),
+        findUniqueOrThrow: async () => ({
+          attachments: [],
+          author: {
+            avatarUrl: null,
+            customStatus: null,
+            displayName: "Ada",
+            id: "user-1",
+            status: "ONLINE",
+            username: "ada",
+          },
+          channelId: "channel-1",
+          content: options.content,
+          createdAt,
+          deletedAt: null,
+          deletedById: null,
+          editedAt: null,
+          id: "message-1",
+          isPinned: false,
+          mentionEveryone: false,
+          pinnedAt: null,
+          pinnedById: null,
+          placeholderExpiresAt: null,
+          reactions: [],
+          reply: null,
+          threadParentId: null,
+          type: "DEFAULT",
+        }),
+      },
+      outboxJob: {
+        upsert: async (args?: unknown) => {
+          const upsertArgs = args as {
+            create?: { idempotencyKey?: string; payload?: Record<string, unknown> };
+          };
+          const key = upsertArgs.create?.idempotencyKey ?? "";
+          upsertKeys.push(key);
+          outboxPayloads.set(key, upsertArgs.create?.payload ?? {});
+          return {};
+        },
+      },
+      threadFollow: {
+        upsert: async (args?: unknown) => {
+          followUpserts.push(args as Record<string, unknown>);
+          return {};
+        },
+      },
+    };
+
+    const prismaDelegate = prisma as unknown as {
+      $transaction: FanOutAsyncMethod;
+      userDailyMetric: { upsert: FanOutAsyncMethod };
+    };
+    const originalTransaction = prismaDelegate.$transaction;
+    const originalMetricUpsert = prismaDelegate.userDailyMetric.upsert;
+
+    prismaDelegate.$transaction = async (callback?: unknown) =>
+      (callback as (transaction: typeof tx) => Promise<unknown>)(tx);
+    prismaDelegate.userDailyMetric.upsert = async () => ({});
+
+    return {
+      followUpserts,
+      outboxPayloads,
+      restore() {
+        prismaDelegate.$transaction = originalTransaction;
+        prismaDelegate.userDailyMetric.upsert = originalMetricUpsert;
+      },
+      upsertKeys,
+    };
+  }
+
+  it("queues the role fan-out instead of writing it on the send path", async () => {
+    const harness = stubSend({ content: "@tasarım bakar mısınız" });
+
+    try {
+      await createMessage(
+        "channel-1",
+        "user-1",
+        "@tasarım bakar mısınız",
+        undefined,
+        [],
+        undefined,
+        {
+          notification: { channelName: "genel", serverId: "server-1" },
+          permissions: PermissionBits.SEND_MESSAGES,
+        },
+      );
+
+      assert.ok(harness.upsertKeys.includes("role-mention-notifications:message-1"));
+      // İzin bitleri elde olduğu için karar gönderim anında verildi; worker yeniden okumaz.
+      assert.equal(
+        harness.outboxPayloads.get("role-mention-notifications:message-1")
+          ?.senderCanMentionRestrictedRoles,
+        false,
+      );
+    } finally {
+      harness.restore();
+    }
+  });
+
+  it("marks the sender as allowed when they hold MENTION_EVERYONE", async () => {
+    const harness = stubSend({ content: "@yönetim bakar mısınız" });
+
+    try {
+      await createMessage(
+        "channel-1",
+        "user-1",
+        "@yönetim bakar mısınız",
+        undefined,
+        [],
+        undefined,
+        {
+          notification: { channelName: "genel", serverId: "server-1" },
+          permissions: PermissionBits.SEND_MESSAGES | PermissionBits.MENTION_EVERYONE,
+        },
+      );
+
+      assert.equal(
+        harness.outboxPayloads.get("role-mention-notifications:message-1")
+          ?.senderCanMentionRestrictedRoles,
+        true,
+      );
+    } finally {
+      harness.restore();
+    }
+  });
+
+  it("queues no role job for a message without a role candidate", async () => {
+    const harness = stubSend({ content: "selam" });
+
+    try {
+      await createMessage("channel-1", "user-1", "selam", undefined, [], undefined, {
+        notification: { channelName: "genel", serverId: "server-1" },
+        permissions: PermissionBits.SEND_MESSAGES,
+      });
+
+      assert.deepEqual(
+        harness.upsertKeys.filter((key) => key.startsWith("role-mention-notifications:")),
+        [],
+      );
+    } finally {
+      harness.restore();
+    }
+  });
+
+  /**
+   * Karar K2: `Message.mentionEveryone` yazımına dokunulmadı — bayrak gönderimde hâlâ
+   * içerikten türüyor — ve bildirim işi ona bakarak kuyruklanıyor. `MessageMention` satırı
+   * bu yolda hiç doğmuyor.
+   */
+  it("writes the mentionEveryone flag and queues only a notification job for it", async () => {
+    const harness = stubSend({ content: "@everyone toplantı" });
+
+    try {
+      const message = await createMessage(
+        "channel-1",
+        "user-1",
+        "@everyone toplantı",
+        undefined,
+        [],
+        undefined,
+        {
+          notification: { channelName: "genel", serverId: "server-1" },
+          permissions: PermissionBits.SEND_MESSAGES | PermissionBits.MENTION_EVERYONE,
+        },
+      );
+
+      assert.ok(message.id);
+      assert.ok(harness.upsertKeys.includes("everyone-mention-notifications:message-1"));
+    } finally {
+      harness.restore();
+    }
+  });
+
+  it("refuses to queue an everyone job for content without a mass mention", async () => {
+    const harness = stubSend({ content: "toplantı" });
+
+    try {
+      await createMessage("channel-1", "user-1", "toplantı", undefined, [], undefined, {
+        notification: { channelName: "genel", serverId: "server-1" },
+        permissions: PermissionBits.SEND_MESSAGES,
+      });
+
+      assert.deepEqual(
+        harness.upsertKeys.filter((key) => key.startsWith("everyone-mention-notifications:")),
+        [],
+      );
+    } finally {
+      harness.restore();
+    }
+  });
+
+  /** Karar K3: thread'i açan ve içine yanıt yazan örtük takipçi olur, mesajla aynı işlemde. */
+  it("records the implicit AUTHOR and REPLY follows with the message transaction", async () => {
+    const harness = stubSend({ content: "bakıyorum", threadParentAuthorId: "user-author" });
+
+    try {
+      await createMessage("channel-1", "user-1", "bakıyorum", undefined, [], "parent-1", {
+        notification: { channelName: "genel", serverId: "server-1" },
+        permissions: PermissionBits.SEND_MESSAGES,
+      });
+
+      assert.deepEqual(
+        harness.followUpserts.map((call) => (call.create as { origin: string }).origin),
+        ["AUTHOR", "REPLY"],
+      );
+      assert.deepEqual(
+        harness.followUpserts.map((call) => (call.create as { userId: string }).userId),
+        ["user-author", "user-1"],
+      );
+      // Örtük takip var olan satıra dokunmaz: `mutedAt` dolu bir satır geri açılmaz.
+      assert.deepEqual(harness.followUpserts[0]?.update, {});
+    } finally {
+      harness.restore();
+    }
+  });
+
+  it("records no follow for a plain channel message", async () => {
+    const harness = stubSend({ content: "selam" });
+
+    try {
+      await createMessage("channel-1", "user-1", "selam", undefined, [], undefined, {
+        notification: { channelName: "genel", serverId: "server-1" },
+        permissions: PermissionBits.SEND_MESSAGES,
+      });
+
+      assert.deepEqual(harness.followUpserts, []);
+    } finally {
+      harness.restore();
+    }
+  });
+
+  it("rejects a reply when the thread is closed", async () => {
+    const harness = stubSend({
+      content: "geç yanıt",
+      threadClosedAt: new Date("2026-08-21T11:00:00.000Z"),
+    });
+
+    try {
+      await assert.rejects(
+        createMessage("channel-1", "user-1", "geç yanıt", undefined, [], "parent-1", {
+          notification: { channelName: "genel", serverId: "server-1" },
+          permissions: PermissionBits.SEND_MESSAGES,
+        }),
+        (error: unknown) =>
+          error instanceof ApiError && error.status === 409 && error.code === "THREAD_CLOSED",
+      );
+      assert.deepEqual(harness.followUpserts, []);
+      assert.deepEqual(harness.upsertKeys, []);
+    } finally {
+      harness.restore();
+    }
+  });
+});

@@ -31,7 +31,9 @@ export default async function DesktopOAuthCompletePage({
   const callbackUrl = getSafeAuthRedirectPath(callbackParam);
 
   if (!session?.user?.id) {
-    redirect(`/login?callbackUrl=${encodeURIComponent(buildDesktopOAuthCompletePath(callbackUrl))}`);
+    redirect(
+      `/login?callbackUrl=${encodeURIComponent(buildDesktopOAuthCompletePath(callbackUrl))}`,
+    );
   }
 
   const handoff = await createDesktopOAuthHandoffToken({

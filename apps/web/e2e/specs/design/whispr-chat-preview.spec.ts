@@ -1,22 +1,5 @@
-import type { Page } from "@playwright/test";
 import { expect, test } from "../../fixtures/test";
-
-async function expectNoHorizontalOverflow(page: Page): Promise<void> {
-  await expect
-    .poll(
-      () =>
-        page.evaluate(() => {
-          const maxScrollWidth = Math.max(
-            document.body.scrollWidth,
-            document.documentElement.scrollWidth,
-          );
-
-          return maxScrollWidth - window.innerWidth;
-        }),
-      { timeout: 5_000 },
-    )
-    .toBeLessThanOrEqual(2);
-}
+import { expectNoHorizontalOverflow } from "../../helpers/design-parity";
 
 test.describe("Whispr chat design preview", () => {
   test("desktop keeps the full four-panel layout visible", async ({ page }) => {

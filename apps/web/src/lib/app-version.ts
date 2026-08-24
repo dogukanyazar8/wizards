@@ -31,20 +31,15 @@ function formatWhisprVersion(version: string, codename: string) {
   return `${trimmedVersion} "${trimmedCodename}"`;
 }
 
-const WHISPR_VERSION_NUMBER =
-  process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.15";
-export const WHISPR_RELEASE_CODENAME =
-  process.env.NEXT_PUBLIC_WHISPR_RELEASE_CODENAME ?? "Echo";
+const WHISPR_VERSION_NUMBER = process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.15";
+export const WHISPR_RELEASE_CODENAME = process.env.NEXT_PUBLIC_WHISPR_RELEASE_CODENAME ?? "Echo";
 export const WHISPR_APP_VERSION = formatWhisprVersion(
   WHISPR_VERSION_NUMBER,
   WHISPR_RELEASE_CODENAME,
 );
-export const WHISPR_BUILD_ID =
-  process.env.NEXT_PUBLIC_WHISPR_BUILD_ID ?? "development";
-export const WHISPR_BUILD_TIME =
-  process.env.NEXT_PUBLIC_WHISPR_BUILD_TIME ?? "";
-export const WHISPR_RELEASE_CHANNEL =
-  process.env.NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL ?? "beta";
+export const WHISPR_BUILD_ID = process.env.NEXT_PUBLIC_WHISPR_BUILD_ID ?? "development";
+export const WHISPR_BUILD_TIME = process.env.NEXT_PUBLIC_WHISPR_BUILD_TIME ?? "";
+export const WHISPR_RELEASE_CHANNEL = process.env.NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL ?? "beta";
 
 export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
   {

@@ -6,6 +6,7 @@ import {
   WorkspaceServersResponseSchema,
   WorkspaceMembersResponseSchema,
   WorkspaceChannelPermissionSettingsSchema,
+  ChannelThreadStateSchema,
   WorkspaceRoleSchema,
   ChatMessageSchema,
   type CreateChannelInput,
@@ -139,6 +140,18 @@ export async function fetchWorkspaceServer(serverId: string) {
   const payload = await requestJson<unknown>(`/api/v1/servers/${serverId}`);
   const parsed = WorkspaceServerResponseSchema.parse(payload);
   return parsed.detail;
+}
+
+export async function patchChannelThreadStateRequest(
+  channelId: string,
+  parentMessageId: string,
+  open: boolean,
+) {
+  const payload = await requestJson<unknown>(
+    `/api/v1/channels/${channelId}/messages/${parentMessageId}/thread`,
+    { body: { open }, method: "PATCH" },
+  );
+  return ChannelThreadStateSchema.parse(payload);
 }
 
 export async function fetchWorkspaceServerMembers(

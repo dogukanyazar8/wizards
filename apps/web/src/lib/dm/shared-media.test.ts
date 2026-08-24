@@ -19,7 +19,9 @@ function attachment(overrides: Partial<MessageAttachment> & { id: string }): Mes
   };
 }
 
-const message = (overrides: Partial<DmSharedMediaMessage> & { id: string }): DmSharedMediaMessage => ({
+const message = (
+  overrides: Partial<DmSharedMediaMessage> & { id: string },
+): DmSharedMediaMessage => ({
   attachments: [],
   content: "",
   createdAt: "2026-07-14T09:00:00.000Z",
@@ -41,11 +43,15 @@ describe("dm shared media mapping", () => {
     ];
 
     assert.deepEqual(
-      mapDmSharedMediaItems(page, "media").map((item) => item.kind === "media" && item.attachment.id),
+      mapDmSharedMediaItems(page, "media").map(
+        (item) => item.kind === "media" && item.attachment.id,
+      ),
       ["a-image", "a-video"],
     );
     assert.deepEqual(
-      mapDmSharedMediaItems(page, "files").map((item) => item.kind === "file" && item.attachment.id),
+      mapDmSharedMediaItems(page, "files").map(
+        (item) => item.kind === "file" && item.attachment.id,
+      ),
       ["a-pdf"],
     );
   });
@@ -108,7 +114,9 @@ describe("dm shared media mapping", () => {
 
   it("extracts every https link in order, deduplicated and capped", () => {
     assert.deepEqual(
-      extractDmMessageLinks("bak https://whispr.test/a ve https://whispr.test/b tekrar https://whispr.test/a"),
+      extractDmMessageLinks(
+        "bak https://whispr.test/a ve https://whispr.test/b tekrar https://whispr.test/a",
+      ),
       ["https://whispr.test/a", "https://whispr.test/b"],
     );
     // Trailing punctuation stays part of the token, because the chat bubble's

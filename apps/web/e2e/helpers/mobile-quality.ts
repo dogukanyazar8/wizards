@@ -124,8 +124,7 @@ export async function expectFitsViewport(
           return false;
         }
 
-        const fitsHorizontally =
-          box.x >= -2 && box.x + box.width <= viewport.width + 2;
+        const fitsHorizontally = box.x >= -2 && box.x + box.width <= viewport.width + 2;
 
         if (options.allowVerticalScroll) {
           const intersectsViewport = box.y < viewport.height - 2 && box.y + box.height > 2;
@@ -183,9 +182,10 @@ export async function expectComposerInputBudget(
   await expect(input).toHaveValue(content);
 
   const durationMs = Date.now() - startedAt;
-  expect(durationMs, `composer input should stay responsive under ${maxDurationMs}ms`).toBeLessThanOrEqual(
-    maxDurationMs,
-  );
+  expect(
+    durationMs,
+    `composer input should stay responsive under ${maxDurationMs}ms`,
+  ).toBeLessThanOrEqual(maxDurationMs);
 }
 
 export async function expectVisibleTestIdCountAtMost(
@@ -194,10 +194,6 @@ export async function expectVisibleTestIdCountAtMost(
   maxCount: number,
 ): Promise<void> {
   await expect
-    .poll(
-      () =>
-        page.locator(`[data-testid="${testId}"]:visible`).count(),
-      { timeout: 5_000 },
-    )
+    .poll(() => page.locator(`[data-testid="${testId}"]:visible`).count(), { timeout: 5_000 })
     .toBeLessThanOrEqual(maxCount);
 }

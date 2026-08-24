@@ -16,9 +16,7 @@ describe("E2E test strategy", () => {
   });
 
   it("keeps high-risk realtime and voice coverage outside the PR-only gate", () => {
-    const preMergeSuiteIds = new Set(
-      getSuitesForCadence("pre-merge").map((suite) => suite.id),
-    );
+    const preMergeSuiteIds = new Set(getSuitesForCadence("pre-merge").map((suite) => suite.id));
 
     assert.equal(preMergeSuiteIds.has("realtime-voice-post-merge"), false);
     assert.equal(preMergeSuiteIds.has("full-browser-regression"), false);

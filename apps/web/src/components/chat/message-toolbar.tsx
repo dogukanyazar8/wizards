@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import {
   Copy,
   CornerUpLeft,
+  Forward,
   Link2,
   MessageCircle,
   MessagesSquare,
@@ -23,6 +24,9 @@ import {
 } from "@/lib/ui/overlay-coordinator";
 import { cn } from "@/lib/utils";
 import { createRafThrottledCallback } from "@/lib/ui/raf-throttle";
+import { MESSAGES_METRICS, hairline, pxToRem } from "@/lib/messages/metrics";
+
+const menuMetrics = MESSAGES_METRICS.messageList;
 
 const QUICK_REACTIONS = [
   "\u{1F44D}",
@@ -37,7 +41,11 @@ interface MessageToolbarProps {
   allowReact?: boolean;
   allowThread?: boolean;
   className?: string;
-  variant?: "full" | "hover";
+  /**
+   * `hover` satırın üstünde yüzen beş düğmelik şerit (SPEC §5.3),
+   * `menu` `...` altındaki 206px liste, `full` mobil eylem çubuğu.
+   */
+  variant?: "full" | "hover" | "menu";
   messageId: string;
   isOwner: boolean;
   canModerate: boolean;
@@ -51,6 +59,11 @@ interface MessageToolbarProps {
   onDelete: () => void;
   onMore?: () => void;
   onPin?: (() => void | Promise<void>) | undefined;
+  /**
+   * SPEC §5.3'ün `Mesajı ilet` satırı. Verilmezse satır **çizilmez** — yapmadığı
+   * bir şeyi vaat eden bir menü satırı, pasif bir satırdan daha kötüdür.
+   */
+  onForward?: (() => void) | undefined;
   isMoreOpen?: boolean;
   moreButtonRef?: Ref<HTMLButtonElement>;
 }
@@ -73,6 +86,7 @@ export function MessageToolbar({
   onDelete,
   onMore,
   onPin,
+  onForward,
   isMoreOpen = false,
   moreButtonRef,
 }: MessageToolbarProps) {
@@ -170,7 +184,7 @@ export function MessageToolbar({
     showReactionMenu && typeof document !== "undefined"
       ? createPortal(
           <div
-            className="app-panel fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[90] mx-auto flex max-w-[min(22rem,calc(100vw-1.5rem))] items-center justify-center gap-1 rounded-[22px] border px-2 py-2 shadow-[0_14px_32px_hsl(var(--shadow-color)/0.18)] md:inset-x-auto md:bottom-auto md:mx-0 md:rounded-full md:py-1"
+            className="app-panel fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[90] mx-auto flex max-w-[min(22rem,calc(100vw-1.5rem))] items-center justify-center gap-1 rounded-[1.375rem] border px-2 py-2 shadow-[0_14px_32px_hsl(var(--shadow-color)/0.18)] md:inset-x-auto md:bottom-auto md:mx-0 md:rounded-full md:py-1"
             aria-label={t("chat.message.reactionMenu")}
             data-testid="reaction-picker"
             onPointerDown={(event) => event.stopPropagation()}
@@ -233,27 +247,48 @@ export function MessageToolbar({
         ) : null}
 
         <button
-          aria-label={t("chat.message.replyAria")}
+          aria-label={t("messages.conversation.hover.reply")}
           className={hoverButtonClassName}
           data-testid="message-action-reply"
           onClick={onReply}
-          title={t("chat.message.reply")}
+          title={t("messages.conversation.hover.reply")}
           type="button"
         >
           <CornerUpLeft className="h-4 w-4" />
         </button>
 
-        {isOwner ? (
+        {allowThread ? (
           <button
-            aria-label={t("chat.message.editAria")}
+            aria-label={t("messages.conversation.hover.thread")}
             className={hoverButtonClassName}
-            data-testid="message-action-edit"
-            onClick={onEdit}
-            title={t("chat.message.edit")}
+            data-testid="message-action-thread"
+            onClick={onThread}
+            title={t("messages.conversation.hover.thread")}
             type="button"
           >
-            <Pencil className="h-4 w-4" />
+            <MessagesSquare className="h-4 w-4" />
           </button>
+        ) : null}
+
+        {onPin ? (
+          <button
+            aria-label={isPinned ? t("chat.message.unpin") : t("messages.conversation.hover.pin")}
+            className={hoverButtonClassName}
+            data-testid="message-action-pin"
+            onClick={() => void onPin()}
+            title={isPinned ? t("chat.message.unpin") : t("messages.conversation.hover.pin")}
+            type="button"
+          >
+            {isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+          </button>
+        ) : null}
+
+        {onPin && onMore ? (
+          <span
+            aria-hidden="true"
+            className="mx-0.5 h-[1.125rem] w-px shrink-0 bg-[hsl(var(--border))]"
+            data-testid="message-action-separator"
+          />
         ) : null}
 
         {onMore ? (
@@ -269,6 +304,121 @@ export function MessageToolbar({
           >
             <MoreHorizontal className="h-4 w-4" />
           </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (variant === "menu") {
+    const itemClassName =
+      "flex w-full items-center text-left transition hover:bg-[hsl(var(--surface-soft)/0.7)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]";
+    const itemStyle: CSSProperties = {
+      borderRadius: pxToRem(menuMetrics.menuItemRadius),
+      fontSize: pxToRem(menuMetrics.menuItemFontSize),
+      gap: pxToRem(menuMetrics.menuItemGap),
+      padding: `${pxToRem(menuMetrics.menuItemPaddingY)} ${pxToRem(menuMetrics.menuItemPaddingX)}`,
+    };
+    const iconStyle: CSSProperties = {
+      height: pxToRem(menuMetrics.menuItemIconSize),
+      width: pxToRem(menuMetrics.menuItemIconSize),
+    };
+
+    return (
+      <div
+        className={cn(
+          "flex flex-col bg-[hsl(var(--surface-card))] text-[hsl(var(--foreground))] shadow-[0_18px_40px_-18px_hsl(var(--shadow-color)/0.5)]",
+          className,
+        )}
+        data-message-id={messageId}
+        data-testid="message-actions-menu"
+        role="menu"
+        style={{
+          border: `${hairline()} solid hsl(var(--border))`,
+          borderRadius: pxToRem(menuMetrics.menuRadius),
+          padding: pxToRem(menuMetrics.menuPadding),
+          width: pxToRem(menuMetrics.menuWidth),
+        }}
+      >
+        {onCopyRawText ? (
+          <button
+            className={itemClassName}
+            data-testid="message-menu-copy-text"
+            onClick={onCopyRawText}
+            role="menuitem"
+            style={itemStyle}
+            type="button"
+          >
+            <Copy aria-hidden="true" style={iconStyle} />
+            {t("messages.conversation.menu.copyText")}
+          </button>
+        ) : null}
+
+        {/* Yetkisiz satır pasif değil, **çizilmez**: pasif bir `Düzenle`
+            kullanıcıya yapamayacağı bir şeyi göstermekten başka bir şey demez. */}
+        {isOwner ? (
+          <button
+            className={itemClassName}
+            data-testid="message-menu-edit"
+            onClick={onEdit}
+            role="menuitem"
+            style={itemStyle}
+            type="button"
+          >
+            <Pencil aria-hidden="true" style={iconStyle} />
+            {t("messages.conversation.menu.edit")}
+          </button>
+        ) : null}
+
+        {onForward ? (
+          <button
+            className={itemClassName}
+            data-testid="message-menu-forward"
+            onClick={onForward}
+            role="menuitem"
+            style={itemStyle}
+            type="button"
+          >
+            <Forward aria-hidden="true" style={iconStyle} />
+            {t("messages.conversation.menu.forward")}
+          </button>
+        ) : null}
+
+        {onCopyLink ? (
+          <button
+            className={itemClassName}
+            data-testid="message-menu-copy-link"
+            onClick={onCopyLink}
+            role="menuitem"
+            style={itemStyle}
+            type="button"
+          >
+            <Link2 aria-hidden="true" style={iconStyle} />
+            {t("messages.conversation.menu.copyLink")}
+          </button>
+        ) : null}
+
+        {isOwner || canModerate ? (
+          <>
+            <span
+              aria-hidden="true"
+              className="bg-[hsl(var(--border)/0.6)]"
+              style={{
+                height: hairline(),
+                margin: `${pxToRem(menuMetrics.menuPadding)} 0`,
+              }}
+            />
+            <button
+              className={cn(itemClassName, "text-[hsl(var(--danger))]")}
+              data-testid="message-menu-delete"
+              onClick={onDelete}
+              role="menuitem"
+              style={itemStyle}
+              type="button"
+            >
+              <Trash2 aria-hidden="true" style={iconStyle} />
+              {t("messages.conversation.menu.delete")}
+            </button>
+          </>
         ) : null}
       </div>
     );

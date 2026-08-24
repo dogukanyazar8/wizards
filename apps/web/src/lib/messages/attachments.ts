@@ -3,6 +3,7 @@ import {
   MESSAGE_CONTENT_DEFAULT_LIMIT,
   MESSAGE_CONTENT_HARD_LIMIT,
   UploadedAttachmentInputSchema,
+  serializeWaveform,
   type UploadedAttachmentInput,
 } from "@wizards/types";
 import { z } from "zod";
@@ -45,8 +46,7 @@ const UploadedAttachmentsSchema = z
 type AttachmentTransaction = Pick<Prisma.TransactionClient, "attachment">;
 
 type AttachmentLink =
-  | { messageId: string; dmMessageId?: never }
-  | { dmMessageId: string; messageId?: never };
+  { messageId: string; dmMessageId?: never } | { dmMessageId: string; messageId?: never };
 
 export function parseUploadedAttachmentInputs(value: unknown): UploadedAttachmentInput[] {
   const parsed = UploadedAttachmentsSchema.safeParse(value ?? []);
@@ -131,11 +131,16 @@ export async function claimUploadedMessageAttachments(
       width: true,
       height: true,
       duration: true,
+      waveform: true,
     },
   });
 
   if (existingAttachments.length !== ids.length) {
-    throw new ApiError("Attachment was not found or is no longer available.", 400, "INVALID_ATTACHMENT");
+    throw new ApiError(
+      "Attachment was not found or is no longer available.",
+      400,
+      "INVALID_ATTACHMENT",
+    );
   }
 
   const byId = new Map(existingAttachments.map((attachment) => [attachment.id, attachment]));
@@ -164,14 +169,23 @@ export async function claimUploadedMessageAttachments(
           ...link,
           width:
             current && isMessageImageContentType(current.contentType)
-              ? normalizeDimension(input.width) ?? current.width ?? null
+              ? (normalizeDimension(input.width) ?? current.width ?? null)
               : null,
           height:
             current && isMessageImageContentType(current.contentType)
-              ? normalizeDimension(input.height) ?? current.height ?? null
+              ? (normalizeDimension(input.height) ?? current.height ?? null)
               : null,
+          // Mesajlar karar #5. Süre ve dalga formu birlikte yazılır: oynatıcı
+          // ikisini birden okuyor ve yalnız biri gelen bir ek, dolduramayacağı
+          // bir kaydırma çubuğu çizerdi.
           ...(current && isMessageAudioContentType(current.contentType)
-            ? { duration: normalizeDuration(input.duration) ?? current.duration ?? null }
+            ? {
+                duration: normalizeDuration(input.duration) ?? current.duration ?? null,
+                waveform:
+                  input.waveform && input.waveform.length > 0
+                    ? serializeWaveform(input.waveform)
+                    : (current.waveform ?? null),
+              }
             : {}),
         },
       });

@@ -830,6 +830,7 @@ export interface MobileGroupWindowCopy {
   readonly groupDisappearing90d: string;
   readonly groupDisappearingOff: string;
   readonly groupHistory24h: string;
+  readonly groupHistory7d: string;
   readonly groupHistory30d: string;
   readonly groupHistoryAll: string;
   readonly groupHistoryNone: string;
@@ -862,6 +863,8 @@ export function formatHistoryLabel(
       return copy.groupHistoryNone;
     case "LAST_24H":
       return copy.groupHistory24h;
+    case "LAST_7D":
+      return copy.groupHistory7d;
     case "LAST_30D":
       return copy.groupHistory30d;
     case "ALL":

@@ -10,10 +10,7 @@ describe("auth redirect safety", () => {
       "/desktop/oauth/complete?callbackUrl=%2Fchannels%2F%40me",
     );
 
-    assert.equal(
-      getSafeAuthRedirectPath("/desktop/oauth/claim/token"),
-      DEFAULT_AUTH_REDIRECT_PATH,
-    );
+    assert.equal(getSafeAuthRedirectPath("/desktop/oauth/claim/token"), DEFAULT_AUTH_REDIRECT_PATH);
     assert.equal(
       getSafeAuthRedirectPath("/desktop/oauth/start?callbackUrl=%2Fchannels"),
       DEFAULT_AUTH_REDIRECT_PATH,
@@ -27,6 +24,6 @@ describe("auth redirect safety", () => {
       DEFAULT_AUTH_REDIRECT_PATH,
     );
     assert.equal(getSafeAuthRedirectPath("//evil.example/channels"), DEFAULT_AUTH_REDIRECT_PATH);
-    assert.equal(getSafeAuthRedirectPath("whispr://channels/@me"), DEFAULT_AUTH_REDIRECT_PATH);
+    assert.equal(getSafeAuthRedirectPath("whispr://messages"), DEFAULT_AUTH_REDIRECT_PATH);
   });
 });

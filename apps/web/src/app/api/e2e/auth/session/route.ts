@@ -7,7 +7,9 @@ import {
   getAuthSessionCookieConfig,
   getAuthSessionCookieOptions,
 } from "@/lib/auth/session-cookies";
+import { ensureAuthSession, revokeAuthSession } from "@/lib/auth/auth-session-service";
 import { assertE2EApiRouteEnabled } from "@/lib/e2e/route-guard";
+import { buildE2ESessionToken } from "./route-logic";
 import { e2eUsers, getE2EUserByKey, type E2EUserKey } from "@/lib/e2e/test-fixtures";
 
 const E2ESessionSchema = z.object({
@@ -70,29 +72,29 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Kalıcı oturum satırı token'dan **önce** açılır: `auth.ts`'in jwt geri çağrısı ilk istekte
+    // `isAuthSessionActive` ile bu satırı arıyor, bulamazsa oturumu iptal edilmiş sayıyor.
+    const authSessionId = crypto.randomUUID();
+    await ensureAuthSession({
+      expiresAt: new Date(expiresAt * 1000),
+      id: authSessionId,
+      // Test fikstürü; cihaz metadata'sı toplanmaz.
+      metadata: null,
+      now: new Date(issuedAt * 1000),
+      userId: user.id,
+    });
+
     const sessionToken = await encode({
       maxAge: SESSION_MAX_AGE_SECONDS,
       salt: cookieName,
       secret,
-      token: {
-        avatarUrl: user.avatarUrl,
-        authStatusHydrated: true,
-        deletedAt: null,
-        displayName: user.displayName,
-        email: user.email,
-        emailVerified: user.emailVerified,
-        exp: expiresAt,
-        iat: issuedAt,
-        id: user.id,
-        isBanned: user.isBanned,
+      token: buildE2ESessionToken({
+        authSessionId,
+        issuedAtSeconds: issuedAt,
         jti: crypto.randomUUID(),
-        locale: user.locale,
-        name: user.displayName ?? user.username,
-        profileHydrated: true,
-        sub: user.id,
-        theme: user.theme,
-        username: user.username,
-      },
+        maxAgeSeconds: SESSION_MAX_AGE_SECONDS,
+        user,
+      }),
     });
 
     const response = NextResponse.json({
@@ -132,6 +134,12 @@ export async function DELETE(request: NextRequest) {
     const userId =
       typeof token?.id === "string" ? token.id : typeof token?.sub === "string" ? token.sub : null;
     const e2eEmails = Object.values(e2eUsers).map((user) => user.email);
+
+    const authSessionId = typeof token?.authSessionId === "string" ? token.authSessionId : null;
+
+    if (userId && authSessionId) {
+      await revokeAuthSession(userId, authSessionId);
+    }
 
     if (userId) {
       await prisma.user.updateMany({

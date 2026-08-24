@@ -13,6 +13,11 @@ type MainChannelPanelProps = {
   fallbackTitle: string;
   icon?: LucideIcon | undefined;
   leading?: React.ReactNode;
+  /**
+   * `08-faz7` §3 — 960'ın altında nav paneli drawer'da olduğu için tetikleyici çubuğu
+   * masaüstü genişliğinde de görünür olmalı. Varsayılan davranış (`md:hidden`) değişmez.
+   */
+  leadingAlwaysVisible?: boolean;
 };
 
 function EmptyChannelState({
@@ -81,6 +86,7 @@ export function MainChannelPanel({
   fallbackTitle,
   icon,
   leading,
+  leadingAlwaysVisible = false,
 }: MainChannelPanelProps) {
   const { mainPanelWidth } = useAppStore(
     useShallow((state) => ({
@@ -90,9 +96,15 @@ export function MainChannelPanel({
   const Icon = icon ?? (channel?.type === "VOICE" ? Volume2 : Hash);
 
   return (
-    <section className="app-main-gradient relative flex min-h-0 flex-1 flex-col overflow-hidden">
+    // §2.1 — ana alan bir `main` yer imidir. Uygulamada ikinci bir `main` yok; kabuk bu
+    // paneli her `(main)` rotasında tek kez çiziyor.
+    <main className="app-main-gradient relative flex min-h-0 flex-1 flex-col overflow-hidden">
       {leading ? (
-        <div className="relative z-50 shrink-0 border-b border-[hsl(var(--border)/0.32)] bg-[hsl(var(--background)/0.76)] px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur-xl md:hidden">
+        <div
+          className={`relative z-50 shrink-0 border-b border-[hsl(var(--border)/0.32)] bg-[hsl(var(--background)/0.76)] px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur-xl${
+            leadingAlwaysVisible ? "" : " md:hidden"
+          }`}
+        >
           {leading}
         </div>
       ) : null}
@@ -111,6 +123,6 @@ export function MainChannelPanel({
           )}
         </div>
       </div>
-    </section>
+    </main>
   );
 }

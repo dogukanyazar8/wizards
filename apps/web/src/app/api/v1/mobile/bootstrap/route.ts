@@ -4,10 +4,8 @@ import { ApiError, jsonError } from "@/lib/api";
 import { authorizeMobileApiSession } from "@/lib/auth/api";
 import { ensureMobileRequestAuthSession } from "@/lib/auth/auth-session-request";
 import { createServerTimingForRequest } from "@/lib/server-timing";
-import {
-  MOBILE_UNREAD_COUNT_CAP,
-  getServerUnreadAndMentionCounts,
-} from "@/lib/workspace/unread-service";
+import { MOBILE_UNREAD_COUNT_CAP, getServerUnreadCounts } from "@/lib/workspace/unread-service";
+import { countMentions } from "@/lib/mentions/mentions-service";
 import { getMobileBootstrapPayload, type MobileBootstrapHomeSummary } from "@/lib/mobile/bootstrap";
 import { evaluateFlagsForUser } from "@/lib/feature-flags/service";
 import { getAnalyticsClientInfo } from "@/lib/analytics/client-info";
@@ -182,11 +180,10 @@ export async function GET(request: Request) {
     const recentServerIds = recentServerMemberships.map((membership) => membership.server.id);
     // A0.3: one `IN` query for every server's preferences, not one per server —
     // the rail can hold 50 of them and this is the cold-start path.
-    const [{ mentionCounts, unreadCounts }, serverUserSettings] = await timing.measure("db", () =>
+    const [unreadCounts, mentionCounts, serverUserSettings] = await timing.measure("db", () =>
       Promise.all([
-        getServerUnreadAndMentionCounts(userId, recentServerIds, {
-          unreadCountCap: MOBILE_UNREAD_COUNT_CAP,
-        }),
+        getServerUnreadCounts(userId, recentServerIds),
+        countMentions(userId, { window: "all" }, { database: prisma }),
         listServerUserSettingsWithDatabase(prisma, userId, recentServerIds),
       ]),
     );
@@ -256,13 +253,16 @@ export async function GET(request: Request) {
             inviteAddress: buildServerInviteAddress(membership.server),
             joinedAt: membership.joinedAt.toISOString(),
             memberCount: membership.server._count.members,
-            mentionCount: mentionCounts.get(membership.server.id) ?? 0,
+            mentionCount: mentionCounts.bySource[membership.server.id] ?? 0,
             muted: settings.muted,
             name: membership.server.name,
             notificationLevel: settings.notificationLevel,
             shortName: membership.server.shortName,
             starred: settings.starred,
-            unreadCount: unreadCounts.get(membership.server.id) ?? 0,
+            unreadCount: Math.min(
+              unreadCounts.get(membership.server.id) ?? 0,
+              MOBILE_UNREAD_COUNT_CAP,
+            ),
           };
         }),
         totalCount: serverTotalCount,

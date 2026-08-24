@@ -17,15 +17,15 @@ test.describe("DM smoke", () => {
     await expect(page.getByTestId("message-item").filter({ hasText: message })).toBeVisible();
   });
 
-  test("new chat opens the friend picker from the DM sidebar", async ({ page }) => {
+  test("new chat opens the friend picker from the messages rail", async ({ page }) => {
     const conversationId = await getE2EDMConversationId();
 
     await loginAs(page, "alice");
     await gotoDmConversationRoute(page, conversationId);
 
-    await page.getByTestId("dm-new-chat-button").click();
+    await page.getByTestId("messages-rail-new-message").click();
 
-    await expect(page).toHaveURL(/\/channels\/@me(?:$|\?)/);
+    await expect(page).toHaveURL(/\/messages\/friends(?:$|\?)/);
     await expect(page.getByTestId("friends-dashboard")).toBeVisible();
     await expect
       .poll(async () => {
@@ -59,9 +59,13 @@ test.describe("DM smoke", () => {
         .toBeGreaterThan(0);
 
       await loginAs(bobPage, "bob");
-      await gotoAppRoute(bobPage, "/channels/@me", { readyTestId: "server-rail" });
+      await gotoAppRoute(bobPage, "/messages", { readyTestId: "server-rail" });
+      // Rozet artik sohbet rayinin satirinda; satir konusma kimligini
+      // `data-conversation-id` ile tasiyor.
       await expect(
-        bobPage.getByTestId(`dm-conversation-${conversationId}-unread-badge`),
+        bobPage
+          .locator(`[data-conversation-id="${conversationId}"]`)
+          .getByTestId("messages-rail-row-unread"),
       ).toBeVisible();
     } finally {
       await Promise.allSettled([

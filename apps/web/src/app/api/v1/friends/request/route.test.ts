@@ -86,10 +86,7 @@ describe("friend request API route", () => {
   });
 
   it("returns the shared 400 envelope for invalid friend request bodies", async () => {
-    const response = await postFriendRequestRoute(
-      jsonRequest({}),
-      routeDependencies(),
-    );
+    const response = await postFriendRequestRoute(jsonRequest({}), routeDependencies());
 
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), {

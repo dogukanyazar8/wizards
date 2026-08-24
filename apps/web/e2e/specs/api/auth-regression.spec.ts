@@ -35,7 +35,7 @@ async function submitCredentialsLogin(
 
   return request.post("/api/auth/callback/credentials", {
     form: {
-      callbackUrl: "/channels",
+      callbackUrl: "/messages",
       csrfToken,
       email: user.email,
       loginProof: createLoginProof(user.email),
@@ -135,7 +135,7 @@ test.describe("Auth.js upgrade regression safety net", () => {
   test("malformed Bearer authorization header never returns a server error", async ({
     request,
   }) => {
-    const response = await request.get("/channels", {
+    const response = await request.get("/messages", {
       headers: { authorization: "Bearer malformed" },
       maxRedirects: 0,
     });
@@ -201,12 +201,17 @@ test.describe("Auth.js upgrade regression safety net", () => {
   test("registration keeps existing emails non-enumerating", async ({ page }) => {
     await submitDuplicateRegistration(page);
 
+    // Faz 7 Playwright'ın yerelini Türkçe'ye sabitledi (`fixtures/test.ts`); bu ekranın
+    // metinleri gerçekten çevriliyor. Sözleşme "doğrulama bölgesi çıkıyor, e-posta sızmıyor" —
+    // hangi dilde çıktığı değil.
     const verificationRegion = page.getByRole("region", {
-      name: "Whispr email verification",
+      name: /Whispr (email verification|e-posta doğrulama)/,
     });
     await expect(verificationRegion).toBeVisible();
     await expect(
-      verificationRegion.getByRole("heading", { name: "Check your inbox" }),
+      verificationRegion.getByRole("heading", {
+        name: /(Check your inbox|Gelen kutunu kontrol et)/,
+      }),
     ).toBeVisible();
     await expect(verificationRegion).toContainText(e2eUsers.alice.email);
   });
@@ -216,13 +221,13 @@ test.describe("Auth.js upgrade regression safety net", () => {
 
     await apiLoginAs(request, "alice");
 
-    const response = await request.get("/desktop/oauth/complete?callbackUrl=%2Fchannels");
+    const response = await request.get("/desktop/oauth/complete?callbackUrl=%2Fmessages");
 
     expect(response.status()).toBe(200);
     const html = await response.text();
     const handoffUrl = html.match(/href="(whispr:\/\/oauth\/[^"]+)"/)?.[1] ?? "";
 
-    expect(handoffUrl).toMatch(/^whispr:\/\/oauth\/[A-Za-z0-9_-]+\?callbackUrl=%2Fchannels$/);
+    expect(handoffUrl).toMatch(/^whispr:\/\/oauth\/[A-Za-z0-9_-]+\?callbackUrl=%2Fmessages$/);
     expect(handoffUrl).not.toContain(e2eUsers.alice.email);
   });
 

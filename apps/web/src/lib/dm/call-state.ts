@@ -61,6 +61,26 @@ export function createIncomingCall(input: {
   };
 }
 
+/**
+ * Joining a call that is already running (`dm:call:join`, socket handler D3).
+ * Nobody rings: the people inside are already talking, so the session starts at
+ * `connecting` with no ring deadline to expire.
+ */
+export function createJoiningCall(input: {
+  conversationId: string;
+  peer: DMCallPeer | null;
+  video?: boolean;
+}): DMCallSession {
+  return {
+    connectedAt: null,
+    conversationId: input.conversationId,
+    isVideo: input.video ?? false,
+    peer: input.peer,
+    ringExpiresAt: null,
+    status: "connecting",
+  };
+}
+
 export function markCallConnected(
   session: DMCallSession,
   video?: boolean,
@@ -90,7 +110,9 @@ export function isRinging(session: DMCallSession | null): boolean {
 }
 
 export function hasRingExpired(session: DMCallSession | null, now: number): boolean {
-  return isRinging(session) && session?.ringExpiresAt !== null && (session?.ringExpiresAt ?? 0) <= now;
+  return (
+    isRinging(session) && session?.ringExpiresAt !== null && (session?.ringExpiresAt ?? 0) <= now
+  );
 }
 
 /**

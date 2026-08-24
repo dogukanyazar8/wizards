@@ -1,11 +1,5 @@
 export type ProfileCompletionSignal =
-  | "avatar"
-  | "customStatus"
-  | "displayName"
-  | "email"
-  | "emailVerified"
-  | "twoFactor"
-  | "username";
+  "avatar" | "customStatus" | "displayName" | "email" | "emailVerified" | "twoFactor" | "username";
 
 export type ProfileCompletionInput = {
   avatarUrl?: string | null;
@@ -60,8 +54,7 @@ export function getProfileCompletionSummary(
       weight: 20,
     },
     {
-      complete:
-        typeof input.emailVerified === "boolean" ? input.emailVerified : hasEmail,
+      complete: typeof input.emailVerified === "boolean" ? input.emailVerified : hasEmail,
       id: "emailVerified",
       weight: 20,
     },
@@ -84,10 +77,7 @@ export function getProfileCompletionSummary(
   }
 
   const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
-  const completedWeight = items.reduce(
-    (sum, item) => sum + (item.complete ? item.weight : 0),
-    0,
-  );
+  const completedWeight = items.reduce((sum, item) => sum + (item.complete ? item.weight : 0), 0);
 
   return {
     completedWeight,

@@ -2,10 +2,7 @@ import { UpdateCategorySchema } from "@wizards/types";
 import { jsonError, parseJsonBody } from "@/lib/api";
 import { requireApiUserId } from "@/lib/auth/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
-import {
-  deleteWorkspaceCategory,
-  updateWorkspaceCategory,
-} from "@/lib/workspace/category-service";
+import { deleteWorkspaceCategory, updateWorkspaceCategory } from "@/lib/workspace/category-service";
 
 type RouteContext = {
   params: Promise<{

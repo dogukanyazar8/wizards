@@ -45,6 +45,7 @@ export default async function MainLayout({ children }: { children: ReactNode }) 
         displayName,
         username,
       }}
+      uploadthingEnabled={Boolean(process.env.UPLOADTHING_TOKEN)}
     >
       <LocaleSessionSync preferredLocale={session.user.locale} />
       <ThemeSessionSync preferredTheme={session.user.theme} />

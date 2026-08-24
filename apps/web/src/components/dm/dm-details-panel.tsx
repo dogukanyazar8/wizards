@@ -124,7 +124,7 @@ export function DmDetailsPanel({
         "flex h-full min-h-0 flex-col overflow-hidden bg-[hsl(var(--background)/0.88)] text-app-foreground backdrop-blur-xl",
         variant === "panel" && "border-l border-[hsl(var(--border)/0.42)]",
         variant === "drawer" &&
-          "h-full rounded-l-[30px] border-l border-[hsl(var(--border)/0.54)] shadow-[0_28px_74px_hsl(var(--shadow-color)/0.18)]",
+          "h-full rounded-l-[1.875rem] border-l border-[hsl(var(--border)/0.54)] shadow-[0_28px_74px_hsl(var(--shadow-color)/0.18)]",
         className,
       )}
       data-testid="dm-details-panel"
@@ -132,7 +132,7 @@ export function DmDetailsPanel({
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3.5 py-3.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="mb-2.5 flex items-center justify-between gap-3">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-app-soft">
+            <p className="text-[0.6875rem] font-black uppercase tracking-[0.18em] text-app-soft">
               {t("dm.details.title")}
             </p>
           </div>
@@ -177,7 +177,7 @@ export function DmProfileCard({
   const statusLabel = participant.customStatus ?? t(getDmStatusKey(participant.status));
 
   return (
-    <section className="rounded-[24px] bg-[hsl(var(--surface-soft)/0.48)] p-3.5">
+    <section className="rounded-[1.5rem] bg-[hsl(var(--surface-soft)/0.48)] p-3.5">
       <div className="flex items-start gap-3">
         <div className="relative shrink-0">
           <Avatar
@@ -189,7 +189,7 @@ export function DmProfileCard({
           <span
             aria-hidden="true"
             className={cn(
-              "absolute bottom-0 right-0 h-4 w-4 rounded-full border-[3px] border-[hsl(var(--surface-soft))]",
+              "absolute bottom-0 right-0 h-4 w-4 rounded-full border-[0.1875rem] border-[hsl(var(--surface-soft))]",
               getDmStatusDotClass(participant.status),
             )}
           />
@@ -199,7 +199,7 @@ export function DmProfileCard({
           {handle ? (
             <p className="mt-0.5 truncate text-xs font-semibold text-app-muted">{handle}</p>
           ) : null}
-          <p className="mt-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full bg-[hsl(var(--success)/0.11)] px-2.5 py-1 text-[11px] font-black text-[hsl(var(--success))]">
+          <p className="mt-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full bg-[hsl(var(--success)/0.11)] px-2.5 py-1 text-[0.6875rem] font-black text-[hsl(var(--success))]">
             <span
               aria-hidden="true"
               className={cn("h-1.5 w-1.5 rounded-full", getDmStatusDotClass(participant.status))}
@@ -211,7 +211,7 @@ export function DmProfileCard({
 
       <div className="mt-3 grid grid-cols-3 gap-1.5">
         <button
-          className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-[16px] bg-[hsl(var(--surface-card)/0.68)] text-xs font-black text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
+          className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-[1rem] bg-[hsl(var(--surface-card)/0.68)] text-xs font-black text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
           disabled
           title={t("dm.details.comingSoon")}
           type="button"
@@ -220,7 +220,7 @@ export function DmProfileCard({
           {t("dm.details.profileAction")}
         </button>
         <button
-          className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-[16px] bg-[hsl(var(--surface-card)/0.68)] text-xs font-black text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
+          className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-[1rem] bg-[hsl(var(--surface-card)/0.68)] text-xs font-black text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
           disabled={!onOpenSearch}
           onClick={onOpenSearch}
           type="button"
@@ -229,7 +229,7 @@ export function DmProfileCard({
           {t("dm.details.searchAction")}
         </button>
         <button
-          className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-[16px] bg-[hsl(var(--surface-card)/0.68)] text-xs font-black text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
+          className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-[1rem] bg-[hsl(var(--surface-card)/0.68)] text-xs font-black text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
           disabled
           title={t("dm.details.comingSoon")}
           type="button"
@@ -240,12 +240,12 @@ export function DmProfileCard({
       </div>
 
       <div className="mt-2.5 grid gap-1.5 text-xs font-semibold text-app-muted">
-        <div className="flex min-w-0 items-center gap-2 rounded-[15px] bg-[hsl(var(--surface-card)/0.62)] px-2.5 py-1.5">
+        <div className="flex min-w-0 items-center gap-2 rounded-[0.9375rem] bg-[hsl(var(--surface-card)/0.62)] px-2.5 py-1.5">
           <ShieldCheck className="h-4 w-4 shrink-0 text-[hsl(var(--primary))]" />
           <span className="truncate">{t("dm.details.whisprUser")}</span>
         </div>
         {handle ? (
-          <div className="flex min-w-0 items-center gap-2 rounded-[15px] bg-[hsl(var(--surface-card)/0.62)] px-2.5 py-1.5">
+          <div className="flex min-w-0 items-center gap-2 rounded-[0.9375rem] bg-[hsl(var(--surface-card)/0.62)] px-2.5 py-1.5">
             <AtSign className="h-4 w-4 shrink-0 text-app-muted" />
             <span className="truncate">{handle}</span>
           </div>
@@ -270,8 +270,8 @@ export function DmMutualServers({
       {isLoading ? (
         <div className="space-y-1">
           {Array.from({ length: 2 }).map((_, index) => (
-            <div className="flex items-center gap-2 rounded-[16px] px-2 py-1.5" key={index}>
-              <span className="h-8 w-8 animate-pulse rounded-[14px] bg-[hsl(var(--surface-soft)/0.62)]" />
+            <div className="flex items-center gap-2 rounded-[1rem] px-2 py-1.5" key={index}>
+              <span className="h-8 w-8 animate-pulse rounded-[0.875rem] bg-[hsl(var(--surface-soft)/0.62)]" />
               <span className="h-3.5 flex-1 animate-pulse rounded-full bg-[hsl(var(--surface-soft)/0.62)]" />
             </div>
           ))}
@@ -280,18 +280,18 @@ export function DmMutualServers({
         <div className="space-y-1">
           {servers.map((server) => (
             <div
-              className="flex items-center gap-2 rounded-[16px] px-2 py-1.5 text-sm font-bold text-app-foreground"
+              className="flex items-center gap-2 rounded-[1rem] px-2 py-1.5 text-sm font-bold text-app-foreground"
               key={server.id}
             >
               <Avatar
                 alt={server.name}
-                className="h-8 w-8 rounded-[14px] bg-[hsl(var(--primary)/0.1)] text-[11px] font-black text-[hsl(var(--primary))]"
+                className="h-8 w-8 rounded-[0.875rem] bg-[hsl(var(--primary)/0.1)] text-[0.6875rem] font-black text-[hsl(var(--primary))]"
                 fallback={server.shortName ?? server.name}
                 src={server.iconUrl}
               />
               <span className="min-w-0 flex-1">
                 <span className="block truncate">{server.name}</span>
-                <span className="block truncate text-[11px] font-semibold text-app-muted">
+                <span className="block truncate text-[0.6875rem] font-semibold text-app-muted">
                   {t("dm.details.memberCount", { count: server.memberCount })}
                 </span>
               </span>
@@ -368,11 +368,11 @@ export function DmConversationShortcuts({
     <section className="space-y-1.5">
       <PanelTitle title={t("dm.details.shortcuts")} />
       <button
-        className="flex w-full items-center gap-2.5 rounded-[17px] bg-[hsl(var(--surface-soft)/0.48)] px-2.5 py-2 text-left text-sm font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.74)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+        className="flex w-full items-center gap-2.5 rounded-[1.0625rem] bg-[hsl(var(--surface-soft)/0.48)] px-2.5 py-2 text-left text-sm font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.74)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
         onClick={onOpenSearch}
         type="button"
       >
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.875rem] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
           <Search className="h-4 w-4" />
         </span>
         <span className="min-w-0 flex-1 truncate">{t("dm.details.searchConversation")}</span>
@@ -384,9 +384,13 @@ export function DmConversationShortcuts({
 function PanelTitle({ description, title }: { description?: string; title: string }) {
   return (
     <div>
-      <h3 className="text-[11px] font-black uppercase tracking-[0.18em] text-app-soft">{title}</h3>
+      <h3 className="text-[0.6875rem] font-black uppercase tracking-[0.18em] text-app-soft">
+        {title}
+      </h3>
       {description ? (
-        <p className="mt-0.5 text-[10.5px] font-semibold leading-4 text-app-muted">{description}</p>
+        <p className="mt-0.5 text-[0.65625rem] font-semibold leading-4 text-app-muted">
+          {description}
+        </p>
       ) : null}
     </div>
   );
@@ -394,8 +398,8 @@ function PanelTitle({ description, title }: { description?: string; title: strin
 
 function EmptyPanelMessage({ icon, text }: { icon: ReactNode; text: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-[17px] bg-[hsl(var(--surface-soft)/0.38)] px-2.5 py-2 text-xs font-semibold text-app-muted">
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[13px] bg-[hsl(var(--surface-card)/0.76)] text-app-soft">
+    <div className="flex items-center gap-2 rounded-[1.0625rem] bg-[hsl(var(--surface-soft)/0.38)] px-2.5 py-2 text-xs font-semibold text-app-muted">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.8125rem] bg-[hsl(var(--surface-card)/0.76)] text-app-soft">
         {icon}
       </span>
       <span className="min-w-0 flex-1">{text}</span>
@@ -417,7 +421,7 @@ function SharedMediaTile({ item, locale }: { item: DmSharedAttachment; locale: s
   return (
     <a
       aria-label={label}
-      className="group relative block aspect-square overflow-hidden rounded-[15px] bg-[hsl(var(--surface-soft)/0.58)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+      className="group relative block aspect-square overflow-hidden rounded-[0.9375rem] bg-[hsl(var(--surface-soft)/0.58)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
       href={attachment.url}
       rel="noreferrer"
       target="_blank"
@@ -455,13 +459,13 @@ function SharedFileRow({ item, locale }: { item: DmSharedAttachment; locale: str
 
   return (
     <a
-      className="flex min-w-0 items-center gap-2 rounded-[17px] bg-[hsl(var(--surface-soft)/0.42)] px-2.5 py-2 text-left transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+      className="flex min-w-0 items-center gap-2 rounded-[1.0625rem] bg-[hsl(var(--surface-soft)/0.42)] px-2.5 py-2 text-left transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
       download={attachment.filename}
       href={attachment.url}
       rel="noreferrer"
       target="_blank"
     >
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] bg-[hsl(var(--surface-card)/0.8)] text-[hsl(var(--primary))]">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.875rem] bg-[hsl(var(--surface-card)/0.8)] text-[hsl(var(--primary))]">
         <FileText className="h-4 w-4" />
       </span>
       <span className="min-w-0 flex-1">
@@ -469,7 +473,7 @@ function SharedFileRow({ item, locale }: { item: DmSharedAttachment; locale: str
           {attachment.filename}
         </span>
         {meta ? (
-          <span className="mt-0.5 block truncate text-[11px] font-semibold text-app-muted">
+          <span className="mt-0.5 block truncate text-[0.6875rem] font-semibold text-app-muted">
             {meta}
           </span>
         ) : null}

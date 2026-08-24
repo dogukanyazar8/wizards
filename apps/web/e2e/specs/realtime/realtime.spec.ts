@@ -108,8 +108,8 @@ test.describe("realtime multi-user flows", () => {
     const bob = await openLoggedInPage(browser, "bob", testInfo);
 
     try {
-      await gotoAppRoute(alice.page, "/channels/@me", { readyTestId: "server-rail" });
-      await gotoAppRoute(bob.page, "/channels/@me", { readyTestId: "server-rail" });
+      await gotoAppRoute(alice.page, "/messages/friends", { readyTestId: "server-rail" });
+      await gotoAppRoute(bob.page, "/messages/friends", { readyTestId: "server-rail" });
 
       await bob.page.getByTestId("friends-tab-pending").click();
       await alice.page.getByTestId("friends-tab-add").click();
@@ -124,9 +124,11 @@ test.describe("realtime multi-user flows", () => {
       ).toBeVisible({ timeout: 10_000 });
 
       await bob.page.getByTestId(`friend-request-accept-${e2eUsers.alice.username}`).click();
-      await alice.page.getByTestId("friends-tab-online").click();
+      await alice.page.getByTestId("friends-tab-all").click();
 
-      await expect(alice.page.getByTestId(`friend-card-${e2eUsers.bob.username}`)).toBeVisible({
+      await expect(
+        alice.page.locator(`[data-friend-handle="${e2eUsers.bob.username}"]`),
+      ).toBeVisible({
         timeout: 10_000,
       });
     } finally {
@@ -143,7 +145,7 @@ test.describe("realtime multi-user flows", () => {
 
     try {
       await gotoTextChannelRoute(alice.page, serverId, textChannelId);
-      await gotoAppRoute(bob.page, "/channels/@me", { readyTestId: "server-rail" });
+      await gotoAppRoute(bob.page, "/messages", { readyTestId: "server-rail" });
       await expect(bob.page.getByTestId(`server-rail-server-${serverId}`)).toBeHidden();
 
       const addResponse = await alice.page.request.post(`/api/v1/servers/${serverId}/members`, {

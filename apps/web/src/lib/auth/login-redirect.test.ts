@@ -11,10 +11,7 @@ describe("login redirect resolution", () => {
       hasSession: true,
     });
 
-    assert.equal(
-      resolution.redirectTo,
-      "/mobile/oauth/complete?callbackUrl=%2Fchannels%2F%40me",
-    );
+    assert.equal(resolution.redirectTo, "/mobile/oauth/complete?callbackUrl=%2Fchannels%2F%40me");
     assert.equal(resolution.callbackUrl, resolution.redirectTo);
     assert.equal(resolution.authError, null);
   });
@@ -26,21 +23,18 @@ describe("login redirect resolution", () => {
     });
 
     assert.equal(resolution.redirectTo, null);
-    assert.equal(
-      resolution.callbackUrl,
-      "/mobile/oauth/complete?callbackUrl=%2Fchannels%2F%40me",
-    );
+    assert.equal(resolution.callbackUrl, "/mobile/oauth/complete?callbackUrl=%2Fchannels%2F%40me");
   });
 
   it("does not hide explicit auth errors behind an authenticated redirect", () => {
     const resolution = resolveLoginRedirect({
-      callbackUrl: "/channels/@me",
+      callbackUrl: "/messages",
       error: "OAuthAccountNotLinked",
       hasSession: true,
     });
 
     assert.equal(resolution.redirectTo, null);
-    assert.equal(resolution.callbackUrl, "/channels/@me");
+    assert.equal(resolution.callbackUrl, "/messages");
     assert.equal(resolution.authError, "OAuthAccountNotLinked");
   });
 

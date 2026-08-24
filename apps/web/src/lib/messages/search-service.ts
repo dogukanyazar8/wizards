@@ -12,6 +12,9 @@ const DEFAULT_SEARCH_LIMIT = 20;
 const MAX_SEARCH_LIMIT = 50;
 const MIN_QUERY_LENGTH = 2;
 
+/** Kapsamı genişletilmiş arama da aynı tabanı kullanır (karar #6). */
+export const MIN_SEARCH_QUERY_LENGTH = MIN_QUERY_LENGTH;
+
 type SearchCursor = {
   createdAt: string;
   id: string;
@@ -49,11 +52,11 @@ type MessageSearchFilters = {
   to?: Date | null | undefined;
 };
 
-function normalizeSearchQuery(query: string) {
+export function normalizeSearchQuery(query: string) {
   return query.trim().replace(/\s+/g, " ");
 }
 
-function normalizeLimit(limit: number | null | undefined) {
+export function normalizeSearchLimit(limit: number | null | undefined) {
   if (!Number.isFinite(limit ?? Number.NaN)) {
     return DEFAULT_SEARCH_LIMIT;
   }
@@ -61,11 +64,11 @@ function normalizeLimit(limit: number | null | undefined) {
   return Math.min(Math.max(Math.trunc(limit!), 1), MAX_SEARCH_LIMIT);
 }
 
-function encodeCursor(cursor: SearchCursor) {
+export function encodeSearchCursor(cursor: SearchCursor) {
   return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
 }
 
-function decodeCursor(cursor: string | null | undefined): SearchCursor | null {
+export function decodeSearchCursor(cursor: string | null | undefined): SearchCursor | null {
   if (!cursor) {
     return null;
   }
@@ -100,7 +103,7 @@ function escapeRegexPattern(query: string) {
   return query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function buildSearchFragments(query: string) {
+export function buildSearchFragments(query: string) {
   return {
     likePattern: `%${escapeLikePattern(query)}%`,
     regexPattern: `(^|[^[:alnum:]_])${escapeRegexPattern(query)}([^[:alnum:]_]|$)`,
@@ -147,7 +150,7 @@ function getNextCursor<T extends { createdAt: Date; id: string }>(rows: T[], lim
   }
 
   const last = rows[limit - 1]!;
-  return encodeCursor({
+  return encodeSearchCursor({
     createdAt: last.createdAt.toISOString(),
     id: last.id,
   });
@@ -207,8 +210,8 @@ export async function searchChannelMessages(args: {
 
   await assertChannelSearchAccess(args.userId, args.channelId);
 
-  const limit = normalizeLimit(args.limit);
-  const cursor = decodeCursor(args.cursor);
+  const limit = normalizeSearchLimit(args.limit);
+  const cursor = decodeSearchCursor(args.cursor);
   if (args.cursor && !cursor) {
     throw new ApiError("Invalid search cursor", 400, "INVALID_CURSOR");
   }
@@ -314,8 +317,8 @@ export async function searchServerMessages(args: {
     return { nextCursor: null, results: [] };
   }
 
-  const limit = normalizeLimit(args.limit);
-  const cursor = decodeCursor(args.cursor);
+  const limit = normalizeSearchLimit(args.limit);
+  const cursor = decodeSearchCursor(args.cursor);
   if (args.cursor && !cursor) {
     throw new ApiError("Invalid search cursor", 400, "INVALID_CURSOR");
   }
@@ -401,8 +404,8 @@ export async function searchDMMessages(args: {
 
   const { historyFromAt } = await assertDMSearchAccess(args.userId, args.conversationId);
 
-  const limit = normalizeLimit(args.limit);
-  const cursor = decodeCursor(args.cursor);
+  const limit = normalizeSearchLimit(args.limit);
+  const cursor = decodeSearchCursor(args.cursor);
   if (args.cursor && !cursor) {
     throw new ApiError("Invalid search cursor", 400, "INVALID_CURSOR");
   }

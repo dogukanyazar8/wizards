@@ -2,7 +2,7 @@ import { prisma, type Prisma } from "@wizards/db";
 import type { WorkspaceAccessLevel } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
-import { requireServerPermission } from "@/lib/workspace/permissions";
+import { requireEventPermission, requireServerPermission } from "@/lib/workspace/permissions";
 import { deriveAccessLevel, mergeRoleRecords } from "@/lib/workspace/role-helpers";
 import type { AccessContext } from "@/lib/workspace/workspace-types";
 
@@ -99,6 +99,14 @@ export function ensureServerPermission(
   permission: Parameters<typeof requireServerPermission>[1],
 ) {
   requireServerPermission(context, permission);
+}
+
+/**
+ * Etkinlik yazma kapısı — K4. `MANAGE_SERVER` yerine üç kapılı `requireEventPermission`e
+ * bakar, böylece bugün etkinlik yazan roller yetkilerini kaybetmeden yeni bit dağıtılabilir.
+ */
+export function ensureEventPermission(context: AccessContext) {
+  requireEventPermission(context);
 }
 
 export function ensureOwner(context: AccessContext) {

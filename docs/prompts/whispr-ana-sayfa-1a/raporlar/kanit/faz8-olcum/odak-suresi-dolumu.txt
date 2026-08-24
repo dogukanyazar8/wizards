@@ -1,0 +1,6 @@
+reset: {"focus":null,"presence":"ONLINE"}
+db0: ONLINE|-
+open: {"focus":{"active":true,"expiresAt":"2026-08-20T04:34:57.326Z","minutesLeft":5,"totalMinutes":5},"presence":"DND"}
+db1: DND|ONLINE
+summaryAfter: {"dateLabel":"2026-08-20T04:35:27.728Z","dmUnread":0,"focus":null,"greetingName":"Alice E2E","pendingReplies":0,"presence":"ONLINE","unreadMentions":0}
+db2: ONLINE|-|-

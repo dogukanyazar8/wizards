@@ -22,7 +22,7 @@ export default async function MobileOAuthCompletePage({
   const callbackParam = Array.isArray(queryParams?.callbackUrl)
     ? queryParams.callbackUrl[0]
     : queryParams?.callbackUrl;
-  const callbackPath = getSafeAuthRedirectPath(callbackParam, "/channels/@me");
+  const callbackPath = getSafeAuthRedirectPath(callbackParam, "/messages");
   const state = getSafeMobileOAuthState(queryParams?.state);
   if (!state) {
     notFound();

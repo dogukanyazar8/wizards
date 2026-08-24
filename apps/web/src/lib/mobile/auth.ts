@@ -294,7 +294,7 @@ function parseMobileAuthHandoffPayload(value: unknown): MobileAuthHandoffPayload
       typeof parsed.userId !== "string" ||
       !parsed.userId ||
       typeof parsed.callbackPath !== "string" ||
-      getSafeAuthRedirectPath(parsed.callbackPath, "/channels/@me") !== parsed.callbackPath ||
+      getSafeAuthRedirectPath(parsed.callbackPath, "/messages") !== parsed.callbackPath ||
       typeof parsed.createdAt !== "number" ||
       !Number.isFinite(parsed.createdAt)
     ) {
@@ -549,7 +549,7 @@ export async function createMobileAuthHandoffToken(
   },
   options: MobileAuthOptions = {},
 ) {
-  const safeCallbackPath = getSafeAuthRedirectPath(input.callbackPath, "/channels/@me");
+  const safeCallbackPath = getSafeAuthRedirectPath(input.callbackPath, "/messages");
   const token = randomBytes(32).toString("base64url");
   const payload: MobileAuthHandoffPayload = {
     callbackPath: safeCallbackPath,
@@ -591,7 +591,7 @@ export async function exchangeMobileAuthHandoffToken(
   const redis = getMobileAuthRedis(options);
   const rawPayload = await takeRedisValue(redis, getMobileAuthHandoffKey(handoffToken));
   const payload = parseMobileAuthHandoffPayload(rawPayload);
-  const expectedCallbackPath = getSafeAuthRedirectPath(input.expectedCallbackPath, "/channels/@me");
+  const expectedCallbackPath = getSafeAuthRedirectPath(input.expectedCallbackPath, "/messages");
 
   if (!payload || payload.callbackPath !== expectedCallbackPath) {
     return null;

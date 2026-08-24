@@ -7,11 +7,7 @@ export type EnhancedNoiseFilterMode = (typeof ENHANCED_NOISE_FILTER_MODES)[numbe
 export type KrispProcessorQuality = "high" | "medium" | "low";
 
 export type NoiseFilterTier =
-  | "krisp_high"
-  | "krisp_medium"
-  | "krisp_low"
-  | "browser_native"
-  | "off";
+  "krisp_high" | "krisp_medium" | "krisp_low" | "browser_native" | "off";
 
 export type AudioCaptureProcessingProfile = "native" | "enhanced" | "off";
 
@@ -45,9 +41,7 @@ export function getAudioCaptureProcessingProfile(
     return "enhanced";
   }
 
-  return getBrowserNoiseFilterEnabled(audioPreferences, voiceIsolationSupported)
-    ? "native"
-    : "off";
+  return getBrowserNoiseFilterEnabled(audioPreferences, voiceIsolationSupported) ? "native" : "off";
 }
 
 export function shouldUseEnhancedNoiseFilterCapture(

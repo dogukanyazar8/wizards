@@ -59,14 +59,24 @@ function DMConversationPageContent({
     () => conversations.find((item) => item.id === conversationId) ?? null,
     [conversationId, conversations],
   );
+  /**
+   * Açık sohbet **her zaman** tek konuşma ucundan çekiliyor.
+   *
+   * Liste kipi (`rosterMode: "row"`) katılımcı okumasını sınırlıyor ve
+   * `onlineCount`'u hiç vermiyor: elli konuşmalık bir sayfa için 250 üyelik bir
+   * roster taşımanın anlamı yok. Ama açık sohbetin başlığı üye sayacını, üye
+   * listesi roster'ı ve rol çipleri rolleri istiyor — üçü de tam kaydı ister.
+   *
+   * Liste kaydı yine de ilk çizimde kullanılıyor (`?? conversation`), böylece
+   * sohbet anında açılıyor ve tam kayıt gelince yerini alıyor.
+   */
   const conversationQuery = useQuery({
-    enabled: !conversation && !isLoading,
     queryFn: () => fetchDMConversation(conversationId),
     queryKey: dmQueryKeys.conversation(conversationId),
     retry: false,
     staleTime: 30_000,
   });
-  const activeConversation = conversation ?? conversationQuery.data ?? null;
+  const activeConversation = conversationQuery.data ?? conversation ?? null;
 
   const otherParticipant = useMemo(
     () => (activeConversation ? findOtherParticipant(activeConversation, currentUserId) : null),
@@ -112,7 +122,7 @@ function DMConversationPageContent({
     }
 
     redirectedRef.current = true;
-    router.replace("/channels/@me");
+    router.replace("/messages");
   }, [activeConversation, conversationQuery.isLoading, isLoading, router]);
 
   useEffect(() => {

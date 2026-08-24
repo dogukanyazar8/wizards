@@ -776,6 +776,7 @@ const workspaceJoinInviteSelect = {
   server: {
     select: {
       id: true,
+      name: true,
       ownerId: true,
       roles: {
         orderBy: {
@@ -950,6 +951,7 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
   return {
     alreadyMember: Boolean(existingMember),
     channelId: targetChannel,
+    name: invite.server.name,
     serverId: invite.server.id,
   };
 }
@@ -959,6 +961,7 @@ const JOIN_PUBLIC_SERVER_SELECT = {
   isPublic: true,
   maxMembers: true,
   memberCount: true,
+  name: true,
   roles: {
     orderBy: {
       position: "desc" as const,
@@ -1008,7 +1011,7 @@ const JOIN_PUBLIC_SERVER_SELECT = {
 export async function joinPublicWorkspaceServer(
   userId: string,
   serverId: string,
-): Promise<{ alreadyMember: boolean; serverId: string }> {
+): Promise<{ alreadyMember: boolean; name: string; serverId: string }> {
   const server = await prisma.server.findUnique({
     select: JOIN_PUBLIC_SERVER_SELECT,
     where: { id: serverId },
@@ -1037,7 +1040,7 @@ export async function joinPublicWorkspaceServer(
   await ensureUserNotServerBanned(prisma, serverId, userId);
 
   if (existingMember) {
-    return { alreadyMember: true, serverId };
+    return { alreadyMember: true, name: server.name, serverId };
   }
 
   if (server.memberCount >= server.maxMembers) {
@@ -1081,7 +1084,7 @@ export async function joinPublicWorkspaceServer(
     // same outcome the pre-read's "already a member" branch reports above,
     // so answer it the same way instead of letting a 500 escape.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { alreadyMember: true, serverId };
+      return { alreadyMember: true, name: server.name, serverId };
     }
 
     throw error;
@@ -1094,5 +1097,5 @@ export async function joinPublicWorkspaceServer(
     transactionResult.message,
   );
 
-  return { alreadyMember: false, serverId };
+  return { alreadyMember: false, name: server.name, serverId };
 }

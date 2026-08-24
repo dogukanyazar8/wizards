@@ -56,10 +56,7 @@ export function sanitizeDesktopExecutableName(value: unknown) {
   }
 
   const basename = rawBasename.replace(/\s+/g, " ").trim();
-  if (
-    basename.length === 0 ||
-    basename.length > MAX_EXECUTABLE_NAME_LENGTH
-  ) {
+  if (basename.length === 0 || basename.length > MAX_EXECUTABLE_NAME_LENGTH) {
     return null;
   }
 

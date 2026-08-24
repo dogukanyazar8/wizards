@@ -10,13 +10,7 @@ import {
 class MemoryRedis {
   private readonly values = new Map<string, string>();
 
-  async set(
-    key: string,
-    value: string,
-    _mode: "EX",
-    _ttlSeconds: number,
-    condition: "NX",
-  ) {
+  async set(key: string, value: string, _mode: "EX", _ttlSeconds: number, condition: "NX") {
     if (condition === "NX" && this.values.has(key)) {
       return null;
     }
@@ -69,23 +63,23 @@ describe("desktop OAuth handoff", () => {
   it("creates a safe single-use handoff token", async () => {
     const redis = new MemoryRedis();
     const handoff = await createDesktopOAuthHandoffToken(
-      { callbackUrl: "/channels/@me", userId: "user-1" },
+      { callbackUrl: "/messages", userId: "user-1" },
       { nowMs: 1_800_000_000_000, redis },
     );
 
     assert.equal(isDesktopOAuthHandoffToken(handoff.token), true);
-    assert.equal(handoff.callbackUrl, "/channels/@me");
+    assert.equal(handoff.callbackUrl, "/messages");
 
     const user = await consumeDesktopOAuthHandoffToken(
       handoff.token,
-      { expectedCallbackUrl: "/channels/@me" },
+      { expectedCallbackUrl: "/messages" },
       { loadUser, redis },
     );
     assert.equal(user?.id, "user-1");
 
     const replay = await consumeDesktopOAuthHandoffToken(
       handoff.token,
-      { expectedCallbackUrl: "/channels/@me" },
+      { expectedCallbackUrl: "/messages" },
       { loadUser, redis },
     );
     assert.equal(replay, null);
@@ -94,7 +88,7 @@ describe("desktop OAuth handoff", () => {
   it("burns the token when the expected callback does not match", async () => {
     const redis = new MemoryRedis();
     const handoff = await createDesktopOAuthHandoffToken(
-      { callbackUrl: "/channels", userId: "user-1" },
+      { callbackUrl: "/messages", userId: "user-1" },
       { redis },
     );
 
@@ -109,7 +103,7 @@ describe("desktop OAuth handoff", () => {
     assert.equal(
       await consumeDesktopOAuthHandoffToken(
         handoff.token,
-        { expectedCallbackUrl: "/channels" },
+        { expectedCallbackUrl: "/messages" },
         { loadUser, redis },
       ),
       null,
@@ -122,7 +116,7 @@ describe("desktop OAuth handoff", () => {
     assert.equal(
       await consumeDesktopOAuthHandoffToken(
         "not-a-valid-token",
-        { expectedCallbackUrl: "/channels" },
+        { expectedCallbackUrl: "/messages" },
         {
           loadUser: async () => {
             throw new Error("invalid tokens must not load a user");
@@ -139,14 +133,14 @@ describe("desktop OAuth handoff", () => {
       buildVerifiedUser({ isBanned: true }),
     ]) {
       const handoff = await createDesktopOAuthHandoffToken(
-        { callbackUrl: "/channels", userId: inactiveUser.id },
+        { callbackUrl: "/messages", userId: inactiveUser.id },
         { redis },
       );
 
       assert.equal(
         await consumeDesktopOAuthHandoffToken(
           handoff.token,
-          { expectedCallbackUrl: "/channels" },
+          { expectedCallbackUrl: "/messages" },
           {
             loadUser: async () => inactiveUser,
             redis,

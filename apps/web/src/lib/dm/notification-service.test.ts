@@ -77,7 +77,7 @@ describe("DM notification service helpers", () => {
 
       assert.deepEqual(capturedData, [
         {
-          actionUrl: "/channels/@me/conversation-1",
+          actionUrl: "/messages/conversation-1",
           body: "hello",
           dedupeKey: "dm-message:message-1:recipient",
           metadata: {
@@ -107,7 +107,7 @@ describe("DM notification service helpers", () => {
       "createManyAndReturn",
       async () => [
         {
-          actionUrl: "/channels/@me/conversation-1",
+          actionUrl: "/messages/conversation-1",
           body: "hello",
           id: "notification-1",
           title: "New message from Sender",
@@ -168,7 +168,7 @@ describe("DM notification service helpers", () => {
       assert.equal(message!.title, "New message from Sender");
       assert.equal(message!.body, "hello");
       assert.deepEqual(message!.data, {
-        actionUrl: "/channels/@me/conversation-1",
+        actionUrl: "/messages/conversation-1",
         kind: "notification",
         notificationId: "notification-1",
         type: "DM",

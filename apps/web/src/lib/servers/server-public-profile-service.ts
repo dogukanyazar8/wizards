@@ -10,6 +10,9 @@ import type {
 
 import { ApiError } from "@/lib/api";
 import { resolveAppOriginDisplayHost, type AppOriginEnv } from "@/lib/app-origin";
+import { toCategoryKey } from "@/lib/discover/identity";
+import { readPresenceState, type VisiblePresenceStatus } from "@/lib/presence";
+import { getRedis } from "@/lib/redis";
 import { getServerWeeklyMessageCount } from "@/lib/servers/server-weekly-message-count";
 import {
   getOnlineServerMemberCount,
@@ -102,6 +105,7 @@ export const SERVER_PUBLIC_PROFILE_SELECT = {
     },
     where: { parentId: null, type: { in: [...PREVIEWABLE_CHANNEL_TYPES] } },
   },
+  category: true,
   createdAt: true,
   description: true,
   discoverable: true,
@@ -110,6 +114,7 @@ export const SERVER_PUBLIC_PROFILE_SELECT = {
   id: true,
   inviteCode: true,
   isPublic: true,
+  languages: true,
   memberCount: true,
   members: {
     select: {
@@ -161,8 +166,40 @@ export type ServerPublicProfileViewer = {
   readonly onlineCount: number;
   readonly upcomingEvent: ServerScheduledEvent | null;
   readonly viewerId: string | null;
+  readonly voiceRoomCount: number;
   readonly weeklyMessageCount: number | null;
 };
+
+type VoiceRoomVisibilitySource = {
+  readonly permissionOverrides: readonly {
+    readonly allow: bigint;
+    readonly deny: bigint;
+    readonly targetId: string;
+    readonly targetType: "ROLE" | "USER";
+  }[];
+};
+
+/**
+ * `Channel` has no stored `isPrivate` flag. Public means the existing
+ * permission resolver grants VIEW_CHANNEL to @everyone after channel
+ * overrides; deriving it here keeps the profile and channel cards aligned.
+ */
+export function countPublicVoiceRooms(
+  channels: readonly VoiceRoomVisibilitySource[],
+  ownerId: string,
+  defaultRoles: readonly RolePermissionRecord[],
+) {
+  return channels.filter((channel) => {
+    const permissions = resolveChannelPermissions({
+      memberId: null,
+      ownerId,
+      overrides: [...channel.permissionOverrides],
+      roles: [...defaultRoles],
+      userId: "",
+    });
+    return hasPermission(permissions, PermissionBits.VIEW_CHANNEL);
+  }).length;
+}
 
 function isVoiceChannel(type: ChannelType): boolean {
   return type === "VOICE" || type === "STAGE";
@@ -338,6 +375,7 @@ export function buildServerPublicProfile(
     bannerUrl: server.bannerUrl,
     canManageServer:
       membership !== null && hasPermission(serverPermissions, PermissionBits.MANAGE_SERVER),
+    category: toCategoryKey(server.category),
     channelCount: channels.length,
     channels,
     createdAt: server.createdAt.toISOString(),
@@ -349,6 +387,7 @@ export function buildServerPublicProfile(
     isPublic: server.isPublic,
     joined: membership !== null,
     joinedAt: membership?.joinedAt.toISOString() ?? null,
+    languages: server.languages,
     memberCount: server.memberCount,
     muted: settings.muted,
     mutualFriendCount: viewer.mutualFriendCount,
@@ -364,6 +403,7 @@ export function buildServerPublicProfile(
     upcomingEvent: viewer.upcomingEvent,
     verified: server.features.includes("VERIFIED"),
     voiceActiveCount: channels.reduce((total, channel) => total + (channel.liveCount ?? 0), 0),
+    voiceRoomCount: viewer.voiceRoomCount,
     weeklyMessageCount: viewer.weeklyMessageCount,
   };
 }
@@ -373,7 +413,7 @@ export async function getServerPublicProfileWithDatabase(
   serverId: string,
   viewerId: string | null,
 ): Promise<ServerPublicProfile> {
-  const server = await database.server.findUnique({
+  const serverQuery = database.server.findUnique({
     select: {
       ...SERVER_PUBLIC_PROFILE_SELECT,
       members: {
@@ -387,13 +427,33 @@ export async function getServerPublicProfileWithDatabase(
     },
     where: { id: serverId },
   });
+  const voiceRoomsQuery = database.channel.findMany({
+    select: {
+      permissionOverrides: {
+        select: { allow: true, deny: true, targetId: true, targetType: true },
+      },
+    },
+    where: { serverId, type: "VOICE" },
+  });
+  const [server, voiceRooms] = await database.$transaction([serverQuery, voiceRoomsQuery]);
 
   if (!server) {
     throw new ApiError("Server not found", 404, "SERVER_NOT_FOUND");
   }
 
   const source = server as ServerPublicProfileSource;
-  const viewer = await loadServerPublicProfileViewer(database, serverId, viewerId, source);
+  const voiceRoomCount = countPublicVoiceRooms(
+    voiceRooms,
+    source.ownerId,
+    source.roles.filter((role) => role.isDefault),
+  );
+  const viewer = await loadServerPublicProfileViewer(
+    database,
+    serverId,
+    viewerId,
+    source,
+    voiceRoomCount,
+  );
 
   return buildServerPublicProfile(source, viewer);
 }
@@ -461,6 +521,95 @@ type AdminMemberRow = {
     readonly username: string;
   };
 };
+
+type MutualFriendshipRow = {
+  readonly receiver: {
+    readonly avatarUrl: string | null;
+    readonly displayName: string | null;
+    readonly id: string;
+    readonly username: string;
+  };
+  readonly receiverId: string;
+  readonly sender: {
+    readonly avatarUrl: string | null;
+    readonly displayName: string | null;
+    readonly id: string;
+    readonly username: string;
+  };
+  readonly senderId: string;
+};
+
+type MutualFriendMembershipRow = {
+  readonly roles: readonly { readonly role: { readonly permissions: bigint } }[];
+  readonly userId: string;
+};
+
+type ServerPublicProfilePresenceStatus = VisiblePresenceStatus | "INVISIBLE";
+
+export function buildServerProfileMutualFriends(
+  friendships: readonly MutualFriendshipRow[],
+  viewerId: string,
+  ownerId: string,
+  memberships: readonly MutualFriendMembershipRow[],
+  presenceByUserId: ReadonlyMap<string, ServerPublicProfilePresenceStatus>,
+): ServerPublicProfileFriend[] {
+  const membershipByUserId = new Map(
+    memberships.map((membership) => [membership.userId, membership]),
+  );
+
+  return friendships.map((friendship) => {
+    const friend = friendship.senderId === viewerId ? friendship.receiver : friendship.sender;
+    const membership = membershipByUserId.get(friend.id);
+    const admin =
+      friend.id === ownerId ||
+      (membership?.roles.some(({ role }) =>
+        hasPermission(role.permissions, PermissionBits.MANAGE_SERVER),
+      ) ??
+        false);
+    const status = presenceByUserId.get(friend.id) ?? "OFFLINE";
+
+    return {
+      avatarUrl: friend.avatarUrl,
+      displayName: friend.displayName?.trim() || friend.username,
+      id: friend.id,
+      presence:
+        status === "ONLINE"
+          ? "online"
+          : status === "OFFLINE" || status === "INVISIBLE"
+            ? "offline"
+            : "idle",
+      role: admin ? "admin" : "member",
+    };
+  });
+}
+
+type MutualFriendPresenceReader = (
+  userIds: readonly string[],
+) => Promise<ReadonlyMap<string, ServerPublicProfilePresenceStatus>>;
+
+let mutualFriendPresenceReaderForTest: MutualFriendPresenceReader | null = null;
+
+export function setServerPublicProfilePresenceReaderForTest(
+  reader: MutualFriendPresenceReader | null,
+) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("setServerPublicProfilePresenceReaderForTest is not available in production.");
+  }
+  mutualFriendPresenceReaderForTest = reader;
+}
+
+async function readMutualFriendPresence(userIds: readonly string[]) {
+  if (mutualFriendPresenceReaderForTest) {
+    return mutualFriendPresenceReaderForTest(userIds);
+  }
+  const state = await readPresenceState(
+    getRedis(),
+    userIds.map((userId) => ({ customStatus: null, status: "OFFLINE", userId })),
+  );
+  return new Map(
+    userIds.map((userId) => [userId, state.presenceByUserId.get(userId)?.status ?? "OFFLINE"]),
+  );
+}
 
 /** Pure: the presence rule and the owner/admin split, assertable without a row. */
 export function buildServerProfileAdmins(
@@ -569,6 +718,7 @@ async function loadServerPublicProfileViewer(
   serverId: string,
   viewerId: string | null,
   server: ServerPublicProfileSource,
+  voiceRoomCount: number,
 ): Promise<ServerPublicProfileViewer> {
   /**
    * The admin block is the only personal data this read model carries:
@@ -597,6 +747,7 @@ async function loadServerPublicProfileViewer(
       onlineCount: await getOnlineServerMemberCount(serverId),
       upcomingEvent,
       viewerId: null,
+      voiceRoomCount,
       weeklyMessageCount,
     };
   }
@@ -630,21 +781,37 @@ async function loadServerPublicProfileViewer(
       where: mutualFriendWhere,
     }),
   ]);
+  const mutualFriendIds = mutualFriendships.map((friendship) =>
+    friendship.senderId === viewerId ? friendship.receiverId : friendship.senderId,
+  );
+  const [mutualFriendMemberships, mutualFriendPresence] =
+    mutualFriendIds.length === 0
+      ? [[], new Map<string, VisiblePresenceStatus>()]
+      : await Promise.all([
+          database.serverMember.findMany({
+            select: {
+              roles: { select: { role: { select: { permissions: true } } } },
+              userId: true,
+            },
+            where: { serverId, userId: { in: mutualFriendIds } },
+          }),
+          readMutualFriendPresence(mutualFriendIds),
+        ]);
 
   return {
     admins,
     mutualFriendCount,
-    mutualFriends: mutualFriendships.map((friendship) => {
-      const friend = friendship.senderId === viewerId ? friendship.receiver : friendship.sender;
-      return {
-        avatarUrl: friend.avatarUrl,
-        displayName: friend.displayName?.trim() || friend.username,
-        id: friend.id,
-      };
-    }),
+    mutualFriends: buildServerProfileMutualFriends(
+      mutualFriendships,
+      viewerId,
+      server.ownerId,
+      mutualFriendMemberships,
+      mutualFriendPresence,
+    ),
     onlineCount,
     upcomingEvent,
     viewerId,
+    voiceRoomCount,
     weeklyMessageCount,
   };
 }

@@ -698,7 +698,7 @@ function MessageButton({ userId }: { userId: string }) {
   const mutation = useMutation({
     mutationFn: () => createDMConversationRequest(userId),
     onSuccess: (conversation) => {
-      router.push(`/channels/@me/${conversation.id}`);
+      router.push(`/messages/${conversation.id}`);
     },
   });
 

@@ -36,7 +36,9 @@ function RemoteAudioElement({
     }
 
     void element
-      .setSinkId(outputDeviceId === DEFAULT_AUDIO_DEVICE_ID ? DEFAULT_AUDIO_DEVICE_ID : outputDeviceId)
+      .setSinkId(
+        outputDeviceId === DEFAULT_AUDIO_DEVICE_ID ? DEFAULT_AUDIO_DEVICE_ID : outputDeviceId,
+      )
       .catch(() => undefined);
   }, [outputDeviceId]);
 
@@ -75,11 +77,7 @@ export function VoiceAudioRenderer({
   return (
     <div aria-hidden="true" className="hidden">
       {audioTracks.map((entry) => (
-        <RemoteAudioElement
-          key={entry.id}
-          outputDeviceId={outputDeviceId}
-          track={entry.track}
-        />
+        <RemoteAudioElement key={entry.id} outputDeviceId={outputDeviceId} track={entry.track} />
       ))}
     </div>
   );

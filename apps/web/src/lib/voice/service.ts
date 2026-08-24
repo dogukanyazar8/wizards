@@ -27,7 +27,7 @@ import {
   VOICE_SCREEN_SHARE_STATE_TTL_SECONDS,
 } from "@/lib/voice/screen-share-state";
 import {
-  VOICE_HEARTBEAT_TIMEOUT_MS,
+  getStaleVoiceHeartbeatCutoff,
   type HeartbeatVoiceStateBody,
   type UpsertVoiceStateBody,
   type VoiceChannelStateDTO,
@@ -35,9 +35,8 @@ import {
   type VoiceStateParticipantDTO,
 } from "./types";
 
-function getStaleVoiceHeartbeatCutoff() {
-  return new Date(Date.now() - VOICE_HEARTBEAT_TIMEOUT_MS);
-}
+/** Re-exported so the callers that already read it here keep working (§6.6). */
+export { getStaleVoiceHeartbeatCutoff };
 
 function getVoiceRoomName(channelId: string) {
   return `voice:${channelId}`;

@@ -1,6 +1,8 @@
 "use client";
 
-import {
+// The default import is what the node test runner's classic JSX transform resolves these
+// components' elements against; Next's compiler does not need it.
+import React, {
   useCallback,
   useEffect,
   useMemo,
@@ -258,8 +260,9 @@ export function VoiceLevelWaveform({
   return (
     <div
       aria-hidden="true"
+      // `voice-level-waveform`: azaltılmış harekette geçişler globals.css'te kapanır (§2.5).
       className={cn(
-        "flex items-center justify-center",
+        "voice-level-waveform flex items-center justify-center",
         compact ? "h-5 w-24 gap-[3px]" : "mt-5 h-12 w-full max-w-[29rem] gap-1 sm:gap-1.5",
       )}
     >

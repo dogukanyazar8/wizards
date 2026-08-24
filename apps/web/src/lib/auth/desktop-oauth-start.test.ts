@@ -11,23 +11,23 @@ import {
 describe("desktop OAuth start paths", () => {
   it("builds safe browser-start and desktop-complete paths", () => {
     assert.equal(
-      buildDesktopOAuthStartPath("/channels/@me"),
-      "/desktop/oauth/start?callbackUrl=%2Fchannels%2F%40me",
+      buildDesktopOAuthStartPath("/messages"),
+      "/desktop/oauth/start?callbackUrl=%2Fmessages",
     );
     assert.equal(
-      buildDesktopOAuthCompletePath("/channels/@me"),
-      "/desktop/oauth/complete?callbackUrl=%2Fchannels%2F%40me",
+      buildDesktopOAuthCompletePath("/messages"),
+      "/desktop/oauth/complete?callbackUrl=%2Fmessages",
     );
   });
 
   it("sanitizes unsafe callback targets before putting them in URLs", () => {
     assert.equal(
       buildDesktopOAuthStartPath("https://evil.example/channels"),
-      "/desktop/oauth/start?callbackUrl=%2Fchannels",
+      "/desktop/oauth/start?callbackUrl=%2Fmessages",
     );
     assert.equal(
       buildDesktopOAuthStartUrl("//evil.example/channels", "https://whispr.team"),
-      "https://whispr.team/desktop/oauth/start?callbackUrl=%2Fchannels",
+      "https://whispr.team/desktop/oauth/start?callbackUrl=%2Fmessages",
     );
   });
 

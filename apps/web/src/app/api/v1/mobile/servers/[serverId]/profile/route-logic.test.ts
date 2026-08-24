@@ -26,6 +26,7 @@ function profileFixture(): ServerPublicProfile {
     admins: [],
     bannerUrl: null,
     canManageServer: false,
+    category: null,
     channelCount: 1,
     channels: [
       {
@@ -49,10 +50,13 @@ function profileFixture(): ServerPublicProfile {
     isPublic: true,
     joined: true,
     joinedAt: "2026-02-03T04:05:06.000Z",
+    languages: [],
     memberCount: 12_400,
     muted: false,
     mutualFriendCount: 1,
-    mutualFriends: [{ avatarUrl: null, displayName: "Ada", id: "friend-1" }],
+    mutualFriends: [
+      { avatarUrl: null, displayName: "Ada", id: "friend-1", presence: "online", role: "member" },
+    ],
     name: "Whispr Topluluk",
     notificationLevel: "all",
     onlineCount: 1_200,
@@ -64,6 +68,7 @@ function profileFixture(): ServerPublicProfile {
     upcomingEvent: null,
     verified: true,
     voiceActiveCount: 14,
+    voiceRoomCount: 4,
     weeklyMessageCount: 480,
   };
 }

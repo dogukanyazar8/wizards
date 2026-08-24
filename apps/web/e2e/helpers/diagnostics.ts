@@ -85,8 +85,7 @@ async function collectPageSnapshot(page: Page): Promise<PageSnapshot | null> {
       document.documentElement.scrollHeight,
     );
     const navigationEntry = performance.getEntriesByType("navigation")[0] as
-      | PerformanceNavigationTiming
-      | undefined;
+      PerformanceNavigationTiming | undefined;
     const visibleDialogCount = Array.from(
       document.querySelectorAll('[role="dialog"],[data-notification-popup="true"]'),
     ).filter(isVisible).length;

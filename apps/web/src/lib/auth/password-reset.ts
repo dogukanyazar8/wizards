@@ -2,17 +2,11 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { prisma } from "@wizards/db";
 import { Resend } from "resend";
 import bcrypt from "bcryptjs";
-import {
-  type AppLocale,
-  DEFAULT_APP_LOCALE,
-  normalizeAppLocale,
-  translate,
-} from "@/lib/locale";
+import { type AppLocale, DEFAULT_APP_LOCALE, normalizeAppLocale, translate } from "@/lib/locale";
 import { revokeUserSessions } from "@/lib/auth/session-revocation";
 
 export const PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = 60;
-const PASSWORD_RESET_TOKEN_EXPIRY_MS =
-  PASSWORD_RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000;
+const PASSWORD_RESET_TOKEN_EXPIRY_MS = PASSWORD_RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000;
 
 type PasswordResetPayload = {
   email: string;
@@ -21,11 +15,7 @@ type PasswordResetPayload = {
 };
 
 export type PasswordResetErrorCode =
-  | "CONFIGURATION_ERROR"
-  | "INVALID_TOKEN"
-  | "EXPIRED_TOKEN"
-  | "SENDER_RESTRICTED"
-  | "SEND_FAILED";
+  "CONFIGURATION_ERROR" | "INVALID_TOKEN" | "EXPIRED_TOKEN" | "SENDER_RESTRICTED" | "SEND_FAILED";
 
 export class PasswordResetError extends Error {
   constructor(
@@ -56,10 +46,7 @@ let resendClient: Resend | null = null;
 function getRequiredEnv(key: string) {
   const value = process.env[key]?.trim();
   if (!value) {
-    throw new PasswordResetError(
-      "CONFIGURATION_ERROR",
-      `${key} is required for password reset.`,
-    );
+    throw new PasswordResetError("CONFIGURATION_ERROR", `${key} is required for password reset.`);
   }
 
   return value;
@@ -117,10 +104,7 @@ function getAppUrl() {
 
     return appUrl.origin;
   } catch {
-    throw new PasswordResetError(
-      "CONFIGURATION_ERROR",
-      "APP_URL must be a valid http(s) URL.",
-    );
+    throw new PasswordResetError("CONFIGURATION_ERROR", "APP_URL must be a valid http(s) URL.");
   }
 }
 
@@ -204,11 +188,7 @@ function buildPasswordResetUrl(token: string) {
   return url.toString();
 }
 
-function renderPasswordResetEmail(input: {
-  locale: AppLocale;
-  name: string;
-  resetUrl: string;
-}) {
+function renderPasswordResetEmail(input: { locale: AppLocale; name: string; resetUrl: string }) {
   const values = {
     minutes: PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
     name: input.name,
@@ -300,10 +280,7 @@ function renderPasswordResetEmail(input: {
   };
 }
 
-export async function sendPasswordResetEmail(
-  user: PasswordResetUser,
-  locale?: string | null,
-) {
+export async function sendPasswordResetEmail(user: PasswordResetUser, locale?: string | null) {
   const resolvedLocale = normalizeAppLocale(locale ?? user.locale ?? DEFAULT_APP_LOCALE);
   const displayName = user.displayName ?? user.username;
   const resetUrl = buildPasswordResetUrl(buildPasswordResetToken(user));
@@ -324,9 +301,7 @@ export async function sendPasswordResetEmail(
 
   if (response.error) {
     throw new PasswordResetError(
-      isResendDevSenderRestriction(response.error, from)
-        ? "SENDER_RESTRICTED"
-        : "SEND_FAILED",
+      isResendDevSenderRestriction(response.error, from) ? "SENDER_RESTRICTED" : "SEND_FAILED",
       response.error.message,
     );
   }
@@ -374,10 +349,7 @@ export async function verifyPasswordResetToken(
   };
 }
 
-export async function resetPasswordWithToken(input: {
-  password: string;
-  token: string;
-}) {
+export async function resetPasswordWithToken(input: { password: string; token: string }) {
   const verification = await verifyPasswordResetToken(input.token);
   if (verification.status !== "valid") {
     return verification;

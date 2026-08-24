@@ -9,10 +9,7 @@ import {
 
 describe("desktop invite links", () => {
   it("builds a whispr protocol URL for safe invite codes only", () => {
-    assert.equal(
-      buildDesktopInviteUrl("ABCDEFGH"),
-      "whispr://invite/ABCDEFGH?desktop=1",
-    );
+    assert.equal(buildDesktopInviteUrl("ABCDEFGH"), "whispr://invite/ABCDEFGH?desktop=1");
     assert.equal(
       buildDesktopInviteUrl("invite_code-01"),
       "whispr://invite/invite_code-01?desktop=1",

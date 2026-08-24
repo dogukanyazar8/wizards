@@ -9,7 +9,10 @@ import { deriveMessageSendFanoutTargets, registerMessageHandlers } from "./messa
 function createHandlerContextRecorder() {
   const events: string[] = [];
   const emittedEvents: Array<{ event: string; payload: unknown }> = [];
-  const handlers = new Map<string, (payload: unknown) => Promise<void>>();
+  const handlers = new Map<
+    string,
+    (payload: unknown, acknowledge?: (result: unknown) => void) => Promise<void>
+  >();
   const socket = {
     data: {
       displayName: "Ada",
@@ -19,7 +22,10 @@ function createHandlerContextRecorder() {
     emit(event: string, payload: unknown) {
       emittedEvents.push({ event, payload });
     },
-    on(event: string, handler?: (payload: unknown) => Promise<void>) {
+    on(
+      event: string,
+      handler?: (payload: unknown, acknowledge?: (result: unknown) => void) => Promise<void>,
+    ) {
       events.push(event);
       if (handler) {
         handlers.set(event, handler);
@@ -101,6 +107,7 @@ describe("socket message handlers", () => {
   it("fails closed when message send rate limiting is unavailable beyond grace", async () => {
     const { ctx, emittedEvents, handlers } = createHandlerContextRecorder();
     const checkedUserIds: string[] = [];
+    const acknowledgements: unknown[] = [];
 
     registerMessageHandlers(ctx, {
       checkChannelMessageRateLimit: async ({ userId }) => {
@@ -115,7 +122,9 @@ describe("socket message handlers", () => {
 
     const handler = handlers.get("message:send");
     assert.ok(handler);
-    await handler({ channelId: "channel-1", content: "Hello" });
+    await handler({ channelId: "channel-1", content: "Hello" }, (result) =>
+      acknowledgements.push(result),
+    );
 
     assert.deepEqual(checkedUserIds, ["user-1"]);
     assert.deepEqual(emittedEvents, [
@@ -125,6 +134,13 @@ describe("socket message handlers", () => {
           code: "RATE_LIMIT_UNAVAILABLE",
           message: "Message controls are temporarily unavailable. Please try again shortly.",
         },
+      },
+    ]);
+    assert.deepEqual(acknowledgements, [
+      {
+        code: "RATE_LIMIT_UNAVAILABLE",
+        message: "Message controls are temporarily unavailable. Please try again shortly.",
+        ok: false,
       },
     ]);
   });

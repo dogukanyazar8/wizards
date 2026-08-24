@@ -1,10 +1,7 @@
 import type { Browser, BrowserContext, Page, TestInfo } from "@playwright/test";
 import { test, expect } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
-import {
-  attachE2EPageDiagnostics,
-  type E2EPageDiagnosticsHandle,
-} from "../../helpers/diagnostics";
+import { attachE2EPageDiagnostics, type E2EPageDiagnosticsHandle } from "../../helpers/diagnostics";
 import {
   clearE2EVoiceStates,
   expectVoiceParticipantCountAtLeast,
@@ -14,7 +11,6 @@ import {
 import { sendComposerMessage } from "../../helpers/messages";
 import {
   clickChannelSidebarChannelAndWait,
-  clickServerRailDmAndWait,
   clickServerRailServerAndWait,
   closeInAppSettingsOverlay,
   gotoAppRoute,
@@ -221,10 +217,9 @@ test.describe("voice and screen share", () => {
     await expectVoiceParticipantCount(voiceChannelId, 1);
   });
 
-  test("another server member sees voice join and leave without reload", async (
-    { browser },
-    testInfo,
-  ) => {
+  test("another server member sees voice join and leave without reload", async ({
+    browser,
+  }, testInfo) => {
     const { serverId, textChannelId, voiceChannelId } = await getE2EServerRoute();
     const alice = await openLoggedInPage(browser, "alice", testInfo);
     const bob = await openLoggedInPage(browser, "bob", testInfo);
@@ -436,7 +431,8 @@ test.describe("voice and screen share", () => {
     );
     await expectVoiceParticipantCount(voiceChannelId, 1);
 
-    await clickServerRailDmAndWait(page, /\/channels\/@me$/, { readyTestId: "server-rail" });
+    // Faz 2: DM düğmesi raydan kalktı (SPEC §2.1); DM yüzeyine rota üzerinden gidilir.
+    await gotoAppRoute(page, "/messages", { readyTestId: "server-rail" });
     await clickServerRailServerAndWait(
       page,
       serverId,
@@ -472,7 +468,7 @@ test.describe("voice and screen share", () => {
     });
     await expectVoiceParticipantCount(voiceChannelId, 0);
 
-    await gotoAppRoute(page, "/channels/@me", { readyTestId: "server-rail" });
+    await gotoAppRoute(page, "/messages", { readyTestId: "server-rail" });
     await clickServerRailServerAndWait(
       page,
       serverId,
@@ -491,14 +487,13 @@ test.describe("voice and screen share", () => {
     await loginAs(page, "alice");
     await gotoTextChannelRoute(page, serverId, textChannelId);
 
-    await gotoAppRoute(page, "/channels/@me", { readyTestId: "server-rail" });
+    await gotoAppRoute(page, "/messages", { readyTestId: "server-rail" });
     await clickServerRailServerAndWait(
       page,
       serverId,
       new RegExp(`/channels/${serverId}/${textChannelId}$`),
       { readyTestId: "message-input", waitForMessages: true },
     );
-
   });
 
   test("voice video layout stays contained on desktop and mobile", async ({ page }) => {
@@ -530,10 +525,9 @@ test.describe("voice and screen share", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("mixed camera states stay contained with multiple participants", async (
-    { browser },
-    testInfo,
-  ) => {
+  test("mixed camera states stay contained with multiple participants", async ({
+    browser,
+  }, testInfo) => {
     const alice = await openLoggedInPage(browser, "alice", testInfo);
     const bob = await openLoggedInPage(browser, "bob", testInfo);
     const charlie = await openLoggedInPage(browser, "charlie", testInfo);
@@ -585,10 +579,9 @@ test.describe("voice and screen share", () => {
     );
   });
 
-  test("screen share state appears in the sidebar for other members", async (
-    { browser },
-    testInfo,
-  ) => {
+  test("screen share state appears in the sidebar for other members", async ({
+    browser,
+  }, testInfo) => {
     const { serverId, textChannelId, voiceChannelId } = await getE2EServerRoute();
     const alice = await openLoggedInPage(browser, "alice", testInfo);
     const bob = await openLoggedInPage(browser, "bob", testInfo);

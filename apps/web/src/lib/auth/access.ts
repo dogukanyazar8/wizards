@@ -7,13 +7,13 @@ export type AuthAccessUser = {
   isBanned: boolean;
 };
 
-export function isActiveAuthUser(
-  user: AuthAccessUser | null | undefined,
-): user is AuthAccessUser {
+export function isActiveAuthUser(user: AuthAccessUser | null | undefined): user is AuthAccessUser {
   return Boolean(user && !user.deletedAt && !user.isBanned && user.emailVerified);
 }
 
-export function assertActiveApiUser(user: AuthAccessUser | null | undefined): asserts user is AuthAccessUser {
+export function assertActiveApiUser(
+  user: AuthAccessUser | null | undefined,
+): asserts user is AuthAccessUser {
   if (!user) {
     throw new ApiError("Unauthorized", 401, "UNAUTHORIZED");
   }
@@ -27,6 +27,10 @@ export function assertActiveApiUser(user: AuthAccessUser | null | undefined): as
   }
 
   if (!user.emailVerified) {
-    throw new ApiError("Verify your email address before continuing", 403, "EMAIL_VERIFICATION_REQUIRED");
+    throw new ApiError(
+      "Verify your email address before continuing",
+      403,
+      "EMAIL_VERIFICATION_REQUIRED",
+    );
   }
 }

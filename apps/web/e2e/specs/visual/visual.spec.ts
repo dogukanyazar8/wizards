@@ -31,7 +31,7 @@ test.describe("visual regression", () => {
 
   test("DM home shell", async ({ page }) => {
     await loginAs(page, "alice");
-    await gotoAppRoute(page, "/channels/@me", { readyTestId: "server-rail" });
+    await gotoAppRoute(page, "/messages", { readyTestId: "server-rail" });
 
     await expect(page).toHaveScreenshot("dm-home.png");
   });
@@ -47,7 +47,7 @@ test.describe("visual regression", () => {
 
   test("settings overlay", async ({ page }) => {
     await loginAs(page, "alice");
-    await gotoAppRoute(page, "/channels/@me", { readyTestId: "user-bar" });
+    await gotoAppRoute(page, "/messages", { readyTestId: "user-bar" });
     await openSettingsFromUserQuickMenu(page);
     await expect(
       page.locator('[data-testid="settings-panel"][data-client-ready="true"]'),

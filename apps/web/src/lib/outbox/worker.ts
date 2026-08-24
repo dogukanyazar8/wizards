@@ -2,6 +2,11 @@ import { logError } from "@/lib/logger";
 import { sweepBadges as sweepBadgesService } from "@/lib/badges/badge-sweep";
 import { cleanupAccountReauthChallenges } from "@/lib/auth/reauth-cleanup";
 import { cleanupMobileMediaUploads as cleanupMobileMediaUploadsService } from "@/lib/mobile/mobile-media-upload-service";
+import { rollUpDiscoverChannelActivity as rollUpDiscoverChannelActivityService } from "@/lib/discover/channel-activity-rollup";
+import {
+  broadcastHomePresence,
+  sweepExpiredFocus as sweepExpiredFocusService,
+} from "@/lib/home/presence-service";
 import { cleanupOutboxJobs, drainOutboxJobs } from "@/lib/outbox/service";
 import { rollUpClientHealthEvents as rollUpClientHealthEventsService } from "@/lib/telemetry/client-health-rollup";
 import { purgeExpiredEvidence as purgeExpiredEvidenceService } from "@/lib/moderation/evidence-service";
@@ -12,6 +17,12 @@ import { prisma } from "@wizards/db";
 const DEFAULT_OUTBOX_WORKER_BATCH_SIZE = 25;
 const DEFAULT_OUTBOX_WORKER_INTERVAL_MS = 5_000;
 const OUTBOX_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+/**
+ * Focus windows are minutes long, so they cannot ride the hourly maintenance
+ * block: a friend would keep seeing "Rahatsız etmeyin" for up to an hour after
+ * it ended. The owner's own screen resolves lazily; this is everybody else's.
+ */
+const FOCUS_SWEEP_INTERVAL_MS = 60 * 1000;
 const DEFAULT_OUTBOX_WORKER_SHUTDOWN_TIMEOUT_MS = 10_000;
 
 type ExpiredSessionCleanupClient = {
@@ -37,6 +48,7 @@ export async function cleanupExpiredSessions(
 let workerTimer: ReturnType<typeof setInterval> | null = null;
 let currentDrainPromise: Promise<void> | null = null;
 let lastCleanupAt = 0;
+let lastFocusSweepAt = 0;
 
 type StartOutboxWorkerOptions = {
   cleanupJobs?: typeof cleanupOutboxJobs;
@@ -47,8 +59,10 @@ type StartOutboxWorkerOptions = {
   intervalMs?: number;
   purgeExpiredBugReports?: typeof purgeExpiredBugReportsService;
   purgeExpiredEvidence?: typeof purgeExpiredEvidenceService;
+  rollUpDiscoverChannelActivity?: typeof rollUpDiscoverChannelActivityService;
   rollUpClientHealthEvents?: typeof rollUpClientHealthEventsService;
   sweepBadges?: typeof sweepBadgesService;
+  sweepExpiredFocus?: typeof sweepExpiredFocusService;
   sweepModerationCaseAlerts?: typeof sweepModerationCaseAlertsService;
   keepAlive?: boolean;
   runImmediately?: boolean;
@@ -74,9 +88,11 @@ export function startOutboxWorker({
   keepAlive = false,
   purgeExpiredBugReports = purgeExpiredBugReportsService,
   purgeExpiredEvidence = purgeExpiredEvidenceService,
+  rollUpDiscoverChannelActivity = rollUpDiscoverChannelActivityService,
   rollUpClientHealthEvents = rollUpClientHealthEventsService,
   runImmediately = true,
   sweepBadges = sweepBadgesService,
+  sweepExpiredFocus = sweepExpiredFocusService,
   sweepModerationCaseAlerts = sweepModerationCaseAlertsService,
   workerId: configuredWorkerId,
 }: StartOutboxWorkerOptions = {}) {
@@ -100,6 +116,20 @@ export function startOutboxWorker({
     currentDrainPromise = drainJobs({ limit: batchSize, workerId })
       .then(async () => {
         const now = Date.now();
+
+        if (now - lastFocusSweepAt >= FOCUS_SWEEP_INTERVAL_MS) {
+          try {
+            await sweepExpiredFocus({
+              broadcast: broadcastHomePresence,
+              database: prisma,
+              now: new Date(now),
+            });
+            lastFocusSweepAt = now;
+          } catch (error) {
+            logError("[outbox] Maintenance task failed: sweepExpiredFocus", error);
+          }
+        }
+
         if (now - lastCleanupAt < OUTBOX_CLEANUP_INTERVAL_MS) {
           return;
         }
@@ -112,6 +142,10 @@ export function startOutboxWorker({
           ["cleanupExpiredSessions", () => cleanupExpiredSessionsForRun({ now: cleanupNow })],
           ["cleanupAccountReauthChallenges", () => cleanupReauthChallenges({ now: cleanupNow })],
           ["cleanupMobileMediaUploads", () => cleanupMobileMediaUploads({ now: cleanupNow })],
+          [
+            "rollUpDiscoverChannelActivity",
+            () => rollUpDiscoverChannelActivity({ now: cleanupNow }),
+          ],
           ["rollUpClientHealthEvents", () => rollUpClientHealthEvents({ now: cleanupNow })],
           ["purgeExpiredBugReports", () => purgeExpiredBugReports()],
           ["purgeExpiredEvidence", () => purgeExpiredEvidence({ now: cleanupNow })],
@@ -199,6 +233,7 @@ export async function stopOutboxWorker({
   }
 
   lastCleanupAt = 0;
+  lastFocusSweepAt = 0;
 }
 
 export function stopOutboxWorkerForTests() {

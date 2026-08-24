@@ -128,16 +128,12 @@ describe("voice heartbeat controller", () => {
     const calls: string[] = [];
 
     try {
-      globalThis.setInterval = function setIntervalWithReceiverCheck(
-        this: typeof globalThis,
-      ) {
+      globalThis.setInterval = function setIntervalWithReceiverCheck(this: typeof globalThis) {
         assert.equal(this, globalThis);
         calls.push("set");
         return 1 as unknown as ReturnType<typeof setInterval>;
       } as unknown as typeof setInterval;
-      globalThis.clearInterval = function clearIntervalWithReceiverCheck(
-        this: typeof globalThis,
-      ) {
+      globalThis.clearInterval = function clearIntervalWithReceiverCheck(this: typeof globalThis) {
         assert.equal(this, globalThis);
         calls.push("clear");
       } as unknown as typeof clearInterval;

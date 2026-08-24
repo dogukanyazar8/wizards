@@ -1,21 +1,10 @@
 "use client";
 
-import {
-  useInfiniteQuery,
-  useQueryClient,
-  type InfiniteData,
-} from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useEffect } from "react";
-import type {
-  ChatMessage,
-  DMMessagePayload,
-  MessageReaction,
-} from "@wizards/types";
+import type { ChatMessage, DMMessagePayload, MessageReaction } from "@wizards/types";
 import { fetchDMThreadMessages } from "@/lib/dm/client";
-import {
-  mapDMMessageToChatMessage,
-  type MessageMode,
-} from "@/hooks/use-messages";
+import { mapDMMessageToChatMessage, type MessageMode } from "@/hooks/use-messages";
 import { useSocket } from "@/hooks/use-socket";
 
 type ThreadPageResponse = {
@@ -174,9 +163,7 @@ function updateThreadReactions(
           ? { ...page.parent, reactions: data.reactions }
           : page.parent,
       messages: page.messages.map((message) =>
-        message.id === data.messageId
-          ? { ...message, reactions: data.reactions }
-          : message,
+        message.id === data.messageId ? { ...message, reactions: data.reactions } : message,
       ),
     })),
   };
@@ -270,10 +257,7 @@ export function useThreadMessages(
         }
       };
 
-      const handleReactionUpdated = (data: {
-        messageId: string;
-        reactions: MessageReaction[];
-      }) => {
+      const handleReactionUpdated = (data: { messageId: string; reactions: MessageReaction[] }) => {
         queryClient.setQueryData<ThreadMessagePages>(queryKey, (old) =>
           updateThreadReactions(old, data),
         );
@@ -330,10 +314,7 @@ export function useThreadMessages(
       }
     };
 
-    const handleReactionUpdated = (data: {
-      messageId: string;
-      reactions: MessageReaction[];
-    }) => {
+    const handleReactionUpdated = (data: { messageId: string; reactions: MessageReaction[] }) => {
       queryClient.setQueryData<ThreadMessagePages>(queryKey, (old) =>
         updateThreadReactions(old, data),
       );

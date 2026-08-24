@@ -4,6 +4,8 @@ import { describe, it } from "node:test";
 import * as messageSchemas from "./messages";
 import {
   AttachmentScanStatusSchema,
+  ChannelThreadStatePatchSchema,
+  ChannelThreadStateSchema,
   ChatMessageSchema,
   ChatMessageTypeSchema,
   EditMessageInputSchema,
@@ -19,6 +21,7 @@ import {
   MessageThreadSummarySchema,
   ReplyToSchema,
   SendMessageInputSchema,
+  ThreadFollowStateSchema,
   UploadedAttachmentInputSchema,
 } from "./messages";
 import { assertAccepts, assertRejects, assertSchemaBehaviorCoverage } from "./schema-test-helpers";
@@ -100,6 +103,20 @@ describe("message schemas", () => {
         valid: "DEFAULT",
         invalid: "SYSTEM_UNKNOWN",
       },
+      ChannelThreadStatePatchSchema: {
+        schema: ChannelThreadStatePatchSchema,
+        valid: { open: false },
+        invalid: { open: "false" },
+      },
+      ChannelThreadStateSchema: {
+        schema: ChannelThreadStateSchema,
+        valid: {
+          closedAt: "2026-08-21T12:00:00.000Z",
+          closedById: "user-1",
+          open: false,
+        },
+        invalid: { closedAt: null, closedById: null, open: "true" },
+      },
       EditMessageInputSchema: {
         schema: EditMessageInputSchema,
         valid: { content: "edited", messageId: "message-1" },
@@ -159,6 +176,11 @@ describe("message schemas", () => {
         schema: SendMessageInputSchema,
         valid: { channelId: "channel-1", content: "Hello" },
         invalid: { channelId: "channel-1", content: "   " },
+      },
+      ThreadFollowStateSchema: {
+        schema: ThreadFollowStateSchema,
+        valid: { following: true },
+        invalid: { following: "true" },
       },
       UploadedAttachmentInputSchema: {
         schema: UploadedAttachmentInputSchema,

@@ -7,7 +7,10 @@ import { ApiError } from "@/lib/api";
 import { isActiveAuthUser } from "@/lib/auth/access";
 import { readPresenceMap, type VisiblePresenceStatus } from "@/lib/presence";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { filterUserIdsByChannelPermission, requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
+import {
+  filterUserIdsByChannelPermission,
+  requireChannelPermissionForUser,
+} from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
 
 const VOICE_INVITE_RATE_LIMIT = 12;
@@ -137,7 +140,11 @@ export async function createVoiceInvite({
     select: { channelId: true, serverId: true },
     where: { userId },
   });
-  if (!senderVoiceState || senderVoiceState.channelId !== input.channelId || senderVoiceState.serverId !== input.serverId) {
+  if (
+    !senderVoiceState ||
+    senderVoiceState.channelId !== input.channelId ||
+    senderVoiceState.serverId !== input.serverId
+  ) {
     throw new ApiError(
       "Join this voice channel before inviting members.",
       403,
@@ -198,10 +205,18 @@ export async function createVoiceInvite({
     throw new ApiError("Unable to load sender profile.", 404, "VOICE_INVITE_SENDER_NOT_FOUND");
   }
   if (!targetMember || !isActiveAuthUser(targetMember.user)) {
-    throw new ApiError("This member cannot receive voice invites.", 404, "VOICE_INVITE_TARGET_NOT_FOUND");
+    throw new ApiError(
+      "This member cannot receive voice invites.",
+      404,
+      "VOICE_INVITE_TARGET_NOT_FOUND",
+    );
   }
   if (targetVoiceState?.channelId === input.channelId) {
-    throw new ApiError("This member is already in the voice channel.", 409, "VOICE_INVITE_TARGET_ALREADY_JOINED");
+    throw new ApiError(
+      "This member is already in the voice channel.",
+      409,
+      "VOICE_INVITE_TARGET_ALREADY_JOINED",
+    );
   }
 
   const permittedTargets = await filterUserIdsByChannelPermission(
@@ -255,7 +270,12 @@ export async function createVoiceInvite({
     targetUserId: input.targetUserId,
   };
 
-  await redis.set(getVoiceInviteKey(inviteId), JSON.stringify(storedInvite), "PX", VOICE_INVITE_TTL_MS);
+  await redis.set(
+    getVoiceInviteKey(inviteId),
+    JSON.stringify(storedInvite),
+    "PX",
+    VOICE_INVITE_TTL_MS,
+  );
 
   return {
     expiresAt,

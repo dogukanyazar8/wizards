@@ -40,10 +40,7 @@ export function getAppStartupDurationMs(startMs: number, endMs: number): number 
   return Math.max(0, Math.round((endMs - startMs) * 100) / 100);
 }
 
-export function formatAppStartupMetric(
-  metric: AppStartupReadyMetric,
-  now = new Date(),
-): string {
+export function formatAppStartupMetric(metric: AppStartupReadyMetric, now = new Date()): string {
   return JSON.stringify({
     durationMs: getAppStartupDurationMs(0, metric.durationMs),
     operation: APP_STARTUP_READY_OPERATION,

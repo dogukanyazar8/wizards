@@ -4,36 +4,35 @@
 
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Bold,
-  Braces,
   ChartNoAxesColumnIncreasing,
   Code2,
   Command,
   FileText,
   ImageIcon,
   ImagePlus,
-  Italic,
-  List,
-  ListOrdered,
   Loader2,
-  Mic,
+  BarChart3,
   Paperclip,
   Plus,
-  Quote,
   Send,
-  Shield,
   Smile,
-  Strikethrough,
-  Underline,
   Video,
   X,
 } from "lucide-react";
-import type { MessageAttachment, UploadedAttachmentInput, WorkspaceMember } from "@wizards/types";
+import type {
+  MessageAttachment,
+  UploadedAttachmentInput,
+  WorkspaceMember,
+  WorkspaceRole,
+} from "@wizards/types";
+import { ComposerFormattingBar } from "./composer-formatting-bar";
 import { EmojiPicker } from "./emoji-picker";
 import { GifPicker } from "./gif-picker";
 import { ReplyPreview } from "./reply-preview";
+import { VoiceRecorder, type VoiceRecording } from "./voice-recorder";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
+import { filterRolesByMentionQuery } from "@/lib/workspace/mention-parser";
 import { useTyping } from "@/hooks/use-typing";
 import type { MessageMode } from "@/hooks/use-messages";
 import { cn } from "@/lib/utils";
@@ -49,6 +48,29 @@ import {
 import { useUploadThing } from "@/lib/uploadthing";
 
 const MAX_MESSAGE_LENGTH = 2000;
+
+/**
+ * SPEC §5.6'nın üç kısayolu. Anahtar **küçük harf**: `Ctrl+Shift+B` de `B`
+ * üretir ve tabloyu iki kez yazmak gerekmesin diye tek yerde küçültülüyor.
+ *
+ * İşaretçiler biçimlendirme şeridindekiyle aynı: kalın `**`, italik `_`, altı
+ * çizili `++`. Şerit ile kısayol farklı işaretçi kullansaydı, aynı düğmenin iki
+ * yolu iki farklı metin yazardı.
+ */
+const FORMATTING_SHORTCUTS: Readonly<
+  Record<
+    string,
+    {
+      fallbackKey:
+        "chat.input.boldFallback" | "chat.input.italicFallback" | "chat.input.underlineFallback";
+      marker: string;
+    }
+  >
+> = Object.freeze({
+  b: { fallbackKey: "chat.input.boldFallback", marker: "**" },
+  i: { fallbackKey: "chat.input.italicFallback", marker: "_" },
+  u: { fallbackKey: "chat.input.underlineFallback", marker: "++" },
+});
 
 interface MessageInputProps {
   conversationId: string;
@@ -67,9 +89,24 @@ interface MessageInputProps {
   ) => void;
   onCancelReply: () => void;
   mentionMembers?: WorkspaceMember[];
+  /**
+   * Bahsedilmeler Ş2 / karar K1. Bahsedilebilir roller üye önerisinin **altında** ayrı bir
+   * bölüm olarak çıkar. Liste çağıranda süzülür: bestekar izin bilmez, yalnız verileni çizer.
+   */
+  mentionRoles?: WorkspaceRole[];
   uploadthingEnabled: boolean;
   maxLength?: number | null;
-  onStartVoiceMessage?: () => void;
+  /**
+   * Mesajlar karar #1. Bestekar anket **modalını bilmez**; yalnız düğmeyi çizer
+   * ve bunu çağırır. Ş6 modalı kendi dosyasında tutuyor.
+   */
+  onOpenPoll?: (() => void) | undefined;
+  /** SPEC §5.6 placeholder'ı için hedefin adı; verilmezse genel cümleye düşer. */
+  conversationName?: string | undefined;
+  /** `group` ise `{ad} grubuna yaz`, değilse `{ad}'e mesaj yaz`. */
+  conversationKind?: "dm" | "group" | undefined;
+  /** karar #12: anket hem grupta hem 1:1 DM'de. */
+  pollEnabled?: boolean;
   variant?: "default" | "thread";
 }
 
@@ -169,7 +206,7 @@ function ComposerButton({
             : "border-transparent bg-[hsl(var(--surface-soft)/0.34)] text-app-muted hover:bg-[hsl(var(--primary)/0.08)] hover:text-[hsl(var(--primary))]",
         active &&
           variant !== "primary" &&
-          "border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.13)] text-[hsl(var(--primary))]",
+          "border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.13)] text-[var(--primary-readable)]",
         disabled && "motion-safe:hover:scale-100",
         className,
       )}
@@ -178,7 +215,7 @@ function ComposerButton({
       type={type}
       {...props}
     >
-      {Icon ? <Icon className="h-[18px] w-[18px]" aria-hidden="true" /> : null}
+      {Icon ? <Icon className="h-[1.125rem] w-[1.125rem]" aria-hidden="true" /> : null}
       {children}
     </button>
   );
@@ -207,7 +244,7 @@ function ComposerActionSheet({
         onClick={onClose}
         type="button"
       />
-      <div className="absolute inset-x-2 bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-h-[min(70dvh,28rem)] overflow-y-auto rounded-[24px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.98)] p-2.5 shadow-[0_24px_60px_hsl(var(--shadow-color)/0.18)]">
+      <div className="absolute inset-x-2 bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-h-[min(70dvh,28rem)] overflow-y-auto rounded-[1.5rem] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.98)] p-2.5 shadow-[0_24px_60px_hsl(var(--shadow-color)/0.18)]">
         <div className="mb-2 flex items-center justify-between gap-3 px-1">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-app-soft">{title}</p>
           <button
@@ -239,8 +276,8 @@ const AutoResizeTextarea = forwardRef<HTMLTextAreaElement, AutoResizeTextareaPro
       <textarea
         ref={ref}
         className={cn(
-          "message-font-scope max-h-[32dvh] min-h-11 w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-[15px] leading-6 text-app-foreground shadow-none placeholder-app-muted focus-visible:outline-hidden focus-visible:ring-0 md:max-h-40 md:px-3 md:py-2.5",
-          formattingOpen ? "rounded-b-[22px] rounded-t-none" : "rounded-[22px]",
+          "message-font-scope max-h-[32dvh] min-h-11 w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-[0.9375rem] leading-6 text-app-foreground shadow-none placeholder-app-muted focus-visible:outline-hidden focus-visible:ring-0 md:max-h-40 md:px-3 md:py-2.5",
+          formattingOpen ? "rounded-b-[1.375rem] rounded-t-none" : "rounded-[1.375rem]",
           isThreadComposer ? "max-h-[8.5rem]" : "",
           className,
         )}
@@ -263,9 +300,13 @@ export function ChatComposer({
   onSend,
   onCancelReply,
   mentionMembers = [],
+  mentionRoles = [],
   uploadthingEnabled,
   maxLength = MAX_MESSAGE_LENGTH,
-  onStartVoiceMessage,
+  onOpenPoll,
+  conversationName,
+  conversationKind,
+  pollEnabled = false,
   variant = "default",
 }: MessageInputProps) {
   const { t } = useI18n();
@@ -276,6 +317,7 @@ export function ChatComposer({
   const [attachmentUploadError, setAttachmentUploadError] = useState<string | null>(null);
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
+  const [isUploadingVoiceMessage, setIsUploadingVoiceMessage] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [showFormattingToolbar, setShowFormattingToolbar] = useState(false);
@@ -292,6 +334,7 @@ export function ChatComposer({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const previewUrlsRef = useRef<Set<string>>(new Set());
   const isThreadComposer = variant === "thread";
+  const referenceComposer = mode === "dm" && !isThreadComposer;
   const effectiveMaxLength = maxLength ?? Number.POSITIVE_INFINITY;
   const hasFiniteMaxLength = Number.isFinite(effectiveMaxLength);
 
@@ -335,6 +378,19 @@ export function ChatComposer({
       })
       .slice(0, 6);
   }, [activeMention, mentionMembers, mode]);
+  /**
+   * Eşleşme sunucu tarafıyla **aynı** fonksiyondan geçer: öneri listesiyle fan-out'un rol
+   * çözümü ayrışırsa, kullanıcı listede gördüğü rolü yazar ve kimse bildirim almaz.
+   */
+  const roleSuggestions = useMemo(() => {
+    if (!activeMention || mode !== "channel") {
+      return [];
+    }
+
+    return filterRolesByMentionQuery(mentionRoles, activeMention.query);
+  }, [activeMention, mentionRoles, mode]);
+  /** Klavye gezinmesi tek listede yürür; roller üyelerin altında durur. */
+  const mentionOptionCount = mentionSuggestions.length + roleSuggestions.length;
   const activeMentionIndex =
     mentionSelection.query === activeMention?.query ? mentionSelection.index : 0;
   const emojiPickerOpen = showEmojiPicker && !disabled;
@@ -344,11 +400,9 @@ export function ChatComposer({
 
   const formatButtonLabelClass = isThreadComposer ? "sr-only" : "hidden sm:inline";
   const compactToolButtonClass = cn(
-    "inline-flex items-center justify-center gap-1.5 rounded-[14px] border border-transparent bg-[hsl(var(--surface-soft)/0.3)] text-[12.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.44)] disabled:cursor-not-allowed disabled:opacity-55",
+    "inline-flex items-center justify-center gap-1.5 rounded-[0.875rem] border border-transparent bg-[hsl(var(--surface-soft)/0.3)] text-[0.78125rem] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.44)] disabled:cursor-not-allowed disabled:opacity-55",
     isThreadComposer ? "h-9 w-9 px-0" : "min-h-8 px-2.5 py-1.5 md:min-h-0",
   );
-  const formattingActionButtonClass =
-    "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[13px] border border-transparent bg-[hsl(var(--surface-soft)/0.3)] px-2.5 py-1.5 text-[12.5px] font-bold text-app-muted transition hover:bg-[hsl(var(--primary)/0.07)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.4)] disabled:cursor-not-allowed disabled:opacity-50";
   const composerHint = t("chat.input.sendHint");
   const composerActionsTitle = t("chat.input.actions");
 
@@ -460,23 +514,6 @@ export function ChatComposer({
     insertMarkdownWrap("```text\n", "\n```", t("chat.input.codeBlockFallback"));
   };
 
-  const insertPollTemplate = () => {
-    if (disabled) {
-      return;
-    }
-
-    const { end, start } = getCurrentSelection();
-    const needsLeadingBreak = start > 0 && !content.slice(0, start).endsWith("\n") ? "\n\n" : "";
-    const pollTemplate = `${needsLeadingBreak}${t("chat.input.pollTemplate")}`;
-    const nextContent = content.slice(0, start) + pollTemplate + content.slice(end);
-    const questionOffset = pollTemplate.indexOf(t("chat.input.pollQuestion"));
-    const selectionStart = start + (questionOffset >= 0 ? questionOffset : pollTemplate.length);
-    const selectionEnd =
-      questionOffset >= 0 ? selectionStart + t("chat.input.pollQuestion").length : selectionStart;
-
-    updateContentWithSelection(nextContent, selectionStart, selectionEnd);
-  };
-
   const revokePreviewUrl = (previewUrl: string | undefined) => {
     if (previewUrl && previewUrlsRef.current.has(previewUrl)) {
       URL.revokeObjectURL(previewUrl);
@@ -525,12 +562,12 @@ export function ChatComposer({
     resizeTextarea();
   };
 
-  const insertMention = (member: WorkspaceMember) => {
+  const insertMention = (name: string) => {
     if (!activeMention) {
       return;
     }
 
-    const mentionText = `@${member.username} `;
+    const mentionText = `@${name} `;
     const nextContent =
       content.slice(0, activeMention.start) + mentionText + content.slice(activeMention.end);
     const nextCursor = activeMention.start + mentionText.length;
@@ -852,6 +889,65 @@ export function ChatComposer({
     }
   };
 
+  /**
+   * Kaydı yükler ve **kendi başına** gönderir.
+   *
+   * Sesli mesaj bestekârın taslağına eklenmez: kullanıcı kaydı bitirip
+   * "gönder"e bastığında niyeti zaten göndermek. Taslağa koymak, yazılmış bir
+   * metinle birlikte gönderilmeyi bekleyen ve unutulabilecek bir ek bırakırdı.
+   *
+   * Yazılmış metin varsa korunur — kayıt onun yerine geçmez.
+   */
+  const handleVoiceRecorded = async (recording: VoiceRecording) => {
+    if (!uploadthingEnabled) {
+      setAttachmentUploadError(t("messages.errors.voiceFailed"));
+      return;
+    }
+
+    setIsUploadingVoiceMessage(true);
+    setAttachmentUploadError(null);
+
+    try {
+      const file = new File([recording.blob], recording.filename, { type: recording.mimeType });
+      const uploaded = await startUpload([file]);
+      const serverData = uploaded?.[0]?.serverData;
+
+      if (!serverData?.url) {
+        throw new Error(t("messages.errors.voiceFailed"));
+      }
+
+      const durationSeconds = Math.max(1, Math.round(recording.durationMs / 1000));
+      const attachment: MessageAttachment = {
+        id: serverData.id,
+        url: serverData.url,
+        filename: serverData.filename,
+        contentType: serverData.contentType,
+        size: serverData.size,
+        duration: durationSeconds,
+        // İyimser balonun dalga formu da gerçek: sunucudan dönmesini beklemek,
+        // kendi kaydını bir saniye boyunca düz çubuk olarak görmek demek.
+        waveform: recording.waveform.join(","),
+        scanStatus: serverData.scanStatus,
+      };
+
+      onSend(
+        content.trim(),
+        replyTo?.id,
+        [{ id: attachment.id, duration: durationSeconds, waveform: recording.waveform }],
+        [attachment],
+      );
+
+      setContent("");
+      onCancelReply();
+    } catch (error) {
+      setAttachmentUploadError(
+        error instanceof Error ? error.message : t("messages.errors.voiceFailed"),
+      );
+    } finally {
+      setIsUploadingVoiceMessage(false);
+    }
+  };
+
   const handleSend = () => {
     const trimmedContent = content.trim();
     if (!canSend) {
@@ -899,11 +995,11 @@ export function ChatComposer({
       return;
     }
 
-    if (mentionSuggestions.length > 0) {
+    if (mentionOptionCount > 0) {
       if (event.key === "ArrowDown") {
         event.preventDefault();
         setMentionSelection({
-          index: (activeMentionIndex + 1) % mentionSuggestions.length,
+          index: (activeMentionIndex + 1) % mentionOptionCount,
           query: activeMention?.query ?? null,
         });
         return;
@@ -912,7 +1008,7 @@ export function ChatComposer({
       if (event.key === "ArrowUp") {
         event.preventDefault();
         setMentionSelection({
-          index: (activeMentionIndex - 1 + mentionSuggestions.length) % mentionSuggestions.length,
+          index: (activeMentionIndex - 1 + mentionOptionCount) % mentionOptionCount,
           query: activeMention?.query ?? null,
         });
         return;
@@ -920,9 +1016,13 @@ export function ChatComposer({
 
       if (event.key === "Tab" || event.key === "Enter") {
         event.preventDefault();
-        const selected = mentionSuggestions[activeMentionIndex] ?? mentionSuggestions[0];
-        if (selected) {
-          insertMention(selected);
+        const index = activeMentionIndex < mentionOptionCount ? activeMentionIndex : 0;
+        const member = mentionSuggestions[index];
+        const role = roleSuggestions[index - mentionSuggestions.length];
+        if (member) {
+          insertMention(member.username);
+        } else if (role) {
+          insertMention(role.name);
         }
         return;
       }
@@ -931,6 +1031,35 @@ export function ChatComposer({
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
       handleSend();
+      return;
+    }
+
+    /*
+     * SPEC §5.6 / §10: `Ctrl/Cmd+B|I|U`.
+     *
+     * `altKey` dışlanıyor: `AltGr` Türkçe ve birçok Avrupa düzeninde `Ctrl+Alt`
+     * olarak gelir, ve `AltGr+B` yazmak isteyen birine kalın metin açmak
+     * yazdığını bozmak olurdu.
+     */
+    if ((event.metaKey || event.ctrlKey) && !event.altKey) {
+      const shortcut = FORMATTING_SHORTCUTS[event.key.toLowerCase()];
+
+      if (shortcut) {
+        event.preventDefault();
+        insertMarkdownWrap(shortcut.marker, shortcut.marker, t(shortcut.fallbackKey));
+        return;
+      }
+    }
+
+    /*
+     * `Esc` yanıt ya da düzenlemeyi iptal eder (§10).
+     *
+     * Yalnız yanıt açıkken tüketilir: boş bir bestekârda `Esc`'i yutmak, üstteki
+     * paneli ya da modalı kapatmak isteyen kullanıcının tuşunu kaybetmesi olurdu.
+     */
+    if (event.key === "Escape" && replyTo) {
+      event.preventDefault();
+      onCancelReply();
       return;
     }
 
@@ -984,11 +1113,25 @@ export function ChatComposer({
     return () => window.cancelAnimationFrame(frameId);
   }, [autoFocus, conversationId, disabled, mode]);
 
+  /*
+   * SPEC §5.6: DM'de `{ad}'e mesaj yaz`, grupta `{ad} grubuna yaz`.
+   *
+   * Hedefin adı çağırandan geliyor; bestekâr konuşmayı bilmiyor ve bilmemeli.
+   * Ad verilmediğinde eski genel cümleye düşüyor — yoksa isim gelene kadar
+   * placeholder boş bir tırnak gibi görünürdü.
+   */
   const placeholder = disabled
     ? disabledMessage
-    : mode === "dm"
-      ? t("dm.input.placeholder")
-      : t("chat.input.placeholder");
+    : conversationName && mode === "dm"
+      ? t(
+          conversationKind === "group"
+            ? "messages.composer.placeholderGroup"
+            : "messages.composer.placeholderDm",
+          { name: conversationName },
+        )
+      : mode === "dm"
+        ? t("dm.input.placeholder")
+        : t("chat.input.placeholder");
 
   const characterCounter = hasFiniteMaxLength ? (
     <span
@@ -1000,7 +1143,7 @@ export function ChatComposer({
       {`${content.length}/${effectiveMaxLength}`}
     </span>
   ) : (
-    <span className="inline-flex items-center rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.48)] px-2.5 py-1.5 text-[11px] font-semibold text-app-muted shadow-[inset_0_1px_0_hsl(var(--background)/0.55)]">
+    <span className="inline-flex items-center rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.48)] px-2.5 py-1.5 text-[0.6875rem] font-semibold text-app-muted shadow-[inset_0_1px_0_hsl(var(--background)/0.55)]">
       {t("chat.input.adminUnlimited")}
     </span>
   );
@@ -1008,21 +1151,21 @@ export function ChatComposer({
   const composerShortcutHint = (
     <span
       aria-label={composerHint}
-      className="hidden min-w-0 items-center gap-2 whitespace-nowrap text-[11px] font-semibold text-app-muted xl:inline-flex"
+      className="hidden min-w-0 items-center gap-2 whitespace-nowrap text-[0.6875rem] font-semibold text-app-muted xl:inline-flex"
     >
       <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.48)] px-2.5 py-1.5 shadow-[inset_0_1px_0_hsl(var(--background)/0.55)]">
-        <kbd className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-0.5 font-sans text-[10px] font-black leading-none text-app-foreground shadow-xs">
+        <kbd className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-0.5 font-sans text-[0.625rem] font-black leading-none text-app-foreground shadow-xs">
           Enter
         </kbd>
         <span>{t("chat.input.enterToSend")}</span>
       </span>
       <span className="h-1 w-1 rounded-full bg-[hsl(var(--border))]" aria-hidden="true" />
       <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.48)] px-2.5 py-1.5 shadow-[inset_0_1px_0_hsl(var(--background)/0.55)]">
-        <kbd className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-0.5 font-sans text-[10px] font-black leading-none text-app-foreground shadow-xs">
+        <kbd className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-0.5 font-sans text-[0.625rem] font-black leading-none text-app-foreground shadow-xs">
           Shift
         </kbd>
         <span className="text-app-soft">+</span>
-        <kbd className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-0.5 font-sans text-[10px] font-black leading-none text-app-foreground shadow-xs">
+        <kbd className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-0.5 font-sans text-[0.625rem] font-black leading-none text-app-foreground shadow-xs">
           Enter
         </kbd>
         <span>{t("chat.input.shiftEnterNewLine")}</span>
@@ -1088,7 +1231,8 @@ export function ChatComposer({
   };
 
   const actionSheetButtonClass =
-    "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-2 text-center text-[10px] font-bold leading-tight text-app-muted shadow-[0_8px_18px_hsl(var(--shadow-color)/0.045)] transition hover:border-[hsl(var(--primary)/0.26)] hover:bg-[hsl(var(--primary)/0.08)] hover:text-[hsl(var(--primary))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-not-allowed disabled:opacity-55";
+    "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-2 text-center text-[0.625rem] font-bold leading-tight text-app-muted shadow-[0_8px_18px_hsl(var(--shadow-color)/0.045)] transition hover:border-[hsl(var(--primary)/0.26)] hover:bg-[hsl(var(--primary)/0.08)] hover:text-[hsl(var(--primary))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-not-allowed disabled:opacity-55";
+  const formattingPollProps = pollEnabled && onOpenPoll ? { onOpenPoll } : {};
 
   return (
     <div
@@ -1096,7 +1240,9 @@ export function ChatComposer({
         "sticky bottom-0 z-20 bg-transparent backdrop-blur-xl md:static",
         isThreadComposer
           ? "space-y-2 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:p-3"
-          : "space-y-1.5 p-2 pb-[max(0.65rem,env(safe-area-inset-bottom))] md:px-3 md:pb-3 md:pt-1.5",
+          : referenceComposer
+            ? "space-y-1.5 px-2 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-1.5 md:px-[1.375rem] md:pb-[1.125rem]"
+            : "space-y-1.5 p-2 pb-[max(0.65rem,env(safe-area-inset-bottom))] md:px-3 md:pb-3 md:pt-1.5",
       )}
       data-testid="message-composer"
       data-composer-variant={isThreadComposer ? "thread" : "default"}
@@ -1109,10 +1255,17 @@ export function ChatComposer({
 
       <div
         className={cn(
-          "relative border border-[hsl(var(--border)/0.44)] bg-[hsl(var(--surface-card)/0.94)] shadow-[0_10px_30px_hsl(var(--shadow-color)/0.055),inset_0_1px_0_hsl(var(--background)/0.5)] transition-colors duration-150",
-          composerFocused &&
+          "relative",
+          !referenceComposer &&
+            "border border-[hsl(var(--border)/0.44)] bg-[hsl(var(--surface-card)/0.94)] shadow-[0_10px_30px_hsl(var(--shadow-color)/0.055),inset_0_1px_0_hsl(var(--background)/0.5)] transition-colors duration-150",
+          !referenceComposer &&
+            composerFocused &&
             "border-[hsl(var(--primary)/0.38)] shadow-[0_14px_38px_hsl(var(--primary)/0.095),inset_0_1px_0_hsl(var(--background)/0.62)]",
-          isThreadComposer ? "rounded-[18px] p-2" : "rounded-[20px] p-2 md:rounded-[22px] md:p-3",
+          referenceComposer
+            ? ""
+            : isThreadComposer
+              ? "rounded-[1.125rem] p-2"
+              : "rounded-[1.25rem] p-2 md:rounded-[1.375rem] md:p-3",
         )}
       >
         {disabled ? (
@@ -1125,7 +1278,7 @@ export function ChatComposer({
         ) : null}
 
         {isDraggingFiles ? (
-          <div className="absolute inset-2 z-20 flex items-center justify-center rounded-[24px] border border-dashed border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--primary)/0.12)] text-center shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.1)] backdrop-blur-xl">
+          <div className="absolute inset-2 z-20 flex items-center justify-center rounded-[1.5rem] border border-dashed border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--primary)/0.12)] text-center shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.1)] backdrop-blur-xl">
             <div className="rounded-3xl border border-[hsl(var(--primary)/0.25)] bg-[hsl(var(--surface-card)/0.9)] px-5 py-4 shadow-[0_18px_42px_hsl(var(--shadow-color)/0.14)]">
               <Paperclip className="mx-auto mb-2 h-5 w-5 text-[hsl(var(--primary))]" />
               <p className="text-sm font-bold text-app-foreground">
@@ -1141,7 +1294,7 @@ export function ChatComposer({
           <div className="mb-2 grid max-h-[34dvh] grid-cols-2 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-3 md:max-h-none md:grid-cols-5 md:gap-2 md:overflow-visible md:pr-0">
             {attachmentDrafts.map((draft) => (
               <div
-                className="group/attachment relative aspect-square overflow-hidden rounded-[20px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.42)]"
+                className="group/attachment relative aspect-square overflow-hidden rounded-[1.25rem] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.42)]"
                 data-filename={draft.filename}
                 data-status={draft.status}
                 data-testid="attachment-draft"
@@ -1170,7 +1323,7 @@ export function ChatComposer({
                       <p className="line-clamp-2 break-all text-xs font-semibold text-app-foreground">
                         {draft.filename}
                       </p>
-                      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-app-soft">
+                      <p className="text-[0.625rem] font-medium uppercase tracking-[0.12em] text-app-soft">
                         {formatAttachmentSize(draft.size)}
                       </p>
                     </div>
@@ -1178,39 +1331,39 @@ export function ChatComposer({
                 )}
                 <div className="absolute inset-0 bg-linear-to-t from-black/45 via-transparent to-black/12 opacity-80" />
                 {draft.kind === "file" ? (
-                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/86 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700 shadow-xs backdrop-blur">
+                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/86 px-2 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-[hsl(var(--foreground))] shadow-xs backdrop-blur">
                     <Paperclip className="h-3 w-3" />
                     {t("chat.attachments.file")}
                   </span>
                 ) : null}
                 {draft.kind === "video" ? (
-                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/86 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700 shadow-xs backdrop-blur">
+                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/86 px-2 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-[hsl(var(--foreground))] shadow-xs backdrop-blur">
                     <Video className="h-3 w-3" />
                     {t("chat.attachments.video")}
                   </span>
                 ) : null}
                 {isMessageGifContentType(draft.contentType) ? (
-                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/86 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-700 shadow-xs backdrop-blur">
+                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/86 px-2 py-1 text-[0.625rem] font-bold uppercase tracking-[0.12em] text-[hsl(var(--foreground))] shadow-xs backdrop-blur">
                     <ImageIcon className="h-3 w-3" />
                     {t("chat.attachments.gif")}
                   </span>
                 ) : null}
                 {draft.status === "uploading" ? (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="inline-flex items-center gap-2 rounded-full bg-white/88 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs">
+                    <span className="inline-flex items-center gap-2 rounded-full bg-white/88 px-3 py-1.5 text-xs font-semibold text-[hsl(var(--foreground))] shadow-xs">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       {t("chat.attachments.uploadingAttachment")}
                     </span>
                   </div>
                 ) : null}
                 {draft.status === "error" ? (
-                  <div className="absolute inset-x-2 bottom-2 rounded-full bg-[hsl(var(--danger)/0.92)] px-2 py-1 text-center text-[10px] font-semibold text-white shadow-xs">
+                  <div className="absolute inset-x-2 bottom-2 rounded-full bg-[hsl(var(--danger)/0.92)] px-2 py-1 text-center text-[0.625rem] font-semibold text-white shadow-xs">
                     {draft.error ?? t("chat.attachments.uploadFailed")}
                   </div>
                 ) : null}
                 <button
                   aria-label={t("chat.attachments.removeAttachment")}
-                  className="absolute right-2 top-2 rounded-full border border-white/50 bg-white/88 p-1.5 text-slate-700 opacity-100 shadow-xs transition hover:bg-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white"
+                  className="absolute right-2 top-2 rounded-full border border-white/50 bg-white/88 p-1.5 text-[hsl(var(--foreground))] opacity-100 shadow-xs transition hover:bg-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white"
                   onClick={() => removeAttachmentDraft(draft.localId)}
                   type="button"
                 >
@@ -1244,123 +1397,40 @@ export function ChatComposer({
         </div>
 
         <div className="relative flex flex-col">
-          <div className="relative flex-1">
-            {showFormattingToolbar ? (
-              <div
-                aria-label={t("chat.input.formatting")}
-                className={cn(
-                  "flex flex-wrap items-center gap-1.5 rounded-t-[20px] border border-b-0 border-[hsl(var(--border)/0.6)] bg-[hsl(var(--surface-card)/0.94)] p-1.5 shadow-[inset_0_1px_0_hsl(var(--background)/0.52)]",
-                  isThreadComposer ? "max-h-36 overflow-y-auto" : "",
-                )}
-                data-testid="message-formatting-toolbar"
-                role="toolbar"
-              >
-                <button
-                  aria-label={t("chat.input.bold")}
-                  className={formattingActionButtonClass}
-                  onClick={() => insertMarkdownWrap("**", "**", t("chat.input.boldFallback"))}
-                  onMouseDown={(event) => event.preventDefault()}
-                  type="button"
-                >
-                  <Bold className="h-4 w-4" />
-                  <span className="sr-only sm:not-sr-only">{t("chat.input.bold")}</span>
-                </button>
-                <button
-                  aria-label={t("chat.input.italic")}
-                  className={formattingActionButtonClass}
-                  onClick={() => insertMarkdownWrap("_", "_", t("chat.input.italicFallback"))}
-                  onMouseDown={(event) => event.preventDefault()}
-                  type="button"
-                >
-                  <Italic className="h-4 w-4" />
-                  <span className="sr-only sm:not-sr-only">{t("chat.input.italic")}</span>
-                </button>
-                <button
-                  aria-label={t("chat.input.underline")}
-                  className={formattingActionButtonClass}
-                  onClick={() => insertMarkdownWrap("++", "++", t("chat.input.underlineFallback"))}
-                  onMouseDown={(event) => event.preventDefault()}
-                  type="button"
-                >
-                  <Underline className="h-4 w-4" />
-                  <span className="sr-only sm:not-sr-only">{t("chat.input.underline")}</span>
-                </button>
-                <button
-                  aria-label={t("chat.input.strikethrough")}
-                  className={formattingActionButtonClass}
-                  onClick={() =>
-                    insertMarkdownWrap("~~", "~~", t("chat.input.strikethroughFallback"))
-                  }
-                  onMouseDown={(event) => event.preventDefault()}
-                  type="button"
-                >
-                  <Strikethrough className="h-4 w-4" />
-                  <span className="sr-only sm:not-sr-only">{t("chat.input.strikethrough")}</span>
-                </button>
-                <button
-                  aria-label={t("chat.input.bulletedList")}
-                  className={formattingActionButtonClass}
-                  onClick={() => insertPrefixedLines("- ", t("chat.input.listFallback"))}
-                  onMouseDown={(event) => event.preventDefault()}
-                  type="button"
-                >
-                  <List className="h-4 w-4" />
-                  <span>{t("chat.input.bulletedList")}</span>
-                </button>
-                <button
-                  aria-label={t("chat.input.orderedList")}
-                  className={formattingActionButtonClass}
-                  onClick={insertOrderedList}
-                  onMouseDown={(event) => event.preventDefault()}
-                  type="button"
-                >
-                  <ListOrdered className="h-4 w-4" />
-                  <span>{t("chat.input.orderedList")}</span>
-                </button>
-                <button
-                  aria-label={t("chat.input.quote")}
-                  className={formattingActionButtonClass}
-                  onClick={() => insertPrefixedLines("> ", t("chat.input.quoteFallback"))}
-                  onMouseDown={(event) => event.preventDefault()}
-                  type="button"
-                >
-                  <Quote className="h-4 w-4" />
-                  <span>{t("chat.input.quote")}</span>
-                </button>
-                <button
-                  aria-label={t("chat.input.inlineCode")}
-                  className={formattingActionButtonClass}
-                  onClick={() => insertMarkdownWrap("`", "`", t("chat.input.codeFallback"))}
-                  onMouseDown={(event) => event.preventDefault()}
-                  type="button"
-                >
-                  <Code2 className="h-4 w-4" />
-                  <span>{t("chat.input.inlineCode")}</span>
-                </button>
-                <button
-                  aria-label={t("chat.input.codeBlock")}
-                  className={formattingActionButtonClass}
-                  onClick={insertCodeBlock}
-                  onMouseDown={(event) => event.preventDefault()}
-                  type="button"
-                >
-                  <Braces className="h-4 w-4" />
-                  <span>{t("chat.input.codeBlock")}</span>
-                </button>
-                <button
-                  aria-label={t("chat.input.poll")}
-                  className={cn(
-                    formattingActionButtonClass,
-                    "border-[hsl(var(--primary)/0.26)] bg-[hsl(var(--primary)/0.08)] text-[hsl(var(--primary))]",
-                  )}
-                  onClick={insertPollTemplate}
-                  onMouseDown={(event) => event.preventDefault()}
-                  type="button"
-                >
-                  <ChartNoAxesColumnIncreasing className="h-4 w-4" />
-                  <span>{t("chat.input.poll")}</span>
-                </button>
-              </div>
+          {referenceComposer && showFormattingToolbar ? (
+            <ComposerFormattingBar
+              isThreadComposer={isThreadComposer}
+              referenceComposer={referenceComposer}
+              onInsertCodeBlock={insertCodeBlock}
+              onInsertOrderedList={insertOrderedList}
+              onInsertPrefixedLines={insertPrefixedLines}
+              onInsertWrap={insertMarkdownWrap}
+              {...formattingPollProps}
+            />
+          ) : null}
+
+          <div
+            className={cn(
+              "relative flex-1",
+              referenceComposer &&
+                "flex flex-wrap items-center gap-1.5 border border-[hsl(var(--border))] bg-[hsl(var(--surface-card))] px-2.5 py-2 shadow-[0_4px_14px_hsl(var(--shadow-color)/0.035)]",
+              referenceComposer &&
+                (showFormattingToolbar ? "rounded-b-[0.9375rem]" : "rounded-[0.9375rem]"),
+              referenceComposer &&
+                composerFocused &&
+                "border-[hsl(var(--primary)/0.5)] ring-2 ring-[hsl(var(--primary)/0.1)]",
+            )}
+            data-testid="message-composer-input-row"
+          >
+            {!referenceComposer && showFormattingToolbar ? (
+              <ComposerFormattingBar
+                isThreadComposer={isThreadComposer}
+                onInsertCodeBlock={insertCodeBlock}
+                onInsertOrderedList={insertOrderedList}
+                onInsertPrefixedLines={insertPrefixedLines}
+                onInsertWrap={insertMarkdownWrap}
+                {...formattingPollProps}
+              />
             ) : null}
             <AutoResizeTextarea
               ref={textareaRef}
@@ -1385,20 +1455,23 @@ export function ChatComposer({
               disabled={disabled}
               data-testid={isThreadComposer ? "thread-message-input" : "message-input"}
               className={cn(
-                "bg-[hsl(var(--surface-soft)/0.24)] pr-4 focus-visible:bg-[hsl(var(--surface-soft)/0.34)]",
-                isThreadComposer ? "min-h-[4.25rem]" : "min-h-[3.25rem] md:min-h-[4rem]",
+                referenceComposer
+                  ? "order-2 min-h-[2.125rem] min-w-[10rem] flex-[1_1_14rem] rounded-none bg-transparent px-1.5 py-1 text-[0.90625rem] leading-6 focus-visible:bg-transparent md:min-h-[2.125rem] md:px-2 md:py-1"
+                  : "bg-[hsl(var(--surface-soft)/0.24)] pr-4 focus-visible:bg-[hsl(var(--surface-soft)/0.34)]",
+                !referenceComposer &&
+                  (isThreadComposer ? "min-h-[4.25rem]" : "min-h-[3.25rem] md:min-h-[4rem]"),
               )}
-              formattingOpen={showFormattingToolbar}
+              formattingOpen={showFormattingToolbar && !referenceComposer}
               isThreadComposer={isThreadComposer}
               maxLength={hasFiniteMaxLength ? effectiveMaxLength : undefined}
             />
 
             {activeMention && mode === "channel" && !disabled ? (
               <div
-                className="absolute bottom-[calc(100%+0.5rem)] left-0 z-30 w-full max-w-sm rounded-[24px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.96)] p-2 shadow-[0_20px_50px_hsl(var(--shadow-color)/0.16)] backdrop-blur-xl"
+                className="absolute bottom-[calc(100%+0.5rem)] left-0 z-30 w-full max-w-sm rounded-[1.5rem] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.96)] p-2 shadow-[0_20px_50px_hsl(var(--shadow-color)/0.16)] backdrop-blur-xl"
                 data-testid="mention-suggestions"
               >
-                <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-app-soft">
+                <p className="px-2 pb-1 text-[0.625rem] font-semibold uppercase tracking-[0.18em] text-app-soft">
                   {t("chat.mentions.title")}
                 </p>
                 {mentionSuggestions.length > 0 ? (
@@ -1416,13 +1489,13 @@ export function ChatComposer({
                           key={member.userId}
                           onMouseDown={(event) => {
                             event.preventDefault();
-                            insertMention(member);
+                            insertMention(member.username);
                           }}
                           type="button"
                         >
                           <Avatar
                             alt={name}
-                            className="h-8 w-8 text-[11px]"
+                            className="h-8 w-8 text-[0.6875rem]"
                             fallback={name}
                             src={member.avatarUrl}
                           />
@@ -1436,21 +1509,78 @@ export function ChatComposer({
                       );
                     })}
                   </div>
-                ) : (
+                ) : null}
+                {roleSuggestions.length > 0 ? (
+                  <>
+                    <p className="px-2 pb-1 pt-2 text-[0.625rem] font-semibold uppercase tracking-[0.18em] text-app-soft">
+                      {t("chat.mentions.rolesTitle")}
+                    </p>
+                    <div className="space-y-1">
+                      {roleSuggestions.map((role, index) => {
+                        const optionIndex = mentionSuggestions.length + index;
+                        return (
+                          <button
+                            className={`flex w-full items-center gap-2 rounded-2xl px-2 py-2 text-left transition ${
+                              optionIndex === activeMentionIndex
+                                ? "bg-[hsl(var(--primary)/0.12)] text-app-foreground"
+                                : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.62)] hover:text-app-foreground"
+                            }`}
+                            data-testid={`mention-role-suggestion-${role.id}`}
+                            key={role.id}
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              insertMention(role.name);
+                            }}
+                            type="button"
+                          >
+                            {/* Rol rengi tasarımın verisi, token değil: sunucu yöneticisinin
+                                seçtiği 24-bit değer. `0` "renk seçilmedi" demektir ve o zaman
+                                satır metin rengine düşer. */}
+                            <span
+                              aria-hidden="true"
+                              className="h-2.5 w-2.5 shrink-0 rounded-full border border-[hsl(var(--border)/0.7)]"
+                              style={
+                                role.color === 0
+                                  ? undefined
+                                  : {
+                                      backgroundColor: `#${role.color.toString(16).padStart(6, "0")}`,
+                                    }
+                              }
+                            />
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-semibold">
+                                @{role.name}
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : null}
+                {mentionOptionCount === 0 ? (
                   <p className="px-2 py-3 text-sm font-medium text-app-muted">
                     {t("chat.mentions.empty")}
                   </p>
-                )}
+                ) : null}
               </div>
             ) : null}
 
             <div
               className={cn(
-                "mt-1.5 flex flex-wrap items-center justify-between gap-2 px-0 pt-1",
-                isThreadComposer ? "gap-2" : "md:gap-3 md:px-2",
+                referenceComposer
+                  ? "contents"
+                  : "mt-1.5 flex flex-wrap items-center justify-between gap-2 px-0 pt-1",
+                !referenceComposer && (isThreadComposer ? "gap-2" : "md:gap-3 md:px-2"),
               )}
             >
-              <div className="flex min-w-0 flex-wrap items-center gap-1.5 md:gap-2">
+              <div
+                className={cn(
+                  referenceComposer
+                    ? "contents"
+                    : "flex min-w-0 flex-wrap items-center gap-1.5 md:gap-2",
+                )}
+              >
                 <input
                   accept={MESSAGE_ATTACHMENT_ACCEPT}
                   className="hidden"
@@ -1465,9 +1595,11 @@ export function ChatComposer({
                 <ComposerButton
                   aria-expanded={actionSheetOpen}
                   className={cn(
-                    isThreadComposer
-                      ? "h-10 min-h-10 min-w-10 rounded-xl"
-                      : "h-10 w-10 md:h-11 md:w-11",
+                    referenceComposer
+                      ? "order-1 h-[2.125rem] min-h-[2.125rem] w-[2.125rem] min-w-[2.125rem] rounded-[0.6875rem] bg-[hsl(var(--surface-soft))]"
+                      : isThreadComposer
+                        ? "h-10 min-h-10 min-w-10 rounded-xl"
+                        : "h-10 w-10 md:h-11 md:w-11",
                   )}
                   data-testid="message-file-button"
                   disabled={disabled || !allowFileUploads}
@@ -1506,8 +1638,9 @@ export function ChatComposer({
                   className={cn(
                     compactToolButtonClass,
                     "hidden md:inline-flex",
+                    referenceComposer && "order-3 h-[2.125rem] min-h-[2.125rem] w-[2.125rem] px-0",
                     showFormattingToolbar
-                      ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))] shadow-[0_12px_26px_hsl(var(--primary)/0.12)]"
+                      ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.14)] text-[var(--primary-readable)] shadow-[0_12px_26px_hsl(var(--primary)/0.12)]"
                       : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted hover:text-app-foreground",
                   )}
                   data-testid="message-formatting-toggle"
@@ -1515,11 +1648,18 @@ export function ChatComposer({
                   title={t("chat.input.toggleFormatting")}
                   type="button"
                 >
-                  <span className="text-[13px] font-black tracking-[-0.04em]">Aa</span>
-                  <span className={formatButtonLabelClass}>{t("chat.input.formatting")}</span>
+                  <span className="text-[0.8125rem] font-black tracking-[-0.04em]">Aa</span>
+                  <span className={referenceComposer ? "sr-only" : formatButtonLabelClass}>
+                    {t("chat.input.formatting")}
+                  </span>
                 </button>
 
-                <div className="relative inline-flex">
+                <div
+                  className={cn(
+                    "relative",
+                    referenceComposer ? "order-4 hidden md:inline-flex" : "inline-flex",
+                  )}
+                >
                   <button
                     onClick={() => {
                       if (disabled) {
@@ -1534,6 +1674,7 @@ export function ChatComposer({
                     className={cn(
                       compactToolButtonClass,
                       "hidden md:inline-flex",
+                      referenceComposer && "h-[2.125rem] min-h-[2.125rem] w-[2.125rem] px-0",
                       "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted hover:text-app-foreground",
                     )}
                     aria-label={t("chat.input.openEmojiPicker")}
@@ -1542,18 +1683,25 @@ export function ChatComposer({
                     type="button"
                   >
                     <Smile className="h-4 w-4" />
-                    <span className={formatButtonLabelClass}>
+                    <span className={referenceComposer ? "sr-only" : formatButtonLabelClass}>
                       {t("chat.input.openEmojiPicker")}
                     </span>
                   </button>
                 </div>
 
-                <div className="relative inline-flex">
+                <div
+                  className={cn(
+                    "relative",
+                    referenceComposer ? "order-5 hidden md:inline-flex" : "inline-flex",
+                  )}
+                >
                   <button
                     aria-label={t("chat.gifs.openPicker")}
                     className={cn(
                       compactToolButtonClass,
                       "hidden md:inline-flex",
+                      referenceComposer &&
+                        "h-[2.125rem] min-h-[2.125rem] w-[2.125rem] px-0 text-[0.6875rem] font-black",
                       "border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.26)] text-app-soft hover:border-[hsl(var(--primary)/0.38)] hover:text-app-foreground",
                     )}
                     data-testid="gif-picker-button"
@@ -1581,21 +1729,30 @@ export function ChatComposer({
                     }
                     type="button"
                   >
-                    <ImageIcon className="h-3.5 w-3.5" />
-                    <span className={formatButtonLabelClass}>{t("chat.attachments.gif")}</span>
+                    {!referenceComposer ? <ImageIcon className="h-3.5 w-3.5" /> : null}
+                    <span className={referenceComposer ? "inline" : formatButtonLabelClass}>
+                      {t("chat.attachments.gif")}
+                    </span>
                   </button>
                 </div>
               </div>
 
               <div
                 className={cn(
-                  "ml-auto flex min-w-0 items-center gap-1.5 md:gap-3",
-                  isThreadComposer ? "w-full justify-between" : "",
+                  referenceComposer
+                    ? "contents"
+                    : "ml-auto flex min-w-0 items-center gap-1.5 md:gap-3",
+                  !referenceComposer && isThreadComposer ? "w-full justify-between" : "",
                 )}
               >
-                {!isThreadComposer ? composerShortcutHint : null}
+                {!isThreadComposer && !referenceComposer ? composerShortcutHint : null}
 
-                <span className="hidden items-center gap-2 sm:inline-flex">
+                <span
+                  className={cn(
+                    "hidden items-center gap-2 sm:inline-flex",
+                    referenceComposer && "sm:hidden",
+                  )}
+                >
                   {!hasFiniteMaxLength ? (
                     <span
                       aria-hidden="true"
@@ -1605,30 +1762,46 @@ export function ChatComposer({
                   {characterCounter}
                 </span>
 
-                <ComposerButton
-                  className={cn(
-                    isThreadComposer
-                      ? "h-10 min-h-10 min-w-10 rounded-xl"
-                      : "h-10 w-10 md:h-11 md:w-11",
-                  )}
-                  disabled={disabled || !onStartVoiceMessage}
-                  icon={Mic}
-                  label={t("chat.input.voiceMessage")}
-                  onClick={onStartVoiceMessage}
-                  title={
-                    onStartVoiceMessage
-                      ? t("chat.input.voiceMessage")
-                      : t("chat.input.voiceMessageUnavailable")
-                  }
-                  variant="ghost"
-                />
+                {pollEnabled && onOpenPoll ? (
+                  <ComposerButton
+                    className={cn(
+                      referenceComposer
+                        ? "order-6 hidden h-[2.125rem] min-h-[2.125rem] w-[2.125rem] min-w-[2.125rem] rounded-[0.6875rem] px-0 md:inline-flex"
+                        : isThreadComposer
+                          ? "h-10 min-h-10 min-w-10 rounded-xl"
+                          : "h-10 w-10 md:h-11 md:w-11",
+                    )}
+                    data-testid="message-poll-button"
+                    disabled={disabled}
+                    icon={BarChart3}
+                    label={t("messages.composer.poll")}
+                    onClick={onOpenPoll}
+                    variant="ghost"
+                  />
+                ) : null}
+
+                {/*
+                  Mesajlar karar #5. Bu düğme buraya kadar pasifti; artık gerçek
+                  kayıt alıyor. `VoiceRecorder` kayıt sırasında kendi şeridini
+                  çiziyor, o yüzden `ComposerButton` sarmalayıcısı yok.
+                */}
+                <div
+                  className={referenceComposer ? "order-7 flex min-w-0 items-center" : "contents"}
+                >
+                  <VoiceRecorder
+                    disabled={disabled || isUploadingVoiceMessage}
+                    onRecorded={(recording) => void handleVoiceRecorded(recording)}
+                  />
+                </div>
 
                 <ComposerButton
                   aria-disabled={!canSend}
                   className={cn(
-                    isThreadComposer
-                      ? "h-10 min-h-10 min-w-10 rounded-xl"
-                      : "h-10 w-10 md:h-12 md:w-12",
+                    referenceComposer
+                      ? "order-8 h-[2.125rem] min-h-[2.125rem] w-[2.125rem] min-w-[2.125rem] rounded-[0.6875rem] border-transparent bg-[hsl(var(--primary))] shadow-none hover:bg-[hsl(var(--primary))] hover:brightness-110"
+                      : isThreadComposer
+                        ? "h-10 min-h-10 min-w-10 rounded-xl"
+                        : "h-10 w-10 md:h-12 md:w-12",
                   )}
                   data-testid="message-send-button"
                   disabled={!canSend}
@@ -1693,20 +1866,27 @@ export function ChatComposer({
                 <ImagePlus className="h-5 w-5" />
                 <span>{t("chat.attachments.image")}</span>
               </button>
-              <button
-                aria-label={t("chat.input.sticker")}
-                className={actionSheetButtonClass}
-                data-testid="mobile-sticker-button"
-                disabled={disabled}
-                onClick={() => {
-                  insertPollTemplate();
-                  setIsActionSheetOpen(false);
-                }}
-                type="button"
-              >
-                <Shield className="h-5 w-5" />
-                <span>{t("chat.input.sticker")}</span>
-              </button>
+              {/*
+                Bu düğme `Sticker` diyor ama anket şablonu ekliyordu — etiketi
+                yaptığı işi anlatmıyordu. Şablon karar #1 ile kalktığı için düğme
+                artık gerçek anket modalını açıyor ve adı da onu söylüyor.
+              */}
+              {pollEnabled && onOpenPoll ? (
+                <button
+                  aria-label={t("messages.composer.poll")}
+                  className={actionSheetButtonClass}
+                  data-testid="mobile-poll-button"
+                  disabled={disabled}
+                  onClick={() => {
+                    onOpenPoll();
+                    setIsActionSheetOpen(false);
+                  }}
+                  type="button"
+                >
+                  <ChartNoAxesColumnIncreasing className="h-5 w-5" />
+                  <span>{t("messages.composer.poll")}</span>
+                </button>
+              ) : null}
               <button
                 aria-label={t("chat.input.codeBlock")}
                 className={actionSheetButtonClass}

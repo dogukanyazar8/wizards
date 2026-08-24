@@ -13,11 +13,17 @@ import {
 
 describe("voice error classification", () => {
   it("classifies microphone permission, device, and constraint errors", () => {
-    assert.equal(isMicrophonePermissionDenied(new DOMException("blocked", "NotAllowedError")), true);
+    assert.equal(
+      isMicrophonePermissionDenied(new DOMException("blocked", "NotAllowedError")),
+      true,
+    );
     assert.equal(isMicrophonePermissionDenied(new Error("Permission denied by user")), true);
     assert.equal(isMicrophoneDeviceUnavailable(new DOMException("missing", "NotFoundError")), true);
     assert.equal(isMicrophoneDeviceUnavailable(new Error("Requested device not found")), true);
-    assert.equal(isMicrophoneConstraintError(new DOMException("bad", "OverconstrainedError")), true);
+    assert.equal(
+      isMicrophoneConstraintError(new DOMException("bad", "OverconstrainedError")),
+      true,
+    );
     assert.equal(isMicrophoneConstraintError(new Error("ConstraintNotSatisfiedError")), true);
   });
 

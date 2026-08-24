@@ -1,10 +1,7 @@
 "use server";
 
 import { auth, unstable_update } from "@/auth";
-import {
-  normalizeWizardsThemeId,
-  type WizardsThemeId,
-} from "@/lib/appearance";
+import { normalizeWizardsThemeId, type WizardsThemeId } from "@/lib/appearance";
 import { Prisma, prisma } from "@wizards/db";
 
 type ThemeActionResult = {
@@ -21,9 +18,7 @@ function isMissingUserSettingsThemeColumn(error: unknown) {
   );
 }
 
-export async function updateThemePreferenceAction(
-  rawTheme: string,
-): Promise<ThemeActionResult> {
+export async function updateThemePreferenceAction(rawTheme: string): Promise<ThemeActionResult> {
   const session = await auth();
 
   if (!session?.user?.id) {

@@ -1,8 +1,8 @@
 import { ChannelType, prisma } from "@wizards/db";
-import { redirect } from "next/navigation";
+import { permanentRedirect, redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth/utils";
+import { MESSAGES_ROUTE, toMessagesRedirect } from "@/lib/messages/routes";
 import { ChannelConversationPage } from "@/components/chat/channel-conversation-page";
-import { DMConversationPage } from "@/components/dm/dm-conversation-page";
 import { VoiceChannelView } from "@/components/voice/voice-channel-view";
 import {
   PermissionBits,
@@ -17,9 +17,10 @@ type PageParams = {
     serverId: string;
     channelId: string;
   }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function ChannelPage({ params }: PageParams) {
+export default async function ChannelPage({ params, searchParams }: PageParams) {
   const session = await requireAuth();
   const { serverId, channelId } = await params;
   const normalizedServerId = decodeURIComponent(serverId);
@@ -30,16 +31,10 @@ export default async function ChannelPage({ params }: PageParams) {
     session.user.username ?? session.user.email?.split("@")[0] ?? "whispr";
   const uploadthingEnabled = Boolean(process.env.UPLOADTHING_TOKEN);
 
+  // Eski DM yolu. Sohbet artık `/messages/[conversationId]`; `?message=` gibi
+  // derin bağlantı sorguları yönlendirmede korunur.
   if (normalizedServerId === "@me") {
-    return (
-      <DMConversationPage
-        conversationId={channelId}
-        currentUserDisplayName={currentUserDisplayName}
-        currentUserId={session.user.id}
-        currentUserUsername={currentUserUsername}
-        uploadthingEnabled={uploadthingEnabled}
-      />
-    );
+    permanentRedirect(toMessagesRedirect(channelId, await searchParams));
   }
 
   const [channel, membership] = await Promise.all([
@@ -116,7 +111,7 @@ export default async function ChannelPage({ params }: PageParams) {
   ]);
 
   if (!membership) {
-    redirect("/channels");
+    redirect(MESSAGES_ROUTE);
   }
 
   if (!channel) {
@@ -126,10 +121,7 @@ export default async function ChannelPage({ params }: PageParams) {
   const permissionContext = {
     memberId: membership.id,
     ownerId: membership.server.ownerId,
-    roles: [
-      ...membership.server.roles,
-      ...membership.roles.map((entry) => entry.role),
-    ],
+    roles: [...membership.server.roles, ...membership.roles.map((entry) => entry.role)],
     userId: session.user.id,
     overrides: channel.permissionOverrides,
   };

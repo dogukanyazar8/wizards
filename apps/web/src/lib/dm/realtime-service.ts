@@ -66,8 +66,25 @@ export async function createRealtimeDMMessage(args: {
   mentionedUserIds?: readonly string[];
   notification?: DMMessageNotificationContext;
   participants: DMRealtimeParticipant[];
+  /**
+   * Mesajlar karar #1. Written inside the same transaction as the message, not
+   * after it: a poll message whose options failed to commit would be a card with
+   * nothing to vote on, and the send has already been announced by then.
+   */
+  poll?: {
+    anonymous: boolean;
+    closesAt: Date;
+    multi: boolean;
+    options: readonly string[];
+    question: string;
+  } | null;
   replyToId?: string | null;
   threadParentId?: string | null;
+  /**
+   * Mesajlar §6.1. Thread yanıtı ana sohbete de düşsün mü. Kök mesajda
+   * anlamsız, o yüzden `threadParentId` ile birlikte değerlendiriliyor.
+   */
+  alsoSendToChannel?: boolean;
   userId: string;
 }) {
   const clientNonce = normalizeMessageClientNonce(args.clientNonce);
@@ -81,6 +98,9 @@ export async function createRealtimeDMMessage(args: {
           content: args.content,
           replyToId: args.replyToId ?? null,
           threadParentId: args.threadParentId ?? null,
+          // Bayrak yalnız gerçek bir thread yanıtında yazılır: kökte `true`
+          // olsaydı ana sohbet sorgusu aynı satırı iki kez döndürürdü.
+          alsoSentToChannel: Boolean(args.threadParentId && args.alsoSendToChannel),
           forwardedAt: args.forwardOfMessageId ? new Date() : null,
           expiresAt: args.expiresAt ?? null,
           clientNonce,
@@ -91,6 +111,22 @@ export async function createRealtimeDMMessage(args: {
       await claimUploadedMessageAttachments(tx, args.userId, args.attachmentInputs, {
         dmMessageId: createdMessage.id,
       });
+
+      if (args.poll) {
+        await tx.poll.create({
+          data: {
+            anonymous: args.poll.anonymous,
+            closesAt: args.poll.closesAt,
+            createdById: args.userId,
+            dmMessageId: createdMessage.id,
+            multi: args.poll.multi,
+            options: {
+              create: args.poll.options.map((label, position) => ({ label, position })),
+            },
+            question: args.poll.question,
+          },
+        });
+      }
 
       const message = await tx.dMMessage.findUniqueOrThrow({
         where: { id: createdMessage.id },
@@ -167,6 +203,25 @@ export async function createRealtimeDMMessage(args: {
             userId: { in: mentionedUserIds },
           },
           data: { mentionCount: { increment: 1 } },
+        });
+
+        // Ana Sayfa 1a, Faz 6. The counter above answers "how many"; these rows
+        // answer "which ones", which is the only question "Bahsedilmeler" asks.
+        // Both commit with the message: a badge whose row rolled back would
+        // point at nothing, and a row without the badge would never be noticed.
+        // `createdAt` is copied from the message rather than defaulted so the
+        // keyset page and the message list cannot disagree by a few ms.
+        // Bahsedilmeler Ş2: DM'de rol ve `@herkes` yoktur, bu dal her zaman `SELF`. Kolon yine
+        // de yazılıyor: akış iki tabloyu tek `UNION` ile okuyor ve varsayılana güvenen bir dal,
+        // varsayılan değiştiği gün sessizce yalan söyler.
+        await tx.dMMessageMention.createMany({
+          data: mentionedUserIds.map((userId) => ({
+            createdAt: createdMessage.createdAt,
+            kind: "SELF" as const,
+            messageId: createdMessage.id,
+            userId,
+          })),
+          skipDuplicates: true,
         });
       }
 

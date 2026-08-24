@@ -59,15 +59,64 @@ function selectMany(count: number): GroupCreateState {
   return state;
 }
 
+function renderIdentityDialog() {
+  const TestableContent = GroupCreateDialogContent as React.ComponentType<
+    React.ComponentProps<typeof GroupCreateDialogContent> & {
+      initialState: GroupCreateState;
+    }
+  >;
+
+  return renderToStaticMarkup(
+    <LocaleProvider initialLocale="tr" initialMessages={getMessagesForLocale("tr")}>
+      <TestableContent
+        friends={FRIENDS}
+        initialState={{
+          ...selectMany(2),
+          name: "Tasarım Ekibi",
+          step: "identity",
+        }}
+        onClose={() => undefined}
+        onSubmit={() => undefined}
+      />
+    </LocaleProvider>,
+  );
+}
+
 describe("group create dialog", () => {
+  it("renders the canonical member-step chrome and copy", () => {
+    const markup = renderDialog();
+
+    assert.match(markup, /Yeni grup sohbeti/);
+    assert.match(markup, /Adım 1 \/ 2 · Kimler olacak\?/);
+    assert.match(markup, /placeholder="Kullanıcı ara — isim veya @kullanıcıadı"/);
+    assert.match(markup, /En az 2 kişi seç · en çok 250 üye/);
+    assert.match(markup, />İptal</);
+    assert.match(markup, />İleri</);
+  });
+
+  it("renders the canonical identity settings without a create-time upload", () => {
+    const markup = renderIdentityDialog();
+
+    assert.match(markup, /Adım 2 \/ 2 · Grup ayarları/);
+    assert.match(markup, /Üye ekleme kuralı/);
+    assert.match(markup, /Davet bağlantısı izni/);
+    assert.match(markup, /Sohbet geçmişi görünürlüğü/);
+    assert.match(markup, /Tüm geçmiş/);
+    assert.match(markup, /30 gün/);
+    assert.match(markup, /7 gün/);
+    assert.match(markup, />Yok</);
+    assert.match(markup, /2 kişi seçildi · sen dahil/);
+    assert.doesNotMatch(markup, /data-testid="group-icon-field"/);
+  });
+
   it("opens on the member step with the next action shut", () => {
     const markup = renderDialog();
 
     assert.match(markup, /group-create-dialog/);
     assert.match(markup, /group-create-friend-user-2/);
-    // Nothing is picked yet, so the counter is the creator alone and "next" is
-    // rendered disabled.
-    assert.match(markup, />1\/32</);
+    // Hiç kimse seçilmedi; referansın ilk adım sayacı yalnız seçilenleri sayar.
+    assert.ok(markup.includes("0 kişi seçildi"), markup.slice(0, 400));
+    assert.doesNotMatch(markup, /0 kişi seçildi · sen dahil/);
     assert.match(markup, /data-testid="group-create-next"[^>]*disabled/);
   });
 
@@ -81,7 +130,9 @@ describe("group create dialog", () => {
     assert.equal(overflowed.selectedUserIds.length, GROUP_DM_MAX_PARTICIPANTS - 1);
   });
 
-  it("drops a blank name from the create body", () => {
+  it("still carries the name key when the field is blank", () => {
+    // The name is required now; `canSubmitGroup` refuses a blank one before the
+    // body is ever built, so the body has no reason to hide the key.
     const state: GroupCreateState = {
       ...selectMany(2),
       name: "   ",
@@ -90,7 +141,7 @@ describe("group create dialog", () => {
 
     const body = toGroupCreateRequest(state, null);
 
-    assert.equal("name" in body, false);
+    assert.equal(body.name, "");
     assert.deepEqual(body.userIds, ["user-0", "user-1"]);
   });
 
@@ -124,23 +175,25 @@ describe("group create dialog", () => {
     assert.equal(buildGroupNameFromMembers(names, "en"), "Atakan, UAT Test and DY");
   });
 
-  it("carries the 2c identity fields into the create body with the invite off", () => {
+  it("carries the identity fields into the create body", () => {
     const state: GroupCreateState = {
       ...selectMany(2),
-      avatarColor: "#C2185B",
+      avatarColor: "danger",
       description: "  Mobil ekip  ",
       historyVisibility: "NONE",
+      inviteEnabled: false,
+      name: "Mobil Ekip",
       permAddMembers: "ADMINS",
       step: "identity",
     };
 
     const body = toGroupCreateRequest(state, null);
 
-    assert.equal(body.avatarColor, "#C2185B");
+    assert.equal(body.avatarColor, "danger");
     assert.equal(body.description, "Mobil ekip");
     assert.equal(body.historyVisibility, "NONE");
     assert.equal(body.permAddMembers, "ADMINS");
-    // K2: the link is not minted unless the creator ticked it.
+    // The creator can still turn the link off; only the default moved.
     assert.equal(body.inviteEnabled, false);
   });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import {
   AtSign,
@@ -20,22 +20,43 @@ import type {
   DMConversationDTO,
   DMMessagePayload,
   DMParticipantDTO,
+  DMParticipantRole,
+  PollDTO,
   MessageAttachment,
   UploadedAttachmentInput,
 } from "@wizards/types";
 import { MessageList } from "./message-list";
 import { MessageInput } from "./message-input";
+import { useRouter } from "next/navigation";
+import { Modal } from "@/components/ui/modal";
+import { MESSAGES_METRICS } from "@/lib/messages/metrics";
 import { MessageSearchPanel } from "./message-search-panel";
+import { ConversationHeader } from "@/components/messages/conversation-header";
+import { MessagePoll } from "@/components/messages/message-poll";
+import { MessagesSearchPanel } from "@/components/messages/messages-search-panel";
+import { PinnedListSheet } from "@/components/messages/pinned-list-sheet";
+import { PinnedStrip } from "@/components/messages/pinned-strip";
+import { PollComposer } from "@/components/messages/poll-composer";
+import { PollVotersSheet } from "@/components/messages/poll-voters-sheet";
+import { ForwardMessageSheet } from "@/components/messages/forward-message-sheet";
+import { useConversationRows } from "@/hooks/use-conversation-rows";
+import { selectPollCountdown } from "@wizards/types";
+import { usePoll } from "@/hooks/use-poll";
+import {
+  MessagesClientError,
+  createPoll,
+  fetchConversationPins,
+  fetchPollVoters,
+  forwardDmMessage,
+  pinDmMessage,
+  unpinDmMessage,
+} from "@/lib/messages/screen-client";
 import { ThreadPanel } from "./thread-panel";
 import { TypingIndicator } from "./typing-indicator";
 import { createRafThrottledCallback } from "@/lib/ui/raf-throttle";
+import { shouldFocusComposer } from "@/lib/home/href";
 import { ServerMemberPanel } from "@/components/shell/server-member-panel";
-import {
-  DmComposer,
-  DmConversationHeader,
-  DmGroupConversationHeader,
-  DmMessageSurface,
-} from "@/components/dm/dm-conversation";
+import { DmComposer, DmMessageSurface } from "@/components/dm/dm-conversation";
 import {
   getGroupConversationTitle,
   isGroupConversation as isGroupDm,
@@ -93,6 +114,65 @@ interface ChatAreaProps {
 
 /** Stable identity: `?? []` would hand the message list a new array per render. */
 const EMPTY_PARTICIPANTS: readonly [] = [];
+/** Sorgu boşken yeni bir dizi üretmemek için; her render'da yeni dizi memoyu bozar. */
+const EMPTY_PINS: readonly [] = [];
+const EMPTY_VOTERS: readonly [] = [];
+
+/**
+ * Anket kartını kendi kancasıyla saran ince sarmalayıcı.
+ *
+ * `usePoll` bir kanca; satırın içinde çağrılsaydı anketi olmayan her satır da
+ * bir kanca kurar ve React'in kanca sırası kuralı gereği koşullu çağrılamazdı.
+ */
+function MessagePollSlot({ poll }: { poll: PollDTO }) {
+  const { t } = useI18n();
+  const state = usePoll({ poll });
+  const [votersOpen, setVotersOpen] = useState(false);
+  /**
+   * Oy verenler yalnız sheet açılınca çekilir: her anket kartı için bir istek,
+   * hiç tıklanmayacak bir listeyi otuz kez indirmek olurdu. Anonim ankette uç
+   * 403 verir ve bağlantı zaten çizilmez, o yüzden sorgu da hiç kurulmaz.
+   */
+  const votersQuery = useQuery({
+    enabled: votersOpen && state.poll.canSeeVoters,
+    queryFn: () => fetchPollVoters(state.poll.id),
+    queryKey: ["messages", "poll", state.poll.id, "voters"],
+    staleTime: 10_000,
+  });
+
+  const countdown = selectPollCountdown(state.poll, new Date());
+
+  return (
+    <>
+      <MessagePoll
+        closesInLabel={
+          countdown
+            ? t(
+                countdown.unit === "minute"
+                  ? "messages.poll.countdownMinute"
+                  : countdown.unit === "hour"
+                    ? "messages.poll.countdownHour"
+                    : "messages.poll.countdownDay",
+                { count: countdown.value },
+              )
+            : null
+        }
+        disabled={state.isVoting}
+        errorText={state.hasError ? t("messages.errors.voteFailed") : null}
+        onOpenVoters={() => setVotersOpen(true)}
+        onToggleOption={state.toggleOption}
+        poll={state.poll}
+      />
+
+      <PollVotersSheet
+        onClose={() => setVotersOpen(false)}
+        open={votersOpen}
+        poll={state.poll}
+        voters={votersQuery.data ?? EMPTY_VOTERS}
+      />
+    </>
+  );
+}
 
 let optimisticMessageSequence = 0;
 
@@ -187,6 +267,21 @@ function getFloatingPanelPosition(anchor: HTMLElement | null): FloatingPanelPosi
   return { left, top, width };
 }
 
+/** `useSyncExternalStore` aboneliği — konum değişimi `popstate` ile duyurulur. */
+function subscribeToLocation(listener: () => void) {
+  window.addEventListener("popstate", listener);
+
+  return () => window.removeEventListener("popstate", listener);
+}
+
+function readComposerFocusFlag(): boolean {
+  return shouldFocusComposer(window.location.search);
+}
+
+function readServerComposerFocusFlag(): boolean {
+  return false;
+}
+
 export function ChatArea(props: ChatAreaProps) {
   return <ChatAreaContent {...props} key={`${props.mode}:${props.conversationId}`} />;
 }
@@ -228,6 +323,15 @@ function ChatAreaContent({
   const socket = useSocket();
   const queryClient = useQueryClient();
   const responsiveLayout = useResponsiveLayout();
+  const router = useRouter();
+  /**
+   * `<1100px`'te sağ panel ana alanın üstüne biner (Ş0.1'in `sidePanelOverlayBelow`
+   * eşiği). Eşik burada okunuyor çünkü `useResponsiveLayout` kabuğun kendi
+   * kırılma noktalarını taşıyor ve bu eşik Mesajlar ekranına özgü.
+   */
+  const overlaySidePanel =
+    responsiveLayout.viewportWidth > 0 &&
+    responsiveLayout.viewportWidth < MESSAGES_METRICS.layout.sidePanelOverlayBelow;
   const setMobileSidebarOpen = useAppStore((state) => state.setMobileSidebarOpen);
   const serverMembersQuery = useQuery({
     enabled: mode === "channel" && Boolean(serverId),
@@ -235,6 +339,17 @@ function ChatAreaContent({
     queryKey: serverId ? workspaceQueryKeys.server(serverId) : ["workspace", "server", "idle"],
     staleTime: 30_000,
   });
+  /**
+   * Bahsedilmeler Ş2 / karar K1. Öneri listesi yalnız **bahsedilebilir** rolleri gösterir.
+   * `MENTION_EVERYONE` sahibi kısıtlı bir rolü elle yazabilir; listeye koymak, izni olmayan
+   * herkese "buna dokunabilirsin" demek olurdu. Varsayılan rol `@herkes`in kendisidir ve o
+   * ayrı bir daldır (K2).
+   */
+  const mentionableRoles = useMemo(
+    () =>
+      (serverMembersQuery.data?.roles ?? []).filter((role) => role.mentionable && !role.isDefault),
+    [serverMembersQuery.data],
+  );
   const pinnedMessagesQuery = useQuery({
     enabled: mode === "channel",
     queryFn: () => fetchChannelPinnedMessages(conversationId),
@@ -246,6 +361,43 @@ function ChatAreaContent({
     queryFn: () => fetchChannelNotificationSettings(conversationId),
     queryKey: ["workspace", "channel", conversationId, "notification-settings"],
     staleTime: 30_000,
+  });
+  /**
+   * Mesajlar karar #7. DM sabitleri konuşmaya ait ve kendi uçları var; kanal
+   * tarafı `pinnedMessagesQuery` ile eski yolunda kalıyor. İkisi tek sorguya
+   * sıkıştırılsaydı, iki farklı yetki modeli tek bir yanıtın içinde karışırdı.
+   */
+  const dmPinsQuery = useQuery({
+    enabled: mode === "dm",
+    queryFn: () => fetchConversationPins(conversationId),
+    queryKey: ["messages", "dm", conversationId, "pins"],
+    staleTime: 30_000,
+  });
+  const dmPinsMutation = useMutation({
+    mutationFn: ({ messageId, pinned }: { messageId: string; pinned: boolean }) =>
+      pinned ? unpinDmMessage(conversationId, messageId) : pinDmMessage(conversationId, messageId),
+    onSuccess: (pins) => {
+      queryClient.setQueryData(["messages", "dm", conversationId, "pins"], pins);
+    },
+  });
+  const forwardMutation = useMutation({
+    mutationFn: ({
+      messageId,
+      targetConversationId,
+    }: {
+      messageId: string;
+      targetConversationId: string;
+    }) => forwardDmMessage(messageId, targetConversationId),
+    onSuccess: () => setForwardMessageId(null),
+  });
+  const createPollMutation = useMutation({
+    mutationFn: (request: Parameters<typeof createPoll>[0]) => createPoll(request),
+    onSuccess: () => {
+      // İyimser mesaj eklenmiyor: anket kartı sunucu kimliği ister ve akışa
+      // `dm:message:new` ile giriyor. Uydurma bir kimlikle çizilen kart, ilk
+      // oyda var olmayan bir ankete oy göndermek olurdu.
+      setPollComposerOpen(false);
+    },
   });
   const notificationSettingsMutation = useMutation({
     mutationFn: (level: "all" | "mentions" | "muted") =>
@@ -290,11 +442,31 @@ function ChatAreaContent({
     content: string;
   } | null>(null);
   const [selectedThread, setSelectedThread] = useState<ChatMessage | null>(null);
+  /**
+   * Ana Sayfa 1a Faz 5 §1 — "Yanıt bekliyor" satırının `Yanıtla` butonu buraya
+   * `?compose=1` ile gelir.
+   *
+   * `useSyncExternalStore` çünkü değer sunucuda **yok**: sunucu anlık görüntüsü
+   * `false`, istemci konumu okur, hidrasyon uyuşmazlığı olmaz. `popstate` aboneliği
+   * geri/ileri gezinmeyi de kapsıyor; rota değişimi zaten yeni bir render.
+   */
+  const focusComposerOnOpen = useSyncExternalStore(
+    subscribeToLocation,
+    readComposerFocusFlag,
+    readServerComposerFocusFlag,
+  );
+
   const [isPinnedMessagesRequested, setIsPinnedMessagesRequested] = useState(false);
   const [isSearchManuallyOpen, setIsSearchManuallyOpen] = useState(false);
   const [dismissedSearchRequestId, setDismissedSearchRequestId] = useState(0);
   const [isMembersDrawerRequested, setIsMembersDrawerRequested] = useState(false);
   const [showNotificationMenu, setShowNotificationMenu] = useState(false);
+  const [pollComposerOpen, setPollComposerOpen] = useState(false);
+  const [pinnedSheetOpen, setPinnedSheetOpen] = useState(false);
+  /** Görüntüleyenin kapattığı sabit; yeni bir sabit gelince şerit geri döner. */
+  const [dismissedPinId, setDismissedPinId] = useState<string | null>(null);
+  /** İletilecek mesajın kimliği; `null` iken seçici kapalı. */
+  const [forwardMessageId, setForwardMessageId] = useState<string | null>(null);
   const [notificationMenuPosition, setNotificationMenuPosition] =
     useState<FloatingPanelPosition | null>(null);
   const visibleNotificationMenuPosition = showNotificationMenu ? notificationMenuPosition : null;
@@ -330,6 +502,26 @@ function ChatAreaContent({
     if (mode === "dm") {
       setDismissedSearchRequestId((current) => Math.max(current, directMessageSearchRequestId));
     }
+  };
+
+  /**
+   * SPEC §6.3: thread ve arama **aynı anda açılmaz**. İkisi de 340px'lik aynı
+   * sütuna oturuyor; birlikte açık olmaları ya sohbeti 680px daraltır ya da
+   * birinin diğerinin altında görünmez kalması demektir.
+   */
+  const toggleSearchPanel = () => {
+    if (showSearch) {
+      closeSearch();
+      return;
+    }
+
+    setSelectedThread(null);
+    openSearch();
+  };
+
+  const openThreadPanel = (message: ChatMessage) => {
+    closeSearch();
+    setSelectedThread(message);
   };
 
   const updateNotificationMenuPosition = useCallback(() => {
@@ -785,23 +977,127 @@ function ChatAreaContent({
     return colors;
   }, [directMessageConversation, mode]);
 
+  /**
+   * Mesajlar §5.4. Roster'ı bir kez gezip `userId → rol` haritası çıkarır; satır
+   * kendi rolünü aramak için katılımcı dizisini gezseydi, sanallaştırılmış her
+   * satır için bir tarama daha olurdu.
+   */
+  const groupParticipantRoles = useMemo(() => {
+    if (mode !== "dm" || directMessageConversation?.type !== "GROUP_DM") {
+      return undefined;
+    }
+
+    const roles: Record<string, DMParticipantRole> = {};
+    for (const participant of directMessageConversation.participants) {
+      if (participant.role) {
+        roles[participant.userId] = participant.role;
+      }
+    }
+
+    return roles;
+  }, [directMessageConversation, mode]);
+
+  /**
+   * İletme hedefleri: rayla **aynı** satır türetimi. Ayrı bir liste, aynı
+   * sohbetin iki farklı adla görünmesi demek olurdu. Yalnız DM'de kurulur.
+   */
+  const { rows: forwardTargets } = useConversationRows(mode === "dm" ? currentUserId : "");
+
+  const handleTogglePin = useCallback(
+    (messageId: string, pinned: boolean) => {
+      dmPinsMutation.mutate({ messageId, pinned });
+    },
+    [dmPinsMutation],
+  );
+
+  /**
+   * Anket kartı yalnız anketi olan mesajda çizilir. Kart kendi oy durumunu
+   * `usePoll` ile taşıyor; bu yüzden ayrı bir bileşen — kanca satırın içinde
+   * çağrılsaydı, anketi olmayan her satır da bir kanca kurardı.
+   */
+  const renderPollSlot = useCallback(
+    (message: ChatMessage) => (message.poll ? <MessagePollSlot poll={message.poll} /> : null),
+    [],
+  );
+
+  /**
+   * Sağ sütun: thread ya da arama, **asla ikisi birden** (SPEC §6.3). Kural
+   * `toggleSearchPanel` / `openThreadPanel` içinde uygulanıyor; burada yalnız
+   * hangisinin çizileceği seçiliyor.
+   */
+  const sidePanel = selectedThread ? (
+    <ThreadPanel
+      allowFileUploads={mode === "channel" ? allowFileUploads : true}
+      allowGifs={mode === "channel" ? allowGifs : true}
+      canModerate={canModerate}
+      conversationId={conversationId}
+      currentUserId={currentUserId}
+      currentUsername={currentUserUsername}
+      disabled={isChannelReadOnly}
+      {...(isChannelReadOnly ? { disabledReason: t("chat.channel.readOnlyComposer") } : {})}
+      mentionMembers={mode === "channel" ? (serverMembersQuery.data?.members ?? []) : []}
+      mentionRoles={mode === "channel" ? mentionableRoles : []}
+      messageCharacterLimit={mode === "channel" ? messageCharacterLimit : 2000}
+      mode={mode}
+      onClose={closeThreadPanel}
+      onThreadStateChange={(state) =>
+        setSelectedThread((current) =>
+          current
+            ? {
+                ...current,
+                threadClosedAt: state.closedAt,
+                threadClosedById: state.closedById,
+              }
+            : current,
+        )
+      }
+      overlay={overlaySidePanel}
+      parentMessage={selectedThread}
+      uploadthingEnabled={uploadthingEnabled}
+    />
+  ) : /*
+   * Arama paneli yalnız DM'de: karar #6 global DM aramasını tarif ediyor ve
+   * kanal tarafı hâlâ kendi popover'ını kullanıyor.
+   */
+  mode === "dm" && showSearch ? (
+    <MessagesSearchPanel
+      onClose={closeSearch}
+      onSelect={(result) => {
+        // Panel **kapanmıyor**: başka bir sohbete gidildiğinde bile aramaya
+        // devam edilebilsin diye (SPEC §6.2).
+        if (result.conversationId !== conversationId) {
+          router.push(`/messages/${result.conversationId}?message=${result.messageId}`);
+          return;
+        }
+
+        jumpToMessage(result.messageId);
+      }}
+      overlay={overlaySidePanel}
+      personFilter={
+        isGroupConversation || !directMessageParticipant
+          ? null
+          : {
+              id: directMessageParticipant.userId,
+              name: directMessageParticipant.displayName ?? directMessageParticipant.username,
+            }
+      }
+    />
+  ) : null;
+
   const messageConversationContent = (
     <>
-      {/* §D3.4: the group's pinned message, above the transcript, in the web
-          design language rather than 2d's strip pixels. */}
-      {mode === "dm" && directMessageConversation?.pinnedMessage ? (
-        <div
-          className="flex min-w-0 items-center gap-2 border-b border-[hsl(var(--border)/0.42)] bg-[hsl(var(--surface-soft)/0.48)] px-4 py-2"
-          data-testid="dm-group-pinned-strip"
-        >
-          <Pin className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--primary))]" />
-          <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.16em] text-[hsl(var(--primary))]">
-            {t("dm.group.pinnedMessage")}
-          </span>
-          <span className="min-w-0 truncate text-xs font-semibold text-app-muted">
-            {`${directMessageConversation.pinnedMessage.authorName}: ${directMessageConversation.pinnedMessage.excerpt}`}
-          </span>
-        </div>
+      {/*
+        karar #7. Eski şerit `DMConversationDTO.pinnedMessage` okuyordu: tek bir
+        sabit, sayı yok, kapatma yok, listeye giriş yok. Yeni şerit sabit
+        listesini kendi ucundan çekiyor.
+      */}
+      {mode === "dm" ? (
+        <PinnedStrip
+          dismissedId={dismissedPinId}
+          onDismiss={setDismissedPinId}
+          onSeeAll={() => setPinnedSheetOpen(true)}
+          pins={dmPinsQuery.data ?? EMPTY_PINS}
+        />
       ) : null}
       <MessageList
         conversationId={conversationId}
@@ -811,15 +1107,27 @@ function ChatAreaContent({
         initialUnreadMessageId={initialUnreadMessageId}
         participants={directMessageConversation?.participants ?? EMPTY_PARTICIPANTS}
         {...(groupSenderColors ? { senderColors: groupSenderColors } : {})}
+        {...(mode === "dm" ? { currentUsername: currentUserUsername } : {})}
+        {...(groupParticipantRoles ? { participantRoles: groupParticipantRoles } : {})}
+        {...(mode === "dm"
+          ? { renderPollSlot, onTogglePin: handleTogglePin, onForward: setForwardMessageId }
+          : {})}
+        /*
+         * `onOpenThread` **verilmiyor**: satır kök mesajın kendisini taşıyor ve
+         * panel onu istiyor. Kimlikle gelen bir geri çağrı, mesajı listede
+         * yeniden aramak demekti; verildiğinde de satır `onThread` yerine onu
+         * seçiyor ve thread paneli hiç açılmıyordu.
+         */
         onRemoveOptimistic={removeOptimisticMessage}
         onReply={handleReply}
         onRetry={retryOptimisticMessage}
-        onThread={setSelectedThread}
+        onThread={openThreadPanel}
       />
       <TypingIndicator typingUsers={typingUsers} />
       {mode === "dm" ? (
         <DmComposer>
           <MessageInput
+            autoFocus={focusComposerOnOpen}
             conversationId={conversationId}
             mode={mode}
             disabled={isChannelReadOnly}
@@ -831,11 +1139,22 @@ function ChatAreaContent({
             allowGifs
             maxLength={2000}
             mentionMembers={[]}
+            conversationKind={isGroupConversation ? "group" : "dm"}
+            conversationName={
+              isGroupConversation
+                ? groupTitle
+                : (directMessageParticipant?.displayName ??
+                  directMessageParticipant?.username ??
+                  "")
+            }
+            onOpenPoll={() => setPollComposerOpen(true)}
+            pollEnabled
             uploadthingEnabled={uploadthingEnabled}
           />
         </DmComposer>
       ) : (
         <MessageInput
+          autoFocus={focusComposerOnOpen}
           conversationId={conversationId}
           mode={mode}
           disabled={isChannelReadOnly}
@@ -847,26 +1166,10 @@ function ChatAreaContent({
           allowGifs={allowGifs}
           maxLength={messageCharacterLimit}
           mentionMembers={serverMembersQuery.data?.members ?? []}
+          mentionRoles={mentionableRoles}
           uploadthingEnabled={uploadthingEnabled}
         />
       )}
-      {selectedThread ? (
-        <ThreadPanel
-          allowFileUploads={mode === "channel" ? allowFileUploads : true}
-          allowGifs={mode === "channel" ? allowGifs : true}
-          canModerate={canModerate}
-          conversationId={conversationId}
-          currentUserId={currentUserId}
-          disabled={isChannelReadOnly}
-          disabledReason={isChannelReadOnly ? t("chat.channel.readOnlyComposer") : undefined}
-          mentionMembers={mode === "channel" ? (serverMembersQuery.data?.members ?? []) : []}
-          messageCharacterLimit={mode === "channel" ? messageCharacterLimit : 2000}
-          mode={mode}
-          onClose={closeThreadPanel}
-          parentMessage={selectedThread}
-          uploadthingEnabled={uploadthingEnabled}
-        />
-      ) : null}
     </>
   );
 
@@ -880,7 +1183,7 @@ function ChatAreaContent({
               role="presentation"
             >
               <div
-                className="app-panel fixed rounded-[22px] border bg-[hsl(var(--surface-card))] p-2 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.2)] backdrop-blur-xl"
+                className="app-panel fixed rounded-[1.375rem] border bg-[hsl(var(--surface-card))] p-2 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.2)] backdrop-blur-xl"
                 data-testid="channel-notification-settings-menu"
                 onPointerDown={(event) => event.stopPropagation()}
                 role="menu"
@@ -907,7 +1210,7 @@ function ChatAreaContent({
                       <Icon className="h-4 w-4 text-app-muted" />
                       <span className="min-w-0 flex-1">
                         <span className="block">{t(`chat.notifications.${level}`)}</span>
-                        <span className="block text-[11px] font-medium text-app-muted">
+                        <span className="block text-[0.6875rem] font-medium text-app-muted">
                           {t(`chat.notifications.${level}Hint`)}
                         </span>
                       </span>
@@ -934,7 +1237,7 @@ function ChatAreaContent({
               <div
                 aria-label={t("shell.channelSidebar.memberView")}
                 aria-modal="true"
-                className="absolute inset-y-0 right-0 max-w-full overflow-hidden rounded-l-[30px] shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)] transition-transform duration-200 ease-out motion-reduce:transition-none"
+                className="absolute inset-y-0 right-0 max-w-full overflow-hidden rounded-l-[1.875rem] shadow-[0_26px_70px_hsl(var(--shadow-color)/0.18)] transition-transform duration-200 ease-out motion-reduce:transition-none"
                 data-testid="mobile-info-drawer"
                 role="dialog"
                 style={{ width: RESPONSIVE_SHELL_SIZES.infoDrawerWidth }}
@@ -949,55 +1252,47 @@ function ChatAreaContent({
             document.body,
           )
         : null}
-      {mode === "dm" && isGroupConversation ? (
-        <DmGroupConversationHeader
-          avatarUrl={directMessageConversation?.iconUrl ?? null}
-          memberCount={directMessageConversation?.participants.length ?? 0}
-          onOpenDetails={onOpenDirectMessageDetails}
-          onOpenSearch={openSearch}
-          searchButtonRef={searchButtonRef}
-          searchOpen={showSearch}
-          title={groupTitle}
-        >
-          {showSearch ? (
-            <MessageSearchPanel
-              anchorRef={searchButtonRef}
-              conversationId={conversationId}
-              mode={mode}
-              onClose={closeSearch}
-              onJumpToMessage={(messageId) => {
-                closeSearch();
-                jumpToMessage(messageId);
-              }}
-            />
-          ) : null}
-        </DmGroupConversationHeader>
-      ) : null}
-
-      {mode === "dm" && !isGroupConversation && directMessageParticipant ? (
-        <DmConversationHeader
-          onOpenDetails={onOpenDirectMessageDetails}
-          onOpenSearch={openSearch}
+      {mode === "dm" ? (
+        <ConversationHeader
+          {...(isGroupConversation
+            ? {
+                ...(directMessageConversation?.avatarColor
+                  ? { avatarColor: directMessageConversation.avatarColor }
+                  : {}),
+                memberCount:
+                  directMessageConversation?.memberCount ??
+                  directMessageConversation?.participants.length ??
+                  0,
+                ...(directMessageConversation?.onlineCount === undefined
+                  ? {}
+                  : { onlineCount: directMessageConversation.onlineCount }),
+                name: groupTitle,
+                pinned: Boolean(directMessageConversation?.pinnedAt),
+                // Yığın roster'ın tamamını istemiyor: dört kayıt yeter, sayaç
+                // `memberCount`'tan geliyor.
+                previewMembers: (directMessageConversation?.participants ?? []).slice(0, 4),
+                variant: "group" as const,
+              }
+            : {
+                avatarUrl: directMessageParticipant?.avatarUrl ?? null,
+                customStatus: directMessageParticipant?.customStatus ?? null,
+                lastSeenAt: directMessageParticipant?.lastSeenAt ?? null,
+                name:
+                  directMessageParticipant?.displayName ??
+                  directMessageParticipant?.username ??
+                  conversationId,
+                status: directMessageParticipant?.status ?? "OFFLINE",
+                username: directMessageParticipant?.username ?? null,
+                variant: "dm" as const,
+              })}
           callDisabled={Boolean(callSession)}
+          onOpenMore={onOpenDirectMessageDetails}
+          onOpenSearch={toggleSearchPanel}
+          onOpenPins={() => setPinnedSheetOpen(true)}
           onStartVideoCall={() => startDirectCall(true)}
           onStartVoiceCall={() => startDirectCall(false)}
-          participant={directMessageParticipant}
-          searchButtonRef={searchButtonRef}
-          searchOpen={showSearch}
-        >
-          {showSearch ? (
-            <MessageSearchPanel
-              anchorRef={searchButtonRef}
-              conversationId={conversationId}
-              mode={mode}
-              onClose={closeSearch}
-              onJumpToMessage={(messageId) => {
-                closeSearch();
-                jumpToMessage(messageId);
-              }}
-            />
-          ) : null}
-        </DmConversationHeader>
+          openPanel={showSearch ? "search" : selectedThread ? "thread" : null}
+        />
       ) : null}
 
       {mode === "channel" ? (
@@ -1006,7 +1301,7 @@ function ChatAreaContent({
           data-testid="chat-channel-header"
         >
           <div className="flex min-h-11 min-w-0 items-center gap-2 p-1 md:min-h-12 md:gap-3 md:p-1.5">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] md:h-10 md:w-10 md:rounded-[16px]">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.875rem] bg-[hsl(var(--primary)/0.1)] text-[var(--primary-readable)] md:h-10 md:w-10 md:rounded-[1rem]">
               <Hash className="h-4 w-4 md:h-5 md:w-5" />
             </div>
             <div className="min-w-0 flex-1">
@@ -1019,13 +1314,13 @@ function ChatAreaContent({
                 ) : null}
               </div>
               {channelDescription ? (
-                <p className="mt-0.5 hidden truncate text-[11px] font-medium text-app-muted min-[420px]:block sm:text-xs">
+                <p className="mt-0.5 hidden truncate text-[0.6875rem] font-medium text-app-muted min-[420px]:block sm:text-xs">
                   {channelDescription}
                 </p>
               ) : null}
             </div>
 
-            <div className="flex max-w-[calc(100vw-12rem)] shrink-0 items-center gap-0.5 overflow-x-auto rounded-[16px] bg-[hsl(var(--surface-soft)/0.34)] p-0.5 backdrop-blur-md [-ms-overflow-style:none] [scrollbar-width:none] sm:max-w-none sm:gap-1 sm:p-1 [&::-webkit-scrollbar]:hidden">
+            <div className="flex max-w-[calc(100vw-12rem)] shrink-0 items-center gap-0.5 overflow-x-auto rounded-[1rem] bg-[hsl(var(--surface-soft)/0.34)] p-0.5 backdrop-blur-md [-ms-overflow-style:none] [scrollbar-width:none] sm:max-w-none sm:gap-1 sm:p-1 [&::-webkit-scrollbar]:hidden">
               {hasPinnedMessages ? (
                 <div className="relative">
                   <button
@@ -1045,11 +1340,11 @@ function ChatAreaContent({
 
                   {showPinnedMessages ? (
                     <div
-                      className="absolute right-0 top-[calc(100%+0.55rem)] z-[90] max-h-[min(48dvh,26rem)] w-[min(30rem,calc(100vw-2rem))] overflow-y-auto rounded-[26px] border border-[hsl(var(--border)/0.82)] bg-[hsl(var(--background))] p-3 shadow-[0_32px_80px_hsl(var(--shadow-color)/0.3)] ring-1 ring-[hsl(var(--background)/0.9)]"
+                      className="absolute right-0 top-[calc(100%+0.55rem)] z-[90] max-h-[min(48dvh,26rem)] w-[min(30rem,calc(100vw-2rem))] overflow-y-auto rounded-[1.625rem] border border-[hsl(var(--border)/0.82)] bg-[hsl(var(--background))] p-3 shadow-[0_32px_80px_hsl(var(--shadow-color)/0.3)] ring-1 ring-[hsl(var(--background)/0.9)]"
                       data-testid="channel-pins-list"
                     >
                       <div className="mb-2 flex items-center justify-between gap-3 px-2 py-1.5">
-                        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-app-soft">
+                        <p className="text-[0.6875rem] font-bold uppercase tracking-[0.16em] text-app-soft">
                           {t("chat.pins.pinnedMessages")}
                         </p>
                         <button
@@ -1064,7 +1359,7 @@ function ChatAreaContent({
                       <div className="space-y-2">
                         {pinnedMessages.map((message) => (
                           <button
-                            className="grid w-full min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-[20px] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card))] px-3 py-2.5 text-left shadow-[0_12px_28px_hsl(var(--shadow-color)/0.07)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+                            className="grid w-full min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-[1.25rem] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card))] px-3 py-2.5 text-left shadow-[0_12px_28px_hsl(var(--shadow-color)/0.07)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
                             key={message.id}
                             onClick={() => {
                               setIsPinnedMessagesRequested(false);
@@ -1072,7 +1367,7 @@ function ChatAreaContent({
                             }}
                             type="button"
                           >
-                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] shadow-[0_10px_24px_hsl(var(--primary)/0.1)]">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.1)] text-[var(--primary-readable)] shadow-[0_10px_24px_hsl(var(--primary)/0.1)]">
                               <Pin className="h-3.5 w-3.5" />
                             </span>
                             <span className="min-w-0">
@@ -1080,7 +1375,7 @@ function ChatAreaContent({
                                 <span className="truncate text-sm font-bold text-app-foreground">
                                   {message.author.displayName}
                                 </span>
-                                <span className="shrink-0 rounded-full border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.13em] text-[hsl(var(--primary))]">
+                                <span className="shrink-0 rounded-full border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] px-2 py-0.5 text-[0.625rem] font-black uppercase tracking-[0.13em] text-[hsl(var(--primary))]">
                                   {t("chat.pins.badge")}
                                 </span>
                               </span>
@@ -1159,7 +1454,7 @@ function ChatAreaContent({
                 <>
                   <button
                     aria-expanded={showPinnedMessages}
-                    className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--surface-card)/0.24)] px-2.5 text-[11px] font-bold text-[hsl(var(--primary))] shadow-[0_8px_18px_hsl(var(--primary)/0.06)] backdrop-blur-md transition hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.10)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                    className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--surface-card)/0.24)] px-2.5 text-[0.6875rem] font-bold text-[hsl(var(--primary))] shadow-[0_8px_18px_hsl(var(--primary)/0.06)] backdrop-blur-md transition hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.10)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                     data-testid="channel-pins-toggle"
                     onClick={() => setIsPinnedMessagesRequested((current) => !current)}
                     type="button"
@@ -1171,11 +1466,11 @@ function ChatAreaContent({
 
                   {showPinnedMessages ? (
                     <div
-                      className="absolute left-0 top-[calc(100%+0.45rem)] z-[90] max-h-[min(48dvh,26rem)] w-[min(30rem,calc(100vw-2rem))] overflow-y-auto rounded-[26px] border border-[hsl(var(--border)/0.82)] bg-[hsl(var(--background))] p-3 shadow-[0_32px_80px_hsl(var(--shadow-color)/0.3)] ring-1 ring-[hsl(var(--background)/0.9)]"
+                      className="absolute left-0 top-[calc(100%+0.45rem)] z-[90] max-h-[min(48dvh,26rem)] w-[min(30rem,calc(100vw-2rem))] overflow-y-auto rounded-[1.625rem] border border-[hsl(var(--border)/0.82)] bg-[hsl(var(--background))] p-3 shadow-[0_32px_80px_hsl(var(--shadow-color)/0.3)] ring-1 ring-[hsl(var(--background)/0.9)]"
                       data-testid="channel-pins-list"
                     >
                       <div className="mb-2 flex items-center justify-between gap-3 px-2 py-1.5">
-                        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-app-soft">
+                        <p className="text-[0.6875rem] font-bold uppercase tracking-[0.16em] text-app-soft">
                           {t("chat.pins.pinnedMessages")}
                         </p>
                         <button
@@ -1190,7 +1485,7 @@ function ChatAreaContent({
                       <div className="space-y-2">
                         {pinnedMessages.map((message) => (
                           <button
-                            className="grid w-full min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-[20px] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card))] px-3 py-2.5 text-left shadow-[0_12px_28px_hsl(var(--shadow-color)/0.07)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+                            className="grid w-full min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-[1.25rem] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card))] px-3 py-2.5 text-left shadow-[0_12px_28px_hsl(var(--shadow-color)/0.07)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
                             key={message.id}
                             onClick={() => {
                               setIsPinnedMessagesRequested(false);
@@ -1198,7 +1493,7 @@ function ChatAreaContent({
                             }}
                             type="button"
                           >
-                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] shadow-[0_10px_24px_hsl(var(--primary)/0.1)]">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.1)] text-[var(--primary-readable)] shadow-[0_10px_24px_hsl(var(--primary)/0.1)]">
                               <Pin className="h-3.5 w-3.5" />
                             </span>
                             <span className="min-w-0">
@@ -1206,7 +1501,7 @@ function ChatAreaContent({
                                 <span className="truncate text-sm font-bold text-app-foreground">
                                   {message.author.displayName}
                                 </span>
-                                <span className="shrink-0 rounded-full border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.13em] text-[hsl(var(--primary))]">
+                                <span className="shrink-0 rounded-full border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] px-2 py-0.5 text-[0.625rem] font-black uppercase tracking-[0.13em] text-[hsl(var(--primary))]">
                                   {t("chat.pins.badge")}
                                 </span>
                               </span>
@@ -1223,7 +1518,7 @@ function ChatAreaContent({
               ) : null}
             </div>
 
-            <div className="inline-flex w-fit max-w-full shrink-0 items-center gap-1 rounded-[20px] border border-[hsl(var(--border)/0.22)] bg-[hsl(var(--surface-card)/0.20)] p-1 shadow-[0_12px_28px_hsl(var(--shadow-color)/0.04)] backdrop-blur-md">
+            <div className="inline-flex w-fit max-w-full shrink-0 items-center gap-1 rounded-[1.25rem] border border-[hsl(var(--border)/0.22)] bg-[hsl(var(--surface-card)/0.20)] p-1 shadow-[0_12px_28px_hsl(var(--shadow-color)/0.04)] backdrop-blur-md">
               <button
                 aria-expanded={showSearch}
                 aria-label={t("chat.search.open")}
@@ -1235,7 +1530,7 @@ function ChatAreaContent({
               >
                 <Search className="h-3.5 w-3.5" />
                 {t("chat.search.open")}
-                <span className="hidden rounded-full border border-[hsl(var(--border)/0.58)] px-1.5 py-0.5 text-[10px] text-app-soft sm:inline">
+                <span className="hidden rounded-full border border-[hsl(var(--border)/0.58)] px-1.5 py-0.5 text-[0.625rem] text-app-soft sm:inline">
                   Ctrl K
                 </span>
               </button>
@@ -1259,8 +1554,8 @@ function ChatAreaContent({
           className="border-b border-[hsl(var(--warning)/0.22)] bg-[hsl(var(--warning)/0.08)] px-3 py-3 backdrop-blur-xl md:px-5"
           data-testid="channel-read-only-banner"
         >
-          <div className="flex items-start gap-3 rounded-[22px] border border-[hsl(var(--warning)/0.22)] bg-[hsl(var(--surface-card)/0.72)] px-3 py-3 shadow-[0_14px_36px_hsl(var(--shadow-color)/0.08)]">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--warning)/0.14)] text-[hsl(var(--warning))]">
+          <div className="flex items-start gap-3 rounded-[1.375rem] border border-[hsl(var(--warning)/0.22)] bg-[hsl(var(--surface-card)/0.72)] px-3 py-3 shadow-[0_14px_36px_hsl(var(--shadow-color)/0.08)]">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--warning)/0.14)] text-[var(--warning-readable)]">
               <Lock className="h-4 w-4" />
             </span>
             <span className="min-w-0">
@@ -1283,10 +1578,125 @@ function ChatAreaContent({
           session={activeCallSession}
         />
       ) : mode === "dm" ? (
-        <DmMessageSurface>{messageConversationContent}</DmMessageSurface>
+        /*
+         * SPEC §6: ana alan ve sağ panel yan yana duran iki sütun. Panel eskiden
+         * ana alanın **üstüne** binen bir diyalogdu; yerleşik hâlde sohbet
+         * okunmaya devam ediyor ve arama sonucuna tıklayıp sohbet değiştirmek
+         * paneli kapatmıyor.
+         */
+        <div className="relative flex min-h-0 flex-1" data-testid="messages-screen-root">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="messages-main">
+            <DmMessageSurface>{messageConversationContent}</DmMessageSurface>
+          </div>
+
+          {/*
+            Overlay hâlinde perde: panel ana alanın üstüne bindiğinde altındaki
+            sohbet hâlâ tıklanabilir kalsaydı, kullanıcı görünmeyen bir satıra
+            basıp paneli kapatmadan başka bir sohbete geçebilirdi.
+          */}
+          {sidePanel && overlaySidePanel ? (
+            <div
+              className="absolute inset-0 z-40 bg-[hsl(var(--backdrop)/0.52)] backdrop-blur-xs"
+              data-testid="messages-panel-backdrop"
+              onClick={() => {
+                closeSearch();
+                setSelectedThread(null);
+              }}
+              role="presentation"
+            />
+          ) : null}
+          {sidePanel}
+        </div>
       ) : (
-        messageConversationContent
+        /*
+         * Kanal tarafı da aynı iki sütunu kullanıyor. Eskiden thread paneli
+         * `mode !== "dm"` kapısının arkasındaydı: kanalda bir mesajın thread'ini
+         * açmak hiçbir şey çizmiyordu. Panel sohbet türünden bağımsız.
+         */
+        <div className="relative flex min-h-0 flex-1">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">{messageConversationContent}</div>
+
+          {sidePanel && overlaySidePanel ? (
+            <div
+              className="absolute inset-0 z-40 bg-[hsl(var(--backdrop)/0.52)] backdrop-blur-xs"
+              data-testid="messages-panel-backdrop"
+              onClick={() => {
+                setSelectedThread(null);
+              }}
+              role="presentation"
+            />
+          ) : null}
+          {sidePanel}
+        </div>
       )}
+
+      {mode === "dm" ? (
+        <PinnedListSheet
+          onClose={() => setPinnedSheetOpen(false)}
+          onJump={(messageId) => {
+            setPinnedSheetOpen(false);
+            jumpToMessage(messageId);
+          }}
+          onUnpin={(messageId) => handleTogglePin(messageId, true)}
+          open={pinnedSheetOpen}
+          pins={dmPinsQuery.data ?? EMPTY_PINS}
+        />
+      ) : null}
+
+      {mode === "dm" ? (
+        <ForwardMessageSheet
+          conversations={forwardTargets}
+          errorText={
+            forwardMutation.isError
+              ? forwardMutation.error instanceof MessagesClientError &&
+                forwardMutation.error.code === "FORWARD_REQUIRES_TEXT"
+                ? t("messages.conversation.menu.forwardNeedsText")
+                : t("messages.conversation.menu.forwardFailed")
+              : null
+          }
+          excludeConversationId={conversationId}
+          onClose={() => {
+            setForwardMessageId(null);
+            forwardMutation.reset();
+          }}
+          onSelect={(targetConversationId) => {
+            if (forwardMessageId) {
+              forwardMutation.mutate({ messageId: forwardMessageId, targetConversationId });
+            }
+          }}
+          open={forwardMessageId !== null}
+        />
+      ) : null}
+
+      {mode === "dm" ? (
+        <Modal
+          className="max-w-xl"
+          onClose={() => setPollComposerOpen(false)}
+          open={pollComposerOpen}
+          title={t("messages.pollModal.title")}
+        >
+          <PollComposer
+            conversationName={
+              isGroupConversation
+                ? groupTitle
+                : (directMessageParticipant?.displayName ??
+                  directMessageParticipant?.username ??
+                  conversationId)
+            }
+            // karar #12: 1:1 sohbette iki kişi oy verebilir.
+            eligibleVoterCount={
+              isGroupConversation
+                ? (directMessageConversation?.memberCount ??
+                  directMessageConversation?.participants.length ??
+                  0)
+                : 2
+            }
+            isSubmitting={createPollMutation.isPending}
+            onCancel={() => setPollComposerOpen(false)}
+            onSubmit={(request) => createPollMutation.mutate({ ...request, conversationId })}
+          />
+        </Modal>
+      ) : null}
     </div>
   );
 }

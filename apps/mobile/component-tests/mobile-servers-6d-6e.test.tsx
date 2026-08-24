@@ -112,6 +112,7 @@ function profileFixture(overrides: Partial<ServerPublicProfile> = {}): ServerPub
     ],
     bannerUrl: null,
     canManageServer: true,
+    category: null,
     channelCount: 3,
     channels: [
       channel(),
@@ -143,9 +144,22 @@ function profileFixture(overrides: Partial<ServerPublicProfile> = {}): ServerPub
     muted: false,
     mutualFriendCount: 3,
     mutualFriends: [
-      { avatarUrl: null, displayName: "Ada", id: "friend-1" },
-      { avatarUrl: null, displayName: "Mert", id: "friend-2" },
+      {
+        avatarUrl: null,
+        displayName: "Ada",
+        id: "friend-1",
+        presence: "online",
+        role: "admin",
+      },
+      {
+        avatarUrl: null,
+        displayName: "Mert",
+        id: "friend-2",
+        presence: "offline",
+        role: "member",
+      },
     ],
+    languages: ["tr"],
     name: "Whispr Topluluk",
     notificationLevel: "all",
     onlineCount: 120,
@@ -173,6 +187,7 @@ function profileFixture(overrides: Partial<ServerPublicProfile> = {}): ServerPub
     },
     verified: true,
     voiceActiveCount: 4,
+    voiceRoomCount: 1,
     weeklyMessageCount: 218,
     ...overrides,
   };

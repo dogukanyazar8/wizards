@@ -63,6 +63,7 @@ describe("outbox worker lifecycle", () => {
           rarityComputed: false,
           revoked: 0,
         }),
+        sweepExpiredFocus: async () => ({ restored: 0 }),
         sweepModerationCaseAlerts: async () => ({ alertedCases: 0, notified: 0 }),
         workerId: "test-worker",
       });
@@ -130,6 +131,10 @@ describe("outbox worker lifecycle", () => {
         operations.push("sweep.badges");
         return { expired: 0, founderUpdated: 0, rarityComputed: false, revoked: 0 };
       },
+      sweepExpiredFocus: async () => {
+        operations.push("sweep.focus");
+        return { restored: 0 };
+      },
       sweepModerationCaseAlerts: async () => {
         operations.push("sweep.moderation-alerts");
         return { alertedCases: 0, notified: 0 };
@@ -154,6 +159,9 @@ describe("outbox worker lifecycle", () => {
     await stopping;
     assert.deepEqual(operations, [
       "drain.jobs",
+      // Focus windows expire in minutes, so the sweep runs on its own cadence
+      // ahead of the hourly maintenance block.
+      "sweep.focus",
       "cleanup.jobs",
       "cleanup.sessions",
       "cleanup.reauth",
@@ -202,6 +210,7 @@ describe("outbox worker lifecycle", () => {
         rarityComputed: false,
         revoked: 0,
       }),
+      sweepExpiredFocus: async () => ({ restored: 0 }),
       sweepModerationCaseAlerts: async () => ({ alertedCases: 0, notified: 0 }),
       workerId: "test-worker-maintenance",
     });

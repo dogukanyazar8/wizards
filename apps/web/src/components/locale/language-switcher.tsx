@@ -85,9 +85,7 @@ export function LanguageSwitcher({
           {!isPending && saved ? (
             <span className="text-app-success">{t("appearance.language.saved")}</span>
           ) : null}
-          {!isPending && saveError ? (
-            <span className="text-app-danger">{t(saveError)}</span>
-          ) : null}
+          {!isPending && saveError ? <span className="text-app-danger">{t(saveError)}</span> : null}
         </div>
       ) : null}
     </div>

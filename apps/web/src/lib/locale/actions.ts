@@ -10,9 +10,7 @@ type LocaleActionResult = {
   success: boolean;
 };
 
-export async function updateLocalePreferenceAction(
-  rawLocale: string,
-): Promise<LocaleActionResult> {
+export async function updateLocalePreferenceAction(rawLocale: string): Promise<LocaleActionResult> {
   const session = await auth();
 
   if (!session?.user?.id) {

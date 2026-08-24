@@ -22,10 +22,7 @@ type E2EUploadOptions = {
 type E2EUploadResponse = ClientUploadedFileData<unknown>;
 
 function isE2EUploadMockEnabled() {
-  return (
-    process.env.NEXT_PUBLIC_E2E_TEST_MODE === "true" &&
-    process.env.NODE_ENV !== "production"
-  );
+  return process.env.NEXT_PUBLIC_E2E_TEST_MODE === "true" && process.env.NODE_ENV !== "production";
 }
 
 function readFileAsDataUrl(file: File) {
@@ -59,9 +56,10 @@ async function uploadE2EFile(endpoint: string, file: File): Promise<E2EUploadRes
     },
     method: "POST",
   });
-  const payload = (await response.json().catch(() => null)) as
-    | { serverData?: unknown; url?: string }
-    | null;
+  const payload = (await response.json().catch(() => null)) as {
+    serverData?: unknown;
+    url?: string;
+  } | null;
 
   if (!response.ok || !payload?.serverData || !payload.url) {
     throw new Error("E2E upload failed.");

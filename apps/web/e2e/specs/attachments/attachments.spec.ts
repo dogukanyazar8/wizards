@@ -285,11 +285,14 @@ test.describe("uploads, GIFs, and attachments", () => {
     await expect(aliceUnavailableAttachment).toBeVisible({ timeout: 10_000 });
     await expect(aliceUnavailableAttachment).toContainText(/Blocked|Engellendi/i);
     await expectAttachmentUrlAbsent(page, attachment.url);
-    await page.getByTestId("notification-bell-button").click();
-    await expect(page.getByTestId("notification-popup")).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByTestId("notification-item").filter({ hasText: filename })).toBeVisible({
-      timeout: 10_000,
-    });
+    // TODO(faz4): bildirim zili Faz 2'de kullanıcı ayağından kaldırıldı (SPEC §2.5), yeni yeri ana
+    // alanın üst çubuğu. Aşağıdaki üç satır Faz 4 zili oraya koyunca aynen geri açılacak; testin
+    // geri kalanı (ek kaldırıldı, URL erişilemez) bozulmadan koşmaya devam ediyor.
+    // await page.getByTestId("notification-bell-button").click();
+    // await expect(page.getByTestId("notification-popup")).toBeVisible({ timeout: 10_000 });
+    // await expect(page.getByTestId("notification-item").filter({ hasText: filename })).toBeVisible({
+    //   timeout: 10_000,
+    // });
 
     await loginAs(page, "bob");
     await gotoTextChannelRoute(page, serverId, textChannelId);

@@ -1,0 +1,50 @@
+[
+  {
+    "height": 18,
+    "label": "home-header-link",
+    "testId": "home-header-link",
+    "width": 97.8
+  },
+  {
+    "height": 18,
+    "label": "home-header-link",
+    "testId": "home-header-link",
+    "width": 107.3
+  },
+  {
+    "height": 41.3,
+    "label": "home-presence-chip-online",
+    "testId": "home-presence-chip-online",
+    "width": 522.6
+  },
+  {
+    "height": 41.3,
+    "label": "home-presence-chip-dnd",
+    "testId": "home-presence-chip-dnd",
+    "width": 522.6
+  },
+  {
+    "height": 41.3,
+    "label": "home-presence-chip-idle",
+    "testId": "home-presence-chip-idle",
+    "width": 522.6
+  },
+  {
+    "height": 41.3,
+    "label": "home-presence-chip-offline",
+    "testId": "home-presence-chip-offline",
+    "width": 522.6
+  },
+  {
+    "height": 34.5,
+    "label": "home-presence-focus-toggle",
+    "testId": "home-presence-focus-toggle",
+    "width": 63
+  },
+  {
+    "height": 21,
+    "label": "home-header-link",
+    "testId": "home-header-link",
+    "width": 75.4
+  }
+]

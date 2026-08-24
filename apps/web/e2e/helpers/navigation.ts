@@ -81,13 +81,15 @@ export async function gotoAppRoute(
     });
   }
 
-  if (path.startsWith("/channels")) {
+  if (path.startsWith("/channels") || path.startsWith("/messages")) {
     await expect(visibleTestId(page, "app-startup-screen")).toBeHidden({
       timeout: options.timeout ?? DEFAULT_APP_READY_TIMEOUT,
     });
   }
 
-  if (path === "/channels/@me") {
+  // Arkadaşlar paneli artık kendi rotasında (`/messages/friends`); `/messages`
+  // boş durumu çiziyor ve orada `friends-dashboard` hiç yok.
+  if (path === "/messages/friends") {
     await expect(visibleTestId(page, "friends-dashboard")).toHaveAttribute("aria-busy", "false", {
       timeout: options.timeout ?? DEFAULT_APP_READY_TIMEOUT,
     });
@@ -112,7 +114,7 @@ export async function gotoDmConversationRoute(
   conversationId: string,
   options: AppRouteReadyOptions = {},
 ): Promise<void> {
-  await gotoAppRoute(page, `/channels/@me/${appRouteSegment(conversationId)}`, {
+  await gotoAppRoute(page, `/messages/${appRouteSegment(conversationId)}`, {
     ...options,
     readyTestId: options.readyTestId ?? "message-input",
   });
@@ -140,25 +142,6 @@ export async function clickServerRailServerAndWait(
 
   if (options.waitForMessages) {
     await waitForMessageListReady(page, options);
-  }
-}
-
-export async function clickServerRailDmAndWait(
-  page: Page,
-  expectedUrl: string | RegExp = /\/channels\/@me(?:$|\/)/,
-  options: AppRouteReadyOptions = {},
-): Promise<void> {
-  const timeout = options.timeout ?? DEFAULT_APP_READY_TIMEOUT;
-  const dmItem = visibleTestId(page, "server-rail-dm");
-
-  await expect(dmItem).toBeVisible({ timeout });
-  await dmItem.click();
-  await expect(page).toHaveURL(expectedUrl, {
-    timeout: options.navigationTimeout ?? timeout,
-  });
-
-  if (options.readyTestId) {
-    await expect(visibleTestId(page, options.readyTestId)).toBeVisible({ timeout });
   }
 }
 

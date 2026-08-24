@@ -39,7 +39,9 @@ import {
   unpinChannelMessageRequest,
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
-import type { ChatMessage } from "@wizards/types";
+import type { ChatMessage, DMParticipantRole } from "@wizards/types";
+import { mentionsUser } from "@/lib/messages/message-blocks";
+import { MESSAGES_METRICS, pxToRem } from "@/lib/messages/metrics";
 import { cn } from "@/lib/utils";
 
 const mentionHrefPrefix = "mention:";
@@ -134,6 +136,7 @@ function CodeBlock({
   const language = /language-([\w-]+)/.exec(className ?? "")?.[1] ?? "text";
   const isBlock = Boolean(className) || rawCode.includes("\n");
   const [copied, setCopied] = useState(false);
+  const { t } = useI18n();
 
   if (!isBlock) {
     return (
@@ -148,7 +151,9 @@ function CodeBlock({
       <div className="flex items-center justify-between gap-3 border-b border-[hsl(var(--border)/0.55)] px-3 py-2">
         <span className="min-w-0 truncate text-xs font-semibold text-app-muted">{language}</span>
         <button
-          aria-label={copied ? "Kopyalandı" : "Kodu kopyala"}
+          aria-label={
+            copied ? t("messages.conversation.codeCopied") : t("messages.conversation.codeCopy")
+          }
           className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-card)/0.72)] text-app-muted transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
           onClick={async () => {
             try {
@@ -159,13 +164,15 @@ function CodeBlock({
               setCopied(false);
             }
           }}
-          title={copied ? "Kopyalandı" : "Kodu kopyala"}
+          title={
+            copied ? t("messages.conversation.codeCopied") : t("messages.conversation.codeCopy")
+          }
           type="button"
         >
           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
         </button>
       </div>
-      <pre className="max-w-full overflow-x-auto p-3 font-mono text-[13px] leading-relaxed text-app-foreground">
+      <pre className="max-w-full overflow-x-auto p-3 font-mono text-[0.8125rem] leading-relaxed text-app-foreground">
         <code>
           {rawCode.split("\n").map((line, index) => (
             <span className="block min-h-5" key={`${index}-${line}`}>
@@ -214,6 +221,16 @@ function parsePollDuration(value: string | undefined) {
   return clampPollDuration(amount);
 }
 
+/**
+ * @deprecated Mesajlar karar #1. Anket artık bir markdown bloğu değil, kendi
+ * tablosu olan bir varlık (`Poll` + `PollOption` + `PollVote`) ve yeni anket
+ * üretimi Ş4'te kapatıldı. Bu ayrıştırıcı yalnız **geçmiş** mesajlar için duruyor:
+ * onlarda anket hâlâ gövdenin içinde ve emoji tepkileriyle oylanmış.
+ *
+ * Kaldırma koşulu: geçmişteki tüm markdown anketleri yeni modele taşındığında.
+ * O taşıma yapılmadan silinirse eski mesajlar anketlerini kaybeder ve yerinde
+ * ham `[poll]` metni kalır.
+ */
 function parsePollBlock(content: string): ParsedPoll | null {
   const normalizedContent = content.replace(/\r\n/g, "\n");
   const lines = normalizedContent.split("\n");
@@ -359,7 +376,7 @@ function createMarkdownComponents(
         return (
           <span
             aria-label={t("chat.mentions.inlineAria", { username: `@${username}` })}
-            className="inline-flex translate-y-[1px] items-center rounded-full border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.12)] px-2 py-0.5 text-[0.92em] font-semibold text-[hsl(var(--primary))] shadow-[0_8px_18px_hsl(var(--primary)/0.08)]"
+            className="inline-flex translate-y-[0.0625rem] items-center rounded-full border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.12)] px-2 py-0.5 text-[0.92em] font-semibold text-[hsl(var(--primary))] shadow-[0_8px_18px_hsl(var(--primary)/0.08)]"
             data-mention-username={username}
             data-testid="message-mention"
             title={`@${username}`}
@@ -486,16 +503,16 @@ function PollCard({
 
   return (
     <div
-      className="my-1 max-w-2xl rounded-[18px] border border-[hsl(var(--primary)/0.18)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.96),hsl(var(--primary)/0.055))] p-2.5 shadow-[0_12px_30px_hsl(var(--shadow-color)/0.07),inset_0_1px_0_hsl(var(--background)/0.55)]"
+      className="my-1 max-w-2xl rounded-[1.125rem] border border-[hsl(var(--primary)/0.18)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.96),hsl(var(--primary)/0.055))] p-2.5 shadow-[0_12px_30px_hsl(var(--shadow-color)/0.07),inset_0_1px_0_hsl(var(--background)/0.55)]"
       data-testid="message-poll"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] text-[var(--primary-readable)]">
             <BarChart3 className="h-3.5 w-3.5" />
           </span>
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-app-soft">
+            <p className="text-[0.625rem] font-black uppercase tracking-[0.18em] text-app-soft">
               {t("chat.poll.title")}
             </p>
             <h4 className="break-words text-sm font-extrabold leading-[1.25] text-app-foreground">
@@ -505,10 +522,10 @@ function PollCard({
         </div>
         <span
           className={cn(
-            "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-bold",
+            "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[0.6875rem] font-bold",
             isClosed
               ? "border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-soft)/0.5)] text-app-muted"
-              : "border-[hsl(var(--success)/0.24)] bg-[hsl(var(--success)/0.1)] text-[hsl(var(--success))]",
+              : "border-[hsl(var(--success)/0.24)] bg-[hsl(var(--success)/0.1)] text-[var(--success-readable)]",
           )}
         >
           <Clock3 className="h-3.5 w-3.5" />
@@ -540,12 +557,12 @@ function PollCard({
             >
               <span
                 aria-hidden="true"
-                className="absolute inset-y-1 left-1 rounded-[14px] bg-[hsl(var(--primary)/0.13)] transition-[width]"
+                className="absolute inset-y-1 left-1 rounded-[0.875rem] bg-[hsl(var(--primary)/0.13)] transition-[width]"
                 style={{ width: `${Math.max(percent, isSelected ? 9 : 0)}%` }}
               />
               <span
                 className={cn(
-                  "relative z-10 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-black",
+                  "relative z-10 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[0.625rem] font-black",
                   isSelected
                     ? "border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary))] text-white"
                     : "border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.9)] text-app-soft",
@@ -553,7 +570,7 @@ function PollCard({
               >
                 {isSelected ? <CheckCircle2 className="h-3.5 w-3.5" /> : index + 1}
               </span>
-              <span className="relative z-10 min-w-0 flex-1 truncate text-[13px] font-semibold">
+              <span className="relative z-10 min-w-0 flex-1 truncate text-[0.8125rem] font-semibold">
                 {option}
               </span>
               <span className="relative z-10 shrink-0 text-xs font-bold text-app-soft">
@@ -564,7 +581,7 @@ function PollCard({
         })}
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold text-app-soft">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[0.6875rem] font-semibold text-app-soft">
         <span>
           {totalVotes > 0
             ? t("chat.poll.voteCount", { count: totalVotes })
@@ -621,6 +638,40 @@ export interface MessageItemProps {
   authorColor?: string | undefined;
   /** §D3.4: drawn under the last outgoing message of a group only. */
   readReceipt?: { count: number; everyone: boolean } | undefined;
+  /**
+   * Mesajlar §5.4. Yazarın grup rolü; `OWNER`/`ADMIN` adın yanına `Yönetici`
+   * çipi koyar. 1:1 ve kanal tarafında yok.
+   */
+  authorRole?: DMParticipantRole | undefined;
+  /**
+   * Mesajlar §5.4. Bahsetme şeridini çizmek için gereken tek girdi. Kimliğin
+   * kendisi değil **kullanıcı adı** isteniyor: bahsetmeler gövdede
+   * `@kullanıcıadı` olarak duruyor ve kimliğe çevrilmiş bir liste sunucudan
+   * gelmiyor.
+   */
+  currentUsername?: string | undefined;
+  /**
+   * Mesajlar karar #1. Ş6'nın anket kartı. `MessageItem` anketi **bilmez**:
+   * yalnız gövdenin altındaki yuvaya koyar. Bilseydi liste satırı anket
+   * durumunu, oy isteklerini ve `poll:updated` aboneliğini taşımak zorunda kalır
+   * ve sanallaştırılmış her satır bunu tekrar kurardı.
+   */
+  pollSlot?: React.ReactNode;
+  /**
+   * Mesajlar §5.4 / §6.1. Ş7'nin sağ panelini açar. `onThread` mesajın
+   * tamamını taşıyor ve kanal tarafındaki eski akışa bağlı; panel yalnız kimliği
+   * istiyor, o yüzden ayrı bir geri çağrı. Verilmezse şerit `onThread`'e düşer.
+   */
+  onOpenThread?: ((messageId: string) => void) | undefined;
+  /**
+   * Mesajlar karar #7. DM sabitleri konuşmaya ait: liste `fetchConversationPins`
+   * ile çekiliyor ve sabitlenen şerit onu okuyor. Satır kendi başına uç çağırsaydı
+   * şerit değişikliği görmez, sayı güncellenmezdi. Kanal tarafı eski yolunda
+   * kalır (mesajın kendisi güncelleniyor, ayrı bir liste yok).
+   */
+  onTogglePin?: ((messageId: string, pinned: boolean) => void) | undefined;
+  /** SPEC §5.3 `Mesajı ilet`; verilmezse menü satırı çizilmez. */
+  onForward?: ((messageId: string) => void) | undefined;
   onReact: (messageId: string, emoji: string) => void;
   onRemoveOptimistic: (id: string) => void;
   onReply: (id: string, author: string, content: string) => void;
@@ -642,6 +693,12 @@ export function areMessageItemPropsEqual(prev: MessageItemProps, next: MessageIt
     prev.authorColor === next.authorColor &&
     prev.readReceipt?.count === next.readReceipt?.count &&
     prev.readReceipt?.everyone === next.readReceipt?.everyone &&
+    prev.authorRole === next.authorRole &&
+    prev.currentUsername === next.currentUsername &&
+    prev.pollSlot === next.pollSlot &&
+    prev.onOpenThread === next.onOpenThread &&
+    prev.onTogglePin === next.onTogglePin &&
+    prev.onForward === next.onForward &&
     prev.message.editedAt === next.message.editedAt &&
     prev.message.deletedAt === next.message.deletedAt &&
     prev.message.isPinned === next.message.isPinned &&
@@ -672,6 +729,12 @@ export const MessageItem = React.memo(
     currentUserId,
     canModerate,
     readReceipt,
+    authorRole,
+    currentUsername,
+    pollSlot,
+    onOpenThread,
+    onTogglePin,
+    onForward,
     onReact,
     onRemoveOptimistic,
     onReply,
@@ -688,6 +751,7 @@ export const MessageItem = React.memo(
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const actionsRef = useRef<HTMLDivElement>(null);
     const hoverActionsRef = useRef<HTMLDivElement>(null);
+    const desktopMenuRef = useRef<HTMLDivElement>(null);
     const moreButtonRef = useRef<HTMLButtonElement>(null);
     const isOwner = message.author.id === currentUserId;
     const isDeleted = message.deletedAt !== null;
@@ -706,17 +770,20 @@ export const MessageItem = React.memo(
           const today = new Date();
           const time = formatTime(replyDate);
 
-          if (replyDate.toDateString() === today.toDateString()) {
-            return t("chat.thread.lastReplyToday", { time });
-          }
-
-          return t("chat.thread.lastReplyAt", {
-            date: formatDate(replyDate),
-          });
+          // Çıplak saat/tarih; "son yanıt" ön eki `thread.open` anahtarında.
+          // Etiket kendi ön ekini de taşısaydı şeritte iki kez yazardı.
+          return replyDate.toDateString() === today.toDateString() ? time : formatDate(replyDate);
         })()
       : null;
     const markdownComponents = React.useMemo(() => createMarkdownComponents(t), [t]);
     const parsedPoll = React.useMemo(() => parsePollBlock(message.content), [message.content]);
+    // Satır sanallaştırılıyor: liste her kaydırmada satırı yeniden monte eder.
+    // Türetim burada ve memolu, listede değil — listede olsaydı her kaydırma
+    // karesinde bütün sayfa için yeniden hesaplanırdı.
+    const mentionsMe = React.useMemo(
+      () => mentionsUser(message.content, currentUsername),
+      [currentUsername, message.content],
+    );
     const markdownContent = parsedPoll?.contentWithoutPoll ?? message.content;
     const hasRenderableMessageBody =
       markdownContent.trim().length > 0 || Boolean(parsedPoll) || Boolean(message.editedAt);
@@ -790,6 +857,21 @@ export const MessageItem = React.memo(
       }
     };
 
+    /**
+     * Sabitleme yolu moda göre ayrılır. Kanalda mesajın kendisi güncelleniyor;
+     * DM'de sabit listesi ayrı bir varlık ve onu konuşma tutuyor, o yüzden satır
+     * yalnız haber verir.
+     */
+    const pinHandler =
+      mode === "channel"
+        ? handlePinToggle
+        : onTogglePin
+          ? () => {
+              onTogglePin(message.id, Boolean(message.isPinned));
+              setActionsOpen(false);
+            }
+          : undefined;
+
     const showCopyFeedback = (translationKey: string) => {
       setCopyFeedback(t(translationKey));
       window.setTimeout(() => setCopyFeedback(null), 1400);
@@ -840,6 +922,15 @@ export const MessageItem = React.memo(
         }
 
         if (hoverActionsRef.current?.contains(target)) {
+          return;
+        }
+
+        /*
+         * Masaüstü menüsü de "içerisi": ref yokken `pointerdown` menüyü daha
+         * `click` doğmadan kapatıyordu ve Düzenle/Sil hiçbir zaman
+         * çalışmıyordu (SPEC-MESAJLAR §5.3).
+         */
+        if (desktopMenuRef.current?.contains(target)) {
           return;
         }
 
@@ -894,7 +985,7 @@ export const MessageItem = React.memo(
             {canRemoveDeletedPlaceholder ? (
               <button
                 aria-label={t("chat.message.removeDeletedPlaceholderAria")}
-                className="inline-flex items-center gap-1 rounded-full border border-[hsl(var(--danger)/0.18)] bg-[hsl(var(--danger)/0.07)] px-2 py-0.5 text-[11px] font-semibold not-italic text-[hsl(var(--danger))] opacity-0 transition hover:bg-[hsl(var(--danger)/0.12)] focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.28)] group-hover:opacity-100"
+                className="inline-flex items-center gap-1 rounded-full border border-[hsl(var(--danger)/0.18)] bg-[hsl(var(--danger)/0.07)] px-2 py-0.5 text-[0.6875rem] font-semibold not-italic text-[hsl(var(--danger))] opacity-0 transition hover:bg-[hsl(var(--danger)/0.12)] focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.28)] group-hover:opacity-100"
                 data-testid="message-remove-deleted-placeholder"
                 onClick={() => setDeleteDialogOpen(true)}
                 type="button"
@@ -913,7 +1004,7 @@ export const MessageItem = React.memo(
             title={t("chat.message.removeDeletedDialogTitle")}
           >
             <div
-              className="rounded-[24px] border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] p-4"
+              className="rounded-[1.5rem] border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] p-4"
               data-testid="message-remove-deleted-dialog"
             >
               <p className="text-sm font-medium text-app-foreground">
@@ -949,7 +1040,7 @@ export const MessageItem = React.memo(
       <>
         <div
           className={cn(
-            "group relative min-w-0 overflow-x-hidden px-0 py-[1px] transition",
+            "group relative min-w-0 overflow-x-clip px-0 py-[0.0625rem] transition",
             "data-[jump-highlight=true]:rounded-3xl data-[jump-highlight=true]:bg-[hsl(var(--primary)/0.12)] data-[jump-highlight=true]:ring-2 data-[jump-highlight=true]:ring-[hsl(var(--primary)/0.28)]",
             isOptimistic && !isFailed && "opacity-70",
             isFailed && "opacity-95",
@@ -959,21 +1050,33 @@ export const MessageItem = React.memo(
             time: formattedTime,
           })}
           data-message-id={message.id}
+          data-mentions-me={mentionsMe ? "true" : undefined}
           data-testid="message-item"
           role="article"
+          style={
+            mentionsMe
+              ? {
+                  borderLeft: `${pxToRem(MESSAGES_METRICS.messageList.mentionStripeWidth)} solid hsl(var(--primary))`,
+                }
+              : undefined
+          }
           tabIndex={-1}
         >
           {!isEditing && !isOptimistic ? (
             <div
               className={cn(
-                "absolute right-3 -top-3 z-20 hidden opacity-0 transition md:flex md:group-hover:opacity-100 md:focus-within:opacity-100",
+                // `--act` yoğunluk tercihinden gelir: `1` şeridi hep görünür yapar,
+                // `0` yalnız hover **ve** klavye odağında. `group-focus-within`
+                // şart — yalnız `group-hover` olsaydı şerit klavyeyle hiç
+                // erişilemezdi ve tepki/yanıt/sabitle fareye bağlı kalırdı.
+                "absolute right-3 -top-3 z-20 hidden opacity-[var(--act,0)] transition md:flex md:group-hover:opacity-100 md:group-focus-within:opacity-100 md:focus-within:opacity-100",
                 actionsOpen && "md:opacity-100",
               )}
               ref={hoverActionsRef}
             >
               <MessageToolbar
                 allowReact
-                allowThread={false}
+                allowThread={!message.threadParentId}
                 variant="hover"
                 messageId={message.id}
                 isOwner={isOwner}
@@ -982,9 +1085,10 @@ export const MessageItem = React.memo(
                 isMoreOpen={actionsOpen}
                 onReact={(emoji) => onReact(message.id, emoji)}
                 onReply={() => onReply(message.id, message.author.displayName, message.content)}
-                onThread={() => onThread(message)}
+                onThread={() => (onOpenThread ? onOpenThread(message.id) : onThread(message))}
                 onEdit={() => setIsEditing(true)}
                 onDelete={handleDelete}
+                onPin={pinHandler}
                 onMore={() => setActionsOpen((current) => !current)}
               />
             </div>
@@ -992,16 +1096,19 @@ export const MessageItem = React.memo(
 
           <div
             className={cn(
-              "grid min-w-0 items-start gap-2.5 rounded-[16px] px-1.5 transition sm:gap-3 sm:rounded-[18px] sm:px-3",
-              "grid-cols-[2.05rem_minmax(0,1fr)] sm:grid-cols-[2.5rem_minmax(0,1fr)]",
-              isGrouped ? "py-0.5" : "py-2",
-              "hover:bg-[hsl(var(--surface-card)/0.44)]",
+              "grid min-w-0 items-start gap-2.5 rounded-[1rem] px-1.5 transition sm:gap-3 sm:rounded-[1.125rem] sm:px-[var(--m-row-pad-x,0.75rem)]",
+              "grid-cols-[2.05rem_minmax(0,1fr)] sm:grid-cols-[2.25rem_minmax(0,1fr)]",
+              // Dikey boşluk yoğunluk tercihinden (`--m-pad`); ardışık satır onu
+              // yarılar, yoksa aynı yazarın üst üste iki cümlesi arasında ayrı
+              // iki mesaj kadar boşluk kalırdı.
+              isGrouped ? "py-[calc(var(--m-pad,0.5rem)/2)]" : "py-[var(--m-pad,0.5rem)]",
+              "hover:bg-[hsl(var(--surface-soft)/0.45)]",
             )}
           >
             <div className="flex justify-center">
               {isGrouped ? (
                 <div aria-hidden="true" className="av-ph relative min-h-0 w-9 shrink-0">
-                  <span className="absolute right-0 top-0.5 text-right text-[10px] font-medium text-app-soft opacity-0 transition group-hover:opacity-100">
+                  <span className="absolute right-0 top-0.5 text-right text-[0.625rem] font-medium text-app-soft opacity-0 transition group-hover:opacity-100">
                     {formattedTime}
                   </span>
                 </div>
@@ -1016,6 +1123,7 @@ export const MessageItem = React.memo(
                       src={message.author.avatarUrl}
                       alt={message.author.displayName}
                       className="h-8 w-8 flex-shrink-0 rounded-full shadow-[0_6px_16px_hsl(var(--shadow-color)/0.055)] sm:h-9 sm:w-9"
+                      style={{ fontSize: pxToRem(MESSAGES_METRICS.messageList.avatarFontSize) }}
                       fallback={message.author.displayName[0] || "?"}
                     />
                   </span>
@@ -1027,16 +1135,39 @@ export const MessageItem = React.memo(
               {!isGrouped && (
                 <div className="flex min-w-0 items-center gap-1.5 pr-2 leading-5">
                   <span
-                    className="min-w-0 truncate text-[15px] font-bold text-app-foreground"
+                    className="min-w-0 truncate font-semibold text-app-foreground"
                     data-testid={authorColor ? "chat-message-author" : undefined}
-                    style={authorColor ? { color: authorColor } : undefined}
+                    style={{
+                      fontSize: pxToRem(MESSAGES_METRICS.messageList.authorFontSize),
+                      lineHeight: MESSAGES_METRICS.messageList.authorLineHeight,
+                      ...(authorColor ? { color: authorColor } : {}),
+                    }}
                   >
                     {message.author.displayName}
                   </span>
-                  <span className="shrink-0 text-xs text-app-muted">{formattedTime}</span>
+                  {authorRole === "OWNER" || authorRole === "ADMIN" ? (
+                    <span
+                      className="shrink-0 bg-[hsl(var(--primary)/0.14)] text-[var(--primary-readable)]"
+                      data-testid="message-role-chip"
+                      style={{
+                        borderRadius: pxToRem(MESSAGES_METRICS.messageList.roleChipRadius),
+                        fontSize: pxToRem(MESSAGES_METRICS.messageList.roleChipFontSize),
+                        fontWeight: 600,
+                        padding: `${pxToRem(MESSAGES_METRICS.messageList.roleChipPaddingY)} ${pxToRem(MESSAGES_METRICS.messageList.roleChipPaddingX)}`,
+                      }}
+                    >
+                      {t("messages.conversation.roleAdmin")}
+                    </span>
+                  ) : null}
+                  <span
+                    className="shrink-0 text-app-muted"
+                    style={{ fontSize: pxToRem(MESSAGES_METRICS.messageList.timeFontSize) }}
+                  >
+                    {formattedTime}
+                  </span>
                   {message.isPinned ? (
                     <span
-                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[hsl(var(--primary))]"
+                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-[0.12em] text-[hsl(var(--primary))]"
                       data-testid="message-pinned-badge"
                     >
                       <Pin className="h-3 w-3" />
@@ -1082,7 +1213,14 @@ export const MessageItem = React.memo(
                   onCancel={() => setIsEditing(false)}
                 />
               ) : hasRenderableMessageBody ? (
-                <div className="message-font-scope max-w-full break-words text-sm leading-relaxed text-app-foreground [overflow-wrap:anywhere]">
+                <div
+                  className="message-font-scope max-w-full break-words text-app-foreground [overflow-wrap:anywhere]"
+                  style={{
+                    fontSize: pxToRem(MESSAGES_METRICS.messageList.bodyFontSize),
+                    lineHeight: MESSAGES_METRICS.messageList.bodyLineHeight,
+                    marginTop: pxToRem(MESSAGES_METRICS.messageList.bodyMarginTop),
+                  }}
+                >
                   <div className="relative inline-block max-w-full align-top md:max-w-[calc(100%-10rem)] 2xl:max-w-[76rem] [&_a]:text-[hsl(var(--primary))] [&_code]:break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto">
                     {markdownContent.trim().length > 0 ? (
                       <ReactMarkdown
@@ -1102,19 +1240,27 @@ export const MessageItem = React.memo(
                       />
                     ) : null}
                     {message.editedAt ? (
-                      <span className="inline-flex align-baseline text-[11px] font-medium italic text-app-soft">
-                        {t("chat.message.edited")}
+                      <span
+                        className="inline-flex align-baseline font-medium italic text-app-soft"
+                        style={{ fontSize: pxToRem(MESSAGES_METRICS.messageList.editedFontSize) }}
+                      >
+                        {t("messages.conversation.edited")}
                       </span>
                     ) : null}
                   </div>
                 </div>
               ) : null}
 
+              {/* karar #1: kart Ş6'nın; burada yalnız yeri var. */}
+              {!isEditing && pollSlot ? (
+                <div data-testid="message-poll-slot">{pollSlot}</div>
+              ) : null}
+
               {!isEditing ? <MessageAttachments attachments={message.attachments} /> : null}
               {!isEditing ? <LinkPreviewCard content={markdownContent} /> : null}
 
               {copyFeedback ? (
-                <div className="mt-1 inline-flex rounded-full border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.85)] px-3 py-1 text-[11px] font-semibold text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
+                <div className="mt-1 inline-flex rounded-full border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.85)] px-3 py-1 text-[0.6875rem] font-semibold text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
                   {copyFeedback}
                 </div>
               ) : null}
@@ -1124,7 +1270,7 @@ export const MessageItem = React.memo(
                   decides which one that is; the count is the server's. */}
               {readReceipt && readReceipt.count > 0 ? (
                 <p
-                  className="mt-1 text-[11px] font-semibold text-app-soft"
+                  className="mt-1 text-[0.6875rem] font-semibold text-app-soft"
                   data-testid="chat-message-read-receipt"
                 >
                   {readReceipt.everyone
@@ -1134,7 +1280,10 @@ export const MessageItem = React.memo(
               ) : null}
 
               {threadReplyCount > 0 && !isEditing ? (
-                <div className="mt-1 flex max-w-full items-center gap-2">
+                <div
+                  className="flex max-w-full items-center gap-2"
+                  style={{ marginTop: pxToRem(MESSAGES_METRICS.messageList.threadStripMarginTop) }}
+                >
                   <span
                     aria-hidden="true"
                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[hsl(var(--primary)/0.72)]"
@@ -1142,9 +1291,15 @@ export const MessageItem = React.memo(
                     <CornerDownRight className="h-4 w-4" />
                   </span>
                   <button
-                    className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-2xl border border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--surface-soft)/0.54)] px-2.5 py-1.5 text-xs font-semibold text-[hsl(var(--primary))] shadow-[0_10px_24px_hsl(var(--shadow-color)/0.05)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--primary)/0.1)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
+                    className="inline-flex min-w-0 max-w-full items-center bg-[hsl(var(--surface-soft)/0.5)] font-semibold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.1)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
                     data-testid="message-thread-preview"
-                    onClick={() => onThread(message)}
+                    onClick={() => (onOpenThread ? onOpenThread(message.id) : onThread(message))}
+                    style={{
+                      borderRadius: pxToRem(MESSAGES_METRICS.messageList.threadStripRadius),
+                      fontSize: pxToRem(MESSAGES_METRICS.messageList.threadStripCountFontSize),
+                      gap: pxToRem(MESSAGES_METRICS.messageList.threadStripGap),
+                      padding: `${pxToRem(MESSAGES_METRICS.messageList.threadStripPaddingY)} ${pxToRem(MESSAGES_METRICS.messageList.threadStripPaddingX)}`,
+                    }}
                     type="button"
                   >
                     {recentThreadRepliers.length > 0 ? (
@@ -1152,7 +1307,7 @@ export const MessageItem = React.memo(
                         {recentThreadRepliers.slice(0, 3).map((user) => (
                           <Avatar
                             alt={user.displayName ?? user.username}
-                            className="h-5 w-5 border border-[hsl(var(--surface-card))] bg-[hsl(var(--surface-card))] text-[9px]"
+                            className="h-5 w-5 border border-[hsl(var(--surface-card))] bg-[hsl(var(--surface-card))] text-[0.5625rem]"
                             fallback={user.displayName ?? user.username}
                             key={user.userId}
                             src={user.avatarUrl}
@@ -1165,11 +1320,16 @@ export const MessageItem = React.memo(
                       </span>
                     )}
                     <span className="shrink-0">
-                      {t("chat.thread.replyCount", { count: threadReplyCount })}
+                      {t("messages.conversation.thread.replies", { count: threadReplyCount })}
                     </span>
                     {threadLastReplyLabel ? (
-                      <span className="min-w-0 truncate text-app-muted">
-                        / {threadLastReplyLabel}
+                      <span
+                        className="min-w-0 truncate font-normal text-app-muted"
+                        style={{
+                          fontSize: pxToRem(MESSAGES_METRICS.messageList.threadStripMetaFontSize),
+                        }}
+                      >
+                        {t("messages.conversation.thread.open", { time: threadLastReplyLabel })}
                       </span>
                     ) : null}
                     {lastThreadReplier ? (
@@ -1186,7 +1346,7 @@ export const MessageItem = React.memo(
                 <div
                   className={`mt-1 inline-flex flex-wrap items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${
                     isFailed
-                      ? "border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] text-[hsl(var(--danger))]"
+                      ? "border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] text-[var(--danger-readable)]"
                       : "border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--primary)/0.08)] text-app-muted"
                   }`}
                   data-testid={`message-delivery-${message.deliveryStatus}`}
@@ -1248,7 +1408,7 @@ export const MessageItem = React.memo(
                         >
                           {reaction.emoji} {reaction.count}
                         </button>
-                        <span className="pointer-events-none absolute bottom-[calc(100%+0.35rem)] left-1/2 z-30 hidden max-w-[18rem] -translate-x-1/2 truncate whitespace-nowrap rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card))] px-2.5 py-1.5 text-[11px] font-semibold text-app-foreground shadow-[0_14px_34px_hsl(var(--shadow-color)/0.18)] group-focus-within/reaction:block group-hover/reaction:block">
+                        <span className="pointer-events-none absolute bottom-[calc(100%+0.35rem)] left-1/2 z-30 hidden max-w-[18rem] -translate-x-1/2 truncate whitespace-nowrap rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card))] px-2.5 py-1.5 text-[0.6875rem] font-semibold text-app-foreground shadow-[0_14px_34px_hsl(var(--shadow-color)/0.18)] group-focus-within/reaction:block group-hover/reaction:block">
                           {reactionSummary}
                         </span>
                       </span>
@@ -1274,9 +1434,59 @@ export const MessageItem = React.memo(
                 </button>
               ) : null}
 
+              {/* SPEC §5.3'ün 206px listesi masaüstünde; dar ekranda aynı
+                  eylemler alt kenardaki eylem çubuğunda kalıyor, çünkü parmakla
+                  ulaşılan bir yüzeyde 13px menü satırları hedef olarak küçüktür. */}
               {!isEditing && !isOptimistic && actionsOpen ? (
                 <div
-                  className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[90] flex justify-center md:absolute md:inset-x-auto md:bottom-auto md:right-3 md:top-7 md:z-30 md:justify-end"
+                  className="absolute z-30 hidden md:block"
+                  onClick={(event) => event.stopPropagation()}
+                  ref={desktopMenuRef}
+                  style={{
+                    right: pxToRem(MESSAGES_METRICS.messageList.menuOffsetRight),
+                    top: pxToRem(MESSAGES_METRICS.messageList.menuOffsetTop),
+                  }}
+                >
+                  <MessageToolbar
+                    allowReact={false}
+                    canModerate={canModerate}
+                    isOwner={isOwner}
+                    messageId={message.id}
+                    onCopyLink={copyMessageLink}
+                    onCopyRawText={copyRawText}
+                    onDelete={() => {
+                      setActionsOpen(false);
+                      handleDelete();
+                    }}
+                    onEdit={() => {
+                      setActionsOpen(false);
+                      setIsEditing(true);
+                    }}
+                    {...(onForward
+                      ? {
+                          onForward: () => {
+                            setActionsOpen(false);
+                            onForward(message.id);
+                          },
+                        }
+                      : {})}
+                    onReact={(emoji) => onReact(message.id, emoji)}
+                    onReply={() => {
+                      setActionsOpen(false);
+                      onReply(message.id, message.author.displayName, message.content);
+                    }}
+                    onThread={() => {
+                      setActionsOpen(false);
+                      onThread(message);
+                    }}
+                    variant="menu"
+                  />
+                </div>
+              ) : null}
+
+              {!isEditing && !isOptimistic && actionsOpen ? (
+                <div
+                  className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[90] flex justify-center md:hidden"
                   onClick={(event) => event.stopPropagation()}
                   ref={actionsRef}
                 >
@@ -1306,7 +1516,7 @@ export const MessageItem = React.memo(
                       setActionsOpen(false);
                       handleDelete();
                     }}
-                    onPin={mode === "channel" ? handlePinToggle : undefined}
+                    onPin={pinHandler}
                   />
                 </div>
               ) : null}
@@ -1322,7 +1532,7 @@ export const MessageItem = React.memo(
           title={t("chat.message.deleteDialogTitle")}
         >
           <div
-            className="rounded-[24px] border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] p-4"
+            className="rounded-[1.5rem] border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] p-4"
             data-testid="message-delete-dialog"
           >
             <p className="text-sm font-medium text-app-foreground">

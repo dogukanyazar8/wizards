@@ -51,8 +51,7 @@ type UseVoiceAudioLevelsOptions<ParticipantModel extends VoiceAudioLevelParticip
 };
 
 function getParticipantMicrophoneMediaStreamTrack(participant: Participant) {
-  const microphoneTrack =
-    participant.getTrackPublication(Track.Source.Microphone)?.track ?? null;
+  const microphoneTrack = participant.getTrackPublication(Track.Source.Microphone)?.track ?? null;
 
   if (microphoneTrack instanceof LocalAudioTrack || microphoneTrack instanceof RemoteAudioTrack) {
     return microphoneTrack.mediaStreamTrack;
@@ -203,9 +202,9 @@ export function useVoiceAudioLevels<ParticipantModel extends VoiceAudioLevelPart
           VOICE_AUDIO_LEVEL_CHANGE_THRESHOLD;
       const shouldSendKeepAlive =
         !audioActivity.isMuted &&
-        (audioActivity.isSpeaking || audioActivity.audioLevel > VOICE_AUDIO_LEVEL_SPEAKING_THRESHOLD) &&
-        timestamp - lastAudioLevelBroadcastAt >=
-          VOICE_AUDIO_LEVEL_KEEPALIVE_BROADCAST_INTERVAL_MS;
+        (audioActivity.isSpeaking ||
+          audioActivity.audioLevel > VOICE_AUDIO_LEVEL_SPEAKING_THRESHOLD) &&
+        timestamp - lastAudioLevelBroadcastAt >= VOICE_AUDIO_LEVEL_KEEPALIVE_BROADCAST_INTERVAL_MS;
 
       if (!shouldBroadcast && !shouldSendKeepAlive) {
         return;

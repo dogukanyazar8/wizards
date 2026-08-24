@@ -4,10 +4,13 @@ import { describe, it } from "node:test";
 import { ApiError } from "@/lib/api";
 import {
   SERVER_PUBLIC_PROFILE_SELECT,
+  buildServerProfileMutualFriends,
   buildServerProfileAdmins,
   buildServerPublicProfile,
+  countPublicVoiceRooms,
   getVisibleServerPublicProfileWithDatabase,
   resolveServerAdminRoleIds,
+  setServerPublicProfilePresenceReaderForTest,
 } from "@/lib/servers/server-public-profile-service";
 import { setServerWeeklyMessageCountCacheForTest } from "@/lib/servers/server-weekly-message-count";
 import { MEMBER_BASE_PERMISSIONS, PermissionBits } from "@/lib/workspace/permissions";
@@ -50,6 +53,7 @@ function buildSource(overrides: Record<string, unknown> = {}) {
         type: "VOICE" as const,
       }),
     ],
+    category: "CALISMA" as const,
     createdAt: new Date("2026-01-02T03:04:05.000Z"),
     description: "Yol haritasını burada tartışıyoruz.",
     discoverable: true,
@@ -58,6 +62,7 @@ function buildSource(overrides: Record<string, unknown> = {}) {
     id: "s1",
     inviteCode: "abcd1234",
     isPublic: true,
+    languages: ["tr", "en"],
     memberCount: 12_400,
     members: [],
     name: "Whispr Topluluk",
@@ -79,6 +84,7 @@ const EMPTY_VIEWER = {
   onlineCount: 1_200,
   upcomingEvent: null,
   viewerId: null,
+  voiceRoomCount: 0,
   weeklyMessageCount: null,
 };
 
@@ -107,6 +113,9 @@ describe("buildServerPublicProfile", () => {
     assert.equal(profile.discoverable, true);
     assert.equal(profile.memberCount, 12_400);
     assert.equal(profile.onlineCount, 1_200);
+    assert.equal(profile.category, "calisma");
+    assert.deepEqual(profile.languages, ["tr", "en"]);
+    assert.equal(profile.voiceRoomCount, 0);
   });
 
   it("derives verified from the features array, not verificationLevel", () => {
@@ -424,23 +433,110 @@ describe("resolveServerAdminRoleIds", () => {
   });
 });
 
+describe("discover profile mutual-friend enrichment", () => {
+  const friendships = [
+    {
+      receiver: { avatarUrl: null, displayName: "Owner", id: "owner-1", username: "owner" },
+      receiverId: "owner-1",
+      sender: { avatarUrl: null, displayName: "Viewer", id: "viewer-1", username: "viewer" },
+      senderId: "viewer-1",
+    },
+    {
+      receiver: { avatarUrl: null, displayName: "Ada", id: "admin-1", username: "ada" },
+      receiverId: "admin-1",
+      sender: { avatarUrl: null, displayName: "Viewer", id: "viewer-1", username: "viewer" },
+      senderId: "viewer-1",
+    },
+    {
+      receiver: { avatarUrl: null, displayName: "Grace", id: "member-1", username: "grace" },
+      receiverId: "member-1",
+      sender: { avatarUrl: null, displayName: "Viewer", id: "viewer-1", username: "viewer" },
+      senderId: "viewer-1",
+    },
+  ];
+
+  it("marks owner and MANAGE_SERVER member admin; keeps invisible offline", () => {
+    const friends = buildServerProfileMutualFriends(
+      friendships,
+      "viewer-1",
+      "owner-1",
+      [
+        { roles: [], userId: "owner-1" },
+        {
+          roles: [{ role: { permissions: PermissionBits.MANAGE_SERVER } }],
+          userId: "admin-1",
+        },
+        { roles: [], userId: "member-1" },
+      ],
+      new Map([
+        ["owner-1", "ONLINE" as const],
+        ["admin-1", "IDLE" as const],
+        ["member-1", "INVISIBLE" as const],
+      ]),
+    );
+
+    assert.deepEqual(
+      friends.map(({ id, presence, role }) => ({ id, presence, role })),
+      [
+        { id: "owner-1", presence: "online", role: "admin" },
+        { id: "admin-1", presence: "idle", role: "admin" },
+        { id: "member-1", presence: "offline", role: "member" },
+      ],
+    );
+  });
+});
+
+describe("discover profile voice-room count", () => {
+  it("counts only VOICE channels visible to @everyone", () => {
+    assert.equal(
+      countPublicVoiceRooms(
+        [
+          { permissionOverrides: [] },
+          {
+            permissionOverrides: [
+              {
+                allow: 0n,
+                deny: PermissionBits.VIEW_CHANNEL,
+                targetId: "r1",
+                targetType: "ROLE" as const,
+              },
+            ],
+          },
+        ],
+        "owner-1",
+        [{ id: "r1", isDefault: true, permissions: MEMBER_BASE_PERMISSIONS }],
+      ),
+      1,
+    );
+  });
+});
+
 function buildFakeDatabase(options: {
   adminMembers?: unknown[];
   friendRequestCount?: number;
   friendRequests?: unknown[];
+  mutualMembers?: unknown[];
   onlineCount?: number;
   queryLog?: string[];
   server: Record<string, unknown> | null;
   serverQueries?: Record<string, unknown>[];
+  voiceRooms?: unknown[];
   weeklyMessageCount?: number;
 }) {
   const log = (name: string) => options.queryLog?.push(name);
 
   return {
+    $transaction: async (queries: Promise<unknown>[]) => Promise.all(queries),
     appSession: {
       groupBy: async () => {
         log("appSession.groupBy");
         return [];
+      },
+    },
+    channel: {
+      findMany: async () => {
+        log("channel.findMany");
+        return options.voiceRooms ?? [];
       },
     },
     friendRequest: {
@@ -474,9 +570,9 @@ function buildFakeDatabase(options: {
     },
     serverMember: {
       count: async () => options.onlineCount ?? 0,
-      findMany: async () => {
+      findMany: async (args: { where?: { userId?: unknown } }) => {
         log("serverMember.findMany");
-        return options.adminMembers ?? [];
+        return args.where?.userId ? (options.mutualMembers ?? []) : (options.adminMembers ?? []);
       },
     },
   } as never;
@@ -562,6 +658,89 @@ describe("getVisibleServerPublicProfileWithDatabase", () => {
     const profile = await getVisibleServerPublicProfileWithDatabase(database, "s1", null);
 
     assert.equal(profile.serverId, "s1");
+  });
+
+  it("derives voiceRoomCount from every public VOICE channel, including beyond the preview", async () => {
+    const database = buildFakeDatabase({
+      server: buildSource(),
+      voiceRooms: [
+        { permissionOverrides: [] },
+        {
+          permissionOverrides: [
+            {
+              allow: 0n,
+              deny: PermissionBits.VIEW_CHANNEL,
+              targetId: "r1",
+              targetType: "ROLE",
+            },
+          ],
+        },
+      ],
+    });
+
+    const profile = await getVisibleServerPublicProfileWithDatabase(database, "s1", null);
+
+    assert.equal(profile.voiceRoomCount, 1);
+    assert.equal(profile.voiceActiveCount, 14);
+  });
+
+  it("fills mutual-friend owner/admin roles and Redis-normalized presence", async () => {
+    const friendRequests = [
+      {
+        receiver: { avatarUrl: null, displayName: "Owner", id: "owner-1", username: "owner" },
+        receiverId: "owner-1",
+        sender: { avatarUrl: null, displayName: "Viewer", id: "viewer-1", username: "viewer" },
+        senderId: "viewer-1",
+      },
+      {
+        receiver: { avatarUrl: null, displayName: "Ada", id: "admin-1", username: "ada" },
+        receiverId: "admin-1",
+        sender: { avatarUrl: null, displayName: "Viewer", id: "viewer-1", username: "viewer" },
+        senderId: "viewer-1",
+      },
+      {
+        receiver: { avatarUrl: null, displayName: "Grace", id: "member-1", username: "grace" },
+        receiverId: "member-1",
+        sender: { avatarUrl: null, displayName: "Viewer", id: "viewer-1", username: "viewer" },
+        senderId: "viewer-1",
+      },
+    ];
+    setServerPublicProfilePresenceReaderForTest(
+      async () =>
+        new Map([
+          ["owner-1", "ONLINE" as const],
+          ["admin-1", "IDLE" as const],
+          ["member-1", "INVISIBLE" as const],
+        ]),
+    );
+
+    try {
+      const database = buildFakeDatabase({
+        friendRequestCount: 3,
+        friendRequests,
+        mutualMembers: [
+          { roles: [], userId: "owner-1" },
+          {
+            roles: [{ role: { permissions: PermissionBits.MANAGE_SERVER } }],
+            userId: "admin-1",
+          },
+          { roles: [], userId: "member-1" },
+        ],
+        server: buildSource(),
+      });
+      const profile = await getVisibleServerPublicProfileWithDatabase(database, "s1", "viewer-1");
+
+      assert.deepEqual(
+        profile.mutualFriends.map(({ id, presence, role }) => ({ id, presence, role })),
+        [
+          { id: "owner-1", presence: "online", role: "admin" },
+          { id: "admin-1", presence: "idle", role: "admin" },
+          { id: "member-1", presence: "offline", role: "member" },
+        ],
+      );
+    } finally {
+      setServerPublicProfilePresenceReaderForTest(null);
+    }
   });
 });
 
@@ -802,6 +981,7 @@ describe("getVisibleServerPublicProfileWithDatabase query budget", () => {
     // The anonymous read no longer loads the admin block, so the two queries
     // that produced it are gone with it.
     assert.deepEqual(small.sort(), [
+      "channel.findMany",
       "message.count",
       "scheduledEvent.findFirst",
       "server.findUnique",
@@ -812,10 +992,11 @@ describe("getVisibleServerPublicProfileWithDatabase query budget", () => {
     const anonymous = await countQueries(20, null);
     const signedIn = await countQueries(20, "viewer-1");
 
-    assert.equal(anonymous.length, 3);
-    assert.equal(signedIn.length, 7);
+    assert.equal(anonymous.length, 4);
+    assert.equal(signedIn.length, 8);
     assert.deepEqual(signedIn.sort(), [
       "appSession.groupBy",
+      "channel.findMany",
       "friendRequest.count",
       "friendRequest.findMany",
       "message.count",

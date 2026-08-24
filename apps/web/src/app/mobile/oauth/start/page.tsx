@@ -16,7 +16,7 @@ export default async function MobileOAuthStartPage({ searchParams }: MobileOAuth
   const queryParams = await searchParams;
   const callbackUrl = getSafeAuthRedirectPath(
     readSingleParam(queryParams?.callbackUrl),
-    "/channels/@me",
+    "/messages",
   );
   const provider = getSafeMobileOAuthProvider(readSingleParam(queryParams?.provider));
   const state = getSafeMobileOAuthState(queryParams?.state);

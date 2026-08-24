@@ -110,7 +110,11 @@ describe("group create route", () => {
     const calls: unknown[] = [];
     const response = await groupCreateRoute(
       new Request("https://whispr.test/api/v1/dm/groups", {
-        body: JSON.stringify({ inviteEnabled: true, userIds: ["user-2", "user-3"] }),
+        body: JSON.stringify({
+          inviteEnabled: true,
+          name: "Takım",
+          userIds: ["user-2", "user-3"],
+        }),
         headers: { "content-type": "application/json" },
         method: "POST",
       }),
@@ -136,7 +140,11 @@ describe("group create route", () => {
     const calls: string[] = [];
     await groupCreateRoute(
       new Request("https://whispr.test/api/v1/dm/groups", {
-        body: JSON.stringify({ inviteEnabled: false, userIds: ["user-2", "user-3"] }),
+        body: JSON.stringify({
+          inviteEnabled: false,
+          name: "Takım",
+          userIds: ["user-2", "user-3"],
+        }),
         headers: { "content-type": "application/json" },
         method: "POST",
       }),
@@ -585,9 +593,10 @@ describe("group create route, Faz 1 fields", () => {
     await groupCreateRoute(
       new Request("https://whispr.test/api/v1/dm/groups", {
         body: JSON.stringify({
-          avatarColor: "#1B8A55",
+          avatarColor: "success",
           description: "Mobil ekibi",
           historyVisibility: "NONE",
+          name: "Takım",
           permAddMembers: "ADMINS",
           userIds: ["user-2", "user-3"],
         }),
@@ -604,19 +613,24 @@ describe("group create route, Faz 1 fields", () => {
 
     assert.deepEqual(calls, [
       {
-        avatarColor: "#1B8A55",
+        avatarColor: "success",
         description: "Mobil ekibi",
         historyVisibility: "NONE",
+        name: "Takım",
         permAddMembers: "ADMINS",
         userIds: ["user-2", "user-3"],
       },
     ]);
   });
 
-  it("rejects a colour outside the five-swatch palette", async () => {
+  it("rejects a colour outside the six-swatch palette", async () => {
     const response = await groupCreateRoute(
       new Request("https://whispr.test/api/v1/dm/groups", {
-        body: JSON.stringify({ avatarColor: "#000000", userIds: ["user-2", "user-3"] }),
+        body: JSON.stringify({
+          avatarColor: "#000000",
+          name: "Takım",
+          userIds: ["user-2", "user-3"],
+        }),
         headers: { "content-type": "application/json" },
         method: "POST",
       }),

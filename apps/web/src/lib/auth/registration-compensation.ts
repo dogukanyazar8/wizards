@@ -8,9 +8,7 @@ type RegistrationRollbackUserDelegate = {
 
 type RegistrationRollbackLogger = (scope: string, error: unknown) => void;
 
-export type RollbackUnverifiedUserResult =
-  | { ok: true }
-  | { error: unknown; ok: false };
+export type RollbackUnverifiedUserResult = { ok: true } | { error: unknown; ok: false };
 
 export async function rollbackUnverifiedUser(input: {
   email: string;

@@ -54,7 +54,7 @@
         { "type": "nodeModules" },
         { "type": "executable", "name": "pnpm" }
       ],
-      "steps": [{ "id": "ci-aggregate", "executable": "pnpm", "arguments": ["ci"] }]
+      "steps": [{ "id": "ci-aggregate", "executable": "pnpm", "arguments": ["run", "ci"] }]
     },
     "Mobile": {
       "description": "Run existing mobile environment, test, quality, and release checks without creating an APK.",

@@ -87,14 +87,18 @@ test.describe("mobile responsive experience", () => {
   test("workspace drawer opens and closes without mobile overflow", async ({ page }) => {
     await useMobileViewport(page, defaultMobileViewport);
     await loginAs(page, "alice");
-    await gotoAppRoute(page, "/channels/@me", {
+    await gotoAppRoute(page, "/messages", {
       readyTestId: "mobile-workspace-drawer-button",
     });
 
-    await expectInteractionWithinBudget("mobile workspace drawer open", async () => {
-      await page.getByTestId("mobile-workspace-drawer-button").click();
-      await expect(page.getByTestId("mobile-workspace-drawer")).toBeVisible();
-    }, 3_500);
+    await expectInteractionWithinBudget(
+      "mobile workspace drawer open",
+      async () => {
+        await page.getByTestId("mobile-workspace-drawer-button").click();
+        await expect(page.getByTestId("mobile-workspace-drawer")).toBeVisible();
+      },
+      3_500,
+    );
 
     const drawer = page.getByTestId("mobile-workspace-drawer");
     await expectMobileSurfaceHealthy(page, drawer);
@@ -112,12 +116,12 @@ test.describe("mobile responsive experience", () => {
     await useMobileViewport(page, defaultMobileViewport);
     await loginAs(page, "alice");
 
-    await gotoAppRoute(page, "/channels/@me", {
+    await gotoAppRoute(page, "/messages", {
       readyTestId: "mobile-workspace-drawer-button",
     });
-    await expect(page.locator('[data-testid="mobile-workspace-drawer-button"]:visible')).toHaveCount(
-      1,
-    );
+    await expect(
+      page.locator('[data-testid="mobile-workspace-drawer-button"]:visible'),
+    ).toHaveCount(1);
     await expect(page.locator('[data-testid="mobile-shell-back-button"]:visible')).toHaveCount(0);
 
     await gotoTextChannelRoute(page, serverId, textChannelId);
@@ -215,10 +219,7 @@ test.describe("mobile responsive experience", () => {
     await useMobileViewport(page, { height: 800, width: 360 });
     await loginAs(page, "alice");
     await gotoAppRoute(page, "/settings", { readyTestId: "settings-panel" });
-    await expect(page.getByTestId("settings-panel")).toHaveAttribute(
-      "data-client-ready",
-      "true",
-    );
+    await expect(page.getByTestId("settings-panel")).toHaveAttribute("data-client-ready", "true");
 
     await expectMobileSurfaceHealthy(page, page.getByTestId("settings-mobile-sidebar"));
     await expectNoHorizontalOverflow(page);
@@ -238,10 +239,12 @@ test.describe("mobile responsive experience", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("mobile notification popup fits the viewport", async ({ page }) => {
+  // Faz 2: bildirim zili kullanıcı ayağından kaldırıldı (SPEC §2.5 üç buton). Zilin tasarımdaki
+  // yeri ana alan üst çubuğu; Faz 4 onu yazınca bu iki test aynen geri açılacak.
+  test.skip("mobile notification popup fits the viewport", async ({ page }) => {
     await useMobileViewport(page, defaultMobileViewport);
     await loginAs(page, "alice");
-    await gotoAppRoute(page, "/channels/@me", {
+    await gotoAppRoute(page, "/messages", {
       readyTestId: "mobile-workspace-drawer-button",
     });
 
@@ -257,10 +260,10 @@ test.describe("mobile responsive experience", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("mobile userbar popups are exclusive and fit the viewport", async ({ page }) => {
+  test.skip("mobile userbar popups are exclusive and fit the viewport", async ({ page }) => {
     await useMobileViewport(page, defaultMobileViewport);
     await loginAs(page, "alice");
-    await gotoAppRoute(page, "/channels/@me", {
+    await gotoAppRoute(page, "/messages", {
       readyTestId: "mobile-workspace-drawer-button",
     });
 

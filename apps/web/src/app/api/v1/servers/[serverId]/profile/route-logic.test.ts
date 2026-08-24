@@ -26,6 +26,7 @@ function profileFixture(): ServerPublicProfile {
     admins: [],
     bannerUrl: null,
     canManageServer: false,
+    category: null,
     channelCount: 1,
     channels: [
       {
@@ -49,6 +50,7 @@ function profileFixture(): ServerPublicProfile {
     isPublic: true,
     joined: false,
     joinedAt: null,
+    languages: [],
     memberCount: 12_400,
     muted: false,
     mutualFriendCount: 0,
@@ -64,6 +66,7 @@ function profileFixture(): ServerPublicProfile {
     upcomingEvent: null,
     verified: true,
     voiceActiveCount: 0,
+    voiceRoomCount: 0,
     weeklyMessageCount: null,
   };
 }

@@ -25,10 +25,14 @@ import {
 import {
   enqueueChannelMentionNotificationJob,
   enqueueChannelThreadReplyNotificationJob,
+  enqueueEveryoneMentionNotificationJob,
   enqueueMessageCreatedAnalyticsJob,
+  enqueueRoleMentionNotificationJob,
 } from "@/lib/outbox/service";
+import { containsRoleMentionCandidate } from "@/lib/workspace/mention-parser";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
 import { PermissionBits, hasPermission } from "@/lib/workspace/permissions";
+import { ensureImplicitFollow } from "@/lib/workspace/thread-follow-service";
 
 /**
  * What the notification jobs need that the message row does not carry. The
@@ -360,6 +364,8 @@ export function mapRawMessage(
     type: normalizeMessageType(message.type),
     mentionEveryone: message.mentionEveryone,
     threadParentId: message.threadParentId,
+    threadClosedAt: message.threadClosedAt?.toISOString() ?? null,
+    threadClosedById: message.threadClosedById,
     alsoSentToChannel: message.alsoSentToChannel,
     threadSummary: normalizeThreadSummary(threadSummary),
     isPinned: message.isPinned,
@@ -854,10 +860,22 @@ async function createTypedMessage(args: {
     }
   }
 
+  /**
+   * Bahsedilmeler Ş2 / K1. Aday token kontrolü saf regex — sorgu yok, çünkü bu satır mesaj yazan
+   * her isteğin üzerinde duruyor. İzin bitleri elde varsa rol izni **gönderim anında** ölçülür;
+   * yoksa `null` gider ve worker kendisi okur.
+   */
+  const hasRoleMentionCandidate = args.type === "DEFAULT" && containsRoleMentionCandidate(content);
+  const senderCanMentionRestrictedRoles =
+    hasRoleMentionCandidate && args.permissions !== undefined
+      ? hasPermission(args.permissions, PermissionBits.MENTION_EVERYONE)
+      : null;
+
   const clientNonce = normalizeMessageClientNonce(args.clientNonce);
 
   const writeMessage = () =>
     prisma.$transaction(async (tx) => {
+      let threadParentAuthorId: string | null = null;
       if (args.threadParentId) {
         const parent = await tx.message.findFirst({
           where: {
@@ -867,12 +885,18 @@ async function createTypedMessage(args: {
             placeholderRemovedAt: null,
             threadParentId: null,
           },
-          select: { id: true },
+          select: { id: true, threadClosedAt: true, userId: true },
         });
 
         if (!parent) {
           throw new ApiError("Thread parent message not found", 404, "THREAD_PARENT_NOT_FOUND");
         }
+
+        if (parent.threadClosedAt) {
+          throw new ApiError("This thread is closed", 409, "THREAD_CLOSED");
+        }
+
+        threadParentAuthorId = parent.userId;
       }
 
       const createdMessage = await tx.message.create({
@@ -931,12 +955,46 @@ async function createTypedMessage(args: {
 
         await enqueueChannelMentionNotificationJob(tx, notificationArgs);
 
+        if (hasRoleMentionCandidate) {
+          await enqueueRoleMentionNotificationJob(tx, {
+            ...notificationArgs,
+            senderCanMentionRestrictedRoles,
+          });
+        }
+
+        // K2: bayrağın kendisine dokunulmuyor, yalnız bildirimi kuyruklanıyor. Satır yazılmaz.
+        if (mentionEveryone) {
+          await enqueueEveryoneMentionNotificationJob(tx, notificationArgs);
+        }
+
         if (args.threadParentId) {
           await enqueueChannelThreadReplyNotificationJob(tx, {
             ...notificationArgs,
             parentMessageId: args.threadParentId,
           });
         }
+      }
+
+      // K3 örtük takip. Mesajla aynı işlemde yazılıyor: takip satırı geri alınan bir yanıtı
+      // takip ediyor olamaz, ve bir sonraki yanıt bu satır olmadan yanlış kümeye gider.
+      if (args.threadParentId) {
+        if (threadParentAuthorId) {
+          await ensureImplicitFollow({
+            channelId: args.channelId,
+            client: tx,
+            origin: "AUTHOR",
+            parentMessageId: args.threadParentId,
+            userId: threadParentAuthorId,
+          });
+        }
+
+        await ensureImplicitFollow({
+          channelId: args.channelId,
+          client: tx,
+          origin: "REPLY",
+          parentMessageId: args.threadParentId,
+          userId: args.userId,
+        });
       }
 
       return mapRawMessage(message, undefined, args.userId);

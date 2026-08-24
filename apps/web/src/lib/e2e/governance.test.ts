@@ -116,7 +116,7 @@ describe("Playwright E2E governance", () => {
       authHelper.indexOf("export async function logout"),
     );
 
-    assert.match(loginAsImplementation, /gotoAppRoute\(page, "\/channels\/@me"\)/);
+    assert.match(loginAsImplementation, /gotoAppRoute\(page, "\/messages"\)/);
   });
 
   it("keeps every Playwright entrypoint behind the environment preflight", () => {

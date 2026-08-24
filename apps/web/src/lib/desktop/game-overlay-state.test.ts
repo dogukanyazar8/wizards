@@ -42,9 +42,6 @@ describe("desktop game overlay state machine", () => {
       transitionDesktopGameOverlayState("hidden", { type: "repair-requested" }),
       "hidden",
     );
-    assert.equal(
-      transitionDesktopGameOverlayState("hidden", { type: "repair-failed" }),
-      "hidden",
-    );
+    assert.equal(transitionDesktopGameOverlayState("hidden", { type: "repair-failed" }), "hidden");
   });
 });

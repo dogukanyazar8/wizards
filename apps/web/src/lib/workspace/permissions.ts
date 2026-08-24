@@ -26,6 +26,14 @@ export const PermissionBits = {
   TIMEOUT_MEMBERS: 1n << 21n,
   VIEW_AUDIT_LOG: 1n << 22n,
   MENTION_EVERYONE: 1n << 23n,
+  /**
+   * Etkinlikler K4 — planlanmış etkinlik oluşturma, düzenleme ve iptali.
+   *
+   * `MANAGE_SERVER`den ayrıldı: her üyeye açmak sunucu geneli bildirim spam'i demekti,
+   * `MANAGE_SERVER`da bırakmak tasarımdaki üç `Oluştur` girişini çoğu kullanıcı için ölü
+   * yapardı. Sıradaki boş bit 24; bugün kullanılan en yüksek bit 23.
+   */
+  MANAGE_EVENTS: 1n << 24n,
 } as const;
 
 export type PermissionKey = keyof typeof PermissionBits;
@@ -101,7 +109,8 @@ export const MODERATOR_PERMISSIONS =
   PermissionBits.MENTION_EVERYONE |
   PermissionBits.MUTE_MEMBERS |
   PermissionBits.DEAFEN_MEMBERS |
-  PermissionBits.MOVE_MEMBERS;
+  PermissionBits.MOVE_MEMBERS |
+  PermissionBits.MANAGE_EVENTS;
 
 export const RolePermissionPresets = {
   ADMIN: SERVER_ADMIN_PERMISSIONS,
@@ -245,6 +254,29 @@ export function requireServerPermission(
 
   if (!hasPermission(permissions, permission)) {
     throw new ApiError("You do not have permission to perform this action.", 403, "FORBIDDEN");
+  }
+
+  return permissions;
+}
+
+/**
+ * Etkinlik yazma yetkisi — K4.
+ *
+ * Üç kapıdan biri yeter: `ADMINISTRATOR`, `MANAGE_SERVER` ya da `MANAGE_EVENTS`.
+ * `MANAGE_SERVER`ın burada durması migration'ı borçsuz bırakıyor: bugün etkinlik yazabilen
+ * roller o biti taşıyor ve yeni bit dağıtılana kadar yetkilerini kaybetmiyorlar.
+ */
+export const EVENT_MANAGE_PERMISSIONS = [
+  PermissionBits.ADMINISTRATOR,
+  PermissionBits.MANAGE_SERVER,
+  PermissionBits.MANAGE_EVENTS,
+] as const;
+
+export function requireEventPermission(context: PermissionResolutionContext) {
+  const permissions = resolveServerPermissions(context);
+
+  if (!hasAnyPermission(permissions, [...EVENT_MANAGE_PERMISSIONS])) {
+    throw new ApiError("You do not have permission to manage events.", 403, "FORBIDDEN");
   }
 
   return permissions;

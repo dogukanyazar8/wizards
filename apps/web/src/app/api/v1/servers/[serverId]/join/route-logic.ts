@@ -38,9 +38,9 @@ export async function serverJoinRoute(
     const userId = await dependencies.authenticate();
     await dependencies.enforceRateLimit(userId, "server:join-public");
     const { serverId } = await context.params;
-    await dependencies.joinServer(userId, serverId);
+    const joined = await dependencies.joinServer(userId, serverId);
 
-    return Response.json({ success: true });
+    return Response.json({ name: joined.name, serverId: joined.serverId, success: true });
   } catch (error) {
     return jsonError(error);
   }

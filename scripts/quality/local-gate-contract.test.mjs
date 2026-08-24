@@ -63,7 +63,7 @@ test("local quality profiles are declarative, complete, and shell-free", () => {
   );
   assert.deepEqual(
     profiles.profiles.CI.steps.map((step) => [step.executable, step.arguments]),
-    [["pnpm", ["ci"]]],
+    [["pnpm", ["run", "ci"]]],
   );
   assert.deepEqual(
     profiles.profiles.Security.steps.map((step) => [step.executable, step.arguments]),

@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { ApiError } from "@/lib/api";
 import {
   ALL_PERMISSIONS,
   MEMBER_BASE_PERMISSIONS,
   MODERATOR_PERMISSIONS,
+  PERMISSION_KEYS,
   PermissionBits,
   RolePermissionPresets,
   SERVER_ADMIN_PERMISSIONS,
@@ -15,6 +17,7 @@ import {
   permissionKeysToMask,
   permissionMaskToKeys,
   requireChannelPermission,
+  requireEventPermission,
   requireServerPermission,
   resolveChannelPermissions,
   resolveServerPermissions,
@@ -278,5 +281,75 @@ describe("workspace permissions", () => {
 
     assert.equal(hasExplicitChannelAllow(allowedContext, PermissionBits.CONNECT_VOICE), true);
     assert.equal(canUseLockedChannelPermission(allowedContext, PermissionBits.CONNECT_VOICE), true);
+  });
+});
+
+/**
+ * Etkinlikler paketi — Dalga 0 / Ş0.6. `MANAGE_EVENTS` (K4).
+ *
+ * Yeni bit `1n << 24n`: bugün kullanılan en yüksek bit 23 (`MENTION_EVERYONE`).
+ */
+describe("workspace permissions — MANAGE_EVENTS (K4)", () => {
+  it("takes the next free bit", () => {
+    assert.equal(PermissionBits.MANAGE_EVENTS, 1n << 24n);
+    assert.equal(PermissionBits.MANAGE_EVENTS > PermissionBits.MENTION_EVERYONE, true);
+  });
+
+  it("joins the full mask and the key list", () => {
+    assert.equal(hasPermission(ALL_PERMISSIONS, PermissionBits.MANAGE_EVENTS), true);
+    assert.equal(PERMISSION_KEYS.length, 25);
+    assert.equal(PERMISSION_KEYS.includes("MANAGE_EVENTS"), true);
+    assert.deepEqual(permissionMaskToKeys(PermissionBits.MANAGE_EVENTS), ["MANAGE_EVENTS"]);
+  });
+
+  it("ships with the moderator preset but not with the member baseline", () => {
+    assert.equal(hasPermission(MODERATOR_PERMISSIONS, PermissionBits.MANAGE_EVENTS), true);
+    assert.equal(hasPermission(MEMBER_BASE_PERMISSIONS, PermissionBits.MANAGE_EVENTS), false);
+  });
+
+  it("lets an administrator through without the bit being set", () => {
+    assert.equal(hasPermission(SERVER_ADMIN_PERMISSIONS, PermissionBits.MANAGE_EVENTS), true);
+  });
+});
+
+describe("workspace permissions — requireEventPermission (K4)", () => {
+  function context(permissions: bigint) {
+    return {
+      ownerId: "owner-1",
+      roles: [{ id: "role-1", name: "Role", permissions }],
+      userId: "member-1",
+    };
+  }
+
+  it("passes the server owner", () => {
+    assert.doesNotThrow(() =>
+      requireEventPermission({ ownerId: "owner-1", roles: [], userId: "owner-1" }),
+    );
+  });
+
+  it("passes a role that already holds MANAGE_SERVER, so no mask backfill is needed", () => {
+    // Migration'da rol maskesi backfill'i **gerekmez**: bugün etkinlik yazabilen roller
+    // `MANAGE_SERVER` taşıyor ve bu yardımcı onları geçirmeye devam ediyor.
+    assert.doesNotThrow(() => requireEventPermission(context(PermissionBits.MANAGE_SERVER)));
+  });
+
+  it("passes a role that only holds MANAGE_EVENTS", () => {
+    assert.doesNotThrow(() => requireEventPermission(context(PermissionBits.MANAGE_EVENTS)));
+  });
+
+  it("passes an administrator", () => {
+    assert.doesNotThrow(() => requireEventPermission(context(PermissionBits.ADMINISTRATOR)));
+  });
+
+  it("rejects a member holding neither with a 403", () => {
+    assert.throws(
+      () => requireEventPermission(context(MEMBER_BASE_PERMISSIONS)),
+      (error: unknown) => {
+        assert.ok(error instanceof ApiError);
+        assert.equal(error.status, 403);
+        assert.equal(error.code, "FORBIDDEN");
+        return true;
+      },
+    );
   });
 });

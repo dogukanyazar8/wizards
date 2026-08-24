@@ -7,7 +7,10 @@ import { registerDMHandlers } from "./dm";
 function createHandlerContextRecorder() {
   const events: string[] = [];
   const emitted: Array<{ args: unknown[]; event: string }> = [];
-  const handlers = new Map<string, (payload: unknown) => Promise<void> | void>();
+  const handlers = new Map<
+    string,
+    (payload: unknown, acknowledge?: (result: unknown) => void) => Promise<void> | void
+  >();
   const socket = {
     data: {
       displayName: "Ada",
@@ -18,7 +21,10 @@ function createHandlerContextRecorder() {
       emitted.push({ args, event });
       return socket;
     },
-    on(event: string, handler: (payload: unknown) => Promise<void> | void) {
+    on(
+      event: string,
+      handler: (payload: unknown, acknowledge?: (result: unknown) => void) => Promise<void> | void,
+    ) {
       events.push(event);
       handlers.set(event, handler);
       return socket;
@@ -77,6 +83,18 @@ describe("socket DM handlers", () => {
       "dm:message:delete",
       "dm:message:react",
       "dm:message:unreact",
+    ]);
+  });
+
+  it("acknowledges an invalid DM send without clearing the caller draft", async () => {
+    const { ctx, handlers } = createHandlerContextRecorder();
+    const acknowledgements: unknown[] = [];
+
+    registerDMHandlers(ctx);
+    await handlers.get("dm:message:send")?.({}, (result) => acknowledgements.push(result));
+
+    assert.deepEqual(acknowledgements, [
+      { code: "NOT_FOUND", message: "Unable to send DM message.", ok: false },
     ]);
   });
 

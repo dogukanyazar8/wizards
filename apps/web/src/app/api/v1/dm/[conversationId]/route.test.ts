@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { ApiError, jsonError } from "@/lib/api";
-import { deleteDirectMessageConversationRoute, getDirectMessageConversationRoute } from "./route-logic";
+import {
+  deleteDirectMessageConversationRoute,
+  getDirectMessageConversationRoute,
+} from "./route-logic";
 
 function request() {
   return new Request("https://whispr.test/api/v1/dm/conversation-1");
@@ -156,11 +159,7 @@ describe("DM conversation API route", () => {
 
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { success: true });
-    assert.deepEqual(calls, [
-      "auth",
-      "rate:user-1:dm:hide",
-      "hide:conversation-1:user-1",
-    ]);
+    assert.deepEqual(calls, ["auth", "rate:user-1:dm:hide", "hide:conversation-1:user-1"]);
   });
 
   it("returns the shared 429 envelope when DM hides are rate limited", async () => {

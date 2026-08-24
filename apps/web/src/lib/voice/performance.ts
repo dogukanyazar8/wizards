@@ -35,7 +35,9 @@ function getDefaultRuntime(): VoicePerformanceRuntime {
   return isBrowserRuntime() ? "client" : "server";
 }
 
-export function isVoicePerformanceMetricsEnabled(runtime: VoicePerformanceRuntime = getDefaultRuntime()) {
+export function isVoicePerformanceMetricsEnabled(
+  runtime: VoicePerformanceRuntime = getDefaultRuntime(),
+) {
   if (runtime === "client") {
     return process.env.NEXT_PUBLIC_VOICE_PERFORMANCE_METRICS === "true";
   }
@@ -49,7 +51,10 @@ export function getVoicePerformanceNow() {
     : Date.now();
 }
 
-export function getVoicePerformanceDurationMs(startedAt: number, endedAt = getVoicePerformanceNow()) {
+export function getVoicePerformanceDurationMs(
+  startedAt: number,
+  endedAt = getVoicePerformanceNow(),
+) {
   return Math.max(0, Math.round((endedAt - startedAt) * 100) / 100);
 }
 
@@ -60,12 +65,8 @@ export function getVoicePerformanceErrorMetadata(error: unknown) {
   };
 
   return {
-    ...(typeof errorWithMetadata?.code === "string"
-      ? { errorCode: errorWithMetadata.code }
-      : {}),
-    ...(typeof errorWithMetadata?.status === "number"
-      ? { status: errorWithMetadata.status }
-      : {}),
+    ...(typeof errorWithMetadata?.code === "string" ? { errorCode: errorWithMetadata.code } : {}),
+    ...(typeof errorWithMetadata?.status === "number" ? { status: errorWithMetadata.status } : {}),
   };
 }
 

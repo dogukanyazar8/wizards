@@ -163,8 +163,8 @@ describe("OAuth two-factor challenge protocol", () => {
       ),
       "/desktop/oauth/complete?callbackUrl=%2Fchannels",
     );
-    assert.equal(getSafeOAuthCallbackPath("https://evil.example/phish"), "/channels/@me");
-    assert.equal(getSafeOAuthCallbackPath("javascript:alert(1)"), "/channels/@me");
+    assert.equal(getSafeOAuthCallbackPath("https://evil.example/phish"), "/messages");
+    assert.equal(getSafeOAuthCallbackPath("javascript:alert(1)"), "/messages");
   });
 
   it("creates a short-lived hashed challenge without storing the raw token", async () => {

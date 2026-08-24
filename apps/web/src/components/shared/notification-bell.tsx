@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
@@ -23,6 +23,7 @@ import {
   notificationsQueryKeys,
 } from "@/lib/notifications/client";
 import type { NotificationDTO } from "@/lib/notifications/types";
+import { HOME_METRICS, hairline, pxToRem } from "@/lib/home/metrics";
 import type { NotificationSocketPayload } from "@/lib/socket/events";
 import { cn } from "@/lib/utils";
 
@@ -78,15 +79,23 @@ function formatNotificationDate(locale: string, createdAt: string) {
 }
 
 type NotificationBellProps = {
+  /**
+   * Ana Sayfa üst çubuğu okunmamışı **sayıyla değil noktayla** işaretler (SPEC-ANA-SAYFA §2.3):
+   * 40×40 butonun köşesinde 7px `--danger` nokta. Varsayılan davranış (sayı balonu) değişmez.
+   */
+  badgeVariant?: "count" | "dot";
   className?: string;
   onOpenChange?: (open: boolean) => void;
   open?: boolean;
+  style?: CSSProperties;
 };
 
 export function NotificationBell({
+  badgeVariant = "count",
   className,
   onOpenChange,
   open: controlledOpen,
+  style,
 }: NotificationBellProps = {}) {
   const { locale, t } = useI18n();
   const router = useRouter();
@@ -433,16 +442,31 @@ export function NotificationBell({
         onFocus={prefetchNotifications}
         onMouseEnter={prefetchNotifications}
         onClick={handleToggle}
+        style={style}
         type="button"
       >
         <Bell className="h-5 w-5" />
-        {unreadCount > 0 ? (
+        {unreadCount > 0 && badgeVariant === "count" ? (
           <span
             className="absolute -right-1 -top-1 inline-flex min-w-[1.4rem] items-center justify-center rounded-full border border-[hsl(var(--surface-card))] bg-[hsl(var(--danger))] px-1.5 py-0.5 text-[10px] font-semibold text-[hsl(var(--danger-foreground))] shadow-[0_10px_22px_hsl(var(--shadow-color)/0.18)]"
             data-testid="notification-bell-badge"
           >
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
+        ) : null}
+        {unreadCount > 0 && badgeVariant === "dot" ? (
+          <span
+            aria-hidden="true"
+            className="absolute rounded-full border-solid border-[hsl(var(--surface-card))] bg-[hsl(var(--danger))]"
+            data-testid="notification-bell-dot"
+            style={{
+              borderWidth: hairline(HOME_METRICS.topBar.bellDotBorderWidth),
+              height: pxToRem(HOME_METRICS.topBar.bellDotSize),
+              right: pxToRem(HOME_METRICS.topBar.bellDotOffsetRight),
+              top: pxToRem(HOME_METRICS.topBar.bellDotOffsetTop),
+              width: pxToRem(HOME_METRICS.topBar.bellDotSize),
+            }}
+          />
         ) : null}
       </button>
 
@@ -558,7 +582,7 @@ export function NotificationBell({
                           className="min-h-9 flex-1 rounded-xl border border-[hsl(var(--border)/0.68)] px-3 text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                           onClick={() => {
                             closePopover();
-                            router.push("/channels/@me");
+                            router.push("/messages");
                           }}
                           type="button"
                         >

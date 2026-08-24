@@ -61,9 +61,9 @@ export function getGroupInvitePageReason(error: unknown): GroupInvitePageReason 
   }
 }
 
-/** Where a successful join lands. The web DM surface is `/channels/@me/<id>`. */
+/** Where a successful join lands. The web DM surface is `/messages/<id>`. */
 export function getGroupInviteDestination(conversationId: string): string {
-  return `/channels/@me/${encodeURIComponent(conversationId)}`;
+  return `/messages/${encodeURIComponent(conversationId)}`;
 }
 
 /**

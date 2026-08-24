@@ -32,6 +32,45 @@ export function detectBrowserLocale(): AppLocale {
   return normalizeAppLocale(browserLocale);
 }
 
+/**
+ * Çoğul biçim eki — sözlükte `"<anahtar>_one"` varsa `count === 1` iken o seçilir.
+ *
+ * Taban anahtar **çoğul** biçimdir; `_one` yalnız bir override'dır. Bu yön mevcut sözlüğün
+ * 40+ sayaç anahtarını olduğu gibi bırakır: çoğul çifti yazılmamış bir anahtar `count = 1`de de
+ * taban metnini döndürür, yani hiçbir mevcut metin bu mekanizmayla değişmez.
+ *
+ * Türkçede çoğul eki sayıyla değişmediği için TR tarafında `_one` yazılmaz.
+ */
+const PLURAL_ONE_SUFFIX = "_one";
+const PLURAL_OTHER_SUFFIX = "_other";
+
+/**
+ * `key` için okunacak şablonu seçer. Sıra: sayıya uyan çoğul biçim → taban anahtar → anahtarın
+ * kendisi (eksik çeviri ekranda görünür kalsın diye).
+ */
+export function resolveMessageTemplate(
+  messages: TranslationDictionary | undefined,
+  key: string,
+  values?: TranslationValues,
+): string {
+  if (!messages) {
+    return key;
+  }
+
+  const count = values?.count;
+
+  if (typeof count === "number") {
+    const pluralKey = `${key}${count === 1 ? PLURAL_ONE_SUFFIX : PLURAL_OTHER_SUFFIX}`;
+    const pluralTemplate = messages[pluralKey];
+
+    if (pluralTemplate !== undefined) {
+      return pluralTemplate;
+    }
+  }
+
+  return messages[key] ?? key;
+}
+
 export function interpolateMessage(template: string, values?: TranslationValues): string {
   if (!values) {
     return template;

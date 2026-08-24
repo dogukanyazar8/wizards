@@ -23,14 +23,9 @@ export function getThemeSessionSyncDecision({
   lastPreferredTheme,
   preferredTheme,
 }: ThemeSessionSyncDecisionInput) {
-  const nextPreferredTheme = preferredTheme
-    ? normalizeWizardsThemeId(preferredTheme)
-    : null;
+  const nextPreferredTheme = preferredTheme ? normalizeWizardsThemeId(preferredTheme) : null;
 
-  if (
-    typeof lastPreferredTheme !== "undefined" &&
-    lastPreferredTheme === nextPreferredTheme
-  ) {
+  if (typeof lastPreferredTheme !== "undefined" && lastPreferredTheme === nextPreferredTheme) {
     return {
       nextLastPreferredTheme: lastPreferredTheme,
       themeToApply: null,
@@ -50,9 +45,7 @@ export function getThemeSessionSyncDecision({
 
 export function ThemeSessionSync({ preferredTheme }: ThemeSessionSyncProps) {
   const { resolvedTheme, setTheme, theme } = useTheme();
-  const lastPreferredThemeRef = useRef<WizardsThemeId | null | undefined>(
-    undefined,
-  );
+  const lastPreferredThemeRef = useRef<WizardsThemeId | null | undefined>(undefined);
 
   useLayoutEffect(() => {
     const decision = getThemeSessionSyncDecision({

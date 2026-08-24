@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
-import {
-  clearErrorReporter,
-  registerErrorReporter,
-  reportError,
-} from "./reporter";
+import { clearErrorReporter, registerErrorReporter, reportError } from "./reporter";
 
 describe("observability reporter", () => {
   beforeEach(() => {

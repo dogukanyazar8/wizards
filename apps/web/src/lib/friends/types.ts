@@ -17,6 +17,22 @@ export interface FriendPresenceDto {
   customStatus: string | null;
 }
 
+/**
+ * The voice room a friend is in right now — Ana Sayfa 1a §4.6, karar #5.
+ *
+ * The friends strip's status line puts "<room>'da" above every other source, so
+ * the room has to arrive with the list; before this field the name only existed
+ * on the `friends:voice:update` socket event and the first paint had nothing to
+ * show. Same audience rule as presence: a friend the viewer may not see
+ * (invisible, or presence closed) carries `null`, never a room.
+ */
+export interface FriendVoiceRoomDto {
+  channelId: string;
+  channelName: string;
+  serverId: string;
+  serverName: string;
+}
+
 export interface FriendDto extends FriendUserDto {
   /** 2b §7. False when this friend has closed themselves to group invites. */
   allowsGroupInvites: boolean;
@@ -25,6 +41,8 @@ export interface FriendDto extends FriendUserDto {
   /** ISO timestamp behind the mobile invite sheet's "n sa önce görüldü" line. */
   lastSeenAt: string | null;
   presence: FriendPresenceDto;
+  /** Ana Sayfa §4.6. `null` when the friend is in no room, or may not be seen. */
+  voiceRoom: FriendVoiceRoomDto | null;
 }
 
 export interface FriendRequestDto {
@@ -88,6 +106,13 @@ export const FriendPresenceSchema = z.object({
   customStatus: z.string().nullable(),
 });
 
+export const FriendVoiceRoomSchema = z.object({
+  channelId: z.string(),
+  channelName: z.string(),
+  serverId: z.string(),
+  serverName: z.string(),
+});
+
 export const FriendSchema = FriendUserSchema.extend({
   /**
    * 2b §7 / F2. Defaulted to open so a response from a server that predates the
@@ -98,6 +123,8 @@ export const FriendSchema = FriendUserSchema.extend({
   customStatus: z.string().nullable(),
   lastSeenAt: z.string().nullable(),
   presence: FriendPresenceSchema,
+  /** Defaulted so a response from a server that predates the field still parses. */
+  voiceRoom: FriendVoiceRoomSchema.nullable().default(null),
 });
 
 export const FriendRequestSchema = z.object({

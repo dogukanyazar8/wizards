@@ -19,7 +19,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
   return {
     authenticate: async () => "user-1",
     enforceRateLimit: async () => undefined,
-    joinServer: async () => ({ alreadyMember: false, serverId: "server-1" }),
+    joinServer: async () => ({ alreadyMember: false, name: "Whispr", serverId: "server-1" }),
     ...overrides,
   };
 }
@@ -42,7 +42,7 @@ describe("mobile server join-public route logic", () => {
         },
         joinServer: async (userId: string, serverId: string) => {
           calls.push(`service:${userId}:${serverId}`);
-          return { alreadyMember: false, serverId };
+          return { alreadyMember: false, name: "Whispr", serverId };
         },
       }),
     );
@@ -63,7 +63,7 @@ describe("mobile server join-public route logic", () => {
       request(),
       context(),
       dependencies({
-        joinServer: async () => ({ alreadyMember: true, serverId: "server-1" }),
+        joinServer: async () => ({ alreadyMember: true, name: "Whispr", serverId: "server-1" }),
       }),
     );
 
@@ -81,7 +81,7 @@ describe("mobile server join-public route logic", () => {
       dependencies({
         joinServer: async () => {
           serviceCalled = true;
-          return { alreadyMember: false, serverId: "server-1" };
+          return { alreadyMember: false, name: "Whispr", serverId: "server-1" };
         },
       }),
     );

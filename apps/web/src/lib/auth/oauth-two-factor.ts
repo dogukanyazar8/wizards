@@ -138,21 +138,21 @@ export function getAuthJsCallbackCookieName(env: Record<string, string | undefin
 export function getSafeOAuthCallbackPath(rawValue: string | null | undefined) {
   const value = rawValue?.trim();
   if (!value) {
-    return "/channels/@me";
+    return "/messages";
   }
 
   if (value.startsWith("/")) {
-    return getSafeAuthRedirectPath(value, "/channels/@me");
+    return getSafeAuthRedirectPath(value, "/messages");
   }
 
   try {
     const url = new URL(value);
     if (url.protocol !== "http:" && url.protocol !== "https:") {
-      return "/channels/@me";
+      return "/messages";
     }
-    return getSafeAuthRedirectPath(`${url.pathname}${url.search}${url.hash}`, "/channels/@me");
+    return getSafeAuthRedirectPath(`${url.pathname}${url.search}${url.hash}`, "/messages");
   } catch {
-    return "/channels/@me";
+    return "/messages";
   }
 }
 

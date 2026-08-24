@@ -62,6 +62,7 @@ export class ServerDiscoveryClientError extends Error {
   }
 }
 
+/** @deprecated Legacy `/api/v1/servers/discover` cache key; use `discoverQueryKeys.servers`. */
 export const serverDiscoveryQueryKeys = {
   list: (query: string) => ["server-discovery", query] as const,
 };
@@ -72,7 +73,10 @@ export type ServerDiscoveryPageParams = {
   query?: string;
 };
 
-/** Client-side counterpart to `GET /api/v1/servers/discover` (S3 Bölüm A). */
+/**
+ * Client-side counterpart to the retained legacy `GET /api/v1/servers/discover` route.
+ * @deprecated Use `fetchDiscoverServers` from `lib/discover/client` for new web UI.
+ */
 export async function fetchServerDiscoveryPage(
   params: ServerDiscoveryPageParams = {},
 ): Promise<ServerDiscoveryPage> {

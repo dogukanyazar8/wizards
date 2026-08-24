@@ -1,6 +1,7 @@
 import type { HandlerContext } from "../context";
 import { registerChannelHandlers } from "./channel";
 import { registerDMHandlers } from "./dm";
+import { registerEventHandlers } from "./events";
 import { registerMessageHandlers } from "./message";
 import { registerPresenceHandlers } from "./presence";
 import { registerTypingHandlers } from "./typing";
@@ -49,6 +50,7 @@ export function registerSocketHandlers(ctx: HandlerContext): SocketHandlerRegist
   );
   const registrations = [
     registerChannelHandlers(ctx),
+    registerEventHandlers(ctx),
     typingRegistration,
     registerPresenceHandlers(ctx),
     registerVoiceHandlers(ctx),

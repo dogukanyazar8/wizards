@@ -71,11 +71,11 @@ describe("getGroupInvitePageReason", () => {
 
 describe("getGroupInviteDestination", () => {
   it("points at the web DM surface", () => {
-    assert.equal(getGroupInviteDestination("conversation-1"), "/channels/@me/conversation-1");
+    assert.equal(getGroupInviteDestination("conversation-1"), "/messages/conversation-1");
   });
 
   it("escapes an id that would otherwise break out of the path", () => {
-    assert.equal(getGroupInviteDestination("a/b"), "/channels/@me/a%2Fb");
+    assert.equal(getGroupInviteDestination("a/b"), "/messages/a%2Fb");
   });
 });
 

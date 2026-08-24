@@ -54,7 +54,7 @@ describe("account privacy client", () => {
 
   it("opens a same-origin browser recovery route without carrying a credential", () => {
     let opened: [string, string, string] | undefined;
-    openAccountDataSettingsInExternalBrowser("https://whispr.team/channels/@me", (...input) => {
+    openAccountDataSettingsInExternalBrowser("https://whispr.team/messages", (...input) => {
       opened = input;
     });
 

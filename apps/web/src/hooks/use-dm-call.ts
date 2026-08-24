@@ -69,9 +69,7 @@ export function useDMCallController() {
       }
 
       const peerName = current.peer?.displayName ?? current.peer?.username ?? "";
-      void teardown(
-        peerName ? t("dm.call.declinedBy", { name: peerName }) : t("dm.call.declined"),
-      );
+      void teardown(peerName ? t("dm.call.declinedBy", { name: peerName }) : t("dm.call.declined"));
     };
 
     const handleCancelled = (data: { conversationId: string }) => {
@@ -197,6 +195,37 @@ export function useDMCallController() {
     }
   }, [joinDirectCall, readSession, socket, t, teardown, toggleCamera]);
 
+  /**
+   * Faz 5 §4 — entering a group call that is already running, from a surface
+   * that is not the conversation (the Ana Sayfa "Şu an canlı" card).
+   *
+   * This is not a second join path: it emits the `dm:call:join` the socket
+   * handler already implements (handlers/dm.ts, D3) and then hands the media
+   * session to the same `joinDirectCall` every other entry point uses. Nobody
+   * rings — the people inside are already talking.
+   */
+  const joinOngoingCall = useCallback(
+    async ({ conversationId }: { conversationId: string }) => {
+      // DM calls are exclusive, and a second tap must not open a second one.
+      if (useDMCallStore.getState().session) {
+        return;
+      }
+
+      useDMCallStore.getState().startJoining({ conversationId });
+      socket.emit("dm:call:join", { conversationId });
+
+      try {
+        await joinDirectCall({ conversationId });
+        useDMCallStore.getState().setConnected();
+      } catch (error) {
+        socket.emit("dm:call:leave", { conversationId });
+        await teardown(t("dm.call.errors.connectFailed"));
+        throw error;
+      }
+    },
+    [joinDirectCall, socket, t, teardown],
+  );
+
   const declineCall = useCallback(async () => {
     const current = readSession();
     if (!current?.peer) {
@@ -222,7 +251,7 @@ export function useDMCallController() {
     await teardown(null);
   }, [readSession, socket, teardown]);
 
-  return { acceptCall, declineCall, endCall, startCall };
+  return { acceptCall, declineCall, endCall, joinOngoingCall, startCall };
 }
 
 export type DMCallActions = ReturnType<typeof useDMCallController>;

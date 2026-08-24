@@ -2151,6 +2151,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
           maxUses: 1,
           server: {
             id: "server-1",
+            name: "Whispr",
             ownerId: "owner",
             roles: [defaultRole()],
           },
@@ -2223,6 +2224,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
           maxUses: 1,
           server: {
             id: "server-1",
+            name: "Whispr",
             ownerId: "owner",
             roles: [defaultRole()],
           },
@@ -2262,6 +2264,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
       assert.deepEqual(result, {
         alreadyMember: true,
         channelId: "channel-1",
+        name: "Whispr",
         serverId: "server-1",
       });
       assert.deepEqual(operations, []);
@@ -2287,6 +2290,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
             maxUses: null,
             server: {
               id: "server-1",
+              name: "Whispr",
               ownerId: "owner",
               roles: [defaultRole()],
             },
@@ -2319,6 +2323,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
       assert.deepEqual(result, {
         alreadyMember: true,
         channelId: "channel-1",
+        name: "Whispr",
         serverId: "server-1",
       });
     });

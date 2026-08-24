@@ -154,5 +154,5 @@ test("resource-heavy local runner workloads keep their proven bounds", () => {
   assert.match(mobileJestConfig, /workerIdleMemoryLimit: "512MB"/u);
   assert.match(renderHelper, /mutations: \{ gcTime: 0, retry: false \}/u);
   assert.equal(webPackage.scripts["e2e:web-server"], "pnpm run build && pnpm start");
-  assert.match(playwrightConfig, /webServerEnv\.NODE_ENV = "production";/u);
+  assert.match(playwrightConfig, /webServerEnv\.NODE_ENV = isCI \? "production" : "development";/u);
 });

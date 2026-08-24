@@ -2,10 +2,7 @@
 
 import { useContext, type ReactNode } from "react";
 import { VoiceProvider } from "@/components/providers/voice-provider";
-import {
-  VoiceParticipantsContext,
-  VoiceStateContext,
-} from "@/components/providers/voice-context";
+import { VoiceParticipantsContext, VoiceStateContext } from "@/components/providers/voice-context";
 import type { AccountSettingsState } from "@/lib/account/actions";
 
 type SettingsVoiceProviderBoundaryProps = {

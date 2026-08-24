@@ -17,15 +17,18 @@ import { getRequestLocale } from "@/lib/locale/server";
 import { isDesktopStartPathname, WHISPR_REQUEST_PATHNAME_HEADER } from "@/lib/request-context";
 
 const bodyFont = localFont({
-  src: "./fonts/plus-jakarta-sans-latin.woff2",
+  src: "./fonts/figtree-latin.woff2",
   variable: "--font-sans",
-  weight: "200 800",
+  // SPEC §1 tip ölçeği 400–700 kullanıyor; aralık 900'e kadar bildiriliyor çünkü mevcut ekranlarda
+  // 800/900 isteyen 129 bildirim var ve daraltılmış bir aralık hepsini sessizce inceltirdi.
+  weight: "400 900",
+  display: "swap",
 });
 
 const displayFont = localFont({
-  src: "./fonts/space-grotesk-latin.woff2",
+  src: "./fonts/outfit-latin.woff2",
   variable: "--font-display",
-  weight: "300 700",
+  weight: "400 700",
 });
 
 const authBodyFont = localFont({

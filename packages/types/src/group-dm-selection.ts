@@ -43,18 +43,27 @@ export type GroupCreateRequestBody = {
   historyVisibility: GroupHistoryVisibility;
   iconUrl?: string;
   inviteEnabled: boolean;
-  name?: string;
+  /** Required since the Mesajlar package; see `canSubmitGroup`. */
+  name: string;
   permAddMembers: GroupPermissionLevel;
   userIds: string[];
 };
 
-/** 2c's own defaults, read off the screen: first swatch, "Herkes", "Son 30 gün". */
+/**
+ * Defaults read off the Mesajlar group-create modal (karar #9): first swatch,
+ * "Herkes", "Tüm geçmiş", invite link **on**.
+ *
+ * Two of these changed with this package. History moved from `LAST_30D` to
+ * `ALL` and the invite link from off to on, because the screen ships both that
+ * way — a default the UI contradicts is a default nobody chose. Neither touches
+ * an existing conversation: this function only seeds a new draft.
+ */
 export function createInitialGroupCreateState(): GroupCreateState {
   return {
     avatarColor: GROUP_AVATAR_COLORS[0],
     description: "",
-    historyVisibility: "LAST_30D",
-    inviteEnabled: false,
+    historyVisibility: "ALL",
+    inviteEnabled: true,
     name: "",
     permAddMembers: "ALL",
     selectedUserIds: [],
@@ -104,8 +113,15 @@ export function canAdvanceToIdentity(state: GroupCreateState): boolean {
   return state.selectedUserIds.length >= GROUP_SELECTABLE_MIN;
 }
 
+/**
+ * A group needs a name (karar: "Grubu oluştur grup adı boşsa pasif").
+ *
+ * `buildGroupNameFromMembers` stays, but only as the *suggestion* the field is
+ * seeded with. Deriving the name silently meant two groups with the same three
+ * members were both called the same thing and neither creator had chosen it.
+ */
 export function canSubmitGroup(state: GroupCreateState): boolean {
-  return state.step === "identity" && canAdvanceToIdentity(state);
+  return state.step === "identity" && canAdvanceToIdentity(state) && state.name.trim().length > 0;
 }
 
 /**
@@ -130,7 +146,7 @@ export function toGroupCreateRequest(
     historyVisibility: state.historyVisibility,
     ...(iconUrl ? { iconUrl } : {}),
     inviteEnabled: state.inviteEnabled,
-    ...(trimmedName.length > 0 ? { name: trimmedName } : {}),
+    name: trimmedName,
     permAddMembers: state.permAddMembers,
     userIds: [...state.selectedUserIds],
   };

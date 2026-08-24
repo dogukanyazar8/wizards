@@ -1,0 +1,494 @@
+{
+  "cssThemeClasses": [
+    "theme-light",
+    "theme-dawn",
+    "theme-ash",
+    "theme-graphite",
+    "theme-dark",
+    "theme-onyx",
+    "theme-midnight",
+    "theme-mint-green",
+    "theme-peach-orange",
+    "theme-lavender",
+    "theme-sage-green",
+    "theme-mist",
+    "theme-cream-yellow",
+    "theme-dusty-rose",
+    "theme-soft-pink",
+    "theme-sky-blue",
+    "theme-warm-beige",
+    "theme-deep-purple-gradient",
+    "theme-blue-purple-gradient",
+    "theme-forest-dark",
+    "theme-crimson-dark",
+    "theme-midnight-navy",
+    "theme-mauve-dark",
+    "theme-slate-dark",
+    "theme-teal-dark",
+    "theme-ocean-dark",
+    "theme-purple-teal",
+    "theme-studio",
+    "theme-amber-dark",
+    "theme-green-rainbow",
+    "theme-khaki-dark",
+    "theme-royal-blue"
+  ],
+  "pickableThemes": [
+    "theme-light",
+    "theme-ash",
+    "theme-dark",
+    "theme-onyx",
+    "theme-mint-green",
+    "theme-peach-orange",
+    "theme-lavender",
+    "theme-sage-green",
+    "theme-cream-yellow",
+    "theme-dusty-rose",
+    "theme-soft-pink",
+    "theme-sky-blue",
+    "theme-warm-beige",
+    "theme-deep-purple-gradient",
+    "theme-blue-purple-gradient",
+    "theme-forest-dark",
+    "theme-crimson-dark",
+    "theme-midnight-navy",
+    "theme-mauve-dark",
+    "theme-slate-dark",
+    "theme-teal-dark",
+    "theme-ocean-dark",
+    "theme-purple-teal",
+    "theme-amber-dark",
+    "theme-green-rainbow",
+    "theme-khaki-dark",
+    "theme-royal-blue"
+  ],
+  "production": {
+    "cards": [
+      {
+        "testId": "home-continue-card",
+        "borderRadius": "20px",
+        "fontSize": 16,
+        "height": 223.8,
+        "width": 458.5
+      },
+      {
+        "testId": "home-live-card",
+        "borderRadius": "20px",
+        "fontSize": 16,
+        "height": 223.8,
+        "width": 458.5
+      },
+      {
+        "testId": "home-awaiting-card",
+        "borderRadius": "20px",
+        "fontSize": 16,
+        "height": 321.5,
+        "width": 458.5
+      },
+      {
+        "testId": "home-presence-card",
+        "borderRadius": "20px",
+        "fontSize": 16,
+        "height": 321.5,
+        "width": 222.8
+      },
+      {
+        "testId": "home-up-next-card",
+        "borderRadius": "20px",
+        "fontSize": 16,
+        "height": 321.5,
+        "width": 222.8
+      },
+      {
+        "testId": "home-friends-strip",
+        "borderRadius": "20px",
+        "fontSize": 16,
+        "height": 203.8,
+        "width": 930
+      }
+    ],
+    "grid": {
+      "borderRadius": "0px",
+      "fontSize": 16,
+      "height": 801.1,
+      "width": 990,
+      "columnGap": "13px",
+      "padding": "8px 30px 18px",
+      "rowGap": "13px",
+      "templateColumns": "222.75px 222.75px 222.75px 222.75px"
+    },
+    "panel": {
+      "borderRadius": "0px",
+      "fontSize": 16,
+      "height": 896,
+      "width": 272
+    },
+    "rail": {
+      "borderRadius": "0px",
+      "fontSize": 16,
+      "height": 896,
+      "width": 74
+    },
+    "rootFontSize": 16,
+    "topBar": {
+      "borderRadius": "0px",
+      "fontSize": 16,
+      "height": 94.9,
+      "width": 990
+    }
+  },
+  "reference": {
+    "cards": [
+      {
+        "borderRadius": "20px",
+        "fontSize": 16,
+        "height": 301.9,
+        "width": 466.9
+      },
+      {
+        "borderRadius": "20px",
+        "fontSize": 16,
+        "height": 301.9,
+        "width": 472.1
+      },
+      {
+        "borderRadius": "20px",
+        "fontSize": 16,
+        "height": 370.1,
+        "width": 466.9
+      },
+      {
+        "borderRadius": "20px",
+        "fontSize": 16,
+        "height": 370.1,
+        "width": 227
+      },
+      {
+        "borderRadius": "20px",
+        "fontSize": 16,
+        "height": 370.1,
+        "width": 232.1
+      },
+      {
+        "borderRadius": "20px",
+        "fontSize": 16,
+        "height": 103.4,
+        "width": 952
+      }
+    ],
+    "grid": {
+      "borderRadius": "0px",
+      "fontSize": 16,
+      "height": 827.3,
+      "width": 1012,
+      "columnGap": "13px",
+      "padding": "8px 30px 18px",
+      "rowGap": "13px",
+      "templateColumns": "226.953px 226.953px 226.969px 232.109px"
+    },
+    "main": {
+      "borderRadius": "0px",
+      "fontSize": 16,
+      "height": 918,
+      "width": 1012
+    },
+    "panel": {
+      "borderRadius": "0px",
+      "fontSize": 16,
+      "height": 918,
+      "width": 272
+    },
+    "rail": {
+      "borderRadius": "0px",
+      "fontSize": 16,
+      "height": 918,
+      "width": 74
+    },
+    "rootFontSize": 16,
+    "shell": {
+      "borderRadius": "26px",
+      "fontSize": 16,
+      "height": 920,
+      "width": 1360
+    }
+  },
+  "themeTour": [
+    {
+      "theme": "theme-light",
+      "appliedClasses": ["theme-light"],
+      "background": "rgb(249, 250, 251)",
+      "cardBackground": "rgb(255, 255, 255)",
+      "clipped": [],
+      "foreground": "rgb(26, 32, 45)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-ash",
+      "appliedClasses": ["theme-ash"],
+      "background": "rgb(56, 58, 66)",
+      "cardBackground": "rgb(63, 66, 74)",
+      "clipped": [],
+      "foreground": "rgb(243, 244, 247)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-dark",
+      "appliedClasses": ["theme-dark"],
+      "background": "rgb(45, 47, 52)",
+      "cardBackground": "rgb(52, 55, 61)",
+      "clipped": [],
+      "foreground": "rgb(243, 244, 247)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-onyx",
+      "appliedClasses": ["theme-onyx"],
+      "background": "rgb(25, 27, 31)",
+      "cardBackground": "rgb(32, 35, 39)",
+      "clipped": [],
+      "foreground": "rgb(246, 247, 249)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-mint-green",
+      "appliedClasses": ["theme-mint-green"],
+      "background": "rgb(243, 251, 247)",
+      "cardBackground": "rgb(255, 255, 255)",
+      "clipped": [],
+      "foreground": "rgb(29, 52, 42)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-peach-orange",
+      "appliedClasses": ["theme-peach-orange"],
+      "background": "rgb(255, 246, 240)",
+      "cardBackground": "rgb(255, 255, 255)",
+      "clipped": [],
+      "foreground": "rgb(61, 41, 31)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-lavender",
+      "appliedClasses": ["theme-lavender"],
+      "background": "rgb(245, 242, 253)",
+      "cardBackground": "rgb(255, 255, 255)",
+      "clipped": [],
+      "foreground": "rgb(41, 34, 58)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-sage-green",
+      "appliedClasses": ["theme-sage-green"],
+      "background": "rgb(244, 248, 242)",
+      "cardBackground": "rgb(255, 255, 255)",
+      "clipped": [],
+      "foreground": "rgb(40, 54, 38)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-cream-yellow",
+      "appliedClasses": ["theme-cream-yellow"],
+      "background": "rgb(254, 252, 240)",
+      "cardBackground": "rgb(255, 255, 255)",
+      "clipped": [],
+      "foreground": "rgb(62, 49, 30)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-dusty-rose",
+      "appliedClasses": ["theme-dusty-rose"],
+      "background": "rgb(251, 244, 246)",
+      "cardBackground": "rgb(255, 255, 255)",
+      "clipped": [],
+      "foreground": "rgb(57, 35, 43)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-soft-pink",
+      "appliedClasses": ["theme-soft-pink"],
+      "background": "rgb(255, 240, 248)",
+      "cardBackground": "rgb(255, 255, 255)",
+      "clipped": [],
+      "foreground": "rgb(59, 33, 47)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-sky-blue",
+      "appliedClasses": ["theme-sky-blue"],
+      "background": "rgb(240, 248, 255)",
+      "cardBackground": "rgb(255, 255, 255)",
+      "clipped": [],
+      "foreground": "rgb(31, 43, 56)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-warm-beige",
+      "appliedClasses": ["theme-warm-beige"],
+      "background": "rgb(249, 245, 240)",
+      "cardBackground": "rgb(255, 255, 255)",
+      "clipped": [],
+      "foreground": "rgb(59, 45, 33)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-deep-purple-gradient",
+      "appliedClasses": ["theme-deep-purple-gradient"],
+      "background": "rgb(39, 27, 55)",
+      "cardBackground": "rgb(49, 35, 67)",
+      "clipped": [],
+      "foreground": "rgb(248, 246, 249)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-blue-purple-gradient",
+      "appliedClasses": ["theme-blue-purple-gradient"],
+      "background": "rgb(27, 31, 55)",
+      "cardBackground": "rgb(35, 38, 67)",
+      "clipped": [],
+      "foreground": "rgb(246, 246, 249)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-forest-dark",
+      "appliedClasses": ["theme-forest-dark"],
+      "background": "rgb(24, 38, 32)",
+      "cardBackground": "rgb(30, 47, 40)",
+      "clipped": [],
+      "foreground": "rgb(243, 247, 244)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-crimson-dark",
+      "appliedClasses": ["theme-crimson-dark"],
+      "background": "rgb(42, 19, 22)",
+      "cardBackground": "rgb(52, 25, 28)",
+      "clipped": [],
+      "foreground": "rgb(247, 243, 243)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-midnight-navy",
+      "appliedClasses": ["theme-midnight-navy"],
+      "background": "rgb(16, 25, 45)",
+      "cardBackground": "rgb(22, 32, 54)",
+      "clipped": [],
+      "foreground": "rgb(245, 247, 249)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-mauve-dark",
+      "appliedClasses": ["theme-mauve-dark"],
+      "background": "rgb(41, 29, 42)",
+      "cardBackground": "rgb(52, 38, 54)",
+      "clipped": [],
+      "foreground": "rgb(248, 246, 249)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-slate-dark",
+      "appliedClasses": ["theme-slate-dark"],
+      "background": "rgb(24, 30, 38)",
+      "cardBackground": "rgb(31, 37, 46)",
+      "clipped": [],
+      "foreground": "rgb(246, 247, 249)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-teal-dark",
+      "appliedClasses": ["theme-teal-dark"],
+      "background": "rgb(20, 41, 41)",
+      "cardBackground": "rgb(27, 49, 50)",
+      "clipped": [],
+      "foreground": "rgb(246, 249, 249)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-ocean-dark",
+      "appliedClasses": ["theme-ocean-dark"],
+      "background": "rgb(16, 35, 45)",
+      "cardBackground": "rgb(23, 43, 54)",
+      "clipped": [],
+      "foreground": "rgb(245, 248, 249)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-purple-teal",
+      "appliedClasses": ["theme-purple-teal"],
+      "background": "rgb(31, 25, 51)",
+      "cardBackground": "rgb(40, 33, 63)",
+      "clipped": [],
+      "foreground": "rgb(246, 246, 249)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-amber-dark",
+      "appliedClasses": ["theme-amber-dark"],
+      "background": "rgb(45, 31, 16)",
+      "cardBackground": "rgb(54, 39, 23)",
+      "clipped": [],
+      "foreground": "rgb(249, 248, 245)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-green-rainbow",
+      "appliedClasses": ["theme-green-rainbow"],
+      "background": "rgb(18, 43, 31)",
+      "cardBackground": "rgb(25, 51, 39)",
+      "clipped": [],
+      "foreground": "rgb(246, 249, 247)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-khaki-dark",
+      "appliedClasses": ["theme-khaki-dark"],
+      "background": "rgb(39, 34, 23)",
+      "cardBackground": "rgb(47, 41, 30)",
+      "clipped": [],
+      "foreground": "rgb(249, 248, 246)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    },
+    {
+      "theme": "theme-royal-blue",
+      "appliedClasses": ["theme-royal-blue"],
+      "background": "rgb(21, 28, 56)",
+      "cardBackground": "rgb(29, 37, 68)",
+      "clipped": [],
+      "foreground": "rgb(245, 246, 249)",
+      "horizontalOverflow": 0,
+      "verticalOverflow": 0
+    }
+  ],
+  "unreachableThemeClasses": [
+    "theme-dawn",
+    "theme-graphite",
+    "theme-midnight",
+    "theme-mist",
+    "theme-studio"
+  ]
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "height": 39.7,
+    "label": "home-command-search",
+    "testId": "home-command-search",
+    "width": 280
+  },
+  {
+    "height": 40,
+    "label": "notification-bell-button",
+    "testId": "notification-bell-button",
+    "width": 40
+  },
+  {
+    "height": 12,
+    "label": "home-header-link",
+    "testId": "home-header-link",
+    "width": 65.2
+  },
+  {
+    "height": 12,
+    "label": "home-header-link",
+    "testId": "home-header-link",
+    "width": 71.5
+  },
+  {
+    "height": 27.5,
+    "label": "home-presence-chip-online",
+    "testId": "home-presence-chip-online",
+    "width": 121.4
+  },
+  {
+    "height": 27.5,
+    "label": "home-presence-chip-dnd",
+    "testId": "home-presence-chip-dnd",
+    "width": 121.4
+  },
+  {
+    "height": 27.5,
+    "label": "home-presence-chip-idle",
+    "testId": "home-presence-chip-idle",
+    "width": 121.4
+  },
+  {
+    "height": 27.5,
+    "label": "home-presence-chip-offline",
+    "testId": "home-presence-chip-offline",
+    "width": 121.4
+  },
+  {
+    "height": 23,
+    "label": "home-presence-focus-toggle",
+    "testId": "home-presence-focus-toggle",
+    "width": 42
+  },
+  {
+    "height": 14,
+    "label": "home-header-link",
+    "testId": "home-header-link",
+    "width": 50.3
+  }
+]

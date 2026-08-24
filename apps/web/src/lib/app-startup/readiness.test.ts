@@ -105,7 +105,10 @@ describe("app startup readiness", () => {
 
   it("maps readiness states to safe startup status labels", () => {
     assert.equal(getShellReadinessStatus({ ...readyInput, appearanceHydrated: false }), "session");
-    assert.equal(getShellReadinessStatus({ ...readyInput, layoutSettingsLoaded: false }), "session");
+    assert.equal(
+      getShellReadinessStatus({ ...readyInput, layoutSettingsLoaded: false }),
+      "session",
+    );
     assert.equal(getShellReadinessStatus({ ...readyInput, serversLoading: true }), "workspace");
     assert.equal(
       getShellReadinessStatus({

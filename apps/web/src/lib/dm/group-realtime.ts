@@ -103,6 +103,40 @@ export function emitConversationNotifyChanged(
   });
 }
 
+/**
+ * Mesajlar karar #7. The pinned-message list changed.
+ *
+ * Deliberately only opaque identity. Even the count is filtered per viewer — a
+ * deleted message drops out, the history window hides pins from before a
+ * member joined, and "removable" depends on the reader's permission — so one
+ * shared payload would put an excerpt on a screen that is not allowed to see
+ * it. Recipients read their own list.
+ */
+export function emitConversationPinsChanged(
+  io: GroupRealtimeServer,
+  input: { conversationId: string },
+): void {
+  io.to(`dm:${input.conversationId}`).emit("dm:conversation:pins", {
+    conversationId: input.conversationId,
+  });
+}
+
+/**
+ * Mesajlar karar #1 / #11. A poll's tallies moved.
+ *
+ * Broad room gets opaque invalidation only. Tallies, voter-derived counts and
+ * `myOptionIds` are viewer-specific data; recipients re-read the authorized GET.
+ */
+export function emitPollUpdated(
+  io: GroupRealtimeServer,
+  input: { conversationId: string; pollId: string },
+): void {
+  io.to(`dm:${input.conversationId}`).emit("poll:updated", {
+    conversationId: input.conversationId,
+    pollId: input.pollId,
+  });
+}
+
 /** V3 / 2a §2. Also personal — a pinned conversation is one user's ordering. */
 export function emitConversationPinChanged(
   io: GroupRealtimeServer,

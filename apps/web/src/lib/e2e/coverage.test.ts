@@ -97,12 +97,12 @@ describe("coverage runner contract", () => {
         PATH: "bin",
       }),
       {
-        NODE_OPTIONS: "--enable-source-maps --max-old-space-size=4096",
+        NODE_OPTIONS: "--enable-source-maps --max-old-space-size=6144",
         PATH: "bin",
       },
     );
     assert.deepEqual(buildC8ReportEnv({ PATH: "bin" }), {
-      NODE_OPTIONS: "--max-old-space-size=4096",
+      NODE_OPTIONS: "--max-old-space-size=6144",
       PATH: "bin",
     });
     assert.deepEqual(
@@ -110,7 +110,7 @@ describe("coverage runner contract", () => {
         NODE_OPTIONS: "--max-old-space-size=2048 --enable-source-maps",
       }),
       {
-        NODE_OPTIONS: "--enable-source-maps --max-old-space-size=4096",
+        NODE_OPTIONS: "--enable-source-maps --max-old-space-size=6144",
       },
     );
   });

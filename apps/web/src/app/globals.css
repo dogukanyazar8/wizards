@@ -26,6 +26,35 @@
   --warning: 39 90% 56%;
   --warning-foreground: 40 100% 96%;
   --warning-soft: 34 55% 17%;
+  /*
+   * Bilgi tonu — SPEC-BAHSEDILMELER §3/§5 rol bahsetmelerinin rengi.
+   *
+   * Tasarım bu tonu `hsl(199 89% 48%)` olarak veriyor ve token karşılığı yoktu. `--primary`
+   * (bana özel), `--success` (thread) ve `--warning` (@herkes) zaten dört bahsetme türünden
+   * üçünü karşılıyor; dördüncüsü için bileşene gömülü bir hex bırakmak yerine ton buraya,
+   * kardeşlerinin yanına tanımlandı. Durum tonları gibi iki temada da aynı değerdir.
+   */
+  --info: 199 89% 48%;
+  --info-foreground: 200 100% 97%;
+  --info-soft: 199 62% 16%;
+  /*
+   * Vurgu renginin **metin** hâli — WCAG 2.1 AA 4.5:1 (00-ortak-baglam §5.3).
+   *
+   * `--primary` / `--success` / `--danger` / `--warning` dolgu ve kenar için doğru tonlar, ama
+   * kart zemininde küçük punto metin olarak kullanıldıklarında kontrast düşüyor: ölçüldü, koyu
+   * temada bağlantılar 2,62:1 ve aktif "Çevrimiçi" çipi 3,37:1 çıkıyordu.
+   *
+   * Değerler yeni renk değil, mevcut token'lardan **türetiliyor**: her tema kendi `--foreground`
+   * yönüne karışıyor, yani açık temada koyulaşıyor, koyu temada açılıyor. Böylece 23 paletin
+   * hepsi elle ayarlanmadan aynı eşiği geçiyor ve dolgu renkleri hiç değişmiyor.
+   *
+   * `hsl()` sarmalayıcısı ALMAZLAR — tam renktirler: `color: var(--primary-readable)`.
+   */
+  --primary-readable: color-mix(in srgb, hsl(var(--primary)) 60%, hsl(var(--foreground)));
+  --success-readable: color-mix(in srgb, hsl(var(--success)) 60%, hsl(var(--foreground)));
+  --danger-readable: color-mix(in srgb, hsl(var(--danger)) 60%, hsl(var(--foreground)));
+  --warning-readable: color-mix(in srgb, hsl(var(--warning)) 60%, hsl(var(--foreground)));
+  --info-readable: color-mix(in srgb, hsl(var(--info)) 60%, hsl(var(--foreground)));
   --shadow-color: 222 47% 8%;
   --backdrop: 222 47% 6%;
   --bg-primary: var(--surface-primary);
@@ -55,7 +84,10 @@ html.theme-dawn {
   --surface-tertiary: 220 24% 91%;
   --text-primary: 222 26% 14%;
   --text-secondary: 220 16% 38%;
-  --text-muted: 220 11% 52%;
+  /* `08-faz7` §2.6 — ölçüldü: 52% açık temada kart zemininde 3,97:1 (AA eşiği 4,5) ve
+     panel/ray zemininde 3,60:1. 46% ikisini de geçirir (4,91 / 4,45); ton ve doygunluk
+     değişmedi, yeni renk eklenmedi. Koyu temalar zaten geçiyordu, onlara dokunulmadı. */
+  --text-muted: 220 11% 46%;
   --surface-base: 220 23% 98%;
   --surface-rail: 220 29% 96%;
   --surface-panel: 220 29% 96%;
@@ -64,7 +96,7 @@ html.theme-dawn {
   --surface-overlay: 0 0% 100%;
   --surface-main-top: 220 29% 96%;
   --surface-main-bottom: 220 23% 98%;
-  --text-soft: 220 11% 52%;
+  --text-soft: 220 11% 46%;
   --ambient-1: 235 90% 72%;
   --ambient-2: 190 74% 74%;
 }
@@ -130,6 +162,87 @@ html.theme-dark {
   --ambient-2: 192 82% 66%;
   --primary-text-emphasis: 235 86% 78%;
   --success-text-emphasis: 158 64% 52%;
+}
+
+/* Mesajlar/Arkadaşlar, referans HTML'nin standart aydınlık ve koyu paletini kullanır. */
+html.theme-light .messages-reference-surface {
+  --background: 220 23% 98%;
+  --foreground: 222 26% 14%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 26% 14%;
+  --primary: 235 86% 65%;
+  --primary-foreground: 0 0% 100%;
+  --border: 220 20% 84%;
+  --input: 220 24% 91%;
+  --ring: 235 86% 65%;
+  --surface-primary: 0 0% 100%;
+  --surface-secondary: 220 29% 96%;
+  --surface-tertiary: 220 24% 91%;
+  --text-primary: 222 26% 14%;
+  --text-secondary: 220 16% 38%;
+  --text-muted: 220 11% 52%;
+  --surface-base: 220 23% 98%;
+  --surface-rail: 220 29% 96%;
+  --surface-panel: 220 29% 96%;
+  --surface-card: 0 0% 100%;
+  --surface-soft: 220 24% 91%;
+  --surface-overlay: 0 0% 100%;
+  --surface-main-top: 220 29% 96%;
+  --surface-main-bottom: 220 23% 98%;
+  --text-soft: 220 11% 52%;
+  --ambient-1: 235 90% 72%;
+  --ambient-2: 190 74% 74%;
+  --primary-readable: hsl(var(--primary));
+  --success-readable: hsl(var(--success));
+  --danger-readable: hsl(var(--danger));
+  --warning-readable: hsl(var(--warning));
+  --info-readable: hsl(var(--info));
+}
+
+html.theme-dawn .messages-reference-surface {
+  --text-muted: 220 11% 52%;
+  --text-soft: 220 11% 52%;
+  --primary-readable: hsl(var(--primary));
+  --success-readable: hsl(var(--success));
+  --danger-readable: hsl(var(--danger));
+  --warning-readable: hsl(var(--warning));
+  --info-readable: hsl(var(--info));
+}
+
+html.theme-dark .messages-reference-surface {
+  --background: 220 8% 19%;
+  --foreground: 220 20% 96%;
+  --card: 220 8% 22%;
+  --card-foreground: 220 20% 96%;
+  --primary: 235 86% 65%;
+  --primary-foreground: 0 0% 100%;
+  --border: 220 9% 33%;
+  --input: 220 9% 26%;
+  --ring: 235 86% 65%;
+  --surface-primary: 220 8% 22%;
+  --surface-secondary: 220 8% 20%;
+  --surface-tertiary: 220 9% 26%;
+  --text-primary: 220 20% 96%;
+  --text-secondary: 220 11% 74%;
+  --text-muted: 220 8% 68%;
+  --surface-base: 220 8% 19%;
+  --surface-rail: 220 8% 20%;
+  --surface-panel: 220 8% 20%;
+  --surface-card: 220 8% 22%;
+  --surface-soft: 220 9% 26%;
+  --surface-overlay: 220 8% 22%;
+  --surface-main-top: 220 8% 20%;
+  --surface-main-bottom: 220 8% 19%;
+  --text-soft: 220 8% 59%;
+  --ambient-1: 235 88% 70%;
+  --ambient-2: 192 82% 66%;
+  --primary-text-emphasis: 235 86% 78%;
+  --success-text-emphasis: 158 64% 52%;
+  --primary-readable: hsl(var(--primary));
+  --success-readable: hsl(var(--success));
+  --danger-readable: hsl(var(--danger));
+  --warning-readable: hsl(var(--warning));
+  --info-readable: hsl(var(--info));
 }
 
 html.theme-onyx,
@@ -3748,13 +3861,11 @@ h4 {
   }
 
   .app-main-gradient {
-    background-image:
-      radial-gradient(circle at top, hsl(var(--ambient-1) / 0.18), transparent 34%),
-      linear-gradient(
-        180deg,
-        hsl(var(--surface-main-top) / 0.97),
-        hsl(var(--surface-main-bottom) / 0.98)
-      );
+    background-image: linear-gradient(
+      180deg,
+      hsl(var(--surface-main-top)),
+      hsl(var(--surface-main-bottom))
+    );
   }
 
   /*
@@ -3793,7 +3904,6 @@ h4 {
     box-shadow: 0 32px 80px hsl(var(--shadow-color) / 0.24);
   }
 
-  html.theme-light .whispr-channel-shell,
   html.theme-dawn .whispr-channel-shell,
   html.theme-lavender .whispr-channel-shell {
     --surface-base: 228 43% 98%;
@@ -3811,10 +3921,8 @@ h4 {
   }
 
   .whispr-channel-shell {
-    background-image:
-      radial-gradient(circle at 16% 0%, hsl(var(--ambient-1) / 0.14), transparent 30%),
-      radial-gradient(circle at 100% 0%, hsl(var(--primary) / 0.08), transparent 26%),
-      linear-gradient(180deg, hsl(var(--surface-base)), hsl(var(--surface-main-bottom)));
+    background-color: hsl(var(--surface-base));
+    background-image: none;
   }
 
   .whispr-channel-shell .app-rail {
@@ -6015,24 +6123,73 @@ h4 {
     animation: none;
   }
 }
-/* Server-backed account density. Spacing changes; readable type and 44px targets stay fixed. */
+
+/* Ana Sayfa "Şu an canlı" başlığındaki nabız — SPEC-ANA-SAYFA §3.2 (`@keyframes pls`).
+   Halka yarıçapı rem: 4K'da ölçek adımıyla birlikte büyür (SPEC §8.2). */
+@keyframes home-pulse {
+  0% {
+    box-shadow: 0 0 0 0 hsl(var(--success) / 0.5);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0.5rem hsl(var(--success) / 0);
+  }
+}
+
+.home-pulse-dot {
+  animation: home-pulse 2s ease-out infinite;
+}
+
+/* Ana Sayfa kartlarının hover yükselmesi — `08-faz7` §2.5'te tek yerden kapanır. */
+.home-hover-lift {
+  will-change: transform;
+}
+
+/* `08-faz7` §2.5 — azaltılmış harekette nabız, dalga formu ve hover yükselmesi durur.
+   Üçü de tek blokta: bileşen başına `prefers-reduced-motion` sorgusu üç ayrı doğruluk
+   kaynağı olurdu ve biri unutulduğunda kimse fark etmezdi. */
+@media (prefers-reduced-motion: reduce) {
+  .home-pulse-dot {
+    animation: none;
+  }
+
+  .home-hover-lift {
+    transition: none;
+    will-change: auto;
+  }
+
+  .home-hover-lift:hover {
+    transform: none;
+  }
+
+  /* Dalga formu çubukları seviyeyle yükseklik değiştiriyor; geçiş kapanınca çubuk
+     zıplamaz, sabit kalır. Seviye zaten `usePrefersReducedMotion` ile sıfırlanıyor. */
+  .voice-level-waveform,
+  .voice-level-waveform > span {
+    animation: none;
+    transition: none;
+  }
+}
+/* Server-backed account density. Spacing changes; type stays readable. Values are rem so they
+   grow with the UI scale step (SPEC §8.2.1); the 44px tap-target floor is kept next to the rem
+   floor below, so ×1 is exactly 44px and larger steps gain from rem. */
 :root {
-  --density-control-min-height: 48px;
-  --density-row-gap: 12px;
-  --density-section-gap: 16px;
-  --density-vertical-padding: 12px;
+  --density-control-min-height: 3rem;
+  --density-row-gap: 0.75rem;
+  --density-section-gap: 1rem;
+  --density-vertical-padding: 0.75rem;
 }
 
 :root[data-interface-density="compact"],
 [data-interface-density="compact"] {
-  --density-control-min-height: 44px;
-  --density-row-gap: 8px;
-  --density-section-gap: 12px;
-  --density-vertical-padding: 8px;
+  --density-control-min-height: 2.75rem;
+  --density-row-gap: 0.5rem;
+  --density-section-gap: 0.75rem;
+  --density-vertical-padding: 0.5rem;
 }
 
 [data-density-control] {
-  min-height: max(44px, var(--density-control-min-height));
+  min-height: max(2.75rem, 44px, var(--density-control-min-height));
   padding-block: var(--density-vertical-padding);
 }
 

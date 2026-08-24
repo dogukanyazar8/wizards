@@ -43,12 +43,9 @@ export async function fetchNotifications(limit = 5): Promise<NotificationDTO[]> 
 }
 
 export async function fetchUnreadCount(): Promise<number> {
-  const response = await requestJson<{ count: number }>(
-    "/api/v1/notifications/unread-count",
-    {
-      method: "GET",
-    },
-  );
+  const response = await requestJson<{ count: number }>("/api/v1/notifications/unread-count", {
+    method: "GET",
+  });
   return response.count;
 }
 

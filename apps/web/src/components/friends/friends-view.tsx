@@ -1,36 +1,27 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Ban,
-  Check,
-  CheckCircle2,
-  Clock3,
-  Loader2,
-  MessageSquareMore,
-  RefreshCw,
-  SendHorizontal,
-  UserMinus,
-  UserPlus,
-  Users,
-  X,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Activity, ArrowDownAZ, ArrowUpDown, Clock3, Search, Users } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { normalizeFriendsTab, type FriendsSort, type FriendsTab } from "@wizards/types";
+
+import { DISPLAY_FONT, HomeAvatar } from "@/components/home/home-primitives";
+import { GroupCreateDialog } from "@/components/dm/group-create-dialog";
+import { FriendRow, type FriendRowActor } from "@/components/friends/friend-row";
+import { FriendRowMenu, type InvitableServer } from "@/components/friends/friend-row-menu";
+import { FriendsTabs } from "@/components/friends/friends-tabs";
+import { useI18n } from "@/components/providers/locale-provider";
 import { Modal } from "@/components/ui/modal";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useI18n } from "@/components/providers/locale-provider";
-import { FriendCard } from "@/components/friends/friend-card";
 import { useSocket } from "@/hooks/use-socket";
+import { useUiScaleStep } from "@/hooks/use-ui-scale-step";
 import {
   createDMConversationRequest,
-  type DMConversationsInfiniteData,
+  createGroupConversationRequest,
   dmQueryKeys,
   upsertDMConversationPageData,
+  type DMConversationsInfiniteData,
 } from "@/lib/dm/client";
 import {
   actOnFriendRequestRequest,
@@ -46,33 +37,236 @@ import {
   sendFriendRequestRequest,
   unblockFriendRequest,
 } from "@/lib/friends/client";
+import {
+  filterFriends,
+  sortFriends,
+  splitFriendsByPresence,
+  type FriendSortContext,
+} from "@/lib/friends/sort";
 import type {
   FriendDto,
   FriendErrorCode,
   FriendRequestDto,
   PendingFriendsResponse,
 } from "@/lib/friends/types";
+import { deriveFriendStatusText, resolveHomeCopy } from "@/lib/home/presentation";
+import { selectMessagesDensity } from "@/lib/messages/density";
+import { MESSAGES_METRICS, hairline, pxToRem } from "@/lib/messages/metrics";
+import {
+  MESSAGES_FRIENDS_ROUTE,
+  clearMessagesActionHref,
+  messagesConversationHref,
+} from "@/lib/messages/routes";
+import { useFriendLastInteraction } from "@/hooks/use-friend-last-interaction";
+import { fetchInvitableServers } from "@/lib/messages/screen-client";
+import { addServerMemberRequest } from "@/lib/workspace/client";
+import {
+  fetchFriendSuggestions,
+  fetchFriendsSort,
+  updateFriendsSort,
+} from "@/lib/messages/screen-client";
+import { cn } from "@/lib/utils";
 
-type FriendsTabId = "online" | "all" | "pending" | "add" | "blocked";
+/**
+ * Arkadaşlar görünümü — SPEC §4.
+ *
+ * Dört sekme (karar #8): `Tümü` · `Arkadaş ekle` · `Bekleyen` · `Engellenenler`.
+ * Eski `Çevrimiçi` sekmesi düştü; çevrimiçi/çevrimdışı artık `Tümü` içinde iki
+ * bölüm. `?dmTab=online` derin bağlantısı hâlâ çalışıyor ve `all`'a düşüyor —
+ * bir yer imi bozulmuyor, aynı kişileri bir başlık altında gösteriyor.
+ *
+ * Veri katmanı (sorgular, iyimser mutasyonlar, hata eşlemesi) olduğu gibi
+ * korundu; değişen şey **sunum**.
+ */
+
+const { friends: metrics } = MESSAGES_METRICS;
 
 type ConfirmState =
   { friend: FriendDto; type: "block" } | { friend: FriendDto; type: "remove" } | null;
 
-const EMPTY_PENDING: PendingFriendsResponse = {
-  incoming: [],
-  outgoing: [],
-};
+const EMPTY_PENDING: PendingFriendsResponse = { incoming: [], outgoing: [] };
 const EMPTY_FRIENDS: FriendDto[] = [];
+const EMPTY_SUGGESTIONS: Awaited<ReturnType<typeof fetchFriendSuggestions>> = [];
+/** Sorgu boşken sabit referans; her render'da yeni dizi menüyü gereksiz çizerdi. */
+const EMPTY_SERVERS: readonly InvitableServer[] = [];
 const EMPTY_BLOCKED_USERS: Array<{
   avatarUrl: string | null;
   displayName: string | null;
   id: string;
   username: string;
 }> = [];
-const FRIENDS_TAB_IDS = new Set<FriendsTabId>(["online", "all", "pending", "add", "blocked"]);
 
-function isFriendsTabId(value: string | null): value is FriendsTabId {
-  return value !== null && FRIENDS_TAB_IDS.has(value as FriendsTabId);
+/**
+ * Satır + süzme ve sıralamanın istediği alanlar. `username` `FriendRowActor`'da
+ * yok (satır `@handle` çiziyor) ama süzme onda da arıyor; `source` ise yıkıcı
+ * eylemlerin ihtiyaç duyduğu ham DTO.
+ */
+type FriendListRow = FriendRowActor & { readonly source: FriendDto; readonly username: string };
+
+const SORT_LABEL_KEY: Readonly<Record<FriendsSort, string>> = Object.freeze({
+  name: "messages.friends.sort.name",
+  recent: "messages.friends.sort.recent",
+  status: "messages.friends.sort.status",
+});
+
+const SORT_META = Object.freeze({
+  name: { Icon: ArrowDownAZ, testId: "friends-sort-name-icon" },
+  recent: { Icon: Clock3, testId: "friends-sort-recent-icon" },
+  status: { Icon: Activity, testId: "friends-sort-status-icon" },
+} satisfies Record<FriendsSort, { Icon: typeof Activity; testId: string }>);
+
+function matchesSearch(
+  normalizedQuery: string,
+  locale: string,
+  ...values: Array<null | string | undefined>
+) {
+  return (
+    normalizedQuery.length === 0 ||
+    values.some((value) => value?.toLocaleLowerCase(locale).includes(normalizedQuery))
+  );
+}
+
+function FriendsToolbar({
+  onQueryChange,
+  onSelectSort,
+  onToggleSortMenu,
+  query,
+  sort,
+  sortMenu,
+}: {
+  onQueryChange: (value: string) => void;
+  onSelectSort: (sort: FriendsSort) => void;
+  onToggleSortMenu: () => void;
+  query: string;
+  sort: FriendsSort;
+  sortMenu: boolean;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <div
+      className="flex shrink-0 items-center"
+      data-testid="friends-toolbar"
+      style={{
+        gap: pxToRem(metrics.toolbarGap),
+        padding: `${pxToRem(metrics.toolbarPaddingY)} ${pxToRem(metrics.toolbarPaddingX)}`,
+      }}
+    >
+      <label
+        className="flex min-w-0 flex-1 items-center bg-[hsl(var(--surface-soft)/0.7)]"
+        style={{
+          border: `${hairline()} solid hsl(var(--border)/0.5)`,
+          borderRadius: pxToRem(metrics.searchRadius),
+          gap: pxToRem(metrics.searchGap),
+          height: pxToRem(metrics.searchHeight),
+          padding: `0 ${pxToRem(metrics.searchPaddingX)}`,
+        }}
+      >
+        <Search
+          aria-hidden="true"
+          className="shrink-0 text-[hsl(var(--text-muted))]"
+          style={{
+            height: pxToRem(metrics.searchIconSize),
+            width: pxToRem(metrics.searchIconSize),
+          }}
+        />
+        <input
+          className="min-w-0 flex-1 bg-transparent text-[hsl(var(--foreground))] outline-hidden placeholder:text-[hsl(var(--text-muted))]"
+          data-testid="friends-search"
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder={t("messages.friends.searchPlaceholder")}
+          style={{ fontSize: pxToRem(metrics.searchFontSize) }}
+          type="search"
+          value={query}
+        />
+      </label>
+
+      <div className="relative shrink-0">
+        <button
+          aria-expanded={sortMenu}
+          aria-haspopup="menu"
+          aria-label={t("messages.friends.sort.aria")}
+          className="flex items-center bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          data-testid="friends-sort"
+          onClick={onToggleSortMenu}
+          style={{
+            border: `${hairline()} solid hsl(var(--border))`,
+            borderRadius: pxToRem(metrics.sortRadius),
+            fontSize: pxToRem(metrics.sortFontSize),
+            fontWeight: 600,
+            gap: pxToRem(metrics.sortGap),
+            height: pxToRem(metrics.sortHeight),
+            padding: `0 ${pxToRem(metrics.sortPaddingX)}`,
+          }}
+          type="button"
+        >
+          <ArrowUpDown
+            aria-hidden="true"
+            style={{
+              height: pxToRem(metrics.sortIconSize),
+              width: pxToRem(metrics.sortIconSize),
+            }}
+          />
+          {t(SORT_LABEL_KEY[sort])}
+        </button>
+
+        {sortMenu ? (
+          <div
+            className="absolute right-0 z-30 mt-1 bg-[hsl(var(--surface-card))] shadow-[0_24px_50px_-22px_hsl(var(--shadow-color))]"
+            data-testid="friends-sort-menu"
+            role="menu"
+            style={{
+              border: `${hairline()} solid hsl(var(--border))`,
+              borderRadius: pxToRem(metrics.menuRadius),
+              padding: pxToRem(metrics.menuPadding),
+              width: pxToRem(metrics.menuWidth),
+            }}
+          >
+            {(["status", "name", "recent"] as const).map((option) => {
+              const { Icon: SortIcon, testId } = SORT_META[option];
+
+              return (
+                <button
+                  aria-checked={option === sort}
+                  className={cn(
+                    "flex w-full items-center text-left transition hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
+                    option === sort
+                      ? "text-[hsl(var(--primary))]"
+                      : "text-[hsl(var(--text-secondary))]",
+                  )}
+                  data-testid={`friends-sort-${option}`}
+                  key={option}
+                  onClick={() => onSelectSort(option)}
+                  role="menuitemradio"
+                  style={{
+                    borderRadius: pxToRem(metrics.menuItemRadius),
+                    fontSize: pxToRem(metrics.menuItemFontSize),
+                    fontWeight: 500,
+                    gap: pxToRem(metrics.menuItemPaddingY),
+                    padding: `${pxToRem(metrics.menuItemPaddingY)} ${pxToRem(
+                      metrics.menuItemPaddingX,
+                    )}`,
+                  }}
+                  type="button"
+                >
+                  <SortIcon
+                    aria-hidden="true"
+                    className="shrink-0"
+                    data-testid={testId}
+                    style={{
+                      height: pxToRem(metrics.sortIconSize),
+                      width: pxToRem(metrics.sortIconSize),
+                    }}
+                  />
+                  {t(SORT_LABEL_KEY[option])}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 function getAddFriendErrorMessage(
@@ -98,396 +292,270 @@ function getAddFriendErrorMessage(
   return t("friends.addFriend.errors.unknown");
 }
 
-function getFriendSortName(friend: FriendDto) {
-  return friend.displayName || friend.username;
+/** SPEC §4: durum satırı presence rengini alır, `success`'te muted kalır. */
+function resolveStatusTone(status: FriendDto["status"]): FriendRowActor["statusTone"] {
+  if (status === "DND") {
+    return "danger";
+  }
+
+  return status === "IDLE" ? "warning" : "muted";
 }
 
-type FriendsMetricTone = "online" | "pending" | "total";
-
-const metricToneClasses: Record<
-  FriendsMetricTone,
-  {
-    icon: string;
-    line: string;
-  }
-> = {
-  online: {
-    icon: "bg-emerald-500/10 text-emerald-600",
-    line: "stroke-emerald-500",
-  },
-  pending: {
-    icon: "bg-amber-500/10 text-amber-600",
-    line: "stroke-amber-500",
-  },
-  total: {
-    icon: "bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]",
-    line: "stroke-[hsl(var(--primary))]",
-  },
-};
-
-function FriendsMetricCard({
-  description,
-  helper,
-  icon: Icon,
-  loading,
-  tone,
-  value,
+function SectionHeading({
+  count,
+  countTone,
+  label,
 }: {
-  description: string;
-  helper: string;
-  icon: LucideIcon;
-  loading: boolean;
-  tone: FriendsMetricTone;
-  value: string;
+  count: number;
+  countTone?: "success" | undefined;
+  label: string;
 }) {
-  const toneClass = metricToneClasses[tone];
-
   return (
-    <div className="relative min-h-[6.4rem] overflow-hidden border-b border-[hsl(var(--border)/0.58)] px-3.5 py-3.5 last:border-b-0 sm:border-b-0 sm:border-r sm:px-4 sm:py-4 sm:last:border-r-0">
-      <div className="relative flex min-w-0 items-start gap-3">
-        <span
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] ${toneClass.icon}`}
-        >
-          <Icon className="h-[18px] w-[18px]" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-black uppercase leading-4 tracking-[0.22em] text-app-soft">
-            {description}
-          </p>
-          {loading ? (
-            <Skeleton className="mt-2 h-7 w-12 rounded-[10px]" />
-          ) : (
-            <p className="mt-1.5 text-2xl font-semibold leading-none tracking-tight text-app-foreground">
-              {value}
-            </p>
-          )}
-          <div className="mt-2.5 flex items-end justify-between gap-3">
-            <p className="min-w-0 text-xs font-semibold leading-5 text-app-muted">{helper}</p>
-            <svg
-              aria-hidden="true"
-              className="hidden h-6 w-24 shrink-0 sm:block"
-              fill="none"
-              viewBox="0 0 112 28"
-            >
-              <path
-                className={`${toneClass.line} opacity-80`}
-                d="M2 20 C14 19 17 17 25 18 C34 20 35 24 44 24 C54 24 54 10 64 10 C73 10 75 17 82 17 C90 17 90 13 97 13 C103 13 105 18 110 17"
-                strokeLinecap="round"
-                strokeWidth="2"
-              />
-            </svg>
-          </div>
-        </div>
-      </div>
+    <div
+      className="flex items-center"
+      style={{
+        gap: pxToRem(metrics.sectionGap),
+        padding: `${pxToRem(metrics.sectionPaddingTop)} ${pxToRem(
+          metrics.sectionPaddingX,
+        )} ${pxToRem(metrics.sectionPaddingBottom)}`,
+      }}
+    >
+      <span
+        className={cn("uppercase text-[hsl(var(--text-muted))]", DISPLAY_FONT)}
+        style={{
+          fontSize: pxToRem(metrics.sectionLabelFontSize),
+          fontWeight: 600,
+          letterSpacing: "0.15em",
+        }}
+      >
+        {label}
+      </span>
+      <span
+        className={cn(
+          countTone === "success"
+            ? "text-[hsl(var(--success))]"
+            : "text-[hsl(var(--text-muted)/0.8)]",
+          DISPLAY_FONT,
+        )}
+        style={{ fontSize: pxToRem(metrics.sectionCountFontSize), fontWeight: 600 }}
+      >
+        {count}
+      </span>
+      <span
+        aria-hidden="true"
+        className="flex-1"
+        style={{ background: "hsl(var(--border)/0.5)", height: hairline() }}
+      />
     </div>
   );
 }
 
-function FriendsTabButton({
-  active,
-  badge,
-  icon: Icon,
-  label,
-  onClick,
+function EmptyLine({ children, testId }: { children: React.ReactNode; testId: string }) {
+  return (
+    <p
+      className="text-center text-[hsl(var(--text-muted))]"
+      data-testid={testId}
+      style={{
+        fontSize: pxToRem(metrics.rowStatusFontSize),
+        padding: `${pxToRem(metrics.rowPaddingY * 4)} ${pxToRem(metrics.rowPaddingX)}`,
+      }}
+    >
+      {children}
+    </p>
+  );
+}
+
+function CompactRow({
+  action,
+  meta,
+  name,
+  avatarUrl,
+  dimmed,
   testId,
 }: {
-  active: boolean;
-  badge?: number;
-  icon: LucideIcon;
-  label: string;
+  action: React.ReactNode;
+  avatarUrl: string | null;
+  dimmed?: number | undefined;
+  meta: string;
+  name: string;
+  testId: string;
+}) {
+  return (
+    <div
+      className="flex min-w-0 items-center transition-colors hover:bg-[hsl(var(--surface-soft)/0.7)]"
+      data-testid={testId}
+      style={{
+        borderRadius: pxToRem(metrics.compactRowRadius),
+        gap: pxToRem(metrics.compactRowGap),
+        padding: `${pxToRem(metrics.compactRowPaddingY)} ${pxToRem(metrics.compactRowPaddingX)}`,
+      }}
+    >
+      <span className="shrink-0" style={dimmed ? { opacity: dimmed } : undefined}>
+        <HomeAvatar
+          avatarUrl={avatarUrl}
+          displayName={name}
+          fontSize={metrics.rowNameFontSize}
+          size={metrics.rowAvatarSize}
+        />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span
+          className="block truncate text-[hsl(var(--foreground))]"
+          style={{ fontSize: pxToRem(metrics.rowNameFontSize), fontWeight: 600 }}
+        >
+          {name}
+        </span>
+        <span
+          className="block truncate text-[hsl(var(--text-muted))]"
+          style={{
+            fontSize: pxToRem(metrics.rowStatusFontSize),
+            marginTop: pxToRem(metrics.rowStatusMarginTop),
+          }}
+        >
+          {meta}
+        </span>
+      </span>
+      <span
+        className="flex shrink-0 items-center"
+        style={{ gap: pxToRem(metrics.compactActionGap) }}
+      >
+        {action}
+      </span>
+    </div>
+  );
+}
+
+function CompactButton({
+  children,
+  onClick,
+  testId,
+  tone = "neutral",
+}: {
+  children: React.ReactNode;
   onClick: () => void;
-  testId?: string;
+  testId: string;
+  tone?: "danger" | "neutral" | "primary" | "tint";
 }) {
   return (
     <button
-      aria-selected={active}
-      className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-[13px] border px-3.5 py-2 text-sm font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] ${
-        active
-          ? "border-transparent bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))] shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.08)]"
-          : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.7)] text-app-muted hover:border-[hsl(var(--primary)/0.22)] hover:bg-[hsl(var(--surface-card)/0.92)] hover:text-app-foreground"
-      }`}
+      className={cn(
+        "shrink-0 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
+        tone === "primary" && "bg-[hsl(var(--primary))] text-white hover:brightness-110",
+        tone === "tint" &&
+          "bg-[hsl(var(--primary)/0.16)] text-[var(--primary-readable)] hover:bg-[hsl(var(--primary)/0.26)]",
+        tone === "danger" &&
+          "bg-[hsl(var(--surface-card))] text-[hsl(var(--danger))] hover:bg-[hsl(var(--danger)/0.12)]",
+        tone === "neutral" &&
+          "bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))]",
+      )}
       data-testid={testId}
       onClick={onClick}
-      role="tab"
+      style={{
+        ...(tone === "primary" || tone === "tint"
+          ? {}
+          : { border: `${hairline()} solid hsl(var(--border))` }),
+        borderRadius: pxToRem(metrics.compactActionRadius),
+        fontSize: pxToRem(metrics.compactActionFontSize),
+        fontWeight: 600,
+        height: pxToRem(metrics.compactActionHeight),
+        padding: `0 ${pxToRem(metrics.compactActionPaddingX)}`,
+      }}
       type="button"
     >
-      <Icon className="h-4 w-4" />
-      <span>{label}</span>
-      {badge && badge > 0 ? <Badge>{badge}</Badge> : null}
+      {children}
     </button>
   );
 }
 
-function EmptyChatIllustration() {
-  return (
-    <div className="relative h-28 w-36" aria-hidden="true">
-      <div className="absolute left-5 top-5 h-16 w-20 rounded-[18px] bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(252_95%_70%))] shadow-[0_18px_38px_hsl(var(--primary)/0.22)]">
-        <div className="flex h-full items-center justify-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-white/85" />
-          <span className="h-2 w-2 rounded-full bg-white/85" />
-          <span className="h-2 w-2 rounded-full bg-white/85" />
-        </div>
-      </div>
-      <div className="absolute bottom-3 right-1 h-16 w-20 rounded-[18px] bg-white shadow-[0_14px_30px_hsl(var(--primary)/0.14)]">
-        <div className="ml-6 mt-6 h-1.5 w-10 rounded-full bg-[hsl(var(--primary)/0.22)]" />
-        <div className="ml-6 mt-2.5 h-1.5 w-7 rounded-full bg-[hsl(var(--primary)/0.18)]" />
-      </div>
-    </div>
-  );
-}
+/**
+ * `currentUserId` **almıyor**: bu görünüm artık görüntüleyenin kimliğini hiçbir
+ * yerde kullanmıyor. Sunucudan gelen listeler zaten görüntüleyene göre süzülü,
+ * ve taşınan ama okunmayan bir prop, gelecekte birinin ona güvenmesi demek.
+ */
+export type FriendsViewProps = {
+  /**
+   * `Son etkileşim` sıralaması için gerekli: bir 1:1 sohbetin karşı tarafı
+   * "benden başkası" diye bulunuyor ve o karşılaştırma kimlik olmadan
+   * yapılamaz.
+   */
+  currentUserId: string;
+};
 
-function FriendsEmptyState({
-  actionLabel,
-  compact = false,
-  description,
-  onAction,
-  title,
-}: {
-  actionLabel?: string;
-  compact?: boolean;
-  description: string;
-  onAction?: () => void;
-  title: string;
-}) {
-  return (
-    <div
-      className={`flex flex-col items-center justify-center px-4 text-center ${
-        compact ? "min-h-[9rem] py-5" : "min-h-[18rem] py-8 sm:min-h-[22rem] sm:py-10"
-      }`}
-    >
-      {compact ? (
-        <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
-          <MessageSquareMore className="h-5 w-5" />
-        </div>
-      ) : (
-        <EmptyChatIllustration />
-      )}
-      <h2
-        className={`text-app-foreground font-semibold ${compact ? "mt-3 text-base" : "mt-4 text-lg"}`}
-      >
-        {title}
-      </h2>
-      <p className={`text-app-muted mt-2 max-w-md text-sm ${compact ? "leading-5" : "leading-6"}`}>
-        {description}
-      </p>
-      {actionLabel && onAction ? (
-        <button
-          className="mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-[13px] bg-[hsl(var(--primary))] px-4 text-sm font-bold text-[hsl(var(--primary-foreground))] shadow-[0_14px_28px_hsl(var(--primary)/0.18)] transition hover:bg-[hsl(var(--primary)/0.92)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-          onClick={onAction}
-          type="button"
-        >
-          <UserPlus className="h-4 w-4" />
-          {actionLabel}
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-function FriendsListSkeleton() {
-  return (
-    <div className="space-y-3">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <div
-          className="app-panel flex items-center justify-between rounded-[24px] border p-3 sm:rounded-[28px] sm:p-4"
-          key={index}
-        >
-          <div className="flex items-center gap-4">
-            <Skeleton className="h-12 w-12 rounded-full" />
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-36" />
-              <Skeleton className="h-3 w-24" />
-              <Skeleton className="h-3 w-28" />
-            </div>
-          </div>
-          <Skeleton className="h-10 w-10 rounded-2xl" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function SectionHeading({ badge, title }: { badge?: number; title: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <h2 className="text-app-foreground text-sm font-semibold uppercase tracking-[0.2em]">
-        {title}
-      </h2>
-      {badge && badge > 0 ? <Badge>{badge}</Badge> : null}
-    </div>
-  );
-}
-
-function FriendsFeedbackNotice({
-  feedback,
-}: {
-  feedback: {
-    message: string;
-    tone: "error" | "success";
-  } | null;
-}) {
-  if (!feedback) {
-    return null;
-  }
-
-  const success = feedback.tone === "success";
-  const Icon = success ? CheckCircle2 : X;
-
-  return (
-    <div
-      aria-live="polite"
-      className={`mt-3 flex items-center gap-3 rounded-[22px] border px-4 py-3 text-sm shadow-[0_16px_42px_hsl(var(--shadow-color)/0.08)] ${
-        success
-          ? "border-[hsl(var(--success)/0.26)] bg-[hsl(var(--success)/0.08)] text-app-success"
-          : "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.08)] text-app-danger"
-      }`}
-      data-testid="friend-feedback"
-      role="status"
-    >
-      <span
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border ${
-          success
-            ? "border-[hsl(var(--success)/0.26)] bg-[hsl(var(--success)/0.12)]"
-            : "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.12)]"
-        }`}
-      >
-        <Icon className="h-4 w-4" />
-      </span>
-      <span className="min-w-0 font-medium">{feedback.message}</span>
-    </div>
-  );
-}
-
-function ConfirmDialog({
-  busy,
-  confirmLabel,
-  description,
-  onClose,
-  onConfirm,
-  open,
-  safetyDescription,
-  title,
-}: {
-  busy: boolean;
-  confirmLabel: string;
-  description: string;
-  onClose: () => void;
-  onConfirm: () => void;
-  open: boolean;
-  safetyDescription: string;
-  title: string;
-}) {
-  const { t } = useI18n();
-
-  return (
-    <Modal
-      description={description}
-      onClose={busy ? () => undefined : onClose}
-      open={open}
-      title={title}
-    >
-      <div className="rounded-[24px] border border-[hsl(var(--danger)/0.18)] bg-[hsl(var(--danger)/0.06)] p-4">
-        <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.1)] text-app-danger">
-            <UserMinus className="h-5 w-5" />
-          </div>
-          <p className="text-sm leading-6 text-app-muted">{safetyDescription}</p>
-        </div>
-      </div>
-      <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <button
-          className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-60"
-          disabled={busy}
-          onClick={onClose}
-          type="button"
-        >
-          {t("common.cancel")}
-        </button>
-        <button
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--danger))] px-4 py-2 text-sm font-semibold text-[hsl(var(--danger-foreground))] shadow-[0_16px_34px_hsl(var(--danger)/0.18)] transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:opacity-60"
-          disabled={busy}
-          onClick={onConfirm}
-          type="button"
-        >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserMinus className="h-4 w-4" />}
-          {confirmLabel}
-        </button>
-      </div>
-    </Modal>
-  );
-}
-
-function PendingRequestRow({
-  actionSlot,
-  request,
-  type,
-}: {
-  actionSlot: ReactNode;
-  request: FriendRequestDto;
-  type: "incoming" | "outgoing";
-}) {
-  const counterpart = type === "incoming" ? request.sender : request.receiver;
-  const displayName = counterpart.displayName ?? counterpart.username;
-
-  return (
-    <div
-      className="app-panel flex flex-col gap-3 rounded-[24px] border p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:rounded-[28px] sm:p-4"
-      data-testid={`friend-request-${type}-${counterpart.username}`}
-    >
-      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-        <Avatar
-          alt={displayName}
-          className="h-11 w-11 shrink-0 text-sm"
-          fallback={displayName}
-          src={counterpart.avatarUrl}
-        />
-        <div className="min-w-0">
-          <p className="text-app-foreground truncate text-sm font-semibold">{displayName}</p>
-          <p className="text-app-muted truncate text-sm">@{counterpart.username}</p>
-        </div>
-      </div>
-      <div className="flex shrink-0 items-center justify-end gap-2 sm:justify-start">
-        {actionSlot}
-      </div>
-    </div>
-  );
-}
-
-export function FriendsView({ currentUserId }: { currentUserId: string }) {
+export function FriendsView({ currentUserId }: FriendsViewProps) {
+  const lastInteractionAt = useFriendLastInteraction(currentUserId);
   const { locale, t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const socket = useSocket();
+  const scale = useUiScaleStep();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handledDmIntentRef = useRef<string | null>(null);
-  const [manualActiveTab, setManualActiveTab] = useState<FriendsTabId>("online");
+
+  const [manualTab, setManualTab] = useState<FriendsTab>("all");
   const [confirmState, setConfirmState] = useState<ConfirmState>(null);
-  const [feedback, setFeedback] = useState<{
-    message: string;
-    tone: "error" | "success";
-  } | null>(null);
+  const [feedback, setFeedback] = useState<{ message: string; tone: "error" | "success" } | null>(
+    null,
+  );
   const [username, setUsername] = useState("");
   const [debouncedUsername, setDebouncedUsername] = useState("");
+  const [query, setQuery] = useState("");
+  const [sortMenu, setSortMenu] = useState(false);
+  const [rowMenu, setRowMenu] = useState<{ friendId: string; x: number; y: number } | null>(null);
+  const [sentSuggestionIds, setSentSuggestionIds] = useState<ReadonlySet<string>>(new Set());
+
+  const requestedTab = searchParams.get("dmTab");
+  // `?dmTab=online` bir hata değil, eski bir bağlantı: `normalizeFriendsTab` onu
+  // `all`'a düşürüyor ve yer imi çalışmaya devam ediyor.
+  const activeTab: FriendsTab = requestedTab ? normalizeFriendsTab(requestedTab) : manualTab;
+  const groupDialogOpen = searchParams.get("dmAction") === "group";
 
   const friendsQuery = useQuery({
     queryFn: fetchFriends,
     queryKey: friendsQueryKeys.list,
     staleTime: 30_000,
   });
-
   const pendingQuery = useQuery({
     queryFn: fetchPendingFriends,
     queryKey: friendsQueryKeys.pending,
     staleTime: 15_000,
   });
-
   const blockedQuery = useQuery({
-    enabled: manualActiveTab === "blocked" || searchParams.get("dmTab") === "blocked",
+    enabled: activeTab === "blocked",
     queryFn: fetchBlockedFriends,
     queryKey: friendsQueryKeys.blocked,
     staleTime: 30_000,
+  });
+  // Öneriler yalnız sekme açıkken çekilir: ortak arkadaş sayısı bir toplama
+  // sorgusu ve `Tümü` sekmesinde okunmayacak.
+  const suggestionsQuery = useQuery({
+    enabled: activeTab === "add",
+    queryFn: fetchFriendSuggestions,
+    queryKey: ["friends", "suggestions"] as const,
+    staleTime: 60_000,
+  });
+  const sortQuery = useQuery({
+    queryFn: fetchFriendsSort,
+    queryKey: ["friends", "sort"] as const,
+    staleTime: 5 * 60_000,
+  });
+
+  const sort: FriendsSort = sortQuery.data ?? "status";
+
+  const sortMutation = useMutation({
+    mutationFn: updateFriendsSort,
+    onMutate: async (next: FriendsSort) => {
+      // İyimser: sıralama bir okuma alışkanlığı, isteğin dönmesini beklemek
+      // listeyi bir saniye eski sırada bırakırdı.
+      const previous = queryClient.getQueryData<FriendsSort>(["friends", "sort"]);
+      queryClient.setQueryData(["friends", "sort"], next);
+      return { previous };
+    },
+    onError: (_error, _next, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["friends", "sort"], context.previous);
+      }
+    },
   });
 
   useEffect(() => {
@@ -501,10 +569,7 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
       );
     };
     const handleFriendsUpdated = () => {
-      void queryClient.refetchQueries({
-        queryKey: friendsQueryKeys.root,
-        type: "active",
-      });
+      void queryClient.refetchQueries({ queryKey: friendsQueryKeys.root, type: "active" });
     };
 
     socket.on("presence:update", handlePresenceUpdate);
@@ -513,9 +578,11 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
     return () => {
       socket.off("presence:update", handlePresenceUpdate);
       socket.off("friends:updated", handleFriendsUpdated);
+
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
+
       if (feedbackTimerRef.current) {
         clearTimeout(feedbackTimerRef.current);
       }
@@ -525,54 +592,128 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
   const friends = friendsQuery.data ?? EMPTY_FRIENDS;
   const pending = pendingQuery.data ?? EMPTY_PENDING;
   const blockedUsers = blockedQuery.data ?? EMPTY_BLOCKED_USERS;
-  const incomingCount = pending.incoming.length;
+  const suggestions = suggestionsQuery.data ?? EMPTY_SUGGESTIONS;
+  const normalizedQuery = query.trim().toLocaleLowerCase(locale);
   const normalizedUsername = username.trim();
-  const requestedTab = searchParams.get("dmTab");
-  const activeTab = isFriendsTabId(requestedTab) ? requestedTab : manualActiveTab;
-  const setActiveTab = useCallback(
-    (nextTab: FriendsTabId) => {
-      setManualActiveTab(nextTab);
-      if (isFriendsTabId(requestedTab)) {
-        router.replace("/channels/@me", { scroll: false });
-      }
-    },
-    [requestedTab, router],
-  );
   const canSendRequest = normalizedUsername.length >= 2 && debouncedUsername === normalizedUsername;
 
-  const onlineFriends = useMemo(
-    () => friends.filter((friend) => friend.status === "ONLINE" || friend.status === "IDLE"),
-    [friends],
+  const setActiveTab = (next: FriendsTab) => {
+    setManualTab(next);
+    setSortMenu(false);
+
+    if (requestedTab) {
+      // Sekme URL'den geldiyse manuel geçiş onu bırakır; aksi hâlde bağlantıdaki
+      // sekme her tıklamadan sonra geri gelirdi.
+      router.replace(MESSAGES_FRIENDS_ROUTE, { scroll: false });
+    }
+  };
+
+  const rows = useMemo<FriendListRow[]>(() => {
+    const now = new Date();
+
+    return friends.map((friend) => {
+      const name = friend.displayName ?? friend.username;
+      const statusCopy = deriveFriendStatusText(
+        {
+          customStatus: friend.customStatus,
+          lastSeenAt: friend.lastSeenAt,
+          status: friend.status,
+          voiceRoom: friend.voiceRoom
+            ? {
+                channelName: friend.voiceRoom.channelName,
+                serverName: friend.voiceRoom.serverName,
+              }
+            : null,
+        },
+        now,
+      );
+
+      return {
+        avatarUrl: friend.avatarUrl,
+        handle: `@${friend.username}`,
+        id: friend.id,
+        name,
+        source: friend,
+        status: friend.status,
+        // Çevrimdışı satır son görülmeyi gösterir; türetilmiş durum cümlesi
+        // orada "Çevrimdışı" derdi ve satır zaten bunu soluk avatarla söylüyor.
+        statusText:
+          friend.status === "OFFLINE"
+            ? friend.lastSeenAt
+              ? t("messages.friends.lastSeen", {
+                  time: new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(
+                    Math.min(
+                      -1,
+                      Math.round(
+                        (new Date(friend.lastSeenAt).getTime() - now.getTime()) / (60 * 60 * 1000),
+                      ),
+                    ),
+                    "hour",
+                  ),
+                })
+              : null
+            : resolveHomeCopy(statusCopy, t),
+        statusTone: resolveStatusTone(friend.status),
+        username: friend.username,
+      };
+    });
+  }, [friends, locale, t]);
+
+  // Son etkileşim sohbet listesinden türüyor (`useFriendLastInteraction`);
+  // arkadaş listesi onu taşımıyor ve ayrı bir uç aynı bilgiyi ikinci kez
+  // göndermek olurdu.
+  const sortContext = useMemo<FriendSortContext>(
+    () => ({ lastInteractionAt }),
+    [lastInteractionAt],
   );
-  useEffect(() => {
-    const dmAction = searchParams.get("dmAction");
 
-    if (dmAction !== "new" || friendsQuery.isLoading) {
-      return;
-    }
-
-    const intentKey = searchParams.toString();
-
-    if (handledDmIntentRef.current === intentKey) {
-      return;
-    }
-
-    handledDmIntentRef.current = intentKey;
-    const targetTab = friends.length > 0 ? "all" : "add";
-    router.replace(`/channels/@me?dmTab=${targetTab}`, { scroll: false });
-  }, [friends.length, friendsQuery.isLoading, router, searchParams]);
-
-  const sortedFriends = useMemo(
+  const visibleRows = useMemo(
+    () => sortFriends(filterFriends(rows, query), sort, sortContext),
+    [query, rows, sort, sortContext],
+  );
+  const visibleSuggestions = useMemo(
     () =>
-      [...friends].sort((left, right) =>
-        getFriendSortName(left).localeCompare(getFriendSortName(right), locale, {
-          sensitivity: "base",
-        }),
+      suggestions.filter((suggestion) =>
+        matchesSearch(
+          normalizedQuery,
+          locale,
+          suggestion.name,
+          suggestion.username,
+          suggestion.viaServerName,
+        ),
       ),
-    [friends, locale],
+    [locale, normalizedQuery, suggestions],
   );
+  const visibleIncoming = useMemo(
+    () =>
+      pending.incoming.filter((request) =>
+        matchesSearch(normalizedQuery, locale, request.sender.displayName, request.sender.username),
+      ),
+    [locale, normalizedQuery, pending.incoming],
+  );
+  const visibleOutgoing = useMemo(
+    () =>
+      pending.outgoing.filter((request) =>
+        matchesSearch(
+          normalizedQuery,
+          locale,
+          request.receiver.displayName,
+          request.receiver.username,
+        ),
+      ),
+    [locale, normalizedQuery, pending.outgoing],
+  );
+  const visibleBlockedUsers = useMemo(
+    () =>
+      blockedUsers.filter((blocked) =>
+        matchesSearch(normalizedQuery, locale, blocked.displayName, blocked.username),
+      ),
+    [blockedUsers, locale, normalizedQuery],
+  );
+  const sections = useMemo(() => splitFriendsByPresence(visibleRows), [visibleRows]);
+  const counters = useMemo(() => splitFriendsByPresence(rows), [rows]);
 
-  const scheduleSuccessFeedbackClear = () => {
+  const scheduleFeedbackClear = () => {
     if (feedbackTimerRef.current) {
       clearTimeout(feedbackTimerRef.current);
     }
@@ -601,12 +742,10 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
       setUsername("");
       setDebouncedUsername("");
       setFeedback({
-        message: t("friends.addFriend.success", {
-          username: request.receiver.username,
-        }),
+        message: t("friends.addFriend.success", { username: request.receiver.username }),
         tone: "success",
       });
-      scheduleSuccessFeedbackClear();
+      scheduleFeedbackClear();
     },
   });
 
@@ -677,7 +816,6 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
     mutationFn: (friend) => removeFriendRequest(friend.id),
     onMutate: async (friend) => {
       await queryClient.cancelQueries({ queryKey: friendsQueryKeys.list });
-
       const previousFriends = queryClient.getQueryData<FriendDto[]>(friendsQueryKeys.list);
 
       queryClient.setQueryData<FriendDto[] | undefined>(friendsQueryKeys.list, (current) =>
@@ -692,19 +830,15 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
       if (context?.previousFriends) {
         queryClient.setQueryData(friendsQueryKeys.list, context.previousFriends);
       }
-      setFeedback({
-        message: t("friends.remove.error"),
-        tone: "error",
-      });
+
+      setFeedback({ message: t("friends.remove.error"), tone: "error" });
     },
     onSuccess: (_result, friend) => {
       setFeedback({
-        message: t("friends.remove.success", {
-          name: friend.displayName ?? friend.username,
-        }),
+        message: t("friends.remove.success", { name: friend.displayName ?? friend.username }),
         tone: "success",
       });
-      scheduleSuccessFeedbackClear();
+      scheduleFeedbackClear();
     },
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: friendsQueryKeys.root });
@@ -729,35 +863,27 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
   const openDirectMessageMutation = useMutation({
     mutationFn: (friendUserId: string) => createDMConversationRequest(friendUserId),
     onError: () => {
-      setFeedback({
-        message: t("dm.errors.openConversation"),
-        tone: "error",
-      });
+      setFeedback({ message: t("dm.errors.openConversation"), tone: "error" });
     },
     onSuccess: (conversation) => {
       queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
         dmQueryKeys.list,
         (current) => upsertDMConversationPageData(current, conversation),
       );
-      router.push(`/channels/@me/${conversation.id}`);
+      router.push(messagesConversationHref(conversation.id));
     },
   });
 
-  const activeConfirmBusy = removeFriendMutation.isPending || blockFriendMutation.isPending;
-  const metricsLoading = friendsQuery.isLoading || pendingQuery.isLoading;
-  const isRefreshing =
-    friendsQuery.isFetching ||
-    pendingQuery.isFetching ||
-    (activeTab === "blocked" && blockedQuery.isFetching);
-
-  const refreshDashboardData = () => {
-    void friendsQuery.refetch();
-    void pendingQuery.refetch();
-
-    if (activeTab === "blocked") {
-      void blockedQuery.refetch();
-    }
-  };
+  const createGroupMutation = useMutation({
+    mutationFn: createGroupConversationRequest,
+    onSuccess: (conversation) => {
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
+        dmQueryKeys.list,
+        (current) => upsertDMConversationPageData(current, conversation),
+      );
+      router.push(messagesConversationHref(conversation.id));
+    },
+  });
 
   const handleUsernameChange = (value: string) => {
     setUsername(value);
@@ -776,418 +902,642 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
     }, 500);
   };
 
+  const skeletonRows = selectMessagesDensity(scale).friendRows;
+  const loading = friendsQuery.isLoading;
+  const menuFriend = rowMenu ? (rows.find((row) => row.id === rowMenu.friendId) ?? null) : null;
+
+  /**
+   * Davet edilebilir sunucular — yetki kararı **sunucuda** (`/v1/servers/invitable`).
+   * İstemcide "üyeyse davet edebilir" diye tahmin etmek, kullanıcıya
+   * yapamayacağı bir işi gösterip 403 yedirmek olurdu.
+   *
+   * Sorgu yalnız menü açıkken kurulur: her arkadaş listesi açılışında bir istek
+   * daha, hiç açılmayacak bir menü için ödenirdi.
+   */
+  const invitableServersQuery = useQuery({
+    enabled: rowMenu !== null,
+    queryFn: fetchInvitableServers,
+    queryKey: ["workspace", "servers", "invitable"],
+    staleTime: 60_000,
+  });
+  const invitableServers: readonly InvitableServer[] = invitableServersQuery.data ?? EMPTY_SERVERS;
+
+  /**
+   * Davet, sunucuya **üye ekleme** ucunu kullanıyor: davet bağlantısı üretip
+   * kullanıcıya göndermek iki adım daha (bağlantı + mesaj) demek ve arkadaş
+   * zaten elimizde. Hata durumunda mevcut hata eşlemesi kullanılıyor.
+   */
+  const inviteToServerMutation = useMutation({
+    mutationFn: ({ serverId, username }: { serverId: string; username: string }) =>
+      addServerMemberRequest(serverId, username),
+    onError: () => {
+      setFeedback({ message: t("messages.friends.menu.inviteFailed"), tone: "error" });
+      scheduleFeedbackClear();
+    },
+    onSuccess: (result) => {
+      setRowMenu(null);
+      setFeedback({
+        message: t("messages.friends.menu.inviteSuccess", { name: result.detail.server.name }),
+        tone: "success",
+      });
+      scheduleFeedbackClear();
+    },
+  });
+
   return (
     <>
       <div
-        aria-busy={metricsLoading}
-        className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[radial-gradient(circle_at_50%_0%,hsl(var(--primary)/0.06),transparent_28rem)]"
+        /*
+         * Liste yüklenirken `true`. Ekran okuyucu, iskelet satırları "içerik"
+         * diye okumak yerine bölgenin meşgul olduğunu duyuruyor; bitince
+         * `false` olması da "artık hazır" demenin tek makine-okunur yolu.
+         */
+        aria-busy={loading}
+        className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[hsl(var(--surface-base))]"
         data-testid="friends-dashboard"
       >
-        <div className="shrink-0 px-2.5 pb-2 pt-2.5 sm:px-3 sm:pb-2.5 sm:pt-3 md:px-4">
-          <div className="app-panel relative overflow-hidden rounded-[18px] border shadow-[0_12px_34px_hsl(var(--shadow-color)/0.04)]">
-            <div className="grid grid-cols-1 sm:grid-cols-3">
-              <FriendsMetricCard
-                description={t("friends.overview.onlineNow")}
-                helper={t("friends.overview.onlineHelper")}
-                icon={Users}
-                loading={metricsLoading}
-                tone="online"
-                value={String(onlineFriends.length)}
+        <div
+          className="flex shrink-0 items-end justify-between"
+          style={{
+            borderBottom: `${hairline()} solid hsl(var(--border)/0.45)`,
+            gap: pxToRem(metrics.headerGap),
+            padding: `${pxToRem(metrics.headerPaddingTop)} ${pxToRem(
+              metrics.headerPaddingX,
+            )} ${pxToRem(metrics.headerPaddingBottom)}`,
+          }}
+        >
+          <div className="min-w-0">
+            <div className="flex items-center" style={{ gap: pxToRem(metrics.titleGap) }}>
+              <Users
+                aria-hidden="true"
+                className="shrink-0 text-[hsl(var(--foreground))]"
+                style={{
+                  height: pxToRem(metrics.titleIconSize),
+                  width: pxToRem(metrics.titleIconSize),
+                }}
               />
-              <FriendsMetricCard
-                description={t("friends.overview.totalFriends")}
-                helper={t("friends.overview.totalHelper")}
-                icon={UserPlus}
-                loading={metricsLoading}
-                tone="total"
-                value={String(friends.length)}
-              />
-              <FriendsMetricCard
-                description={t("friends.overview.pendingRequests")}
-                helper={t("friends.overview.pendingHelper")}
-                icon={Clock3}
-                loading={metricsLoading}
-                tone="pending"
-                value={String(incomingCount)}
-              />
+              <h1
+                className={cn("text-[hsl(var(--foreground))]", DISPLAY_FONT)}
+                style={{
+                  fontSize: pxToRem(metrics.titleFontSize),
+                  fontWeight: metrics.titleWeight,
+                  letterSpacing: "-0.02em",
+                  lineHeight: 1,
+                }}
+              >
+                {t("messages.friends.title")}
+              </h1>
             </div>
-            <button
-              aria-label={t("friends.actions.refresh")}
-              className="absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-[12px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.82)] text-app-muted shadow-[0_10px_22px_hsl(var(--shadow-color)/0.045)] transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-60"
-              disabled={isRefreshing}
-              onClick={refreshDashboardData}
-              type="button"
+
+            <div
+              className="flex flex-wrap items-center"
+              style={{ gap: pxToRem(metrics.chipsGap), marginTop: pxToRem(metrics.chipsMarginTop) }}
             >
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-            </button>
+              <Chip
+                dotClass="bg-[hsl(var(--success))]"
+                label={t("messages.friends.onlineChip", { count: counters.online.length })}
+                testId="friends-chip-online"
+                toneClass="bg-[hsl(var(--success)/0.14)] text-[var(--success-readable)]"
+              />
+              <Chip
+                dotClass="bg-[hsl(var(--text-muted))]"
+                label={t("messages.friends.offlineChip", { count: counters.offline.length })}
+                testId="friends-chip-offline"
+                toneClass="bg-[hsl(var(--surface-soft))] text-[hsl(var(--text-secondary))]"
+              />
+              {/*
+                Üçüncü çip tıklanabilir (SPEC §10): Bekleyen sekmesine götürür.
+                İlk ikisi metin ve `button` değil — tıklanamayan bir şeyi buton
+                yapmak, klavye turunda hiçbir şey yapmayan iki durak demek.
+              */}
+              <button
+                className="shrink-0 bg-[hsl(var(--danger)/0.13)] text-[var(--danger-readable)] transition hover:brightness-110 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+                data-testid="friends-chip-pending"
+                onClick={() => setActiveTab("pending")}
+                style={{
+                  borderRadius: pxToRem(metrics.chipRadius),
+                  fontSize: pxToRem(metrics.chipFontSize),
+                  fontWeight: 600,
+                  padding: `${pxToRem(metrics.chipPaddingY)} ${pxToRem(metrics.chipPaddingX)}`,
+                }}
+                type="button"
+              >
+                {t("messages.friends.pendingChip", { count: pending.incoming.length })}
+              </button>
+            </div>
           </div>
 
-          <div className="app-panel mt-2.5 rounded-[18px] border px-2.5 py-2.5 shadow-[0_10px_26px_hsl(var(--shadow-color)/0.035)]">
-            <div className="flex min-w-0 flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
-              <div
-                className="flex min-w-0 flex-wrap gap-2 pb-1 sm:flex-nowrap sm:overflow-x-auto"
-                role="tablist"
-              >
-                <FriendsTabButton
-                  active={activeTab === "online"}
-                  icon={Users}
-                  label={t("friends.tabs.online")}
-                  onClick={() => setActiveTab("online")}
-                  testId="friends-tab-online"
-                />
-                <FriendsTabButton
-                  active={activeTab === "all"}
-                  icon={Users}
-                  label={t("friends.tabs.all")}
-                  onClick={() => setActiveTab("all")}
-                  testId="friends-tab-all"
-                />
-                <FriendsTabButton
-                  active={activeTab === "pending"}
-                  badge={incomingCount}
-                  icon={Clock3}
-                  label={t("friends.tabs.pending")}
-                  onClick={() => setActiveTab("pending")}
-                  testId="friends-tab-pending"
-                />
-                <FriendsTabButton
-                  active={activeTab === "add"}
-                  icon={UserPlus}
-                  label={t("friends.tabs.addFriend")}
-                  onClick={() => setActiveTab("add")}
-                  testId="friends-tab-add"
-                />
-                <FriendsTabButton
-                  active={activeTab === "blocked"}
-                  icon={Ban}
-                  label={t("friends.tabs.blocked")}
-                  onClick={() => setActiveTab("blocked")}
-                  testId="friends-tab-blocked"
-                />
-              </div>
-              <div className="flex shrink-0 items-center gap-2 text-xs font-bold text-app-muted">
-                <span className="hidden uppercase tracking-[0.18em] sm:inline">
-                  {t("friends.sort.label")}
-                </span>
-                <span className="rounded-[12px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] px-2.5 py-1.5 text-app-foreground">
-                  {t("friends.sort.newest")}
-                </span>
-              </div>
-            </div>
-          </div>
-          <FriendsFeedbackNotice feedback={feedback} />
+          <FriendsTabs
+            active={activeTab}
+            onChange={setActiveTab}
+            pendingCount={pending.incoming.length}
+          />
         </div>
 
-        <div className="min-h-0 flex-1 px-2.5 pb-2.5 pt-0 sm:px-3 sm:pb-3 md:px-4 md:pb-4">
-          <div className="app-panel flex h-full min-h-[22rem] flex-col overflow-hidden rounded-[18px] border shadow-[0_16px_44px_hsl(var(--shadow-color)/0.04)]">
-            <div className="min-h-0 flex-1 overflow-y-auto p-2.5 sm:p-3 md:p-4">
-              {activeTab === "online" ? (
-                friendsQuery.isLoading ? (
-                  <FriendsListSkeleton />
-                ) : friends.length === 0 ? (
-                  <FriendsEmptyState
-                    actionLabel={t("friends.tabs.addFriend")}
-                    description={t("friends.empty.noFriends")}
-                    onAction={() => setActiveTab("add")}
-                    title={t("friends.tabs.online")}
-                  />
-                ) : onlineFriends.length === 0 ? (
-                  <FriendsEmptyState
-                    actionLabel={t("friends.actions.startChat")}
-                    description={t("friends.empty.noOnline")}
-                    onAction={() => setActiveTab("all")}
-                    title={t("friends.tabs.online")}
-                  />
-                ) : (
-                  <div className="space-y-3">
-                    {onlineFriends.map((friend) => (
-                      <FriendCard
-                        currentUserId={currentUserId}
-                        friend={friend}
-                        key={friend.id}
-                        onBlock={(nextFriend) =>
-                          setConfirmState({ friend: nextFriend, type: "block" })
-                        }
-                        onMessage={(nextFriend) => openDirectMessageMutation.mutate(nextFriend.id)}
-                        onRemove={(nextFriend) =>
-                          setConfirmState({ friend: nextFriend, type: "remove" })
-                        }
-                      />
-                    ))}
-                  </div>
-                )
-              ) : null}
+        <FriendsToolbar
+          onQueryChange={setQuery}
+          onSelectSort={(nextSort) => {
+            sortMutation.mutate(nextSort);
+            setSortMenu(false);
+          }}
+          onToggleSortMenu={() => setSortMenu((current) => !current)}
+          query={query}
+          sort={sort}
+          sortMenu={sortMenu}
+        />
 
-              {activeTab === "all" ? (
-                friendsQuery.isLoading ? (
-                  <FriendsListSkeleton />
-                ) : friends.length === 0 ? (
-                  <FriendsEmptyState
-                    actionLabel={t("friends.tabs.addFriend")}
-                    description={t("friends.empty.noFriends")}
-                    onAction={() => setActiveTab("add")}
-                    title={t("friends.tabs.all")}
-                  />
-                ) : (
-                  <div className="space-y-3">
-                    {sortedFriends.map((friend) => (
-                      <FriendCard
-                        currentUserId={currentUserId}
-                        friend={friend}
-                        key={friend.id}
-                        onBlock={(nextFriend) =>
-                          setConfirmState({ friend: nextFriend, type: "block" })
-                        }
-                        onMessage={(nextFriend) => openDirectMessageMutation.mutate(nextFriend.id)}
-                        onRemove={(nextFriend) =>
-                          setConfirmState({ friend: nextFriend, type: "remove" })
-                        }
-                      />
-                    ))}
-                  </div>
-                )
-              ) : null}
-
-              {activeTab === "pending" ? (
-                pendingQuery.isLoading ? (
-                  <FriendsListSkeleton />
-                ) : (
-                  <div className="grid gap-4 sm:gap-6 xl:grid-cols-2">
-                    <section className="space-y-2 sm:space-y-3">
-                      <SectionHeading
-                        badge={incomingCount}
-                        title={t("friends.pending.incomingTitle")}
-                      />
-                      {pending.incoming.length === 0 ? (
-                        <FriendsEmptyState
-                          compact
-                          description={t("friends.empty.incoming")}
-                          title={t("friends.pending.incomingTitle")}
-                        />
-                      ) : (
-                        pending.incoming.map((request) => (
-                          <PendingRequestRow
-                            actionSlot={
-                              <>
-                                <button
-                                  aria-label={t("friends.actions.accept")}
-                                  className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--success))] text-white transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--success)/0.45)]"
-                                  data-testid={`friend-request-accept-${request.sender.username}`}
-                                  onClick={() =>
-                                    requestActionMutation.mutate({
-                                      action: "accept",
-                                      requestId: request.id,
-                                    })
-                                  }
-                                  type="button"
-                                >
-                                  <Check className="h-4 w-4" />
-                                </button>
-                                <button
-                                  aria-label={t("friends.actions.decline")}
-                                  className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--danger))] text-[hsl(var(--danger-foreground))] transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)]"
-                                  data-testid={`friend-request-decline-${request.sender.username}`}
-                                  onClick={() =>
-                                    requestActionMutation.mutate({
-                                      action: "decline",
-                                      requestId: request.id,
-                                    })
-                                  }
-                                  type="button"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </>
-                            }
-                            key={request.id}
-                            request={request}
-                            type="incoming"
-                          />
-                        ))
-                      )}
-                    </section>
-
-                    <section className="space-y-2 sm:space-y-3">
-                      <SectionHeading title={t("friends.pending.outgoingTitle")} />
-                      {pending.outgoing.length === 0 ? (
-                        <FriendsEmptyState
-                          compact
-                          description={t("friends.empty.outgoing")}
-                          title={t("friends.pending.outgoingTitle")}
-                        />
-                      ) : (
-                        pending.outgoing.map((request) => (
-                          <PendingRequestRow
-                            actionSlot={
-                              <button
-                                className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                                onClick={() => cancelRequestMutation.mutate(request.id)}
-                                type="button"
-                              >
-                                {t("friends.actions.cancel")}
-                              </button>
-                            }
-                            key={request.id}
-                            request={request}
-                            type="outgoing"
-                          />
-                        ))
-                      )}
-                    </section>
-                  </div>
-                )
-              ) : null}
-
-              {activeTab === "add" ? (
-                <div className="app-panel max-w-3xl rounded-[28px] border p-4 sm:p-6 md:rounded-[32px] md:p-8">
-                  <div className="flex items-start gap-3 sm:gap-4">
-                    <div className="app-panel-soft flex h-14 w-14 items-center justify-center rounded-[22px] border">
-                      <UserPlus className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h2 className="text-app-foreground text-xl font-semibold">
-                        {t("friends.addFriend.title")}
-                      </h2>
-                      <p className="text-app-muted mt-2 text-sm leading-6">
-                        {t("friends.addFriend.description")}
-                      </p>
-                    </div>
-                  </div>
-
-                  <label
-                    className="mt-6 block text-sm font-medium text-app-foreground"
-                    htmlFor="friend-username"
-                  >
-                    {t("friends.addFriend.inputLabel")}
-                  </label>
-
-                  <form
-                    className="mt-3 flex flex-col gap-3 sm:flex-row"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-
-                      if (canSendRequest) {
-                        sendRequestMutation.mutate(normalizedUsername);
-                      }
+        <div
+          className="min-h-0 flex-1 overflow-y-auto"
+          id={`friends-panel-${activeTab}`}
+          role="tabpanel"
+          aria-labelledby={`friends-tab-${activeTab}`}
+          style={{
+            padding: `0 ${pxToRem(metrics.listPaddingX)} ${pxToRem(metrics.listPaddingBottom)}`,
+          }}
+        >
+          {activeTab === "all" ? (
+            loading ? (
+              <div className="flex flex-col" data-testid="friends-skeleton">
+                {Array.from({ length: skeletonRows }, (_unused, index) => (
+                  <div
+                    className="flex items-center"
+                    key={index}
+                    style={{
+                      gap: pxToRem(metrics.rowGap),
+                      padding: `${pxToRem(metrics.rowPaddingY)} ${pxToRem(metrics.rowPaddingX)}`,
                     }}
                   >
-                    <Input
-                      autoComplete="off"
-                      data-testid="friend-username-input"
-                      id="friend-username"
-                      onChange={(event) => handleUsernameChange(event.target.value)}
-                      placeholder={t("friends.addFriend.placeholder")}
-                      value={username}
+                    <Skeleton
+                      className="shrink-0 rounded-full"
+                      style={{
+                        height: pxToRem(metrics.rowAvatarSize),
+                        width: pxToRem(metrics.rowAvatarSize),
+                      }}
                     />
-                    <button
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-5 text-sm font-semibold text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.45)] disabled:opacity-60"
-                      data-testid="send-friend-request-button"
-                      disabled={!canSendRequest || sendRequestMutation.isPending}
-                      type="submit"
-                    >
-                      {sendRequestMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <SendHorizontal className="h-4 w-4" />
-                      )}
-                      {t("friends.actions.sendRequest")}
-                    </button>
-                  </form>
-                </div>
-              ) : null}
-
-              {activeTab === "blocked" ? (
-                blockedQuery.isLoading ? (
-                  <FriendsListSkeleton />
-                ) : blockedUsers.length === 0 ? (
-                  <FriendsEmptyState
-                    description={t("friends.empty.blocked")}
-                    title={t("friends.tabs.blocked")}
-                  />
-                ) : (
-                  <div className="space-y-3">
-                    {blockedUsers.map((user) => {
-                      const displayName = user.displayName ?? user.username;
-
-                      return (
-                        <div
-                          className="app-panel flex flex-col gap-3 rounded-[24px] border p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:rounded-[28px] sm:p-4"
-                          key={user.id}
-                        >
-                          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-                            <Avatar
-                              alt={displayName}
-                              className="h-11 w-11 shrink-0 text-sm sm:h-12 sm:w-12"
-                              fallback={displayName}
-                              src={user.avatarUrl}
-                            />
-                            <div className="min-w-0">
-                              <p className="text-app-foreground truncate text-sm font-semibold">
-                                {displayName}
-                              </p>
-                              <p className="text-app-muted truncate text-sm">@{user.username}</p>
-                            </div>
-                          </div>
-                          <button
-                            className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-60"
-                            disabled={unblockFriendMutation.isPending}
-                            onClick={() => unblockFriendMutation.mutate(user.id)}
-                            type="button"
-                          >
-                            {t("friends.actions.unblock")}
-                          </button>
-                        </div>
-                      );
-                    })}
+                    <div className="min-w-0 flex-1">
+                      <Skeleton
+                        style={{ height: pxToRem(metrics.rowNameFontSize), width: "40%" }}
+                      />
+                      <Skeleton
+                        style={{
+                          height: pxToRem(metrics.rowStatusFontSize),
+                          marginTop: pxToRem(metrics.rowStatusMarginTop),
+                          width: "62%",
+                        }}
+                      />
+                    </div>
                   </div>
-                )
-              ) : null}
+                ))}
+              </div>
+            ) : visibleRows.length === 0 ? (
+              <EmptyLine testId="friends-empty">
+                {query.trim().length > 0
+                  ? t("messages.friends.searchEmpty")
+                  : t("messages.friends.empty")}
+              </EmptyLine>
+            ) : (
+              <>
+                {sections.online.length > 0 ? (
+                  <>
+                    <SectionHeading
+                      count={sections.online.length}
+                      countTone="success"
+                      label={t("messages.friends.section.online")}
+                    />
+                    {sections.online.map((row) => (
+                      <FriendRow
+                        friend={row}
+                        key={row.id}
+                        menuOpen={rowMenu?.friendId === row.id}
+                        onMessage={(id) => openDirectMessageMutation.mutate(id)}
+                        onOpenMenu={(id, anchor) =>
+                          setRowMenu({ friendId: id, x: anchor.x, y: anchor.y })
+                        }
+                        onVideoCall={(id) =>
+                          router.push(`${MESSAGES_FRIENDS_ROUTE}?dmCall=${id}&video=1`)
+                        }
+                        onVoiceCall={(id) => router.push(`${MESSAGES_FRIENDS_ROUTE}?dmCall=${id}`)}
+                      />
+                    ))}
+                  </>
+                ) : null}
+
+                {sections.offline.length > 0 ? (
+                  <>
+                    <SectionHeading
+                      count={sections.offline.length}
+                      label={t("messages.friends.section.offline")}
+                    />
+                    {sections.offline.map((row) => (
+                      <FriendRow
+                        friend={row}
+                        key={row.id}
+                        menuOpen={rowMenu?.friendId === row.id}
+                        onMessage={(id) => openDirectMessageMutation.mutate(id)}
+                        onOpenMenu={(id, anchor) =>
+                          setRowMenu({ friendId: id, x: anchor.x, y: anchor.y })
+                        }
+                      />
+                    ))}
+                  </>
+                ) : null}
+              </>
+            )
+          ) : null}
+
+          {activeTab === "add" ? (
+            <div style={{ paddingTop: pxToRem(metrics.sectionPaddingTop) }}>
+              <div
+                className="bg-[hsl(var(--surface-card))]"
+                data-testid="friends-add-card"
+                style={{
+                  border: `${hairline()} solid hsl(var(--border)/0.6)`,
+                  borderRadius: pxToRem(metrics.addCardRadius),
+                  padding: pxToRem(metrics.addCardPadding),
+                }}
+              >
+                <h2
+                  className={cn("text-[hsl(var(--foreground))]", DISPLAY_FONT)}
+                  style={{ fontSize: pxToRem(metrics.addCardTitleFontSize), fontWeight: 600 }}
+                >
+                  {t("messages.friends.add.title")}
+                </h2>
+                <p
+                  className="text-[hsl(var(--text-secondary))]"
+                  style={{
+                    fontSize: pxToRem(metrics.addCardBodyFontSize),
+                    lineHeight: metrics.addCardBodyLineHeight,
+                    marginTop: pxToRem(metrics.addCardBodyMarginTop),
+                  }}
+                >
+                  {t("messages.friends.add.description")}
+                </p>
+                <form
+                  className="flex"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+
+                    if (canSendRequest && !sendRequestMutation.isPending) {
+                      sendRequestMutation.mutate(normalizedUsername);
+                    }
+                  }}
+                  style={{
+                    gap: pxToRem(metrics.addCardFieldGap),
+                    marginTop: pxToRem(metrics.addCardFieldMarginTop),
+                  }}
+                >
+                  <input
+                    className="min-w-0 flex-1 bg-[hsl(var(--surface-soft)/0.7)] text-[hsl(var(--foreground))] outline-hidden placeholder:text-[hsl(var(--text-muted))] focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+                    data-testid="friends-add-input"
+                    onChange={(event) => handleUsernameChange(event.target.value)}
+                    placeholder={t("messages.friends.add.placeholder")}
+                    style={{
+                      border: `${hairline()} solid hsl(var(--border)/0.6)`,
+                      borderRadius: pxToRem(metrics.addCardInputRadius),
+                      fontSize: pxToRem(metrics.addCardInputFontSize),
+                      height: pxToRem(metrics.addCardInputHeight),
+                      padding: `0 ${pxToRem(metrics.addCardInputPaddingX)}`,
+                    }}
+                    value={username}
+                  />
+                  <button
+                    className="shrink-0 bg-[hsl(var(--primary))] text-white transition hover:brightness-110 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:cursor-not-allowed disabled:opacity-55"
+                    data-testid="friends-add-submit"
+                    disabled={!canSendRequest || sendRequestMutation.isPending}
+                    style={{
+                      borderRadius: pxToRem(metrics.addCardSubmitRadius),
+                      fontSize: pxToRem(metrics.addCardSubmitFontSize),
+                      fontWeight: 600,
+                      height: pxToRem(metrics.addCardSubmitHeight),
+                      padding: `0 ${pxToRem(metrics.addCardSubmitPaddingX)}`,
+                    }}
+                    type="submit"
+                  >
+                    {t("messages.friends.add.submit")}
+                  </button>
+                </form>
+                {feedback ? (
+                  <p
+                    className={cn(
+                      "mt-2",
+                      feedback.tone === "error"
+                        ? "text-[hsl(var(--danger))]"
+                        : "text-[hsl(var(--success))]",
+                    )}
+                    data-testid="friends-add-feedback"
+                    role="status"
+                    style={{ fontSize: pxToRem(metrics.rowStatusFontSize) }}
+                  >
+                    {feedback.message}
+                  </p>
+                ) : null}
+              </div>
+
+              <SectionHeading
+                count={visibleSuggestions.length}
+                label={t("messages.friends.suggestions.title")}
+              />
+
+              {visibleSuggestions.length === 0 ? (
+                <EmptyLine testId="friends-suggestions-empty">
+                  {normalizedQuery.length > 0
+                    ? t("messages.friends.searchEmpty")
+                    : t("messages.friends.suggestions.empty")}
+                </EmptyLine>
+              ) : (
+                visibleSuggestions.map((suggestion) => (
+                  <CompactRow
+                    action={
+                      sentSuggestionIds.has(suggestion.id) ? (
+                        <span
+                          className="text-[hsl(var(--text-muted))]"
+                          data-testid="friends-suggestion-sent"
+                          style={{ fontSize: pxToRem(metrics.compactActionFontSize) }}
+                        >
+                          {t("messages.friends.suggestions.sent")}
+                        </span>
+                      ) : (
+                        <CompactButton
+                          onClick={() => {
+                            // İyimser: satır anında "gönderildi" olur, hata
+                            // dönerse geri alınır ve nedeni gösterilir.
+                            setSentSuggestionIds((current) => new Set(current).add(suggestion.id));
+                            sendRequestMutation.mutate(suggestion.username, {
+                              onError: () =>
+                                setSentSuggestionIds((current) => {
+                                  const next = new Set(current);
+                                  next.delete(suggestion.id);
+                                  return next;
+                                }),
+                            });
+                          }}
+                          testId="friends-suggestion-add"
+                          tone="tint"
+                        >
+                          {t("messages.friends.suggestions.action")}
+                        </CompactButton>
+                      )
+                    }
+                    avatarUrl={suggestion.avatarUrl}
+                    key={suggestion.id}
+                    meta={t("messages.friends.suggestions.meta", {
+                      count: suggestion.mutualFriendCount,
+                      server: suggestion.viaServerName,
+                    })}
+                    name={suggestion.name}
+                    testId="friends-suggestion-row"
+                  />
+                ))
+              )}
             </div>
-          </div>
+          ) : null}
+
+          {activeTab === "pending" ? (
+            <div style={{ paddingTop: pxToRem(metrics.sectionPaddingTop) }}>
+              <SectionHeading
+                count={visibleIncoming.length}
+                label={t("messages.friends.pending.incoming")}
+              />
+              {visibleIncoming.length === 0 ? (
+                <EmptyLine testId="friends-pending-empty">
+                  {normalizedQuery.length > 0
+                    ? t("messages.friends.searchEmpty")
+                    : t("messages.friends.pending.empty")}
+                </EmptyLine>
+              ) : (
+                visibleIncoming.map((request) => (
+                  <CompactRow
+                    action={
+                      <>
+                        <CompactButton
+                          onClick={() =>
+                            requestActionMutation.mutate({
+                              action: "accept",
+                              requestId: request.id,
+                            })
+                          }
+                          testId="friends-request-accept"
+                          tone="primary"
+                        >
+                          {t("messages.friends.pending.accept")}
+                        </CompactButton>
+                        <CompactButton
+                          onClick={() =>
+                            requestActionMutation.mutate({
+                              action: "decline",
+                              requestId: request.id,
+                            })
+                          }
+                          testId="friends-request-decline"
+                        >
+                          {t("messages.friends.pending.ignore")}
+                        </CompactButton>
+                      </>
+                    }
+                    avatarUrl={request.sender.avatarUrl}
+                    key={request.id}
+                    meta={`@${request.sender.username}`}
+                    name={request.sender.displayName ?? request.sender.username}
+                    testId="friends-incoming-row"
+                  />
+                ))
+              )}
+
+              <SectionHeading
+                count={visibleOutgoing.length}
+                label={t("messages.friends.pending.outgoing")}
+              />
+              {visibleOutgoing.map((request) => (
+                <CompactRow
+                  action={
+                    <CompactButton
+                      onClick={() => cancelRequestMutation.mutate(request.id)}
+                      testId="friends-request-cancel"
+                      tone="danger"
+                    >
+                      {t("messages.friends.pending.cancel")}
+                    </CompactButton>
+                  }
+                  avatarUrl={request.receiver.avatarUrl}
+                  dimmed={metrics.rowOfflineAvatarOpacity}
+                  key={request.id}
+                  meta={`@${request.receiver.username}`}
+                  name={request.receiver.displayName ?? request.receiver.username}
+                  testId="friends-outgoing-row"
+                />
+              ))}
+            </div>
+          ) : null}
+
+          {activeTab === "blocked" ? (
+            <div style={{ paddingTop: pxToRem(metrics.sectionPaddingTop) }}>
+              <SectionHeading
+                count={visibleBlockedUsers.length}
+                label={t("messages.friends.blocked.title")}
+              />
+              {visibleBlockedUsers.length === 0 ? (
+                <EmptyLine testId="friends-blocked-empty">
+                  {normalizedQuery.length > 0
+                    ? t("messages.friends.searchEmpty")
+                    : t("messages.friends.blocked.empty")}
+                </EmptyLine>
+              ) : (
+                visibleBlockedUsers.map((blocked) => (
+                  <CompactRow
+                    action={
+                      <CompactButton
+                        onClick={() => unblockFriendMutation.mutate(blocked.id)}
+                        testId="friends-unblock"
+                      >
+                        {t("messages.friends.blocked.unblock")}
+                      </CompactButton>
+                    }
+                    avatarUrl={blocked.avatarUrl}
+                    dimmed={metrics.blockedAvatarOpacity}
+                    key={blocked.id}
+                    meta={`@${blocked.username}`}
+                    name={blocked.displayName ?? blocked.username}
+                    testId="friends-blocked-row"
+                  />
+                ))
+              )}
+
+              <p
+                className="text-[hsl(var(--text-muted))]"
+                data-testid="friends-blocked-notice"
+                style={{
+                  background: "hsl(var(--surface-soft)/0.6)",
+                  border: `${hairline()} solid hsl(var(--border)/0.5)`,
+                  borderRadius: pxToRem(metrics.noticeRadius),
+                  fontSize: pxToRem(metrics.noticeFontSize),
+                  lineHeight: metrics.noticeLineHeight,
+                  marginTop: pxToRem(metrics.noticeMarginTop),
+                  padding: `${pxToRem(metrics.noticePaddingY)} ${pxToRem(metrics.noticePaddingX)}`,
+                }}
+              >
+                {t("messages.friends.blocked.notice")}
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
 
-      <ConfirmDialog
-        busy={activeConfirmBusy}
-        confirmLabel={
-          confirmState?.type === "block"
-            ? t("friends.confirm.block.action")
-            : t("friends.confirm.remove.action")
+      {menuFriend && rowMenu ? (
+        <FriendRowMenu
+          friendId={menuFriend.id}
+          friendName={menuFriend.name}
+          invitableServers={invitableServers}
+          onBlock={(id) => {
+            const friend = rows.find((row) => row.id === id)?.source;
+
+            if (friend) {
+              setConfirmState({ friend, type: "block" });
+            }
+          }}
+          onClose={() => setRowMenu(null)}
+          onInviteToServer={(friendId, serverId) => {
+            const friend = rows.find((row) => row.id === friendId)?.source;
+
+            if (friend) {
+              inviteToServerMutation.mutate({ serverId, username: friend.username });
+            }
+          }}
+          onMute={() => undefined}
+          onRemove={(id) => {
+            const friend = rows.find((row) => row.id === id)?.source;
+
+            if (friend) {
+              setConfirmState({ friend, type: "remove" });
+            }
+          }}
+          onViewProfile={(id) => router.push(`${MESSAGES_FRIENDS_ROUTE}?profile=${id}`)}
+          open={true}
+          position={{ x: rowMenu.x, y: rowMenu.y }}
+        />
+      ) : null}
+
+      <GroupCreateDialog
+        friends={friends}
+        isSubmitting={createGroupMutation.isPending}
+        onClose={() =>
+          router.replace(clearMessagesActionHref(searchParams.toString()), { scroll: false })
         }
-        description={
-          confirmState?.type === "block"
-            ? t("friends.confirm.block.description")
-            : t("friends.confirm.remove.description")
-        }
+        onSubmit={(input) => createGroupMutation.mutate(input)}
+        open={groupDialogOpen}
+      />
+
+      <Modal
+        closeLabel={t("common.cancel")}
         onClose={() => setConfirmState(null)}
-        onConfirm={() => {
-          if (!confirmState) {
-            return;
-          }
-
-          if (confirmState.type === "block") {
-            blockFriendMutation.mutate(confirmState.friend.id);
-            return;
-          }
-
-          removeFriendMutation.mutate(confirmState.friend);
-        }}
-        open={Boolean(confirmState)}
-        safetyDescription={
-          confirmState?.type === "block"
-            ? t("friends.confirm.block.safety")
-            : t("friends.confirm.remove.safety")
-        }
+        open={confirmState !== null}
         title={
           confirmState?.type === "block"
-            ? t("friends.confirm.block.title", {
-                name: confirmState.friend.displayName ?? confirmState.friend.username,
-              })
-            : t("friends.confirm.remove.title", {
-                name: confirmState?.friend.displayName ?? confirmState?.friend.username ?? "",
-              })
+            ? t("messages.friends.menu.block")
+            : t("messages.friends.menu.remove")
         }
-      />
+      >
+        {confirmState ? (
+          <div className="flex flex-col gap-4">
+            <p className="text-[hsl(var(--text-secondary))]">
+              {confirmState.friend.displayName ?? confirmState.friend.username}
+            </p>
+            <div className="flex justify-end gap-2">
+              <CompactButton onClick={() => setConfirmState(null)} testId="friends-confirm-cancel">
+                {t("common.cancel")}
+              </CompactButton>
+              <CompactButton
+                onClick={() => {
+                  if (confirmState.type === "block") {
+                    blockFriendMutation.mutate(confirmState.friend.id);
+                    return;
+                  }
+
+                  removeFriendMutation.mutate(confirmState.friend);
+                }}
+                testId="friends-confirm-submit"
+                tone="danger"
+              >
+                {confirmState.type === "block"
+                  ? t("messages.friends.menu.block")
+                  : t("messages.friends.menu.remove")}
+              </CompactButton>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </>
+  );
+}
+
+function Chip({
+  dotClass,
+  label,
+  testId,
+  toneClass,
+}: {
+  dotClass: string;
+  label: string;
+  testId: string;
+  toneClass: string;
+}) {
+  return (
+    <span
+      className={cn("flex shrink-0 items-center", toneClass)}
+      data-testid={testId}
+      style={{
+        borderRadius: pxToRem(metrics.chipRadius),
+        fontSize: pxToRem(metrics.chipFontSize),
+        fontWeight: 600,
+        gap: pxToRem(metrics.chipGap),
+        padding: `${pxToRem(metrics.chipPaddingY)} ${pxToRem(metrics.chipPaddingX)}`,
+      }}
+    >
+      <span
+        aria-hidden="true"
+        className={cn("shrink-0 rounded-full", dotClass)}
+        style={{ height: pxToRem(metrics.chipDotSize), width: pxToRem(metrics.chipDotSize) }}
+      />
+      {label}
+    </span>
   );
 }

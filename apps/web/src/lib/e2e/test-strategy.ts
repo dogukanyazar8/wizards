@@ -1,9 +1,5 @@
 export type TestCadence =
-  | "pre-merge"
-  | "post-merge"
-  | "scheduled-regression"
-  | "release-gate"
-  | "production-monitoring";
+  "pre-merge" | "post-merge" | "scheduled-regression" | "release-gate" | "production-monitoring";
 
 export type TestLayer =
   | "accessibility"
@@ -72,7 +68,8 @@ export const testStrategySuites = [
     command: "pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm build",
     id: "static-unit-integration-pr-gate",
     layers: ["static", "unit", "integration", "security"],
-    purpose: "Fast developer-owned checks for type safety, lint rules, pure logic, integration guards, and build regressions.",
+    purpose:
+      "Fast developer-owned checks for type safety, lint rules, pure logic, integration guards, and build regressions.",
     riskAreas: [
       "admin-policy",
       "auth-session",
@@ -88,7 +85,8 @@ export const testStrategySuites = [
     command: "pnpm --filter @wizards/web e2e:api",
     id: "api-contract-pr-gate",
     layers: ["api-contract", "security"],
-    purpose: "Fast API boundary checks for auth, schemas, rate limits, permission boundaries, and standard error contracts.",
+    purpose:
+      "Fast API boundary checks for auth, schemas, rate limits, permission boundaries, and standard error contracts.",
     riskAreas: [
       "admin-policy",
       "attachments",
@@ -105,7 +103,8 @@ export const testStrategySuites = [
     command: "pnpm --filter @wizards/web e2e:smoke",
     id: "critical-browser-smoke-pr-gate",
     layers: ["e2e-smoke"],
-    purpose: "Small browser smoke path for login, shell, messaging, DM, server, settings, and high-value regressions.",
+    purpose:
+      "Small browser smoke path for login, shell, messaging, DM, server, settings, and high-value regressions.",
     riskAreas: ["auth-session", "dm", "messaging", "settings"],
   },
   {
@@ -114,7 +113,8 @@ export const testStrategySuites = [
     command: "pnpm --filter @wizards/web e2e:realtime",
     id: "realtime-voice-post-merge",
     layers: ["realtime", "voice-media"],
-    purpose: "More expensive multi-user, socket, presence, voice lifecycle, and fake-media flows after merge to protected branches.",
+    purpose:
+      "More expensive multi-user, socket, presence, voice lifecycle, and fake-media flows after merge to protected branches.",
     riskAreas: ["dm", "messaging", "realtime", "voice-video"],
   },
   {
@@ -123,7 +123,8 @@ export const testStrategySuites = [
     command: "pnpm --filter @wizards/web e2e:mobile",
     id: "mobile-responsive-regression",
     layers: ["mobile-responsive", "performance", "accessibility"],
-    purpose: "Viewport, drawer, composer, popup, settings, reduced-motion, locale, and overflow coverage for mobile web.",
+    purpose:
+      "Viewport, drawer, composer, popup, settings, reduced-motion, locale, and overflow coverage for mobile web.",
     riskAreas: ["accessibility", "dm", "messaging", "mobile-responsive", "settings"],
   },
   {
@@ -131,14 +132,9 @@ export const testStrategySuites = [
     cadences: ["scheduled-regression"],
     command: "pnpm --filter @wizards/web e2e",
     id: "full-browser-regression",
-    layers: [
-      "api-contract",
-      "e2e-smoke",
-      "mobile-responsive",
-      "realtime",
-      "voice-media",
-    ],
-    purpose: "Nightly end-to-end regression across browser flows that are too expensive or noisy for every PR.",
+    layers: ["api-contract", "e2e-smoke", "mobile-responsive", "realtime", "voice-media"],
+    purpose:
+      "Nightly end-to-end regression across browser flows that are too expensive or noisy for every PR.",
     riskAreas: [
       "admin-policy",
       "attachments",
@@ -159,7 +155,8 @@ export const testStrategySuites = [
     command: "pnpm --filter @wizards/desktop release:ops && pnpm --filter @wizards/desktop test",
     id: "desktop-ops-contract",
     layers: ["desktop", "security"],
-    purpose: "Desktop release, updater, capability, signing, and generated-config contract checks before UAT or production packaging.",
+    purpose:
+      "Desktop release, updater, capability, signing, and generated-config contract checks before UAT or production packaging.",
     riskAreas: ["desktop-release", "release-operations"],
   },
   {
@@ -168,7 +165,8 @@ export const testStrategySuites = [
     command: "pnpm --filter @wizards/desktop build:desktop",
     id: "desktop-release-build",
     layers: ["desktop"],
-    purpose: "Signed or release-ring desktop package verification with updater configuration supplied by the release environment.",
+    purpose:
+      "Signed or release-ring desktop package verification with updater configuration supplied by the release environment.",
     riskAreas: ["desktop-release", "release-operations"],
   },
   {
@@ -176,7 +174,8 @@ export const testStrategySuites = [
     cadences: ["scheduled-regression"],
     id: "voice-qoe-and-load-regression",
     layers: ["performance", "voice-media"],
-    purpose: "Weekly/manual media quality and load checks for jitter, reconnect, memory, CPU, socket fanout, and voice long-run stability.",
+    purpose:
+      "Weekly/manual media quality and load checks for jitter, reconnect, memory, CPU, socket fanout, and voice long-run stability.",
     riskAreas: ["performance", "realtime", "voice-video"],
   },
   {
@@ -184,7 +183,8 @@ export const testStrategySuites = [
     cadences: ["production-monitoring"],
     id: "canary-production-monitoring",
     layers: ["performance", "security"],
-    purpose: "Canary/ring monitoring for crash rate, message delivery, websocket disconnects, media QoE, latency, and rollback signals.",
+    purpose:
+      "Canary/ring monitoring for crash rate, message delivery, websocket disconnects, media QoE, latency, and rollback signals.",
     riskAreas: ["performance", "release-operations", "realtime", "voice-video"],
   },
 ] as const satisfies readonly TestStrategySuite[];

@@ -1,9 +1,5 @@
 export type DmPolicyValue = "EVERYONE" | "FRIENDS" | "MUTUAL_SERVERS" | "NOBODY";
-export type FriendRequestPolicyValue =
-  | "EVERYONE"
-  | "MUTUAL_FRIENDS"
-  | "MUTUAL_SERVERS"
-  | "NOBODY";
+export type FriendRequestPolicyValue = "EVERYONE" | "MUTUAL_FRIENDS" | "MUTUAL_SERVERS" | "NOBODY";
 
 export type CommunicationRelationship = {
   areFriends: boolean;
@@ -31,10 +27,7 @@ export function canStartDirectMessage(
 
 export function canSendFriendRequest(
   policy: FriendRequestPolicyValue,
-  relationship: Pick<
-    CommunicationRelationship,
-    "haveMutualFriends" | "haveMutualServers"
-  >,
+  relationship: Pick<CommunicationRelationship, "haveMutualFriends" | "haveMutualServers">,
 ) {
   switch (policy) {
     case "EVERYONE":

@@ -15,7 +15,11 @@ const E2EUploadSchema = z.object({
   dataUrl: z.string().trim().min(1).max(1_000_000),
   endpoint: z.enum(["messageAttachmentUploader", "profileAvatarUploader", "serverIconUploader"]),
   filename: z.string().trim().min(1).max(255),
-  size: z.number().int().min(1).max(16 * 1024 * 1024),
+  size: z
+    .number()
+    .int()
+    .min(1)
+    .max(16 * 1024 * 1024),
 });
 
 function assertDataUrlMatchesContentType(dataUrl: string, contentType: string) {

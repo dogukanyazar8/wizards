@@ -2,6 +2,7 @@ import { requireApiUserId } from "@/lib/auth/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError } from "@/lib/api";
 import { getChannelThreadMessages } from "@/lib/workspace/message-service";
+import { patchChannelThreadStateRoute } from "./route-logic";
 
 type RouteContext = {
   params: Promise<{ channelId: string; messageId: string }>;
@@ -23,4 +24,8 @@ export async function GET(request: Request, context: RouteContext) {
   } catch (error) {
     return jsonError(error);
   }
+}
+
+export async function PATCH(request: Request, context: RouteContext) {
+  return patchChannelThreadStateRoute(request, context);
 }

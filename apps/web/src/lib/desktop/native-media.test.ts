@@ -51,7 +51,10 @@ const researchCapabilities: DesktopPlatformCapabilities = {
 describe("desktop native media research contract", () => {
   it("keeps native capture behind the WebRTC fallback until the custom track spike is available", () => {
     assert.equal(isNativeMediaCaptureProductionReady(researchCapabilities), false);
-    assert.equal(getDesktopScreenShareRuntimeMode(researchCapabilities), "web_get_display_media_fallback");
+    assert.equal(
+      getDesktopScreenShareRuntimeMode(researchCapabilities),
+      "web_get_display_media_fallback",
+    );
   });
 
   it("does not claim explicit hardware encoder selection for WebRTC codec hints", () => {
@@ -67,6 +70,9 @@ describe("desktop native media research contract", () => {
     );
     assert.equal(items[0]?.fallback, "browser_get_display_media");
     assert.equal(items[1]?.permission, "loopback_capture_user_opt_in_required");
-    assert.equal(items.some((item) => /email|token|server|channel/i.test(JSON.stringify(item))), false);
+    assert.equal(
+      items.some((item) => /email|token|server|channel/i.test(JSON.stringify(item))),
+      false,
+    );
   });
 });

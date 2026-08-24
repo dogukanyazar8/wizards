@@ -52,7 +52,7 @@ export function IncomingDMCallDialog({
     >
       {isRingingIn && session ? (
         <div className="space-y-5" data-testid="dm-incoming-call">
-          <div className="app-panel-soft flex items-center gap-3 rounded-[22px] border p-4">
+          <div className="app-panel-soft flex items-center gap-3 rounded-[1.375rem] border p-4">
             <Avatar
               alt={peerName}
               className="h-12 w-12 border-none text-sm"

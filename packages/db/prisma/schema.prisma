@@ -153,6 +153,14 @@ enum InterfaceDensity {
   COMPACT
 }
 
+/// Mesajlar paketi §4. How the Arkadaşlar list is ordered. Persisted because the
+/// choice is a reading habit, not a per-visit filter.
+enum FriendsSort {
+  STATUS
+  NAME
+  RECENT
+}
+
 // Device types for sessions
 enum DeviceType {
   WEB
@@ -313,6 +321,56 @@ enum MessageNotification {
   DEFAULT
 }
 
+/// Bahsedilmeler — Dalga 0 / Ş0.2. Bir bahsetme satırının **nasıl** doğduğu.
+///
+/// `@herkes` bu listede yok, bilerek: kitlesel çağrı üye başına satır yazmaz, mesajın kendi
+/// `mentionEveryone` bayrağından türetilir (karar K2). Üye başına satır 5.000 üyeli bir
+/// sunucuda gönderim başına 5.000 yazma demekti.
+enum MentionKind {
+  /// `@kullanıcıadı`
+  SELF
+  /// `@rol` — `roleId` dolu olur.
+  ROLE
+  /// Takip edilen thread'e gelen yanıt.
+  THREAD
+}
+
+/// `MentionState.refId`in hangi tabloyu işaret ettiği.
+///
+/// Dört dalın hepsi tek bir okundu/sonra oku/kaldırıldı tablosuna yazar; aksi halde "okundu"
+/// dört ayrı yerde tutulur ve dördü ayrışır.
+enum MentionStateSource {
+  /// `MessageMention.id`
+  CHANNEL
+  /// `DMMessageMention.id`
+  DM
+  /// `Message.id` — `mentionEveryone` bayrağından türetilen bahsetme.
+  EVERYONE
+  /// `Message.id` — takip edilen thread'e gelen yanıt.
+  THREAD
+}
+
+/// Masaüstü bildirim kipi (SPEC-BAHSEDILMELER §7 segmenti).
+///
+/// `UserNotificationSettings.desktopNotifications` boolean'ının yerini alır; eski alan bir
+/// sürüm daha durur ve `OFF` ↔ `false` eşlenir.
+enum DesktopMentionMode {
+  ALL
+  MENTIONS
+  OFF
+}
+
+/// Bir thread takibinin **neden** doğduğu (karar K3).
+///
+/// Örtük üç yol otomatiktir; `EXPLICIT` kullanıcının kendi açtığı takiptir. `mutedAt` dolu bir
+/// satır örtük kurallarla yeniden açılmaz — kullanıcı bilerek kapatmıştır.
+enum ThreadFollowOrigin {
+  AUTHOR
+  REPLY
+  MENTION
+  EXPLICIT
+}
+
 // Permission override target types
 enum PermissionTargetType {
   USER
@@ -360,9 +418,14 @@ enum GroupPermissionLevel {
 }
 
 // 2c §7. How much history a member who joins now may read.
+//
+// Mesajlar paketi (karar #9) adds LAST_7D because the new group-create screen
+// offers "7 gün". LAST_24H stays: existing conversations carry it and the group
+// settings panel still offers it — the create screen simply does not draw it.
 enum GroupHistoryVisibility {
   NONE
   LAST_24H
+  LAST_7D
   LAST_30D
   ALL
 }
@@ -399,9 +462,41 @@ enum ScheduledEventEntityType {
   EXTERNAL
 }
 
+/// Etkinlikler Ş0.2 / K2 — the event's **presentation** kind, which is what the card, the
+/// week-strip dot and the create modal all draw. `ScheduledEventEntityType` stays the
+/// technical binding (stage / voice / external): six presentation kinds squeezed into three
+/// technical ones leave "is game night voice or external" unanswered, and the `Yayına katıl`
+/// CTA with nowhere to go.
+enum ScheduledEventKind {
+  VOICE
+  MEETING
+  GAME
+  LIVE
+  COMMUNITY
+  WORKSHOP
+}
+
+/// K1 — an RSVP answer. Absence of an answer is the absence of the row, not a third member.
+enum ScheduledEventRsvpStatus {
+  GOING
+  MAYBE
+}
+
 enum ServerType {
   PERSONAL
   COMMUNITY
+}
+
+/// Keşfet dizininin tek sınıflandırma ekseni (karar K1). Deliberately not derived
+/// from `Server.tags`: a tag list is owner-authored and unbounded, so a server
+/// carrying both "oyun" and "destek" would land in two categories at once and the
+/// per-category counters would stop summing to the total.
+enum ServerCategory {
+  OYUN
+  IS
+  CALISMA
+  KISISEL
+  DESTEK
 }
 
 /// Which layer wrote a badge row. DERIVED badges never persist a row — the value is
@@ -437,6 +532,14 @@ model User {
   customStatus          String?
   customStatusEmoji     String?
   customStatusExpiresAt DateTime?
+  /// Ana Sayfa 1a, Faz 3. End of a timed focus window. Null means focus is off.
+  statusExpiresAt       DateTime?
+  /// Status to return to when the focus window ends. Written from the live
+  /// `status` when focus opens, so re-opening focus never overwrites it.
+  statusRestoreTo       UserStatus?
+  /// Length the window was opened with. `statusExpiresAt` alone cannot answer
+  /// "how far through is it" after a reload, and the card draws a ring.
+  statusFocusMinutes    Int?
   theme                 String      @default("theme-dark")
   locale                String      @default("en")
   emailVerified         Boolean     @default(false)
@@ -487,6 +590,9 @@ model User {
   messages                Message[]                 @relation("MessageAuthor")
   reactions               Reaction[]
   messageMentions         MessageMention[]
+  dmMessageMentions       DMMessageMention[]
+  mentionStates           MentionState[]
+  threadFollows           ThreadFollow[]
   pinnedMessages          PinnedMessage[]
   channelReadStates       ChannelReadState[]
   userChannelSettings     UserChannelSettings[]
@@ -494,6 +600,9 @@ model User {
   dmParticipants          DMParticipant[]
   dmMessages              DMMessage[]
   dmReactions             DMReaction[]
+  dmPinnedMessages        DMPinnedMessage[]
+  polls                   Poll[]
+  pollVotes               PollVote[]
   attachments             Attachment[]
   notifications           Notification[]
   emojis                  Emoji[]
@@ -502,6 +611,7 @@ model User {
   voiceState              VoiceState?
   scheduledEvents         ScheduledEvent[]
   scheduledEventInterests ScheduledEventInterest[]
+  scheduledEventReminders ScheduledEventReminder[]
   adminMembership         AdminMembership?          @relation("AdminMembershipUser")
   adminGrants             AdminMembership[]         @relation("AdminMembershipGrantedBy")
   adminAuditLogs          AdminAuditLog[]           @relation("AdminAuditActor")
@@ -537,6 +647,9 @@ model User {
   @@index([status])
   @@index([premiumType])
   @@index([deletedAt])
+  /// The focus sweep asks one question every minute: which rows have a window
+  /// that already closed. Without this it is a full scan of every account.
+  @@index([statusExpiresAt])
 }
 
 model AdminMembership {
@@ -748,6 +861,8 @@ model UserSettings {
   dateFormat            UserDateFormat            @default(LOCALE)
   timeFormat            UserTimeFormat            @default(LOCALE)
   interfaceDensity      InterfaceDensity          @default(COMFORTABLE)
+  /// Mesajlar §4. Default matches the screen's own default control label.
+  friendsSort           FriendsSort               @default(STATUS)
   serverRailWidth       Int                       @default(136)
   channelSidebarWidth   Int                       @default(288)
   notificationLimit     Int                       @default(5)
@@ -759,14 +874,44 @@ model UserSettings {
 model UserNotificationSettings {
   id                       String    @id @default(uuid())
   userId                   String    @unique
+  /// Bahsedilmeler Ş0.2: `desktopMentionMode` bu alanın yerini aldı. Bir sürüm daha duruyor —
+  /// yazmayı bırakan sürümle kolonu düşüren sürüm aynı olursa, kaçırılmış bir okuyucudan geri
+  /// dönüş yolu kalmaz. `OFF` ↔ `false` eşlenir.
   desktopNotifications     Boolean   @default(true)
   mobileNotifications      Boolean   @default(true)
   emailNotifications       Boolean   @default(false)
   notificationSound        Boolean   @default(true)
   notificationSoundFile    String    @default("default")
+  /// SPEC-BAHSEDILMELER §7 `@herkes ve @burada` anahtarının **ters** karşılığı
+  /// (`suppress = true` ↔ anahtar kapalı). Ters mantık yalnız servis katmanında çözülür.
   suppressEveryoneMentions Boolean   @default(false)
+  /// §7 `Rol bahsetmeleri` anahtarının ters karşılığı.
   suppressRoleMentions     Boolean   @default(false)
   mutedUntil               DateTime?
+
+  /// §7 `Bana özel bahsetmeler`. Ters ikizleri olan iki alanın aksine doğrudan okunur; yeni
+  /// alanlar ters mantığı sürdürmez.
+  mentionSelf              Boolean            @default(true)
+  /// §7 `Thread yanıtları` — tasarımda **kapalı** başlar. Varsayılan açık olsaydı, thread
+  /// takibi (K3) yayına girdiği anda her kullanıcı beklemediği bir bildirim dalgası alırdı.
+  mentionThreadReplies     Boolean            @default(false)
+  /// §7 masaüstü segmenti. `MENTIONS` = `Sadece bahsetmeler`, tasarımın seçili değeri.
+  desktopMentionMode       DesktopMentionMode @default(MENTIONS)
+
+  /// §7 sessiz saatler şeridi. Sessiz saatte bahsetme **sayaca yazılır**, yalnız push ve
+  /// masaüstü bildirimi bastırılır — tasarımın kendi metni bunu söylüyor.
+  quietHoursEnabled        Boolean   @default(false)
+  /// `HH:mm`, 24 saat. `from > to` gece aşan aralıktır (`23:00 – 08:00`).
+  quietHoursFrom           String?   @db.VarChar(5)
+  quietHoursTo             String?   @db.VarChar(5)
+  /// Boşsa `UserAccountPreferences.timeZone`, o da boşsa `Europe/Istanbul`. Saat aralığı
+  /// izleyicinin saatinde anlamlıdır; UTC'de değerlendirilirse yaz saatinde bir saat kayar.
+  quietHoursTimeZone       String?
+
+  /// Etkinlikler K7 — the bell in the events header. While `false` the header subtitle reads
+  /// "takvim bağlı değil" and reminder jobs are **never** queued; a preference that is stored
+  /// but not honoured would make that sentence a lie.
+  eventNotifications       Boolean   @default(true)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -1065,6 +1210,16 @@ model Server {
   /// (lowercase slug, 1..24 chars, max 5) is enforced in `@wizards/types`;
   /// the column is a plain array.
   tags                        String[]
+  /// Keşfet dizininin tek sınıflandırma ekseni. `null` = sahibi henüz seçmedi:
+  /// the server still shows under "Tümü", never matches a category filter, and
+  /// is left out of the per-category counters.
+  category                    ServerCategory?
+  /// The featured block's "Türkçe · İngilizce" pill. Distinct from
+  /// `preferredLocale`, which is a single value and drives notification and
+  /// formatting language; this column lists the languages actually spoken in the
+  /// server. BCP-47 short codes, at most 4 entries — shape enforced in
+  /// `@wizards/types`, the column is a plain array like `tags`.
+  languages                   String[]
   messageCharacterLimit       Int                   @default(2000)
   deletedMessageNoticeMinutes Int                   @default(60)
   authorizationRevision       BigInt                @default(0)
@@ -1101,6 +1256,12 @@ model Server {
   /// (20260808130000_drop_server_type_discoverable_index) once a repo-wide
   /// grep confirmed no query anywhere filters on `Server.type`.
   @@index([discoverable, isPublic, memberCount])
+  /// Keşfet's category-filtered directory query: `WHERE category = ? AND
+  /// discoverable AND isPublic ORDER BY memberCount DESC`. The index above does
+  /// not carry `category`, so with a category selected Postgres would walk the
+  /// whole discoverable set and drop rows one at a time. The column order keeps
+  /// `memberCount` last so the ordering is read straight off the index.
+  @@index([category, discoverable, isPublic, memberCount])
   /// The discovery search matches a tag with an array-containment test
   /// (`tags @> ARRAY[...]`), which a B-tree cannot serve at all. GIN is the
   /// only index type Postgres offers for that operator on `text[]`.
@@ -1156,8 +1317,9 @@ model Role {
   isDefault    Boolean  @default(false)
   createdAt    DateTime @default(now())
 
-  server      Server       @relation(fields: [serverId], references: [id], onDelete: Cascade)
-  memberRoles MemberRole[] @relation("RoleToMember")
+  server      Server           @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  memberRoles MemberRole[]     @relation("RoleToMember")
+  mentions    MessageMention[]
 
   @@index([serverId])
 }
@@ -1264,11 +1426,33 @@ model Channel {
   webhooks            Webhook[]                   @relation("ChannelWebhooks")
   scheduledEvents     ScheduledEvent[]
   threadMessages      Message[]                   @relation("MessageThread")
+  discoverActivity    DiscoverChannelActivity[]
 
   @@index([serverId])
   @@index([serverId, type])
   @@index([type])
   @@index([name])
+}
+
+/// Keşfet's "POPÜLER KANALLAR" lane reports the last 24 hours of activity
+/// (karar K2). A live `COUNT(*)` would scan `Message` on every page load of a
+/// browsing surface, so an hourly job fills one row per channel per hour and the
+/// lane reads only from here. `windowStart` is the top of the hour in UTC.
+///
+/// The table starts empty and is not backfilled: until the first hourly run the
+/// lane shows its empty state, which is a true statement about a rollup that has
+/// not run yet — not an error.
+model DiscoverChannelActivity {
+  channelId    String
+  windowStart  DateTime
+  messageCount Int      @default(0)
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@id([channelId, windowStart])
+  /// The lane sums the trailing 24 windows and orders by volume; leading with
+  /// `windowStart` lets Postgres cut the range before it looks at any count.
+  @@index([windowStart, messageCount])
 }
 
 model ChannelPermissionOverride {
@@ -1303,6 +1487,10 @@ model Message {
   editedAt             DateTime?
   deletedAt            DateTime?
   deletedById          String?
+  /// Null while replies are accepted. Set only on a root message by the thread lifecycle service.
+  threadClosedAt       DateTime?
+  /// Actor audit metadata. Deliberately not an FK: deleting an account must not reopen a thread.
+  threadClosedById     String?
   placeholderRemovedAt DateTime?
   placeholderExpiresAt DateTime?
   tts                  Boolean     @default(false)
@@ -1321,9 +1509,13 @@ model Message {
   threadReplies Message[]        @relation("MessageThreadParent")
   thread        Channel?         @relation("MessageThread", fields: [threadId], references: [id], onDelete: Cascade)
   mentions      MessageMention[]
+  threadFollows ThreadFollow[]   @relation("ThreadFollowParent")
   reactions     Reaction[]
   attachments   Attachment[]     @relation("MessageAttachment")
   pinned        PinnedMessage[]
+  /// karar #1. Channel polls are not built in this package; the relation exists
+  /// so adding them is a route handler rather than a migration.
+  poll          Poll?
 
   content_search Unsupported("tsvector")? @map("content_search")
 
@@ -1393,15 +1585,124 @@ model MobileMediaUpload {
 }
 
 model MessageMention {
-  id        String @id @default(uuid())
+  id        String   @id @default(uuid())
   messageId String
   userId    String
+  /// Ana Sayfa 1a, Faz 3. Denormalized from the message so "my mentions" can be
+  /// answered from one index instead of joining every mention this user ever
+  /// received and sorting the result. Measured on 2M messages / 400k mentions:
+  /// 213 buffers vs 21 454, 0.15 ms vs 22.6 ms.
+  createdAt DateTime @default(now())
+  /// Bahsedilmeler Ş0.2. Satırın hangi yoldan doğduğu — akış tür pilini ve `Türe göre`
+  /// daraltmasını bu kolon sürer. Mevcut satırların hepsi kullanıcı adı eşleşmesinden geldiği
+  /// için varsayılan `SELF` geçmişi doğru anlatır ve geri doldurma gerektirmez.
+  kind      MentionKind @default(SELF)
+  /// `kind = ROLE` olduğunda bahsedilen rol. Rol silinirse satır kalır ve bahsetme "rol"
+  /// olmayı sürdürür; bahsetme olan bir şey, adı taşıyan kayıt gittiğinde olmamış olmaz.
+  roleId    String?
 
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role    Role?   @relation(fields: [roleId], references: [id], onDelete: SetNull)
 
   @@unique([messageId, userId])
   @@index([userId])
+  @@index([userId, createdAt])
+  /// `Türe göre` daraltması tür + zaman sorar; iki kolonlu indeks olmadan bu sorgu
+  /// `userId, createdAt` indeksini tarayıp türü sonradan eler.
+  @@index([userId, kind, createdAt])
+  @@index([roleId])
+}
+
+/// Ana Sayfa 1a, Faz 6. The DM twin of `MessageMention`.
+///
+/// Before this table a direct-message mention existed only as an increment on
+/// `DMParticipant.mentionCount`: a number, with no row behind it. "Bahsedilmeler"
+/// lists individual mentions, so the counter could answer "how many" but never
+/// "which ones" — the `Mesajlar` filter would have been permanently empty.
+///
+/// `createdAt` is denormalized from the message for the same measured reason
+/// the channel side carries it: the screen's keyset page must be O(page), not
+/// O(every mention this user ever received).
+model DMMessageMention {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  createdAt DateTime @default(now())
+  /// Bahsedilmeler Ş0.2. DM'de rol ve `@herkes` yoktur; kolon yine de kanal ikizi ile aynı
+  /// şekli taşısın diye duruyor — akış iki tabloyu tek `UNION` ile okur ve dalların kolon
+  /// listesi ayrışırsa sorgu her eklemede yeniden yazılır.
+  kind      MentionKind @default(SELF)
+
+  message DMMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId, createdAt])
+}
+
+/// Bahsedilmeler Ş0.2 — bir bahsetmenin **okunma ve triyaj** durumu (karar K4/K5).
+///
+/// Neden ayrı tablo: ekranın dört dalı dört farklı satıra dayanıyor (`MessageMention`,
+/// `DMMessageMention`, `Message.mentionEveryone`, thread yanıtı). Okundu bilgisini her dalın
+/// kendi tablosunda tutmak dört ayrı "okundu" demekti; `@herkes` dalının ise yazacağı bir
+/// satırı yok. Tek tablo, dört kaynak, tek doğruluk.
+///
+/// Satır **tembel** doğar: hiç dokunulmamış bir bahsetmenin burada kaydı yoktur ve okunma
+/// durumu `Notification` satırından okunur (bkz. `mentions-service`: bildirim satırı olmayan
+/// bahsetme okunmuş sayılır, çünkü hiçbir zaman bekleyen olmamıştır).
+model MentionState {
+  id          String             @id @default(uuid())
+  userId      String
+  source      MentionStateSource
+  refId       String
+  /// Okundu anı. `null` = okunmamış. `Okunmadı işaretle` bu alanı `null`'a döndürür.
+  readAt      DateTime?
+  /// "Sonra oku" (K5): kart okunmamış kalır ve akışın en üstünde sabitlenir. Süre sınırı yok.
+  readLaterAt DateTime?
+  /// "Listeden kaldır": kart akıştan düşer. Mesaj silinmez — bu bir görünürlük kararıdır.
+  dismissedAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, source, refId])
+  /// Sayaç sorgusu okunmamışları sayar.
+  @@index([userId, readAt])
+  /// "Sonra oku" grubu akışın başında ayrı sorgulanır.
+  @@index([userId, readLaterAt])
+}
+
+/// Bahsedilmeler Ş0.2 — thread takibi (karar K3).
+///
+/// Bugüne kadar thread yanıtı yalnız **üst mesajın yazarına** bildirim üretiyordu; "takip
+/// ettiğin thread'ler" diye bir kavram yoktu. Takip örtük olarak doğar (thread'i açan, içine
+/// yanıt yazan, içinde bahsedilen) ve açıkça kapatılabilir.
+///
+/// Kapatma satırı **silmez**, `mutedAt` yazar: silinseydi bir sonraki örtük tetikleyici
+/// (ör. kullanıcının thread'e ikinci yanıtı) takibi sessizce geri açardı.
+model ThreadFollow {
+  id              String             @id @default(uuid())
+  userId          String
+  /// Thread'in anahtarı `Message.threadParentId`dir; `Message.threadId` ayrı bir kanal
+  /// ilişkisidir ve bildirim yolu üst mesaj kimliğiyle çalışır.
+  parentMessageId String
+  /// Görünürlük süzgeci için denormalize: takipçi kümesi kanal iznine göre elenir ve bu
+  /// eleme, üst mesajı ayrıca okumadan yapılabilmeli.
+  channelId       String
+  origin          ThreadFollowOrigin
+  mutedAt         DateTime?
+  createdAt       DateTime           @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent Message @relation("ThreadFollowParent", fields: [parentMessageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, parentMessageId])
+  /// Fan-out: "bu thread'i kim takip ediyor?"
+  @@index([parentMessageId])
+  /// Akış: "bu kullanıcının takip ettiği thread'ler".
+  @@index([userId, createdAt])
 }
 
 model Reaction {
@@ -1495,8 +1796,12 @@ model DMConversation {
   ownerId       String?
   /// 2c §5. Free text the members read in the group info sheet.
   description   String?          @db.VarChar(120)
-  /// 2c §2. One of the five swatches; null keeps the derived colour.
-  avatarColor   String?          @db.VarChar(7)
+  /// 2c §2, Mesajlar karar #4. One of the six swatch **names**; null keeps the
+  /// derived colour. Widened from `VarChar(7)` when the values stopped being hex:
+  /// `primary`, `success` and `warning` are exactly seven characters, so the old
+  /// width worked only by accident and the next swatch name would have been
+  /// truncated in silence.
+  avatarColor   String?          @db.VarChar(16)
   /// 2d §2. A real foreign key so a deleted message drops its own pin rather
   /// than leaving a dangling id for the application layer to sweep up.
   pinnedMessageId String?
@@ -1518,6 +1823,8 @@ model DMConversation {
 
   participants  DMParticipant[]
   messages      DMMessage[]
+  /// karar #7. Many pins; `pinnedMessage` below is the single-pin predecessor.
+  pinnedMessages DMPinnedMessage[]
   pinnedMessage DMMessage?      @relation("DMConversationPinnedMessage", fields: [pinnedMessageId], references: [id], onDelete: SetNull)
   /// Faz 2 §B1. At most one, enforced by the unique on `GroupInvite.conversationId`.
   invite        GroupInvite?
@@ -1574,6 +1881,11 @@ model DMMessage {
   content              String    @db.Text
   replyToId            String?
   threadParentId       String?
+  /// Mesajlar §6.1. A thread reply the author also published into the main
+  /// conversation. Mirrors `Message.alsoSentToChannel`: without it a DM thread
+  /// reply is invisible outside the panel, and the channel side already offers
+  /// the choice.
+  alsoSentToChannel    Boolean   @default(false)
   forwardedAt          DateTime?
   editedAt             DateTime?
   deletedAt            DateTime?
@@ -1602,13 +1914,20 @@ model DMMessage {
   threadReplies DMMessage[]    @relation("DMMessageThreadParent")
   attachments   Attachment[]   @relation("DMMessageAttachment")
   reactions     DMReaction[]
+  mentions      DMMessageMention[]
   /// Back-relation for `DMConversation.pinnedMessage`. Always zero or one row.
   pinnedInConversations DMConversation[] @relation("DMConversationPinnedMessage")
+  /// karar #7. The multi-pin successor of the row above.
+  pins                  DMPinnedMessage[]
+  /// karar #1. Zero or one; a poll message carries no text of its own.
+  poll                  Poll?
 
   content_search Unsupported("tsvector")? @map("content_search")
 
   @@index([conversationId, createdAt])
   @@index([conversationId, threadParentId, createdAt])
+  /// The transcript's whole predicate once thread replies can surface in it.
+  @@index([conversationId, alsoSentToChannel, createdAt])
   @@index([conversationId, placeholderRemovedAt])
   @@index([threadParentId, createdAt])
   @@index([userId])
@@ -1662,6 +1981,103 @@ model DMReaction {
   user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId, emoji])
+}
+
+/// Mesajlar paketi karar #7. A DM or group conversation may pin many messages,
+/// the way a channel already can (`PinnedMessage`).
+///
+/// `DMConversation.pinnedMessageId` is the single-pin predecessor. It is left in
+/// place for one release: this migration copies its rows here and the write path
+/// stops touching it, but dropping a column in the same release that stops
+/// writing it leaves no way back if a reader was missed.
+model DMPinnedMessage {
+  id             String   @id @default(uuid())
+  conversationId String
+  messageId      String
+  pinnedById     String
+  pinnedAt       DateTime @default(now())
+
+  conversation DMConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message      DMMessage      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  pinnedBy     User           @relation(fields: [pinnedById], references: [id], onDelete: Cascade)
+
+  /// Pinning the same message twice is the same pin, not a second one.
+  @@unique([conversationId, messageId])
+  /// The strip reads "newest first, capped"; this is that whole query.
+  @@index([conversationId, pinnedAt])
+  @@index([messageId])
+  @@index([pinnedById])
+}
+
+/// Mesajlar paketi karar #1. A structured poll, replacing the markdown-in-content
+/// poll whose votes were emoji reactions.
+///
+/// The old shape could not answer three questions the design asks: who may see
+/// the voters (an emoji reaction is public to everyone), what a single-choice
+/// vote means (a reaction never moves), and when voting closes.
+///
+/// `dmMessageId` and `messageId` are both nullable and exactly one is set — the
+/// migration adds a CHECK constraint, because Prisma cannot express it. Channel
+/// polls are not built in this package; the column exists so adding them later
+/// is a route handler and not a migration of every existing poll.
+model Poll {
+  id          String   @id @default(uuid())
+  dmMessageId String?  @unique
+  messageId   String?  @unique
+  createdById String
+  question    String   @db.VarChar(300)
+  multi       Boolean  @default(false)
+  /// Default on: the design ships the toggle enabled, and the safer default for
+  /// a vote is the one that reveals less.
+  anonymous   Boolean  @default(true)
+  /// Resolved instant, not the "1 saat / 24 saat / 3 gün" the composer offered.
+  /// Storing the unit too would be a second answer to "is this poll closed".
+  closesAt    DateTime
+  createdAt   DateTime @default(now())
+
+  options   PollOption[]
+  votes     PollVote[]
+  dmMessage DMMessage?  @relation(fields: [dmMessageId], references: [id], onDelete: Cascade)
+  message   Message?    @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  creator   User        @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([createdById])
+  @@index([closesAt])
+}
+
+model PollOption {
+  id       String @id @default(uuid())
+  pollId   String
+  /// 0-based; the composer's A/B/C tiles and the card's order both read it.
+  position Int
+  label    String @db.VarChar(80)
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@unique([pollId, position])
+}
+
+/// One row per (option, voter).
+///
+/// Single-choice polls are enforced above this by deleting the voter's rows for
+/// the poll and inserting the new one under a transaction-scoped advisory lock
+/// for `(pollId, userId)`. The unique on `(optionId, userId)` cannot express
+/// "at most one row per poll" without also breaking multi-choice.
+model PollVote {
+  id        String   @id @default(uuid())
+  pollId    String
+  optionId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([optionId, userId])
+  /// Reading "what did I vote" and tallying a poll are both this index.
+  @@index([pollId, userId])
 }
 
 model Notification {
@@ -1933,13 +2349,28 @@ model ScheduledEvent {
   status           ScheduledEventStatus     @default(SCHEDULED)
   entityType       ScheduledEventEntityType
   externalLocation String?
+  /// K1 — still named `interestedCount`, but its meaning is now narrower: **going**.
+  /// Renaming it would have broken three readers (Ana Sayfa feed, server public profile,
+  /// mobile events endpoints) for a word; `maybeCount` is its twin.
   interestedCount  Int                      @default(0)
   createdAt        DateTime                 @default(now())
+
+  /// K2 — presentation kind. Backfilled from `entityType` on migration.
+  kind             ScheduledEventKind       @default(MEETING)
+  /// K3 — non-members see it and Keşfet lists it. `serverId` stays required: a nullable FK
+  /// would open a second branch and a second ownership rule in every read path.
+  isPublic         Boolean                  @default(false)
+  /// K6 — RRULE text. The occurrence generator is **not** in this package; the card derives
+  /// its label from this rule through i18n. TODO(api): recurrence generator.
+  recurrenceRule   String?                  @db.VarChar(255)
+  /// K1 — the twin of `interestedCount`.
+  maybeCount       Int                      @default(0)
 
   server    Server                   @relation(fields: [serverId], references: [id], onDelete: Cascade)
   channel   Channel?                 @relation(fields: [channelId], references: [id], onDelete: Cascade)
   creator   User                     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   interests ScheduledEventInterest[]
+  reminders ScheduledEventReminder[]
 
   @@index([serverId])
   @@index([scheduledStartAt])
@@ -1947,6 +2378,8 @@ model ScheduledEvent {
   /// server at or after now, ordered by start. `[serverId]` alone would make
   /// that a filter-and-sort over every past event the server ever had.
   @@index([serverId, status, scheduledStartAt])
+  /// K3 — the public feed branch reads time-ordered without a membership filter.
+  @@index([isPublic, status, scheduledStartAt])
 }
 
 /// `interestedCount` on its own cannot be idempotent: a second "Hatırlat" tap
@@ -1958,6 +2391,32 @@ model ScheduledEventInterest {
   eventId   String
   userId    String
   createdAt DateTime @default(now())
+  /// K1 — the RSVP answer moved onto this row instead of into a second table: one table,
+  /// one unique key, no two counters to drift apart. Rows written before the migration
+  /// carried "I'm going" intent, so the default is already the truth.
+  status    ScheduledEventRsvpStatus @default(GOING)
+
+  event ScheduledEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId])
+  /// The "Katılacağım" tab and the `mine` filter both read this.
+  @@index([userId, status])
+}
+
+/// K5 — one reminder preference per viewer per event. Delivery rides `OutboxJob`
+/// (`availableAt = startsAt − minutesBefore`); this row is only the preference.
+model ScheduledEventReminder {
+  id            String   @id @default(uuid())
+  eventId       String
+  userId        String
+  /// The design offers 5 / 10 / 15 / 30 / 60; 10 is what both the RSVP strip and the detail
+  /// panel promise in their own copy.
+  minutesBefore Int      @default(10)
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   event ScheduledEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)

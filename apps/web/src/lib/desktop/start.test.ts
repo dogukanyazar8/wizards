@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import {
-  resolveDesktopStartDestination,
-  resolveDesktopStartDestinationFromSession,
-} from "./start";
+import { resolveDesktopStartDestination, resolveDesktopStartDestinationFromSession } from "./start";
 
 describe("desktop start session resolution", () => {
   it("routes authenticated desktop launches to the safe callback", () => {
@@ -32,7 +29,7 @@ describe("desktop start session resolution", () => {
       }),
       {
         authenticated: true,
-        destination: "/channels",
+        destination: "/messages",
       },
     );
   });

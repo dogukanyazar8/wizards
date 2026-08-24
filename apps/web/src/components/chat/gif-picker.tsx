@@ -164,7 +164,7 @@ export function GifPicker({ onClose, onSelect }: GifPickerProps) {
 
   return (
     <div
-      className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-[90] max-h-[min(64dvh,28rem)] rounded-[24px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.96)] p-2.5 shadow-[0_24px_62px_hsl(var(--shadow-color)/0.2)] backdrop-blur-xl md:absolute md:inset-x-auto md:bottom-full md:left-0 md:mb-3 md:max-h-none md:w-[min(22rem,calc(100vw-2rem))]"
+      className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-[90] max-h-[min(64dvh,28rem)] rounded-[1.5rem] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.96)] p-2.5 shadow-[0_24px_62px_hsl(var(--shadow-color)/0.2)] backdrop-blur-xl md:absolute md:inset-x-auto md:bottom-full md:left-0 md:mb-3 md:max-h-none md:w-[min(22rem,calc(100vw-2rem))]"
       data-testid="gif-picker"
       ref={containerRef}
     >
@@ -211,7 +211,7 @@ export function GifPicker({ onClose, onSelect }: GifPickerProps) {
             {gifs.map((gif) => (
               <button
                 aria-label={t("chat.gifs.selectGif", { title: gif.title })}
-                className="group/gif relative aspect-square overflow-hidden rounded-[18px] border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.45)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="group/gif relative aspect-square overflow-hidden rounded-[1.125rem] border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.45)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                 data-gif-id={gif.id}
                 data-testid="gif-option"
                 disabled={Boolean(selectedGifId)}
@@ -225,7 +225,7 @@ export function GifPicker({ onClose, onSelect }: GifPickerProps) {
                   loading="lazy"
                   src={gif.previewUrl}
                 />
-                <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/84 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-700 shadow-xs">
+                <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/84 px-2 py-1 text-[0.625rem] font-bold uppercase tracking-[0.12em] text-[hsl(var(--foreground))] shadow-xs">
                   <Sparkles className="h-3 w-3" />
                   GIF
                 </span>
@@ -238,7 +238,7 @@ export function GifPicker({ onClose, onSelect }: GifPickerProps) {
             ))}
           </div>
         ) : (
-          <div className="flex h-48 flex-col items-center justify-center rounded-[22px] border border-dashed border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.24)] text-center">
+          <div className="flex h-48 flex-col items-center justify-center rounded-[1.375rem] border border-dashed border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.24)] text-center">
             <Sparkles className="mb-2 h-5 w-5 text-app-soft" />
             <p className="text-sm font-semibold text-app-foreground">{t("chat.gifs.empty")}</p>
             <p className="mt-1 max-w-48 text-xs text-app-soft">{t("chat.gifs.emptyHint")}</p>

@@ -49,16 +49,29 @@ describe("group DM request schemas", () => {
     assert.throws(() => GroupDMCreateRequestSchema.parse({ userIds: ["user-2"] }));
   });
 
-  it("rejects a create request above the 32-member ceiling", async () => {
+  it("rejects a create request above the 250-member ceiling", async () => {
     const { GroupDMCreateRequestSchema } = await groupDm;
-    const userIds = Array.from({ length: 32 }, (_, index) => `user-${index + 2}`);
-    assert.throws(() => GroupDMCreateRequestSchema.parse({ userIds }));
+    const userIds = Array.from({ length: 250 }, (_, index) => `user-${index + 2}`);
+    assert.throws(() => GroupDMCreateRequestSchema.parse({ userIds, name: "Yayın Ekibi" }));
   });
 
-  it("accepts the smallest legal group and defaults name and icon to absent", async () => {
+  it("accepts the smallest legal group and defaults the icon to absent", async () => {
     const { GroupDMCreateRequestSchema } = await groupDm;
-    const parsed = GroupDMCreateRequestSchema.parse({ userIds: ["user-2", "user-3"] });
-    assert.deepEqual(parsed, { userIds: ["user-2", "user-3"] });
+    const parsed = GroupDMCreateRequestSchema.parse({
+      name: "Yayın Ekibi",
+      userIds: ["user-2", "user-3"],
+    });
+    assert.deepEqual(parsed, { name: "Yayın Ekibi", userIds: ["user-2", "user-3"] });
+  });
+
+  it("refuses a create request with no name", async () => {
+    // Mesajlar karar: "Grubu oluştur" stays disabled until the field is filled,
+    // and the server says the same thing rather than trusting the button.
+    const { GroupDMCreateRequestSchema } = await groupDm;
+    assert.throws(() => GroupDMCreateRequestSchema.parse({ userIds: ["user-2", "user-3"] }));
+    assert.throws(() =>
+      GroupDMCreateRequestSchema.parse({ name: "   ", userIds: ["user-2", "user-3"] }),
+    );
   });
 
   it("normalizes a blank group name to null on update", async () => {
@@ -91,11 +104,13 @@ describe("group DM request schemas", () => {
     ]);
   });
 
-  it("accepts a create request at the 31-member ceiling", async () => {
+  it("accepts a create request at the 249-member ceiling", async () => {
+    // The creator is implicit, so the body carries one fewer than the 250 the
+    // modal's footer promises.
     const { GroupDMCreateRequestSchema } = await groupDm;
-    const userIds = Array.from({ length: 31 }, (_, index) => `user-${index + 2}`);
-    const parsed = GroupDMCreateRequestSchema.parse({ userIds });
-    assert.equal(parsed.userIds.length, 31);
+    const userIds = Array.from({ length: 249 }, (_, index) => `user-${index + 2}`);
+    const parsed = GroupDMCreateRequestSchema.parse({ name: "Yayın Ekibi", userIds });
+    assert.equal(parsed.userIds.length, 249);
   });
 });
 
@@ -111,16 +126,16 @@ describe("group DM add-members request schema", () => {
     assert.deepEqual(parsed, { userIds: ["user-2"] });
   });
 
-  it("accepts an add-members request at the 31-member ceiling", async () => {
+  it("accepts an add-members request at the 249-member ceiling", async () => {
     const { GroupDMAddMembersRequestSchema } = await groupDm;
-    const userIds = Array.from({ length: 31 }, (_, index) => `user-${index + 2}`);
+    const userIds = Array.from({ length: 249 }, (_, index) => `user-${index + 2}`);
     const parsed = GroupDMAddMembersRequestSchema.parse({ userIds });
-    assert.equal(parsed.userIds.length, 31);
+    assert.equal(parsed.userIds.length, 249);
   });
 
-  it("rejects an add-members request above the 31-member ceiling", async () => {
+  it("rejects an add-members request above the 249-member ceiling", async () => {
     const { GroupDMAddMembersRequestSchema } = await groupDm;
-    const userIds = Array.from({ length: 32 }, (_, index) => `user-${index + 2}`);
+    const userIds = Array.from({ length: 250 }, (_, index) => `user-${index + 2}`);
     assert.throws(() => GroupDMAddMembersRequestSchema.parse({ userIds }));
   });
 });
@@ -202,8 +217,8 @@ describe("group DM schema export coverage", () => {
       },
       GroupDMCreateRequestSchema: {
         schema: GroupDMCreateRequestSchema,
-        valid: { userIds: ["user-2", "user-3"] },
-        invalid: { userIds: ["user-2"] },
+        valid: { name: "Takım", userIds: ["user-2", "user-3"] },
+        invalid: { name: "Takım", userIds: ["user-2"] },
       },
       GroupDMUpdateRequestSchema: {
         schema: GroupDMUpdateRequestSchema,

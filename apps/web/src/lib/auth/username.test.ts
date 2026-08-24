@@ -23,10 +23,7 @@ describe("normalizeUsername", () => {
 
 describe("buildUsernameCandidate", () => {
   it("preserves suffixes while keeping usernames within the max length", () => {
-    const candidate = buildUsernameCandidate(
-      "averyveryveryveryverylongusername",
-      "_abc123",
-    );
+    const candidate = buildUsernameCandidate("averyveryveryveryverylongusername", "_abc123");
 
     assert.equal(candidate.length, 32);
     assert.ok(candidate.endsWith("_abc123"));

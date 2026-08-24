@@ -3,12 +3,7 @@ export type AppStartupStatus = "session" | "workspace" | "realtime" | "ready";
 export type ShellReadinessPhase = "showing" | "hiding" | "dismissed";
 
 export type ShellReadinessRoute =
-  | "dm-conversation"
-  | "dm-list"
-  | "other"
-  | "server-channel"
-  | "server-root"
-  | "settings";
+  "dm-conversation" | "dm-list" | "other" | "server-channel" | "server-root" | "settings";
 
 export type ShellReadinessInput = {
   activeServerDetailLoading: boolean;

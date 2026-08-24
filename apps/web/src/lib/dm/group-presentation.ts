@@ -38,7 +38,14 @@ export function getParticipantDisplayName(participant: {
  * new call site cannot silently pick the wrong last separator.
  */
 export function getGroupConversationTitle(
-  conversation: Pick<DMConversationDTO, "name" | "participants">,
+  conversation: {
+    readonly name: string | null;
+    readonly participants: ReadonlyArray<{
+      readonly displayName: string | null;
+      readonly userId: string;
+      readonly username: string;
+    }>;
+  },
   currentUserId: string,
   fallback: string,
   locale: GroupNameLocale,

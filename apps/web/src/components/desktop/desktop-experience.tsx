@@ -6,8 +6,14 @@ import { useRouter } from "next/navigation";
 import { useShallow } from "zustand/react/shallow";
 import { useSocket } from "@/hooks/use-socket";
 import { fetchUnreadCount, notificationsQueryKeys } from "@/lib/notifications/client";
+import { shouldDeliverDesktopNotification } from "@/lib/notifications/desktop-mention-policy";
 import type { NotificationSocketPayload } from "@/lib/socket/events";
-import { fetchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
+import {
+  fetchLayoutSettings,
+  fetchMentionSettings,
+  settingsQueryKeys,
+} from "@/lib/settings/client";
+import { MENTION_SETTINGS_DEFAULTS } from "@wizards/types";
 import {
   WHISPR_DESKTOP_BEFORE_CLOSE_EVENT,
   WHISPR_DESKTOP_COMMAND_EVENT,
@@ -382,6 +388,14 @@ export function DesktopExperience() {
     queryFn: fetchUnreadCount,
     queryKey: notificationsQueryKeys.unreadCount,
     staleTime: 30_000,
+  });
+
+  const mentionSettingsQuery = useQuery({
+    enabled: isDesktop,
+    queryFn: fetchMentionSettings,
+    queryKey: settingsQueryKeys.mentions,
+    refetchOnWindowFocus: false,
+    staleTime: Infinity,
   });
 
   useEffect(() => {
@@ -1295,7 +1309,11 @@ export function DesktopExperience() {
       if (
         effectiveDesktopStreamerModeEnabled ||
         !desktopNotificationsEnabled ||
-        document.visibilityState === "visible"
+        document.visibilityState === "visible" ||
+        !shouldDeliverDesktopNotification(
+          payload.type,
+          mentionSettingsQuery.data ?? MENTION_SETTINGS_DEFAULTS,
+        )
       ) {
         return;
       }
@@ -1336,6 +1354,7 @@ export function DesktopExperience() {
     desktopNotificationsEnabled,
     effectiveDesktopStreamerModeEnabled,
     isDesktop,
+    mentionSettingsQuery.data,
     queryClient,
     router,
     socket,

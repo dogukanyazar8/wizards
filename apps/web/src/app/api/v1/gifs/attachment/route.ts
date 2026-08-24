@@ -1,10 +1,7 @@
 import { requireApiUserId } from "@/lib/auth/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
-import {
-  CreateGiphyAttachmentSchema,
-  createGiphyAttachment,
-} from "@/lib/giphy/service";
+import { CreateGiphyAttachmentSchema, createGiphyAttachment } from "@/lib/giphy/service";
 
 export async function POST(request: Request) {
   try {

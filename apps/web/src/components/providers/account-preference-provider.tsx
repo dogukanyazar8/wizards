@@ -1,6 +1,10 @@
 "use client";
 
-import { createContext, useContext, useMemo, type PropsWithChildren } from "react";
+// The default import is what the node test runner's classic JSX transform resolves this
+// provider's elements against; Next's compiler does not need it (`ui/avatar.tsx` carries the
+// same note). Without it a component tree rendered under this provider cannot be
+// server-rendered in a unit test.
+import React, { createContext, useContext, useMemo, type PropsWithChildren } from "react";
 import {
   ACCOUNT_PREFERENCES_DEFAULT,
   formatAccountDate,

@@ -67,11 +67,7 @@ export function verifyLoginProof(
     return false;
   }
 
-  const expectedSignature = signLoginProof(
-    email,
-    issuedAt,
-    getLoginProofSecret(options.env),
-  );
+  const expectedSignature = signLoginProof(email, issuedAt, getLoginProofSecret(options.env));
 
   return isSafeEqual(signature, expectedSignature);
 }

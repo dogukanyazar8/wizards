@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { DiscoverLanguagesSchema, DiscoverServerCategoryKeySchema } from "./discover-screen";
 import { CHANNEL_BITRATE_OPTIONS, CHANNEL_VIDEO_QUALITY_MODES } from "./voice-media-policy";
 
 function emptyStringToNull(value: string | null | undefined) {
@@ -100,6 +101,9 @@ export const WorkspacePermissionKeySchema = z.enum([
   "TIMEOUT_MEMBERS",
   "VIEW_AUDIT_LOG",
   "MENTION_EVERYONE",
+  // Etkinlikler K4. `MobilePermissionKeySchema` bilerek genişletilmedi: `toMobileServerRole`
+  // tanımadığı anahtarları düşürür, böylece eski mobil sürüm kırılmaz (K12).
+  "MANAGE_EVENTS",
 ]);
 
 export const WorkspaceChannelPermissionPresetSchema = z.enum([
@@ -529,6 +533,19 @@ export const ServerScheduledEventStatusSchema = z.enum([
 
 export const ServerScheduledEventEntityTypeSchema = z.enum(["STAGE", "VOICE", "EXTERNAL"]);
 
+/** K2 — sunum türü. `entityType` teknik bağlamayı tutmaya devam eder. */
+export const ServerScheduledEventKindSchema = z.enum([
+  "VOICE",
+  "MEETING",
+  "GAME",
+  "LIVE",
+  "COMMUNITY",
+  "WORKSHOP",
+]);
+
+/** K1 — RSVP yanıtı. Yanıt yokluğu ayrı bir üye değil, satırın yokluğudur. */
+export const ServerScheduledEventRsvpStatusSchema = z.enum(["GOING", "MAYBE"]);
+
 export const ServerScheduledEventSchema = z.object({
   /** Live headcount of the bound voice channel; 0 for an external event. */
   attendeeCount: z.number().int().nonnegative(),
@@ -538,12 +555,27 @@ export const ServerScheduledEventSchema = z.object({
   entityType: ServerScheduledEventEntityTypeSchema,
   externalLocation: z.string().nullable(),
   id: z.string(),
+  /**
+   * K1 — adı korundu, **anlamı daraldı**: artık yalnız `GOING` yanıtlarını sayar.
+   * `maybeCount` ikizi. Yeniden adlandırmak üç okuyucuyu birden kırardı
+   * (`apps/web/src/lib/events/count-contract.test.ts`).
+   */
   interestedCount: z.number().int().nonnegative(),
+  /**
+   * K12 — mobil sözleşmesi kırılmaz: aşağıdaki dört alan **opsiyonel** gelir. Eski mobil
+   * sürüm onları görmezden gelir, yeni sürüm türü ve `maybe` sayısını öğrenir.
+   */
+  isPublic: z.boolean().optional(),
+  kind: ServerScheduledEventKindSchema.optional(),
+  maybeCount: z.number().int().nonnegative().optional(),
   name: z.string(),
+  /** `null` = izleyici yanıt vermemiş. `viewerInterested` bunun boolean izdüşümüdür. */
+  rsvpStatus: ServerScheduledEventRsvpStatusSchema.nullable().optional(),
   scheduledEndAt: z.string().datetime().nullable(),
   scheduledStartAt: z.string().datetime(),
   serverId: z.string(),
   status: ServerScheduledEventStatusSchema,
+  /** K12 — türetilmiş alan olarak **kalır**: `rsvpStatus != null`. */
   viewerInterested: z.boolean(),
 });
 
@@ -662,10 +694,18 @@ export const ServerPublicProfileChannelSchema = z.object({
   type: z.enum(["text", "voice"]),
 });
 
+/**
+ * Keşfet paneli §5.4 renders these as a row list with a role pill and a presence dot, so
+ * both facts belong to the read model rather than to a second request per friend. `role`
+ * folds the owner into `"admin"`: the design's pill has two states ("Yönetici" / "Üye"), and
+ * a third value would have no pill to render into.
+ */
 export const ServerPublicProfileFriendSchema = z.object({
   avatarUrl: z.string().nullable(),
   displayName: z.string(),
   id: z.string(),
+  presence: z.enum(["online", "idle", "offline"]),
+  role: z.enum(["admin", "member"]),
 });
 
 /**
@@ -695,6 +735,8 @@ export const ServerPublicProfileSchema = z.object({
   bannerUrl: z.string().nullable(),
   /** 6c gates "Sunucu ayarları" and the 6d/6e admin actions on this. */
   canManageServer: z.boolean(),
+  /** Keşfet paneli §5 category pill. `null` = the owner has not picked one (K1). */
+  category: DiscoverServerCategoryKeySchema.nullable(),
   channelCount: z.number().int().nonnegative(),
   channels: z.array(ServerPublicProfileChannelSchema),
   hasMoreChannels: z.boolean().optional(),
@@ -708,6 +750,8 @@ export const ServerPublicProfileSchema = z.object({
   joined: z.boolean(),
   /** `null` for a non-member -- 6e hides the row rather than showing a dash. */
   joinedAt: z.string().datetime().nullable(),
+  /** Keşfet's featured block reads this for its "Türkçe · İngilizce" pill (K3). */
+  languages: DiscoverLanguagesSchema,
   memberCount: z.number().int().nonnegative(),
   muted: z.boolean(),
   mutualFriendCount: z.number().int().nonnegative(),
@@ -723,6 +767,12 @@ export const ServerPublicProfileSchema = z.object({
   upcomingEvent: ServerScheduledEventSchema.nullable(),
   verified: z.boolean(),
   voiceActiveCount: z.number().int().nonnegative(),
+  /**
+   * Keşfet paneli §5.2 "{n} Sesli oda" box. Not to be confused with
+   * `voiceActiveCount`, which is how many people are talking right now; this is how many
+   * voice rooms exist.
+   */
+  voiceRoomCount: z.number().int().nonnegative(),
   /** `null` when the count could not be produced; 6d then renders "—". */
   weeklyMessageCount: z.number().int().nonnegative().nullable(),
 });

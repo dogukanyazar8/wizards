@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +21,8 @@ type ContextMenuItemProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 
 export function ContextMenu({ children, onClose, open, position }: ContextMenuProps) {
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 767px)");
@@ -54,6 +56,49 @@ export function ContextMenu({ children, onClose, open, position }: ContextMenuPr
       window.removeEventListener("keydown", handleEscape);
     };
   }, [onClose, open]);
+
+  /**
+   * Klavye sözleşmesi (`00-ortak-baglam` §5.3): açılışta ilk öğeye focus, kapanışta
+   * tetikleyiciye dönüş. Menü portalda çiziliyor, yani focus taşınmazsa klavye kullanıcısı
+   * menüyü hiç göremez; geri dönüş olmazsa da `Esc` sonrası focus belgenin başına düşer.
+   */
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    triggerRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const firstItem = menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]');
+    firstItem?.focus();
+
+    return () => {
+      triggerRef.current?.focus();
+      triggerRef.current = null;
+    };
+  }, [open]);
+
+  /** Menü açıkken Tab menünün içinde döner; arka plana kaçan bir odak kalmaz. */
+  const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Tab") {
+      return;
+    }
+
+    const items = Array.from(
+      menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? [],
+    );
+
+    if (items.length === 0) {
+      return;
+    }
+
+    const current = items.indexOf(document.activeElement as HTMLElement);
+    const next = (current + (event.shiftKey ? -1 : 1) + items.length) % items.length;
+
+    event.preventDefault();
+    items[next]?.focus();
+  };
 
   if (typeof document === "undefined") {
     return null;
@@ -91,6 +136,8 @@ export function ContextMenu({ children, onClose, open, position }: ContextMenuPr
             }
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
+            onKeyDown={handleMenuKeyDown}
+            ref={menuRef}
             role="menu"
             {...(isMobileViewport
               ? {}

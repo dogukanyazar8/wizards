@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams, useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { DMConversationDTO } from "@wizards/types";
 import {
   applyDMConversationPresenceUpdateToPageData,
@@ -27,6 +27,7 @@ import {
   type MessagePages,
 } from "@/hooks/use-messages";
 import type { DMConversationsPageResponse } from "@/lib/dm/types";
+import { selectActiveConversationId } from "@/lib/messages/routes";
 import { useSocket } from "./use-socket";
 
 const EMPTY_CONVERSATIONS: DMConversationDTO[] = [];
@@ -41,9 +42,8 @@ export function useDMConversations(currentUserId: string, options: UseDMConversa
   const router = useRouter();
   const activeReadRequestsRef = useRef<Set<string>>(new Set());
   const autoMarkActiveAsRead = options.autoMarkActiveAsRead ?? false;
-  const params = useParams<{ channelId?: string; serverId?: string }>();
-  const activeConversationId =
-    params.serverId === "@me" && typeof params.channelId === "string" ? params.channelId : null;
+  const pathname = usePathname();
+  const activeConversationId = selectActiveConversationId(pathname);
 
   const query = useInfiniteQuery<
     DMConversationsPageResponse,
@@ -147,7 +147,7 @@ export function useDMConversations(currentUserId: string, options: UseDMConversa
       queryClient.removeQueries({ queryKey: dmQueryKeys.conversation(event.conversationId) });
 
       if (event.conversationId === activeConversationId) {
-        router.replace("/channels/@me");
+        router.replace("/messages");
       }
     };
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
 
-import type { DMConversationDTO } from "@wizards/types";
+import { GROUP_DM_MAX_PARTICIPANTS, type DMConversationDTO } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
 
@@ -360,7 +360,7 @@ describe("previewGroupInvite", () => {
       {},
       {
         conversation: conversationRow({
-          participants: Array.from({ length: 32 }, (_unused, index) =>
+          participants: Array.from({ length: GROUP_DM_MAX_PARTICIPANTS }, (_unused, index) =>
             participant(`member-${index}`),
           ),
         }),
@@ -465,7 +465,7 @@ describe("joinGroupViaInvite", () => {
       {},
       {
         conversation: conversationRow({
-          participants: Array.from({ length: 32 }, (_unused, index) =>
+          participants: Array.from({ length: GROUP_DM_MAX_PARTICIPANTS }, (_unused, index) =>
             participant(`member-${index}`),
           ),
         }),

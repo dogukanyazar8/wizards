@@ -3,6 +3,8 @@ import type {
   DMConversationDTO,
   DMMessagePayload,
   GroupCallStateDTO,
+  Mention,
+  MentionCounts,
   MessageReaction,
   PresenceVisibility,
   UploadedAttachmentInput,
@@ -102,22 +104,28 @@ export interface VoiceAudioLevelPayload {
   userId: string;
 }
 
+export type MessageSendAck =
+  { messageId: string; ok: true } | { code: string; message: string; ok: false };
+
 export interface ClientToServerEvents {
   "channel:join": (channelId: string) => void;
   "channel:leave": (channelId: string) => void;
-  "message:send": (data: {
-    attachments?: UploadedAttachmentInput[];
-    channelId: string;
-    /**
-     * The id the sender's optimistic bubble is rendered under. Stored nowhere —
-     * the server echoes it back on the author's own copy of the message so the
-     * echo lands in that bubble instead of beside it.
-     */
-    clientNonce?: string;
-    content: string;
-    replyToId?: string;
-    threadParentId?: string;
-  }) => void;
+  "message:send": (
+    data: {
+      attachments?: UploadedAttachmentInput[];
+      channelId: string;
+      /**
+       * The id the sender's optimistic bubble is rendered under. Stored nowhere —
+       * the server echoes it back on the author's own copy of the message so the
+       * echo lands in that bubble instead of beside it.
+       */
+      clientNonce?: string;
+      content: string;
+      replyToId?: string;
+      threadParentId?: string;
+    },
+    acknowledge?: (result: MessageSendAck) => void,
+  ) => void;
   "message:edit": (data: { messageId: string; content: string }) => void;
   "message:delete": (messageId: string) => void;
   "message:react": (data: { messageId: string; emoji: string }) => void;
@@ -126,15 +134,18 @@ export interface ClientToServerEvents {
   "typing:stop": (channelId: string) => void;
   "dm:join": (conversationId: string) => void;
   "dm:leave": (conversationId: string) => void;
-  "dm:message:send": (data: {
-    attachments?: UploadedAttachmentInput[];
-    /** See `message:send`: the author's own bubble id, echoed back to them. */
-    clientNonce?: string;
-    conversationId: string;
-    content: string;
-    replyToId?: string;
-    threadParentId?: string;
-  }) => void;
+  "dm:message:send": (
+    data: {
+      attachments?: UploadedAttachmentInput[];
+      /** See `message:send`: the author's own bubble id, echoed back to them. */
+      clientNonce?: string;
+      conversationId: string;
+      content: string;
+      replyToId?: string;
+      threadParentId?: string;
+    },
+    acknowledge?: (result: MessageSendAck) => void,
+  ) => void;
   "dm:message:edit": (data: { messageId: string; content: string }) => void;
   "dm:message:delete": (data: { messageId: string }) => void;
   "dm:message:react": (data: { messageId: string; emoji: string }) => void;
@@ -182,6 +193,14 @@ export interface ClientToServerEvents {
     isScreenSharing: boolean;
     serverId: string;
   }) => void;
+  /**
+   * Etkinlikler Ş4. Herkese açık etkinlik odasına abonelik `/events` rotasında açılır ve
+   * rotadan çıkınca kapanır — her kullanıcıyı kalıcı olarak herkese açık etkinlik trafiğine
+   * bağlamak gereksiz. Sunucu odaları (`server:<id>`) zaten üyelikten geliyor, ikinci bir
+   * abonelik istemiyor.
+   */
+  "events:public:watch": () => void;
+  "events:public:unwatch": () => void;
 }
 
 export interface ServerToClientEvents {
@@ -270,6 +289,13 @@ export interface ServerToClientEvents {
   "dm:conversation:members_changed": (data: { conversationId: string }) => void;
   /** The viewer is no longer a participant. Drop the row, close the chat. */
   "dm:conversation:removed": (data: { conversationId: string }) => void;
+  /** Mesajlar karar #7. Opaque invalidation; recipients re-read their authorized list. */
+  "dm:conversation:pins": (data: { conversationId: string }) => void;
+  /**
+   * Mesajlar karar #1. One event for casting, moving and withdrawing a vote.
+   * Opaque invalidation only; viewer-specific poll DTO comes from authorized GET.
+   */
+  "poll:updated": (data: { conversationId: string; pollId: string }) => void;
   "dm:conversation:read": (data: {
     conversationId: string;
     lastReadAt: string | null;
@@ -318,6 +344,51 @@ export interface ServerToClientEvents {
   "user:profile:updated": (data: UserProfileUpdatedPayload) => void;
   "typing:update": (data: { channelId: string; users: string[] }) => void;
   "notification:new": (notification: NotificationSocketPayload) => void;
+  /**
+   * Bahsedilmeler Ş3. Üç olay, hepsi `user:<id>` odasına — bir bahsetme kartı yalnız
+   * bahsedilenin ekranında var.
+   *
+   * `notification:new` **kaldırılmadı**: zil menüsü ile bahsetme ekranı ayrı yüzeyler ve bir
+   * bahsetme bildirimi her iki olayı da taşır. Sayaçlar olayın içinde geliyor, çünkü olayı
+   * alıp sayacı ayrıca sorgulamak, iki istek arasındaki pencerede yanlış sayı göstermektir.
+   */
+  "mention:new": (payload: { counts: MentionCounts; mention: Mention }) => void;
+  "mention:state": (payload: {
+    counts: MentionCounts;
+    dismissed: boolean;
+    /** Bileşik kimlik: `"<source>:<refId>"` (`parseMentionId`). */
+    mentionId: string;
+    readLater: boolean;
+    unread: boolean;
+  }) => void;
+  "mention:read-all": (payload: { counts: MentionCounts }) => void;
+  /**
+   * Etkinlikler Ş4. Beş olay, `server:<serverId>` odasına; herkese açık etkinlikte ayrıca
+   * `events:public` odasına.
+   *
+   * Hepsi **yamalanabilir** olacak kadar veri taşır: istemci listeyi yeniden çekmez, cache'i
+   * yamalar. Yeniden çekilen bir sayfa listeyi baştan sıralar ve kullanıcının baktığı kart
+   * ayağının altından kayar.
+   */
+  "event:created": (payload: { eventId: string; isPublic: boolean; serverId: string }) => void;
+  "event:updated": (payload: {
+    eventId: string;
+    serverId: string;
+    /** Saat değiştiyse sıra da değişebilir; istemci sayaçları da geçersiz kılar. */
+    startsAtChanged: boolean;
+  }) => void;
+  /**
+   * **Kimin** yanıt verdiğini taşımaz; yalnız yeni sayıları. İzleyicinin kendi yanıtı
+   * `PUT /rsvp` cevabından geliyor ve ikinci bir kaynak ayrışma üretir.
+   */
+  "event:rsvp": (payload: {
+    eventId: string;
+    goingCount: number;
+    maybeCount: number;
+    serverId: string;
+  }) => void;
+  "event:live:started": (payload: { eventId: string; serverId: string }) => void;
+  "event:live:ended": (payload: { eventId: string; serverId: string }) => void;
   /**
    * A flag changed while people were connected. The payload carries only the
    * key: every client re-reads its own answer, because a rollout percentage

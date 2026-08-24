@@ -81,7 +81,13 @@ describe("resolveServerProfileChannelBadge", () => {
 });
 
 describe("resolveServerProfileFriendStack", () => {
-  const friend = (id: string) => ({ avatarUrl: null, displayName: id, id });
+  const friend = (id: string) => ({
+    avatarUrl: null,
+    displayName: id,
+    id,
+    presence: "offline" as const,
+    role: "member" as const,
+  });
 
   it("matches the 2g design's 3-visible-plus-9-overflow example", () => {
     const stack = resolveServerProfileFriendStack([friend("a"), friend("b"), friend("c")], 12);

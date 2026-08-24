@@ -9,10 +9,7 @@ describe("message attachment upload persistence", () => {
     const operations: string[] = [];
     const tx = {
       attachment: {
-        async create(args: {
-          data: Record<string, unknown>;
-          select: Record<string, boolean>;
-        }) {
+        async create(args: { data: Record<string, unknown>; select: Record<string, boolean> }) {
           operations.push("attachment.create");
           assert.equal(args.data.scanStatus, "PENDING");
           assert.equal(args.data.userId, "user-1");

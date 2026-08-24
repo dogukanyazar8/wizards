@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 import { ApiError, parseJsonBody } from "@/lib/api";
 import { MobileLocaleUpdateRequestSchema } from "@wizards/types";
-import {
-  mobileAccountLocaleUpdateRoute,
-  type MobileLocaleRouteDependencies,
-} from "./route-logic";
+import { mobileAccountLocaleUpdateRoute, type MobileLocaleRouteDependencies } from "./route-logic";
 
 function localeRequest(body: unknown = { locale: "en" }) {
   return new Request("https://whispr.test/locale", {

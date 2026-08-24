@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
 
+import { GROUP_DM_MAX_PARTICIPANTS } from "@wizards/types";
+
 import {
   addGroupMembers,
   toGroupEligibilityMap,
@@ -322,8 +324,13 @@ describe("createGroupConversation", () => {
     );
   });
 
-  it("refuses a group larger than 32 people", async () => {
-    const userIds = Array.from({ length: 32 }, (_, index) => `user-${index + 2}`);
+  it("refuses a group larger than the participant ceiling", async () => {
+    // The creator is implicit, so `GROUP_DM_MAX_PARTICIPANTS` ids in the body is
+    // already one too many.
+    const userIds = Array.from(
+      { length: GROUP_DM_MAX_PARTICIPANTS },
+      (_, index) => `user-${index + 2}`,
+    );
     await assert.rejects(
       () => createGroupConversation("user-1", { userIds }, buildDependencies()),
       (error: { code?: string }) => {
@@ -662,8 +669,8 @@ describe("addGroupMembers", () => {
     );
   });
 
-  it("refuses an addition that would exceed 32 members", async () => {
-    const participants = Array.from({ length: 32 }, (_, index) =>
+  it("refuses an addition that would exceed the participant ceiling", async () => {
+    const participants = Array.from({ length: GROUP_DM_MAX_PARTICIPANTS }, (_, index) =>
       member(`user-${index + 1}`, 1, index === 0 ? { role: "OWNER" } : {}),
     );
     const dependencies = buildDependencies({
@@ -671,8 +678,10 @@ describe("addGroupMembers", () => {
         buildGroup({ participants, ownerId: "user-1", type: "GROUP_DM" }),
     });
 
+    // A "newcomer-" id, not "user-99": the roster now runs to the ceiling, so a
+    // numbered user id would already be a member and nothing would be added.
     await assert.rejects(
-      () => addGroupMembers("user-1", "group-1", ["user-99"], dependencies),
+      () => addGroupMembers("user-1", "group-1", ["newcomer-1"], dependencies),
       (error: { code?: string }) => {
         assert.equal(error.code, "GROUP_FULL");
         return true;
@@ -680,8 +689,8 @@ describe("addGroupMembers", () => {
     );
   });
 
-  it("allows adding one genuinely new member to a 31-person group even when already-members are mixed into the request (31 + 1 is legal)", async () => {
-    const participants = Array.from({ length: 31 }, (_, index) =>
+  it("allows one genuinely new member into a group one short of the ceiling, even when already-members are mixed into the request", async () => {
+    const participants = Array.from({ length: GROUP_DM_MAX_PARTICIPANTS - 1 }, (_, index) =>
       member(`user-${index + 1}`, 1, index === 0 ? { role: "OWNER" } : {}),
     );
     let written: { addedUserIds: string[] } | null = null;
@@ -696,14 +705,14 @@ describe("addGroupMembers", () => {
 
     // The request mixes two already-members ("user-2", "user-3") in with the one
     // genuinely new id. The eligible list (pre-filter) is 3 long, but only 1 id
-    // survives the already-member filter, so 31 + 1 = 32 must still be legal.
-    await addGroupMembers("user-1", "group-1", ["user-2", "user-3", "user-99"], dependencies);
+    // survives the already-member filter, so ceiling-1 + 1 must still be legal.
+    await addGroupMembers("user-1", "group-1", ["user-2", "user-3", "newcomer-1"], dependencies);
 
-    assert.deepEqual(written, { addedUserIds: ["user-99"] });
+    assert.deepEqual(written, { addedUserIds: ["newcomer-1"] });
   });
 
-  it("does not throw GROUP_FULL when re-adding an already-member takes a 32-member group to the ceiling", async () => {
-    const participants = Array.from({ length: 32 }, (_, index) =>
+  it("does not throw GROUP_FULL when re-adding an already-member to a group at the ceiling", async () => {
+    const participants = Array.from({ length: GROUP_DM_MAX_PARTICIPANTS }, (_, index) =>
       member(`user-${index + 1}`, 1, index === 0 ? { role: "OWNER" } : {}),
     );
     let writeCount = 0;

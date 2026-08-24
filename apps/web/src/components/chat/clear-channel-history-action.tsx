@@ -109,8 +109,8 @@ export function ClearChannelHistoryAction({
         title={t("chat.channel.clearHistoryTitle")}
       >
         <div className="space-y-4">
-          <div className="rounded-[22px] border border-[hsl(var(--danger)/0.18)] bg-[hsl(var(--danger)/0.06)] p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--danger))]">
+          <div className="rounded-[1.375rem] border border-[hsl(var(--danger)/0.18)] bg-[hsl(var(--danger)/0.06)] p-4">
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--danger))]">
               {t("chat.channel.clearHistory")}
             </p>
             <p

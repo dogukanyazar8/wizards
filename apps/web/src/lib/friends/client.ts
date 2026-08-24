@@ -48,12 +48,10 @@ async function requestJson<T>(url: string, options: RequestOptions = {}): Promis
   }
 
   const response = await fetch(url, requestInit);
-  const payload = (await response.json().catch(() => null)) as
-    | {
-        code?: string;
-        error?: string;
-      }
-    | null;
+  const payload = (await response.json().catch(() => null)) as {
+    code?: string;
+    error?: string;
+  } | null;
 
   if (!response.ok) {
     const parsedCode = FriendErrorCodeSchema.safeParse(payload?.code);
@@ -115,10 +113,7 @@ export async function sendFriendRequestRequest(username: string) {
   return FriendRequestMutationResponseSchema.parse(payload).request;
 }
 
-export async function actOnFriendRequestRequest(
-  requestId: string,
-  action: "accept" | "decline",
-) {
+export async function actOnFriendRequestRequest(requestId: string, action: "accept" | "decline") {
   const payload = await requestJson<unknown>(`/api/v1/friends/request/${requestId}`, {
     body: { action },
     method: "PATCH",

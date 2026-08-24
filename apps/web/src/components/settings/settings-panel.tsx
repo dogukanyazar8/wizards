@@ -48,6 +48,8 @@ import {
   formatAccountDate,
   formatAccountTime,
   getAccountTimeZoneOptions,
+  MENTION_SETTINGS_DEFAULTS,
+  type MentionSettingsPatch,
 } from "@wizards/types";
 import { Button } from "@wizards/ui";
 import { useShallow } from "zustand/react/shallow";
@@ -91,7 +93,13 @@ import { ActiveSessionsCard } from "@/components/settings/active-sessions-card";
 import { AccountDataControls } from "@/components/settings/account-data-controls";
 import { getAccountSettingsSurface } from "@/components/settings/account-settings-surface";
 import { BADGE_QUERY_STALE_TIME_MS, badgeQueryKeys, fetchOwnBadges } from "@/lib/badges/client";
-import { fetchLayoutSettings, patchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
+import {
+  fetchLayoutSettings,
+  fetchMentionSettings,
+  patchLayoutSettings,
+  patchMentionSettings,
+  settingsQueryKeys,
+} from "@/lib/settings/client";
 import {
   buildSettingsHref,
   resolveSettingsSelection,
@@ -1742,6 +1750,29 @@ function SettingsPanelContent({
   });
 
   /**
+   * Bahsedilmeler Ş4 §7. `Rol bahsetmeleri` and `@herkes ve @burada` are shown here and in the
+   * mention modal, on one cache key and one endpoint — two surfaces reading two sources would
+   * disagree the first time one of them wrote. Fetched only while this section is drawn.
+   */
+  const mentionSettingsQuery = useQuery({
+    enabled: section === "notifications",
+    queryFn: fetchMentionSettings,
+    queryKey: settingsQueryKeys.mentions,
+    staleTime: 60_000,
+  });
+
+  const patchMentionSettingsMutation = useMutation({
+    mutationFn: (patch: MentionSettingsPatch) => patchMentionSettings(patch),
+    onError: () => {
+      setSettingsSaveError(t("mentions.settings.saveError"));
+    },
+    onSuccess: (nextSettings) => {
+      setSettingsSaveError(null);
+      queryClient.setQueryData(settingsQueryKeys.mentions, nextSettings);
+    },
+  });
+
+  /**
    * 07 §3. Fetched only while the badges panel is open: every other settings
    * panel would otherwise pay for a read it never draws. The key is the same
    * `badges.own()` the popover uses, so a BADGE notification refreshes both.
@@ -2503,6 +2534,10 @@ function SettingsPanelContent({
   const renderNotificationsSection = () => {
     const showGeneral = panel === null || panel === "general";
     const showSounds = panel === null || panel === "sounds";
+    // Ş4 §7: the switch defaults are the design's, not `true` — `Thread yanıtları` starts off and
+    // the pair shown here starts on. Reading them from one constant keeps the pre-fetch frame
+    // showing what the row would say.
+    const mentionSettings = mentionSettingsQuery.data ?? MENTION_SETTINGS_DEFAULTS;
 
     return (
       <div className="space-y-3">
@@ -2606,6 +2641,22 @@ function SettingsPanelContent({
                 label={t("settings.notifications.email.title")}
                 onChange={(nextValue) => updateServerSettings({ emailNotifications: nextValue })}
                 testId="settings-email-notifications"
+              />
+              <ToggleRow
+                checked={mentionSettings.role}
+                description={t("mentions.settings.role.subtitle")}
+                label={t("mentions.settings.role.title")}
+                onChange={(nextValue) => patchMentionSettingsMutation.mutate({ role: nextValue })}
+                testId="settings-mention-role"
+              />
+              <ToggleRow
+                checked={mentionSettings.everyone}
+                description={t("mentions.settings.everyone.subtitle")}
+                label={t("mentions.settings.everyone.title")}
+                onChange={(nextValue) =>
+                  patchMentionSettingsMutation.mutate({ everyone: nextValue })
+                }
+                testId="settings-mention-everyone"
               />
             </div>
           </SettingCard>

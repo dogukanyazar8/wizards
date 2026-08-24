@@ -20,11 +20,13 @@ async function assertChannelAccess(userId: string, channelId: string) {
   });
 }
 
-function mapSettingsToLevel(settings: {
-  messageNotifications: "ALL" | "MENTIONS" | "NOTHING" | "DEFAULT";
-  muted: boolean;
-  mutedUntil: Date | null;
-} | null) {
+function mapSettingsToLevel(
+  settings: {
+    messageNotifications: "ALL" | "MENTIONS" | "NOTHING" | "DEFAULT";
+    muted: boolean;
+    mutedUntil: Date | null;
+  } | null,
+) {
   if (settings?.muted || (settings?.mutedUntil && settings.mutedUntil > new Date())) {
     return "muted" as const;
   }

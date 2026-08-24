@@ -68,12 +68,12 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   return (
     <div
       ref={pickerRef}
-      className="app-emoji-picker fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-[90] max-h-[min(64dvh,28rem)] overflow-hidden rounded-[24px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-overlay)/0.98)] p-2.5 shadow-[0_24px_62px_hsl(var(--shadow-color)/0.2)] backdrop-blur-2xl md:absolute md:inset-x-auto md:bottom-full md:left-0 md:mb-3 md:max-h-none md:w-[min(23rem,calc(100vw-2rem))]"
+      className="app-emoji-picker fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-[90] max-h-[min(64dvh,28rem)] overflow-hidden rounded-[1.5rem] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-overlay)/0.98)] p-2.5 shadow-[0_24px_62px_hsl(var(--shadow-color)/0.2)] backdrop-blur-2xl md:absolute md:inset-x-auto md:bottom-full md:left-0 md:mb-3 md:max-h-none md:w-[min(23rem,calc(100vw-2rem))]"
       data-testid="emoji-picker"
     >
       <div className="mb-2.5 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-2xl border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
+          <span className="flex h-8 w-8 items-center justify-center rounded-2xl border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.12)] text-[var(--primary-readable)]">
             <Smile className="h-4 w-4" />
           </span>
           <div className="min-w-0">
@@ -91,7 +91,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
           <X className="h-4 w-4" />
         </button>
       </div>
-      <div className="max-h-[50dvh] overflow-hidden rounded-[20px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.86)] md:max-h-none">
+      <div className="max-h-[50dvh] overflow-hidden rounded-[1.25rem] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.86)] md:max-h-none">
         <Picker
           dynamicWidth
           onEmojiSelect={(emoji: EmojiSelection) => onSelect(emoji.native)}

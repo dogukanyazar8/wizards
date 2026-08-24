@@ -95,6 +95,7 @@ function defaultServerRow(overrides: UnknownRecord = {}) {
     isPublic: true,
     maxMembers: 500_000,
     memberCount: 10,
+    name: "Whispr",
     roles: [],
     ...overrides,
   };
@@ -143,7 +144,7 @@ describe("joinPublicWorkspaceServer", () => {
 
       const result = await joinPublicWorkspaceServer("joiner", "server-1");
 
-      assert.deepEqual(result, { alreadyMember: true, serverId: "server-1" });
+      assert.deepEqual(result, { alreadyMember: true, name: "Whispr", serverId: "server-1" });
     });
   });
 
@@ -417,7 +418,7 @@ describe("joinPublicWorkspaceServer", () => {
 
       const result = await joinPublicWorkspaceServer("joiner", "server-1");
 
-      assert.deepEqual(result, { alreadyMember: false, serverId: "server-1" });
+      assert.deepEqual(result, { alreadyMember: false, name: "Whispr", serverId: "server-1" });
       assert.deepEqual(operations, [
         "tx.serverBan.findUnique",
         "tx.server.reserve",
@@ -479,7 +480,7 @@ describe("joinPublicWorkspaceServer", () => {
 
       const result = await joinPublicWorkspaceServer("joiner", "server-1");
 
-      assert.deepEqual(result, { alreadyMember: true, serverId: "server-1" });
+      assert.deepEqual(result, { alreadyMember: true, name: "Whispr", serverId: "server-1" });
     });
   });
 

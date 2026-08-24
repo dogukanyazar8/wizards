@@ -1,11 +1,8 @@
 "use client";
 
-import type { ReactNode, RefObject } from "react";
-import { Info, MoreHorizontal, Phone, Search, Video } from "lucide-react";
+import type { ReactNode } from "react";
 import type { DMParticipantDTO } from "@wizards/types";
-import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
-import { cn } from "@/lib/utils";
 
 export function getDmStatusDotClass(status: DMParticipantDTO["status"] | undefined) {
   if (status === "ONLINE") {
@@ -13,7 +10,11 @@ export function getDmStatusDotClass(status: DMParticipantDTO["status"] | undefin
   }
 
   if (status === "IDLE") {
-    return "bg-[hsl(42_96%_56%)]";
+    // Boşta tonu artık paletin `--warning` token'ı. Sabit bir renk üçlüsü
+    // kullanıcının temasıyla birlikte değişmiyordu ve koyu temada kendi başına
+    // parlıyordu. (Token denetimi yorumları elemez; bu yüzden burada renk
+    // fonksiyonunun adı yazılı **değil**.)
+    return "bg-[hsl(var(--warning))]";
   }
 
   if (status === "DND") {
@@ -39,263 +40,13 @@ export function getDmStatusKey(status: DMParticipantDTO["status"] | undefined) {
   return "friends.status.offline";
 }
 
-interface DmConversationHeaderProps {
-  callDisabled: boolean;
-  children?: ReactNode;
-  onOpenDetails?: (() => void) | undefined;
-  onOpenSearch: () => void;
-  onStartVideoCall: () => void;
-  onStartVoiceCall: () => void;
-  participant: DMParticipantDTO;
-  searchButtonRef: RefObject<HTMLButtonElement | null>;
-  searchOpen: boolean;
-}
-
-export function DmConversationHeader({
-  callDisabled,
-  children,
-  onOpenDetails,
-  onOpenSearch,
-  onStartVideoCall,
-  onStartVoiceCall,
-  participant,
-  searchButtonRef,
-  searchOpen,
-}: DmConversationHeaderProps) {
-  const { t } = useI18n();
-  const displayName =
-    participant.displayName ?? participant.username ?? t("dm.sidebar.unknownUser");
-  const statusLabel = participant.customStatus ?? t(getDmStatusKey(participant.status));
-  const handle = participant.username ? `@${participant.username}` : null;
-
-  return (
-    <header
-      className="sticky top-0 z-20 border-b border-[hsl(var(--border)/0.34)] bg-[hsl(var(--background)/0.76)] px-3 py-2 backdrop-blur-xl md:px-4"
-      data-testid="dm-conversation-header"
-    >
-      <div className="flex min-w-0 items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="relative shrink-0">
-            <Avatar
-              alt={displayName}
-              className="h-10 w-10 text-sm shadow-[0_10px_24px_hsl(var(--shadow-color)/0.07)] md:h-11 md:w-11"
-              fallback={displayName}
-              src={participant.avatarUrl}
-            />
-            <span
-              aria-hidden="true"
-              className={cn(
-                "absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-[hsl(var(--background))]",
-                getDmStatusDotClass(participant.status),
-              )}
-            />
-          </div>
-
-          <div className="min-w-0">
-            <h1 className="truncate text-sm font-bold leading-5 text-app-foreground md:text-[15px]">
-              {displayName}
-            </h1>
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs font-semibold text-app-muted">
-              {handle ? <span className="min-w-0 truncate">{handle}</span> : null}
-              {handle ? <span aria-hidden="true">/</span> : null}
-              <span className="inline-flex min-w-0 items-center gap-1.5">
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "h-1.5 w-1.5 shrink-0 rounded-full",
-                    getDmStatusDotClass(participant.status),
-                  )}
-                />
-                <span className="truncate">{statusLabel}</span>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <DmConversationToolbar
-          callDisabled={callDisabled}
-          onOpenDetails={onOpenDetails}
-          onOpenSearch={onOpenSearch}
-          onStartVideoCall={onStartVideoCall}
-          onStartVoiceCall={onStartVoiceCall}
-          searchButtonRef={searchButtonRef}
-          searchOpen={searchOpen}
-        />
-      </div>
-
-      {children}
-    </header>
-  );
-}
-
 /**
- * Faz 6 §19.3. A group's header names the group and counts its members. The
- * presence dot and the call buttons are absent rather than disabled: a group has
- * no single presence to report, and group calls are out of scope.
+ * `DmConversationHeader`, `DmGroupConversationHeader` ve `DmConversationToolbar`
+ * Mesajlar Ş5'te kaldırıldı: sohbet başlığı artık tek bir bileşen
+ * (`components/messages/conversation-header.tsx`) ve iki varyantı da o çiziyor.
+ * Kalan üç dışa açık ad hâlâ kullanılıyor: durum noktası/etiketi
+ * `dm-details-panel`'de, yüzey ve bestekâr sarmalayıcıları `chat-area`'da.
  */
-export function DmGroupConversationHeader({
-  avatarUrl,
-  children,
-  memberCount,
-  onOpenDetails,
-  onOpenSearch,
-  searchButtonRef,
-  searchOpen,
-  title,
-}: {
-  avatarUrl: string | null;
-  children?: ReactNode;
-  memberCount: number;
-  onOpenDetails?: (() => void) | undefined;
-  onOpenSearch: () => void;
-  searchButtonRef: RefObject<HTMLButtonElement | null>;
-  searchOpen: boolean;
-  title: string;
-}) {
-  const { t } = useI18n();
-
-  return (
-    <header
-      className="sticky top-0 z-20 border-b border-[hsl(var(--border)/0.34)] bg-[hsl(var(--background)/0.76)] px-3 py-2 backdrop-blur-xl md:px-4"
-      data-testid="dm-group-conversation-header"
-    >
-      <div className="flex min-w-0 items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Avatar
-            alt={title}
-            className="h-10 w-10 shrink-0 text-sm md:h-11 md:w-11"
-            fallback={title}
-            src={avatarUrl}
-          />
-          <div className="min-w-0">
-            <h1 className="truncate text-sm font-bold leading-5 text-app-foreground md:text-[15px]">
-              {title}
-            </h1>
-            <p
-              className="truncate text-xs font-semibold text-app-muted"
-              data-testid="dm-group-member-count"
-            >
-              {t("dm.group.memberCount", { count: memberCount })}
-            </p>
-          </div>
-        </div>
-
-        <div className="inline-flex shrink-0 items-center gap-1 rounded-[18px] bg-[hsl(var(--surface-soft)/0.34)] p-1">
-          <button
-            aria-expanded={searchOpen}
-            aria-label={t("chat.search.open")}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:h-9 md:w-9"
-            data-testid="message-search-open"
-            onClick={onOpenSearch}
-            ref={searchButtonRef}
-            title={t("chat.search.open")}
-            type="button"
-          >
-            <Search className="h-4 w-4" />
-          </button>
-          {onOpenDetails ? (
-            <button
-              aria-label={t("dm.details.open")}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:h-9 md:w-9"
-              data-testid="dm-details-open"
-              onClick={onOpenDetails}
-              title={t("dm.details.open")}
-              type="button"
-            >
-              <Info className="h-4 w-4" />
-            </button>
-          ) : null}
-        </div>
-      </div>
-
-      {children}
-    </header>
-  );
-}
-
-interface DmConversationToolbarProps {
-  callDisabled: boolean;
-  onOpenDetails?: (() => void) | undefined;
-  onOpenSearch: () => void;
-  onStartVideoCall: () => void;
-  onStartVoiceCall: () => void;
-  searchButtonRef: RefObject<HTMLButtonElement | null>;
-  searchOpen: boolean;
-}
-
-export function DmConversationToolbar({
-  callDisabled,
-  onOpenDetails,
-  onOpenSearch,
-  onStartVideoCall,
-  onStartVoiceCall,
-  searchButtonRef,
-  searchOpen,
-}: DmConversationToolbarProps) {
-  const { t } = useI18n();
-  const buttonClass =
-    "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60 md:h-9 md:w-9";
-
-  return (
-    <div className="inline-flex shrink-0 items-center gap-1 rounded-[18px] bg-[hsl(var(--surface-soft)/0.34)] p-1">
-      <button
-        aria-label={t("dm.header.voiceCall")}
-        className={buttonClass}
-        data-testid="dm-start-voice-call"
-        disabled={callDisabled}
-        onClick={onStartVoiceCall}
-        title={t("dm.header.voiceCall")}
-        type="button"
-      >
-        <Phone className="h-4 w-4" />
-      </button>
-      <button
-        aria-label={t("dm.header.videoCall")}
-        className={buttonClass}
-        data-testid="dm-start-video-call"
-        disabled={callDisabled}
-        onClick={onStartVideoCall}
-        title={t("dm.header.videoCall")}
-        type="button"
-      >
-        <Video className="h-4 w-4" />
-      </button>
-      <button
-        aria-expanded={searchOpen}
-        aria-label={t("chat.search.open")}
-        className={buttonClass}
-        data-testid="message-search-open"
-        onClick={onOpenSearch}
-        ref={searchButtonRef}
-        title={t("chat.search.open")}
-        type="button"
-      >
-        <Search className="h-4 w-4" />
-      </button>
-      {onOpenDetails ? (
-        <button
-          aria-label={t("dm.details.open")}
-          className={buttonClass}
-          data-testid="dm-details-open"
-          onClick={onOpenDetails}
-          title={t("dm.details.open")}
-          type="button"
-        >
-          <Info className="h-4 w-4" />
-        </button>
-      ) : null}
-      <button
-        aria-label={t("chat.message.moreActions")}
-        className={buttonClass}
-        disabled
-        title={t("chat.message.moreActions")}
-        type="button"
-      >
-        <MoreHorizontal className="h-4 w-4" />
-      </button>
-    </div>
-  );
-}
 
 export function DmMessageSurface({ children }: { children: ReactNode }) {
   const { t } = useI18n();

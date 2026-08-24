@@ -5,10 +5,7 @@ import { APP_LOCALES, APP_MESSAGES } from "./locale";
 
 describe("locale dictionaries", () => {
   it("keeps EN and TR translation keys in parity", () => {
-    assert.deepEqual(
-      Object.keys(APP_MESSAGES.tr).sort(),
-      Object.keys(APP_MESSAGES.en).sort(),
-    );
+    assert.deepEqual(Object.keys(APP_MESSAGES.tr).sort(), Object.keys(APP_MESSAGES.en).sort());
   });
 
   it("keeps update release notes localizable and fallback-safe", () => {
@@ -34,7 +31,10 @@ describe("locale dictionaries", () => {
     assert.ok(firstSourceNote);
     assert.ok(firstLocalizedNote);
     assert.equal(firstLocalizedNote.categoryKey, APP_MESSAGES.tr[firstSourceNote.categoryKey]);
-    assert.equal(firstLocalizedNote.descriptionKey, APP_MESSAGES.tr[firstSourceNote.descriptionKey]);
+    assert.equal(
+      firstLocalizedNote.descriptionKey,
+      APP_MESSAGES.tr[firstSourceNote.descriptionKey],
+    );
     assert.equal(firstLocalizedNote.titleKey, APP_MESSAGES.tr[firstSourceNote.titleKey]);
   });
 });

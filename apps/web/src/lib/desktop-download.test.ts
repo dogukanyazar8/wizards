@@ -13,7 +13,9 @@ describe("desktop download routing", () => {
     assert.equal(getSafeDesktopDownloadUrl(undefined), "/api/v1/desktop/download");
     assert.equal(getSafeDesktopDownloadUrl(""), "/api/v1/desktop/download");
     assert.equal(
-      getSafeDesktopDownloadUrl("https://updates.whispr.team/desktop/canary/releases/v0.8.15-canary.22/Whispr_0.8.15_x64-setup.exe"),
+      getSafeDesktopDownloadUrl(
+        "https://updates.whispr.team/desktop/canary/releases/v0.8.15-canary.22/Whispr_0.8.15_x64-setup.exe",
+      ),
       "https://updates.whispr.team/desktop/canary/releases/v0.8.15-canary.22/Whispr_0.8.15_x64-setup.exe",
     );
     assert.equal(

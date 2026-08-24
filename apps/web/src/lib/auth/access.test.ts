@@ -26,9 +26,7 @@ describe("auth access checks", () => {
     assert.throws(
       () => assertActiveApiUser(user),
       (error) =>
-        error instanceof ApiError &&
-        error.code === "ACCOUNT_SUSPENDED" &&
-        error.status === 403,
+        error instanceof ApiError && error.code === "ACCOUNT_SUSPENDED" && error.status === 403,
     );
   });
 
@@ -61,9 +59,7 @@ describe("auth access checks", () => {
     assert.throws(
       () => assertActiveApiUser(user),
       (error) =>
-        error instanceof ApiError &&
-        error.code === "ACCOUNT_DELETED" &&
-        error.status === 403,
+        error instanceof ApiError && error.code === "ACCOUNT_DELETED" && error.status === 403,
     );
   });
 
@@ -79,9 +75,7 @@ describe("auth access checks", () => {
     assert.throws(
       () => assertActiveApiUser(user),
       (error) =>
-        error instanceof ApiError &&
-        error.code === "ACCOUNT_DELETED" &&
-        error.status === 403,
+        error instanceof ApiError && error.code === "ACCOUNT_DELETED" && error.status === 403,
     );
   });
 });

@@ -5,7 +5,9 @@ import { ChannelType, prisma } from "@wizards/db";
 import { PermissionBits } from "./permissions";
 import {
   buildMentionPreview,
+  createChannelEveryoneNotifications,
   createChannelMentionNotifications,
+  createChannelThreadReplyNotification,
   extractMentionUsernames,
 } from "./message-notification-service";
 
@@ -90,6 +92,7 @@ describe("workspace message notification service", () => {
       serverBan: { findMany: AsyncMethod };
       serverMember: { findMany: AsyncMethod };
       userChannelSettings: { findMany: AsyncMethod };
+      userNotificationSettings: { findMany: AsyncMethod };
       userServerSettings: { findMany: AsyncMethod };
     };
     const originals = {
@@ -101,6 +104,7 @@ describe("workspace message notification service", () => {
       serverMemberFindMany: prismaDelegate.serverMember.findMany,
       transaction: prismaDelegate.$transaction,
       userChannelSettingsFindMany: prismaDelegate.userChannelSettings.findMany,
+      userNotificationSettingsFindMany: prismaDelegate.userNotificationSettings.findMany,
       userServerSettingsFindMany: prismaDelegate.userServerSettings.findMany,
     };
     process.env.PERMISSION_CACHE_DISABLED = "true";
@@ -160,6 +164,9 @@ describe("workspace message notification service", () => {
       authorizationSubjectRevisions: [],
     });
     prismaDelegate.userChannelSettings.findMany = async () => [];
+    // Bahsedilmeler Ş2: fan-out artık `mentionSelf` ve sessiz saatleri okuyor. Satırı olmayan
+    // kullanıcı varsayılanları taşır, yani boş dizi bugünkü davranışı anlatır.
+    prismaDelegate.userNotificationSettings.findMany = async () => [];
     prismaDelegate.userServerSettings.findMany = async () => [];
     prismaDelegate.$transaction = async (callback?: unknown) => {
       operations.push("transaction.begin");
@@ -185,7 +192,8 @@ describe("workspace message notification service", () => {
       });
       await new Promise<void>((resolve) => setImmediate(resolve));
 
-      assert.deepEqual(mentionData, [{ messageId: "message-1", userId: "user-ada" }]);
+      // Bahsedilmeler Ş2: bu dal kullanıcı adı eşleşmesidir, yani her zaman `SELF`.
+      assert.deepEqual(mentionData, [{ kind: "SELF", messageId: "message-1", userId: "user-ada" }]);
       assert.equal(notificationData.length, 1);
       assert.equal(notificationData[0]?.type, "MENTION");
       assert.equal(notificationData[0]?.userId, "user-ada");
@@ -228,6 +236,7 @@ describe("workspace message notification service", () => {
       prismaDelegate.serverBan.findMany = originals.serverBanFindMany;
       prismaDelegate.serverMember.findMany = originals.serverMemberFindMany;
       prismaDelegate.userChannelSettings.findMany = originals.userChannelSettingsFindMany;
+      prismaDelegate.userNotificationSettings.findMany = originals.userNotificationSettingsFindMany;
       prismaDelegate.userServerSettings.findMany = originals.userServerSettingsFindMany;
       if (originals.permissionCacheDisabled === undefined) {
         delete process.env.PERMISSION_CACHE_DISABLED;
@@ -245,6 +254,7 @@ describe("workspace message notification service", () => {
       serverBan: { findMany: AsyncMethod };
       serverMember: { findMany: AsyncMethod };
       userChannelSettings: { findMany: AsyncMethod };
+      userNotificationSettings: { findMany: AsyncMethod };
       userServerSettings: { findMany: AsyncMethod };
     };
     const originals = {
@@ -255,6 +265,7 @@ describe("workspace message notification service", () => {
       serverMemberFindMany: prismaDelegate.serverMember.findMany,
       transaction: prismaDelegate.$transaction,
       userChannelSettingsFindMany: prismaDelegate.userChannelSettings.findMany,
+      userNotificationSettingsFindMany: prismaDelegate.userNotificationSettings.findMany,
       userServerSettingsFindMany: prismaDelegate.userServerSettings.findMany,
     };
     process.env.PERMISSION_CACHE_DISABLED = "true";
@@ -311,6 +322,9 @@ describe("workspace message notification service", () => {
     prismaDelegate.userChannelSettings.findMany = async () => [
       { messageNotifications: "ALL", muted: true, mutedUntil: null, userId: "user-ada" },
     ];
+    // Bahsedilmeler Ş2: fan-out artık `mentionSelf` ve sessiz saatleri okuyor. Satırı olmayan
+    // kullanıcı varsayılanları taşır, yani boş dizi bugünkü davranışı anlatır.
+    prismaDelegate.userNotificationSettings.findMany = async () => [];
     prismaDelegate.userServerSettings.findMany = async () => [];
     prismaDelegate.$transaction = async () => {
       throw new Error("a muted mention must never open a notification transaction");
@@ -333,12 +347,394 @@ describe("workspace message notification service", () => {
       prismaDelegate.serverBan.findMany = originals.serverBanFindMany;
       prismaDelegate.serverMember.findMany = originals.serverMemberFindMany;
       prismaDelegate.userChannelSettings.findMany = originals.userChannelSettingsFindMany;
+      prismaDelegate.userNotificationSettings.findMany = originals.userNotificationSettingsFindMany;
       prismaDelegate.userServerSettings.findMany = originals.userServerSettingsFindMany;
       if (originals.permissionCacheDisabled === undefined) {
         delete process.env.PERMISSION_CACHE_DISABLED;
       } else {
         process.env.PERMISSION_CACHE_DISABLED = originals.permissionCacheDisabled;
       }
+    }
+  });
+});
+
+type FanOutAsyncMethod = (args?: unknown) => Promise<unknown>;
+
+type FanOutHarnessConfig = {
+  followers?: Array<{ mutedAt: Date | null; origin: string; userId: string }>;
+  members?: string[];
+  notificationSettings?: Array<Record<string, unknown>>;
+  parentAuthorId?: string | null;
+  usernameMembers?: Record<string, string>;
+};
+
+const fanOutDelegate = prisma as unknown as {
+  $transaction: FanOutAsyncMethod;
+  channel: { findUnique: FanOutAsyncMethod };
+  message: { findFirst: FanOutAsyncMethod };
+  mobilePushToken: { findMany: FanOutAsyncMethod };
+  notification: { createManyAndReturn: FanOutAsyncMethod };
+  server: { findUnique: FanOutAsyncMethod };
+  serverBan: { findMany: FanOutAsyncMethod };
+  serverMember: { findMany: FanOutAsyncMethod };
+  threadFollow: { findMany: FanOutAsyncMethod; upsert: FanOutAsyncMethod };
+  user: { findMany: FanOutAsyncMethod };
+  userChannelSettings: { findMany: FanOutAsyncMethod };
+  userNotificationSettings: { findMany: FanOutAsyncMethod };
+  userServerSettings: { findMany: FanOutAsyncMethod };
+};
+
+function installFanOutHarness(config: FanOutHarnessConfig) {
+  const notificationBatches: Array<Array<Record<string, unknown>>> = [];
+  const mentionWrites: Array<Record<string, unknown>> = [];
+  const followUpserts: Array<Record<string, unknown>> = [];
+
+  const originals = {
+    channelFindUnique: fanOutDelegate.channel.findUnique,
+    messageFindFirst: fanOutDelegate.message.findFirst,
+    mobilePushTokenFindMany: fanOutDelegate.mobilePushToken.findMany,
+    notificationCreateManyAndReturn: fanOutDelegate.notification.createManyAndReturn,
+    permissionCacheDisabled: process.env.PERMISSION_CACHE_DISABLED,
+    serverBanFindMany: fanOutDelegate.serverBan.findMany,
+    serverFindUnique: fanOutDelegate.server.findUnique,
+    serverMemberFindMany: fanOutDelegate.serverMember.findMany,
+    threadFollowFindMany: fanOutDelegate.threadFollow.findMany,
+    threadFollowUpsert: fanOutDelegate.threadFollow.upsert,
+    userChannelSettingsFindMany: fanOutDelegate.userChannelSettings.findMany,
+    userFindMany: fanOutDelegate.user.findMany,
+    userNotificationSettingsFindMany: fanOutDelegate.userNotificationSettings.findMany,
+    userServerSettingsFindMany: fanOutDelegate.userServerSettings.findMany,
+  };
+
+  process.env.PERMISSION_CACHE_DISABLED = "true";
+
+  fanOutDelegate.message.findFirst = async () =>
+    config.parentAuthorId === undefined
+      ? { userId: "user-author" }
+      : config.parentAuthorId === null
+        ? null
+        : { userId: config.parentAuthorId };
+
+  fanOutDelegate.threadFollow.findMany = async (args?: unknown) => {
+    const where = (args as { where: { mutedAt: unknown; userId?: string } }).where;
+    const wantsMuted = where.mutedAt !== null;
+    return (config.followers ?? [])
+      .filter((row) => (wantsMuted ? row.mutedAt !== null : row.mutedAt === null))
+      .filter((row) => (where.userId ? row.userId === where.userId : true));
+  };
+  fanOutDelegate.threadFollow.upsert = async (args?: unknown) => {
+    followUpserts.push(args as Record<string, unknown>);
+    return {};
+  };
+
+  fanOutDelegate.serverMember.findMany = async (args?: unknown) => {
+    const where = (
+      args as {
+        where?: {
+          user?: { username?: { in?: string[] } };
+          userId?: { in?: string[]; notIn?: string[]; not?: string };
+        };
+      }
+    ).where;
+
+    if (where?.user?.username?.in) {
+      return where.user.username.in
+        .map((username) => config.usernameMembers?.[username])
+        .filter((userId): userId is string => Boolean(userId))
+        .map((userId) => ({ userId }));
+    }
+
+    if (where?.userId?.in) {
+      return where.userId.in.map((userId) => ({ id: `member-${userId}`, roles: [], userId }));
+    }
+
+    const excluded = new Set(where?.userId?.notIn ?? []);
+    return (config.members ?? [])
+      .filter((userId) => !excluded.has(userId))
+      .map((userId) => ({ user: { locale: "tr" }, userId }));
+  };
+
+  fanOutDelegate.channel.findUnique = async () => ({
+    id: "channel-1",
+    locked: false,
+    name: "genel",
+    permissionOverrides: [],
+    server: {
+      features: [],
+      messageCharacterLimit: 2000,
+      ownerId: "user-owner",
+      roles: [
+        {
+          id: "everyone",
+          isDefault: true,
+          name: "@everyone",
+          permissions: PermissionBits.VIEW_CHANNEL,
+        },
+      ],
+    },
+    serverId: "server-1",
+    type: ChannelType.TEXT,
+  });
+  fanOutDelegate.server.findUnique = async () => ({
+    authorizationRevision: 0n,
+    authorizationSubjectRevisions: [],
+  });
+  fanOutDelegate.serverBan.findMany = async () => [];
+  fanOutDelegate.userChannelSettings.findMany = async () => [];
+  fanOutDelegate.userServerSettings.findMany = async () => [];
+  fanOutDelegate.userNotificationSettings.findMany = async () => config.notificationSettings ?? [];
+  fanOutDelegate.user.findMany = async (args?: unknown) => {
+    const ids = (args as { where: { id: { in: string[] } } }).where.id.in;
+    return ids.map((id) => ({ id, locale: "tr" }));
+  };
+  fanOutDelegate.mobilePushToken.findMany = async () => [];
+  fanOutDelegate.notification.createManyAndReturn = async (args?: unknown) => {
+    const data = (args as { data: Array<Record<string, unknown>> }).data;
+    notificationBatches.push(data);
+    return data.map((row, index) => ({ ...row, id: `notification-${index}` }));
+  };
+
+  return {
+    followUpserts,
+    mentionWrites,
+    notificationBatches,
+    recipientIds() {
+      return notificationBatches.flat().map((row) => String(row.userId));
+    },
+    restore() {
+      fanOutDelegate.channel.findUnique = originals.channelFindUnique;
+      fanOutDelegate.message.findFirst = originals.messageFindFirst;
+      fanOutDelegate.mobilePushToken.findMany = originals.mobilePushTokenFindMany;
+      fanOutDelegate.notification.createManyAndReturn = originals.notificationCreateManyAndReturn;
+      fanOutDelegate.serverBan.findMany = originals.serverBanFindMany;
+      fanOutDelegate.server.findUnique = originals.serverFindUnique;
+      fanOutDelegate.serverMember.findMany = originals.serverMemberFindMany;
+      fanOutDelegate.threadFollow.findMany = originals.threadFollowFindMany;
+      fanOutDelegate.threadFollow.upsert = originals.threadFollowUpsert;
+      fanOutDelegate.userChannelSettings.findMany = originals.userChannelSettingsFindMany;
+      fanOutDelegate.user.findMany = originals.userFindMany;
+      fanOutDelegate.userNotificationSettings.findMany = originals.userNotificationSettingsFindMany;
+      fanOutDelegate.userServerSettings.findMany = originals.userServerSettingsFindMany;
+      if (originals.permissionCacheDisabled === undefined) {
+        delete process.env.PERMISSION_CACHE_DISABLED;
+      } else {
+        process.env.PERMISSION_CACHE_DISABLED = originals.permissionCacheDisabled;
+      }
+    },
+  };
+}
+
+const THREAD_ARGS = {
+  channelId: "channel-1",
+  channelName: "genel",
+  messageId: "reply-1",
+  parentMessageId: "parent-1",
+  senderId: "user-sender",
+  senderName: "Bora",
+  serverId: "server-1",
+};
+
+const THREAD_REPLIES_ON = (userId: string) => ({
+  mentionSelf: true,
+  mentionThreadReplies: true,
+  quietHoursEnabled: false,
+  quietHoursFrom: null,
+  quietHoursTimeZone: null,
+  quietHoursTo: null,
+  suppressEveryoneMentions: false,
+  suppressRoleMentions: false,
+  userId,
+});
+
+describe("channel everyone mention fan-out", () => {
+  /**
+   * Karar K2: `@herkes` **satır yazmaz**. Akış kartını Ş3 `Message.mentionEveryone` bayrağından
+   * türetir; üye başına satır 5.000 üyeli bir sunucuda gönderim başına 5.000 yazma demekti.
+   */
+  it("writes notifications but never a MessageMention row", async () => {
+    const harness = installFanOutHarness({ members: ["user-a", "user-b"] });
+
+    try {
+      await createChannelEveryoneNotifications({
+        channelId: "channel-1",
+        channelName: "genel",
+        content: "@everyone toplantı başlıyor",
+        messageId: "message-1",
+        senderId: "user-sender",
+        senderName: "Bora",
+        serverId: "server-1",
+      });
+
+      assert.deepEqual(harness.recipientIds(), ["user-a", "user-b"]);
+      assert.equal(
+        harness.notificationBatches[0]?.[0]?.dedupeKey,
+        "channel-everyone:message-1:user-a",
+      );
+      assert.deepEqual(harness.mentionWrites, []);
+    } finally {
+      harness.restore();
+    }
+  });
+
+  it("skips members who turned everyone mentions off", async () => {
+    const harness = installFanOutHarness({
+      members: ["user-a", "user-b"],
+      notificationSettings: [
+        {
+          ...THREAD_REPLIES_ON("user-b"),
+          mentionThreadReplies: false,
+          suppressEveryoneMentions: true,
+        },
+      ],
+    });
+
+    try {
+      await createChannelEveryoneNotifications({
+        channelId: "channel-1",
+        channelName: "genel",
+        content: "@everyone",
+        messageId: "message-1",
+        senderId: "user-sender",
+        senderName: "Bora",
+        serverId: "server-1",
+      });
+
+      assert.deepEqual(harness.recipientIds(), ["user-a"]);
+    } finally {
+      harness.restore();
+    }
+  });
+});
+
+describe("channel thread reply fan-out", () => {
+  /**
+   * Karar K3 kabul maddesi: bugün bildirim alan üst mesaj yazarı **kaybedilmiyor**. K6 uyarınca
+   * `mentionThreadReplies` varsayılanı kapalı, yani ayarına hiç dokunmamış bir yazar bu anahtara
+   * bağlansaydı şerit yayına girdiği gün susardı.
+   */
+  it("still notifies the parent author when nobody enabled thread replies", async () => {
+    const harness = installFanOutHarness({
+      followers: [{ mutedAt: null, origin: "AUTHOR", userId: "user-author" }],
+      parentAuthorId: "user-author",
+    });
+
+    try {
+      await createChannelThreadReplyNotification({ ...THREAD_ARGS, content: "bakıyorum" });
+
+      assert.deepEqual(harness.recipientIds(), ["user-author"]);
+      assert.equal(harness.notificationBatches[0]?.[0]?.type, "SYSTEM");
+      assert.equal(
+        harness.notificationBatches[0]?.[0]?.dedupeKey,
+        "channel-thread-reply:reply-1:user-author",
+      );
+    } finally {
+      harness.restore();
+    }
+  });
+
+  /**
+   * Karar K6 kabul maddesi: bu şerit yayına girince kimse bildirim yağmuru almaz. Yazar dışındaki
+   * takipçiler yalnız anahtarı **açtıysa** bildirim alır ve varsayılan kapalıdır.
+   */
+  it("leaves other followers silent while the default is off", async () => {
+    const harness = installFanOutHarness({
+      followers: [
+        { mutedAt: null, origin: "AUTHOR", userId: "user-author" },
+        { mutedAt: null, origin: "REPLY", userId: "user-selin" },
+        { mutedAt: null, origin: "MENTION", userId: "user-mert" },
+      ],
+      parentAuthorId: "user-author",
+    });
+
+    try {
+      await createChannelThreadReplyNotification({ ...THREAD_ARGS, content: "bakıyorum" });
+
+      assert.deepEqual(harness.recipientIds(), ["user-author"]);
+    } finally {
+      harness.restore();
+    }
+  });
+
+  it("notifies a follower who turned thread replies on", async () => {
+    const harness = installFanOutHarness({
+      followers: [
+        { mutedAt: null, origin: "AUTHOR", userId: "user-author" },
+        { mutedAt: null, origin: "REPLY", userId: "user-selin" },
+      ],
+      notificationSettings: [THREAD_REPLIES_ON("user-selin")],
+      parentAuthorId: "user-author",
+    });
+
+    try {
+      await createChannelThreadReplyNotification({ ...THREAD_ARGS, content: "bakıyorum" });
+
+      assert.deepEqual(harness.recipientIds().sort(), ["user-author", "user-selin"]);
+    } finally {
+      harness.restore();
+    }
+  });
+
+  /** `mutedAt` dolu satır bildirim almaz — üst mesaj yazarı olsa bile (K3). */
+  it("keeps a deliberately muted follower silent, parent author included", async () => {
+    const harness = installFanOutHarness({
+      followers: [
+        { mutedAt: new Date("2026-08-01T00:00:00.000Z"), origin: "AUTHOR", userId: "user-author" },
+        { mutedAt: new Date("2026-08-01T00:00:00.000Z"), origin: "REPLY", userId: "user-selin" },
+      ],
+      notificationSettings: [THREAD_REPLIES_ON("user-selin")],
+      parentAuthorId: "user-author",
+    });
+
+    try {
+      await createChannelThreadReplyNotification({ ...THREAD_ARGS, content: "bakıyorum" });
+
+      assert.deepEqual(harness.notificationBatches, []);
+    } finally {
+      harness.restore();
+    }
+  });
+
+  /** Thread içinde bahsedilen kişi örtük takipçi olur; bildirimini mention dalından alır. */
+  it("records a MENTION follow and does not double-notify the mentioned member", async () => {
+    const harness = installFanOutHarness({
+      followers: [
+        { mutedAt: null, origin: "AUTHOR", userId: "user-author" },
+        { mutedAt: null, origin: "MENTION", userId: "user-selin" },
+      ],
+      notificationSettings: [THREAD_REPLIES_ON("user-selin")],
+      parentAuthorId: "user-author",
+      usernameMembers: { selin: "user-selin" },
+    });
+
+    try {
+      await createChannelThreadReplyNotification({ ...THREAD_ARGS, content: "@selin bakar mısın" });
+
+      assert.equal(harness.followUpserts.length, 1);
+      assert.deepEqual(harness.followUpserts[0]?.create, {
+        channelId: "channel-1",
+        origin: "MENTION",
+        parentMessageId: "parent-1",
+        userId: "user-selin",
+      });
+      assert.deepEqual(harness.recipientIds(), ["user-author"]);
+    } finally {
+      harness.restore();
+    }
+  });
+
+  /** Yanıtı yazan kişi üst mesajın da yazarıysa kendi kendine bildirim üretmez. */
+  it("never notifies the sender", async () => {
+    const harness = installFanOutHarness({
+      followers: [{ mutedAt: null, origin: "AUTHOR", userId: "user-sender" }],
+      parentAuthorId: "user-sender",
+    });
+
+    try {
+      await createChannelThreadReplyNotification({ ...THREAD_ARGS, content: "kendi thread'im" });
+
+      assert.deepEqual(harness.notificationBatches, []);
+    } finally {
+      harness.restore();
     }
   });
 });

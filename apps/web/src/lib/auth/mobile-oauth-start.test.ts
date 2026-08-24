@@ -16,27 +16,27 @@ const handoffToken = "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-"; // gitleaks
 describe("mobile OAuth start paths", () => {
   it("builds safe browser-start and mobile-complete paths", () => {
     assert.equal(
-      buildMobileOAuthStartPath("/channels/@me", "google", oauthState),
-      `/mobile/oauth/start?callbackUrl=%2Fchannels%2F%40me&provider=google&state=${oauthState}`,
+      buildMobileOAuthStartPath("/messages", "google", oauthState),
+      `/mobile/oauth/start?callbackUrl=%2Fmessages&provider=google&state=${oauthState}`,
     );
     assert.equal(
-      buildMobileOAuthCompletePath("/channels/@me", oauthState),
-      `/mobile/oauth/complete?callbackUrl=%2Fchannels%2F%40me&state=${oauthState}`,
+      buildMobileOAuthCompletePath("/messages", oauthState),
+      `/mobile/oauth/complete?callbackUrl=%2Fmessages&state=${oauthState}`,
     );
     assert.equal(
-      buildMobileOAuthHandoffUrl(handoffToken, "/channels/@me", oauthState),
-      `whispr://oauth/${handoffToken}?callbackUrl=%2Fchannels%2F%40me&state=${oauthState}`,
+      buildMobileOAuthHandoffUrl(handoffToken, "/messages", oauthState),
+      `whispr://oauth/${handoffToken}?callbackUrl=%2Fmessages&state=${oauthState}`,
     );
   });
 
   it("sanitizes unsafe callback targets before putting them in URLs", () => {
     assert.equal(
       buildMobileOAuthStartPath("https://evil.example/channels", "google", oauthState),
-      `/mobile/oauth/start?callbackUrl=%2Fchannels%2F%40me&provider=google&state=${oauthState}`,
+      `/mobile/oauth/start?callbackUrl=%2Fmessages&provider=google&state=${oauthState}`,
     );
     assert.equal(
       buildMobileOAuthCompletePath("//evil.example/channels", oauthState),
-      `/mobile/oauth/complete?callbackUrl=%2Fchannels%2F%40me&state=${oauthState}`,
+      `/mobile/oauth/complete?callbackUrl=%2Fmessages&state=${oauthState}`,
     );
   });
 

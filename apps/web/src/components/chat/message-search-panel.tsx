@@ -254,7 +254,7 @@ export function MessageSearchPanel({
     <div className="fixed inset-0 z-[1000]" onPointerDown={onClose} role="presentation">
       <div
         ref={panelRef}
-        className="app-panel fixed max-h-[min(34rem,calc(100dvh-1.5rem))] overflow-y-auto rounded-[26px] border bg-[hsl(var(--surface-card))] p-3 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.2)] backdrop-blur-xl"
+        className="app-panel fixed max-h-[min(34rem,calc(100dvh-1.5rem))] overflow-y-auto rounded-[1.625rem] border bg-[hsl(var(--surface-card))] p-3 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.2)] backdrop-blur-xl"
         data-testid="message-search-panel"
         aria-labelledby={titleId}
         aria-modal="true"
@@ -269,7 +269,7 @@ export function MessageSearchPanel({
       >
         <div className="flex items-center justify-between gap-3 px-1 pb-2">
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-app-soft">
+            <p className="text-[0.6875rem] font-bold uppercase tracking-[0.18em] text-app-soft">
               {t("chat.search.eyebrow")}
             </p>
             <p className="truncate text-sm font-semibold text-app-foreground" id={titleId}>
@@ -316,9 +316,9 @@ export function MessageSearchPanel({
         </label>
 
         {searchMode === "advanced" ? (
-          <div className="mt-3 space-y-2 rounded-[22px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.34)] p-3">
+          <div className="mt-3 space-y-2 rounded-[1.375rem] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.34)] p-3">
             <label className="block">
-              <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-app-soft">
+              <span className="mb-1.5 block text-[0.625rem] font-bold uppercase tracking-[0.16em] text-app-soft">
                 {t("chat.search.author")}
               </span>
               <input
@@ -330,7 +330,7 @@ export function MessageSearchPanel({
             </label>
             <div className="grid gap-2">
               <label className="block">
-                <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-app-soft">
+                <span className="mb-1.5 block text-[0.625rem] font-bold uppercase tracking-[0.16em] text-app-soft">
                   {t("chat.search.from")}
                 </span>
                 <input
@@ -341,7 +341,7 @@ export function MessageSearchPanel({
                 />
               </label>
               <label className="block">
-                <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-app-soft">
+                <span className="mb-1.5 block text-[0.625rem] font-bold uppercase tracking-[0.16em] text-app-soft">
                   {t("chat.search.to")}
                 </span>
                 <input
@@ -395,7 +395,7 @@ export function MessageSearchPanel({
           <div className="space-y-1">
             {visibleResults.map((result) => (
               <button
-                className="group flex w-full min-w-0 items-start gap-3 rounded-[22px] px-3 py-2.5 text-left transition hover:bg-app-surface-soft focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+                className="group flex w-full min-w-0 items-start gap-3 rounded-[1.375rem] px-3 py-2.5 text-left transition hover:bg-app-surface-soft focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
                 key={result.id}
                 onClick={() => {
                   onJumpToMessage(result.messageId);
@@ -414,7 +414,7 @@ export function MessageSearchPanel({
                     <span className="truncate text-xs font-bold text-app-foreground">
                       {result.author.displayName}
                     </span>
-                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-app-soft">
+                    <span className="shrink-0 text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-app-soft">
                       {formatter.format(new Date(result.createdAt))}
                     </span>
                   </span>

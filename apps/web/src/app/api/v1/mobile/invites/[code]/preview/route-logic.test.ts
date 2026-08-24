@@ -31,6 +31,7 @@ function previewFixture(): MobileInvitePreviewResponse {
     admins: [],
     bannerUrl: null,
     canManageServer: false,
+    category: null,
     channelCount: 2,
     channels: [
       {
@@ -66,6 +67,7 @@ function previewFixture(): MobileInvitePreviewResponse {
     isPublic: true,
     joined: true,
     joinedAt: "2026-02-03T04:05:06.000Z",
+    languages: [],
     memberCount: 12_400,
     muted: false,
     mutualFriendCount: 1,
@@ -74,6 +76,8 @@ function previewFixture(): MobileInvitePreviewResponse {
         avatarUrl: "https://cdn.whispr.test/avatar.png",
         displayName: "Ada",
         id: "friend-1",
+        presence: "online",
+        role: "member",
       },
     ],
     name: "Whispr Topluluk",
@@ -88,6 +92,7 @@ function previewFixture(): MobileInvitePreviewResponse {
     upcomingEvent: null,
     verified: true,
     voiceActiveCount: 14,
+    voiceRoomCount: 4,
     weeklyMessageCount: null,
   };
 }

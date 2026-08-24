@@ -858,12 +858,12 @@ describe("mobile auth handoff", () => {
   it("exchanges a safe single-use handoff for a signed mobile session", async () => {
     const redis = new MemoryRedis();
     const handoff = await createMobileAuthHandoffToken(
-      { callbackPath: "/channels/@me", userId: "user-1" },
+      { callbackPath: "/messages", userId: "user-1" },
       { nowMs: 1_800_000_000_000, redis },
     );
 
     assert.equal(isMobileAuthHandoffToken(handoff.token), true);
-    assert.equal(handoff.callbackPath, "/channels/@me");
+    assert.equal(handoff.callbackPath, "/messages");
     assert.equal(
       [...redis.values.keys()].some((key) => key.includes(handoff.token)),
       false,
@@ -871,7 +871,7 @@ describe("mobile auth handoff", () => {
 
     const response = await exchangeMobileAuthHandoffToken(
       handoff.token,
-      { expectedCallbackPath: "/channels/@me" },
+      { expectedCallbackPath: "/messages" },
       { env, loadUser, nowMs: 1_800_000_000_000, redis },
     );
 
@@ -891,7 +891,7 @@ describe("mobile auth handoff", () => {
 
     const replay = await exchangeMobileAuthHandoffToken(
       handoff.token,
-      { expectedCallbackPath: "/channels/@me" },
+      { expectedCallbackPath: "/messages" },
       { env, loadUser, redis },
     );
     assert.equal(replay, null);

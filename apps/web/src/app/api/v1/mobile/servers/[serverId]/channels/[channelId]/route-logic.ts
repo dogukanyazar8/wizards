@@ -10,8 +10,7 @@ import { requireMobileApiUserId } from "@/lib/auth/api";
 import { deleteWorkspaceChannel, updateWorkspaceChannel } from "@/lib/workspace/channel-service";
 
 type MobileServerChannelRateLimitAction =
-  | "mobile:server:channels:delete"
-  | "mobile:server:channels:update";
+  "mobile:server:channels:delete" | "mobile:server:channels:update";
 
 export type MobileServerChannelRouteContext = {
   params: Promise<Record<string, string>>;

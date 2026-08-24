@@ -2,16 +2,10 @@ import type { ChatMessage } from "@wizards/types";
 import { requireApiUserId } from "@/lib/auth/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError } from "@/lib/api";
-import {
-  emitToUserRooms,
-  getPermittedChannelViewerUserIds,
-} from "@/lib/socket/emitters";
+import { emitToUserRooms, getPermittedChannelViewerUserIds } from "@/lib/socket/emitters";
 import { redactMessageAttachmentUrlsForViewer } from "@/lib/messages/attachment-visibility";
 import { getSocketServer } from "@/lib/socket/runtime";
-import {
-  pinChannelMessage,
-  unpinChannelMessage,
-} from "@/lib/workspace/message-service";
+import { pinChannelMessage, unpinChannelMessage } from "@/lib/workspace/message-service";
 
 type RouteContext = {
   params: Promise<{ channelId: string; messageId: string }>;

@@ -55,7 +55,9 @@ type DmGroupSettingsPanelProps = {
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-app-soft">{children}</p>
+    <p className="text-[0.6875rem] font-black uppercase tracking-[0.18em] text-app-soft">
+      {children}
+    </p>
   );
 }
 
@@ -147,7 +149,7 @@ export function DmGroupSettingsPanel({
         <div className="flex flex-col gap-1.5" data-testid="dm-group-permissions">
           <div className="flex items-center gap-2">
             <SectionHeading>{t("dm.group.permissions")}</SectionHeading>
-            <span className="rounded-full bg-[hsl(var(--warning)/0.14)] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[hsl(var(--warning))]">
+            <span className="rounded-full bg-[hsl(var(--warning)/0.14)] px-2 py-0.5 text-[0.625rem] font-black uppercase tracking-[0.12em] text-[hsl(var(--warning))]">
               {t("dm.group.adminBadge")}
             </span>
           </div>

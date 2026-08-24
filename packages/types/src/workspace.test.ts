@@ -27,6 +27,8 @@ import {
   ServerPublicProfileParticipantSchema,
   ServerPublicProfileSchema,
   ServerScheduledEventEntityTypeSchema,
+  ServerScheduledEventKindSchema,
+  ServerScheduledEventRsvpStatusSchema,
   ServerScheduledEventSchema,
   ServerScheduledEventStatusSchema,
   ServerTagSchema,
@@ -175,6 +177,7 @@ const serverPublicProfile = {
   admins: [],
   bannerUrl: null,
   canManageServer: false,
+  category: "destek" as const,
   channelCount: 1,
   channels: [serverPublicProfileChannel],
   createdAt: "2026-01-02T03:04:05.000Z",
@@ -185,6 +188,7 @@ const serverPublicProfile = {
   isPublic: true,
   joined: false,
   joinedAt: null,
+  languages: ["tr", "en"],
   memberCount: 12_400,
   muted: false,
   mutualFriendCount: 0,
@@ -200,6 +204,7 @@ const serverPublicProfile = {
   upcomingEvent: serverScheduledEvent,
   verified: true,
   voiceActiveCount: 2,
+  voiceRoomCount: 4,
   weeklyMessageCount: 480,
 };
 
@@ -368,8 +373,14 @@ describe("workspace schemas", () => {
       },
       ServerPublicProfileFriendSchema: {
         schema: ServerPublicProfileFriendSchema,
-        valid: { avatarUrl: null, displayName: "Ada", id: "friend-1" },
-        invalid: { avatarUrl: null, displayName: "Ada", id: 1 },
+        valid: {
+          avatarUrl: null,
+          displayName: "Ada",
+          id: "friend-1",
+          presence: "online",
+          role: "admin",
+        },
+        invalid: { avatarUrl: null, displayName: "Ada", id: "friend-1" },
       },
       ServerPublicProfileParticipantSchema: {
         schema: ServerPublicProfileParticipantSchema,
@@ -385,6 +396,17 @@ describe("workspace schemas", () => {
         schema: ServerScheduledEventEntityTypeSchema,
         valid: "VOICE",
         invalid: "voice",
+      },
+      ServerScheduledEventKindSchema: {
+        schema: ServerScheduledEventKindSchema,
+        valid: "WORKSHOP",
+        invalid: "workshop",
+      },
+      ServerScheduledEventRsvpStatusSchema: {
+        schema: ServerScheduledEventRsvpStatusSchema,
+        valid: "MAYBE",
+        // K1 — yanıt yokluğu üçüncü bir üye değil, satırın yokluğu.
+        invalid: "NONE",
       },
       ServerScheduledEventSchema: {
         schema: ServerScheduledEventSchema,

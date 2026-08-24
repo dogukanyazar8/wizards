@@ -13,7 +13,10 @@ describe("profile completion", () => {
 
     assert.equal(summary.percent, 100);
     assert.equal(summary.completedWeight, summary.totalWeight);
-    assert.equal(summary.items.every((item) => item.complete), true);
+    assert.equal(
+      summary.items.every((item) => item.complete),
+      true,
+    );
   });
 
   it("uses email presence when verified-email state is not available yet", () => {

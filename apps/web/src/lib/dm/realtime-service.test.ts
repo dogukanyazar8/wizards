@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import type { DMConversationDTO } from "@wizards/types";
 
@@ -48,5 +49,54 @@ describe("DM realtime updates", () => {
         ["user-3", 2],
       ],
     );
+  });
+});
+
+/**
+ * Ana Sayfa 1a — Faz 6. A DM mention is a row now, not only a counter.
+ *
+ * `createRealtimeDMMessage` writes `prisma` directly, so this reads the module's
+ * own source: the assertion worth making is not "createMany was called" but
+ * **where** it was called from. The mention rows and `DMParticipant.mentionCount`
+ * have to move inside the same interactive transaction as the message — a badge
+ * that commits without its row would leave "Bahsedilmeler" describing a message
+ * that does not exist, and a row without the badge would be invisible.
+ */
+describe("DM mention rows", () => {
+  const source = readFileSync(new URL("./realtime-service.ts", import.meta.url), "utf8");
+  const transaction = source.slice(
+    source.indexOf("prisma.$transaction"),
+    source.indexOf("return resolveIdempotentMessageSend"),
+  );
+
+  it("writes mention rows in the same transaction as the mention counter", () => {
+    assert.ok(transaction.length > 0, "the send transaction must be findable");
+    assert.match(transaction, /tx\.dMMessageMention\.createMany/);
+    assert.match(transaction, /mentionCount: \{ increment: 1 \}/);
+  });
+
+  it("writes one mention row per named participant, skipping duplicates", () => {
+    const createManyAt = transaction.indexOf("tx.dMMessageMention.createMany");
+    const block = transaction.slice(createManyAt, createManyAt + 400);
+
+    assert.match(block, /mentionedUserIds\.map/);
+    assert.match(block, /messageId: createdMessage\.id/);
+    // A resend that resolves to the same message must not double-insert.
+    assert.match(block, /skipDuplicates: true/);
+  });
+
+  /** Bahsedilmeler Ş2: DM'de rol ve `@herkes` yoktur, bu dal her zaman `SELF` yazar. */
+  it("stamps every DM mention row as SELF", () => {
+    const createManyAt = transaction.indexOf("tx.dMMessageMention.createMany");
+    const block = transaction.slice(createManyAt, createManyAt + 400);
+
+    assert.match(block, /kind: "SELF"/);
+  });
+
+  it("derives the row timestamp from the message, not from a second clock", () => {
+    const createManyAt = transaction.indexOf("tx.dMMessageMention.createMany");
+    const block = transaction.slice(createManyAt, createManyAt + 400);
+
+    assert.match(block, /createdAt: createdMessage\.createdAt/);
   });
 });

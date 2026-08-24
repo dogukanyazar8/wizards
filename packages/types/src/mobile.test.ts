@@ -159,6 +159,7 @@ const invitePreviewProfile = {
   admins: [],
   bannerUrl: null,
   canManageServer: false,
+  category: null,
   channelCount: 1,
   channels: [
     {
@@ -182,6 +183,7 @@ const invitePreviewProfile = {
   isPublic: true,
   joined: false,
   joinedAt: null,
+  languages: [],
   memberCount: 12_400,
   muted: false,
   mutualFriendCount: 0,
@@ -197,6 +199,7 @@ const invitePreviewProfile = {
   upcomingEvent: null,
   verified: true,
   voiceActiveCount: 0,
+  voiceRoomCount: 0,
   weeklyMessageCount: null,
 };
 const uuid = "550e8400-e29b-41d4-a716-446655440000";
@@ -2053,6 +2056,11 @@ describe("mobile invite preview exposure boundary", () => {
       "admins",
       "bannerUrl",
       "canManageServer",
+      // Reviewed exposure: the Keşfet directory classification. A discoverable
+      // server already advertises it in the public directory, and a private one
+      // reveals only which of six buckets it sits in -- the same granularity the
+      // `tags` array on this payload already carries.
+      "category",
       "channelCount",
       "channels",
       "createdAt",
@@ -2068,6 +2076,9 @@ describe("mobile invite preview exposure boundary", () => {
       "isPublic",
       "joined",
       "joinedAt",
+      // Reviewed exposure: the languages spoken in the server, owner-authored
+      // for the directory's featured pill. Same class of fact as `description`.
+      "languages",
       "memberCount",
       "muted",
       "mutualFriendCount",
@@ -2084,6 +2095,10 @@ describe("mobile invite preview exposure boundary", () => {
       "upcomingEvent",
       "verified",
       "voiceActiveCount",
+      // Reviewed exposure: how many voice rooms exist. The `channels` array on
+      // this same payload already lists them (capped by `hasMoreChannels`), so
+      // this only completes a count the invite holder could already start.
+      "voiceRoomCount",
       "weeklyMessageCount",
     ]);
   });

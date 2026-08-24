@@ -41,9 +41,23 @@ export type SendDirectMessageInput = {
   conversationId: string;
   forwardOfMessageId?: string | null;
   io?: AppSocketServer | null;
+  /**
+   * Mesajlar karar #1. A poll is a message, so it goes through this one door —
+   * the same door that checks `sendMessage`, blocking and the disappearing
+   * window. A second write path would be a second place to forget them.
+   */
+  poll?: {
+    anonymous: boolean;
+    closesAt: Date;
+    multi: boolean;
+    options: readonly string[];
+    question: string;
+  } | null;
   replyToId?: string | null;
   senderName?: string | null;
   threadParentId?: string | null;
+  /** Mesajlar §6.1. Thread yanıtı ana sohbete de düşsün mü. */
+  alsoSendToChannel?: boolean;
   userId: string;
 };
 
@@ -290,8 +304,10 @@ export async function sendDirectMessage(
       senderName,
     },
     participants,
+    poll: input.poll ?? null,
     replyToId: input.replyToId ?? null,
     threadParentId: input.threadParentId ?? null,
+    alsoSendToChannel: input.alsoSendToChannel ?? false,
     userId: input.userId,
   });
 

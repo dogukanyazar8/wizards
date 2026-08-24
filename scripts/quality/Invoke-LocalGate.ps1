@@ -217,7 +217,7 @@ $stepRegistry = @{
   "standard-typecheck" = @{ executable = "pnpm"; arguments = @("typecheck") }
   "standard-format" = @{ executable = "pnpm"; arguments = @("format") }
   "standard-tests" = @{ executable = "pnpm"; arguments = @("test") }
-  "ci-aggregate" = @{ executable = "pnpm"; arguments = @("ci") }
+  "ci-aggregate" = @{ executable = "pnpm"; arguments = @("run", "ci") }
   "mobile-validate-env" = @{ executable = "pnpm"; arguments = @("--filter", "@wizards/mobile", "validate:env") }
   "mobile-tests" = @{ executable = "pnpm"; arguments = @("--filter", "@wizards/mobile", "test") }
   "mobile-component-tests" = @{ executable = "pnpm"; arguments = @("--filter", "@wizards/mobile", "test:components") }

@@ -1,4 +1,11 @@
 export const RESPONSIVE_BREAKPOINTS = {
+  /**
+   * Ana Sayfa kompozisyonunun iki eşiği (`08-faz7` §3). Kabuğun `mobileMax`/`tablet` eşikleriyle
+   * çelişmezler: onlar **kabuğun** hangi sütunu göstereceğini, bunlar komuta merkezinin ızgarasının
+   * kaç kolon olacağını söyler. Ayrı sorular, ayrı sayılar; ikisi de tek yerde.
+   */
+  commandCenter: 960,
+  commandCenterWide: 1360,
   desktop: 1024,
   mobileMax: 767,
   supportPanel: 1280,

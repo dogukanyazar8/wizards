@@ -1,6 +1,14 @@
 import { z } from "zod";
 
+import {
+  VOICE_MESSAGE_MAX_AMPLITUDE,
+  VOICE_MESSAGE_MAX_MS,
+  VOICE_MESSAGE_WAVEFORM_BUCKETS,
+} from "./voice-message";
+
 import { DMSystemMessageTypeSchema } from "./dm-system-message";
+
+import { PollDTOSchema } from "./poll";
 
 export const MESSAGE_CONTENT_HARD_LIMIT = 40000;
 export const MESSAGE_CONTENT_DEFAULT_LIMIT = 2000;
@@ -43,6 +51,14 @@ export const MessageAttachmentSchema = z.object({
   width: z.number().int().optional(),
   height: z.number().int().optional(),
   duration: z.number().positive().nullable().optional(),
+  /**
+   * Mesajlar karar #5. Comma-separated 0–100 amplitudes; empty on every audio
+   * file that was attached rather than recorded, and on every row written before
+   * the encoding existed. The player draws a flat bar for an empty one, which is
+   * honest — guessing a shape from the attachment id, the way the mobile player
+   * used to, draws the same silhouette for two different recordings.
+   */
+  waveform: z.string().nullable().optional(),
   thumbnailUrl: z.string().url().nullable().optional(),
   scanStatus: AttachmentScanStatusSchema.optional(),
 });
@@ -60,12 +76,47 @@ export const MessageThreadSummarySchema = z.object({
   recentRepliers: z.array(MessageThreadParticipantSchema),
 });
 
-export const UploadedAttachmentInputSchema = z.object({
-  id: z.string().uuid(),
-  width: z.number().int().positive().max(20000).nullable().optional(),
-  height: z.number().int().positive().max(20000).nullable().optional(),
-  duration: z.number().positive().max(3600).nullable().optional(),
-});
+export const UploadedAttachmentInputSchema = z
+  .object({
+    id: z.string().uuid(),
+    width: z.number().int().positive().max(20000).nullable().optional(),
+    height: z.number().int().positive().max(20000).nullable().optional(),
+    duration: z.number().positive().max(3600).nullable().optional(),
+    /**
+     * Mesajlar karar #5. The recorder's own amplitude envelope, 0–100 per bucket.
+     *
+     * Measured on the client because that is the only side that ever holds the raw
+     * audio — the server receives a compressed blob it would have to decode to say
+     * anything about it. Bounds are enforced here rather than trusted: the array
+     * ends up in every reader's DOM.
+     */
+    waveform: z
+      .array(z.number().int().min(0).max(VOICE_MESSAGE_MAX_AMPLITUDE))
+      .max(VOICE_MESSAGE_WAVEFORM_BUCKETS)
+      .nullable()
+      .optional(),
+  })
+  /**
+   * karar #5. Sesli mesajın süre tavanı **sunucuda** zorlanır.
+   *
+   * Genel `duration` tavanı bir saat, çünkü aynı alan videoyu da taşıyor. Ama
+   * dalga formu taşıyan bir ek sesli mesajdır ve onun tavanı beş dakikadır;
+   * kaydedicinin kendi kendini durdurması bir kontrol değildir — istek elle de
+   * yazılabilir ve o zaman oynatıcı asla bitmeyen bir çubuk çizerdi.
+   */
+  .superRefine((value, context) => {
+    if (!value.waveform || value.waveform.length === 0) {
+      return;
+    }
+
+    if (typeof value.duration === "number" && value.duration > VOICE_MESSAGE_MAX_MS / 1000) {
+      context.addIssue({
+        code: "custom",
+        message: `Voice message duration must be at most ${VOICE_MESSAGE_MAX_MS / 1000} seconds`,
+        path: ["duration"],
+      });
+    }
+  });
 
 export const ReplyToSchema = z.object({
   id: z.string(),
@@ -75,6 +126,18 @@ export const ReplyToSchema = z.object({
 
 export const ChatMessageTypeSchema = z.enum(["DEFAULT", "SYSTEM_JOIN", "SYSTEM_LEAVE"]);
 
+export const ChannelThreadStatePatchSchema = z.object({ open: z.boolean() }).strict();
+
+export const ChannelThreadStateSchema = z
+  .object({
+    closedAt: z.string().datetime().nullable(),
+    closedById: z.string().min(1).nullable(),
+    open: z.boolean(),
+  })
+  .strict();
+
+export const ThreadFollowStateSchema = z.object({ following: z.boolean() }).strict();
+
 export const ChatMessageSchema = z.object({
   id: z.string(),
   channelId: z.string(),
@@ -83,6 +146,8 @@ export const ChatMessageSchema = z.object({
   type: ChatMessageTypeSchema,
   mentionEveryone: z.boolean().optional(),
   threadParentId: z.string().nullable().optional(),
+  threadClosedAt: z.string().datetime().nullable().optional(),
+  threadClosedById: z.string().nullable().optional(),
   /** 8d: a thread reply the author also published into the parent channel. */
   alsoSentToChannel: z.boolean().optional(),
   threadSummary: MessageThreadSummarySchema.optional(),
@@ -107,6 +172,15 @@ export const ChatMessageSchema = z.object({
    * a channel message never carries one — `type` is what marks a channel's own
    * system rows.
    */
+  /**
+   * Mesajlar karar #1. Anket bir mesajdır ve kartı satırın içinde çizilir; bu
+   * yüzden anket, mesajın kendisiyle **aynı** yükte gelir. Ayrı bir uçtan
+   * çekilseydi, otuz mesajlık bir sayfa otuz istek daha doğururdu.
+   *
+   * İsteğe bağlı: mesajların ezici çoğunluğunda yok, ve alanı tanımayan eski bir
+   * istemci yükü ayrıştırmayı sürdürebilmeli.
+   */
+  poll: PollDTOSchema.nullable().optional(),
   systemType: DMSystemMessageTypeSchema.nullable().optional(),
   systemTargetUserIds: z.array(z.string()).optional(),
   systemValue: z.string().nullable().optional(),
@@ -190,5 +264,6 @@ export type MessagesResponse = z.infer<typeof MessagesResponseSchema>;
 export type MessageSearchScope = z.infer<typeof MessageSearchScopeSchema>;
 export type MessageSearchResult = z.infer<typeof MessageSearchResultSchema>;
 export type MessageSearchResponse = z.infer<typeof MessageSearchResponseSchema>;
+export type ThreadFollowState = z.infer<typeof ThreadFollowStateSchema>;
 export type SendMessageInput = z.infer<typeof SendMessageInputSchema>;
 export type EditMessageInput = z.infer<typeof EditMessageInputSchema>;

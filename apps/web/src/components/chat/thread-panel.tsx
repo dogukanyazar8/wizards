@@ -1,16 +1,40 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { MessageSquareText, X } from "lucide-react";
+import React, { useCallback, useMemo, useState } from "react";
+import { LockKeyhole, LockKeyholeOpen, MessagesSquare } from "lucide-react";
 import type { ChatMessage, UploadedAttachmentInput, WorkspaceServerDetail } from "@wizards/types";
 import { MessageInput } from "./message-input";
 import { MessageItem } from "./message-item";
+import { MessagesSidePanel } from "@/components/messages/messages-side-panel";
 import { useI18n } from "@/components/providers/locale-provider";
 import type { MessageMode } from "@/hooks/use-messages";
 import { useThreadMessages } from "@/hooks/use-thread-messages";
 import { useSocket } from "@/hooks/use-socket";
+import { excerpt } from "@/lib/messages/message-blocks";
+import { MESSAGES_METRICS, hairline, pxToRem } from "@/lib/messages/metrics";
+import { cn } from "@/lib/utils";
+import { patchChannelThreadStateRequest } from "@/lib/workspace/client";
+
+/**
+ * Thread paneli — SPEC-MESAJLAR §6.1.
+ *
+ * Panel artık ekranın üstüne binen 460px'lik bir diyalog değil, sağ sütunun
+ * 340px'lik yerleşik bir parçası. Kabuk ortak (`messages-side-panel.tsx`);
+ * yerleşikken `role="complementary"` ve focus tuzağı **yok**, dar ekranda
+ * overlay olduğunda diyalog ve tuzak var.
+ *
+ * **Başlık uydurulmuyor.** Sunucu bir "thread başlığı" tutmuyor; alt satırdaki
+ * özet kök mesajın gövdesinden türetiliyor (`excerpt`). Ayrı bir alan icat etmek,
+ * hiçbir yerin doldurmadığı bir sözleşme yaratırdı.
+ *
+ * Veri katmanı olduğu gibi korundu: `useThreadMessages` sonsuz sorgusu, socket
+ * yaması ve gönderim yolu değişmedi.
+ */
 
 const MESSAGE_GROUP_WINDOW_MS = 5 * 60 * 1000;
+const THREAD_TITLE_EXCERPT_LENGTH = 42;
+
+const { sidePanel } = MESSAGES_METRICS;
 
 interface ThreadPanelProps {
   allowFileUploads: boolean;
@@ -18,12 +42,18 @@ interface ThreadPanelProps {
   canModerate: boolean;
   conversationId: string;
   currentUserId: string;
+  currentUsername?: string | undefined;
   disabled?: boolean;
   disabledReason?: string | undefined;
   mentionMembers: WorkspaceServerDetail["members"];
+  /** Bahsedilmeler Ş2: bestekar rol önerisi thread panelinde de çalışır. */
+  mentionRoles?: WorkspaceServerDetail["roles"];
   messageCharacterLimit?: number | null;
   mode: MessageMode;
   onClose: () => void;
+  onThreadStateChange?: (state: { closedAt: string | null; closedById: string | null }) => void;
+  /** `<1100px`'te panel ana alanın üstüne biner. */
+  overlay?: boolean;
   parentMessage: ChatMessage;
   uploadthingEnabled: boolean;
 }
@@ -34,28 +64,47 @@ export function ThreadPanel({
   canModerate,
   conversationId,
   currentUserId,
+  currentUsername,
   disabled = false,
   disabledReason,
   mentionMembers,
+  mentionRoles = [],
   messageCharacterLimit = 2000,
   mode,
   onClose,
+  onThreadStateChange,
+  overlay = false,
   parentMessage,
   uploadthingEnabled,
 }: ThreadPanelProps) {
   const { t } = useI18n();
   const socket = useSocket();
-  const panelRef = useRef<HTMLElement | null>(null);
-  const titleId = useId();
-  const descriptionId = useId();
   const [replyTo, setReplyTo] = useState<{
     id: string;
     authorName: string;
     content: string;
   } | null>(null);
+  /**
+   * `Ana sohbete de gönder` artık **iki tarafta da** var: kanal
+   * `Message.alsoSentToChannel`, DM `DMMessage.alsoSentToChannel`. İkisi de
+   * yalnız gerçek bir thread yanıtında yazılıyor ve ana liste sorgusu
+   * `threadParentId: null OR alsoSentToChannel: true` diyor.
+   */
+  const [alsoSendToChannel, setAlsoSendToChannel] = useState(false);
+  const [threadStateOverride, setThreadStateOverride] = useState<{
+    closedAt: string | null;
+    closedById: string | null;
+  } | null>(null);
+  const [threadStateError, setThreadStateError] = useState(false);
+  const [threadStatePending, setThreadStatePending] = useState(false);
+
   const { data, error, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useThreadMessages(mode, conversationId, parentMessage.id);
   const parent = data?.pages[0]?.parent ?? parentMessage;
+  const threadState = threadStateOverride ?? {
+    closedAt: parent.threadClosedAt ?? null,
+    closedById: parent.threadClosedById ?? null,
+  };
   const parentForThread = useMemo(
     () => ({
       ...parent,
@@ -78,6 +127,37 @@ export function ThreadPanel({
     );
   }, [data]);
 
+  const replyCount = parent.threadSummary?.replyCount ?? messages.length;
+  const threadClosed = mode === "channel" && Boolean(threadState.closedAt);
+  const canChangeThreadState =
+    mode === "channel" && (canModerate || parent.author.id === currentUserId);
+
+  const toggleThreadState = useCallback(async () => {
+    if (!canChangeThreadState || threadStatePending) {
+      return;
+    }
+
+    setThreadStatePending(true);
+    setThreadStateError(false);
+    try {
+      const next = await patchChannelThreadStateRequest(conversationId, parent.id, threadClosed);
+      const state = { closedAt: next.closedAt, closedById: next.closedById };
+      setThreadStateOverride(state);
+      onThreadStateChange?.(state);
+    } catch {
+      setThreadStateError(true);
+    } finally {
+      setThreadStatePending(false);
+    }
+  }, [
+    canChangeThreadState,
+    conversationId,
+    onThreadStateChange,
+    parent.id,
+    threadClosed,
+    threadStatePending,
+  ]);
+
   const handleReact = useCallback(
     (messageId: string, emoji: string) => {
       if (mode === "channel") {
@@ -94,6 +174,7 @@ export function ThreadPanel({
     async (content: string, replyToId?: string, attachments: UploadedAttachmentInput[] = []) => {
       if (mode === "channel") {
         socket.emit("message:send", {
+          ...(alsoSendToChannel ? { alsoSendToChannel: true } : {}),
           attachments,
           channelId: conversationId,
           content,
@@ -102,6 +183,7 @@ export function ThreadPanel({
         });
       } else {
         socket.emit("dm:message:send", {
+          ...(alsoSendToChannel ? { alsoSendToChannel: true } : {}),
           attachments,
           conversationId,
           content,
@@ -112,172 +194,214 @@ export function ThreadPanel({
 
       setReplyTo(null);
     },
-    [conversationId, mode, parent.id, socket],
+    [alsoSendToChannel, conversationId, mode, parent.id, socket],
   );
 
   const handleReply = useCallback((id: string, authorName: string, content: string) => {
     setReplyTo({ id, authorName, content });
   }, []);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [onClose]);
-
   return (
-    <div
-      className="absolute inset-0 z-40"
-      onPointerDown={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
-      role="presentation"
-    >
-      <aside
-        aria-describedby={descriptionId}
-        aria-labelledby={titleId}
-        aria-modal="true"
-        className="absolute inset-0 flex flex-col border-l border-app-border bg-[hsl(var(--surface-card)/0.97)] shadow-[-22px_0_56px_hsl(var(--shadow-color)/0.16)] backdrop-blur-2xl md:left-auto md:w-[460px]"
-        data-testid="thread-panel"
-        onPointerDown={(event) => event.stopPropagation()}
-        ref={panelRef}
-        role="dialog"
-        tabIndex={-1}
-      >
-        <div className="flex items-start justify-between gap-3 border-b border-app-border px-4 py-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-2xl border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
-                <MessageSquareText className="h-[18px] w-[18px]" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-app-soft">
-                  {t("chat.thread.label")}
-                </p>
-                <h2 className="truncate text-base font-bold text-app-foreground" id={titleId}>
-                  {t("chat.thread.panelTitle")}
-                </h2>
-                <p className="sr-only" id={descriptionId}>
-                  {t("chat.thread.dialogDescription")}
-                </p>
-              </div>
-            </div>
-          </div>
+    <MessagesSidePanel
+      actions={
+        canChangeThreadState ? (
           <button
-            aria-label={t("common.close")}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-app-border bg-app-surface-soft text-app-muted transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-            onClick={onClose}
+            aria-label={
+              threadClosed
+                ? t("messages.panel.thread.reopen")
+                : t("messages.panel.thread.closeThread")
+            }
+            className="grid h-8 w-8 place-items-center rounded-lg text-[hsl(var(--text-secondary))] transition hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))] disabled:opacity-50"
+            data-testid="thread-state-toggle"
+            disabled={threadStatePending}
+            onClick={() => void toggleThreadState()}
             type="button"
           >
-            <X className="h-4 w-4" />
+            {threadClosed ? (
+              <LockKeyholeOpen aria-hidden="true" className="h-4 w-4" />
+            ) : (
+              <LockKeyhole aria-hidden="true" className="h-4 w-4" />
+            )}
           </button>
-        </div>
+        ) : null
+      }
+      icon={<MessagesSquare />}
+      onClose={onClose}
+      overlay={overlay}
+      subtitle={t("messages.panel.thread.subtitle", {
+        count: replyCount,
+        title: excerpt(parent.content, THREAD_TITLE_EXCERPT_LENGTH),
+      })}
+      testId="thread-panel"
+      title={t("messages.panel.thread.title")}
+    >
+      <div
+        className="shrink-0"
+        style={{
+          borderBottom: `${hairline()} solid hsl(var(--border)/0.5)`,
+          padding: `${pxToRem(sidePanel.threadRootPaddingY)} ${pxToRem(sidePanel.threadRootPaddingX)}`,
+        }}
+      >
+        <MessageItem
+          canModerate={canModerate}
+          currentUserId={currentUserId}
+          {...(currentUsername ? { currentUsername } : {})}
+          isGrouped={false}
+          message={parentForThread}
+          mode={mode}
+          onReact={handleReact}
+          onRemoveOptimistic={() => undefined}
+          onReply={handleReply}
+          onRetry={() => undefined}
+          onThread={() => undefined}
+        />
+      </div>
 
-        <div className="flex-1 overflow-y-auto px-2 py-2.5">
-          <div className="mb-2 rounded-[22px] border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.38)] px-1 py-2">
-            <p className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-app-soft">
-              {t("chat.thread.parentMessage")}
+      <div
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+        style={{
+          gap: pxToRem(sidePanel.threadRepliesGap),
+          padding: `${pxToRem(sidePanel.threadRepliesPaddingY)} ${pxToRem(sidePanel.threadRepliesPaddingX)}`,
+        }}
+      >
+        {hasNextPage ? (
+          <button
+            className="self-center text-[hsl(var(--primary))] transition hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:opacity-60"
+            data-testid="thread-load-older"
+            disabled={isFetchingNextPage}
+            onClick={() => {
+              void fetchNextPage();
+            }}
+            style={{ fontSize: pxToRem(sidePanel.threadTimeFontSize), fontWeight: 600 }}
+            type="button"
+          >
+            {isFetchingNextPage ? t("chat.thread.loading") : t("chat.thread.loadOlder")}
+          </button>
+        ) : null}
+
+        {isLoading ? (
+          <p
+            className="text-[hsl(var(--text-secondary))]"
+            style={{ fontSize: pxToRem(sidePanel.threadBodyFontSize) }}
+          >
+            {t("chat.thread.loading")}
+          </p>
+        ) : error ? (
+          <p
+            className="text-[hsl(var(--danger))]"
+            style={{ fontSize: pxToRem(sidePanel.threadBodyFontSize) }}
+          >
+            {t("chat.thread.loadFailed")}
+          </p>
+        ) : messages.length === 0 ? (
+          <div className="text-center" data-testid="thread-empty">
+            <p
+              className="text-[hsl(var(--foreground))]"
+              style={{ fontSize: pxToRem(sidePanel.threadBodyFontSize), fontWeight: 600 }}
+            >
+              {t("chat.thread.emptyTitle")}
             </p>
-            <MessageItem
-              canModerate={canModerate}
-              currentUserId={currentUserId}
-              isGrouped={false}
-              message={parentForThread}
-              mode={mode}
-              onReact={handleReact}
-              onRemoveOptimistic={() => undefined}
-              onReply={handleReply}
-              onRetry={() => undefined}
-              onThread={() => undefined}
-            />
+            <p
+              className="text-[hsl(var(--text-secondary))]"
+              style={{
+                fontSize: pxToRem(sidePanel.threadTimeFontSize),
+                marginTop: pxToRem(sidePanel.headerSubtitleMarginTop),
+              }}
+            >
+              {t("chat.thread.emptyDescription")}
+            </p>
           </div>
+        ) : (
+          messages.map((message, index) => {
+            const previous = messages[index - 1];
+            const isGrouped =
+              Boolean(previous) &&
+              previous?.author.id === message.author.id &&
+              Math.abs(
+                new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime(),
+              ) < MESSAGE_GROUP_WINDOW_MS;
 
-          {hasNextPage ? (
-            <div className="mb-2 flex justify-center">
-              <button
-                className="rounded-full border border-app-border bg-app-surface-soft px-3 py-1.5 text-xs font-semibold text-app-muted transition hover:text-app-foreground disabled:opacity-60"
-                disabled={isFetchingNextPage}
-                onClick={() => {
-                  void fetchNextPage();
-                }}
-                type="button"
-              >
-                {isFetchingNextPage ? t("chat.thread.loading") : t("chat.thread.loadOlder")}
-              </button>
-            </div>
-          ) : null}
+            return (
+              <MessageItem
+                canModerate={canModerate}
+                currentUserId={currentUserId}
+                {...(currentUsername ? { currentUsername } : {})}
+                isGrouped={isGrouped}
+                key={message.id}
+                message={message}
+                mode={mode}
+                onReact={handleReact}
+                onRemoveOptimistic={() => undefined}
+                onReply={handleReply}
+                onRetry={() => undefined}
+                onThread={() => undefined}
+              />
+            );
+          })
+        )}
+      </div>
 
-          {isLoading ? (
-            <p className="px-4 py-5 text-sm text-app-muted">{t("chat.thread.loading")}</p>
-          ) : error ? (
-            <p className="px-4 py-5 text-sm text-app-danger">{t("chat.thread.loadFailed")}</p>
-          ) : messages.length === 0 ? (
-            <div className="mx-2 rounded-[22px] border border-dashed border-app-border bg-app-surface-soft px-4 py-6 text-center">
-              <p className="text-sm font-semibold text-app-foreground">
-                {t("chat.thread.emptyTitle")}
-              </p>
-              <p className="mt-1 text-xs text-app-muted">{t("chat.thread.emptyDescription")}</p>
-            </div>
-          ) : (
-            <div className="space-y-0">
-              {messages.map((message, index) => {
-                const previous = messages[index - 1];
-                const isGrouped =
-                  Boolean(previous) &&
-                  previous?.author.id === message.author.id &&
-                  Math.abs(
-                    new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime(),
-                  ) < MESSAGE_GROUP_WINDOW_MS;
+      <div
+        className="shrink-0"
+        style={{
+          borderTop: `${hairline()} solid hsl(var(--border)/0.5)`,
+          padding: `${pxToRem(sidePanel.threadComposerPaddingTop)} ${pxToRem(sidePanel.threadComposerPaddingX)} ${pxToRem(sidePanel.threadComposerPaddingBottom)}`,
+        }}
+      >
+        {threadClosed ? (
+          <p
+            className="mb-2 rounded-lg bg-[hsl(var(--warning)/0.12)] px-3 py-2 text-xs font-medium text-[hsl(var(--warning))]"
+            data-testid="thread-closed-notice"
+          >
+            {t("messages.panel.thread.closed")}
+          </p>
+        ) : null}
+        {threadStateError ? (
+          <p className="mb-2 text-xs text-[hsl(var(--danger))]" role="alert">
+            {t("messages.panel.thread.stateError")}
+          </p>
+        ) : null}
+        <MessageInput
+          autoFocus
+          allowFileUploads={allowFileUploads}
+          allowGifs={allowGifs}
+          conversationId={conversationId}
+          disabled={disabled || threadClosed}
+          disabledReason={threadClosed ? t("messages.panel.thread.closed") : disabledReason}
+          maxLength={messageCharacterLimit}
+          mentionMembers={mode === "channel" ? mentionMembers : []}
+          mentionRoles={mode === "channel" ? mentionRoles : []}
+          mode={mode}
+          onCancelReply={() => setReplyTo(null)}
+          onSend={handleSend}
+          replyTo={replyTo}
+          uploadthingEnabled={uploadthingEnabled}
+          variant="thread"
+        />
 
-                return (
-                  <MessageItem
-                    canModerate={canModerate}
-                    currentUserId={currentUserId}
-                    isGrouped={isGrouped}
-                    key={message.id}
-                    message={message}
-                    mode={mode}
-                    onReact={handleReact}
-                    onRemoveOptimistic={() => undefined}
-                    onReply={handleReply}
-                    onRetry={() => undefined}
-                    onThread={() => undefined}
-                  />
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="border-t border-app-border bg-[hsl(var(--surface-card)/0.9)]">
-          <MessageInput
-            autoFocus
-            allowFileUploads={allowFileUploads}
-            allowGifs={allowGifs}
-            conversationId={conversationId}
-            disabled={disabled}
-            disabledReason={disabledReason}
-            maxLength={messageCharacterLimit}
-            mentionMembers={mode === "channel" ? mentionMembers : []}
-            mode={mode}
-            onCancelReply={() => setReplyTo(null)}
-            onSend={handleSend}
-            replyTo={replyTo}
-            uploadthingEnabled={uploadthingEnabled}
-            variant="thread"
+        <label
+          className={cn("flex cursor-pointer items-center text-[hsl(var(--text-secondary))]")}
+          data-testid="thread-also-send"
+          style={{
+            fontSize: pxToRem(sidePanel.threadAlsoSendFontSize),
+            gap: pxToRem(sidePanel.threadAlsoSendGap),
+            marginTop: pxToRem(sidePanel.threadAlsoSendMarginTop),
+          }}
+        >
+          <input
+            checked={alsoSendToChannel}
+            className="accent-[hsl(var(--primary))]"
+            disabled={threadClosed}
+            onChange={(event) => setAlsoSendToChannel(event.target.checked)}
+            style={{
+              height: pxToRem(sidePanel.threadAlsoSendBoxSize),
+              width: pxToRem(sidePanel.threadAlsoSendBoxSize),
+            }}
+            type="checkbox"
           />
-        </div>
-      </aside>
-    </div>
+          {t("messages.panel.thread.alsoSend")}
+        </label>
+      </div>
+    </MessagesSidePanel>
   );
 }

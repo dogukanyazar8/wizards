@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 
 import { PASSWORD_RESET_TOKEN_EXPIRY_MINUTES } from "../auth/password-reset";
-import {
-  clearErrorReporter,
-  registerErrorReporter,
-} from "../observability/reporter";
+import { clearErrorReporter, registerErrorReporter } from "../observability/reporter";
 import { requestMobilePasswordReset } from "./auth";
 
 const resettableUser = {

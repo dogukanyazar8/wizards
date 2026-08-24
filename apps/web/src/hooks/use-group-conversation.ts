@@ -109,7 +109,7 @@ export function useGroupConversationMutations(conversationId: string) {
         {
           onSuccess: () => {
             void refresh();
-            router.replace("/channels/@me");
+            router.replace("/messages");
           },
         },
       ),

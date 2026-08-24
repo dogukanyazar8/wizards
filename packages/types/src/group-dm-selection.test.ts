@@ -87,7 +87,10 @@ describe("group create selection model", () => {
     assert.equal(isGroupSelectionFull(reduced), false);
   });
 
-  it("leaves the name key out of the request when it is blank", () => {
+  it("sends the trimmed name even when it is blank, and no icon key", () => {
+    // Mesajlar karar: the name is required, so the body always carries the key
+    // and the empty value is what `canSubmitGroup` refuses before the request
+    // is ever built.
     const state: GroupCreateState = {
       ...selectMany(SELECTABLE_MIN),
       name: "   ",
@@ -96,7 +99,7 @@ describe("group create selection model", () => {
 
     const request = toGroupCreateRequest(state, null);
 
-    assert.equal("name" in request, false);
+    assert.equal(request.name, "");
     assert.equal("iconUrl" in request, false);
     assert.deepEqual(request.userIds, ["user-0", "user-1"]);
   });
@@ -115,30 +118,40 @@ describe("group create selection model", () => {
   });
 
   it("refuses submit while the members step is still open", () => {
-    const state = selectMany(SELECTABLE_MIN);
+    const state: GroupCreateState = { ...selectMany(SELECTABLE_MIN), name: "Yayın Ekibi" };
 
     assert.equal(state.step, "members");
     assert.equal(canSubmitGroup(state), false);
     assert.equal(canSubmitGroup({ ...state, step: "identity" }), true);
   });
+
+  it("refuses submit until the group has a name", () => {
+    const picked: GroupCreateState = { ...selectMany(SELECTABLE_MIN), step: "identity" };
+
+    assert.equal(canSubmitGroup(picked), false);
+    assert.equal(canSubmitGroup({ ...picked, name: "   " }), false);
+    assert.equal(canSubmitGroup({ ...picked, name: "Yayın Ekibi" }), true);
+  });
 });
 
 describe("2c identity fields", () => {
-  it("starts on the design's defaults: first swatch, everyone adds, 30 days, invite off", () => {
+  it("starts on the design's defaults: first swatch, everyone adds, all history, invite on", () => {
     const state = createInitialGroupCreateState();
 
     assert.equal(state.avatarColor, GROUP_AVATAR_COLORS[0]);
     assert.equal(state.description, "");
-    assert.equal(state.historyVisibility, "LAST_30D");
+    // Mesajlar karar #9: the create screen ships "Tüm geçmiş" pre-selected.
+    assert.equal(state.historyVisibility, "ALL");
     assert.equal(state.permAddMembers, "ALL");
-    // K2: a link nobody asked for is a link nobody can close before it leaks.
-    assert.equal(state.inviteEnabled, false);
+    // Mesajlar karar #9 overrides K2: the modal ships the toggle on, and a
+    // default the UI contradicts is a default nobody chose.
+    assert.equal(state.inviteEnabled, true);
   });
 
   it("carries the KATILIM trio and the colour on every request", () => {
     const state: GroupCreateState = {
       ...selectMany(SELECTABLE_MIN),
-      avatarColor: "#C2185B",
+      avatarColor: "danger",
       historyVisibility: "NONE",
       inviteEnabled: true,
       permAddMembers: "ADMINS",
@@ -147,7 +160,7 @@ describe("2c identity fields", () => {
 
     const request = toGroupCreateRequest(state, null);
 
-    assert.equal(request.avatarColor, "#C2185B");
+    assert.equal(request.avatarColor, "danger");
     assert.equal(request.historyVisibility, "NONE");
     assert.equal(request.inviteEnabled, true);
     assert.equal(request.permAddMembers, "ADMINS");
@@ -176,7 +189,7 @@ describe("2c identity fields", () => {
   it("produces a body the write schema accepts", () => {
     const state: GroupCreateState = {
       ...selectMany(SELECTABLE_MIN),
-      avatarColor: "#1B8A55",
+      avatarColor: "success",
       description: "Mobil ekip",
       inviteEnabled: true,
       name: "Whispr Mobil Ekibi",
@@ -187,7 +200,7 @@ describe("2c identity fields", () => {
 
     assert.equal(parsed.name, "Whispr Mobil Ekibi");
     assert.equal(parsed.inviteEnabled, true);
-    assert.equal(parsed.avatarColor, "#1B8A55");
+    assert.equal(parsed.avatarColor, "success");
   });
 
   it("asks before dropping the flow only once something has been picked", () => {

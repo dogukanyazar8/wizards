@@ -4,6 +4,16 @@ export const MAX_VOICE_PARTICIPANTS = 10;
 export const VOICE_HEARTBEAT_INTERVAL_MS = 30_000;
 export const VOICE_HEARTBEAT_TIMEOUT_MS = 60_000;
 
+/**
+ * The one heartbeat cutoff. It lives beside the constant it derives from so a
+ * caller that only needs the threshold — the home screen's "Şu an canlı" card,
+ * the friends list's voice room — does not pull the whole voice service in
+ * (`00-ortak-baglam` §6.6: read the threshold from here, never restate it).
+ */
+export function getStaleVoiceHeartbeatCutoff(now: Date = new Date()): Date {
+  return new Date(now.getTime() - VOICE_HEARTBEAT_TIMEOUT_MS);
+}
+
 export interface VoiceStateParticipantDTO {
   userId: string;
   username: string;

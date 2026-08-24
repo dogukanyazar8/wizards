@@ -54,11 +54,11 @@ export function MessageEditor({ initialContent, onSave, onCancel }: MessageEdito
 
   return (
     <div
-      className="my-2 overflow-hidden rounded-[24px] border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--surface-card)/0.88)] shadow-[0_18px_42px_hsl(var(--shadow-color)/0.08)] backdrop-blur-xl"
+      className="my-2 overflow-hidden rounded-[1.5rem] border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--surface-card)/0.88)] shadow-[0_18px_42px_hsl(var(--shadow-color)/0.08)] backdrop-blur-xl"
       data-testid="message-editor"
     >
       <div className="border-b border-[hsl(var(--border)/0.5)] px-3 py-2">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-app-soft">
+        <p className="text-[0.625rem] font-semibold uppercase tracking-[0.2em] text-app-soft">
           {t("chat.editor.title")}
         </p>
       </div>
@@ -66,7 +66,7 @@ export function MessageEditor({ initialContent, onSave, onCancel }: MessageEdito
       <div className="p-2.5">
         <textarea
           aria-label={t("chat.editor.title")}
-          className="message-font-scope min-h-[92px] w-full resize-none rounded-[20px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.38)] px-3 py-3 text-sm leading-6 text-app-foreground outline-hidden transition placeholder:text-app-soft focus:border-[hsl(var(--primary)/0.48)] focus:bg-[hsl(var(--surface-card)/0.82)] focus:ring-2 focus:ring-[hsl(var(--primary)/0.16)]"
+          className="message-font-scope min-h-[5.75rem] w-full resize-none rounded-[1.25rem] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.38)] px-3 py-3 text-sm leading-6 text-app-foreground outline-hidden transition placeholder:text-app-soft focus:border-[hsl(var(--primary)/0.48)] focus:bg-[hsl(var(--surface-card)/0.82)] focus:ring-2 focus:ring-[hsl(var(--primary)/0.16)]"
           data-testid="message-editor-input"
           maxLength={MAX_MESSAGE_LENGTH}
           onChange={(event) => setContent(event.target.value)}

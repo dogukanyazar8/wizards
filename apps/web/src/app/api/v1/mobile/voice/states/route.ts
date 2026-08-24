@@ -1,7 +1,4 @@
-import {
-  MobileVoiceStatesQuerySchema,
-  MobileVoiceStatesResponseSchema,
-} from "@wizards/types";
+import { MobileVoiceStatesQuerySchema, MobileVoiceStatesResponseSchema } from "@wizards/types";
 
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError } from "@/lib/api";

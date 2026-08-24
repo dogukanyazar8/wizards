@@ -7,10 +7,7 @@ import {
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
 import { requireMobileApiSession } from "@/lib/auth/api";
-import {
-  registerMobilePushToken,
-  revokeMobilePushToken,
-} from "@/lib/mobile/push-notifications";
+import { registerMobilePushToken, revokeMobilePushToken } from "@/lib/mobile/push-notifications";
 import { mobileNotificationsListRoute } from "./route-logic";
 
 export const dynamic = "force-dynamic";

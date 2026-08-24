@@ -10,6 +10,7 @@ import {
 } from "@/lib/messages/attachments";
 import { redactMessageAttachmentUrlsForViewer } from "@/lib/messages/attachment-visibility";
 import type { HandlerContext } from "@/lib/socket/context";
+import type { MessageSendAck } from "@/lib/socket/events";
 import {
   emitToChannelViewers,
   emitToUserRooms,
@@ -57,6 +58,19 @@ import type { SocketHandlerRegistration } from ".";
 type CheckChannelMessageRateLimit = typeof checkChannelMessageRateLimit;
 type CheckChannelMessageEditRateLimit = typeof checkChannelMessageEditRateLimit;
 type CheckChannelSlowMode = typeof checkChannelSlowMode;
+
+function createMessageSendAcknowledger(acknowledge?: (result: MessageSendAck) => void) {
+  let acknowledged = false;
+
+  return (result: MessageSendAck) => {
+    if (acknowledged) {
+      return;
+    }
+
+    acknowledged = true;
+    acknowledge?.(result);
+  };
+}
 
 export async function checkChannelSlowModeForSend(args: {
   channelId: string;
@@ -133,16 +147,23 @@ export function registerMessageHandlers(
   const requireMessageChannelPermission =
     options.requireChannelPermissionForUser ?? requireChannelPermissionForUser;
 
-  socket.on("message:send", async (rawData) => {
+  socket.on("message:send", async (rawData, rawAcknowledge) => {
+    const acknowledge = createMessageSendAcknowledger(rawAcknowledge);
+    const fail = (code: string, message: string, retryAfterSeconds?: number) => {
+      socket.emit("error", {
+        code,
+        message,
+        ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
+      });
+      acknowledge({ code, message, ok: false });
+    };
+
     try {
       const data = parseSocketPayload(SocketMessageSendPayloadSchema, rawData);
 
       const rateLimitResult = await checkMessageSendRateLimit({ redis: rateRedis, userId });
       if (rateLimitResult.status === "limited") {
-        socket.emit("error", {
-          code: "RATE_LIMIT",
-          message: "Too many messages. Maximum 30 per minute.",
-        });
+        fail("RATE_LIMIT", "Too many messages. Maximum 30 per minute.");
         return;
       }
 
@@ -157,10 +178,10 @@ export function registerMessageHandlers(
         }
 
         if (!rateLimitResult.allowDuringGrace) {
-          socket.emit("error", {
-            code: "RATE_LIMIT_UNAVAILABLE",
-            message: "Message controls are temporarily unavailable. Please try again shortly.",
-          });
+          fail(
+            "RATE_LIMIT_UNAVAILABLE",
+            "Message controls are temporarily unavailable. Please try again shortly.",
+          );
           return;
         }
       }
@@ -190,11 +211,11 @@ export function registerMessageHandlers(
         userId,
       });
       if (slowModeResult.status === "limited") {
-        socket.emit("error", {
-          code: "SLOW_MODE",
-          message: "Slow mode is active. Please wait before sending another message.",
-          retryAfterSeconds: slowModeResult.retryAfterSeconds,
-        });
+        fail(
+          "SLOW_MODE",
+          "Slow mode is active. Please wait before sending another message.",
+          slowModeResult.retryAfterSeconds,
+        );
         return;
       }
       if (slowModeResult.status === "unavailable") {
@@ -202,10 +223,10 @@ export function registerMessageHandlers(
           "[socket] Channel slow mode unavailable; blocking message send",
           slowModeResult.error,
         );
-        socket.emit("error", {
-          code: "RATE_LIMIT_UNAVAILABLE",
-          message: "Message controls are temporarily unavailable. Please try again shortly.",
-        });
+        fail(
+          "RATE_LIMIT_UNAVAILABLE",
+          "Message controls are temporarily unavailable. Please try again shortly.",
+        );
         return;
       }
 
@@ -294,6 +315,7 @@ export function registerMessageHandlers(
         "message:new",
         data.clientNonce ? { ...message, clientNonce: data.clientNonce } : message,
       );
+      acknowledge({ messageId: message.id, ok: true });
 
       if (deduplicated) {
         // A retry of a send that already landed. Everyone was told the first
@@ -379,13 +401,11 @@ export function registerMessageHandlers(
       });
     } catch (error) {
       if (error instanceof ApiError) {
-        socket.emit("error", {
-          code: error.code ?? "MESSAGE_VALIDATION_ERROR",
-          message: error.message,
-        });
+        fail(error.code ?? "MESSAGE_VALIDATION_ERROR", error.message);
         return;
       }
 
+      acknowledge({ code: "MESSAGE_SEND_ERROR", message: "Unable to send message.", ok: false });
       emitSocketError("MESSAGE_SEND_ERROR", "Unable to send message.", error);
     }
   });

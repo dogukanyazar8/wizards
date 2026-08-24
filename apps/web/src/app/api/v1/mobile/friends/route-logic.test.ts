@@ -32,6 +32,7 @@ const adaAsFriend = {
   lastSeenAt: "2026-07-11T09:00:00.000Z",
   presence: { customStatus: null, status: "ONLINE" as const },
   status: "ONLINE" as const,
+  voiceRoom: null,
 };
 
 function jsonRequest(path: string, method: string, body?: unknown) {

@@ -25,10 +25,7 @@ describe("responsive layout contract", () => {
     assert.equal(RESPONSIVE_SHELL_SIZES.infoDrawerWidth, "min(100vw, 24rem)");
     assert.equal(RESPONSIVE_SHELL_SIZES.mobileActionSheetMaxHeight, "min(70dvh, 28rem)");
     assert.equal(RESPONSIVE_SHELL_SIZES.mobileOverlayInset, "0.75rem");
-    assert.equal(
-      RESPONSIVE_SHELL_SIZES.mobilePopupMaxHeight,
-      "min(28rem, calc(100dvh - 1.5rem))",
-    );
+    assert.equal(RESPONSIVE_SHELL_SIZES.mobilePopupMaxHeight, "min(28rem, calc(100dvh - 1.5rem))");
     assert.equal(
       RESPONSIVE_SHELL_SIZES.mobileComposerReserve,
       "max(7.5rem, calc(env(safe-area-inset-bottom) + 6.75rem))",

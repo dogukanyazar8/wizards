@@ -46,7 +46,7 @@ export function DmCallNoticeBanner({
   return (
     <div
       aria-live="polite"
-      className="pointer-events-auto fixed bottom-4 left-1/2 z-[85] flex -translate-x-1/2 items-center gap-3 rounded-[22px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.96)] px-4 py-3 shadow-[0_24px_70px_hsl(var(--shadow-color)/0.18)] backdrop-blur-xl"
+      className="pointer-events-auto fixed bottom-4 left-1/2 z-[85] flex -translate-x-1/2 items-center gap-3 rounded-[1.375rem] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.96)] px-4 py-3 shadow-[0_24px_70px_hsl(var(--shadow-color)/0.18)] backdrop-blur-xl"
       data-testid="dm-call-notice"
       role="status"
     >

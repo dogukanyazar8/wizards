@@ -120,10 +120,13 @@ async function loadDesktopOAuthHandoffUser(userId: string) {
   });
 }
 
-export async function createDesktopOAuthHandoffToken(input: {
-  callbackUrl: string;
-  userId: string;
-}, options: DesktopOAuthHandoffOptions = {}) {
+export async function createDesktopOAuthHandoffToken(
+  input: {
+    callbackUrl: string;
+    userId: string;
+  },
+  options: DesktopOAuthHandoffOptions = {},
+) {
   const safeCallbackUrl = getSafeAuthRedirectPath(input.callbackUrl);
   const token = randomBytes(32).toString("base64url");
   const payload: DesktopOAuthHandoffPayload = {

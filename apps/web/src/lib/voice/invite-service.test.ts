@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { getVoiceInviteKey, parseStoredVoiceInvite, toVisiblePresenceStatus } from "./invite-service";
+import {
+  getVoiceInviteKey,
+  parseStoredVoiceInvite,
+  toVisiblePresenceStatus,
+} from "./invite-service";
 
 describe("voice invite service helpers", () => {
   it("builds stable Redis keys for stored invites", () => {

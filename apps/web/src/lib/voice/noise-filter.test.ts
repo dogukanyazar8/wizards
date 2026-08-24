@@ -12,10 +12,7 @@ import {
   shouldUseKrispNoiseFilter,
 } from "./noise-filter";
 
-import {
-  DEFAULT_AUDIO_DEVICE_ID,
-  type VoiceAudioPreferences,
-} from "@/store/voice-store";
+import { DEFAULT_AUDIO_DEVICE_ID, type VoiceAudioPreferences } from "@/store/voice-store";
 
 const basePreferences: VoiceAudioPreferences = {
   autoGainControl: true,

@@ -47,10 +47,7 @@ export function recordMobileLoginAttemptFailure(args: {
   });
 }
 
-export function resetMobileLoginAttemptFailures(args: {
-  email: string;
-  store: AttemptStore;
-}) {
+export function resetMobileLoginAttemptFailures(args: { email: string; store: AttemptStore }) {
   return mobileLoginAttemptTracker.resetFailures({
     identifier: getMobileLoginAccountIdentifier(args.email),
     store: args.store,

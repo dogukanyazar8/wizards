@@ -25,7 +25,7 @@ export function DmCallBar({ onLeave }: { onLeave: () => void | Promise<void> }) 
 
   return (
     <div
-      className="pointer-events-auto fixed bottom-4 left-1/2 z-[80] flex -translate-x-1/2 items-center gap-3 rounded-[24px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.94)] px-4 py-2.5 shadow-[0_24px_70px_hsl(var(--shadow-color)/0.16)] backdrop-blur-xl"
+      className="pointer-events-auto fixed bottom-4 left-1/2 z-[80] flex -translate-x-1/2 items-center gap-3 rounded-[1.5rem] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.94)] px-4 py-2.5 shadow-[0_24px_70px_hsl(var(--shadow-color)/0.16)] backdrop-blur-xl"
       data-testid="dm-call-bar"
     >
       {session.isVideo ? (
@@ -44,7 +44,7 @@ export function DmCallBar({ onLeave }: { onLeave: () => void | Promise<void> }) 
         data-testid="dm-call-expand"
         onClick={() => {
           setMinimized(false);
-          router.push(`/channels/@me/${session.conversationId}`);
+          router.push(`/messages/${session.conversationId}`);
         }}
         type="button"
       >

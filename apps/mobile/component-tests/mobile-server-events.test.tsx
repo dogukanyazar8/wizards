@@ -64,6 +64,7 @@ function profileFixture(canManageServer: boolean): ServerPublicProfile {
     admins: [],
     bannerUrl: null,
     canManageServer,
+    category: null,
     channelCount: 1,
     channels: [
       {
@@ -87,6 +88,7 @@ function profileFixture(canManageServer: boolean): ServerPublicProfile {
     isPublic: true,
     joined: true,
     joinedAt: "2026-04-10T10:00:00.000Z",
+    languages: ["tr"],
     memberCount: 5,
     muted: false,
     mutualFriendCount: 0,
@@ -102,6 +104,7 @@ function profileFixture(canManageServer: boolean): ServerPublicProfile {
     upcomingEvent: null,
     verified: false,
     voiceActiveCount: 0,
+    voiceRoomCount: 1,
     weeklyMessageCount: null,
   };
 }

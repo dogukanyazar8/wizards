@@ -66,8 +66,7 @@ describe("E2E browser diagnostics", () => {
         url: "https://example.test/channels/[redacted-id]",
       },
       {
-        message:
-          "label=alice | viewport=390x844 | dpr=2 | scrollWidthDelta=0 | visibleDialogs=1",
+        message: "label=alice | viewport=390x844 | dpr=2 | scrollWidthDelta=0 | visibleDialogs=1",
         type: "viewport",
         url: "https://example.test/channels/[redacted-id]",
       },
