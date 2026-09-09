@@ -408,7 +408,10 @@ export type EventsQueryRow = {
   reminderMinutesBefore: number | null;
   rsvp: string | null;
   serverId: string;
+  serverIconColor: string | null;
+  serverIconUrl: string | null;
   serverName: string;
+  serverShortName: string | null;
   startsAt: Date;
   status: string;
   title: string;
@@ -429,6 +432,9 @@ function pageBranch(
       e."kind" AS "kind",
       e."serverId" AS "serverId",
       s."name" AS "serverName",
+      s."iconColor" AS "serverIconColor",
+      s."iconUrl" AS "serverIconUrl",
+      s."shortName" AS "serverShortName",
       e."channelId" AS "channelId",
       c."name" AS "channelName",
       c."type"::text AS "channelType",

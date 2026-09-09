@@ -4,7 +4,6 @@ import { randomBytes } from "node:crypto";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma, type User as PrismaUser } from "@wizards/db";
 import { LoginCredentialsSchema } from "@wizards/types";
-import bcrypt from "bcryptjs";
 import NextAuth, { type NextAuthConfig, type NextAuthResult } from "next-auth";
 import { cookies, headers } from "next/headers";
 import type { Adapter, AdapterAccount, AdapterUser } from "next-auth/adapters";
@@ -31,6 +30,12 @@ import {
   resolveOAuthPolicyUser,
   type OAuthEmailAccount,
 } from "@/lib/auth/oauth-email";
+import { loginChallengeStore } from "@/lib/auth/login-challenge";
+import {
+  LOGIN_CREDENTIAL_USER_SELECT,
+  verifyLoginCredentials,
+  type LoginCredentialUser,
+} from "@/lib/auth/login-credentials";
 import {
   authorizeOAuthTwoFactorSignIn,
   getAuthJsCallbackCookieName,
@@ -53,6 +58,7 @@ import {
   type AuthSessionMetadata,
 } from "@/lib/auth/auth-session-service";
 import { getAnalyticsClientInfo } from "@/lib/analytics/client-info";
+import { recordSecurityEventFromHeaders } from "@/lib/security/security-event-service";
 import { consumeDesktopOAuthHandoffToken } from "@/lib/auth/desktop-oauth-handoff";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
 import { verifyWebLoginTwoFactor } from "@/lib/auth/web-login-two-factor";
@@ -92,6 +98,20 @@ loadAuthEnvironment();
 const REMEMBERED_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const SHORT_SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
 const AUTH_SESSION_TOUCH_INTERVAL_SECONDS = 5 * 60;
+
+/**
+ * `Başarısız giriş` — one of the eight `SecurityEvent` kinds the Güvenlik tab lists.
+ *
+ * `recordSecurityEventFromHeaders` swallows its own failures, so a security-log outage can never
+ * change what `authorize` returns.
+ */
+async function recordFailedWebLogin(userId: string, stage: "password" | "twoFactor") {
+  await recordSecurityEventFromHeaders(await headers().catch(() => null), {
+    kind: "FAILED_LOGIN",
+    metadata: { stage },
+    userId,
+  });
+}
 
 async function getCurrentAuthSessionMetadata(): Promise<AuthSessionMetadata | null> {
   try {
@@ -275,11 +295,6 @@ type OAuthAccountInput = AdapterAccount & {
   session_state?: string;
   token_type?: string;
 };
-
-// Credentials for a missing account still pay bcrypt cost 12. A fixed hash
-// avoids per-request hashing while keeping unknown and wrong-password timing close.
-const WEB_MISSING_ACCOUNT_PASSWORD_HASH =
-  "$2b$12$/zC3shOXAfktTcluug7UXukRRVQVvFIvceUC4sm3kIzn6iSSGGT6m";
 
 function stringField(value: unknown): string | null {
   return typeof value === "string" ? value : null;
@@ -589,6 +604,7 @@ const authConfig = {
         password: { label: "Password", type: "password" },
         rememberMe: { label: "Remember me", type: "text" },
         twoFactorCode: { label: "Two-factor code", type: "text" },
+        twoFactorTicket: { label: "Two-factor ticket", type: "text" },
       },
       async authorize(credentials) {
         const credentialRecord =
@@ -630,6 +646,78 @@ const authConfig = {
           };
         }
 
+        /*
+         * İki adımlı doğrulama bileti (paket kararı K2).
+         *
+         * `/login/two-factor` ekranı kodu doğruladıktan sonra sunucu 30 saniyelik, tek
+         * kullanımlık bir bilet üretir ve `signIn` bunu taşır. Bilet **parolanın yerine geçmez**:
+         * ancak parola zaten doğrulandıktan sonra basılır, imzalı `loginProof` olmadan kabul
+         * edilmez ve tükettiği anda düşer.
+         */
+        const twoFactorTicket =
+          typeof credentialRecord?.twoFactorTicket === "string"
+            ? credentialRecord.twoFactorTicket
+            : "";
+
+        if (twoFactorTicket) {
+          const ticketEmail = normalizeAuthEmail(credentialRecord?.email);
+          const ticketProof =
+            typeof credentialRecord?.loginProof === "string" ? credentialRecord.loginProof : "";
+
+          if (!ticketEmail) {
+            return null;
+          }
+
+          let hasValidTicketProof = false;
+          try {
+            hasValidTicketProof = verifyLoginProof(ticketEmail, ticketProof);
+          } catch {
+            hasValidTicketProof = false;
+          }
+
+          if (!hasValidTicketProof) {
+            return null;
+          }
+
+          const ticketRecord = await loginChallengeStore.consumeTicket(
+            twoFactorTicket,
+            ticketEmail,
+          );
+
+          if (!ticketRecord) {
+            return null;
+          }
+
+          const ticketUser = (await prisma.user.findUnique({
+            select: LOGIN_CREDENTIAL_USER_SELECT,
+            where: { id: ticketRecord.userId },
+          })) as LoginCredentialUser | null;
+
+          if (!ticketUser || ticketUser.email !== ticketEmail) {
+            return null;
+          }
+
+          if (ticketUser.isBanned || ticketUser.deletedAt || !ticketUser.emailVerified) {
+            return null;
+          }
+
+          return {
+            id: ticketUser.id,
+            email: ticketUser.email,
+            name: ticketUser.displayName ?? ticketUser.username,
+            image: ticketUser.avatarUrl ?? null,
+            authEmailVerified: ticketUser.emailVerified,
+            deletedAt: ticketUser.deletedAt,
+            username: ticketUser.username,
+            displayName: ticketUser.displayName,
+            avatarUrl: ticketUser.avatarUrl,
+            isBanned: ticketUser.isBanned,
+            locale: normalizeAppLocale(ticketUser.locale),
+            rememberMe: ticketRecord.rememberMe,
+            theme: normalizeWizardsThemeId(ticketUser.theme),
+          };
+        }
+
         const parsedCredentials = LoginCredentialsSchema.safeParse({
           email: normalizeAuthEmail(credentialRecord?.email),
           password: typeof credentialRecord?.password === "string" ? credentialRecord.password : "",
@@ -657,45 +745,29 @@ const authConfig = {
           return null;
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: normalizedEmail },
-          select: {
-            id: true,
-            email: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-            emailVerified: true,
-            deletedAt: true,
-            locale: true,
-            isBanned: true,
-            passwordHash: true,
-            theme: true,
-            twoFactorEnabled: true,
-            twoFactorSecret: true,
-            twoFactorSecretCiphertext: true,
-            twoFactorSecretKeyVersion: true,
-          },
+        const credentialResult = await verifyLoginCredentials({
+          email: normalizedEmail,
+          password,
         });
 
-        const isPasswordValid = await bcrypt.compare(
-          password,
-          user?.passwordHash ?? WEB_MISSING_ACCOUNT_PASSWORD_HASH,
-        );
-
-        if (!user?.passwordHash || !isPasswordValid) {
+        if (credentialResult.status === "invalid") {
+          // Ayarlar Ş3 §3. Only a *known* account gets a row: writing one for an address that
+          // does not exist would turn the owner's own security log into an enumeration oracle
+          // for whoever guessed the address. The write can never fail the login (K5).
+          if (credentialResult.userId) {
+            await recordFailedWebLogin(credentialResult.userId, "password");
+          }
           return null;
         }
 
-        if (user.isBanned || user.deletedAt) {
+        if (credentialResult.status !== "ok") {
           return null;
         }
 
-        if (!user.emailVerified) {
-          return null;
-        }
+        const user = credentialResult.user;
 
         if (!(await verifyWebLoginTwoFactor(user, twoFactorCode))) {
+          await recordFailedWebLogin(user.id, "twoFactor");
           return null;
         }
 

@@ -33,6 +33,33 @@ function collectTestFiles(directory) {
 }
 
 const testFiles = collectTestFiles(srcRoot).map(toCliPath);
+
+/**
+ * Windows caps a process command line at 32 767 characters, and the explicit
+ * file list crossed it as the suite grew past ~700 files: `spawnSync` failed
+ * with `ENAMETOOLONG` before a single test ran, so the whole gate read as a
+ * runner crash rather than a red suite.
+ *
+ * `node --test` already treats each positional argument as a glob -- that is
+ * why `escapeTestGlobPath` exists -- so two patterns select exactly the same
+ * set the walk above collects. The explicit list stays the default because it
+ * is the one that proves the walk and the runner agree; the patterns are the
+ * fallback that keeps the command line bounded.
+ */
+const COMMAND_LINE_BUDGET = 30_000;
+const TEST_FILE_PATTERNS = ["src/**/*.test.ts", "src/**/*.test.tsx"];
+const explicitListLength = testFiles.reduce((total, file) => total + file.length + 3, 0);
+const testSelectors =
+  process.platform === "win32" && explicitListLength > COMMAND_LINE_BUDGET
+    ? TEST_FILE_PATTERNS
+    : testFiles;
+
+if (testSelectors !== testFiles) {
+  console.info(
+    `Passing ${testFiles.length} test files as glob patterns: the explicit list is ` +
+      `${explicitListLength} characters, past this platform's command line limit.`,
+  );
+}
 const testEnvironment = {
   ...process.env,
   // PrismaPg validates its direct connection string during module import. pg
@@ -48,7 +75,7 @@ if (testFiles.length === 0) {
 
 const result = spawnSync(
   process.execPath,
-  ["--import", "tsx", "--test", "--test-force-exit", ...process.argv.slice(2), ...testFiles],
+  ["--import", "tsx", "--test", "--test-force-exit", ...process.argv.slice(2), ...testSelectors],
   {
     cwd: webRoot,
     env: testEnvironment,

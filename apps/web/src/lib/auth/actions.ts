@@ -22,7 +22,13 @@ import { getTurnstileErrorMessageKey, verifyTurnstileToken } from "@/lib/auth/tu
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
 import { resolveRegistrationConflict } from "@/lib/auth/registration-policy";
 import { rollbackUnverifiedUser } from "@/lib/auth/registration-compensation";
+import { resolveAccountSuspension } from "@/lib/auth/account-suspension";
+import { submitEmailVerificationCode } from "@/lib/auth/email-verification-code";
+import { loginChallengeStore } from "@/lib/auth/login-challenge";
+import { verifyLoginCredentials } from "@/lib/auth/login-credentials";
+import { createLoginLockout } from "@/lib/auth/login-lockout";
 import { createLoginProof } from "@/lib/auth/login-proof";
+import type { AuthStatusId } from "@/lib/auth/status-catalog";
 import { LOGIN_FAILED_MESSAGE_KEY } from "@/lib/auth/login-errors";
 import {
   checkLoginRequestRateLimit,
@@ -31,10 +37,13 @@ import {
   checkRegistrationRequestRateLimit,
   checkVerificationResendRequestRateLimit,
   checkVerificationSendRequestRateLimit,
+  getPasswordResetResendRetryAfterMs,
+  getVerificationResendRetryAfterMs,
 } from "@/lib/auth/request-rate-limits";
 import { resolveTrustedProxyClientIp, type ClientIpHeaderSource } from "@/lib/security/client-ip";
 import { Prisma, prisma } from "@wizards/db";
 import {
+  EmailVerificationCodeSchema,
   ForgotPasswordSchema,
   LoginSchema,
   RegisterSchema,
@@ -48,6 +57,26 @@ export interface AuthActionResult {
   success: boolean;
   error?: string;
   message?: string;
+  /**
+   * SPEC-GIRIS-KAYIT §7 durum kimliği. Ekran hangi gösterim seviyesini (alan içi · bant · blok)
+   * kullanacağını `AUTH_STATUS_CATALOG` üstünden buradan okur; `error` yalnız geriye uyumlu
+   * i18n anahtarıdır.
+   */
+  status?: AuthStatusId;
+  /** SPEC §8/1 — `3 deneme kaldı`. */
+  attemptsLeft?: number;
+  /** SPEC §7/2 ve §7/9 — `Kalan süre 14:32`, `Yeni kod · 01:58`. */
+  retryAfterMs?: number;
+  /** SPEC §7/10 — `Referans · WSP-40219`; vaka yoksa alan hiç gelmez. */
+  reference?: string;
+  /** K2 — iki adımlı doğrulama gerekiyorsa `/login/two-factor` bunu taşır. */
+  challengeId?: string;
+  twoFactorRequired?: boolean;
+  /** SPEC §4.7 — `{count} cihazda oturum kapatıldı · {date} · {time}` bandının verisi. */
+  signedOutAt?: string;
+  signedOutDeviceCount?: number;
+  /** SPEC §4.7 — `Bağlantıyı yeniden gönderdik` success bandını açar. */
+  resent?: boolean;
 }
 
 function getFormValue(formData: FormData, key: string): string {
@@ -124,10 +153,10 @@ function mapPasswordResetError(error: unknown) {
 
 export async function registerAction(formData: FormData): Promise<AuthActionResult> {
   const validation = RegisterSchema.safeParse({
+    displayName: getFormValue(formData, "displayName") || getFormValue(formData, "username"),
     email: normalizeAuthEmail(getFormValue(formData, "email")),
     username: getFormValue(formData, "username"),
     password: getFormValue(formData, "password"),
-    confirmPassword: getFormValue(formData, "confirmPassword"),
     turnstileToken: getFormValue(formData, "turnstileToken"),
   });
 
@@ -190,6 +219,7 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
     return {
       success: false,
       error: "auth.register.usernameTaken",
+      status: "usernameTaken",
     };
   }
 
@@ -238,7 +268,7 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
           email,
           username,
           passwordHash,
-          displayName: username,
+          displayName: validation.data.displayName,
           emailVerified: false,
           emailVerifiedAt: null,
           locale,
@@ -293,7 +323,6 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     email: normalizeAuthEmail(getFormValue(formData, "email")),
     password: getFormValue(formData, "password"),
     rememberMe: getFormValue(formData, "rememberMe"),
-    twoFactorCode: getFormValue(formData, "twoFactorCode"),
     turnstileToken: getFormValue(formData, "turnstileToken"),
   });
 
@@ -305,8 +334,19 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
   }
 
   const { email, password, rememberMe } = validation.data;
+  /*
+   * Geçici köprü (Ş4 kaldıracak).
+   *
+   * K2 ile kod ayrı ekrandan, challenge kimliğiyle geliyor. Ayrı ekran Ş4'te kurulana kadar
+   * bugünkü giriş ekranı kodu aynı formda gönderebiliyor; kod geldiyse eski tek atışlı yol
+   * çalışır, gelmediyse challenge üretilir.
+   */
+  const legacyTwoFactorCode = getFormValue(formData, "twoFactorCode").trim().slice(0, 64);
   const redirectTo = getSafeAuthRedirectPath(getFormValue(formData, "callbackUrl"));
   const headerStore = await headers();
+  const clientIp = resolveTrustedProxyClientIp(headerStore) ?? null;
+  const userAgent = headerStore.get("user-agent");
+  const lockout = createLoginLockout();
   const isAllowed = await checkLoginRequestRateLimit({
     email,
     headers: headerStore,
@@ -315,23 +355,123 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     return {
       success: false,
       error: "auth.login.rateLimited",
+      status: "rateLimit",
+    };
+  }
+
+  /*
+   * Kilit kontrolü paroladan **önce**: kilitli hesabın parolası hiç karşılaştırılmaz, hem
+   * gereksiz bcrypt maliyeti ödenmez hem de kilit süresince doğru parola da geçmez (SPEC §7/2).
+   */
+  const lockState = await lockout.peek({ clientIp, email });
+
+  if (lockState.status === "locked") {
+    return {
+      success: false,
+      error: "auth.login.alertUnavailable",
+      retryAfterMs: lockState.retryAfterMs,
+      status: "accountLocked",
     };
   }
 
   try {
-    await verifyTurnstileToken(
-      validation.data.turnstileToken,
-      resolveTrustedProxyClientIp(headerStore) ?? undefined,
-      {
-        expectedAction: "login",
-        requestUrl: getAuthActionRequestUrl(headerStore),
-      },
-    );
+    await verifyTurnstileToken(validation.data.turnstileToken, clientIp ?? undefined, {
+      expectedAction: "login",
+      requestUrl: getAuthActionRequestUrl(headerStore),
+    });
   } catch (error) {
     return {
       success: false,
       error: getTurnstileErrorMessageKey(error),
+      status: "network",
     };
+  }
+
+  const credentialResult = await verifyLoginCredentials({ email, password });
+
+  if (credentialResult.status === "invalid") {
+    const failure = await lockout.registerFailure({ clientIp, email });
+
+    if (failure.status === "locked") {
+      return {
+        success: false,
+        error: "auth.login.alertUnavailable",
+        retryAfterMs: failure.retryAfterMs,
+        status: "accountLocked",
+      };
+    }
+
+    return {
+      success: false,
+      error: LOGIN_FAILED_MESSAGE_KEY,
+      attemptsLeft: failure.attemptsLeft,
+      status: "credentials",
+    };
+  }
+
+  if (credentialResult.status === "blocked") {
+    /*
+     * Yasaklı hesap SPEC §7/10'un askı bloğudur. Silinmiş hesap **değil** — o, adresin var
+     * olduğunu sızdırmamak için jenerik kimlik hatası olarak döner.
+     */
+    if (!credentialResult.user.isBanned) {
+      return {
+        success: false,
+        error: LOGIN_FAILED_MESSAGE_KEY,
+        status: "credentials",
+      };
+    }
+
+    const suspension = await resolveAccountSuspension(credentialResult.user);
+
+    return {
+      success: false,
+      error: "auth.login.alertUnavailable",
+      status: "accountSuspended",
+      ...(suspension.reference ? { reference: suspension.reference } : {}),
+    };
+  }
+
+  if (credentialResult.status === "unverified") {
+    /*
+     * Bugünkü davranış korunuyor: kullanıcıya jenerik kimlik hatası döner. SPEC §13'te
+     * "e-posta doğrulanmamış" için bir giriş ekranı metni yok; `email` alanı Ş6'nın doğrulama
+     * ekranına yönlendirebilmesi için taşınıyor.
+     */
+    return {
+      email,
+      success: false,
+      error: LOGIN_FAILED_MESSAGE_KEY,
+      status: "credentials",
+    };
+  }
+
+  const user = credentialResult.user;
+
+  if (user.twoFactorEnabled && !legacyTwoFactorCode) {
+    try {
+      const challengeId = await loginChallengeStore.issue({
+        clientIp,
+        email,
+        redirectTo,
+        rememberMe,
+        userAgent,
+        userId: user.id,
+      });
+
+      return {
+        success: false,
+        challengeId,
+        error: LOGIN_FAILED_MESSAGE_KEY,
+        twoFactorRequired: true,
+      };
+    } catch (error) {
+      logError("[auth] Two-factor challenge unavailable", error);
+      return {
+        success: false,
+        error: "auth.login.alertUnavailable",
+      };
+    }
   }
 
   try {
@@ -352,16 +492,35 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
       password,
       rememberMe: rememberMe ? "true" : "false",
       redirectTo,
-      twoFactorCode: validation.data.twoFactorCode,
+      twoFactorCode: legacyTwoFactorCode,
     });
+
+    await lockout.reset({ clientIp, email });
 
     return { success: true };
   } catch (error) {
     if (error instanceof AuthError) {
       if (error.type === "CredentialsSignin") {
+        /*
+         * Parola bu noktada zaten doğrulanmıştı; buraya düşmenin gerçekçi tek sebebi yanlış
+         * iki adımlı kod (geçici köprü dalı). Sayaç beslenir, yoksa kod denemesi sınırsız olur.
+         */
+        const failure = await lockout.registerFailure({ clientIp, email });
+
+        if (failure.status === "locked") {
+          return {
+            success: false,
+            error: "auth.login.alertUnavailable",
+            retryAfterMs: failure.retryAfterMs,
+            status: "accountLocked",
+          };
+        }
+
         return {
           success: false,
           error: LOGIN_FAILED_MESSAGE_KEY,
+          attemptsLeft: failure.attemptsLeft,
+          status: "credentials",
         };
       }
 
@@ -391,22 +550,36 @@ export async function forgotPasswordAction(formData: FormData): Promise<AuthActi
   const email = normalizeAuthEmail(validation.data.email);
   const locale = normalizeAppLocale(getFormValue(formData, "locale"));
   const headerStore = await headers();
-  const genericSuccess = {
-    email,
-    success: true,
-    message: "auth.forgot.genericSuccess",
-  } satisfies AuthActionResult;
-
   const isAllowed = await checkPasswordResetRequestRateLimit({
     email,
     headers: headerStore,
   });
+
   if (!isAllowed) {
+    /*
+     * SPEC §4.7 — bağlantının yerini geri sayım pill'i alır. Kalan süre sunucudan okunuyor
+     * (Redis penceresinin en eski kaydından), böylece sayfa yenilense de doğru kalıyor ve
+     * istemci saatine bağlı değil.
+     */
     return {
       success: false,
+      email,
       error: "auth.forgot.rateLimited",
+      retryAfterMs: await getPasswordResetResendRetryAfterMs({ email, headers: headerStore }),
+      status: "rateLimit",
     };
   }
+
+  /*
+   * Başarıda da sayaç dönüyor: istek kaydı az önce yazıldığı için pencerede duruyor ve pill
+   * hemen `00:58`den saymaya başlıyor.
+   */
+  const genericSuccess = {
+    email,
+    success: true,
+    message: "auth.forgot.genericSuccess",
+    retryAfterMs: await getPasswordResetResendRetryAfterMs({ email, headers: headerStore }),
+  } satisfies AuthActionResult;
 
   try {
     await verifyTurnstileToken(
@@ -452,6 +625,8 @@ export async function forgotPasswordAction(formData: FormData): Promise<AuthActi
         username: user.username,
       } satisfies PasswordResetUser,
       normalizeAppLocale(user.locale ?? locale),
+      /* SPEC §5 istek özeti — cihaz ve konum yalnız bu isteğin başlıklarından türer. */
+      { headers: headerStore },
     );
 
     return genericSuccess;
@@ -515,9 +690,15 @@ export async function resetPasswordAction(formData: FormData): Promise<AuthActio
     });
 
     if (result.status === "reset") {
+      /*
+       * SPEC §4.7 kapanış ekranı `3 cihazda oturum kapatıldı · 27.08.2026 · 11:24` bandını
+       * gerçek sayıyla yazar. Sayı sıfırsa Ş6 bandı hiç göstermez.
+       */
       return {
         success: true,
         message: "auth.passwordReset.success",
+        signedOutAt: result.signedOutAt.toISOString(),
+        signedOutDeviceCount: result.signedOutDeviceCount,
       };
     }
 
@@ -618,4 +799,115 @@ export async function logoutAction() {
 
     throw error;
   }
+}
+
+/**
+ * SPEC-GIRIS-KAYIT §4.5 — alti haneli kodun dogrulanmasi (paket karari K3).
+ *
+ * Kod `userId`'ye bagli ve bes denemede iptal oluyor; adres uzerinden numaralandirmayi
+ * onlemek icin bilinmeyen adres de ayni "kod gecersiz" yanitini alir.
+ */
+export async function submitEmailVerificationCodeAction(
+  formData: FormData,
+): Promise<AuthActionResult> {
+  const email = normalizeAuthEmail(getFormValue(formData, "email"));
+  const validation = EmailVerificationCodeSchema.safeParse({
+    code: getFormValue(formData, "code"),
+  });
+
+  if (!validation.success) {
+    return {
+      success: false,
+      error: validation.error.issues[0]?.message ?? "validation.verificationCode.invalid",
+      status: "codeInvalid",
+    };
+  }
+
+  const headerStore = await headers();
+  const isAllowed = await checkVerificationResendRequestRateLimit({
+    email,
+    headers: headerStore,
+  });
+
+  if (!isAllowed) {
+    return {
+      success: false,
+      error: "auth.register.rateLimited",
+      status: "rateLimit",
+    };
+  }
+
+  const user = await prisma.user.findUnique({
+    select: { emailVerified: true, id: true },
+    where: { email },
+  });
+
+  if (!user) {
+    return { success: false, error: "auth.verifyEmail.invalidTitle", status: "codeInvalid" };
+  }
+
+  if (user.emailVerified) {
+    return { email, success: true, message: "auth.verifyEmail.successTitle" };
+  }
+
+  const result = await submitEmailVerificationCode({ code: validation.data.code, userId: user.id });
+
+  if (result.status === "verified") {
+    const now = new Date();
+    await prisma.user.update({
+      data: { emailVerified: true, emailVerifiedAt: now },
+      where: { id: user.id },
+    });
+
+    return { email, success: true, message: "auth.verifyEmail.successTitle" };
+  }
+
+  if (result.status === "invalid") {
+    return {
+      success: false,
+      attemptsLeft: result.attemptsLeft,
+      error: "auth.verifyEmail.invalidTitle",
+      status: "codeInvalid",
+    };
+  }
+
+  return { success: false, error: "auth.verifyEmail.expiredTitle", status: "linkExpired" };
+}
+
+/**
+ * SPEC-GIRIS-KAYIT §4.7 — `Kodu tekrar gönder`.
+ *
+ * Yanıt her zaman jeneriktir (adres numaralandırılamaz). `resent` bayrağı ekranın success
+ * bandını açar; `retryAfterMs` geri sayım pill'ini besler.
+ */
+export async function resendPasswordResetAction(formData: FormData): Promise<AuthActionResult> {
+  const result = await forgotPasswordAction(formData);
+
+  return { ...result, resent: true };
+}
+
+/**
+ * SPEC-GIRIS-KAYIT §4.5 — `Kodu tekrar gönder` (e-posta doğrulama kodu).
+ *
+ * Kod, doğrulama e-postasının içinde gidiyor (K3), bu yüzden yeniden gönderme mevcut doğrulama
+ * postası yolunu kullanır. Sayaç `Tekrar gönder · 00:42` satırını besler.
+ */
+export async function resendEmailVerificationCodeAction(
+  formData: FormData,
+): Promise<AuthActionResult> {
+  const email = normalizeAuthEmail(getFormValue(formData, "email"));
+
+  if (!email) {
+    return { success: false, error: "validation.email.invalid" };
+  }
+
+  const result = await resendVerificationEmailAction(formData);
+  const headerStore = await headers();
+  const retryAfterMs = await getVerificationResendRetryAfterMs({ email, headers: headerStore });
+
+  if (!result.success) {
+    return { ...result, retryAfterMs, status: "rateLimit" };
+  }
+
+  return { ...result, retryAfterMs };
 }

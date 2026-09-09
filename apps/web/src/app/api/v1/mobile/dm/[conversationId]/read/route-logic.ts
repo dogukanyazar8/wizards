@@ -5,6 +5,7 @@ import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { requireMobileApiUserId } from "@/lib/auth/api";
 import { getDirectMessageParticipantReadStates, markDirectMessageRead } from "@/lib/dm/service";
 import { DMConversationParamsSchema } from "@/lib/dm/types";
+import { canPublishReadReceipt } from "@/lib/messages/typing-visibility";
 import { getSocketServer } from "@/lib/socket/runtime";
 
 export type MobileDMMarkReadRouteContext = {
@@ -19,6 +20,13 @@ type ReadStateRow = {
 
 export type MobileDMMarkReadRouteDependencies = {
   authenticate(request: Request): Promise<string>;
+  /**
+   * §15.5's `Okundu bilgisi` switch. The gate sits in front of the emit, not in
+   * front of the response: the reader still learns its own state, but a stamp
+   * from somebody who turned the switch off never reaches the wire. Same
+   * decision point as the web broadcast, so the two ends cannot drift.
+   */
+  canPublishReadReceipt(userId: string): Promise<boolean>;
   emitReadUpdate(event: MobileDMReadUpdatedEvent, participantUserIds: readonly string[]): void;
   enforceRateLimit(userId: string, action: "mobile:dm:mark-read"): Promise<void>;
   getParticipantReadStates(conversationId: string): Promise<readonly ReadStateRow[]>;
@@ -27,6 +35,7 @@ export type MobileDMMarkReadRouteDependencies = {
 
 const defaultDependencies: MobileDMMarkReadRouteDependencies = {
   authenticate: (request) => requireMobileApiUserId(request),
+  canPublishReadReceipt,
   /**
    * §2 "1a".6.4: the sender is normally on the conversation list, which never
    * joins `dm:<id>` — that room only exists while a chat is open. Without the
@@ -73,7 +82,7 @@ export async function mobileDMMarkReadRoute(
     const currentUserReadState = response.participantReadStates.find(
       (state) => state.userId === userId,
     );
-    if (currentUserReadState) {
+    if (currentUserReadState && (await dependencies.canPublishReadReceipt(userId))) {
       dependencies.emitReadUpdate(
         { conversationId, ...currentUserReadState },
         response.participantReadStates.map((state) => state.userId),

@@ -74,7 +74,6 @@ describe("metin denetimi — paket yüzeyleri", () => {
       [
         "app/(main)/events",
         "app/(main)/home",
-        "app/(main)/inbox",
         "app/(main)/mentions",
         "components/command",
         "components/home",

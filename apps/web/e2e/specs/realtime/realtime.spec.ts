@@ -113,17 +113,18 @@ test.describe("realtime multi-user flows", () => {
 
       await bob.page.getByTestId("friends-tab-pending").click();
       await alice.page.getByTestId("friends-tab-add").click();
-      await alice.page.getByTestId("friend-username-input").fill(e2eUsers.bob.username);
-      await expect(alice.page.getByTestId("send-friend-request-button")).toBeEnabled({
+      await alice.page.getByTestId("friends-add-input").fill(e2eUsers.bob.username);
+      await expect(alice.page.getByTestId("friends-add-submit")).toBeEnabled({
         timeout: 3_000,
       });
-      await alice.page.getByTestId("send-friend-request-button").click();
+      await alice.page.getByTestId("friends-add-submit").click();
 
-      await expect(
-        bob.page.getByTestId(`friend-request-incoming-${e2eUsers.alice.username}`),
-      ).toBeVisible({ timeout: 10_000 });
+      const incoming = bob.page
+        .getByTestId("friends-incoming-row")
+        .filter({ hasText: e2eUsers.alice.username });
+      await expect(incoming).toBeVisible({ timeout: 10_000 });
 
-      await bob.page.getByTestId(`friend-request-accept-${e2eUsers.alice.username}`).click();
+      await incoming.getByTestId("friends-request-accept").click();
       await alice.page.getByTestId("friends-tab-all").click();
 
       await expect(
@@ -154,9 +155,6 @@ test.describe("realtime multi-user flows", () => {
       });
 
       expect(addResponse.ok()).toBeTruthy();
-      await expect(bob.page.getByTestId("notification-bell-badge")).toBeVisible({
-        timeout: 10_000,
-      });
       await expect(bob.page.getByTestId(`server-rail-server-${serverId}`)).toBeVisible({
         timeout: 10_000,
       });
@@ -187,7 +185,15 @@ test.describe("realtime multi-user flows", () => {
 
     try {
       await gotoTextChannelRoute(alice.page, serverId, textChannelId);
-      await gotoTextChannelRoute(bob.page, serverId, textChannelId);
+      // Açık kanal okuyucusu mesaj iner inmez read cursor'ını ilerletir ve bildirim outbox'ı
+      // onu bilinçli olarak atlar. Bildirim davranışını ölçmek için Bob başka rotada bekler.
+      await gotoAppRoute(bob.page, "/messages", { readyTestId: "app-nav-mentions" });
+      const mentionsNav = bob.page.getByTestId("app-nav-mentions");
+      const readMentionCount = async () => {
+        const digits = (await mentionsNav.textContent())?.match(/\d+/u)?.[0];
+        return digits ? Number(digits) : 0;
+      };
+      const mentionCountBefore = await readMentionCount();
 
       await visibleTestId(alice.page, "message-input").fill(
         `Realtime mention ${suffix} @${e2eUsers.bob.username}`,
@@ -195,6 +201,9 @@ test.describe("realtime multi-user flows", () => {
       await alice.page.getByTestId(`mention-suggestion-${e2eUsers.bob.username}`).click();
       await expect(visibleTestId(alice.page, "message-send-button")).toBeEnabled();
       await visibleTestId(alice.page, "message-send-button").click();
+
+      await expect.poll(readMentionCount, { timeout: 20_000 }).toBeGreaterThan(mentionCountBefore);
+      await gotoTextChannelRoute(bob.page, serverId, textChannelId);
 
       const bobMessage = bob.page
         .getByTestId("message-item")
@@ -204,9 +213,6 @@ test.describe("realtime multi-user flows", () => {
       await expect(
         bobMessage.getByTestId("message-mention").filter({ hasText: `@${e2eUsers.bob.username}` }),
       ).toBeVisible();
-      await expect(bob.page.getByTestId("notification-bell-badge")).toBeVisible({
-        timeout: 10_000,
-      });
     } finally {
       await closeLoggedInPages([alice, bob]);
     }

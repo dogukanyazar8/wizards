@@ -1,6 +1,6 @@
 "use client";
 
-import {
+import React, {
   useCallback,
   useEffect,
   useId,
@@ -11,11 +11,29 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
-import { Loader2, Search, X } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import type { MessageSearchResult } from "@wizards/types";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
+import { WindowCloseButton } from "@/components/ui/window-close-button";
+import { ServerToggleSwitch } from "@/components/servers/shared/toggle-row";
+import { SettingSelect } from "@/components/settings/rows/setting-select";
+import { DISPLAY_FONT, DISPLAY_TRACKING } from "@/components/servers/shared/typography";
+import {
+  EMPTY_MESSAGE_SEARCH_FORM,
+  MESSAGE_SEARCH_CONTENT_TAGS,
+  MESSAGE_SEARCH_DATE_RANGES,
+  buildHighlightSegments,
+  buildMessageSearchFilters,
+  collectUnsupportedFilters,
+  isMessageSearchFiltered,
+  toggleContentTag,
+  type MessageSearchContentTag,
+  type MessageSearchDateRange,
+  type MessageSearchFormState,
+} from "@/lib/messages/search-filters";
 import { searchMessages } from "@/lib/messages/search-client";
+import { SERVER_METRICS, hairline, pxToEm, pxToRem } from "@/lib/servers/metrics";
 import { createRafThrottledCallback } from "@/lib/ui/raf-throttle";
 import type { MessageMode } from "@/hooks/use-messages";
 
@@ -72,6 +90,128 @@ function toIsoDateTime(value: string) {
   return date.toISOString();
 }
 
+/**
+ * İki arama yüzeyinin ortak getirme katmanı: DM'in açılır penceresi ve SPEC-SUNUCU §4.3'ün
+ * sağ paneli. `request` `null` iken hiçbir istek atılmaz ve dönen sonuç kümesi boş görünür —
+ * sorgu iki karakterin altına düştüğünde ekranda bayat bir liste kalmasın diye.
+ *
+ * `runToken` yalnız §4.3'ün `Aramayı çalıştır` düğmesi için var: değeri artınca aynı
+ * parametrelerle yeni bir arama koşar. Canlı arama (220 ms gecikme) korunur; düğme onu
+ * beklemeden tetikler.
+ */
+type MessageSearchRequest = {
+  author: string | null;
+  conversationId: string;
+  exact: boolean;
+  from: string | null;
+  mode: MessageMode;
+  query: string;
+  runToken: number;
+  to: string | null;
+};
+
+const EMPTY_RESULTS: MessageSearchResult[] = [];
+
+function useMessageSearchResults(request: MessageSearchRequest | null) {
+  const { t } = useI18n();
+  const [results, setResults] = useState<MessageSearchResult[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const author = request?.author ?? null;
+  const conversationId = request?.conversationId ?? null;
+  const exact = request?.exact ?? false;
+  const from = request?.from ?? null;
+  const mode = request?.mode ?? null;
+  const query = request?.query ?? null;
+  const runToken = request?.runToken ?? 0;
+  const to = request?.to ?? null;
+
+  useEffect(() => {
+    if (conversationId === null || mode === null || query === null) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      setIsLoading(true);
+      setError(null);
+
+      searchMessages({ author, conversationId, exact, from, mode, query, to })
+        .then((response) => {
+          if (controller.signal.aborted) {
+            return;
+          }
+
+          setResults(response.results);
+          setNextCursor(response.nextCursor);
+        })
+        .catch((searchError) => {
+          if (controller.signal.aborted) {
+            return;
+          }
+
+          setResults([]);
+          setNextCursor(null);
+          setError(searchError instanceof Error ? searchError.message : t("chat.search.error"));
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) {
+            setIsLoading(false);
+          }
+        });
+    }, 220);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [author, conversationId, exact, from, mode, query, runToken, t, to]);
+
+  const loadMore = useCallback(() => {
+    if (!request || !nextCursor || isLoadingMore) {
+      return;
+    }
+
+    setIsLoadingMore(true);
+    setError(null);
+    searchMessages({
+      author: request.author,
+      conversationId: request.conversationId,
+      cursor: nextCursor,
+      exact: request.exact,
+      from: request.from,
+      mode: request.mode,
+      query: request.query,
+      to: request.to,
+    })
+      .then((response) => {
+        setResults((current) => [...current, ...response.results]);
+        setNextCursor(response.nextCursor);
+      })
+      .catch((searchError) => {
+        setError(searchError instanceof Error ? searchError.message : t("chat.search.error"));
+      })
+      .finally(() => setIsLoadingMore(false));
+  }, [isLoadingMore, nextCursor, request, t]);
+
+  // Boşta iken sonuç **maskelenir**, silinmez: silmek efekt gövdesinde bir `setState` demek
+  // olurdu (cascading render) ve kullanıcı sorgunun son harfini silip geri yazdığında liste
+  // bir kare boyunca boş görünürdü.
+  const idle = request === null;
+
+  return {
+    error: idle ? null : error,
+    isLoading: idle ? false : isLoading,
+    isLoadingMore: idle ? false : isLoadingMore,
+    loadMore,
+    nextCursor: idle ? null : nextCursor,
+    results: idle ? EMPTY_RESULTS : results,
+  };
+}
+
 export function MessageSearchPanel({
   anchorRef,
   conversationId,
@@ -94,20 +234,39 @@ export function MessageSearchPanel({
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [exact, setExact] = useState(false);
-  const [results, setResults] = useState<MessageSearchResult[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const normalizedQuery = query.trim();
   const normalizedAuthor = author.trim();
   const fromIso = useMemo(() => toIsoDateTime(fromDate), [fromDate]);
   const toIso = useMemo(() => toIsoDateTime(toDate), [toDate]);
   const canSearch = normalizedQuery.length >= 2;
-  const visibleResults = canSearch ? results : [];
-  const visibleNextCursor = canSearch ? nextCursor : null;
-  const visibleError = canSearch ? error : null;
-  const visibleIsLoading = canSearch && isLoading;
+  const request = useMemo<MessageSearchRequest | null>(
+    () =>
+      canSearch
+        ? {
+            author: searchMode === "advanced" ? normalizedAuthor || null : null,
+            conversationId,
+            exact: searchMode === "advanced" ? exact : false,
+            from: searchMode === "advanced" ? fromIso : null,
+            mode,
+            query: normalizedQuery,
+            runToken: 0,
+            to: searchMode === "advanced" ? toIso : null,
+          }
+        : null,
+    [
+      canSearch,
+      conversationId,
+      exact,
+      fromIso,
+      mode,
+      normalizedAuthor,
+      normalizedQuery,
+      searchMode,
+      toIso,
+    ],
+  );
+  const { error, isLoading, isLoadingMore, loadMore, nextCursor, results } =
+    useMessageSearchResults(request);
 
   const updatePosition = useCallback(() => {
     const nextPosition = getSearchPanelPosition(anchorRef.current);
@@ -159,93 +318,6 @@ export function MessageSearchPanel({
     };
   }, [onClose]);
 
-  useEffect(() => {
-    if (!canSearch) {
-      return;
-    }
-
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => {
-      setIsLoading(true);
-      setError(null);
-
-      searchMessages({
-        author: searchMode === "advanced" ? normalizedAuthor : null,
-        conversationId,
-        exact: searchMode === "advanced" ? exact : false,
-        from: searchMode === "advanced" ? fromIso : null,
-        mode,
-        query: normalizedQuery,
-        to: searchMode === "advanced" ? toIso : null,
-      })
-        .then((response) => {
-          if (controller.signal.aborted) {
-            return;
-          }
-
-          setResults(response.results);
-          setNextCursor(response.nextCursor);
-        })
-        .catch((searchError) => {
-          if (controller.signal.aborted) {
-            return;
-          }
-
-          setResults([]);
-          setNextCursor(null);
-          setError(searchError instanceof Error ? searchError.message : t("chat.search.error"));
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) {
-            setIsLoading(false);
-          }
-        });
-    }, 220);
-
-    return () => {
-      controller.abort();
-      window.clearTimeout(timeoutId);
-    };
-  }, [
-    canSearch,
-    conversationId,
-    exact,
-    fromIso,
-    mode,
-    normalizedAuthor,
-    normalizedQuery,
-    searchMode,
-    t,
-    toIso,
-  ]);
-
-  const loadMore = () => {
-    if (!nextCursor || isLoadingMore || !canSearch) {
-      return;
-    }
-
-    setIsLoadingMore(true);
-    setError(null);
-    searchMessages({
-      author: searchMode === "advanced" ? normalizedAuthor : null,
-      conversationId,
-      cursor: nextCursor,
-      exact: searchMode === "advanced" ? exact : false,
-      from: searchMode === "advanced" ? fromIso : null,
-      mode,
-      query: normalizedQuery,
-      to: searchMode === "advanced" ? toIso : null,
-    })
-      .then((response) => {
-        setResults((current) => [...current, ...response.results]);
-        setNextCursor(response.nextCursor);
-      })
-      .catch((searchError) => {
-        setError(searchError instanceof Error ? searchError.message : t("chat.search.error"));
-      })
-      .finally(() => setIsLoadingMore(false));
-  };
-
   if (!isMounted || !position || typeof document === "undefined") {
     return null;
   }
@@ -276,14 +348,7 @@ export function MessageSearchPanel({
               {t("chat.search.title")}
             </p>
           </div>
-          <button
-            aria-label={t("common.close")}
-            className="rounded-full p-2 text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-            onClick={onClose}
-            type="button"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <WindowCloseButton aria-label={t("common.close")} onClick={onClose} />
         </div>
 
         <div className="mb-3 grid grid-cols-2 gap-1 rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.48)] p-1">
@@ -373,27 +438,27 @@ export function MessageSearchPanel({
             </div>
           ) : null}
 
-          {visibleIsLoading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center gap-2 rounded-2xl px-4 py-8 text-sm text-app-muted">
               <Loader2 className="h-4 w-4 animate-spin" />
               {t("chat.search.loading")}
             </div>
           ) : null}
 
-          {visibleError ? (
+          {error ? (
             <div className="rounded-2xl border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] px-4 py-3 text-sm font-medium text-[hsl(var(--danger))]">
-              {visibleError}
+              {error}
             </div>
           ) : null}
 
-          {canSearch && !visibleIsLoading && !visibleError && visibleResults.length === 0 ? (
+          {canSearch && !isLoading && !error && results.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.26)] px-4 py-6 text-center text-sm text-app-muted">
               {t("chat.search.empty")}
             </div>
           ) : null}
 
           <div className="space-y-1">
-            {visibleResults.map((result) => (
+            {results.map((result) => (
               <button
                 className="group flex w-full min-w-0 items-start gap-3 rounded-[1.375rem] px-3 py-2.5 text-left transition hover:bg-app-surface-soft focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
                 key={result.id}
@@ -427,7 +492,7 @@ export function MessageSearchPanel({
           </div>
         </div>
 
-        {visibleNextCursor ? (
+        {nextCursor ? (
           <button
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.45)] px-4 py-2.5 text-sm font-bold text-app-foreground transition hover:bg-app-surface-soft focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
             disabled={isLoadingMore}
@@ -441,5 +506,564 @@ export function MessageSearchPanel({
       </div>
     </div>,
     document.body,
+  );
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* SPEC-SUNUCU §4.3 — sağ panelin arama içeriği                                                */
+/* ------------------------------------------------------------------------------------------ */
+
+const SEGMENT_MODES: readonly SearchMode[] = ["basic", "advanced"];
+
+export type ChannelSearchOption = {
+  readonly id: string;
+  readonly name: string;
+};
+
+export type ChannelSearchPanelProps = {
+  /** `KANAL` alanının seçenekleri — sunucunun görünür yazı kanalları. */
+  readonly channelOptions: readonly ChannelSearchOption[];
+  /** Aranan kanal. Değişince uç adresi değişir; uydurma bir `channel` parametresi yoktur. */
+  readonly channelId: string;
+  /** `KİMDEN` alanının seçenekleri; uca `username` gider. */
+  readonly memberOptions: readonly ChannelSearchOption[];
+  readonly onChannelChange: (channelId: string) => void;
+  readonly onJumpToMessage: (messageId: string) => void;
+};
+
+function fieldLabelStyle() {
+  const { search } = SERVER_METRICS;
+
+  return {
+    color: "hsl(var(--text-muted))",
+    font: `600 ${pxToRem(search.fieldLabelFontSize)}/1 ${DISPLAY_FONT}`,
+    letterSpacing: `${search.fieldLabelLetterSpacing}em`,
+    textTransform: "uppercase",
+  } as const;
+}
+
+export function SearchSelectField({
+  label,
+  onChange,
+  options,
+  testId,
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  options: readonly { label: string; value: string }[];
+  testId: string;
+  value: string;
+}) {
+  const { search } = SERVER_METRICS;
+  const fieldId = useId();
+  const [open, setOpen] = useState(false);
+  const selectedIndex = Math.max(
+    0,
+    options.findIndex((option) => option.value === value),
+  );
+
+  return (
+    <div>
+      <span id={fieldId} style={fieldLabelStyle()}>
+        {label}
+      </span>
+      <div className="flex justify-end" style={{ marginTop: pxToRem(search.fieldRowMarginTop) }}>
+        <SettingSelect
+          labelledById={fieldId}
+          onChange={(index) => {
+            const selected = options[index];
+            if (selected) {
+              onChange(selected.value);
+            }
+          }}
+          onOpenChange={setOpen}
+          open={open}
+          options={options.map((option) => ({ label: option.label }))}
+          testId={testId}
+          value={selectedIndex}
+        />
+      </div>
+    </div>
+  );
+}
+
+export function ChannelSearchPanel({
+  channelOptions,
+  channelId,
+  memberOptions,
+  onChannelChange,
+  onJumpToMessage,
+}: ChannelSearchPanelProps) {
+  const { locale, t } = useI18n();
+  const { search } = SERVER_METRICS;
+  const [searchMode, setSearchMode] = useState<SearchMode>("basic");
+  const [query, setQuery] = useState("");
+  const [form, setForm] = useState<MessageSearchFormState>(EMPTY_MESSAGE_SEARCH_FORM);
+  const [runToken, setRunToken] = useState(0);
+  /**
+   * Hazır tarih aralığının çıpası. `Date.now()` render sırasında okunsaydı `from` her karede
+   * değişir, efektin bağımlılığı hiç sabitlenmez ve arama sonsuz koşardı. Bu yüzden zaman
+   * yalnız **kullanıcı** aralığı değiştirdiğinde ya da `Aramayı çalıştır`a bastığında tazelenir.
+   */
+  const [runStamp, setRunStamp] = useState(() => Date.now());
+  const threadSwitchId = useId();
+  const normalizedQuery = query.trim();
+  const canSearch = normalizedQuery.length >= 2;
+  const filters = useMemo(
+    () => buildMessageSearchFilters(form, searchMode, runStamp),
+    [form, runStamp, searchMode],
+  );
+  const request = useMemo<MessageSearchRequest | null>(
+    () =>
+      canSearch
+        ? {
+            author: filters.author,
+            conversationId: channelId,
+            exact: filters.exact,
+            from: filters.from,
+            mode: "channel" as const,
+            query: normalizedQuery,
+            runToken,
+            to: filters.to,
+          }
+        : null,
+    [canSearch, channelId, filters, normalizedQuery, runToken],
+  );
+  const { error, isLoading, isLoadingMore, loadMore, nextCursor, results } =
+    useMessageSearchResults(request);
+  const unsupported = collectUnsupportedFilters(form);
+  const filtered = isMessageSearchFiltered(form, searchMode);
+  const timeFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }),
+    [locale],
+  );
+
+  const patch = (next: Partial<MessageSearchFormState>) => {
+    setForm((current) => ({ ...current, ...next }));
+  };
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col" data-testid="server-panel-search">
+      <div
+        style={{
+          display: "flex",
+          gap: pxToRem(search.segmentGap),
+          padding: `${pxToRem(search.segmentPaddingTop)} ${pxToRem(search.segmentPaddingX)} 0`,
+        }}
+      >
+        {SEGMENT_MODES.map((modeKey) => {
+          const active = searchMode === modeKey;
+
+          return (
+            <button
+              aria-pressed={active}
+              className="flex-1 cursor-pointer transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              data-testid={`server-search-mode-${modeKey}`}
+              key={modeKey}
+              onClick={() => setSearchMode(modeKey)}
+              style={{
+                background: active
+                  ? `hsl(var(--primary)/${search.segmentActiveBackgroundAlpha})`
+                  : "hsl(var(--surface-card))",
+                border: `${hairline()} solid ${
+                  active ? "hsl(var(--primary))" : "hsl(var(--border)/0.7)"
+                }`,
+                borderRadius: pxToRem(search.segmentButtonRadius),
+                color: active ? "hsl(var(--primary))" : "hsl(var(--text-secondary))",
+                font: `600 ${pxToRem(search.segmentButtonFontSize)}/1 var(--font-sans), sans-serif`,
+                padding: `${pxToRem(search.segmentButtonPaddingY)} 0`,
+              }}
+              type="button"
+            >
+              {t(`server.search.mode.${modeKey}`)}
+            </button>
+          );
+        })}
+      </div>
+
+      <div
+        style={{
+          padding: `${pxToRem(search.queryPaddingTop)} ${pxToRem(search.queryPaddingX)} 0`,
+        }}
+      >
+        <label
+          className="flex items-center"
+          style={{
+            background: "hsl(var(--surface-card))",
+            border: `${hairline()} solid hsl(var(--primary)/${search.queryBoxBorderAlpha})`,
+            borderRadius: pxToRem(search.queryBoxRadius),
+            gap: pxToRem(search.queryBoxGap),
+            padding: `${pxToRem(search.queryBoxPaddingY)} ${pxToRem(search.queryBoxPaddingX)}`,
+          }}
+        >
+          <Search
+            aria-hidden="true"
+            className="shrink-0 text-app-muted"
+            style={{
+              height: pxToEm(search.queryIconSize, search.queryFontSize),
+              width: pxToEm(search.queryIconSize, search.queryFontSize),
+            }}
+          />
+          <input
+            className="min-w-0 flex-1 border-0 bg-transparent text-app-foreground outline-hidden placeholder:text-app-muted"
+            data-testid="server-search-input"
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t("server.search.placeholder")}
+            style={{ fontSize: pxToRem(search.queryFontSize) }}
+            value={query}
+          />
+        </label>
+      </div>
+
+      {searchMode === "advanced" ? (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: pxToRem(search.fieldsGap),
+            padding: `${pxToRem(search.fieldsPaddingTop)} ${pxToRem(
+              search.fieldsPaddingX,
+            )} ${pxToRem(search.fieldsPaddingBottom)}`,
+          }}
+        >
+          <SearchSelectField
+            label={t("server.search.field.author")}
+            onChange={(value) => patch({ author: value })}
+            options={[
+              { label: t("server.search.field.authorAny"), value: "" },
+              ...memberOptions.map((member) => ({ label: member.name, value: member.id })),
+            ]}
+            testId="server-search-author"
+            value={form.author}
+          />
+          <SearchSelectField
+            label={t("server.search.field.channel")}
+            onChange={onChannelChange}
+            options={channelOptions.map((channel) => ({
+              label: `#${channel.name}`,
+              value: channel.id,
+            }))}
+            testId="server-search-channel"
+            value={channelId}
+          />
+          <SearchSelectField
+            label={t("server.search.field.dateRange")}
+            onChange={(value) => {
+              setRunStamp(Date.now());
+              patch({ dateRange: value as MessageSearchDateRange });
+            }}
+            options={MESSAGE_SEARCH_DATE_RANGES.map((range) => ({
+              label: t(`server.search.dateRange.${range}`),
+              value: range,
+            }))}
+            testId="server-search-date-range"
+            value={form.dateRange}
+          />
+
+          <div>
+            <span style={fieldLabelStyle()}>{t("server.search.field.contains")}</span>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: pxToRem(search.tagChipsGap),
+                marginTop: pxToRem(search.tagChipsMarginTop),
+              }}
+            >
+              {MESSAGE_SEARCH_CONTENT_TAGS.map((tag) => {
+                const active = form.contentTags.includes(tag);
+
+                return (
+                  <button
+                    aria-pressed={active}
+                    className="cursor-pointer whitespace-nowrap transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                    data-testid={`server-search-tag-${tag}`}
+                    key={tag}
+                    onClick={() =>
+                      patch({
+                        contentTags: toggleContentTag(
+                          form.contentTags,
+                          tag as MessageSearchContentTag,
+                        ),
+                      })
+                    }
+                    style={{
+                      background: active
+                        ? `hsl(var(--primary)/${search.segmentActiveBackgroundAlpha})`
+                        : "hsl(var(--surface-card))",
+                      border: `${hairline()} solid ${
+                        active ? "hsl(var(--primary))" : "hsl(var(--border)/0.7)"
+                      }`,
+                      borderRadius: pxToRem(search.tagChipRadius),
+                      color: active ? "hsl(var(--primary))" : "hsl(var(--text-secondary))",
+                      font: `600 ${pxToRem(search.tagChipFontSize)}/1 var(--font-sans), sans-serif`,
+                      padding: `${pxToRem(search.tagChipPaddingY)} ${pxToRem(
+                        search.tagChipPaddingX,
+                      )}`,
+                    }}
+                    type="button"
+                  >
+                    {t(`server.search.contains.${tag}`)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div
+            className="flex items-center"
+            style={{
+              background: `hsl(var(--surface-soft)/${search.threadRowBackgroundAlpha})`,
+              borderRadius: pxToRem(search.threadRowRadius),
+              gap: pxToRem(search.threadRowGap),
+              padding: `${pxToRem(search.threadRowPaddingY)} ${pxToRem(search.threadRowPaddingX)}`,
+            }}
+          >
+            <span
+              className="min-w-0 flex-1"
+              id={threadSwitchId}
+              style={{
+                color: "hsl(var(--text-secondary))",
+                font: `500 ${pxToRem(search.threadLabelFontSize)}/${
+                  search.threadLabelLineHeight
+                } var(--font-sans), sans-serif`,
+              }}
+            >
+              {t("server.search.threadOnly")}
+            </span>
+            <ServerToggleSwitch
+              ariaLabelledBy={threadSwitchId}
+              checked={form.threadOnly}
+              onChange={(checked) => patch({ threadOnly: checked })}
+              size="compact"
+              testId="server-search-thread-only"
+            />
+          </div>
+
+          {unsupported.length > 0 ? (
+            <p
+              className="text-app-muted"
+              data-testid="server-search-unsupported"
+              role="status"
+              style={{
+                font: `500 ${pxToRem(search.threadLabelFontSize)}/${
+                  search.threadLabelLineHeight
+                } var(--font-sans), sans-serif`,
+              }}
+            >
+              {t("server.search.unsupported")}
+            </p>
+          ) : null}
+
+          <button
+            className="w-full cursor-pointer border-0 transition-[filter] hover:brightness-110 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            data-testid="server-search-run"
+            onClick={() => {
+              setRunStamp(Date.now());
+              setRunToken((current) => current + 1);
+            }}
+            style={{
+              background: "hsl(var(--primary))",
+              borderRadius: pxToRem(search.runButtonRadius),
+              boxShadow: `${pxToRem(search.runButtonShadow.x)} ${pxToRem(
+                search.runButtonShadow.y,
+              )} ${pxToRem(search.runButtonShadow.blur)} ${pxToRem(
+                search.runButtonShadow.spread,
+              )} hsl(var(--primary))`,
+              color: "hsl(var(--primary-foreground))",
+              font: `600 ${pxToRem(search.runButtonFontSize)}/1 var(--font-sans), sans-serif`,
+              padding: `${pxToRem(search.runButtonPaddingY)} 0`,
+            }}
+            type="button"
+          >
+            {t("server.search.run")}
+          </button>
+        </div>
+      ) : null}
+
+      <div
+        className="flex items-center justify-between"
+        style={{
+          gap: pxToRem(search.resultsHeaderGap),
+          padding: `${pxToRem(search.resultsHeaderPaddingTop)} ${pxToRem(
+            search.resultsHeaderPaddingX,
+          )} ${pxToRem(search.resultsHeaderPaddingBottom)}`,
+        }}
+      >
+        <span
+          data-testid="server-search-result-count"
+          style={{
+            color: "hsl(var(--text-muted))",
+            font: `600 ${pxToRem(search.resultsLabelFontSize)}/1 ${DISPLAY_FONT}`,
+            letterSpacing: `${search.fieldLabelLetterSpacing}em`,
+            textTransform: "uppercase",
+          }}
+        >
+          {filtered
+            ? t("server.search.results.filtered", { count: results.length })
+            : t("server.search.results.count", { count: results.length })}
+        </span>
+        <span
+          className="shrink-0"
+          style={{
+            color: "hsl(var(--primary))",
+            font: `600 ${pxToRem(search.resultsSortFontSize)}/1 ${DISPLAY_FONT}`,
+          }}
+        >
+          {t("server.search.sort.newest")}
+        </span>
+      </div>
+
+      <div
+        className="min-h-0 flex-1 overflow-y-auto"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: pxToRem(search.resultsListGap),
+          padding: `0 ${pxToRem(search.resultsListPaddingX)} ${pxToRem(
+            search.resultsListPaddingBottom,
+          )}`,
+        }}
+      >
+        {!canSearch ? (
+          <p className="text-center text-xs text-app-muted">{t("chat.search.minLength")}</p>
+        ) : null}
+        {isLoading ? (
+          <p className="flex items-center justify-center gap-2 text-xs text-app-muted">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {t("chat.search.loading")}
+          </p>
+        ) : null}
+        {error ? <p className="text-xs font-medium text-[hsl(var(--danger))]">{error}</p> : null}
+        {canSearch && !isLoading && !error && results.length === 0 ? (
+          <p className="text-center text-xs text-app-muted">{t("chat.search.empty")}</p>
+        ) : null}
+
+        {results.map((result) => (
+          <button
+            className="w-full cursor-pointer text-left transition-[border-color,transform] hover:-translate-y-px hover:border-[hsl(var(--primary)/0.5)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] motion-reduce:transform-none"
+            data-testid="server-search-result"
+            key={result.id}
+            onClick={() => onJumpToMessage(result.messageId)}
+            style={{
+              background: "hsl(var(--surface-card))",
+              border: `${hairline()} solid hsl(var(--border)/${search.resultBorderAlpha})`,
+              borderRadius: pxToRem(search.resultRadius),
+              padding: `${pxToRem(search.resultPaddingY)} ${pxToRem(search.resultPaddingX)}`,
+            }}
+            type="button"
+          >
+            <div className="flex items-center" style={{ gap: pxToRem(search.resultHeadGap) }}>
+              <Avatar
+                alt={result.author.displayName}
+                className="shrink-0"
+                fallback={result.author.displayName}
+                src={result.author.avatarUrl}
+                style={{
+                  fontSize: pxToRem(search.resultAvatarFontSize),
+                  height: pxToRem(search.resultAvatarSize),
+                  width: pxToRem(search.resultAvatarSize),
+                }}
+              />
+              <span
+                className="min-w-0 truncate"
+                style={{
+                  color: "hsl(var(--foreground))",
+                  font: `600 ${pxToRem(search.resultNameFontSize)}/1 var(--font-sans), sans-serif`,
+                }}
+              >
+                {result.author.displayName}
+              </span>
+              <span
+                className="ml-auto shrink-0"
+                style={{
+                  color: "hsl(var(--text-muted))",
+                  font: `500 ${pxToRem(search.resultTimeFontSize)}/1 var(--font-sans), sans-serif`,
+                }}
+              >
+                {timeFormatter.format(new Date(result.createdAt))}
+              </span>
+            </div>
+            <div
+              style={{
+                color: "hsl(var(--text-secondary))",
+                fontSize: pxToRem(search.resultBodyFontSize),
+                lineHeight: search.resultBodyLineHeight,
+                marginTop: pxToRem(search.resultBodyMarginTop),
+              }}
+            >
+              {buildHighlightSegments(
+                getResultPreview(result, t("chat.search.attachmentOnly")),
+                normalizedQuery,
+                locale,
+              ).map((segment, index) =>
+                segment.highlighted ? (
+                  <span
+                    key={`${result.id}-${index}`}
+                    style={{
+                      background: `hsl(var(--warning)/${search.resultHighlightAlpha})`,
+                      borderRadius: pxToRem(search.resultHighlightRadius),
+                      color: "hsl(var(--foreground))",
+                      fontWeight: 600,
+                      padding: `${pxToRem(search.resultHighlightPaddingY)} ${pxToRem(
+                        search.resultHighlightPaddingX,
+                      )}`,
+                    }}
+                  >
+                    {segment.text}
+                  </span>
+                ) : (
+                  <span key={`${result.id}-${index}`}>{segment.text}</span>
+                ),
+              )}
+            </div>
+            {result.channelName ? (
+              <div
+                className="flex items-center"
+                style={{
+                  gap: pxToRem(search.resultChipsGap),
+                  marginTop: pxToRem(search.resultChipsMarginTop),
+                }}
+              >
+                <span
+                  style={{
+                    background: "hsl(var(--surface-soft))",
+                    borderRadius: pxToRem(search.resultChipRadius),
+                    color: "hsl(var(--text-muted))",
+                    font: `600 ${pxToRem(search.resultChipFontSize)}/1 ${DISPLAY_FONT}`,
+                    letterSpacing: DISPLAY_TRACKING,
+                    padding: `${pxToRem(search.resultChipPaddingY)} ${pxToRem(
+                      search.resultChipPaddingX,
+                    )}`,
+                  }}
+                >
+                  #{result.channelName}
+                </span>
+              </div>
+            ) : null}
+          </button>
+        ))}
+
+        {nextCursor ? (
+          <button
+            className="w-full cursor-pointer text-app-foreground transition-colors hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-70"
+            data-testid="server-search-load-more"
+            disabled={isLoadingMore}
+            onClick={loadMore}
+            style={{
+              background: "hsl(var(--surface-card))",
+              border: `${hairline()} solid hsl(var(--border)/${search.resultBorderAlpha})`,
+              borderRadius: pxToRem(search.resultRadius),
+              font: `600 ${pxToRem(search.resultNameFontSize)}/1 var(--font-sans), sans-serif`,
+              padding: `${pxToRem(search.resultPaddingY)} ${pxToRem(search.resultPaddingX)}`,
+            }}
+            type="button"
+          >
+            {t("chat.search.loadMore")}
+          </button>
+        ) : null}
+      </div>
+    </div>
   );
 }

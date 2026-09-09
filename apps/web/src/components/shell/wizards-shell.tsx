@@ -9,18 +9,25 @@ import type { WorkspaceServerDetail, WorkspaceServerSummary } from "@wizards/typ
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Button } from "@wizards/ui";
 import { useShallow } from "zustand/react/shallow";
-import { AppStartupScreen } from "@/components/app/app-startup-screen";
+import { SplashScreen } from "@/components/splash/splash-screen";
+import {
+  applyDesktopStartupScale,
+  finishDesktopStartup,
+  isDesktopStartupWindowPending,
+  readDesktopStartupStep,
+} from "@/lib/desktop/startup-window";
 import { AppNavPanel } from "@/components/shell/app-nav-panel";
 import { ChannelSidebar } from "@/components/shell/channel-sidebar";
 import { useI18n } from "@/components/providers/locale-provider";
 import { AccountPreferenceProvider } from "@/components/providers/account-preference-provider";
 import { getInterfaceDensityMetrics } from "@wizards/types";
 import { CommandPaletteProvider } from "@/components/command/command-palette-provider";
+import { AppShortcutController } from "@/components/shortcuts/app-shortcut-controller";
 import { FocusControlsProvider } from "@/components/providers/focus-controls-provider";
 import { InAppSettingsOverlay } from "@/components/settings/in-app-settings-overlay";
 import { MainChannelPanel } from "@/components/shell/main-channel-panel";
 import { MobileDrawerTrigger, ServerRail } from "@/components/shell/server-rail";
-import { ServerSettingsOverlay } from "@/components/shell/server-settings-overlay";
+import { ServerSettingsOverlay } from "@/components/shell/server-settings/server-settings-overlay";
 import { ServerMemberPanel } from "@/components/shell/server-member-panel";
 import { WorkspaceModals } from "@/components/shell/workspace-modals";
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
@@ -56,10 +63,13 @@ import { HOME_METRICS, pxToRem } from "@/lib/home/metrics";
 import {
   MESSAGES_FRIENDS_ROUTE,
   MESSAGES_ROUTE,
+  messagesConversationHref,
   selectActiveConversationId,
 } from "@/lib/messages/routes";
 import { selectCommandCenterLayout } from "@/lib/home/layout";
 import { selectThirdColumn, type ThirdColumn } from "@/lib/home/third-column";
+import { selectServerShellLayout } from "@/lib/servers/shell-layout";
+import { resolveShellRouteContext } from "@/lib/shell/route-context";
 import { MessagesRailContainer } from "@/components/messages/messages-rail-container";
 import { MESSAGES_METRICS } from "@/lib/messages/metrics";
 import { MentionsRailContainer } from "@/components/mentions/mentions-rail-container";
@@ -83,6 +93,12 @@ type WizardsShellProps = {
 };
 
 const subscribeToDesktopRuntime = () => () => {};
+/*
+ * Açılış devri render sırasında bir kez okunur ve terfiye kadar değişmez; abonelik
+ * gerekmez. `useSyncExternalStore` yine de doğru araç: sunucu anlık görüntüsü boş
+ * verir, istemci gerçek değeri okur ve hidrasyon uyuşmazlığı doğmaz.
+ */
+const subscribeToDesktopStartupWindow = () => () => {};
 
 function findActiveChannel(
   serverId: string | null,
@@ -290,6 +306,8 @@ interface NavigationPanelProps {
   onPrefetch: (href: string) => void;
   onOpenCreateServer: () => void;
   onOpenServerContextMenu: (serverId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
+  /** Kanal kenar cubugunun sunucu menusundeki `Sunucudan ayril` satiri (S4). */
+  onLeaveServer: () => void;
   onOpenSettings: () => void;
   onCurrentUserStatusChange: (status: "ONLINE" | "IDLE" | "DND" | "OFFLINE") => void;
   resolveServerHref: (server: WorkspaceServerSummary) => string;
@@ -297,8 +315,16 @@ interface NavigationPanelProps {
   /**
    * `08-faz7` §3 — 960'ın altında nav paneli drawer'a taşınır. Masaüstü genişliğinde bile
    * geçerli: kırılım kabuğun `md:` eşiğinden değil, komuta merkezinin kendi eşiğinden gelir.
+   *
+   * SPEC-SUNUCU §11 buna bir kademe daha ekliyor: sunucu rotasında `<1200` yalnız **gezinme
+   * paneli** düşer, ray ve kanal kenar çubuğu kolonda kalır. `navCollapsed` "üçü birden gizli",
+   * `navPanelHidden` "yalnız 280'lik sütun gizli" demektir; ikisi ayrı sorudur.
    */
   navCollapsed?: boolean;
+  /** §11 `<1200` — gezinme paneli sütundan düşer, ray + kanal kenar çubuğu kalır. */
+  navPanelHidden?: boolean;
+  /** §11 `<960` — kanal kenar çubuğu sütundan düşer ve drawer'a taşınır. */
+  thirdColumnHidden?: boolean;
 }
 
 const NavigationPanel = React.memo(
@@ -323,11 +349,14 @@ const NavigationPanel = React.memo(
     onPrefetch,
     onOpenCreateServer,
     onOpenServerContextMenu,
+    onLeaveServer,
     onOpenSettings,
     onCurrentUserStatusChange,
     resolveServerHref,
     currentUserId,
     navCollapsed = false,
+    navPanelHidden = false,
+    thirdColumnHidden = false,
   }: NavigationPanelProps) => (
     <div
       className={cn(
@@ -367,9 +396,11 @@ const NavigationPanel = React.memo(
           className={cn(
             isMobile
               ? "flex min-w-0 max-w-[calc(100vw-var(--server-rail-width))] flex-1 overflow-hidden"
-              : "flex min-w-0 overflow-hidden",
+              : navPanelHidden
+                ? "hidden"
+                : "flex min-w-0 overflow-hidden",
           )}
-          style={isMobile ? undefined : { width: `var(--nav-panel-width)` }}
+          style={isMobile || navPanelHidden ? undefined : { width: `var(--nav-panel-width)` }}
         >
           <AppNavPanel
             activeServerId={activeServerId}
@@ -387,15 +418,12 @@ const NavigationPanel = React.memo(
           />
         </div>
 
-        {thirdColumn === null ? null : (
+        {thirdColumn === null || (!isMobile && thirdColumnHidden) ? null : (
           <div
-            className={cn(
-              "flex min-w-0 overflow-hidden",
-              // Sohbet rayı kendi zeminini ve kenarını çizer (SPEC §3); kanal
-              // listesi eski kabuğun degrade zeminini korur.
-              thirdColumn === "channels" &&
-                "border-r border-[hsl(var(--border)/0.48)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.64),hsl(var(--surface-soft)/0.22))]",
-            )}
+            // Ucuncu sutun **zemin cizmez**: her ray/kenar cubugu kendi yuzeyinin sahibi
+            // (sohbet rayi SPEC 3, kanal kenar cubugu SPEC 2.1). Sutun burada da boyarsa
+            // iki katman ust uste biner ve renk hicbir temada referansinki olmaz.
+            className="flex min-w-0 overflow-hidden"
             style={isMobile ? undefined : { width: `var(--third-column-width)` }}
           >
             {thirdColumn === "messages" ? (
@@ -412,6 +440,7 @@ const NavigationPanel = React.memo(
                 loading={Boolean(activeServerId) && serverDetailQueryLoading}
                 onNavigate={onNavigate}
                 onCurrentUserStatusChange={onCurrentUserStatusChange}
+                onLeaveServer={onLeaveServer}
                 onOpenSettings={onOpenSettings}
                 onPrefetch={onPrefetch}
                 showUserFooter={false}
@@ -623,11 +652,32 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   // `@me` artık bir sunucu kimliği değil: eski yol sunucu tarafında yönleniyor ve
   // kabuğa hiç ulaşmıyor. Yine de savunma olarak dışlanıyor — yönlendirme
   // atlanan bir yol, burada sahte bir sunucu olarak görünürdü.
-  const activeServerId = rawServerId === "@me" ? null : rawServerId;
-  const activeChannelId = typeof params.channelId === "string" ? params.channelId : null;
-  const activeConversationId = selectActiveConversationId(pathname);
-  const isChannelsRootRoute = pathname === MESSAGES_ROUTE;
-  const isFriendsRoute = pathname === MESSAGES_FRIENDS_ROUTE || pathname === MESSAGES_ROUTE;
+  const currentShellRoute = useMemo(
+    () => ({
+      channelId: typeof params.channelId === "string" ? params.channelId : null,
+      pathname,
+      serverId: rawServerId === "@me" ? null : rawServerId,
+    }),
+    [params.channelId, pathname, rawServerId],
+  );
+  const [lastWorkspaceRoute, setLastWorkspaceRoute] = React.useState(currentShellRoute);
+  const shellRoute = resolveShellRouteContext(currentShellRoute, lastWorkspaceRoute);
+
+  if (
+    shellRoute.pathname !== lastWorkspaceRoute.pathname ||
+    shellRoute.serverId !== lastWorkspaceRoute.serverId ||
+    shellRoute.channelId !== lastWorkspaceRoute.channelId
+  ) {
+    setLastWorkspaceRoute(shellRoute);
+  }
+
+  const shellPathname = shellRoute.pathname;
+  const activeServerId = shellRoute.serverId;
+  const activeChannelId = shellRoute.channelId;
+  const activeConversationId = selectActiveConversationId(shellPathname);
+  const isChannelsRootRoute = shellPathname === MESSAGES_ROUTE;
+  const isFriendsRoute =
+    shellPathname === MESSAGES_FRIENDS_ROUTE || shellPathname === MESSAGES_ROUTE;
   const isDmRoute = activeConversationId !== null;
   const isServerIndexRoute = Boolean(activeServerId && !activeChannelId);
   const isServerConversationRoute = Boolean(activeServerId && activeChannelId);
@@ -646,7 +696,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const displayServerRailWidth = pxToRem(SERVER_RAIL_WIDTH);
   // Faz 2 §3, Mesajlar karar #2: 3. sütun rotadan seçilir; tek seçici, kopyalanmış
   // kabuk yok. Gezinme paneli artık her rotada ve sabit genişlikte.
-  const thirdColumn = selectThirdColumn(pathname);
+  const thirdColumn = selectThirdColumn(shellPathname);
   const navPanelWidth = pxToRem(HOME_METRICS.panel.width);
   /**
    * Üçüncü sütunun genişliği. Sohbet rayı SPEC §3'ün 276'sında sabit; kanal
@@ -672,10 +722,42 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
    * pakette değişmedi ve eşiği kaydırmak, bu paketin dokunmadığı bir ekranı
    * 768–960 arasında sessizce yeniden düzenlerdi.
    */
-  const navCollapsed =
-    thirdColumn !== "channels" &&
-    selectCommandCenterLayout(responsiveLayout.viewportWidth) === "narrow" &&
-    !responsiveLayout.shouldMountWorkspaceDrawer;
+  /**
+   * SPEC-SUNUCU §11 — sunucu rotalarının kendi üç kademesi var ve `selectServerShellLayout`
+   * onları tek yerde tutuyor: `<1200` gezinme paneli düşer (**kanal kenar çubuğu kalır**),
+   * `<960` kanal kenar çubuğu da drawer'a taşınır. Diğer rotalar `08-faz7` §3'ün tek eşiğinde
+   * (960) kalır — o ekranların üçüncü sütunu bu pakette değişmedi.
+   */
+  const serverShellLayout = selectServerShellLayout(responsiveLayout.viewportWidth);
+  const isServerColumnRoute = thirdColumn === "channels";
+  const navCollapsed = isServerColumnRoute
+    ? serverShellLayout.navPanelCollapsed && !responsiveLayout.shouldMountWorkspaceDrawer
+    : selectCommandCenterLayout(responsiveLayout.viewportWidth) === "narrow" &&
+      !responsiveLayout.shouldMountWorkspaceDrawer;
+  /**
+   * `<960`'ta kanal kenar çubuğu kolondan düşer; içeriği drawer'daki `NavigationPanel`
+   * taşımaya devam eder (§11 "drawer'a taşınır"), yani hiçbir yüzey kaybolmaz.
+   */
+  const sidebarInDrawer = isServerColumnRoute && serverShellLayout.sidebarInDrawer;
+  /**
+   * Sütunun tamamının gizlendiği tek durum sunucu **dışındaki** rotaların 960 kırılımıdır
+   * (`08-faz7` §3). Sunucu rotasında §11 hiçbir eşikte rayı kaldırmıyor: `<1200`'de gezinme
+   * paneli, `<960`'ta kanal kenar çubuğu düşer ve geriye "yalnızca ikonlar, 74px" — yani
+   * sunucu rayının kendisi — kalır. Drawer kopyası her zaman üç sütunu birden taşır.
+   */
+  const desktopColumnsHidden = navCollapsed && !isServerColumnRoute;
+  /**
+   * Sütun genişliği kalan kolonların toplamıdır. `navCollapsed` iken gezinme paneli (280)
+   * toplamdan düşer; aksi hâlde sütun 280 px boşluk ayırır ve kanal kenar çubuğu ekranın
+   * ortasında asılı kalırdı.
+   */
+  const desktopColumnsWidth = [
+    displayServerRailWidth,
+    navCollapsed ? null : navPanelWidth,
+    thirdColumn === null || sidebarInDrawer ? null : thirdColumnWidth,
+  ]
+    .filter((part): part is string => part !== null)
+    .join(" + ");
   const shouldShowMobileWorkspaceDrawer =
     mobileSidebarOpen && (responsiveLayout.shouldMountWorkspaceDrawer || navCollapsed);
   useBodyScrollLock(shouldShowMobileWorkspaceDrawer || settingsOverlayOpen);
@@ -1052,17 +1134,71 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     () => serversQuery.data ?? [],
     [serversQuery.data],
   );
+  /*
+   * Masaüstü açılışının devamı — SPEC-SPLASH §4/§8.
+   *
+   * `/desktop/start` pencereyi küçük bırakıp buraya gelir. Kabuk hazır olana kadar
+   * pencere büyümez ve açılış ekranı kapanmaz; büyütme (terfi) perdenin arkasında,
+   * en sonda yapılır. Devir kaydı `sessionStorage`'da olduğu için tam sayfa
+   * yüklemesi de sürekliliği bozmaz.
+   *
+   * İkisi de `useSyncExternalStore` ile okunur: sunucu anlık görüntüsü boştur,
+   * hidrasyondan sonra gerçek değere geçilir — hidrasyon uyuşmazlığı olmaz.
+   */
+  const desktopStartupStep = useSyncExternalStore(
+    subscribeToDesktopStartupWindow,
+    readDesktopStartupStep,
+    () => null,
+  );
+  const desktopStartupWindowPending = useSyncExternalStore(
+    subscribeToDesktopStartupWindow,
+    isDesktopStartupWindowPending,
+    () => false,
+  );
+  const [desktopStartupPromoted, setDesktopStartupPromoted] = React.useState(false);
+  const holdSplashForDesktopWindow = desktopStartupWindowPending && !desktopStartupPromoted;
+
+  React.useEffect(() => {
+    if (holdSplashForDesktopWindow) {
+      // Tam sayfa yüklemesinde kök sınıfı kaybolur; küçük pencere ölçeği geri konur.
+      applyDesktopStartupScale();
+    }
+  }, [holdSplashForDesktopWindow]);
+
   const readiness = useShellReadiness({
     activeServerDetailLoading: Boolean(
       activeServerId && serverDetailQuery.isLoading && !serverDetailQuery.data,
     ),
     appearanceHydrated: appearanceHydrated || appearanceHydratedFromHook,
+    // SPEC-SPLASH §3.5 birinci adımı ("Bağlanıyor") ilk isteğin **yanıtlanmasıdır**;
+    // hangisi önce dönerse o. `isSuccess` yerine `isFetched`: hatayla dönen bir istek
+    // de bağlantının kurulduğunu kanıtlar ve adımı geçirir.
+    bootstrapRequestSettled: layoutSettingsQuery.isFetched || serversQuery.isFetched,
+    holdDismiss: holdSplashForDesktopWindow,
+    ...(desktopStartupStep ? { initialStep: desktopStartupStep } : {}),
     dmConversationsLoading: dmConversationsQuery.isLoading && !dmConversationsQuery.data,
     layoutSettingsLoaded: layoutSettingsQuery.isSuccess && Boolean(layoutSettings),
     realtimeConnected: socketConnected,
     route: shellReadinessRoute,
+    // Kabuk yalnız oturum açmış kullanıcıya çizilir; 401 buraya gelmeden auth
+    // katmanı `/login`e yönlendirir, o yüzden bu yüzeyde `sessionExpired` üretilmez.
     serversLoading: serversQuery.isLoading && !serversQuery.data,
   });
+  React.useEffect(() => {
+    if (!readiness.isSettled || !holdSplashForDesktopWindow) {
+      return;
+    }
+
+    /*
+     * Terfi, liste **dördü onaylı hâliyle göründükten sonra** başlar ve pencere gizliyken
+     * yapılır: büyüme, `zoom` kalkması ve kabuğun ilk tam ölçü çizimi görünmez.
+     * Geri çağrı perdeyi kapatır; pencere sönme bittikten sonra gösterilir.
+     */
+    void finishDesktopStartup(() => {
+      setDesktopStartupPromoted(true);
+    });
+  }, [holdSplashForDesktopWindow, readiness.isSettled]);
+
   const removeServerAccess = React.useCallback(
     (serverId: string) => {
       forgetServerState(serverId);
@@ -1122,6 +1258,41 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   // SPEC-ETKINLIKLER §2 ipucu; sayaçlar `/events` açıkken listeden, değilken hafif uçtan gelir.
   const nextEventClock = useNextEventClock();
   const activeChannel = findActiveChannel(activeServerId, activeChannelId, serverDetailQuery.data);
+  const shortcutNavigationTargets = useMemo(() => {
+    if (activeServerId && serverDetailQuery.data) {
+      return [
+        ...serverDetailQuery.data.ungroupedChannels,
+        ...serverDetailQuery.data.categories.flatMap((category) => category.channels),
+      ]
+        .filter((channel) => channel.canAccess !== false)
+        .map((channel) => ({
+          href: `/channels/${activeServerId}/${channel.id}`,
+          id: channel.id,
+          unread: channel.unreadCount > 0 || channel.mentionCount > 0,
+        }));
+    }
+
+    if (shellPathname === MESSAGES_ROUTE || shellPathname.startsWith(`${MESSAGES_ROUTE}/`)) {
+      const orderedConversations = [
+        ...dmConversations.filter((conversation) => Boolean(conversation.pinnedAt)),
+        ...dmConversations.filter((conversation) => !conversation.pinnedAt),
+      ];
+
+      return orderedConversations.map((conversation) => {
+        const viewer = conversation.participants.find(
+          (participant) => participant.userId === currentUser.id,
+        );
+
+        return {
+          href: messagesConversationHref(conversation.id),
+          id: conversation.id,
+          unread: (viewer?.unreadCount ?? 0) > 0 || (viewer?.mentionCount ?? 0) > 0,
+        };
+      });
+    }
+
+    return [];
+  }, [activeServerId, currentUser.id, dmConversations, serverDetailQuery.data, shellPathname]);
   const preferredServerChannelId = activeServerId
     ? getPreferredServerChannelId(
         activeServerId,
@@ -1386,8 +1557,22 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   }, [setMobileSidebarOpen, setSettingsOverlayOpen]);
 
   const openCreateServer = React.useCallback(() => {
-    openServerModal({ mode: "create" });
+    openServerModal();
   }, [openServerModal]);
+
+  /**
+   * S4 -- kanal kenar cubugunun sunucu menusundeki `Sunucudan ayril`. Kenar cubugu kendi
+   * onayini ve kendi mutation'ini acmiyor; rayin sag tik menusuyle **ayni** aday state'ini
+   * doldurup **ayni** onay penceresini actiriyor. Iki ayrilma yolu iki ayri onay metni ve
+   * iki ayri hata davranisi demekti.
+   */
+  const requestLeaveActiveServer = React.useCallback(() => {
+    const server = servers.find((entry) => entry.id === activeServerId);
+
+    if (server) {
+      setLeaveServerCandidate(server);
+    }
+  }, [activeServerId, servers, setLeaveServerCandidate]);
 
   const handleOpenServerContextMenu = React.useCallback(
     (serverId: string, event: React.MouseEvent<HTMLButtonElement>) => {
@@ -1428,9 +1613,14 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       */}
       <FocusControlsProvider>
         <CommandPaletteProvider onOpenCreateServer={openCreateServer} onOpenSettings={openSettings}>
+          <AppShortcutController
+            activeTargetId={activeChannelId ?? activeConversationId}
+            navigationTargets={shortcutNavigationTargets}
+            onNavigate={navigate}
+          />
           <div
             className={cn(
-              "app-shell whispr-channel-shell flex h-[100dvh] overflow-hidden p-0 md:h-screen md:p-3",
+              "app-shell whispr-channel-shell flex h-[100dvh] overflow-hidden p-0 md:h-screen",
               thirdColumn === "messages" && "messages-reference-surface",
             )}
             data-interface-density={interfaceDensity.toLowerCase()}
@@ -1438,32 +1628,28 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
             suppressHydrationWarning
           >
             {readiness.shouldMountSplash ? (
-              <AppStartupScreen
-                busy={!readiness.isReady}
-                className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${
-                  readiness.shouldShowSplash ? "opacity-100" : "pointer-events-none opacity-0"
-                }`}
-                experience={isDesktopRuntime ? "desktop" : "default"}
-                status={readiness.status}
-                variant="overlay"
+              <SplashScreen
+                className="transition-opacity duration-[180ms] ease-out motion-reduce:transition-none"
+                completed={readiness.completed}
+                state={readiness.state}
+                step={readiness.step}
+                surface={isDesktopRuntime ? "desktop" : "web"}
+                // Pencere hâlâ açılış ölçüsündeyken kabuk `window` varyantıdır:
+                // yuvarlak köşe ve gölge payı korunur. Terfiden sonra perde ana
+                // pencereyi kaplayan `overlay`e döner.
+                variant={holdSplashForDesktopWindow ? "window" : "overlay"}
+                visible={readiness.shouldShowSplash}
               />
             ) : null}
 
             <div
               // §3 — 960'ın altında sütun hiç yer kaplamaz; ana alan tam genişliğe yayılır.
-              className={cn("hidden h-full shrink-0", navCollapsed ? "" : "md:flex")}
+              // SPEC-SUNUCU §11 arada bir kademe daha açıyor: `<1200`'de yalnız gezinme paneli
+              // düşer ve sütun ray + kanal kenar çubuğu kadar daralır.
+              className={cn("hidden h-full shrink-0", desktopColumnsHidden ? "" : "md:flex")}
               // Drawer açıkken arka plan `inert`: focus overlay'in dışına kaçamaz (§2.4).
               inert={shouldShowMobileWorkspaceDrawer}
-              style={
-                navCollapsed
-                  ? undefined
-                  : {
-                      width:
-                        thirdColumn === null
-                          ? `calc(${displayServerRailWidth} + ${navPanelWidth})`
-                          : `calc(${displayServerRailWidth} + ${navPanelWidth} + ${thirdColumnWidth})`,
-                    }
-              }
+              style={desktopColumnsHidden ? undefined : { width: `calc(${desktopColumnsWidth})` }}
               suppressHydrationWarning
             >
               <NavigationPanel
@@ -1473,9 +1659,11 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
                 servers={servers}
                 dmUnreadCount={unreadCounters.dm}
                 mentionUnreadCount={unreadCounters.mentions}
-                navCollapsed={navCollapsed}
+                navCollapsed={desktopColumnsHidden}
+                navPanelHidden={navCollapsed}
+                thirdColumnHidden={sidebarInDrawer}
                 nextEventClock={nextEventClock}
-                pathname={pathname}
+                pathname={shellPathname}
                 messagesRail={messagesRail}
                 mentionsRail={mentionsRail}
                 discoverRail={discoverRail}
@@ -1489,6 +1677,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
                 onPrefetch={prefetch}
                 onOpenCreateServer={openCreateServer}
                 onOpenServerContextMenu={handleOpenServerContextMenu}
+                onLeaveServer={requestLeaveActiveServer}
                 onOpenSettings={openSettings}
                 onCurrentUserStatusChange={setCurrentUserStatus}
                 resolveServerHref={resolveServerHref}
@@ -1500,6 +1689,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
                 <motion.div
                   animate={{ opacity: 1 }}
                   className={cn("fixed inset-0 z-[70]", navCollapsed ? "" : "md:hidden")}
+                  data-server-drawer={sidebarInDrawer ? "sidebar" : undefined}
                   exit={{ opacity: 0 }}
                   initial={{ opacity: 0 }}
                 >
@@ -1529,7 +1719,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
                       dmUnreadCount={unreadCounters.dm}
                       mentionUnreadCount={unreadCounters.mentions}
                       nextEventClock={nextEventClock}
-                      pathname={pathname}
+                      pathname={shellPathname}
                       messagesRail={messagesRail}
                       mentionsRail={mentionsRail}
                       discoverRail={discoverRail}
@@ -1543,6 +1733,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
                       onPrefetch={prefetch}
                       onOpenCreateServer={openCreateServer}
                       onOpenServerContextMenu={handleOpenServerContextMenu}
+                      onLeaveServer={requestLeaveActiveServer}
                       onOpenSettings={openSettings}
                       onCurrentUserStatusChange={setCurrentUserStatus}
                       resolveServerHref={resolveServerHref}
@@ -1552,7 +1743,10 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
               ) : null}
             </AnimatePresence>
 
-            <div className="flex min-w-0 flex-1 md:gap-0" inert={shouldShowMobileWorkspaceDrawer}>
+            <div
+              className="relative flex min-w-0 flex-1 md:gap-0"
+              inert={shouldShowMobileWorkspaceDrawer}
+            >
               <MainChannelPanel
                 channel={activeChannel}
                 fallbackTitle={
@@ -1806,6 +2000,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
             />
 
             <ServerSettingsOverlay
+              currentUserId={currentUser.id}
               detail={
                 serverSettingsServerId === activeServerId ? (serverDetailQuery.data ?? null) : null
               }

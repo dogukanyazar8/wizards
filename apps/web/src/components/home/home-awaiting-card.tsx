@@ -127,7 +127,7 @@ function HomeAwaitingCardComponent({
   return (
     <HomeCard
       accessory={
-        <HomeHeaderLink fontSize={awaitingCard.headerLinkFontSize} href="/inbox">
+        <HomeHeaderLink fontSize={awaitingCard.headerLinkFontSize} href="/mentions">
           {t("home.awaiting.inbox")}
         </HomeHeaderLink>
       }

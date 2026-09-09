@@ -263,7 +263,7 @@ export function EventsFeedHeader({
                   // gelmeli, yoksa satır içi bir `background` `hover:` kuralını her zaman yener.
                   selected
                     ? "bg-[hsl(var(--primary))] text-white"
-                    : "text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--surface-soft))]",
+                    : "text-[hsl(var(--text-secondary))] hover:bg-[var(--surface-hover)]",
                 )}
                 data-nav="replace"
                 data-testid={`events-feed-tab-${tab.id}`}
@@ -351,7 +351,7 @@ export function EventsFeedHeader({
           <button
             aria-label={t("events.card.sizeToggle")}
             aria-pressed={routeState.size === "large"}
-            className="grid place-items-center bg-transparent text-inherit transition-colors hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+            className="grid place-items-center bg-transparent text-inherit transition-colors hover:bg-[var(--surface-hover)] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
             data-testid="events-feed-card-size"
             onClick={onToggleCardSize}
             style={{ ...iconButtonStyle, border: 0 }}
@@ -374,7 +374,7 @@ export function EventsFeedHeader({
               "grid place-items-center transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
               notificationsEnabled
                 ? undefined
-                : "bg-transparent text-inherit hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))]",
+                : "bg-transparent text-inherit hover:bg-[var(--surface-hover)] hover:text-[hsl(var(--foreground))]",
             )}
             data-testid="events-feed-bell"
             onClick={onToggleNotifications}

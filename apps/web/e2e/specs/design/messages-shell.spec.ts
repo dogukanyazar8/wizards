@@ -1,3 +1,5 @@
+import { HOME_METRICS } from "@/lib/home/metrics";
+import { MESSAGES_METRICS } from "@/lib/messages/metrics";
 import { test, expect } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
 import { expectNoOverflow } from "../../helpers/design-parity";
@@ -6,8 +8,8 @@ import { gotoAppRoute } from "../../helpers/navigation";
 /**
  * Mesajlar kabuğu — SPEC-MESAJLAR §1, karar #2.
  *
- * Ekran dört kolon: sunucu rayı 74 + gezinme paneli 228 + sohbet rayı 276 +
- * ana alan. İlk üçü sabit; artan genişliğin tamamını ana alan alır.
+ * Ekran dört kolon: sunucu rayı + gezinme paneli + sohbet rayı + ana alan. İlk üçü sabit;
+ * artan genişliğin tamamını ana alan alır.
  *
  * Sayılar `MESSAGES_METRICS` / `HOME_METRICS` sözlüklerinde ve birim testleriyle
  * kilitli. Buradaki koşu onların **ekranda** karşılığını doğruluyor: rem tabanlı
@@ -15,11 +17,13 @@ import { gotoAppRoute } from "../../helpers/navigation";
  * yalnız gerçek tarayıcı gösterir.
  */
 
-/** ×1 ölçekte, SPEC §1'in tablosu. */
-const RAIL_WIDTH = 74;
-const NAV_PANEL_WIDTH = 228;
-const MESSAGES_RAIL_WIDTH = 276;
-const LEFT_COLUMNS_TOTAL = RAIL_WIDTH + NAV_PANEL_WIDTH + MESSAGES_RAIL_WIDTH;
+/**
+ * ×1 ölçekte üç sol kolon. Sayılar sözlükten okunur: gezinme paneli kabuğun malıdır ve
+ * Mesajlar paketi dışında genişletildi (`NAV_PANEL_ADJUSTMENTS`: 228 -> 280). Burada bir kopya
+ * tutmak, kabuk her değiştiğinde bu dosyayı sessizce yalancı yapardı.
+ */
+const LEFT_COLUMNS_TOTAL =
+  HOME_METRICS.rail.width + HOME_METRICS.panel.width + MESSAGES_METRICS.layout.railWidth;
 
 async function openMessages(page: Parameters<typeof loginAs>[0]) {
   await gotoAppRoute(page, "/messages", { readyTestId: "messages-rail" });
@@ -37,7 +41,7 @@ test.describe("Mesajlar kabuğu", () => {
 
     const railBox = await page.getByTestId("messages-rail").boundingBox();
 
-    expect(railBox?.width).toBeCloseTo(MESSAGES_RAIL_WIDTH, 0);
+    expect(railBox?.width).toBeCloseTo(MESSAGES_METRICS.layout.railWidth, 0);
 
     // Gezinme paneli Mesajlar'da da görünür — karar #2'nin tek görünür sonucu.
     await expect(page.getByTestId("app-nav-panel")).toBeVisible();
@@ -81,7 +85,7 @@ test.describe("Mesajlar kabuğu", () => {
     await expect(page.getByTestId("mobile-workspace-drawer-button")).toBeVisible();
   });
 
-  test("asgari kabukta üç sol kolon 578 eder", async ({ page }) => {
+  test("asgari kabukta üç sol kolonun toplamı sözlüğün verdiği genişliktir", async ({ page }) => {
     await page.setViewportSize({ height: 920, width: 1360 });
     await openMessages(page);
 
@@ -100,8 +104,8 @@ test.describe("Mesajlar kabuğu", () => {
      * Üç sol kolonun toplamı: **sunucu rayının solundan** sohbet rayının sağına.
      *
      * Rayın sağ kenarını mutlak olarak okumak yanlıştı: kabuğun kendi dış
-     * boşluğu (12px) o sayıya giriyor ve SPEC §1.2'nin verdiği 74+228+276
-     * kolon genişlikleridir, sayfanın kenar boşluğu değil. Aradaki bir kenarlık
+     * boşluğu (12px) o sayıya giriyor ve sözlüğün verdiği üç kolon
+     * genişliğidir, sayfanın kenar boşluğu değil. Aradaki bir kenarlık
      * ya da boşluk bu farka yine girer — ölçüm iki uç arasından okunuyor.
      */
     expect(measured).toBeCloseTo(LEFT_COLUMNS_TOTAL, 0);

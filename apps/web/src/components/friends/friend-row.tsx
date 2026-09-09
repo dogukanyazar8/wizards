@@ -254,7 +254,7 @@ export function FriendRow({
             "grid shrink-0 place-items-center transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
             menuOpen
               ? "bg-[hsl(var(--surface-soft))] text-[hsl(var(--foreground))]"
-              : "bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))]",
+              : "bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] hover:bg-[var(--surface-hover)] hover:text-[hsl(var(--foreground))]",
           )}
           data-testid="friend-row-more"
           onClick={(event) => {

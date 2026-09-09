@@ -117,7 +117,7 @@ export function EventWeekStrip({
       <div className="flex flex-none items-center" style={{ gap: pxToRem(weekStrip.navGroupGap) }}>
         <Link
           aria-label={t("events.week.previous")}
-          className="grid place-items-center text-[hsl(var(--text-muted))] transition-colors hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="grid place-items-center text-[hsl(var(--text-muted))] transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           data-nav="push"
           data-testid="events-week-previous"
           href={arrowHref(-1)}
@@ -147,7 +147,7 @@ export function EventWeekStrip({
 
         <Link
           aria-label={t("events.week.next")}
-          className="grid place-items-center text-[hsl(var(--text-muted))] transition-colors hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="grid place-items-center text-[hsl(var(--text-muted))] transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           data-nav="push"
           data-testid="events-week-next"
           href={arrowHref(1)}
@@ -173,7 +173,7 @@ export function EventWeekStrip({
             aria-label={`${formatEventDayLabel(box.date, "UTC", locale)}, ${t("events.sub.count", {
               count: box.count,
             })}`}
-            className="flex flex-col items-center transition-colors hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+            className="flex flex-col items-center bg-[var(--event-week-day-bg)] transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
             data-nav="replace"
             data-testid={`events-week-day-${box.date}`}
             href={eventWeekDayHref(routeState, box)}
@@ -181,7 +181,9 @@ export function EventWeekStrip({
             replace
             scroll={false}
             style={{
-              background: box.isToday
+              // Dinlenme zemini **değişkenle** iniyor: satır içi bir `background`
+              // `hover:bg-*` kuralını her zaman yener ve vurgu sessizce ölürdü.
+              ["--event-week-day-bg" as string]: box.isToday
                 ? `hsl(var(--primary)/${weekStrip.todaySurfaceAlpha})`
                 : "transparent",
               border: `${hairline()} solid ${

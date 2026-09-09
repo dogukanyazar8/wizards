@@ -402,21 +402,40 @@ describe("listMentionSettings", () => {
   });
 });
 
+/** Kaynak taraması yaparken yorumlar koda sayılmaz. */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//gu, "").replace(/\/\/.*/gu, "");
+}
+
 describe("mention settings surfaces", () => {
-  it("binds the Settings page toggles to the same endpoint the modal uses", () => {
-    // Ş4 kabul: two surfaces, one source. The Settings page must not grow its own copy of the
-    // inverse mapping — it reads and writes through `lib/settings/client.ts`, which calls
-    // `mention-settings/route.ts`, which calls this service.
-    const panel = readFileSync(
-      new URL("../../components/settings/settings-panel.tsx", import.meta.url),
+  it("binds the Settings surface toggles to the same endpoint the modal uses", () => {
+    // Ş4 kabul: two surfaces, one source. Ayarlar Ş13 — the old `settings-panel.tsx` is gone;
+    // the rows live in Bildirimler › Türler (`nt3` role, `nt4` @everyone) and the section
+    // writes through `lib/settings/notification-prefs-client.ts`, whose endpoint shares the
+    // `UserNotificationSettings` row with `mention-settings/route.ts` (tuzak #3).
+    const bridge = readFileSync(
+      new URL(
+        "../../components/settings/sections/notifications/notification-prefs-bridge.ts",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const section = readFileSync(
+      new URL(
+        "../../components/settings/sections/notifications/notifications-section.tsx",
+        import.meta.url,
+      ),
       "utf8",
     );
 
-    assert.match(panel, /fetchMentionSettings/u);
-    assert.match(panel, /patchMentionSettings/u);
-    assert.match(panel, /settings-mention-role/u);
-    assert.match(panel, /settings-mention-everyone/u);
-    assert.doesNotMatch(panel, /suppress(?:Role|Everyone)Mentions/u);
+    assert.match(bridge, /nt3: "mentionRole"/u);
+    assert.match(bridge, /nt4: "mentionEveryone"/u);
+    assert.match(section, /patchNotificationPrefs/u);
+    // The inverse mapping stays in `mention-settings-service.ts`; no surface repeats it.
+    // Comments are stripped first: the bridge *documents* where the inversion lives, and a
+    // naive source scan would read that sentence as a second implementation.
+    assert.doesNotMatch(stripComments(bridge), /suppress(?:Role|Everyone)Mentions/u);
+    assert.doesNotMatch(stripComments(section), /suppress(?:Role|Everyone)Mentions/u);
   });
 
   it("keeps the inverse mapping out of the route", () => {

@@ -15,9 +15,10 @@ function server(overrides: Partial<DiscoverServer> = {}): DiscoverServer {
     category: "oyun",
     description: "Turnuvalar ve sahne yayınları için topluluk.",
     featured: false,
+    iconColor: null,
     iconUrl: null,
     id: "server-1",
-    initials: "OK",
+    initials: "OYU",
     joined: false,
     languages: ["tr"],
     memberCount: 48_200,
@@ -74,11 +75,17 @@ describe("DiscoverServerCard", () => {
     assert.ok(markup.includes("Katıldın"));
   });
 
-  it("null kategori için primary tile kullanır; boş etikette satır bırakmaz", () => {
+  it("null kategori ve boş etikette etiket satırı bırakmaz", () => {
     const markup = render(server({ category: null, tags: [] }));
 
-    assert.ok(markup.includes('data-tone="primary"'));
     assert.ok(!markup.includes('data-testid="discover-server-card-tags"'));
+  });
+
+  it("renk seçilmemiş sunucu ikonunun tonunu kategori yerine kısaltmadan türetir", () => {
+    const markup = render(server({ category: "oyun", iconColor: null, initials: "OYU" }));
+
+    assert.ok(markup.includes('data-tone="info"'));
+    assert.ok(markup.includes("background:hsl(var(--info) / 0.14)"));
   });
 
   it("render sırasında fetch çağırmaz", (context) => {

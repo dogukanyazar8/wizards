@@ -8,6 +8,7 @@ import { DesktopWindowChrome } from "@/components/desktop/desktop-window-chrome"
 import { WebHealthReporter } from "@/components/app/web-health-reporter";
 import { AppIconProvider } from "@/components/providers/app-icon-provider";
 import { LocaleProvider } from "@/components/providers/locale-provider";
+import { AUTH_THEME_BOOTSTRAP_SCRIPT } from "@/lib/auth/auth-theme";
 import { MessageFontSync } from "@/components/providers/message-font-sync";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -29,12 +30,6 @@ const displayFont = localFont({
   src: "./fonts/outfit-latin.woff2",
   variable: "--font-display",
   weight: "400 700",
-});
-
-const authBodyFont = localFont({
-  src: "./fonts/dm-sans-latin.woff2",
-  variable: "--font-auth-body",
-  weight: "300 700",
 });
 
 const messageOpenSansFont = localFont({
@@ -90,8 +85,18 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
+      <head>
+        {/*
+         * SPEC-GIRIS-KAYIT K6 — kimlik yüzeyinin açık/koyu seçimi `<html>` üstüne **ilk boyadan
+         * önce** yazılmalı, yoksa koyu tema seçili kullanıcı her açılışta bir kare beyaz görür.
+         *
+         * Betik kök düzende duruyor: rota grubu düzeninde `next/script` uyarı veriyordu ve
+         * istemci geçişlerinde hiç koşmuyordu. Kök düzen yalnız belge isteğinde render edilir.
+         */}
+        <script dangerouslySetInnerHTML={{ __html: AUTH_THEME_BOOTSTRAP_SCRIPT }} />
+      </head>
       <body
-        className={`${bodyFont.variable} ${displayFont.variable} ${authBodyFont.variable} ${messageOpenSansFont.variable} ${messageInterFont.variable} ${messageRalewayFont.variable} ${messageOutfitFont.variable}`}
+        className={`${bodyFont.variable} ${displayFont.variable} ${messageOpenSansFont.variable} ${messageInterFont.variable} ${messageRalewayFont.variable} ${messageOutfitFont.variable}`}
       >
         <ThemeProvider
           storageKey="wizards-theme"
@@ -104,8 +109,10 @@ export default async function RootLayout({
                 <MessageFontSync />
                 <WebHealthReporter />
                 <DesktopContextMenuGuard />
-                <DesktopWindowChrome />
-                {children}
+                <div className="desktop-window-frame" data-testid="desktop-window-frame">
+                  <DesktopWindowChrome />
+                  {children}
+                </div>
               </QueryProvider>
             </AppIconProvider>
           </LocaleProvider>

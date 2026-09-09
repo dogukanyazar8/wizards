@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef } from "react";
-import { Hash, X } from "lucide-react";
+import { Hash } from "lucide-react";
 import { formatServerProfileCount, type DiscoverServerCategoryKey } from "@wizards/types";
 import type { ServerPublicProfile } from "@wizards/types";
 
@@ -10,9 +10,11 @@ import { ServerProfileMutualRow } from "@/components/discover/server-profile-mut
 import { ServerProfileStat } from "@/components/discover/server-profile-stat";
 import { useI18n } from "@/components/providers/locale-provider";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WindowCloseButton } from "@/components/ui/window-close-button";
 import { useToast } from "@/hooks/use-toast";
 import { DISCOVER_METRICS, hairline, pxToRem } from "@/lib/discover/metrics";
-import { toDiscoverInitials } from "@/lib/discover/identity";
+import { getServerIconToneColor } from "@/lib/servers/server-icon-tone";
+import { resolveServerAbbreviation } from "@/lib/servers/server-icon-presentation";
 
 export type ServerProfilePanelProps = {
   readonly currentUserId: string;
@@ -134,6 +136,7 @@ function ProfileSummary({
 }) {
   const { locale, t } = useI18n();
   const tone = getDiscoverCategoryTone(profile.category);
+  const iconTone = profile.iconColor ?? tone;
   const onlineCount = formatServerProfileCount(profile.onlineCount, locale);
   const memberCount = formatServerProfileCount(profile.memberCount, locale);
 
@@ -156,9 +159,13 @@ function ProfileSummary({
           className="grid shrink-0 place-items-center"
           data-testid="server-profile-tile"
           style={{
-            background: `hsl(var(--${tone})/0.14)`,
+            background: profile.iconUrl
+              ? `center / cover no-repeat url(${JSON.stringify(profile.iconUrl)})`
+              : getServerIconToneColor(iconTone, 0.14),
             borderRadius: pxToRem(17),
-            color: `color-mix(in srgb, hsl(var(--${tone})) 45%, hsl(var(--foreground)))`,
+            color: profile.iconUrl
+              ? "transparent"
+              : `color-mix(in srgb, ${getServerIconToneColor(iconTone)} 45%, hsl(var(--foreground)))`,
             fontFamily: "var(--font-display)",
             fontSize: pxToRem(19),
             fontWeight: 600,
@@ -167,7 +174,7 @@ function ProfileSummary({
             width: pxToRem(54),
           }}
         >
-          {initials}
+          {profile.iconUrl ? "" : initials}
         </span>
         <div className="min-w-0 flex-1">
           <h2
@@ -275,7 +282,7 @@ export function ServerProfilePanel({
   const tone = getDiscoverCategoryTone(category);
   const name = profile?.name ?? placeholderName;
   const initials = profile
-    ? toDiscoverInitials(profile.name, profile.shortName)
+    ? resolveServerAbbreviation(profile.name, profile.shortName)
     : placeholderInitials;
   // TODO(api): Public profile contract still permits private channels. Keep the trust boundary
   // client-side until the endpoint guarantees public-only rows.
@@ -354,21 +361,12 @@ export function ServerProfilePanel({
             {t(`discover.category.${category}`)}
           </span>
         ) : null}
-        <button
+        <WindowCloseButton
           aria-label={t("discover.profile.close")}
-          className="relative ml-auto grid shrink-0 place-items-center bg-transparent text-[hsl(var(--text-muted))] transition-colors before:absolute before:-inset-2 before:content-[''] hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="relative ml-auto before:absolute before:-inset-2 before:content-['']"
           onClick={onRequestClose}
           ref={closeButtonRef}
-          style={{
-            border: 0,
-            borderRadius: pxToRem(10),
-            height: pxToRem(30),
-            width: pxToRem(30),
-          }}
-          type="button"
-        >
-          <X aria-hidden="true" style={{ height: pxToRem(16), width: pxToRem(16) }} />
-        </button>
+        />
       </header>
 
       {isLoading && !isError && !profile ? (
@@ -537,7 +535,7 @@ export function ServerProfilePanel({
           {t(profile?.joined ? "discover.profile.leave" : "discover.profile.join")}
         </button>
         <button
-          className="shrink-0 font-semibold text-[hsl(var(--text-secondary))] transition-colors hover:bg-[hsl(var(--surface-soft))] disabled:cursor-not-allowed disabled:opacity-55"
+          className="shrink-0 font-semibold text-[hsl(var(--text-secondary))] transition-colors hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-55"
           data-testid="server-profile-share"
           disabled={!profile?.inviteAddress}
           onClick={() => void share()}

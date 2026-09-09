@@ -71,7 +71,7 @@ export function AdminAudit({
               className={
                 selected
                   ? "rounded-[12px] bg-[hsl(var(--primary))] px-3 py-[7px] text-[12.5px] font-semibold text-[hsl(var(--primary-foreground))]"
-                  : "rounded-[12px] border border-[hsl(var(--border)/0.7)] px-3 py-[7px] text-[12.5px] font-semibold text-app-muted hover:bg-[hsl(var(--surface-soft))]"
+                  : "rounded-[12px] border border-[hsl(var(--border)/0.7)] px-3 py-[7px] text-[12.5px] font-semibold text-app-muted hover:bg-[var(--surface-hover)]"
               }
               href={item.id === "all" ? "/admin/audit" : `/admin/audit?filter=${item.id}`}
               key={item.id}

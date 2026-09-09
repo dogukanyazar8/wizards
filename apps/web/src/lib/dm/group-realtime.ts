@@ -129,12 +129,12 @@ export function emitConversationPinsChanged(
  */
 export function emitPollUpdated(
   io: GroupRealtimeServer,
-  input: { conversationId: string; pollId: string },
+  input:
+    | { channelId: string; conversationId?: never; pollId: string }
+    | { channelId?: never; conversationId: string; pollId: string },
 ): void {
-  io.to(`dm:${input.conversationId}`).emit("poll:updated", {
-    conversationId: input.conversationId,
-    pollId: input.pollId,
-  });
+  const room = input.channelId ? input.channelId : `dm:${input.conversationId}`;
+  io.to(room).emit("poll:updated", input);
 }
 
 /** V3 / 2a §2. Also personal — a pinned conversation is one user's ordering. */

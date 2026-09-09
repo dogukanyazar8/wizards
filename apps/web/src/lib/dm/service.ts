@@ -3,16 +3,21 @@ import {
   buildGroupAvatarPair,
   GROUP_MEMBER_NAME_COLORS,
   GROUP_PINNED_EXCERPT_MAX_LENGTH,
+  isMuteActive,
   MESSAGE_CONTENT_DEFAULT_LIMIT,
+  normalizeServerIconTone,
   pickNextMemberNameColor,
+  resolveMutedUntil,
   type DMConversationDTO,
   type DMConversationType,
   type DMMessagePayload,
+  type DMNotifyLevel,
   type DMPinnedMessageDTO,
   type DMSystemMessageTypeValue,
   type DMParticipantDTO,
   type MessageReaction,
   type MessageThreadSummary,
+  type SetMutedRequest,
 } from "@wizards/types";
 import { Prisma, prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
@@ -24,6 +29,7 @@ import { getRedis } from "@/lib/redis";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import { mapAttachmentsForViewer } from "@/lib/messages/attachment-visibility";
 import { readPresenceState, type PresenceFields } from "@/lib/presence";
+import { getSocketServer } from "@/lib/socket/runtime";
 import {
   redactPresenceCollectionForViewer,
   resolveVisibilityDecisions,
@@ -117,6 +123,10 @@ export const dmConversationInclude = {
       // missing, and reading it here costs the same query.
       mentionCount: true,
       muted: true,
+      // §17 / karar K8. Read beside `muted` because every reader of the flag has
+      // to know whether the mute has run out; a reader that sees only `muted`
+      // keeps a 15-minute mute on forever.
+      mutedUntil: true,
       hiddenAt: true,
       // Faz 1 §B3. Five scalars per row rather than a second `members` array:
       // the array would repeat the presence and last-seen this row already has.
@@ -491,6 +501,7 @@ export function mapDMParticipantWithPresence(
   presence: PresenceFields,
   lastSeenAt: string | null,
   viewerId: string,
+  now: Date = new Date(),
 ): DMParticipantDTO {
   const isViewer = participant.userId === viewerId;
 
@@ -503,7 +514,10 @@ export function mapDMParticipantWithPresence(
     // values exposed who muted the group and how much they had not read.
     unreadCount: isViewer ? participant.unreadCount : 0,
     mentionCount: isViewer ? participant.mentionCount : 0,
-    muted: isViewer ? participant.muted : false,
+    // Karar K8: the stored flag is not the answer, the deadline is. An expired
+    // `mutedUntil` reads as unmuted here — which is what lets the rail and the
+    // profile panel be right without a scheduled sweep ever running.
+    muted: isViewer ? isMuteActive(participant, now) : false,
     lastSeenAt,
     status: presence.status,
     customStatus: presence.customStatus,
@@ -1051,6 +1065,14 @@ export async function listDirectMessages(
   } = {},
 ): Promise<DMConversationsPageResponse> {
   const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
+  // Karar K8's lazy cleanup, run before the page is read so the rows this
+  // response maps are already normalised. Only on the first page: the statement
+  // covers every conversation this person has, so repeating it while the reader
+  // scrolls would re-scan the same rows for nothing. See
+  // `clearExpiredDirectMessageMutes` for why no scheduled sweep sits behind it.
+  if (!options.cursor) {
+    await clearExpiredDirectMessageMutes(userId);
+  }
   const deletedMessageLabel = await getDeletedMessageLabel(userId);
   let cursorSql = Prisma.sql``;
 
@@ -1256,6 +1278,7 @@ export async function listDirectMessageMutualServers(
               members: true,
             },
           },
+          iconColor: true,
           iconUrl: true,
           id: true,
           name: true,
@@ -1267,6 +1290,7 @@ export async function listDirectMessageMutualServers(
   });
 
   return memberships.map(({ server }) => ({
+    iconColor: normalizeServerIconTone(server.iconColor),
     iconUrl: server.iconUrl,
     id: server.id,
     memberCount: server._count.members,
@@ -1639,12 +1663,60 @@ export async function markDirectMessageUnread(userId: string, conversationId: st
   });
 }
 
+export type DirectMessageMuteState = {
+  muted: boolean;
+  mutedUntil: string | null;
+  notifyLevel: DMNotifyLevel;
+};
+
+export type SetDirectMessageMutedDependencies = {
+  /**
+   * The same person's other tabs draw the header's `Sessize alındı` pill, and
+   * nobody else may see this setting — so the fan-out is the personal room, not
+   * the conversation room. `dm:conversation:notify` already established that
+   * shape for the twin column; this is the same channel, one event further.
+   */
+  emitMuteChanged(
+    userId: string,
+    payload: DirectMessageMuteState & { conversationId: string },
+  ): void;
+  now(): Date;
+};
+
+const setDirectMessageMutedDefaults: SetDirectMessageMutedDependencies = {
+  emitMuteChanged(userId, payload) {
+    getSocketServer()?.to(`user:${userId}`).emit("dm:conversation:mute", payload);
+  },
+  now: () => new Date(),
+};
+
+/**
+ * §17's `Sessize al` submenu (karar K8).
+ *
+ * `muted` and `notifyLevel` are twins and are written in the **same** statement,
+ * the invariant `setNotifyLevel` already carries from the other direction: a
+ * crash between two updates is what leaves the app silent in one surface and
+ * loud in another.
+ *
+ * The old body — a bare boolean, or `{ muted }` with no duration — still means
+ * "forever", so every caller written before the submenu existed keeps working.
+ *
+ * Unmuting restores `ALL` rather than whatever tier preceded the mute: no column
+ * stores the previous tier, and inventing one for a value the notification radio
+ * can set directly would be a second source of truth for the same setting.
+ */
 export async function setDirectMessageMuted(
   userId: string,
   conversationId: string,
-  muted: boolean,
-) {
+  input: boolean | SetMutedRequest,
+  dependencies: SetDirectMessageMutedDependencies = setDirectMessageMutedDefaults,
+): Promise<DirectMessageMuteState> {
   await requireDMParticipant(userId, conversationId);
+
+  const request: SetMutedRequest = typeof input === "boolean" ? { muted: input } : input;
+  const now = dependencies.now();
+  const mutedUntil = request.muted ? resolveMutedUntil(request.duration ?? "forever", now) : null;
+  const notifyLevel: DMNotifyLevel = request.muted ? "NONE" : "ALL";
 
   await prisma.dMParticipant.update({
     where: {
@@ -1654,9 +1726,55 @@ export async function setDirectMessageMuted(
       },
     },
     data: {
-      muted,
+      muted: request.muted,
+      mutedUntil,
+      notifyLevel,
     },
   });
+
+  const state: DirectMessageMuteState = {
+    muted: request.muted,
+    mutedUntil: mutedUntil?.toISOString() ?? null,
+    notifyLevel,
+  };
+
+  dependencies.emitMuteChanged(userId, { ...state, conversationId });
+
+  return state;
+}
+
+/**
+ * Karar K8's lazy half.
+ *
+ * There is deliberately **no** scheduled sweep. A timer that clears expired
+ * mutes would be a second authority on "is this muted", and the moment it lags
+ * — a stopped worker, a deploy gap — the answer would depend on which of the two
+ * ran last. `isMuteActive` makes an expired row inert wherever it is read, so
+ * correctness never waits on a job; this write only stops stale rows from
+ * accumulating, and it is allowed to fail without changing any answer.
+ *
+ * It runs on the conversation-list read: the one request that already touches
+ * every conversation this person has, so the cleanup costs one statement per
+ * inbox open instead of one per conversation.
+ */
+export async function clearExpiredDirectMessageMutes(
+  userId: string,
+  now: Date = new Date(),
+): Promise<number> {
+  const { count } = await prisma.dMParticipant.updateMany({
+    where: {
+      muted: true,
+      mutedUntil: { lte: now },
+      userId,
+    },
+    data: {
+      muted: false,
+      mutedUntil: null,
+      notifyLevel: "ALL",
+    },
+  });
+
+  return count;
 }
 
 export async function hideDirectMessage(userId: string, conversationId: string) {

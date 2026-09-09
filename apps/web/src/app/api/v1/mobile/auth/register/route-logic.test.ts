@@ -16,9 +16,9 @@ function createDependencies(
   return {
     enforceRateLimit: async () => undefined,
     parseRegisterRequest: async () => ({
-      confirmPassword: "correct-password",
+      confirmPassword: "Whispr!2026x",
       email: "ada@example.com",
-      password: "correct-password",
+      password: "Whispr!2026x",
       username: "ada",
     }),
     registerPassword: async () => ({
@@ -42,9 +42,9 @@ describe("mobile password register route", () => {
         parseRegisterRequest: async () => {
           calls.push("parse-body");
           return {
-            confirmPassword: "correct-password",
+            confirmPassword: "Whispr!2026x",
             email: "Ada@Example.COM",
-            password: "correct-password",
+            password: "Whispr!2026x",
             username: "ada",
           };
         },
@@ -67,9 +67,9 @@ describe("mobile password register route", () => {
     const response = await mobilePasswordRegisterRoute(
       new Request("http://localhost/api/v1/mobile/auth/register", {
         body: JSON.stringify({
-          confirmPassword: "correct-password",
+          confirmPassword: "Whispr!2026x",
           email: "ada@example.com",
-          password: "correct-password",
+          password: "Whispr!2026x",
           username: "ada",
         }),
         headers: { "content-type": "application/json" },

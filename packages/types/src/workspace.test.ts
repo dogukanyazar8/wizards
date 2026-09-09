@@ -9,6 +9,7 @@ import {
   CreateCategorySchema,
   CreateChannelSchema,
   CreateInviteSchema,
+  CreateServerInviteSchema,
   CreateServerSchema,
   CreateServerScheduledEventSchema,
   CreateWorkspaceRoleSchema,
@@ -16,10 +17,18 @@ import {
   ReorderCategoriesSchema,
   ReorderChannelsSchema,
   RoleBadgeSchema,
+  ServerBanEntrySchema,
+  ServerBanSchema,
+  ServerBansResponseSchema,
   ServerDiscoveryCardSchema,
   ServerDiscoveryPageSchema,
   ServerDiscoveryQuerySchema,
+  ServerIconToneSchema,
+  ServerMemberTimeoutSchema,
   ServerNotificationLevelSchema,
+  ServerPendingInviteSchema,
+  ServerPendingInviteUserSchema,
+  ServerPendingInvitesResponseSchema,
   ServerProfileAccessLevelSchema,
   ServerPublicProfileAdminSchema,
   ServerPublicProfileChannelSchema,
@@ -31,12 +40,15 @@ import {
   ServerScheduledEventRsvpStatusSchema,
   ServerScheduledEventSchema,
   ServerScheduledEventStatusSchema,
+  ServerSlowModeSchema,
   ServerTagSchema,
   ServerTagsSchema,
   ServerTypeSchema,
   ServerUserSettingsSchema,
   ServerVerificationLevelSchema,
   SetServerScheduledEventInterestSchema,
+  TargetedInviteSchema,
+  TransferServerOwnershipSchema,
   UpdateCategorySchema,
   UpdateChannelFieldsSchema,
   UpdateChannelSchema,
@@ -55,6 +67,9 @@ import {
   WorkspaceChannelSchema,
   WorkspaceChannelTypeSchema,
   WorkspaceInviteSchema,
+  WorkspaceInvitesResponseSchema,
+  WorkspaceMemberCountsSchema,
+  WorkspaceMemberFilterSchema,
   WorkspaceMemberPageSchema,
   WorkspaceMembersResponseSchema,
   WorkspaceMemberSchema,
@@ -92,6 +107,7 @@ const category = { channels: [channel], id: "category-1", name: "General", posit
 const member = {
   accessLevel: "MEMBER" as const,
   avatarUrl: null,
+  communicationDisabledUntil: null,
   customStatus: null,
   displayName: "Ada Lovelace",
   id: "member-1",
@@ -108,9 +124,33 @@ const invite = {
   expiresAt: null,
   id: "invite-1",
   maxUses: null,
+  targetUserId: null,
   uses: 0,
 };
+const pendingInviteUser = {
+  avatarUrl: null,
+  displayName: "Ayşe Kaya",
+  id: "user-7",
+  username: "aysek",
+};
+const pendingInvite = {
+  ...invite,
+  maxUses: 1,
+  targetUser: pendingInviteUser,
+  targetUserId: "user-7",
+};
 const memberPage = { limit: 50, nextCursor: null };
+const memberCounts = { filtered: 3, total: 24 };
+const banEntry = {
+  avatarUrl: null,
+  bannedAt: "2026-08-25T10:00:00.000Z",
+  bannedByDisplayName: "Ada",
+  bannedByUserId: "user-owner",
+  displayName: "Spam Bot",
+  reason: "spam",
+  userId: "user-banned",
+  username: "spambot",
+};
 const serverSummary = {
   accessLevel: "OWNER" as const,
   allowFileUploads: true,
@@ -118,6 +158,7 @@ const serverSummary = {
   allowMemberAdds: true,
   defaultChannelId: "channel-1",
   deletedMessageNoticeMinutes: 60,
+  iconColor: "accent2" as const,
   iconUrl: null,
   id: "server-1",
   inviteCode: "invite-code",
@@ -125,6 +166,7 @@ const serverSummary = {
   messageCharacterLimit: 2_000,
   name: "Analytical Engine",
   shortName: "AE",
+  slowModeDelay: 0,
   unreadCount: 0,
 };
 const serverDetail = {
@@ -183,6 +225,7 @@ const serverPublicProfile = {
   createdAt: "2026-01-02T03:04:05.000Z",
   description: "",
   discoverable: true,
+  iconColor: null,
   iconUrl: null,
   inviteAddress: "whispr.gg/mobile-test",
   isPublic: true,
@@ -222,6 +265,7 @@ describe("workspace schemas", () => {
           discoverable: true,
           isPublic: true,
           name: "Whispr Topluluk",
+          shortName: "WHS",
           type: "COMMUNITY",
         },
         invalid: {
@@ -266,8 +310,8 @@ describe("workspace schemas", () => {
       },
       CreateServerSchema: {
         schema: CreateServerSchema,
-        valid: { name: "Whispr", shortName: "ws" },
-        invalid: { name: "W" },
+        valid: { name: "Whispr", shortName: "wsz" },
+        invalid: { name: "Whispr", shortName: "ws" },
       },
       CreateWorkspaceRoleSchema: {
         schema: CreateWorkspaceRoleSchema,
@@ -294,11 +338,27 @@ describe("workspace schemas", () => {
         valid: roleBadge,
         invalid: { ...roleBadge, color: -1 },
       },
+      ServerBanEntrySchema: {
+        schema: ServerBanEntrySchema,
+        valid: banEntry,
+        invalid: { ...banEntry, bannedAt: "dün" },
+      },
+      ServerBanSchema: {
+        schema: ServerBanSchema,
+        valid: { deleteMessageSeconds: 604_800, reason: "spam" },
+        invalid: { deleteMessageSeconds: 604_801 },
+      },
+      ServerBansResponseSchema: {
+        schema: ServerBansResponseSchema,
+        valid: { bans: [banEntry], nextCursor: null, total: 1 },
+        invalid: { bans: [banEntry], nextCursor: null, total: -1 },
+      },
       ServerDiscoveryCardSchema: {
         schema: ServerDiscoveryCardSchema,
         valid: {
           bannerUrl: null,
           description: "",
+          iconColor: null,
           iconUrl: null,
           id: "s1",
           memberCount: 12_400,
@@ -332,6 +392,18 @@ describe("workspace schemas", () => {
         schema: ServerDiscoveryQuerySchema,
         valid: { cursor: "12400|s1", limit: 20, query: "whispr" },
         invalid: { cursor: "12400|s1", limit: 20, query: "whispr", extra: true },
+      },
+      ServerIconToneSchema: {
+        schema: ServerIconToneSchema,
+        valid: "accent2",
+        // Token adı `--accent-2`, ton adı `accent2`: tire sözleşmede yok, çünkü tonlar
+        // aynı zamanda nesne anahtarı olarak kullanılıyor.
+        invalid: "accent-2",
+      },
+      ServerMemberTimeoutSchema: {
+        schema: ServerMemberTimeoutSchema,
+        valid: { until: null },
+        invalid: { until: "yarın" },
       },
       ServerNotificationLevelSchema: {
         schema: ServerNotificationLevelSchema,
@@ -419,6 +491,13 @@ describe("workspace schemas", () => {
         // The database enum doubles the L; a single-L spelling is a drift bug.
         invalid: "CANCELED",
       },
+      ServerSlowModeSchema: {
+        schema: ServerSlowModeSchema,
+        valid: 3_600,
+        // 45 saniye kanal çip grubunda yok; iki küme ayrışırsa `max(server, channel)` kuralı
+        // seçili görünecek bir çip bulamaz.
+        invalid: 45,
+      },
       ServerTagSchema: {
         schema: ServerTagSchema,
         valid: "sohbet-odasi",
@@ -458,6 +537,16 @@ describe("workspace schemas", () => {
         schema: ServerVerificationLevelSchema,
         valid: "NONE",
         invalid: "EXTREME",
+      },
+      TargetedInviteSchema: {
+        schema: TargetedInviteSchema,
+        valid: { targetUserId: "user-1" },
+        invalid: { targetUserId: "user-1", maxUses: 5 },
+      },
+      TransferServerOwnershipSchema: {
+        schema: TransferServerOwnershipSchema,
+        valid: { acknowledged: true, newOwnerUserId: "user-2" },
+        invalid: { acknowledged: false, newOwnerUserId: "user-2" },
       },
       UpdateCategorySchema: {
         schema: UpdateCategorySchema,
@@ -549,6 +638,41 @@ describe("workspace schemas", () => {
         valid: invite,
         invalid: { ...invite, createdAt: "today" },
       },
+      WorkspaceInvitesResponseSchema: {
+        schema: WorkspaceInvitesResponseSchema,
+        valid: { invites: [invite] },
+        invalid: { invites: invite },
+      },
+      ServerPendingInviteUserSchema: {
+        schema: ServerPendingInviteUserSchema,
+        valid: pendingInviteUser,
+        invalid: { ...pendingInviteUser, username: 7 },
+      },
+      ServerPendingInviteSchema: {
+        schema: ServerPendingInviteSchema,
+        valid: pendingInvite,
+        invalid: { ...pendingInvite, targetUser: undefined },
+      },
+      ServerPendingInvitesResponseSchema: {
+        schema: ServerPendingInvitesResponseSchema,
+        valid: { invites: [pendingInvite] },
+        invalid: { invites: [invite] },
+      },
+      CreateServerInviteSchema: {
+        schema: CreateServerInviteSchema,
+        valid: { expiresInHours: 168, maxUses: 25, targetUserId: "user-7" },
+        invalid: { targetUserId: "" },
+      },
+      WorkspaceMemberCountsSchema: {
+        schema: WorkspaceMemberCountsSchema,
+        valid: memberCounts,
+        invalid: { ...memberCounts, filtered: -1 },
+      },
+      WorkspaceMemberFilterSchema: {
+        schema: WorkspaceMemberFilterSchema,
+        valid: "moderator",
+        invalid: "MODERATOR",
+      },
       WorkspaceMemberPageSchema: {
         schema: WorkspaceMemberPageSchema,
         valid: memberPage,
@@ -556,8 +680,8 @@ describe("workspace schemas", () => {
       },
       WorkspaceMembersResponseSchema: {
         schema: WorkspaceMembersResponseSchema,
-        valid: { memberPage, members: [member] },
-        invalid: { memberPage, members: "member-1" },
+        valid: { memberCounts, memberPage, members: [member] },
+        invalid: { memberCounts, memberPage, members: "member-1" },
       },
       WorkspaceMemberSchema: {
         schema: WorkspaceMemberSchema,
@@ -607,20 +731,23 @@ describe("workspace schemas", () => {
       description: "  A community  ",
       iconUrl: "",
       name: "  Whispr  ",
-      shortName: "ws",
+      shortName: "wsz",
     });
     assert.deepEqual(parsed, {
       allowFileUploads: true,
       allowGifs: true,
       allowMemberAdds: true,
       description: "A community",
+      // Ş10: erişim varsayılanı `false`/`false` — alanı hiç göndermeyen bir istemci
+      // (eski mobil sürüm, admin ötesi her çağrı) eskisi gibi **özel** sunucu doğurur.
+      discoverable: false,
       iconUrl: null,
+      isPublic: false,
       name: "Whispr",
-      shortName: "WS",
+      shortName: "WSZ",
     });
 
-    assert.equal(assertAccepts(CreateServerSchema, { name: "Whispr" })?.description, null);
-    assert.equal(assertAccepts(CreateServerSchema, { name: "Whispr" })?.shortName, undefined);
+    assertRejects(CreateServerSchema, { name: "Whispr" }, ["shortName"]);
   });
 
   it("enforces create-server name, description, icon, and short-name boundaries", () => {
@@ -628,7 +755,7 @@ describe("workspace schemas", () => {
       description: "d".repeat(160),
       iconUrl: "https://cdn.example.com/icon.png",
       name: "n".repeat(64),
-      shortName: "Ab_1",
+      shortName: "Ab1",
     });
     assertRejects(CreateServerSchema, { name: "n" }, ["name"]);
     assertRejects(CreateServerSchema, { name: "n".repeat(65) }, ["name"]);
@@ -636,7 +763,9 @@ describe("workspace schemas", () => {
       "description",
     ]);
     assertRejects(CreateServerSchema, { iconUrl: "not-a-url", name: "Whispr" }, ["iconUrl"]);
-    assertRejects(CreateServerSchema, { name: "Whispr", shortName: "ABCDE" }, ["shortName"]);
+    for (const shortName of ["", "A", "AB", "ABCD", "ABCDE"]) {
+      assertRejects(CreateServerSchema, { name: "Whispr", shortName }, ["shortName"]);
+    }
     assertRejects(CreateServerSchema, { name: "Whispr", shortName: "-ABC" }, ["shortName"]);
   });
 
@@ -688,6 +817,161 @@ describe("workspace schemas", () => {
     ]);
   });
 
+  it("narrows the role name to 32 and the event name/description to 60/180 (K6)", () => {
+    // Daraltma öncesi ihlal taraması koştu: `wizards` ve `wizards_e2e` veritabanlarında
+    // `length(name) > 32` (Role), `length(name) > 60` ve
+    // `length(coalesce(description,'')) > 180` (ScheduledEvent) sorgularının üçü de 0 satır
+    // döndü. Sınırın tam değeri geçmeli, bir fazlası düşmeli — aksi hâlde tasarımın `0/32`,
+    // `0/60`, `0/180` sayaçları uyarı rengine dönmeden kayıt reddedilirdi.
+    for (const schema of [CreateWorkspaceRoleSchema, UpdateWorkspaceRoleSchema]) {
+      assertAccepts(schema, { name: "r".repeat(32) });
+      assertRejects(schema, { name: "r".repeat(33) }, ["name"]);
+    }
+
+    assertAccepts(CreateServerScheduledEventSchema, {
+      entityType: "VOICE",
+      name: "e".repeat(60),
+      scheduledStartAt: "2026-08-18T17:00:00.000Z",
+    });
+    assertRejects(
+      CreateServerScheduledEventSchema,
+      {
+        entityType: "VOICE",
+        name: "e".repeat(61),
+        scheduledStartAt: "2026-08-18T17:00:00.000Z",
+      },
+      ["name"],
+    );
+
+    assertAccepts(UpdateServerScheduledEventSchema, { description: "d".repeat(180) });
+    assertRejects(UpdateServerScheduledEventSchema, { description: "d".repeat(181) }, [
+      "description",
+    ]);
+    assertAccepts(UpdateServerScheduledEventSchema, { name: "e".repeat(60) });
+    assertRejects(UpdateServerScheduledEventSchema, { name: "e".repeat(61) }, ["name"]);
+  });
+
+  it("reads the icon tone as required and writable back to null (K2)", () => {
+    // `null` "sahibi seçmedi" demek, "alan yok" değil: okuma tarafında zorunlu, yazma
+    // tarafında ise `Kaldır` düğmesinin gönderdiği değer.
+    assertAccepts(WorkspaceServerSummarySchema, { ...serverSummary, iconColor: null });
+    assertRejects(WorkspaceServerSummarySchema, { ...serverSummary, iconColor: "accent-2" }, [
+      "iconColor",
+    ]);
+    assertRejects(WorkspaceServerSummarySchema, { ...serverSummary, iconColor: undefined }, [
+      "iconColor",
+    ]);
+
+    assertAccepts(UpdateServerSchema, { iconColor: null });
+    for (const tone of ["primary", "info", "success", "warning", "danger", "accent2"]) {
+      assertAccepts(UpdateServerSchema, { iconColor: tone });
+      assertAccepts(CreateServerSchema, {
+        iconColor: tone,
+        name: "Whispr",
+        shortName: "WHS",
+      });
+    }
+    assertRejects(CreateServerSchema, { iconColor: null, name: "Whispr" }, ["iconColor"]);
+  });
+
+  it("shares one slow-mode value set between the server and its channels (K2)", () => {
+    for (const slowModeDelay of [0, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1_800, 3_600]) {
+      assertAccepts(UpdateServerSchema, { slowModeDelay });
+      assertAccepts(WorkspaceServerSummarySchema, { ...serverSummary, slowModeDelay });
+    }
+
+    assertRejects(UpdateServerSchema, { slowModeDelay: 45 }, ["slowModeDelay"]);
+    assertRejects(UpdateServerSchema, { slowModeDelay: 7_200 }, ["slowModeDelay"]);
+    assertRejects(WorkspaceServerSummarySchema, { ...serverSummary, slowModeDelay: 45 }, [
+      "slowModeDelay",
+    ]);
+  });
+
+  it("defaults the two new read fields that older responses omit (K3)", () => {
+    const { targetUserId: _omittedInviteTarget, ...inviteWithoutTarget } = invite;
+    const { communicationDisabledUntil: _omittedTimeout, ...memberWithoutTimeout } = member;
+
+    assert.equal(assertAccepts(WorkspaceInviteSchema, inviteWithoutTarget)?.targetUserId, null);
+    assert.equal(
+      assertAccepts(WorkspaceMemberSchema, memberWithoutTimeout)?.communicationDisabledUntil,
+      null,
+    );
+    assert.equal(
+      assertAccepts(WorkspaceInviteSchema, { ...invite, targetUserId: "user-9" })?.targetUserId,
+      "user-9",
+    );
+  });
+
+  it("carries the member counter and the seven filters the chips need (Ş2, SPEC §8.6)", () => {
+    // Yedi çip: dördü atanmış role, ikisi presence'a bakar, biri her şeyi geçirir.
+    assert.deepEqual(WorkspaceMemberFilterSchema.options, [
+      "all",
+      "member",
+      "moderator",
+      "admin",
+      "owner",
+      "online",
+      "offline",
+    ]);
+    assertRejects(WorkspaceMemberFilterSchema, "MODERATOR");
+
+    // Sayaç zorunlu: eksik bırakılsa yanıt `0 / 0` çizerdi.
+    assertRejects(WorkspaceMembersResponseSchema, { memberPage, members: [member] }, [
+      "memberCounts",
+    ]);
+    const parsed = assertAccepts(WorkspaceMembersResponseSchema, {
+      memberCounts: { filtered: 3, total: 24 },
+      memberPage,
+      members: [member],
+    });
+    assert.deepEqual(parsed?.memberCounts, { filtered: 3, total: 24 });
+    assertRejects(WorkspaceMemberCountsSchema, { filtered: 3, total: 24, extra: 1 });
+  });
+
+  it("describes a ban row by who, why, by whom and when (Ş2)", () => {
+    assertAccepts(ServerBanEntrySchema, banEntry);
+    // Sebep girilmemiş ban boş metin değil, `null` taşır.
+    assert.equal(assertAccepts(ServerBanEntrySchema, { ...banEntry, reason: null })?.reason, null);
+    // Hesabı silinmiş moderatörün adı düşebilir, kimliği düşemez.
+    assertAccepts(ServerBanEntrySchema, { ...banEntry, bannedByDisplayName: null });
+    assertRejects(ServerBanEntrySchema, { ...banEntry, bannedByUserId: 4 }, ["bannedByUserId"]);
+    assertRejects(ServerBanEntrySchema, { ...banEntry, bannedAt: "dün" }, ["bannedAt"]);
+    assertRejects(ServerBansResponseSchema, { bans: [banEntry], nextCursor: null }, ["total"]);
+  });
+
+  it("keeps ownership transfer, timeout and ban as strict, single-purpose bodies (K2, K3)", () => {
+    assertAccepts(TransferServerOwnershipSchema, {
+      acknowledged: true,
+      newOwnerUserId: "user-2",
+    });
+    // Onay anahtarı kapalıyken düğme pasif: `false` diye geçerli bir istek yok.
+    assertRejects(
+      TransferServerOwnershipSchema,
+      { acknowledged: false, newOwnerUserId: "user-2" },
+      ["acknowledged"],
+    );
+    assertRejects(TransferServerOwnershipSchema, { acknowledged: true, newOwnerUserId: "" }, [
+      "newOwnerUserId",
+    ]);
+
+    assertAccepts(ServerMemberTimeoutSchema, {
+      reason: "  spam  ",
+      until: "2026-08-18T17:00:00.000Z",
+    });
+    assert.equal(assertAccepts(ServerMemberTimeoutSchema, { until: null })?.until, null);
+    assertRejects(ServerMemberTimeoutSchema, { reason: "r".repeat(201), until: null }, ["reason"]);
+    assertRejects(ServerMemberTimeoutSchema, {}, ["until"]);
+
+    assertAccepts(ServerBanSchema, {});
+    assertAccepts(ServerBanSchema, { deleteMessageSeconds: 0 });
+    assertAccepts(ServerBanSchema, { deleteMessageSeconds: 604_800 });
+    assertRejects(ServerBanSchema, { deleteMessageSeconds: -1 }, ["deleteMessageSeconds"]);
+    assertRejects(ServerBanSchema, { deleteMessageSeconds: 604_801 }, ["deleteMessageSeconds"]);
+
+    assertAccepts(TargetedInviteSchema, { targetUserId: "user-1" });
+    assertRejects(TargetedInviteSchema, { targetUserId: "" }, ["targetUserId"]);
+  });
+
   it("accepts Unicode workspace names and rejects punctuation-only or unsafe names", () => {
     for (const schema of [CreateCategorySchema, UpdateCategorySchema]) {
       assertAccepts(schema, { name: "  Ürün Ekibi  " });
@@ -698,11 +982,15 @@ describe("workspace schemas", () => {
       assertRejects(schema, { name: "General!" }, ["name"]);
     }
 
-    assertAccepts(CreateChannelSchema, {
-      name: "ses-kanalı",
+    const createdChannel = assertAccepts(CreateChannelSchema, {
+      name: "  Sürüm  Notları  ",
       topic: "  Daily sync  ",
-      type: "VOICE",
+      type: "TEXT",
     });
+    assert.equal(createdChannel?.name, "Sürüm  Notları");
+
+    const updatedChannel = assertAccepts(UpdateChannelSchema, { name: "Tasarım Odası" });
+    assert.equal(updatedChannel?.name, "Tasarım Odası");
     assertRejects(CreateChannelSchema, { name: "channel/name", type: "TEXT" }, ["name"]);
     assertRejects(CreateChannelSchema, { name: "general", topic: "t".repeat(121), type: "TEXT" }, [
       "topic",
@@ -799,6 +1087,18 @@ describe("workspace schemas", () => {
     assertAccepts(CreateInviteSchema, { expiresInHours: 720, maxUses: 1_000 });
     assertRejects(CreateInviteSchema, { expiresInHours: 721 }, ["expiresInHours"]);
     assertRejects(CreateInviteSchema, { maxUses: 1_001 }, ["maxUses"]);
+    // Ş3 · SPEC §8.7 — altı süre ve altı kullanım çipinin tamamı sözleşmeden geçer.
+    for (const expiresInHours of [1, 12, 24, 168, 720, null]) {
+      assertAccepts(CreateServerInviteSchema, { expiresInHours });
+    }
+    for (const maxUses of [1, 5, 25, 100, 1_000, null]) {
+      assertAccepts(CreateServerInviteSchema, { maxUses });
+    }
+    assertAccepts(CreateServerInviteSchema, { targetUserId: null });
+    assertAccepts(CreateServerInviteSchema, {});
+    assertRejects(CreateServerInviteSchema, { targetUserId: "" }, ["targetUserId"]);
+    assertRejects(CreateServerInviteSchema, { expiresInHours: 721 }, ["expiresInHours"]);
+    assertRejects(CreateServerInviteSchema, { maxUses: 1_001 }, ["maxUses"]);
     assertAccepts(CreateWorkspaceRoleSchema, { color: 0, name: "Mod", permissions: [] });
     assertAccepts(CreateWorkspaceRoleSchema, { color: 0xffffff, name: "Mod" });
     assertRejects(CreateWorkspaceRoleSchema, { color: -1, name: "Mod" }, ["color"]);
@@ -829,11 +1129,91 @@ describe("server type contract", () => {
     assert.equal(ServerTypeSchema.safeParse("SYSTEM").success, false);
   });
 
+  /**
+   * Ş10 (SPEC-SUNUCU §7.4) `isPublic`/`discoverable`'ı tüketici sözleşmesine **taşıdı**:
+   * oluşturma penceresinin `ERİŞİM` radyosu üç kombinasyonu da gönderiyor ve sahip bu iki
+   * alanı `PATCH` ile zaten yazabiliyordu. Gate artık `type` ve `verificationLevel`: bir
+   * sunucunun `COMMUNITY` ya da doğrulanmış olması hâlâ yalnız admin yüzeyinden gelir.
+   */
   it("keeps the consumer create contract free of privileged fields", () => {
     assert.equal("type" in CreateServerSchema.shape, false);
-    assert.equal("isPublic" in CreateServerSchema.shape, false);
-    assert.equal("discoverable" in CreateServerSchema.shape, false);
     assert.equal("verificationLevel" in CreateServerSchema.shape, false);
+    assert.equal("isPublic" in CreateServerSchema.shape, true);
+    assert.equal("discoverable" in CreateServerSchema.shape, true);
+  });
+
+  it("defaults the consumer create contract to a private, undiscoverable server (Ş10)", () => {
+    const parsed = CreateServerSchema.parse({ name: "Whispr", shortName: "WHS" });
+
+    assert.equal(parsed.isPublic, false);
+    assert.equal(parsed.discoverable, false);
+    assert.equal(parsed.tags, undefined);
+    assert.equal(parsed.messageCharacterLimit, undefined);
+    assert.equal(parsed.deletedMessageNoticeMinutes, undefined);
+  });
+
+  it("carries the three access combinations the create window can send (Ş10)", () => {
+    for (const [isPublic, discoverable] of [
+      [false, false],
+      [true, false],
+      [true, true],
+    ] as const) {
+      const parsed = assertAccepts(CreateServerSchema, {
+        discoverable,
+        isPublic,
+        name: "Whispr",
+        shortName: "WHS",
+      });
+
+      assert.equal(parsed?.isPublic, isPublic);
+      assert.equal(parsed?.discoverable, discoverable);
+    }
+  });
+
+  it("shares one advanced-field boundary set with the update contract (Ş10)", () => {
+    assertAccepts(CreateServerSchema, {
+      messageCharacterLimit: 250,
+      name: "Whispr",
+      shortName: "WHS",
+    });
+    assertAccepts(CreateServerSchema, {
+      messageCharacterLimit: 40_000,
+      name: "Whispr",
+      shortName: "WHS",
+    });
+    assertRejects(CreateServerSchema, { messageCharacterLimit: 249, name: "Whispr" }, [
+      "messageCharacterLimit",
+    ]);
+    assertRejects(CreateServerSchema, { messageCharacterLimit: 40_001, name: "Whispr" }, [
+      "messageCharacterLimit",
+    ]);
+
+    assertAccepts(CreateServerSchema, {
+      deletedMessageNoticeMinutes: 5,
+      name: "Whispr",
+      shortName: "WHS",
+    });
+    assertAccepts(CreateServerSchema, {
+      deletedMessageNoticeMinutes: 10_080,
+      name: "Whispr",
+      shortName: "WHS",
+    });
+    assertRejects(CreateServerSchema, { deletedMessageNoticeMinutes: 4, name: "Whispr" }, [
+      "deletedMessageNoticeMinutes",
+    ]);
+
+    // Etiketler oluşturmada da `ServerTagsSchema`'dan geçer: slug'lanır, tekilleşir, 5'te durur.
+    assert.deepEqual(
+      assertAccepts(CreateServerSchema, {
+        name: "Whispr",
+        shortName: "WHS",
+        tags: ["Oyun", "oyun", "Espor"],
+      })?.tags,
+      ["oyun", "espor"],
+    );
+    assertRejects(CreateServerSchema, { name: "Whispr", tags: ["a", "b", "c", "d", "e", "f"] }, [
+      "tags",
+    ]);
   });
 
   it("lets the admin create contract carry the privileged fields", () => {
@@ -841,6 +1221,7 @@ describe("server type contract", () => {
       discoverable: true,
       isPublic: true,
       name: "Whispr Topluluk",
+      shortName: "WHS",
       type: "COMMUNITY",
     });
 
@@ -860,11 +1241,15 @@ describe("server type contract", () => {
   });
 
   it("defaults verificationLevel to NONE and lets the admin contract override it", () => {
-    const defaulted = AdminCreateServerSchema.parse({ name: "Whispr Topluluk" });
+    const defaulted = AdminCreateServerSchema.parse({
+      name: "Whispr Topluluk",
+      shortName: "WHS",
+    });
     assert.equal(defaulted.verificationLevel, "NONE");
 
     const overridden = AdminCreateServerSchema.parse({
       name: "Whispr Topluluk",
+      shortName: "WHS",
       verificationLevel: "HIGH",
     });
     assert.equal(overridden.verificationLevel, "HIGH");
@@ -913,11 +1298,13 @@ describe("server type contract", () => {
       deletedMessageNoticeMinutes: 60,
       description: "Updated description",
       discoverable: true,
+      iconColor: "accent2",
       iconUrl: "https://example.com/icon.png",
       isPublic: true,
       messageCharacterLimit: 2000,
       name: "Updated server",
       shortName: "ws1",
+      slowModeDelay: 300,
       tags: ["sohbet"],
     };
 

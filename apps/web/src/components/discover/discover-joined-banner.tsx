@@ -73,7 +73,7 @@ export function DiscoverJoinedBanner({ onDismiss, server }: DiscoverJoinedBanner
       </Link>
       <button
         aria-label={t("discover.joined.dismiss")}
-        className="relative grid shrink-0 place-items-center text-[hsl(var(--text-muted))] transition-colors before:absolute before:-inset-2 before:content-[''] hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+        className="relative grid shrink-0 place-items-center text-[hsl(var(--text-muted))] transition-colors before:absolute before:-inset-2 before:content-[''] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
         onClick={onDismiss}
         style={{ borderRadius: pxToRem(9), height: pxToRem(28), width: pxToRem(28) }}
         type="button"

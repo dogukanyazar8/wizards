@@ -10,7 +10,7 @@
  * üç kabuk yoktur.
  *
  *   `null`       → 3. sütun yok; ana alan gezinme panelinin sağından başlar.
- *                  `/home`, `/events`, `/inbox` ve kabuk içindeki
+ *                  `/home`, `/events` ve kabuk içindeki
  *                  tanınmayan her yol.
  *   `discover`   → Keşfet dizin rayı (276) — `/discover`; durum sorgu dizesinde.
  *   `messages`   → Mesajlar sohbet rayı (276) — `/messages` ve altındaki her yol.

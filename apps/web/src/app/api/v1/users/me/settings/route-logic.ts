@@ -10,6 +10,7 @@ import {
   type AccountPreferences,
 } from "@wizards/types";
 import {
+  AnimateStickers,
   DmPolicy,
   FriendRequestPolicy,
   type InterfaceDensity,
@@ -32,8 +33,20 @@ import {
   serializeTimeZonePreference,
 } from "@/lib/settings/account-preferences";
 
+/**
+ * Ayarlar Ş12 / K9 — "Boşta sayılma süresi"nin kabul edilen değerleri.
+ *
+ * İstemci tarafındaki ikizi `hooks/use-presence-idle-timeout-preference.ts` içindeki
+ * `PRESENCE_IDLE_TIMEOUT_OPTIONS`; ikisinin aynı kaldığı o dosyanın testinde doğrulanır. Liste
+ * burada tekrarlanıyor çünkü hook bir istemci modülüdür ve bir sunucu rotasına giremez.
+ */
+export const IDLE_TIMEOUT_MINUTE_OPTIONS = [5, 10, 15, 30, 60] as const;
+
 const PatchSettingsSchema = z.object({
   serverRailWidth: z.number().int().optional(),
+  idleTimeoutMinutes: z
+    .union([z.literal(5), z.literal(10), z.literal(15), z.literal(30), z.literal(60)])
+    .optional(),
   channelSidebarWidth: z.number().int().optional(),
   messageFont: z.string().trim().min(1).max(48).optional(),
   notificationLimit: z
@@ -57,6 +70,37 @@ const PatchSettingsSchema = z.object({
   dateFormat: UserDateFormatSchema.optional(),
   timeFormat: UserTimeFormatSchema.optional(),
   interfaceDensity: InterfaceDensitySchema.optional(),
+
+  /**
+   * Ayarlar F2 — Görünüm bölümünün geri kalanı.
+   *
+   * Bu on dokuz alanın kolonu `UserSettings`'te **zaten vardı** (sekizi paketten önce, on biri
+   * Ş0'ın migration'ıyla); eksik olan tek şey PATCH şemasıydı. Şema onları kabul etmediği için
+   * Görünüm bölümündeki yirmi bir kontrol yazma yolunda sessizce düşüyor, kutu yazmayı başarılı
+   * sayıyor ve başlık `Kaydedildi` gösteriyordu — sayfa yenilenince değer kayboluyordu.
+   *
+   * Sınırlar tasarımın kaydırıcı aralıklarıdır (SPEC §5.3): yazı boyutu %85–130, mesaj boyutu
+   * 12–22 px, ana içerik %70–100, sunucu ikonu 36–56 px.
+   */
+  messageSizePx: z.number().int().min(12).max(22).optional(),
+  messageDisplayCompact: z.boolean().optional(),
+  inlineAttachmentMedia: z.boolean().optional(),
+  linkPreviews: z.boolean().optional(),
+  renderEmbeds: z.boolean().optional(),
+  renderReactions: z.boolean().optional(),
+  animateEmoji: z.boolean().optional(),
+  animateStickers: z.nativeEnum(AnimateStickers).optional(),
+  enableTTS: z.boolean().optional(),
+  reduceMotion: z.boolean().optional(),
+  highContrast: z.boolean().optional(),
+  strongFocusRings: z.boolean().optional(),
+  uiTextScale: z.number().int().min(85).max(130).optional(),
+  screenReaderDescriptions: z.boolean().optional(),
+  followSystemA11y: z.boolean().optional(),
+  appIcon: z.string().trim().min(1).max(24).optional(),
+  serverIconSize: z.number().int().min(36).max(56).optional(),
+  mainContentWidth: z.number().int().min(70).max(100).optional(),
+  showMemberPanelByDefault: z.boolean().optional(),
 });
 
 export type NotificationSettingsRecord = {
@@ -70,6 +114,8 @@ export type NotificationSettingsRecord = {
 export type LayoutSettingsRecord = {
   serverRailWidth: number;
   channelSidebarWidth: number;
+  /** K9 — kullanıcı barı menüsünden çıkıp Gizlilik › Görünürlük'e taşınan tercih. */
+  idleTimeoutMinutes: number;
   messageFont: string;
   notificationLimit: number;
   notificationAutoClose: boolean;
@@ -82,6 +128,26 @@ export type LayoutSettingsRecord = {
   dateFormat: UserDateFormat;
   timeFormat: UserTimeFormat;
   interfaceDensity: InterfaceDensity;
+  /** F2 — Görünüm bölümünün sunucuya taşınan kalanı. */
+  messageSizePx: number;
+  messageDisplayCompact: boolean;
+  inlineAttachmentMedia: boolean;
+  linkPreviews: boolean;
+  renderEmbeds: boolean;
+  renderReactions: boolean;
+  animateEmoji: boolean;
+  animateStickers: AnimateStickers;
+  enableTTS: boolean;
+  reduceMotion: boolean;
+  highContrast: boolean;
+  strongFocusRings: boolean;
+  uiTextScale: number;
+  screenReaderDescriptions: boolean;
+  followSystemA11y: boolean;
+  appIcon: string;
+  serverIconSize: number;
+  mainContentWidth: number;
+  showMemberPanelByDefault: boolean;
 };
 
 export type SettingsPersistenceRecord = {
@@ -180,6 +246,9 @@ export async function settingsPatchRoute(
     }
     if (body.channelSidebarWidth !== undefined) {
       layoutData.channelSidebarWidth = clampChannelSidebarWidth(body.channelSidebarWidth);
+    }
+    if (body.idleTimeoutMinutes !== undefined) {
+      layoutData.idleTimeoutMinutes = body.idleTimeoutMinutes;
     }
     if (body.messageFont !== undefined) {
       layoutData.messageFont = normalizeMessageFontId(body.messageFont);

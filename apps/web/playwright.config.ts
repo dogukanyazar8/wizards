@@ -6,6 +6,7 @@ const webRoot = dirname(fileURLToPath(import.meta.url));
 const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
 const isCI = process.env.CI === "true";
 const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER === "1";
+const useDevelopmentWebServer = !isCI && process.env.E2E_USE_DEV_SERVER === "1";
 const e2eTestTimeout = isCI ? 75_000 : 30_000;
 const e2eExpectTimeout = isCI ? 30_000 : 10_000;
 const e2eActionTimeout = isCI ? 30_000 : 15_000;
@@ -20,7 +21,7 @@ const webServerEnv = Object.fromEntries(
 
 webServerEnv.E2E_TEST_MODE = process.env.E2E_TEST_MODE ?? "true";
 webServerEnv.E2E_MOCK_GIPHY = process.env.E2E_MOCK_GIPHY ?? "true";
-if (isCI) {
+if (!useDevelopmentWebServer) {
   webServerEnv.E2E_ALLOW_PRODUCTION_BUILD = "true";
   webServerEnv.NEXT_PUBLIC_E2E_ALLOW_PRODUCTION_BUILD = "true";
 }
@@ -29,6 +30,8 @@ webServerEnv.APP_URL = baseURL;
 webServerEnv.AUTH_URL = baseURL;
 webServerEnv.NEXTAUTH_URL = baseURL;
 webServerEnv.NEXT_PUBLIC_E2E_TEST_MODE = process.env.NEXT_PUBLIC_E2E_TEST_MODE ?? "true";
+webServerEnv.NEXT_PUBLIC_WHISPR_CHAT_PREVIEW =
+  process.env.NEXT_PUBLIC_WHISPR_CHAT_PREVIEW ?? "true";
 webServerEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY =
   process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? turnstileTestSiteKey;
 webServerEnv.TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY ?? turnstileTestSecretKey;
@@ -38,7 +41,7 @@ webServerEnv.LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET ?? "e2e-livekit
 webServerEnv.LIVEKIT_URL = process.env.LIVEKIT_URL ?? "ws://127.0.0.1:7880";
 webServerEnv.NEXT_PUBLIC_LIVEKIT_URL =
   process.env.NEXT_PUBLIC_LIVEKIT_URL ?? webServerEnv.LIVEKIT_URL;
-webServerEnv.NODE_ENV = isCI ? "production" : "development";
+webServerEnv.NODE_ENV = useDevelopmentWebServer ? "development" : "production";
 webServerEnv.AUTH_SECRET = process.env.AUTH_SECRET ?? "whispr-e2e-auth-secret-change-me-local-only";
 webServerEnv.NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET ?? webServerEnv.AUTH_SECRET;
 webServerEnv.NODE_OPTIONS = [process.env.NODE_OPTIONS, "--max-old-space-size=4096"]
@@ -111,11 +114,11 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command: isCI ? "pnpm run e2e:web-server" : "pnpm dev",
+          command: useDevelopmentWebServer ? "pnpm dev" : "pnpm run e2e:web-server",
           cwd: webRoot,
           env: webServerEnv,
-          reuseExistingServer: !isCI,
-          timeout: 120_000,
+          reuseExistingServer: useDevelopmentWebServer,
+          timeout: useDevelopmentWebServer ? 120_000 : 300_000,
           url: baseURL,
         },
       }),

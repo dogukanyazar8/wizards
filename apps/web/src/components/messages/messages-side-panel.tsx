@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { X } from "lucide-react";
 
 import { DISPLAY_FONT } from "@/components/home/home-primitives";
 import { useI18n } from "@/components/providers/locale-provider";
+import { WindowCloseButton } from "@/components/ui/window-close-button";
 import { MESSAGES_METRICS, hairline, pxToRem } from "@/lib/messages/metrics";
 import { cn } from "@/lib/utils";
 
@@ -27,9 +27,32 @@ const { sidePanel } = MESSAGES_METRICS;
 const FOCUSABLE =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+/**
+ * Yuvanın iki genişliği. Thread ve arama `default` (340), §15 profil paneli
+ * `profile` (330).
+ *
+ * Ayrı bir prop, tek bir sabit **değil**: `sidePanel.width` üç panelin ortak
+ * ölçüsü sanılıp 330'a çekilseydi thread ve arama panelleri de daralır ve §6
+ * parity'si sessizce kırılırdı. Genişlik burada bir seçim; sözlükte iki ayrı
+ * kayıt (`width` · `profileWidth`).
+ */
+export type MessagesSidePanelVariant = "default" | "profile";
+
+const VARIANT_WIDTH: Readonly<Record<MessagesSidePanelVariant, number>> = Object.freeze({
+  default: sidePanel.width,
+  profile: sidePanel.profileWidth,
+});
+
 export type MessagesSidePanelProps = {
   actions?: React.ReactNode;
   children: React.ReactNode;
+  /**
+   * Kapat düğmesinin erişilebilir adı. Varsayılan `messages.panel.close`
+   * ("Paneli kapat"); profil paneli kendi sözlük satırını (`messages.profile.close`,
+   * "Profili kapat") veriyor. Kabuk üç yüzeyin ortak evi olduğu için tek bir sabit ad,
+   * ekran okuyucuya üç ayrı paneli aynı adla duyurmak demekti.
+   */
+  closeLabel?: string;
   icon?: React.ReactNode;
   onClose: () => void;
   /** `true` ise panel ana alanın üstünde duruyor (<1100px). */
@@ -37,17 +60,20 @@ export type MessagesSidePanelProps = {
   subtitle?: string | null;
   testId?: string;
   title: string;
+  variant?: MessagesSidePanelVariant;
 };
 
 export function MessagesSidePanel({
   actions,
   children,
+  closeLabel,
   icon,
   onClose,
   overlay = false,
   subtitle,
   testId,
   title,
+  variant = "default",
 }: MessagesSidePanelProps) {
   const { t } = useI18n();
   const panelRef = useRef<HTMLElement>(null);
@@ -120,12 +146,13 @@ export function MessagesSidePanel({
       */
       data-messages-side-panel="true"
       data-testid={testId ?? "messages-side-panel"}
+      data-variant={variant}
       ref={panelRef}
       role={overlay ? "dialog" : "complementary"}
       style={{
         borderLeft: `${hairline()} solid hsl(var(--border)/0.5)`,
         flex: "none",
-        width: pxToRem(sidePanel.width),
+        width: pxToRem(VARIANT_WIDTH[variant]),
       }}
     >
       <div
@@ -178,26 +205,11 @@ export function MessagesSidePanel({
 
         {actions ? <div className="flex shrink-0 items-center gap-1">{actions}</div> : null}
 
-        <button
-          aria-label={t("messages.panel.close")}
-          className="grid shrink-0 place-items-center text-[hsl(var(--text-secondary))] transition hover:bg-[hsl(var(--surface-soft)/0.7)] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
-          data-testid="messages-side-panel-close"
+        <WindowCloseButton
+          aria-label={closeLabel ?? t("messages.panel.close")}
           onClick={onClose}
-          style={{
-            borderRadius: pxToRem(sidePanel.closeRadius),
-            height: pxToRem(sidePanel.closeSize),
-            width: pxToRem(sidePanel.closeSize),
-          }}
-          type="button"
-        >
-          <X
-            aria-hidden="true"
-            style={{
-              height: pxToRem(sidePanel.closeIconSize),
-              width: pxToRem(sidePanel.closeIconSize),
-            }}
-          />
-        </button>
+          testId="messages-side-panel-close"
+        />
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>

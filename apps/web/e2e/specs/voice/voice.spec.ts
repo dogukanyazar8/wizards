@@ -62,16 +62,16 @@ async function openVoiceChannelRoute(page: Page, route: E2EServerRoute): Promise
   await expect(page.getByTestId("voice-channel-view")).toBeVisible({
     timeout: VOICE_READY_TIMEOUT,
   });
-  await expect(page.getByTestId("voice-room-control-disconnect")).toBeVisible({
+  await expect(page.getByTestId("server-voice-control-leave")).toBeVisible({
     timeout: VOICE_READY_TIMEOUT,
   });
-  await expect(page.getByTestId("voice-room-control-camera")).toBeVisible({
+  await expect(page.getByTestId("server-voice-control-camera")).toBeVisible({
     timeout: VOICE_READY_TIMEOUT,
   });
-  await expect(page.getByTestId("voice-room-control-camera")).toBeEnabled({
+  await expect(page.getByTestId("server-voice-control-camera")).toBeEnabled({
     timeout: VOICE_READY_TIMEOUT,
   });
-  await expect(page.locator('[data-testid="voice-participant-card"]:visible').first()).toBeVisible({
+  await expect(page.locator('[data-testid="server-voice-tile"]:visible').first()).toBeVisible({
     timeout: VOICE_READY_TIMEOUT,
   });
   await expectVoiceParticipantCountAtLeast(route.voiceChannelId, 1);
@@ -125,7 +125,7 @@ async function expectElementWithinViewport(page: Page, testId: string): Promise<
 }
 
 async function expectVisibleVoiceParticipantCards(page: Page, count: number): Promise<void> {
-  await expect(page.locator('[data-testid="voice-participant-card"]:visible')).toHaveCount(count, {
+  await expect(page.locator('[data-testid="server-voice-tile"]:visible')).toHaveCount(count, {
     timeout: VOICE_READY_TIMEOUT,
   });
 }
@@ -143,46 +143,47 @@ test.describe("voice and screen share", () => {
     await loginAs(page, "alice");
     await openVoiceChannel(page);
 
-    await expect(page.getByTestId("voice-participant-card")).toContainText(e2eUsers.alice.username);
+    // Ş7 kutucuğu görünen adı yazar, `@kullanıcı`yı değil (`server-voice-tile-name`).
+    await expect(page.getByTestId("server-voice-tile")).toContainText(e2eUsers.alice.displayName);
     await expect(voiceSidebarParticipant(page, e2eUsers.alice.username)).toBeVisible({
       timeout: 10_000,
     });
     await expectVoiceParticipantCount(voiceChannelId, 1);
 
-    await page.getByTestId("voice-room-control-mute").click();
-    await expect(page.getByTestId("voice-room-control-mute")).toHaveAttribute(
-      "data-active",
+    await page.getByTestId("server-voice-control-mic").click();
+    await expect(page.getByTestId("server-voice-control-mic")).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
 
-    await page.getByTestId("voice-room-control-mute").click();
-    await expect(page.getByTestId("voice-room-control-mute")).toHaveAttribute(
-      "data-active",
+    await page.getByTestId("server-voice-control-mic").click();
+    await expect(page.getByTestId("server-voice-control-mic")).toHaveAttribute(
+      "aria-pressed",
       "false",
     );
 
-    await page.getByTestId("voice-room-control-deafen").click();
-    await expect(page.getByTestId("voice-room-control-deafen")).toHaveAttribute(
-      "data-active",
+    await page.getByTestId("server-voice-control-speaker").click();
+    await expect(page.getByTestId("server-voice-control-speaker")).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
 
-    await page.getByTestId("voice-room-control-camera").click();
-    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
-      "data-active",
+    await page.getByTestId("server-voice-control-camera").click();
+    await expect(page.getByTestId("server-voice-control-camera")).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
     await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
 
-    await page.getByTestId("voice-room-control-camera").click();
-    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
-      "data-active",
+    await page.getByTestId("server-voice-control-camera").click();
+    await expect(page.getByTestId("server-voice-control-camera")).toHaveAttribute(
+      "aria-pressed",
       "false",
     );
     await expect(page.getByTestId("voice-participant-camera-video")).toBeHidden();
 
-    await page.getByTestId("voice-room-control-disconnect").click();
-    await expect(page.getByTestId("voice-participant-card")).toBeHidden({
+    await page.getByTestId("server-voice-control-leave").click();
+    await expect(page.getByTestId("server-voice-tile")).toBeHidden({
       timeout: 10_000,
     });
     await expectVoiceParticipantCount(voiceChannelId, 0);
@@ -194,23 +195,23 @@ test.describe("voice and screen share", () => {
     await loginAs(page, "alice");
     await openVoiceChannel(page);
 
-    await page.getByTestId("voice-room-control-camera").click();
-    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
-      "data-active",
+    await page.getByTestId("server-voice-control-camera").click();
+    await expect(page.getByTestId("server-voice-control-camera")).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
     await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
 
-    await page.getByTestId("voice-room-control-disconnect").click();
-    await expect(page.getByTestId("voice-participant-card")).toBeHidden({
+    await page.getByTestId("server-voice-control-leave").click();
+    await expect(page.getByTestId("server-voice-tile")).toBeHidden({
       timeout: 10_000,
     });
     await expect(page.getByTestId("voice-participant-camera-video")).toBeHidden();
     await expectVoiceParticipantCount(voiceChannelId, 0);
 
     await openVoiceChannel(page);
-    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
-      "data-active",
+    await expect(page.getByTestId("server-voice-control-camera")).toHaveAttribute(
+      "aria-pressed",
       "false",
     );
     await expect(page.getByTestId("voice-participant-camera-video")).toBeHidden();
@@ -232,7 +233,7 @@ test.describe("voice and screen share", () => {
         timeout: 10_000,
       });
 
-      await alice.page.getByTestId("voice-room-control-disconnect").click();
+      await alice.page.getByTestId("server-voice-control-leave").click();
       await expect(voiceSidebarParticipant(bob.page, e2eUsers.alice.username)).toBeHidden({
         timeout: 10_000,
       });
@@ -266,7 +267,7 @@ test.describe("voice and screen share", () => {
     await expectVoiceParticipantCount(voiceChannelId, 1);
 
     await closeInAppSettingsOverlay(page);
-    await expect(page.getByTestId("voice-room-control-disconnect")).toBeVisible({
+    await expect(page.getByTestId("server-voice-control-leave")).toBeVisible({
       timeout: 10_000,
     });
     await expect(page).toHaveURL(new RegExp(`/channels/${serverId}/${voiceChannelId}$`));
@@ -280,7 +281,7 @@ test.describe("voice and screen share", () => {
     await loginAs(page, "alice");
     await openVoiceChannel(page);
     await openSettingsFromUserQuickMenu(page);
-    await expect(page.getByTestId("settings-panel")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("settings-window")).toBeVisible({ timeout: 10_000 });
     await expectVoiceParticipantCount(voiceChannelId, 1);
 
     await closeInAppSettingsOverlay(page);
@@ -301,13 +302,17 @@ test.describe("voice and screen share", () => {
 
     await loginAs(page, "alice");
     await openVoiceChannel(page);
-    await page.getByTestId("voice-room-control-settings").click();
+    await page.getByTestId("server-voice-control-settings").click();
 
     await expect(page.getByTestId("voice-settings-modal")).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByTestId("voice-clean-voice-status")).toBeVisible();
-    await page.getByTestId("voice-clean-voice-profile").click();
 
-    await expect(page.getByTestId("voice-room-control-disconnect")).toBeVisible();
+    // K13: `VoicePreferencesPanel` silindi; dişli artık Ayarlar penceresinin **aynı** `Ses`
+    // sekmesini çiziyor. "Temiz ses profili" bugün `p9` eylem satırı (`Varsayılanlara dön`):
+    // beş filtreyi önerilen kümeye, gürültü filtresini katmanlıya alır.
+    await expect(page.getByTestId("setting-actions-p9")).toBeVisible();
+    await page.getByTestId("setting-actions-p9-0").click();
+
+    await expect(page.getByTestId("server-voice-control-leave")).toBeVisible();
     await expect(page.getByTestId("voice-settings-modal")).toBeVisible();
     await expectVoiceParticipantCount(voiceChannelId, 1);
   });
@@ -316,9 +321,9 @@ test.describe("voice and screen share", () => {
     await loginAs(page, "alice");
     await openVoiceChannel(page);
 
-    await page.getByTestId("voice-room-control-screen-share").click();
-    await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
-      "data-active",
+    await page.getByTestId("server-voice-control-share").click();
+    await expect(page.getByTestId("server-voice-control-share")).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
     await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible({
@@ -338,42 +343,42 @@ test.describe("voice and screen share", () => {
 
     await loginAs(page, "alice");
     await openVoiceChannel(page);
-    await page.getByTestId("voice-room-control-screen-share").click();
+    await page.getByTestId("server-voice-control-share").click();
 
-    await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
-      "data-active",
+    await expect(page.getByTestId("server-voice-control-share")).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
-    await page.getByTestId("voice-room-control-camera").click();
-    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
-      "data-active",
+    await page.getByTestId("server-voice-control-camera").click();
+    await expect(page.getByTestId("server-voice-control-camera")).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
     await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
     await expect(page.getByTestId("voice-stage-camera-pip")).toBeVisible();
     await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible();
     await expectElementWithinViewport(page, "voice-screen-share-stage");
-    await page.getByTestId("voice-room-control-mute").click();
-    await expect(page.getByTestId("voice-room-control-mute")).toHaveAttribute(
-      "data-active",
+    await page.getByTestId("server-voice-control-mic").click();
+    await expect(page.getByTestId("server-voice-control-mic")).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
-    await page.getByTestId("voice-room-control-mute").click();
-    await expect(page.getByTestId("voice-room-control-mute")).toHaveAttribute(
-      "data-active",
+    await page.getByTestId("server-voice-control-mic").click();
+    await expect(page.getByTestId("server-voice-control-mic")).toHaveAttribute(
+      "aria-pressed",
       "false",
     );
-    await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
-      "data-active",
+    await expect(page.getByTestId("server-voice-control-share")).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
-    await page.getByTestId("voice-room-control-camera").click();
-    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
-      "data-active",
+    await page.getByTestId("server-voice-control-camera").click();
+    await expect(page.getByTestId("server-voice-control-camera")).toHaveAttribute(
+      "aria-pressed",
       "false",
     );
-    await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
-      "data-active",
+    await expect(page.getByTestId("server-voice-control-share")).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
     await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible();
@@ -384,16 +389,16 @@ test.describe("voice and screen share", () => {
     await loginAs(page, "alice");
     await openVoiceChannel(page);
 
-    await page.getByTestId("voice-room-control-camera").click();
-    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
-      "data-active",
+    await page.getByTestId("server-voice-control-camera").click();
+    await expect(page.getByTestId("server-voice-control-camera")).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
     await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
 
-    await page.getByTestId("voice-room-control-screen-share").click();
-    await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
-      "data-active",
+    await page.getByTestId("server-voice-control-share").click();
+    await expect(page.getByTestId("server-voice-control-share")).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
     await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible();
@@ -410,15 +415,15 @@ test.describe("voice and screen share", () => {
     await loginAs(page, "alice");
     await openVoiceChannel(page);
 
-    await page.getByTestId("voice-room-control-screen-share").click();
-    await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
-      "data-active",
+    await page.getByTestId("server-voice-control-share").click();
+    await expect(page.getByTestId("server-voice-control-share")).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
 
-    await page.getByTestId("voice-room-control-camera").click();
-    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
-      "data-active",
+    await page.getByTestId("server-voice-control-camera").click();
+    await expect(page.getByTestId("server-voice-control-camera")).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
     await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
@@ -431,8 +436,12 @@ test.describe("voice and screen share", () => {
     );
     await expectVoiceParticipantCount(voiceChannelId, 1);
 
-    // Faz 2: DM düğmesi raydan kalktı (SPEC §2.1); DM yüzeyine rota üzerinden gidilir.
-    await gotoAppRoute(page, "/messages", { readyTestId: "server-rail" });
+    // Canlı medya oturumu SPA ömrüne bağlıdır. `page.goto` tam sayfa çıkışı üretip
+    // gerçek `pagehide` temizliğini çalıştırır; kullanıcı davranışı olan uygulama
+    // navigasyonunu kullanarak kesintisiz dönüş sözleşmesini sınarız.
+    await page.getByTestId("app-nav-messages").click();
+    await expect(page).toHaveURL(/\/messages$/);
+    await expect(page.getByTestId("server-rail")).toBeVisible();
     await clickServerRailServerAndWait(
       page,
       serverId,
@@ -441,12 +450,12 @@ test.describe("voice and screen share", () => {
     );
 
     await expect(page.getByTestId("voice-channel-view")).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
-      "data-active",
+    await expect(page.getByTestId("server-voice-control-share")).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
-    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
-      "data-active",
+    await expect(page.getByTestId("server-voice-control-camera")).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
     await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible();
@@ -462,8 +471,8 @@ test.describe("voice and screen share", () => {
     await loginAs(page, "alice");
     await openVoiceChannel(page);
 
-    await page.getByTestId("voice-room-control-disconnect").click();
-    await expect(page.getByTestId("voice-participant-card")).toBeHidden({
+    await page.getByTestId("server-voice-control-leave").click();
+    await expect(page.getByTestId("server-voice-tile")).toBeHidden({
       timeout: 10_000,
     });
     await expectVoiceParticipantCount(voiceChannelId, 0);
@@ -501,23 +510,30 @@ test.describe("voice and screen share", () => {
     await loginAs(page, "alice");
     await openVoiceChannel(page);
 
-    await expect(page.getByTestId("voice-participant-card")).toBeVisible();
-    await expect(page.getByTestId("voice-room-control-camera")).toBeVisible();
+    await expect(page.getByTestId("server-voice-tile")).toBeVisible();
+    const bodyFontFamily = await page
+      .locator("body")
+      .evaluate((node) => getComputedStyle(node).fontFamily);
+    await expect(page.getByTestId("server-voice-tile-name").first()).toHaveCSS(
+      "font-family",
+      bodyFontFamily,
+    );
+    await expect(page.getByTestId("server-voice-control-camera")).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
-    await page.getByTestId("voice-room-control-camera").click();
+    await page.getByTestId("server-voice-control-camera").click();
     await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(page.getByTestId("voice-room-control-camera")).toBeVisible();
-    await expect(page.getByTestId("voice-room-control-screen-share")).toBeVisible();
-    await expect(page.getByTestId("voice-room-control-disconnect")).toBeVisible();
+    await expect(page.getByTestId("server-voice-control-camera")).toBeVisible();
+    await expect(page.getByTestId("server-voice-control-share")).toBeVisible();
+    await expect(page.getByTestId("server-voice-control-leave")).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     await page
-      .getByTestId("voice-participant-card")
-      .locator("p")
+      .getByTestId("server-voice-tile")
+      .getByTestId("server-voice-tile-name")
       .first()
       .evaluate((node) => {
         node.textContent = "Alexandria Cassandra Montgomery Whispr Quality Assurance";
@@ -542,10 +558,10 @@ test.describe("voice and screen share", () => {
       await openVoiceChannel(charlie.page);
 
       await expectVisibleVoiceParticipantCards(alice.page, 3);
-      const cameraButton = alice.page.getByTestId("voice-room-control-camera");
+      const cameraButton = alice.page.getByTestId("server-voice-control-camera");
       await expect(cameraButton).toBeEnabled({ timeout: VOICE_READY_TIMEOUT });
       await cameraButton.click();
-      await expect(cameraButton).toHaveAttribute("data-active", "true", {
+      await expect(cameraButton).toHaveAttribute("aria-pressed", "true", {
         timeout: VOICE_READY_TIMEOUT,
       });
       await expectVisibleVoiceParticipantCards(alice.page, 3);
@@ -567,14 +583,14 @@ test.describe("voice and screen share", () => {
     }, E2E_CAMERA_DENIED_KEY);
 
     await openVoiceChannel(page);
-    await page.getByTestId("voice-room-control-camera").click();
+    await page.getByTestId("server-voice-control-camera").click();
 
-    await expect(page.getByTestId("voice-room-control-camera")).toHaveAttribute(
-      "data-active",
+    await expect(page.getByTestId("server-voice-control-camera")).toHaveAttribute(
+      "aria-pressed",
       "false",
     );
-    await expect(page.getByTestId("voice-camera-error")).toBeVisible();
-    await expect(page.getByTestId("voice-camera-error")).toContainText(
+    await expect(page.getByTestId("voice-inline-error")).toBeVisible();
+    await expect(page.getByTestId("voice-inline-error")).toContainText(
       /camera|kamera|blocked|engellendi/i,
     );
   });
@@ -589,7 +605,7 @@ test.describe("voice and screen share", () => {
     try {
       await gotoTextChannelRoute(bob.page, serverId, textChannelId);
       await openVoiceChannelRoute(alice.page, { serverId, textChannelId, voiceChannelId });
-      await alice.page.getByTestId("voice-room-control-screen-share").click();
+      await alice.page.getByTestId("server-voice-control-share").click();
 
       await expect(
         bob.page.getByTestId(`voice-sidebar-screen-share-${e2eUsers.alice.username}`),
@@ -625,11 +641,11 @@ test.describe("voice and screen share", () => {
       timeout: 10_000,
     });
     await expect(errorState).toContainText(/microphone|mikrofon|blocked|engellendi/i);
-    await expect(page.getByTestId("voice-room-control-mute")).toHaveAttribute(
-      "data-active",
+    await expect(page.getByTestId("server-voice-control-mic")).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
-    await expect(page.getByTestId("voice-room-control-disconnect")).toBeVisible();
+    await expect(page.getByTestId("server-voice-control-leave")).toBeVisible();
   });
 
   test("screen share permission denied state is graceful", async ({ page }) => {
@@ -647,15 +663,15 @@ test.describe("voice and screen share", () => {
       .toBe("true");
 
     await openVoiceChannel(page);
-    await page.getByTestId("voice-room-control-screen-share").click();
-    await expect(page.getByTestId("voice-room-control-screen-share")).toHaveAttribute(
-      "data-active",
+    await page.getByTestId("server-voice-control-share").click();
+    await expect(page.getByTestId("server-voice-control-share")).toHaveAttribute(
+      "aria-pressed",
       "false",
     );
     await expect(page.getByTestId("voice-inline-error")).toBeVisible();
     await expect(page.getByTestId("voice-inline-error")).toContainText(
       /screen|ekran|permission|blocked|engellendi/i,
     );
-    await expect(page.getByTestId("voice-room-control-disconnect")).toBeVisible();
+    await expect(page.getByTestId("server-voice-control-leave")).toBeVisible();
   });
 });

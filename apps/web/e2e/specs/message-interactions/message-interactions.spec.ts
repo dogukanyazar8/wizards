@@ -130,13 +130,15 @@ test.describe("message interactions", () => {
   });
 
   test("search panel behaves like a dismissible dialog", async ({ page }) => {
-    const { serverId, textChannelId } = await getE2EServerRoute();
+    const conversationId = await getE2EDMConversationId();
 
+    // Mesaj araması 1100px altında ana içeriğin üstüne binen modal paneldir.
+    await page.setViewportSize({ height: 900, width: 1060 });
     await loginAs(page, "alice");
-    await gotoTextChannelRoute(page, serverId, textChannelId);
-    await page.getByTestId("message-search-open").click();
+    await gotoDmConversationRoute(page, conversationId);
+    await page.getByTestId("conversation-header-search").click();
 
-    const searchPanel = page.getByTestId("message-search-panel");
+    const searchPanel = page.getByTestId("messages-search-panel");
     await expect(searchPanel).toBeVisible({ timeout: 10_000 });
     await expect(searchPanel).toHaveAttribute("role", "dialog");
     await expect(searchPanel).toHaveAttribute("aria-modal", "true");

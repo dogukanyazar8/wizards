@@ -4,6 +4,12 @@ import { describe, it } from "node:test";
 import { DEFAULT_AUTH_REDIRECT_PATH, getSafeAuthRedirectPath } from "./redirect";
 
 describe("auth redirect safety", () => {
+  it("opens Home by default and preserves an explicit safe Home deep link", () => {
+    assert.equal(DEFAULT_AUTH_REDIRECT_PATH, "/home");
+    assert.equal(getSafeAuthRedirectPath(undefined), "/home");
+    assert.equal(getSafeAuthRedirectPath("/home?tab=recent"), "/home?tab=recent");
+  });
+
   it("allows the desktop OAuth completion callback without broadening desktop routes", () => {
     assert.equal(
       getSafeAuthRedirectPath("/desktop/oauth/complete?callbackUrl=%2Fchannels%2F%40me"),

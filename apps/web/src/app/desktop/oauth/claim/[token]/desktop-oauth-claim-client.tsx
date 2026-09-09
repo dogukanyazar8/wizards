@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ShieldCheck } from "lucide-react";
 
-import { AppStartupScreen } from "@/components/app/app-startup-screen";
+import { SplashScreen } from "@/components/splash/splash-screen";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import { claimDesktopOAuthHandoffAction } from "./actions";
@@ -50,7 +50,7 @@ export function DesktopOAuthClaimClient({
   if (desktopRuntime !== false) {
     return (
       <>
-        <AppStartupScreen busy experience="desktop" status="session" variant="page" />
+        <SplashScreen step="session" surface="desktop" variant="overlay" />
         <form
           ref={formRef}
           action={async () => {

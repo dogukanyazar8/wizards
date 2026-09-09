@@ -417,7 +417,7 @@ export function VoiceRecorder({ disabled = false, onRecorded }: VoiceRecorderPro
         <span className="text-[hsl(var(--text-muted))]">{t("messages.composer.voice.start")}</span>
         <button
           aria-label={t("messages.composer.voice.cancel")}
-          className="grid shrink-0 place-items-center text-[hsl(var(--danger))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="grid shrink-0 place-items-center border-0 text-[hsl(var(--danger))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           data-testid="voice-recorder-cancel"
           onClick={() => finish(true)}
           style={{
@@ -455,7 +455,7 @@ export function VoiceRecorder({ disabled = false, onRecorded }: VoiceRecorderPro
         />
         <button
           aria-label={t("messages.composer.voice.cancel")}
-          className="grid shrink-0 place-items-center text-[hsl(var(--danger))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="grid shrink-0 place-items-center border-0 text-[hsl(var(--danger))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           data-testid="voice-recorder-cancel"
           onClick={discardPreview}
           style={{
@@ -475,7 +475,7 @@ export function VoiceRecorder({ disabled = false, onRecorded }: VoiceRecorderPro
         </button>
         <button
           aria-label={t("messages.composer.voice.send")}
-          className="grid shrink-0 place-items-center bg-[hsl(var(--primary))] text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="grid shrink-0 place-items-center border-0 bg-[hsl(var(--primary))] text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           data-testid="voice-recorder-send"
           onClick={sendPreview}
           style={{
@@ -539,7 +539,7 @@ export function VoiceRecorder({ disabled = false, onRecorded }: VoiceRecorderPro
 
         <button
           aria-label={t("messages.composer.voice.cancel")}
-          className="grid shrink-0 place-items-center text-[hsl(var(--text-muted))] transition hover:bg-[hsl(var(--danger)/0.14)] hover:text-[hsl(var(--danger))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="grid shrink-0 place-items-center border-0 text-[hsl(var(--text-muted))] transition hover:bg-[hsl(var(--danger)/0.14)] hover:text-[hsl(var(--danger))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           data-testid="voice-recorder-cancel"
           onClick={() => finish(true)}
           style={{
@@ -559,7 +559,7 @@ export function VoiceRecorder({ disabled = false, onRecorded }: VoiceRecorderPro
         </button>
         <button
           aria-label={t("messages.composer.voice.stop")}
-          className="grid shrink-0 place-items-center bg-[hsl(var(--primary))] text-white transition hover:brightness-110 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="grid shrink-0 place-items-center border-0 bg-[hsl(var(--primary))] text-white transition hover:brightness-110 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           data-testid="voice-recorder-stop"
           onClick={() => finish(false)}
           style={{
@@ -586,7 +586,7 @@ export function VoiceRecorder({ disabled = false, onRecorded }: VoiceRecorderPro
       <button
         aria-label={t("messages.composer.voice.start")}
         className={cn(
-          "grid shrink-0 place-items-center text-[hsl(var(--text-muted))] transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
+          "grid shrink-0 place-items-center border-0 text-[hsl(var(--text-muted))] transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
           "hover:bg-[hsl(var(--danger)/0.14)] hover:text-[hsl(var(--danger))]",
           disabled && "cursor-not-allowed opacity-55",
         )}

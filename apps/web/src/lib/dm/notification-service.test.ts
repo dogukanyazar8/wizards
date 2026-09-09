@@ -117,6 +117,9 @@ describe("DM notification service helpers", () => {
       ],
       restores,
     );
+    // Ş13 — gönderici `delivery.push` kapısını kendi içinde uyguluyor (borç B1) ve kapı
+    // `user.findMany` üzerinden tercihleri okuyor. Satır yoksa varsayılan geçerli: push açık.
+    patchMethod(prisma.user, "findMany", async () => [], restores);
     patchMethod(
       prisma.mobilePushToken,
       "findMany",
@@ -158,8 +161,12 @@ describe("DM notification service helpers", () => {
         senderId: "sender",
         senderName: "Sender",
       });
-      // The push hook is fire-and-forget; let its microtasks/macrotask settle.
-      await new Promise((resolve) => setImmediate(resolve));
+      // The push hook is fire-and-forget. Ş13 — the sender now consults the `delivery.push`
+      // gate before reading tokens, so the chain is one awaited step longer than a single
+      // macrotask. Poll for the request instead of guessing how many ticks it takes.
+      for (let tick = 0; tick < 20 && pushRequests.length === 0; tick += 1) {
+        await new Promise((resolve) => setImmediate(resolve));
+      }
 
       assert.equal(pushRequests.length, 1);
       const [message] = JSON.parse(pushRequests[0]!) as Array<Record<string, unknown>>;
@@ -241,5 +248,71 @@ describe("selectDMNotificationRecipients", () => {
     ];
 
     assert.deepEqual(ids({ participants: legacy, senderId: "sender-1" }), ["legacy-open"]);
+  });
+
+  /**
+   * Karar K8. A timed mute writes `notifyLevel = NONE` beside `muted`, so once
+   * the deadline passes the tier alone would keep the person silent forever.
+   * The expiry is what ends it — at read time, which is why no sweep is needed.
+   */
+  describe("timed mute", () => {
+    const NOW = new Date("2026-08-27T09:00:00.000Z");
+    const timed = (mutedUntil: Date | string | null) => [
+      {
+        muted: true,
+        mutedUntil,
+        notifyLevel: "NONE" as const,
+        user: { locale: "tr" },
+        userId: "timed-1",
+      },
+    ];
+
+    it("keeps a mute that has not run out silent", () => {
+      assert.deepEqual(
+        ids({
+          now: NOW,
+          participants: timed(new Date("2026-08-27T09:15:00.000Z")),
+          senderId: "sender-1",
+        }),
+        [],
+      );
+    });
+
+    it("notifies again once the deadline has passed", () => {
+      assert.deepEqual(
+        ids({
+          now: NOW,
+          participants: timed(new Date("2026-08-27T08:59:00.000Z")),
+          senderId: "sender-1",
+        }),
+        ["timed-1"],
+      );
+    });
+
+    it("reads a deadline that survived JSON as a string", () => {
+      assert.deepEqual(
+        ids({ now: NOW, participants: timed("2026-08-27T08:59:00.000Z"), senderId: "sender-1" }),
+        ["timed-1"],
+      );
+    });
+
+    // `Süresiz` and the notification radio's deliberate `Kapalı` both store a
+    // null deadline, and neither may ever lapse on its own.
+    it("never expires a mute with no deadline", () => {
+      assert.deepEqual(ids({ now: NOW, participants: timed(null), senderId: "sender-1" }), []);
+    });
+
+    it("treats a job queued before the column shipped as Süresiz", () => {
+      assert.deepEqual(
+        ids({
+          now: NOW,
+          participants: [
+            { muted: true, notifyLevel: "NONE" as const, user: { locale: "tr" }, userId: "old-1" },
+          ],
+          senderId: "sender-1",
+        }),
+        [],
+      );
+    });
   });
 });

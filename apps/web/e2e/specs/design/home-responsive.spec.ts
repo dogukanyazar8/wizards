@@ -1,5 +1,6 @@
 import { test, expect } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
+import { setE2EUserLocale } from "../../helpers/db";
 import { setE2EUserTheme } from "../../helpers/db";
 import {
   applyParityTheme,
@@ -164,6 +165,18 @@ test.describe("Ana Sayfa — küçük ekran kırılımları", () => {
 });
 
 test.describe("Ana Sayfa — klavye ve overlay sözleşmesi (§2.4)", () => {
+  /*
+   * Palet sorguları Türkçe (`Durumu`); taban tohum kullanıcıyı `en` ile kuruyor. Dili
+   * söylemeyen bir test başka bir dosyanın yan etkisine bel bağlar ve sıraya bağımlı olur.
+   */
+  test.beforeEach(async () => {
+    await setE2EUserLocale("alice", "tr");
+  });
+
+  test.afterAll(async () => {
+    await setE2EUserLocale("alice", "en");
+  });
+
   test("Esc komut paletini kapatır ve focus tetikleyiciye döner", async ({ page }) => {
     await page.setViewportSize({ height: 960, width: 1440 });
     await loginAs(page, "alice");
@@ -249,10 +262,10 @@ test.describe("Ana Sayfa — klavye ve overlay sözleşmesi (§2.4)", () => {
 
     const bell = page.getByTestId("notification-bell-button");
     await bell.click();
-    await expect(page.getByTestId("notification-popup")).toBeVisible();
+    await expect(page.getByTestId("notification-panel")).toBeVisible();
 
     await page.keyboard.press("Escape");
-    await expect(page.getByTestId("notification-popup")).toBeHidden();
+    await expect(page.getByTestId("notification-panel")).toBeHidden();
   });
 
   test("sekme sırası ray → panel → üst çubuk → kartlar", async ({ page }) => {

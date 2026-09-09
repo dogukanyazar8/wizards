@@ -168,7 +168,7 @@ export function AdminChip({
         "rounded-[12px] border px-3 py-[7px] text-[12.5px] font-semibold transition-colors",
         selected
           ? "border-transparent bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
-          : "text-[hsl(var(--text-secondary))] border-[hsl(var(--border)/0.7)] bg-transparent hover:bg-[hsl(var(--surface-soft))]",
+          : "text-[hsl(var(--text-secondary))] border-[hsl(var(--border)/0.7)] bg-transparent hover:bg-[var(--surface-hover)]",
       )}
       onClick={onClick}
       type="button"

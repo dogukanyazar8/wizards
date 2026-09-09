@@ -1344,6 +1344,30 @@ export const redesignAuthLight = {
   featureCommunity: "#E0529C",
   featureFileShare: "#4F9CF6",
   featureVoice: "#E5A346",
+
+  /**
+   * SPEC-GIRIS-KAYIT §1.1 — açık tema tokenları.
+   *
+   * `design_handoff/giris-kayit-paketi/SPEC.md` §1.1 tablosunun "Çözülen renk" sütunu birebir.
+   * Web tarafında bu değerler `[data-auth-surface]` altında CSS tokenı olarak duruyor (K5);
+   * mobilde CSS değişkeni olmadığı için aynı üçlüler hex olarak burada tutulur.
+   */
+  specBackground: "#F9FAFB",
+  specForeground: "#1A202D",
+  specSurfaceCard: "#FFFFFF",
+  specSurfaceSoft: "#E3E6EE",
+  specSurfaceInset: "#F3F5F9",
+  specBorder: "#CED3DE",
+  specPrimary: "#5966F3",
+  specPrimaryForeground: "#FFFFFF",
+  specSuccess: "#2BAB74",
+  specSuccessSoft: "#1E523B",
+  specWarning: "#F4AD2A",
+  specWarningSoft: "#573D19",
+  specDanger: "#EF435A",
+  specDangerSoft: "#82172A",
+  specTextSecondary: "#515C70",
+  specTextMuted: "#778092",
 } as const;
 
 export const redesignAuthDark = {
@@ -1359,6 +1383,24 @@ export const redesignAuthDark = {
   profileGamerBorder: redesignDark.border,
   profileCorporateSoft: redesignDark.card,
   profileCorporateBorder: redesignDark.border,
+
+  /** SPEC-GIRIS-KAYIT §1.2 — koyu tema tokenları (HSL üçlüleri hex'e çevrildi). */
+  specBackground: "#11151D",
+  specForeground: "#F3F4F7",
+  specSurfaceCard: "#1A1E28",
+  specSurfaceSoft: "#2F3541",
+  specSurfaceInset: "#212631",
+  specBorder: "#3B414F",
+  specPrimary: "#6773F4",
+  specPrimaryForeground: "#FFFFFF",
+  specSuccess: "#37BE83",
+  specSuccessSoft: "#9EE5C7",
+  specWarning: "#F7B945",
+  specWarningSoft: "#F7D597",
+  specDanger: "#F15F73",
+  specDangerSoft: "#F9A9B3",
+  specTextSecondary: "#B3BAC6",
+  specTextMuted: "#8D95A5",
 } as const;
 
 /**
@@ -2055,4 +2097,17 @@ export const redesignGroupChatDark = {
     dotColor: "rgba(255,255,255,.45)",
     text: "rgba(255,255,255,.55)",
   },
+} as const;
+
+/**
+ * Açılış ekranındaki logo işaretinin sabit renkleri — SPEC-SPLASH §2.
+ *
+ * Bu değerler bilerek tokenlı değildir: marka işareti her iki temada da aynı çizilir,
+ * tasarım onu bir gradyan olarak tanımlar. Sunum katmanı ham renk yazamadığı için
+ * (bkz. `mobile-design-contract.test.ts`) burada, palette'in yanında dururlar.
+ */
+export const whisprSplashMark = {
+  barColor: "rgba(255,255,255,0.95)",
+  gradient: ["#7C70FF", "#5B62FF", "#2F6DFF"],
+  gradientLocations: [0, 0.46, 1],
 } as const;

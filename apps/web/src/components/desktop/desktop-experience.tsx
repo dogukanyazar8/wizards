@@ -14,13 +14,14 @@ import {
   settingsQueryKeys,
 } from "@/lib/settings/client";
 import { MENTION_SETTINGS_DEFAULTS } from "@wizards/types";
+import { buildSettingsHref, DEFAULT_SETTINGS_ROUTE } from "@/lib/settings/navigation";
 import {
-  WHISPR_DESKTOP_BEFORE_CLOSE_EVENT,
-  WHISPR_DESKTOP_COMMAND_EVENT,
   getWhisprDesktopBeforeCloseRequestId,
   isSafeDesktopInternalPath,
   isWhisprDesktopRuntime,
   type WhisprDesktopCommandDetail,
+  WHISPR_DESKTOP_BEFORE_CLOSE_EVENT,
+  WHISPR_DESKTOP_COMMAND_EVENT,
 } from "@/lib/desktop/runtime";
 import {
   getDesktopAdminConsoleOpen,
@@ -51,6 +52,7 @@ import { resolveDesktopGameOverlayProcessGate } from "@/lib/desktop/game-overlay
 import { recordDesktopPerformanceMetric } from "@/lib/desktop/performance";
 import { canPublishDesktopRichPresence, resolveDesktopStreamerMode } from "@/lib/desktop/privacy";
 import { buildVoiceMiniSnapshot } from "@/lib/desktop/voice-mini";
+import { matchesAppShortcut } from "@/lib/shortcuts/catalog";
 import { useAppStore } from "@/lib/store";
 import { useVoiceStore } from "@/store/voice-store";
 import { useVoiceConnection } from "@/components/providers/voice-provider";
@@ -1166,16 +1168,16 @@ export function DesktopExperience() {
       recordDesktopShortcutLatency(detail);
 
       switch (detail.command) {
-        case "navigate":
-          if (isSafeDesktopInternalPath(detail.path)) {
-            router.push(detail.path);
-          }
-          break;
         case "open-desktop-diagnostics":
-          router.push("/settings?section=desktop&panel=desktopDiagnostics");
+          // Ş13 — eski `?section=&panel=` adresi 308 ile yönleniyor ama kabuk artık gerçek
+          // yolu biliyor; bir yönlendirme turu daha atmasının nedeni yok. Tanılama bloğu
+          // Masaüstü › Güncellemeler sekmesinde (`n3`).
+          router.push(buildSettingsHref("desktop", "updates"));
           break;
         case "open-settings":
-          router.push("/settings");
+          router.push(
+            buildSettingsHref(DEFAULT_SETTINGS_ROUTE.section, DEFAULT_SETTINGS_ROUTE.tab),
+          );
           break;
         case "hide-game-overlay":
           setDesktopGameOverlayEnabled(false);
@@ -1370,28 +1372,25 @@ export function DesktopExperience() {
         return;
       }
 
-      const key = event.key.toLowerCase();
-      const commandOrControl = event.metaKey || event.ctrlKey;
-
-      if (commandOrControl && !event.altKey && !event.shiftKey && key === ",") {
+      if (matchesAppShortcut("settings.open", event)) {
         event.preventDefault();
         router.push("/settings");
         return;
       }
 
-      if (commandOrControl && event.shiftKey && !event.altKey && key === "m") {
+      if (matchesAppShortcut("voice.toggleMute", event)) {
         event.preventDefault();
         void toggleMute();
         return;
       }
 
-      if (commandOrControl && event.shiftKey && !event.altKey && key === "d") {
+      if (matchesAppShortcut("voice.toggleDeafen", event)) {
         event.preventDefault();
         void toggleDeafen();
         return;
       }
 
-      if (commandOrControl && event.shiftKey && !event.altKey && key === "o") {
+      if (matchesAppShortcut("overlay.hide", event)) {
         event.preventDefault();
         setDesktopGameOverlayEnabled(false);
         gameOverlayVisibleRef.current = false;
@@ -1406,10 +1405,7 @@ export function DesktopExperience() {
         return;
       }
 
-      if (
-        (event.altKey && !event.ctrlKey && !event.metaKey && key === "arrowleft") ||
-        (event.metaKey && !event.ctrlKey && !event.altKey && key === "[")
-      ) {
+      if (matchesAppShortcut("navigation.back", event)) {
         event.preventDefault();
         router.back();
       }

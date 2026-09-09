@@ -1,3 +1,5 @@
+import type { SetMutedRequest } from "@wizards/types";
+
 import { jsonError, parseJsonBody } from "@/lib/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { requireMobileApiUserId } from "@/lib/auth/api";
@@ -18,7 +20,11 @@ export type MobileDMConversationRouteDependencies = {
   authenticate(request: Request): Promise<string>;
   enforceRateLimit(userId: string, action: "mobile:dm:hide" | "mobile:dm:mute"): Promise<void>;
   hideConversation(userId: string, conversationId: string): Promise<unknown>;
-  setMuted(userId: string, conversationId: string, muted: boolean): Promise<unknown>;
+  setMuted(
+    userId: string,
+    conversationId: string,
+    input: boolean | SetMutedRequest,
+  ): Promise<unknown>;
 };
 
 const defaultDependencies: MobileDMConversationRouteDependencies = {
@@ -41,7 +47,10 @@ export async function mobileDMSetMutedRoute(
       parseJsonBody(request, SetDMMutedBodySchema),
     ]);
 
-    await dependencies.setMuted(userId, conversationId, input.muted);
+    // Karar K1. The whole body travels, not just the flag: the duration ladder
+    // §17 added is part of the shared contract, so the phone silences a chat for
+    // 15 minutes through the same schema the web submenu uses.
+    await dependencies.setMuted(userId, conversationId, input);
 
     return Response.json({ success: true });
   } catch (error) {

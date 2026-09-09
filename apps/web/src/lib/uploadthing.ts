@@ -3,6 +3,7 @@
 import { generateReactHelpers } from "@uploadthing/react";
 import type { ClientUploadedFileData } from "uploadthing/types";
 import type { WizardsUploadRouter } from "@/app/api/uploadthing/core";
+import { isExplicitE2ETestMode } from "@/lib/e2e/mode";
 
 function createUploadThingHelpers() {
   return generateReactHelpers<WizardsUploadRouter>();
@@ -22,7 +23,11 @@ type E2EUploadOptions = {
 type E2EUploadResponse = ClientUploadedFileData<unknown>;
 
 function isE2EUploadMockEnabled() {
-  return process.env.NEXT_PUBLIC_E2E_TEST_MODE === "true" && process.env.NODE_ENV !== "production";
+  return isExplicitE2ETestMode({
+    allowProductionBuild: process.env.NEXT_PUBLIC_E2E_ALLOW_PRODUCTION_BUILD,
+    nodeEnv: process.env.NODE_ENV,
+    testMode: process.env.NEXT_PUBLIC_E2E_TEST_MODE,
+  });
 }
 
 function readFileAsDataUrl(file: File) {

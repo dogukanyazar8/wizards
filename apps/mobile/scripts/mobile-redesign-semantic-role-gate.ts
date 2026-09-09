@@ -6,7 +6,7 @@ import type { MobileTheme } from "../src/design/themes";
 type SemanticStyleTree = Record<string, unknown>;
 
 export interface DarkScreenSemanticRoleTarget {
-  readonly anchor: "1c" | "1d" | "1f" | "1g" | "2a" | "2b" | "2c" | "2d";
+  readonly anchor: "1c" | "1d" | "1f" | "1g" | "2b" | "2c" | "2d" | "2e" | "2f";
   readonly sourcePaths: readonly string[];
   /** Exact handoff SVG geometry; source color checks still apply to these paths. */
   readonly structuralGeometrySourcePaths?: readonly string[];
@@ -54,113 +54,128 @@ function createDarkScreenSemanticRoleTarget(
  * These surfaces have no dark HTML frame. Their dark appearance is therefore
  * accepted through semantic role resolution, not through a fabricated pixel golden.
  */
-export const DARK_SCREEN_SEMANTIC_ROLE_TARGETS: readonly DarkScreenSemanticRoleTarget[] = Object.freeze([
-  createDarkScreenSemanticRoleTarget({
-    anchor: "1c",
-    testId: "mobile-dm-inbox-screen",
-    sourcePaths: [
-      "src/app/screens/dm-screen.tsx",
-      "src/app/screens/dm-screen.styles.ts",
-      "src/app/screens/dm-inbox.tsx",
-      "src/app/screens/dm-conversation-screen.tsx",
-      "src/app/styles/shared-styles.ts",
-    ],
-  }),
-  createDarkScreenSemanticRoleTarget({
-    anchor: "1d",
-    testId: "mobile-notifications-screen",
-    sourcePaths: [
-      "src/app/screens/notifications-screen.tsx",
-      "src/app/screens/notifications-screen.styles.ts",
-      "src/app/styles/shared-styles.ts",
-    ],
-  }),
-  createDarkScreenSemanticRoleTarget({
-    anchor: "1f",
-    testId: "mobile-settings-screen",
-    sourcePaths: [
-      "src/app/screens/settings-screen.tsx",
-      "src/app/screens/settings-screen.styles.ts",
-      "src/app/styles/shared-styles.ts",
-    ],
-  }),
-  createDarkScreenSemanticRoleTarget({
-    anchor: "1g",
-    testId: "mobile-server-switcher-sheet-panel",
-    sourcePaths: [
-      "src/app/components/kit/bottom-sheet.tsx",
-      "src/app/components/kit/bottom-sheet.styles.ts",
-      "src/app/components/kit/overlay-surface.tsx",
-      "src/app/components/kit/overlay-host.tsx",
-      "src/app/components/kit/overlay-registry.ts",
-      "src/app/components/kit/overlay-context-bridge.tsx",
-      "src/app/components/kit/overlay-scoped-contexts.ts",
-    ],
-  }),
-  createDarkScreenSemanticRoleTarget({
-    anchor: "2a",
-    testId: "mobile-auth-welcome-screen",
-    sourcePaths: [
-      "src/app/screens/auth/auth-welcome-screen.tsx",
-      "src/app/screens/auth/auth-welcome-screen.styles.ts",
-      "src/app/screens/auth/auth-welcome-brand-mark.tsx",
-      "src/app/components/kit/auth/auth-screen-background.tsx",
-      "src/app/components/kit/auth/auth-primary-button.tsx",
-      "src/app/components/kit/auth/auth-secondary-button.tsx",
-    ],
-    structuralGeometrySourcePaths: ["src/app/screens/auth/auth-welcome-brand-mark.tsx"],
-  }),
-  createDarkScreenSemanticRoleTarget({
-    anchor: "2b",
-    testId: "mobile-auth-login-screen",
-    sourcePaths: [
-      "src/app/screens/auth/auth-login-screen.tsx",
-      "src/app/screens/auth/auth-login-screen.styles.ts",
-      "src/app/components/kit/auth/auth-screen-background.tsx",
-      "src/app/components/kit/auth/auth-top-bar.tsx",
-      "src/app/components/kit/auth/auth-eyebrow-header.tsx",
-      "src/app/components/kit/auth/auth-text-field.tsx",
-      "src/app/components/kit/auth/auth-profile-type-selector.tsx",
-      "src/app/components/kit/auth/auth-checkbox.tsx",
-      "src/app/components/kit/auth/auth-primary-button.tsx",
-      "src/app/components/kit/auth/auth-secondary-button.tsx",
-    ],
-  }),
-  createDarkScreenSemanticRoleTarget({
-    anchor: "2c",
-    testId: "mobile-auth-register-screen",
-    sourcePaths: [
-      "src/app/screens/auth/auth-register-screen.tsx",
-      "src/app/screens/auth/auth-register-screen.styles.ts",
-      "src/app/components/kit/auth/auth-screen-background.tsx",
-      "src/app/components/kit/auth/auth-top-bar.tsx",
-      "src/app/components/kit/auth/auth-eyebrow-header.tsx",
-      "src/app/components/kit/auth/auth-text-field.tsx",
-      "src/app/components/kit/auth/auth-profile-type-selector.tsx",
-      "src/app/components/kit/auth/auth-password-strength-row.tsx",
-      "src/app/components/kit/auth/auth-checkbox.tsx",
-      "src/app/components/kit/auth/auth-primary-button.tsx",
-    ],
-  }),
-  createDarkScreenSemanticRoleTarget({
-    anchor: "2d",
-    testId: "mobile-auth-forgot-password-screen",
-    sourcePaths: [
-      "src/app/screens/auth/auth-forgot-password-screen.tsx",
-      "src/app/screens/auth/auth-forgot-password-screen.styles.ts",
-      "src/app/components/kit/auth/auth-screen-background.tsx",
-      "src/app/components/kit/auth/auth-top-bar.tsx",
-      "src/app/components/kit/auth/auth-eyebrow-header.tsx",
-      "src/app/components/kit/auth/auth-text-field.tsx",
-      "src/app/components/kit/auth/auth-info-banner.tsx",
-      "src/app/components/kit/auth/auth-primary-button.tsx",
-    ],
-  }),
-]);
+export const DARK_SCREEN_SEMANTIC_ROLE_TARGETS: readonly DarkScreenSemanticRoleTarget[] =
+  Object.freeze([
+    createDarkScreenSemanticRoleTarget({
+      anchor: "1c",
+      testId: "mobile-dm-inbox-screen",
+      sourcePaths: [
+        "src/app/screens/dm-screen.tsx",
+        "src/app/screens/dm-screen.styles.ts",
+        "src/app/screens/dm-inbox.tsx",
+        "src/app/screens/dm-conversation-screen.tsx",
+        "src/app/styles/shared-styles.ts",
+      ],
+    }),
+    createDarkScreenSemanticRoleTarget({
+      anchor: "1d",
+      testId: "mobile-notifications-screen",
+      sourcePaths: [
+        "src/app/screens/notifications-screen.tsx",
+        "src/app/screens/notifications-screen.styles.ts",
+        "src/app/styles/shared-styles.ts",
+      ],
+    }),
+    createDarkScreenSemanticRoleTarget({
+      anchor: "1f",
+      testId: "mobile-settings-screen",
+      sourcePaths: [
+        "src/app/screens/settings-screen.tsx",
+        "src/app/screens/settings-screen.styles.ts",
+        "src/app/styles/shared-styles.ts",
+      ],
+    }),
+    createDarkScreenSemanticRoleTarget({
+      anchor: "1g",
+      testId: "mobile-server-switcher-sheet-panel",
+      sourcePaths: [
+        "src/app/components/kit/bottom-sheet.tsx",
+        "src/app/components/kit/bottom-sheet.styles.ts",
+        "src/app/components/kit/overlay-surface.tsx",
+        "src/app/components/kit/overlay-host.tsx",
+        "src/app/components/kit/overlay-registry.ts",
+        "src/app/components/kit/overlay-context-bridge.tsx",
+        "src/app/components/kit/overlay-scoped-contexts.ts",
+      ],
+    }),
+    /*
+     * SPEC-GIRIS-KAYIT §6 — karsilama ekrani paket karari K4 ile kaldirildi, bu yuzden eski
+     * `2a` hedefi yok. Marka isareti oldugu yerde duruyor; yapisal geometri denetimi artik
+     * onu cizen iki adimli dogrulama ekranina bagli.
+     */
+    createDarkScreenSemanticRoleTarget({
+      anchor: "2b",
+      testId: "mobile-auth-login-screen",
+      sourcePaths: [
+        "src/app/screens/auth/auth-login-screen.tsx",
+        "src/app/screens/auth/auth-login-screen.styles.ts",
+        "src/app/components/kit/auth/auth-screen-background.tsx",
+        "src/app/components/kit/auth/auth-eyebrow-header.tsx",
+        "src/app/components/kit/auth/auth-text-field.tsx",
+        "src/app/components/kit/auth/auth-checkbox.tsx",
+        "src/app/components/kit/auth/auth-social-provider-icon.tsx",
+        "src/app/components/kit/auth/auth-primary-button.tsx",
+        "src/app/components/kit/auth/auth-secondary-button.tsx",
+      ],
+    }),
+    createDarkScreenSemanticRoleTarget({
+      anchor: "2c",
+      testId: "mobile-auth-register-screen",
+      sourcePaths: [
+        "src/app/screens/auth/auth-register-screen.tsx",
+        "src/app/screens/auth/auth-register-screen.styles.ts",
+        "src/app/components/kit/auth/auth-screen-background.tsx",
+        "src/app/components/kit/auth/auth-top-bar.tsx",
+        "src/app/components/kit/auth/auth-eyebrow-header.tsx",
+        "src/app/components/kit/auth/auth-text-field.tsx",
+        "src/app/components/kit/auth/auth-password-strength-row.tsx",
+        "src/app/components/kit/auth/auth-checkbox.tsx",
+        "src/app/components/kit/auth/auth-primary-button.tsx",
+      ],
+    }),
+    createDarkScreenSemanticRoleTarget({
+      anchor: "2d",
+      testId: "mobile-auth-forgot-password-screen",
+      sourcePaths: [
+        "src/app/screens/auth/auth-forgot-password-screen.tsx",
+        "src/app/screens/auth/auth-forgot-password-screen.styles.ts",
+        "src/app/components/kit/auth/auth-screen-background.tsx",
+        "src/app/components/kit/auth/auth-top-bar.tsx",
+        "src/app/components/kit/auth/auth-eyebrow-header.tsx",
+        "src/app/components/kit/auth/auth-text-field.tsx",
+        "src/app/components/kit/auth/auth-info-banner.tsx",
+        "src/app/components/kit/auth/auth-primary-button.tsx",
+      ],
+    }),
+    createDarkScreenSemanticRoleTarget({
+      anchor: "2e",
+      testId: "mobile-auth-two-factor-screen",
+      sourcePaths: [
+        "src/app/screens/auth/auth-two-factor-screen.tsx",
+        "src/app/screens/auth/auth-welcome-brand-mark.tsx",
+        "src/app/components/kit/auth/auth-screen-background.tsx",
+        "src/app/components/kit/auth/auth-code-cells.tsx",
+        "src/app/components/kit/auth/auth-checkbox.tsx",
+        "src/app/components/kit/auth/auth-primary-button.tsx",
+      ],
+      structuralGeometrySourcePaths: ["src/app/screens/auth/auth-welcome-brand-mark.tsx"],
+    }),
+    createDarkScreenSemanticRoleTarget({
+      anchor: "2f",
+      testId: "mobile-auth-backup-code-screen",
+      sourcePaths: [
+        "src/app/screens/auth/auth-backup-code-screen.tsx",
+        "src/app/components/kit/auth/auth-screen-background.tsx",
+        "src/app/components/kit/auth/auth-text-field.tsx",
+        "src/app/components/kit/auth/auth-primary-button.tsx",
+      ],
+    }),
+  ]);
 
 const RAW_COLOR = /#[0-9a-f]{3,8}\b|\brgba?\(/i;
 const COLOR_STYLE_KEY = /(?:color|fill|stroke)$/i;
-const MEASURE_STYLE_KEY_SOURCE = "border(?:Bottom|End|Left|Right|Start|Top)?Width|border(?:Bottom|End|Left|Right|Start|Top)?(?:Left|Right)?Radius|bottom|elevation|fontSize|gap|height|left|letterSpacing|lineHeight|margin(?:Bottom|End|Horizontal|Left|Right|Start|Top|Vertical)?|maxHeight|maxWidth|minHeight|minWidth|opacity|padding(?:Bottom|End|Horizontal|Left|Right|Start|Top|Vertical)?|right|shadowOpacity|shadowRadius|top|width|zIndex|flexBasis";
+const MEASURE_STYLE_KEY_SOURCE =
+  "border(?:Bottom|End|Left|Right|Start|Top)?Width|border(?:Bottom|End|Left|Right|Start|Top)?(?:Left|Right)?Radius|bottom|elevation|fontSize|gap|height|left|letterSpacing|lineHeight|margin(?:Bottom|End|Horizontal|Left|Right|Start|Top|Vertical)?|maxHeight|maxWidth|minHeight|minWidth|opacity|padding(?:Bottom|End|Horizontal|Left|Right|Start|Top|Vertical)?|right|shadowOpacity|shadowRadius|top|width|zIndex|flexBasis";
 const MEASURE_STYLE_KEY = new RegExp(`^(?:${MEASURE_STYLE_KEY_SOURCE})$`);
 const RAW_MEASURE_DECLARATION = new RegExp(
   `\\b(${MEASURE_STYLE_KEY_SOURCE})\\s*:\\s*(-?\\d+(?:\\.\\d+)?)\\b`,
@@ -246,7 +261,12 @@ export function assertSemanticStyleTree(
 ): void {
   assert.equal(theme.dark, true, `${target.anchor} semantic gate requires darkTheme`);
   const missingRoles: string[] = [];
-  visitStyleTree(styles, collectThemeRoles(theme), `${target.anchor}:${target.testId}`, missingRoles);
+  visitStyleTree(
+    styles,
+    collectThemeRoles(theme),
+    `${target.anchor}:${target.testId}`,
+    missingRoles,
+  );
   assert.deepEqual(missingRoles, [], missingRoles.join("\n"));
 }
 
@@ -281,7 +301,11 @@ export function assertSemanticStyleSource(
       }
 
       const line = source.slice(0, match.index).split("\n").length;
-      const missingRole = findMissingRole(roles, `${sourcePath}:${line}:${styleKey}`, Number(rawValue));
+      const missingRole = findMissingRole(
+        roles,
+        `${sourcePath}:${line}:${styleKey}`,
+        Number(rawValue),
+      );
       if (missingRole) {
         missingRoles.push(missingRole);
       }

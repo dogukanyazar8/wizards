@@ -3,7 +3,10 @@ import {
   EventKindSchema,
   type CreateEventInput,
   type EventKind,
+  type ServerIconTone,
 } from "@wizards/types";
+
+import { resolveServerAbbreviation } from "@/lib/servers/server-icon-presentation";
 
 /**
  * Etkinlikler Ş8 — oluştur modalının **saf** form modeli (SPEC §6, K3/K10).
@@ -68,6 +71,7 @@ export type EventPlaceChannel = {
  * `canListEventInDiscover`).
  */
 export type EventPlaceServer = {
+  readonly iconColor: ServerIconTone | null;
   readonly iconUrl: string | null;
   readonly id: string;
   readonly name: string;
@@ -127,6 +131,7 @@ export function selectEventPlaceChannels(
 export function selectEventPlaceServers(
   servers: readonly {
     readonly accessLevel: "ADMIN" | "MEMBER" | "OWNER";
+    readonly iconColor: ServerIconTone | null;
     readonly iconUrl: string | null;
     readonly id: string;
     readonly name: string;
@@ -136,6 +141,7 @@ export function selectEventPlaceServers(
   return servers
     .filter((server) => server.accessLevel !== "MEMBER")
     .map((server) => ({
+      iconColor: server.iconColor,
       iconUrl: server.iconUrl,
       id: server.id,
       name: server.name,
@@ -146,13 +152,7 @@ export function selectEventPlaceServers(
 
 /** SPEC §6 — 18×18 sunucu tile'ının harfleri. */
 export function eventPlaceServerInitials(server: EventPlaceServer): string {
-  const short = server.shortName?.trim();
-
-  if (short) {
-    return short.slice(0, 2).toLocaleUpperCase("tr-TR");
-  }
-
-  return (server.name.trim().charAt(0) || "?").toLocaleUpperCase("tr-TR");
+  return resolveServerAbbreviation(server.name, server.shortName);
 }
 
 /** K3 — `Topluluk keşfetinde listele` yalnız COMMUNITY sunucuda etkin. */

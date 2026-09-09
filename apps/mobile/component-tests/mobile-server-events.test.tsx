@@ -83,6 +83,7 @@ function profileFixture(canManageServer: boolean): ServerPublicProfile {
     createdAt: "2025-03-12T10:00:00.000Z",
     description: "",
     discoverable: true,
+    iconColor: null,
     iconUrl: null,
     inviteAddress: null,
     isPublic: true,

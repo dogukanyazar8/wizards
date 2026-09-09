@@ -211,7 +211,7 @@ export function ThreadPanel({
                 ? t("messages.panel.thread.reopen")
                 : t("messages.panel.thread.closeThread")
             }
-            className="grid h-8 w-8 place-items-center rounded-lg text-[hsl(var(--text-secondary))] transition hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))] disabled:opacity-50"
+            className="grid h-8 w-8 place-items-center rounded-lg text-[hsl(var(--text-secondary))] transition hover:bg-[var(--surface-hover)] hover:text-[hsl(var(--foreground))] disabled:opacity-50"
             data-testid="thread-state-toggle"
             disabled={threadStatePending}
             onClick={() => void toggleThreadState()}

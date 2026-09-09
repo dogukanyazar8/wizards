@@ -1,60 +1,82 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ResetPasswordSchema, type ResetPasswordInput } from "@wizards/types";
-import { ArrowRight, CheckCircle2, Eye, EyeOff, KeyRound, ShieldAlert } from "lucide-react";
-import Link from "next/link";
+import {
+  ResetPasswordSchema,
+  evaluatePasswordStrength,
+  meetsPasswordPolicy,
+  type ResetPasswordInput,
+} from "@wizards/types";
+import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { LoginCard } from "@/components/auth/login-card";
-import { LoginPage } from "@/components/auth/login-page";
+
+import {
+  AuthDescription,
+  AuthEyebrow,
+  AuthLink,
+  AuthScreenLayout,
+  AuthTitle,
+  PasswordInput,
+  PrimaryButton,
+  SecondaryButton,
+} from "@/components/auth/auth-screen";
+import { AuthBlockingPanel } from "@/components/auth/auth-error-levels";
+import { AuthPasswordStrength } from "@/components/auth/auth-password-strength";
+import { AuthLevelTwoBanner } from "@/components/auth/auth-status-view";
 import { TurnstileWidget } from "@/components/auth/turnstile-widget";
 import { useI18n } from "@/components/providers/locale-provider";
-import { resetPasswordAction } from "@/lib/auth/actions";
+import { resetPasswordAction, type AuthActionResult } from "@/lib/auth/actions";
+import { storeResetOutcome } from "@/lib/auth/pending-reset-outcome";
+
+/**
+ * SPEC-GIRIS-KAYIT §4.7 — `Yeni şifre belirle`.
+ *
+ * İki alan (K10: tekrar alanı burada **kalır**), altında hesap oluşturma ekranındakiyle aynı güç
+ * göstergesi ve 2×2 kural listesi. Token geçersiz ya da süresi geçmişse form gizlenir ve seviye 3
+ * blok gelir (SPEC §7/8).
+ */
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
-type ResetPasswordClientProps = {
-  email?: string | undefined;
-  status: "expired" | "invalid" | "valid";
-  token: string;
-};
+const EXPIRED_ERROR_KEYS = new Set([
+  "auth.passwordReset.expiredToken",
+  "auth.passwordReset.invalidToken",
+]);
 
-export function ResetPasswordClient({ email, status, token }: ResetPasswordClientProps) {
+export function ResetPasswordClient({ token }: { token: string }) {
   const { t } = useI18n();
-  const [serverError, setServerError] = useState<string | null>(null);
-  const [isComplete, setIsComplete] = useState(false);
-  const [passwordVisible, setPasswordVisible] = useState(false);
-  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
+  const router = useRouter();
+  const [result, setResult] = useState<AuthActionResult | null>(null);
 
   const {
-    register,
     control,
+    formState: { isSubmitting },
     handleSubmit,
+    register,
     setValue,
-    formState: { errors, isSubmitting },
   } = useForm<ResetPasswordInput>({
+    defaultValues: { confirmPassword: "", password: "", token, turnstileToken: "" },
     resolver: zodResolver(ResetPasswordSchema),
-    defaultValues: {
-      confirmPassword: "",
-      password: "",
-      token,
-      turnstileToken: "",
-    },
   });
-  const turnstileToken = useWatch({ control, name: "turnstileToken" });
+
+  const password = useWatch({ control, name: "password" }) ?? "";
+  const confirmPassword = useWatch({ control, name: "confirmPassword" }) ?? "";
+  const turnstileToken = useWatch({ control, name: "turnstileToken" }) ?? "";
+  const strength = evaluatePasswordStrength(password);
+
   const handleTurnstileTokenChange = useCallback(
-    (value: string) => {
-      setValue("turnstileToken", value, {
+    (nextToken: string) => {
+      setValue("turnstileToken", nextToken, {
         shouldDirty: true,
-        shouldValidate: Boolean(value),
+        shouldValidate: Boolean(nextToken),
       });
     },
     [setValue],
   );
 
   const onSubmit = async (values: ResetPasswordInput) => {
-    setServerError(null);
+    setResult(null);
 
     const formData = new FormData();
     formData.set("confirmPassword", values.confirmPassword);
@@ -62,167 +84,102 @@ export function ResetPasswordClient({ email, status, token }: ResetPasswordClien
     formData.set("token", values.token);
     formData.set("turnstileToken", values.turnstileToken);
 
-    const result = await resetPasswordAction(formData);
+    const actionResult = await resetPasswordAction(formData);
 
-    if (!result.success) {
-      setServerError(result.error ?? "auth.passwordReset.unavailable");
+    if (!actionResult.success) {
+      setResult(actionResult);
       return;
     }
 
-    setIsComplete(true);
+    storeResetOutcome({
+      signedOutAt: actionResult.signedOutAt ?? new Date().toISOString(),
+      signedOutDeviceCount: actionResult.signedOutDeviceCount ?? 0,
+    });
+    router.replace("/reset-password/done");
   };
 
-  const isTokenUsable = status === "valid";
+  const tokenExpired = Boolean(result?.error && EXPIRED_ERROR_KEYS.has(result.error));
+  const canSubmit =
+    meetsPasswordPolicy(password) &&
+    password === confirmPassword &&
+    (!TURNSTILE_SITE_KEY || Boolean(turnstileToken));
+
+  if (tokenExpired || !token) {
+    return (
+      <AuthScreenLayout auroraTone="danger-block">
+        <AuthBlockingPanel
+          primaryAction={
+            <SecondaryButton href="/forgot-password">
+              {t("auth.status.linkExpired.action")}
+            </SecondaryButton>
+          }
+          secondaryAction={
+            <AuthLink href="/login" tone="muted">
+              {t("auth.common.backToLogin")}
+            </AuthLink>
+          }
+          statusId="linkExpired"
+        />
+      </AuthScreenLayout>
+    );
+  }
 
   return (
-    <LoginPage>
-      <LoginCard label={t("auth.passwordReset.title")}>
-        <div className="modern-login-card-header">
-          <p>{t("auth.passwordReset.badge")}</p>
-          <h1>{t("auth.passwordReset.title")}</h1>
-          <span>
-            {isTokenUsable
-              ? t("auth.passwordReset.description")
-              : t(
-                  status === "expired"
-                    ? "auth.passwordReset.expiredToken"
-                    : "auth.passwordReset.invalidToken",
-                )}
-          </span>
+    <AuthScreenLayout auroraTone={result && !result.success ? "danger-banner" : "default"}>
+      <AuthEyebrow>{t("auth.forgotPassword.eyebrow")}</AuthEyebrow>
+      <AuthTitle>{t("auth.resetPassword.title")}</AuthTitle>
+      <AuthDescription>{t("auth.resetPassword.subtitle")}</AuthDescription>
+
+      <form
+        className="mt-[var(--auth-title-gap)] flex flex-col gap-[var(--auth-title-gap)]"
+        data-testid="reset-password-form"
+        noValidate
+        onSubmit={handleSubmit(onSubmit)}
+      >
+        <AuthLevelTwoBanner result={result} />
+
+        <PasswordInput
+          autoComplete="new-password"
+          label={t("auth.field.newPassword")}
+          {...register("password")}
+        />
+
+        <PasswordInput
+          autoComplete="new-password"
+          error={
+            confirmPassword.length > 0 && confirmPassword !== password
+              ? t("auth.status.passwordWeak.field")
+              : undefined
+          }
+          label={t("auth.field.confirmNewPassword")}
+          {...register("confirmPassword")}
+        />
+
+        <AuthPasswordStrength strength={strength} />
+
+        <input type="hidden" {...register("token")} />
+        <input type="hidden" {...register("turnstileToken")} />
+
+        <PrimaryButton disabled={!canSubmit || isSubmitting} loading={isSubmitting} type="submit">
+          {t("auth.resetPassword.cta")}
+        </PrimaryButton>
+      </form>
+
+      {TURNSTILE_SITE_KEY ? (
+        <div className="sr-only">
+          <TurnstileWidget
+            action="reset-password"
+            onTokenChange={handleTurnstileTokenChange}
+            siteKey={TURNSTILE_SITE_KEY}
+          />
         </div>
+      ) : null}
 
-        {isComplete ? (
-          <>
-            <div className="modern-login-status-card" role="status">
-              <span aria-hidden="true">
-                <CheckCircle2 className="h-6 w-6" />
-              </span>
-              <div>
-                <h1>{t("auth.passwordReset.successTitle")}</h1>
-                <p>{t("auth.passwordReset.successBody")}</p>
-              </div>
-            </div>
-            <Link className="modern-login-primary modern-reset-login-cta" href="/login">
-              <span>{t("auth.passwordReset.loginCta")}</span>
-              <ArrowRight className="h-5 w-5" />
-            </Link>
-          </>
-        ) : isTokenUsable ? (
-          <form className="modern-login-form" onSubmit={handleSubmit(onSubmit)} noValidate>
-            {email ? (
-              <div className="modern-login-status-card is-compact">
-                <p>{t("auth.passwordReset.accountHint", { email })}</p>
-              </div>
-            ) : null}
-
-            <input type="hidden" {...register("token")} />
-
-            <div className="modern-login-field">
-              <label htmlFor="password">{t("auth.register.passwordLabel")}</label>
-              <div className="modern-login-input-wrap">
-                <KeyRound className="modern-login-input-icon" />
-                <input
-                  id="password"
-                  type={passwordVisible ? "text" : "password"}
-                  autoComplete="new-password"
-                  placeholder={t("auth.register.passwordPlaceholder")}
-                  {...register("password")}
-                />
-                <button
-                  aria-label={passwordVisible ? t("common.hide") : t("common.show")}
-                  className="modern-password-toggle"
-                  onClick={() => setPasswordVisible((current) => !current)}
-                  type="button"
-                >
-                  {passwordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              {errors.password ? (
-                <p className="modern-login-field-error">{t(errors.password.message ?? "")}</p>
-              ) : null}
-            </div>
-
-            <div className="modern-login-field">
-              <label htmlFor="confirmPassword">{t("auth.register.confirmPasswordLabel")}</label>
-              <div className="modern-login-input-wrap">
-                <KeyRound className="modern-login-input-icon" />
-                <input
-                  id="confirmPassword"
-                  type={confirmPasswordVisible ? "text" : "password"}
-                  autoComplete="new-password"
-                  placeholder={t("auth.register.confirmPasswordPlaceholder")}
-                  {...register("confirmPassword")}
-                />
-                <button
-                  aria-label={confirmPasswordVisible ? t("common.hide") : t("common.show")}
-                  className="modern-password-toggle"
-                  onClick={() => setConfirmPasswordVisible((current) => !current)}
-                  type="button"
-                >
-                  {confirmPasswordVisible ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-              {errors.confirmPassword ? (
-                <p className="modern-login-field-error">
-                  {t(errors.confirmPassword.message ?? "")}
-                </p>
-              ) : null}
-            </div>
-
-            <input type="hidden" {...register("turnstileToken")} />
-            <div className="modern-login-turnstile">
-              <TurnstileWidget
-                action="reset-password"
-                onTokenChange={handleTurnstileTokenChange}
-                siteKey={TURNSTILE_SITE_KEY}
-              />
-              {errors.turnstileToken ? (
-                <p className="modern-login-field-error">
-                  {t(errors.turnstileToken.message ?? "validation.turnstile.required")}
-                </p>
-              ) : null}
-            </div>
-
-            {serverError ? (
-              <p className="modern-login-alert" role="alert">
-                {t(serverError)}
-              </p>
-            ) : null}
-
-            <button
-              className="modern-login-primary"
-              disabled={isSubmitting || !turnstileToken}
-              type="submit"
-            >
-              <span>
-                {isSubmitting ? t("auth.passwordReset.saving") : t("auth.passwordReset.submit")}
-              </span>
-              <ArrowRight className="h-5 w-5" />
-            </button>
-          </form>
-        ) : (
-          <>
-            <div className="modern-login-alert is-inline" role="alert">
-              <ShieldAlert className="h-4 w-4" aria-hidden="true" />
-              <p>
-                {t(
-                  status === "expired"
-                    ? "auth.passwordReset.expiredTokenHelp"
-                    : "auth.passwordReset.invalidTokenHelp",
-                )}
-              </p>
-            </div>
-            <Link className="modern-login-secondary" href="/forgot-password">
-              <ArrowRight className="h-5 w-5 rotate-180" />
-              <span>{t("auth.passwordReset.requestNewLink")}</span>
-            </Link>
-          </>
-        )}
-      </LoginCard>
-    </LoginPage>
+      <div className="mt-[var(--auth-title-gap)] flex justify-center">
+        <AuthLink href="/login" size="small" tone="muted">
+          {t("auth.common.backToLogin")}
+        </AuthLink>
+      </div>
+    </AuthScreenLayout>
   );
 }

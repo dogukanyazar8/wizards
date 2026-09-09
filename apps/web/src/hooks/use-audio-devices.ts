@@ -2,7 +2,93 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+/**
+ * Cihaz listeleri ve izin durumu — Ş8 §A.1.
+ *
+ * `VoicePreferencesPanel` silindi; cihaz menülerinin beslendiği yer burası. Liste **gerçek**
+ * `enumerateDevices()` sonucudur: tasarımdaki `MacBook Pro Mikrofonu` / `AirPods Pro` gibi adlar
+ * örnek veridir ve ürüne sabitlenmez.
+ *
+ * İzin okuma da burada, çünkü ikisi tek soruya bakar: tarayıcı etiketleri ancak izin verilmişken
+ * doldurur. `useMediaPermission` mikrofon **ve** kamera için ortak; kamera sekmesi de bunu
+ * çağırır ve `Engellendi` pili sabit bir değer değil, `navigator.permissions`'ın cevabıdır.
+ */
+
 type AudioDeviceKind = "audioinput" | "audiooutput";
+
+/** `PermissionName` bu iki değeri tip düzeyinde taşımıyor; sözleşme burada daraltılır. */
+export type MediaPermissionName = "camera" | "microphone";
+
+export type MediaPermissionStatus = "denied" | "granted" | "prompt" | "unsupported";
+
+type PermissionStatusLike = {
+  addEventListener?: (type: "change", listener: () => void) => void;
+  removeEventListener?: (type: "change", listener: () => void) => void;
+  state: PermissionState;
+};
+
+export type PermissionQuery = (name: MediaPermissionName) => Promise<PermissionStatusLike>;
+
+function defaultPermissionQuery(name: MediaPermissionName): Promise<PermissionStatusLike> {
+  if (typeof navigator === "undefined" || !navigator.permissions?.query) {
+    return Promise.reject(new Error("media-permission/unsupported"));
+  }
+
+  return navigator.permissions.query({ name: name as PermissionName });
+}
+
+/**
+ * Canlı izin durumu.
+ *
+ * Firefox `permissions.query({ name: "camera" })` çağrısını reddeder; reddi `unsupported`
+ * saymak, "bilinmiyor" ile "engellendi"yi ayırır. Tarayıcı `change` olayı yayınlıyorsa ona da
+ * abone olunur: kullanıcı adres çubuğundan izni geri verdiğinde satır kendiliğinden düzelir ve
+ * `Tekrar kontrol et` düğmesi bir zorunluluk değil, bir kısayol olur.
+ */
+export function useMediaPermission(
+  name: MediaPermissionName,
+  query: PermissionQuery = defaultPermissionQuery,
+): { recheck: () => void; status: MediaPermissionStatus } {
+  const [status, setStatus] = useState<MediaPermissionStatus>("unsupported");
+  const [nonce, setNonce] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    let detach: (() => void) | null = null;
+
+    void query(name)
+      .then((permission) => {
+        if (cancelled) {
+          return;
+        }
+
+        setStatus(permission.state);
+
+        const handleChange = () => {
+          if (!cancelled) {
+            setStatus(permission.state);
+          }
+        };
+
+        permission.addEventListener?.("change", handleChange);
+        detach = () => permission.removeEventListener?.("change", handleChange);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setStatus("unsupported");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      detach?.();
+    };
+  }, [name, nonce, query]);
+
+  const recheck = useCallback(() => setNonce((value) => value + 1), []);
+
+  return { recheck, status };
+}
 
 export type AudioDeviceEnumerationStatus = "error" | "loading" | "ready" | "unsupported";
 
@@ -17,7 +103,10 @@ type AudioDevicesState = {
   enumerationStatus: AudioDeviceEnumerationStatus;
   inputDevices: AudioDeviceOption[];
   isLoading: boolean;
+  /** Gerçek `navigator.permissions` cevabı; sabit değer yazılmaz. */
+  microphonePermission: MediaPermissionStatus;
   outputDevices: AudioDeviceOption[];
+  recheckMicrophonePermission: () => void;
   refreshDevices: () => Promise<void>;
   requestMicrophoneLabels: () => Promise<void>;
   supportsDeviceEnumeration: boolean;
@@ -55,6 +144,7 @@ export function useAudioDevices(): AudioDevicesState {
   const [enumerationStatus, setEnumerationStatus] = useState<AudioDeviceEnumerationStatus>(() =>
     canEnumerateDevices() ? "loading" : "unsupported",
   );
+  const microphone = useMediaPermission("microphone");
   const isLoading = enumerationStatus === "loading";
   const supportsDeviceEnumeration = canEnumerateDevices();
   const supportsOutputSelection = canSelectAudioOutput();
@@ -143,7 +233,9 @@ export function useAudioDevices(): AudioDevicesState {
     enumerationStatus,
     inputDevices,
     isLoading,
+    microphonePermission: microphone.status,
     outputDevices,
+    recheckMicrophonePermission: microphone.recheck,
     refreshDevices,
     requestMicrophoneLabels,
     supportsDeviceEnumeration,

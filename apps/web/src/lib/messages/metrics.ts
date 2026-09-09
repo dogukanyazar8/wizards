@@ -4,7 +4,13 @@
  * Kaynak sırası:
  *   1. `design_handoff/mesajlar-paketi/referans/Mesajlar.dc.html` — inline `style` değerleri
  *      (**nihai otorite**)
- *   2. `design_handoff/mesajlar-paketi/SPEC-MESAJLAR.md` §1–§9
+ *   2. `design_handoff/mesajlar-paketi/SPEC-MESAJLAR.md` §1–§17
+ *
+ * **İki tur, aynı ad.** `design_handoff/app_new/mesajlar-paketi/` (2026-08-20) §1–§14'ü tarif
+ * ediyordu ve uygulandı. `design_handoff/mesajlar-paketi/` (2026-08-27) onun üstüne §15 profil
+ * paneli, §16 üye ekle modalı ve §17 başlık menüleri + toast'ı ekliyor; §1–§14 ile
+ * `SPEC-ANA-SAYFA.md` iki tur arasında **birebir aynı** (`diff` boş). Sözlük artık yeni turun
+ * yolunu gösterir; eski klasör yalnız tarihsel kayıttır.
  *
  * SPEC metni ile HTML birkaç yerde çelişiyor; sözlük HTML'i alır ve sapmayı `SPEC_DEVIATIONS`
  * altında kayda geçirir, çünkü sessizce düzeltilen bir çelişki bir sonraki okuyucuyu tekrar aynı
@@ -45,6 +51,22 @@ export { hairline, pxToEm, pxToRem };
  * - Anket girişi SPEC'te yalnız bestekar ikon sırasında; HTML'de biçimlendirme şeridinde de var.
  * - Arama sonucu vurgusu SPEC'te `--primary/0.18`; HTML'de `--warning/0.26`.
  * - Grup ikonu swatch'ı SPEC'te yuvarlak; HTML'de radius 12.
+ *
+ * §15–§17 turunun sayıya dökülemeyen sapmaları:
+ *
+ * - Bölüm etiketlerinin harf aralığı SPEC'te `0.15em`; HTML'de profil panelinde ve üye ekle
+ *   modalında `0.14em` (menüdeki `YÖNETİM` etiketi `0.15em` kalıyor). Sözlük her ikisini de
+ *   HTML'den alır.
+ * - Toast şeridi SPEC'te "başlığın ve sabitlenen şeridin altında"; HTML'de başlığın **altında**,
+ *   sabitlenen şeridin **üstünde**. HTML kazanır.
+ * - `Süresiz` seçildiğinde toast metni SPEC'in 12 satırlık listesinde **yok**; HTML
+ *   `Sohbet süresiz sessize alındı` basıyor (karar K15).
+ * - §15.5'in ilk gizlilik satırı HTML'de `Uçtan uca şifreli · Anahtar doğrulandı · 21 Ağu`.
+ *   Üründe uçtan uca şifreleme **yok** (şemada anahtar/cihaz modeli bulunmuyor), o yüzden metin
+ *   `Aktarımda şifreli · TLS 1.3 · sunucuda şifreli saklanır` olur (karar K2). Ölçü, ikon karosu,
+ *   yeşil zemin ve `Aktif` pill'i tasarımdaki gibi kalır — sapan yalnız metindir.
+ * - HTML'in state'i `priv: { read, typing, media }` taşıyor ama gizlilik kartı yalnız `read` ve
+ *   `typing` satırlarını çiziyor; `media` ölü alandır, ürüne taşınmaz.
  */
 export const SPEC_DEVIATIONS = [
   { field: "rail.unreadBadgeFontSize", html: 11, spec: 10 },
@@ -81,17 +103,21 @@ export const SPEC_DEVIATIONS = [
 ] as const;
 
 /**
- * Gezinme panelinin Mesajlar paketiyle gelen daralması (karar #2). `HOME_METRICS.panel` bu
- * değerlere **taşınır**; sözlükte ikinci bir panel kaydı tutulmaz, buradaki tablo yalnız
- * taşımanın kaynağını gösterir ve `metrics.test.ts` uygulanmış olduğunu doğrular.
+ * Gezinme panelinin uygulama kararları. Mesajlar karar #2 iç ölçüleri daralttı; kullanıcı ayağında
+ * en az 16 normal isim karakteri göstermek için dış genişlik daha sonra 228'den 280'e çıkarıldı.
+ * `HOME_METRICS.panel` bu değerleri taşır; ikinci panel sözlüğü tutulmaz.
+ *
+ * 2026-08-27 turu SPEC §1.1'de yine **228** diyor. Değer yine de 280'de kalıyor (karar K3): panel
+ * bu paketin kapsamı dışında ("dokunma" listesinde) ve genişliği Ana Sayfa ile Etkinlikler'in gün
+ * paneline bağlı. 228'e dönmek üç ekranı birden daraltır ve kullanıcı ayağındaki isimleri kırpar.
  */
-export const NAV_PANEL_NARROWING = {
+export const NAV_PANEL_ADJUSTMENTS = {
   /**
    * `HOME_METRICS.sideScreens.dayPanelWidth` bu genişliğe **bilerek** bağlıdır ("gün paneli
    * navigasyon panelinin genişliğinde; ikinci bir genişlik uydurulmadı") ve `metrics.test.ts`
-   * eşitliği zorlar. Daralma o yüzden Etkinlikler ekranının gün panelini de kapsar.
+   * eşitliği zorlar. Genişleme o yüzden Etkinlikler ekranının gün panelini de kapsar.
    */
-  width: { from: 272, to: 228 },
+  width: { from: 228, to: 280 },
   headerPaddingX: { from: 16, to: 14 },
   navPaddingX: { from: 10, to: 9 },
   rowPaddingX: { from: 12, to: 11 },
@@ -110,9 +136,9 @@ export const MESSAGES_METRICS = {
     /** Thread ve arama panelinin ortak genişliği. `flex:none`. */
     sidePanelWidth: 340,
     /** Asgari kabukta ana alana kalan genişlik; parity testinin beklentisi. */
-    mainMinWidth: 782,
+    mainMinWidth: 730,
     /** Sağ panel açıkken ana alana kalan genişlik. */
-    mainMinWidthWithPanel: 442,
+    mainMinWidthWithPanel: 390,
     /** Sağ panel bu genişliğin altında overlay olur. */
     sidePanelOverlayBelow: 1100,
     /** Sohbet rayı bu genişliğin altında drawer'a taşınır. */
@@ -595,6 +621,11 @@ export const MESSAGES_METRICS = {
   /** Sağ paneller (340) — SPEC §6. */
   sidePanel: {
     width: 340,
+    /**
+     * §15 profil paneli aynı yuvayı paylaşır ama **330**'dur. Tek sabit sanıp `width`'i
+     * daraltmak thread ve arama panelini de daraltır ve §6 parity'sini kırar.
+     */
+    profileWidth: 330,
     headerPaddingTop: 16,
     headerPaddingX: 16,
     headerPaddingBottom: 14,
@@ -612,7 +643,7 @@ export const MESSAGES_METRICS = {
     threadRootPaddingX: 16,
     threadRepliesPaddingY: 14,
     threadRepliesPaddingX: 16,
-    threadRepliesGap: 14,
+    threadRepliesGap: 1,
     threadAvatarSize: 32,
     threadAvatarFontSize: 10,
     threadRowGap: 10,
@@ -896,11 +927,487 @@ export const MESSAGES_METRICS = {
     quickChipCount: 3,
   },
 
+  /**
+   * Profil paneli — SPEC §15. Genişlik `sidePanel.profileWidth` (330); thread ve arama
+   * paneliyle **aynı yuvayı** paylaşır, aynı anda açılmaz.
+   */
+  profilePanel: {
+    headerPaddingTop: 16,
+    headerPaddingX: 16,
+    headerPaddingBottom: 14,
+    headerGap: 10,
+    headerTitleFontSize: 14.5,
+    headerTitleLineHeight: 1.2,
+    closeSize: 30,
+    closeRadius: 10,
+    closeIconSize: 15,
+
+    /** Kimlik bloğu — §15.1. */
+    identityPaddingTop: 22,
+    identityPaddingX: 18,
+    identityPaddingBottom: 16,
+    identityGap: 11,
+    /** DM: daire harf karosu. Renk kişi tintinden gelir, gri DS avatarı kullanılmaz. */
+    dmTileSize: 72,
+    dmTileFontSize: 24,
+    dmTileTracking: "0.03em",
+    /** Presence halkası iki katmanlı: 3px dolu, 8px sönük. */
+    dmRingInnerWidth: 3,
+    dmRingOuterWidth: 8,
+    dmStatusDotSize: 16,
+    dmStatusDotBorderWidth: 3,
+    dmStatusDotOffset: 1,
+    /** Grup: köşeli tile. */
+    groupTileSize: 66,
+    groupTileRadius: 22,
+    groupTileFontSize: 22,
+    groupMetaGap: 7,
+    groupMetaDotSize: 3,
+    nameFontSize: 18,
+    nameLineHeight: 1.2,
+    handleMarginTop: 6,
+    handleFontSize: 12.5,
+    statusPillPaddingY: 5,
+    statusPillPaddingX: 11,
+    statusPillRadius: 999,
+    statusPillGap: 7,
+    statusPillFontSize: 11.5,
+    statusPillDotSize: 6,
+    /** Grup kimlik bloğundaki `Yönetici` / `Üye` pill'inin kalkan ikonu. */
+    rolePillIconSize: 12,
+    /**
+     * §15.3.5. Panel dört ortak arkadaş çiziyor; uç bir fazlasını döndürüyor ki
+     * "ve N kişi daha" satırı gerçek sayıyı söyleyebilsin.
+     */
+    mutualFriendPreviewLimit: 4,
+    actionsMarginTop: 3,
+    actionsGap: 6,
+    actionHeight: 36,
+    actionRadius: 12,
+    actionGap: 7,
+    actionFontSize: 12.5,
+    /** Birincil düğmenin (`Mesaj gönder` / `Üye ekle`) ikonu — `dc.html` L970/L990. */
+    actionIconSize: 15,
+    actionIconButtonSize: 36,
+    /**
+     * İkon-only düğmelerin (sesli/görüntülü arama, sessize al, grup ayarları) ikonu.
+     * `dc.html` bunları **16** çiziyor (L972, L974, L992, L994), birincil düğmeyi 15;
+     * tek bir `actionIconSize` ikisini birden yönetseydi satırın optik dengesi kayardı
+     * (36px kutunun içindeki ikon, 36px yüksek dolu bir düğmenin metnine bitişik ikondan
+     * bir tık büyük olmalı).
+     */
+    actionIconButtonIconSize: 16,
+
+    /** Sekme şeridi — §15.2. Seçili sekme hover'da **zemin değiştirmez**, yalnız parlar. */
+    tabsPaddingTop: 12,
+    tabsPaddingX: 14,
+    tabsPaddingBottom: 10,
+    tabsGap: 3,
+    tabHeight: 31,
+    tabRadius: 10,
+    tabFontSize: 12,
+    tabHoverBrightness: 1.07,
+
+    /** Gövde — §15.2. */
+    bodyGap: 16,
+    bodyPaddingTop: 4,
+    bodyPaddingX: 16,
+    bodyPaddingBottom: 20,
+    /** İçerik bu yüksekliği geçtiğinde kaydırır; hiçbir bölüm kırpılmaz. */
+    bodyScrollThreshold: 561,
+
+    sectionLabelFontSize: 10.5,
+    sectionLabelTracking: "0.14em",
+    sectionLabelGap: 8,
+    sectionCountFontSize: 10.5,
+    sectionContentMarginTop: 9,
+
+    /**
+     * Kişi tintinin zemin opaklığı. Renk değil, opaklık: tonu tüketici
+     * `hsl(var(--<tint>)/alfa)` ile verir. `danger` tasarımda bir tık sönük çiziliyor
+     * — kırmızı aynı opaklıkta diğer üçünden ağır okunuyor.
+     */
+    tintSurfaceAlpha: 0.18,
+    tintSurfaceAlphaDanger: 0.16,
+
+    /** `HAKKINDA` / `GRUP AÇIKLAMASI` — §15.3.1. */
+    aboutMarginTop: 9,
+    aboutFontSize: 13,
+    aboutLineHeight: 1.6,
+
+    /** Rozet ızgarası — §15.3.2. Kart Ayarlar ekranının rozet kartıdır (karar K10). */
+    badgeColumns: 2,
+    badgeGap: 6,
+    badgeCardPaddingY: 9,
+    badgeCardPaddingX: 10,
+    badgeCardRadius: 11,
+    badgeCardGap: 9,
+    badgeTileSize: 26,
+    badgeTileRadius: 8,
+    badgeIconSize: 13,
+    badgeLabelFontSize: 11.5,
+    badgeLabelLineHeight: 1.25,
+
+    /** Tarih kartı — §15.3.3. Rozet ızgarasının **altında** durur. */
+    dateCardRadius: 14,
+    dateCardPadding: 12,
+    dateCardGap: 11,
+    dateCardTileSize: 32,
+    dateCardTileRadius: 11,
+    dateCardIconSize: 16,
+    dateCardTitleFontSize: 12.5,
+    dateCardTitleLineHeight: 1.3,
+    dateCardSubtitleMarginTop: 4,
+    dateCardSubtitleFontSize: 11.5,
+
+    /** Ortak sunucular / ortak arkadaşlar — §15.3.4-5. */
+    mutualRowGap: 2,
+    mutualServerRowPaddingY: 7,
+    mutualServerRowPaddingX: 8,
+    mutualServerRowRadius: 11,
+    mutualServerRowGap: 10,
+    mutualServerTileSize: 28,
+    mutualServerTileRadius: 9,
+    mutualServerTileFontSize: 11.5,
+    mutualServerNameFontSize: 12.5,
+    mutualServerCountFontSize: 11,
+    mutualFriendRowPaddingY: 6,
+    mutualFriendRowPaddingX: 8,
+    mutualFriendTileSize: 28,
+    mutualFriendTileFontSize: 10.5,
+    mutualFriendDotSize: 9,
+    mutualFriendDotBorderWidth: 2,
+
+    /** Sabitlenen mesajlar (grup) — §15.3.6. */
+    pinListGap: 6,
+    pinCardPadding: 11,
+    pinCardRadius: 13,
+    pinCardGap: 9,
+    pinIconSize: 13,
+    pinTitleFontSize: 12,
+    pinTitleLineHeight: 1.3,
+    pinExcerptMarginTop: 4,
+    pinExcerptFontSize: 11.5,
+    pinExcerptLineHeight: 1.45,
+
+    /** Üyeler sekmesi — §15.4. */
+    memberAddButtonHeight: 38,
+    memberAddButtonRadius: 13,
+    memberAddButtonGap: 8,
+    memberAddButtonFontSize: 12.5,
+    memberAddButtonIconSize: 15,
+    memberInviteCardPadding: 12,
+    memberInviteCardRadius: 14,
+    memberInviteFieldMarginTop: 10,
+    memberInviteFieldGap: 8,
+    memberInviteFieldPaddingY: 8,
+    memberInviteFieldPaddingX: 10,
+    memberInviteFieldRadius: 10,
+    memberInviteFieldFontSize: 12,
+    memberInviteCopySize: 34,
+    memberInviteCopyRadius: 10,
+    memberInviteCopyIconSize: 15,
+    memberInviteNoteMarginTop: 9,
+    memberInviteNoteFontSize: 11.5,
+    memberRowGap: 2,
+    memberRowPaddingY: 7,
+    memberRowPaddingX: 8,
+    memberRowRadius: 11,
+    memberRowGapInner: 10,
+    memberAvatarSize: 32,
+    memberAvatarFontSize: 11.5,
+    memberPresenceDotSize: 10,
+    memberPresenceDotBorderWidth: 2.5,
+    memberNameFontSize: 12.5,
+    memberNameGap: 6,
+    memberSelfPillPaddingY: 2,
+    memberSelfPillPaddingX: 6,
+    memberSelfPillFontSize: 9.5,
+    memberStatusMarginTop: 4,
+    memberStatusFontSize: 11,
+
+    /** Medya sekmesi — §15.5. */
+    mediaColumns: 3,
+    mediaGap: 6,
+    mediaMarginTop: 10,
+    mediaTileRadius: 12,
+    mediaTileIconSize: 18,
+    mediaOverlayFontSize: 13,
+    /** Kaçıncı karo `+N` örtüsünü taşır (1 tabanlı). */
+    mediaOverlayIndex: 6,
+    fileListGap: 5,
+    fileRowPadding: 10,
+    fileRowRadius: 13,
+    fileRowGap: 10,
+    fileTileSize: 32,
+    fileTileRadius: 10,
+    fileTileFontSize: 9.5,
+    fileNameFontSize: 12,
+    fileMetaMarginTop: 4,
+    fileMetaFontSize: 11,
+    fileDownloadIconSize: 15,
+
+    /** Ayarlar sekmesi — §15.5. */
+    notifyListGap: 4,
+    notifyMarginTop: 10,
+    notifyCardPadding: 11,
+    notifyCardRadius: 13,
+    notifyCardGap: 11,
+    notifyRadioSize: 17,
+    notifyRadioBorderWidth: 1.5,
+    notifyRadioDotSize: 8,
+    notifyLabelFontSize: 12.5,
+    notifySubMarginTop: 4,
+    notifySubFontSize: 11,
+    privacyCardMarginTop: 10,
+    privacyCardRadius: 14,
+    privacyRowPaddingY: 11,
+    privacyRowPaddingX: 12,
+    privacyRowGap: 11,
+    /** İkon ve kontrol kolonu üç satırda da aynı hizada; satırlar bu yükseklikten kısa olmaz. */
+    privacyRowMinHeight: 56,
+    privacyTileSize: 30,
+    privacyTileRadius: 10,
+    privacyIconSize: 15,
+    privacyTitleFontSize: 12,
+    privacySubMarginTop: 4,
+    privacySubFontSize: 11,
+    privacySubLineHeight: 1.35,
+    privacyStatePillPaddingY: 4,
+    privacyStatePillPaddingX: 9,
+    privacyStatePillFontSize: 10,
+    privacyStatePillTracking: "0.04em",
+    switchWidth: 40,
+    switchHeight: 24,
+    switchKnobSize: 18,
+    switchKnobTop: 3,
+    switchKnobOffsetOff: 3,
+    switchKnobOffsetOn: 19,
+    segmentMarginTop: 10,
+    segmentGap: 3,
+    segmentPadding: 3,
+    segmentRadius: 12,
+    segmentButtonHeight: 30,
+    segmentButtonRadius: 9,
+    segmentButtonFontSize: 12,
+    dangerListGap: 5,
+    dangerPadding: 11,
+    dangerRadius: 13,
+    dangerGap: 10,
+    dangerFontSize: 12.5,
+    dangerIconSize: 16,
+  },
+
+  /** Üye ekle modalı — SPEC §16. Kabuk içinde ortalanır. */
+  inviteModal: {
+    width: 560,
+    radius: 22,
+    headerPaddingTop: 22,
+    headerPaddingX: 24,
+    headerPaddingBottom: 18,
+    headerGap: 14,
+    headerTileSize: 40,
+    headerTileRadius: 14,
+    headerTileIconSize: 20,
+    headerTitleFontSize: 18,
+    headerTitleLineHeight: 1.2,
+    headerSubtitleMarginTop: 6,
+    headerSubtitleFontSize: 13,
+    closeSize: 32,
+    closeRadius: 10,
+    closeIconSize: 16,
+
+    searchPaddingTop: 18,
+    searchPaddingX: 24,
+    searchPaddingBottom: 4,
+    searchHeight: 42,
+    searchRadius: 13,
+    searchInnerPaddingX: 13,
+    searchGap: 10,
+    searchIconSize: 16,
+    searchFontSize: 13.5,
+
+    emptySelectionMarginTop: 12,
+    emptySelectionFontSize: 12,
+    chipsMarginTop: 12,
+    chipsGap: 7,
+    chipHeight: 30,
+    chipRadius: 999,
+    chipPaddingLeft: 4,
+    chipPaddingRight: 6,
+    chipGap: 7,
+    chipAvatarSize: 22,
+    chipAvatarFontSize: 9,
+    chipNameFontSize: 12,
+    chipRemoveSize: 18,
+    chipRemoveIconSize: 10,
+
+    sectionPaddingTop: 14,
+    sectionPaddingX: 24,
+    sectionGap: 9,
+    sectionLabelFontSize: 10.5,
+    sectionLabelTracking: "0.14em",
+    sectionCountFontSize: 11,
+
+    listPaddingTop: 8,
+    listPaddingX: 16,
+    rowPaddingY: 9,
+    rowPaddingX: 10,
+    rowRadius: 13,
+    rowGap: 12,
+    checkboxSize: 19,
+    checkboxRadius: 6,
+    checkboxBorderWidth: 1.5,
+    checkboxIconSize: 11,
+    rowAvatarSize: 36,
+    rowAvatarFontSize: 12.5,
+    rowPresenceDotSize: 11,
+    rowPresenceDotBorderWidth: 2.5,
+    rowNameFontSize: 13.5,
+    rowStatusMarginTop: 4,
+    rowStatusFontSize: 11.5,
+
+    /** "5 kişi zaten üye" yığını. Mevcut üyeler aday listesinde **görünmez**. */
+    memberStackMarginX: 24,
+    memberStackPaddingTop: 11,
+    memberStackPaddingX: 2,
+    memberStackPaddingBottom: 2,
+    memberStackGap: 12,
+    memberStackAvatarSize: 26,
+    memberStackOverlap: -7,
+    memberStackBorderWidth: 2,
+    memberStackAvatarFontSize: 9,
+    memberStackNoteMarginLeft: 9,
+    memberStackNoteFontSize: 12,
+
+    linkBoxMarginTop: 8,
+    linkBoxMarginX: 24,
+    linkBoxPadding: 13,
+    linkBoxRadius: 14,
+    linkHeaderGap: 9,
+    expirySegmentGap: 3,
+    expirySegmentPadding: 3,
+    expirySegmentRadius: 10,
+    expiryButtonHeight: 24,
+    expiryButtonPaddingX: 10,
+    expiryButtonRadius: 8,
+    expiryButtonFontSize: 11,
+    linkFieldMarginTop: 11,
+    linkFieldGap: 9,
+    linkFieldPaddingY: 9,
+    linkFieldPaddingX: 11,
+    linkFieldRadius: 11,
+    linkFieldFontSize: 12.5,
+    copyButtonHeight: 36,
+    copyButtonPaddingX: 13,
+    copyButtonRadius: 11,
+    copyButtonGap: 7,
+    copyButtonFontSize: 12,
+    copyButtonIconSize: 14,
+
+    footerPaddingTop: 18,
+    footerPaddingX: 24,
+    footerPaddingBottom: 20,
+    footerGap: 10,
+    footerSummaryFontSize: 12,
+    footerButtonHeight: 38,
+    footerCancelPaddingX: 16,
+    footerSubmitPaddingX: 18,
+    footerButtonRadius: 12,
+    footerButtonFontSize: 13,
+  },
+
+  /** Başlıktaki `...` menüleri ve `Sessize al` alt menüsü — SPEC §17. */
+  moreMenu: {
+    dmWidth: 254,
+    groupWidth: 262,
+    /** Başlık ikonunun altına oturur. */
+    top: 41,
+    padding: 6,
+    radius: 17,
+
+    headerPaddingTop: 7,
+    headerPaddingX: 9,
+    headerPaddingBottom: 9,
+    headerGap: 10,
+    headerTileSize: 32,
+    headerTileRadius: 11,
+    headerTileFontSize: 12,
+    headerNameFontSize: 13,
+    headerNameLineHeight: 1.2,
+    headerSubMarginTop: 3,
+    headerSubFontSize: 11,
+    headerSeparatorMarginTop: 2,
+    headerSeparatorMarginX: 8,
+    headerSeparatorMarginBottom: 5,
+
+    rowPaddingY: 8,
+    rowPaddingX: 9,
+    rowRadius: 10,
+    rowGap: 11,
+    rowFontSize: 13,
+    rowIconSize: 16,
+    counterFontSize: 11,
+
+    /** `YÖNETİM` bölüm etiketi — yalnız yönetici görür. */
+    sectionGap: 7,
+    sectionPaddingTop: 9,
+    sectionPaddingX: 10,
+    sectionPaddingBottom: 5,
+    sectionLabelFontSize: 9.5,
+    sectionLabelTracking: "0.15em",
+    dividerMarginY: 5,
+    dividerMarginX: 8,
+
+    /** `Sessize al` alt menüsü — girintili liste. */
+    submenuIndent: 36,
+    submenuGap: 1,
+    submenuPaddingTop: 2,
+    submenuPaddingBottom: 5,
+    submenuRowPaddingY: 7,
+    submenuRowPaddingX: 9,
+    submenuRowRadius: 9,
+    submenuRowFontSize: 12.5,
+    submenuChevronRotation: 90,
+
+    /** Başlıktaki `8 saat sessiz` pill'i — tıklama sessize almayı kaldırır. */
+    mutePillHeight: 26,
+    mutePillPaddingX: 9,
+    mutePillRadius: 999,
+    mutePillGap: 6,
+    mutePillFontSize: 11,
+    mutePillIconSize: 13,
+    mutePillMarginRight: 4,
+  },
+
+  /**
+   * Toast şeridi — SPEC §17. `Mesajlar.dc.html` bunu başlığın **altına**, sabitlenen şeridin
+   * **üstüne** koyuyor; SPEC "başlığın (ve sabitlenen şeridin) altında" diyor. HTML kazanır.
+   */
+  toast: {
+    paddingY: 10,
+    paddingX: 22,
+    gap: 10,
+    iconSize: 20,
+    iconGlyphSize: 12,
+    fontSize: 12.5,
+    lineHeight: 1.3,
+    closeSize: 24,
+    closeRadius: 8,
+    closeIconSize: 13,
+    /** Karar K13: SPEC 4–6 sn aralığı verdi, tek değer seçildi. */
+    autoCloseMs: 5000,
+  },
+
   /** Gölgeler — `alpha` opaklıktır, renk değil. */
   shadow: {
     railPrimaryButton: { blur: 18, offsetY: 8, spread: -12 },
     modal: { blur: 90, offsetY: 50, spread: -40 },
     menu: { blur: 50, offsetY: 24, spread: -22 },
+    /** §17 başlık menüsü — satır menüsünden daha derin ve alfası açıkça verilmiş. */
+    headerMenu: { alpha: 0.95, blur: 64, offsetY: 32, spread: -30 },
+    /** §15.1 grup kimlik karosu — primary renkli, `--shadow-color` değil. */
+    profileGroupTile: { blur: 30, offsetY: 14, spread: -16 },
     hoverBar: { blur: 26, offsetY: 12, spread: -14 },
     emptyPrimary: { blur: 24, offsetY: 10, spread: -14 },
     footerPrimary: { blur: 22, offsetY: 10, spread: -14 },

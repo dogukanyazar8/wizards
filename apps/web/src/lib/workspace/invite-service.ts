@@ -4,23 +4,28 @@ import {
   MOBILE_INVITE_SHEET_DEFAULT_EXPIRES_IN_HOURS,
   MOBILE_TARGETED_INVITE_MAX_USES,
   type CreateInviteInput,
+  type CreateServerInviteInput,
   type MobileServerInviteSheetResponse,
   type MobileServerPendingInvite,
+  type ServerPendingInvite,
   type WorkspaceInvite,
 } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
 import { onInviteRedeemed } from "@/lib/badges/badge-triggers";
+import { areFriends } from "@/lib/friends/helpers";
 import { listFriends } from "@/lib/friends/service";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import { sendMobilePushForNotifications } from "@/lib/mobile/push-sender";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { invalidateServerRoomIdsCache } from "@/lib/socket/server-room-cache";
 import {
+  canAddMembers,
   ensureServerPermission,
   ensureUserNotServerBanned,
   getAccessContext,
 } from "@/lib/workspace/access-context";
+import { getServerMediaSettings } from "@/lib/workspace/server-features";
 import { generateInviteCode } from "@/lib/workspace/invite-code";
 import { advanceMemberAuthorizationRevision } from "@/lib/workspace/authorization-revision";
 import { publishCommittedAuthorizationRevision } from "@/lib/workspace/authorization-revision-publication";
@@ -38,6 +43,7 @@ import {
 import { PermissionBits } from "@/lib/workspace/permissions";
 import { mapInvites } from "@/lib/workspace/server-query-helpers";
 import { reserveServerMemberCapacity } from "@/lib/workspace/server-member-counter";
+import type { AccessContext } from "@/lib/workspace/workspace-types";
 
 const workspaceInviteSelect = {
   channelId: true,
@@ -52,6 +58,8 @@ const workspaceInviteSelect = {
   expiresAt: true,
   id: true,
   maxUses: true,
+  /** Hedefli davet (K3); `null` = herkese açık bağlantı. */
+  targetUserId: true,
   uses: true,
 } as const;
 
@@ -65,21 +73,24 @@ const inviteSheetUserSelect = {
   username: true,
 } as const;
 
-async function createWorkspaceInviteRecord(
-  userId: string,
+/**
+ * "Hedef kanal" (SPEC §8.7) yalnız **yazı** kanalı olabilir; verilmezse sunucunun ilk yazı
+ * kanalı seçilir.
+ *
+ * Yedeğin eski `parentId: null` filtresi kaldırıldı: kategori içindeki kanalları saymadığı
+ * için bütün yazı kanalları kategorilenmiş bir sunucuda davet kanalsız oluşuyordu. SPEC'in
+ * çip listesi (`# welcome-chat` … `# dokumanlar`) kategorili kanalları da içeriyor.
+ */
+async function resolveInviteChannelId(
   serverId: string,
-  input: CreateInviteInput,
-): Promise<WorkspaceInvite> {
-  const access = await getAccessContext(userId, serverId);
-  ensureServerPermission(access, PermissionBits.MANAGE_INVITES);
-
-  let channelId = input.channelId ?? null;
-
-  if (channelId) {
+  requestedChannelId: string | null,
+): Promise<string | null> {
+  if (requestedChannelId) {
     const channel = await prisma.channel.findFirst({
       where: {
-        id: channelId,
+        id: requestedChannelId,
         serverId,
+        type: ChannelType.TEXT,
       },
       select: {
         id: true,
@@ -89,22 +100,160 @@ async function createWorkspaceInviteRecord(
     if (!channel) {
       throw new ApiError("Channel not found", 404);
     }
-  } else {
-    const fallbackChannel = await prisma.channel.findFirst({
-      orderBy: {
-        position: "asc",
-      },
-      select: {
-        id: true,
-      },
-      where: {
-        parentId: null,
-        serverId,
-        type: ChannelType.TEXT,
-      },
-    });
 
-    channelId = fallbackChannel?.id ?? null;
+    return channel.id;
+  }
+
+  const fallbackChannel = await prisma.channel.findFirst({
+    orderBy: [{ position: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+    },
+    where: {
+      serverId,
+      type: ChannelType.TEXT,
+    },
+  });
+
+  return fallbackChannel?.id ?? null;
+}
+
+/**
+ * `Üyeler kullanıcı ekleyebilir` anahtarı (SPEC §8.6): kapalıyken davet oluşturmak
+ * `MANAGE_INVITES` taşıyan düz üyeye de kapanır, yalnız admin ve sahip geçer. Aynı kapı
+ * `member-service.ts`'in "üye ekle" yolunda da duruyor; iki yol tek kurala bakıyor.
+ */
+async function ensureInviteCreationAllowed(access: AccessContext, serverId: string) {
+  ensureServerPermission(access, PermissionBits.MANAGE_INVITES);
+
+  const server = await prisma.server.findUnique({
+    where: { id: serverId },
+    select: { features: true },
+  });
+
+  if (!server) {
+    throw new ApiError("Server not found", 404);
+  }
+
+  if (!canAddMembers(access.accessLevel, getServerMediaSettings(server.features).allowMemberAdds)) {
+    throw new ApiError("Members are not allowed to add users to this server", 403, "FORBIDDEN");
+  }
+}
+
+/**
+ * "Arkadaş seçerek davet" (SPEC §8.7, K3) — web yolu.
+ *
+ * Mobil daldaki `createTargetedServerInvite`'tan iki noktada ayrılır, bu yüzden ayrı durur:
+ * hedefin **arkadaş** olması şart (Ş3 §2), ve aynı hedefe açık bir davet varsa istek 409 ile
+ * düşmez, mevcut davet döner — pencere aynı arkadaşa iki kez basmayı hata gibi göstermemeli.
+ * Süre ve kullanım sınırı çiplerden gelir; mobil sabit 7 gün / tek kullanım kullanıyor.
+ */
+async function createTargetedWorkspaceInviteRecord(args: {
+  channelId: string | null;
+  input: CreateServerInviteInput;
+  serverId: string;
+  targetUserId: string;
+  userId: string;
+}): Promise<WorkspaceInvite> {
+  const { channelId, input, serverId, targetUserId, userId } = args;
+
+  if (targetUserId === userId) {
+    throw new ApiError("You cannot invite yourself", 400, "INVITE_SELF");
+  }
+
+  // Arkadaşlık kontrolü en önde: arkadaş olmayana dönen 400, hedefin var olup olmadığını
+  // da söylemez. Sırayı çevirmek daveti bir kullanıcı arama aracına dönüştürürdü.
+  if (!(await areFriends(userId, targetUserId))) {
+    throw new ApiError("You can only invite a friend directly", 400, "NOT_FRIENDS");
+  }
+
+  const [target, existingMember, server, inviter] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { ...inviteSheetUserSelect, isBanned: true, locale: true },
+    }),
+    prisma.serverMember.findUnique({
+      where: { userId_serverId: { serverId, userId: targetUserId } },
+      select: { id: true },
+    }),
+    prisma.server.findUnique({ where: { id: serverId }, select: { name: true } }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { displayName: true, username: true },
+    }),
+  ]);
+
+  if (!target || target.isBanned) {
+    throw new ApiError("User not found", 404);
+  }
+
+  if (!server) {
+    throw new ApiError("Server not found", 404);
+  }
+
+  if (existingMember) {
+    throw new ApiError("User is already a member of this server", 409, "ALREADY_MEMBER");
+  }
+
+  await ensureUserNotServerBanned(prisma, serverId, targetUserId);
+
+  const now = Date.now();
+  const openInvites = await prisma.serverInvite.findMany({
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    select: workspaceInviteSelect,
+    where: { serverId, targetUserId },
+  });
+  const liveInvite = openInvites.find((invite) => isLiveInvite(invite, now));
+
+  if (liveInvite) {
+    return mapInvites([liveInvite])[0]!;
+  }
+
+  const targetedCode = await generateInviteCode();
+  const targetedInvite = await prisma.serverInvite.create({
+    data: {
+      channelId,
+      code: targetedCode,
+      createdById: userId,
+      expiresAt:
+        input.expiresInHours != null ? new Date(now + input.expiresInHours * 60 * 60 * 1000) : null,
+      maxUses: input.maxUses ?? null,
+      serverId,
+      targetUserId,
+    },
+    select: workspaceInviteSelect,
+  });
+
+  await notifyTargetedServerInvite({
+    inviterName: inviter?.displayName ?? inviter?.username ?? "Whispr",
+    inviteCode: targetedCode,
+    serverId,
+    serverName: server.name,
+    target: { id: target.id, locale: target.locale },
+  });
+
+  return mapInvites([targetedInvite])[0]!;
+}
+
+async function createWorkspaceInviteRecord(
+  userId: string,
+  serverId: string,
+  input: CreateServerInviteInput,
+): Promise<WorkspaceInvite> {
+  const access = await getAccessContext(userId, serverId);
+  await ensureInviteCreationAllowed(access, serverId);
+
+  const channelId = await resolveInviteChannelId(serverId, input.channelId ?? null);
+  const targetUserId = input.targetUserId ?? null;
+
+  if (targetUserId) {
+    return createTargetedWorkspaceInviteRecord({
+      channelId,
+      input,
+      serverId,
+      targetUserId,
+      userId,
+    });
   }
 
   const code = await generateInviteCode();
@@ -128,14 +277,17 @@ async function createWorkspaceInviteRecord(
   return mapInvites([invite])[0]!;
 }
 
+/**
+ * Web davet ucunun gövdesi. Eskiden yalnız `{ code }` dönüyordu; hedefli davet satırı
+ * (kod + hedef + süre + kullanım) tek yanıtta lazım olduğu için tam davet dönüyor.
+ * `code` alanı yerinde durduğundan eski çağıranlar kırılmıyor.
+ */
 export async function createWorkspaceInvite(
   userId: string,
   serverId: string,
-  input: CreateInviteInput,
-) {
-  const invite = await createWorkspaceInviteRecord(userId, serverId, input);
-
-  return { code: invite.code };
+  input: CreateServerInviteInput,
+): Promise<WorkspaceInvite> {
+  return createWorkspaceInviteRecord(userId, serverId, input);
 }
 
 export async function createWorkspaceInviteWithDetails(
@@ -164,6 +316,61 @@ export async function listWorkspaceInvites(
   });
 
   return mapInvites(invites);
+}
+
+/**
+ * `GET /servers/[serverId]/invites?pending=1` — "Bekleyen davetler" (SPEC §8.7, K3).
+ *
+ * Bekleyen = hedefi olan, **hiç kullanılmamış** ve süresi geçmemiş davet. Ölçüt
+ * `isLiveInvite`'ın "koltuk kaldı mı" kuralından bilerek dar: 25 kullanımlık bir hedefli
+ * davet bir kez kullanıldıktan sonra teknik olarak canlı kalsa da artık *bekleyen* değildir,
+ * hedef sunucuya girmiştir.
+ */
+export async function listPendingWorkspaceInvites(
+  userId: string,
+  serverId: string,
+): Promise<ServerPendingInvite[]> {
+  const access = await getAccessContext(userId, serverId);
+  ensureServerPermission(access, PermissionBits.MANAGE_INVITES);
+
+  const invites = await prisma.serverInvite.findMany({
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    select: workspaceInviteSelect,
+    where: {
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      serverId,
+      targetUserId: { not: null },
+      uses: 0,
+    },
+  });
+
+  if (invites.length === 0) {
+    return [];
+  }
+
+  // `ServerInvite.targetUserId` bir Prisma ilişkisi taşımıyor; kimlikler `include` ile değil
+  // ayrı bir okumayla birleşiyor (mobil davet sayfasıyla aynı yöntem).
+  const targetUsers = await prisma.user.findMany({
+    select: inviteSheetUserSelect,
+    where: {
+      id: { in: Array.from(new Set(invites.map((invite) => invite.targetUserId ?? ""))) },
+    },
+  });
+  const targetUserById = new Map(targetUsers.map((user) => [user.id, user]));
+
+  const rows: ServerPendingInvite[] = [];
+  for (const invite of mapInvites(invites)) {
+    const targetUser = invite.targetUserId ? targetUserById.get(invite.targetUserId) : undefined;
+
+    // Hesabı silinmiş bir hedefin satırı çizilemez; sessizce düşer.
+    if (!targetUser) {
+      continue;
+    }
+
+    rows.push({ ...invite, targetUser });
+  }
+
+  return rows;
 }
 
 export async function listMobileWorkspaceInvites(
@@ -229,12 +436,24 @@ export async function revokeWorkspaceInvite(userId: string, serverId: string, in
   const access = await getAccessContext(userId, serverId);
   ensureServerPermission(access, PermissionBits.MANAGE_INVITES);
 
+  // Ş3: hedefli davetin tek girişi bildirimidir. Satır silinip bildirim bırakılırsa hedef
+  // hâlâ "Katıl" görür ve 404'e basar — kabul ve ret yollarının ikisi de aynı temizliği
+  // yapıyor, iptal de yapmalı.
+  const invite = await prisma.serverInvite.findFirst({
+    where: { id: inviteId, serverId },
+    select: { code: true, targetUserId: true },
+  });
+
   await prisma.serverInvite.deleteMany({
     where: {
       id: inviteId,
       serverId,
     },
   });
+
+  if (invite?.targetUserId) {
+    await clearTargetedInviteNotifications(invite.code, invite.targetUserId);
+  }
 }
 
 /**
@@ -257,7 +476,7 @@ export async function getMobileServerInviteSheet(
     listFriends(userId),
     prisma.serverInvite.findMany({
       orderBy: [{ createdAt: "desc" }, { id: "asc" }],
-      select: { ...workspaceInviteSelect, targetUserId: true },
+      select: workspaceInviteSelect,
       take: MOBILE_INVITE_LIST_LIMIT + 1,
       where: { serverId },
     }),

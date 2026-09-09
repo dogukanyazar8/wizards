@@ -31,13 +31,22 @@ function formatWhisprVersion(version: string, codename: string) {
   return `${trimmedVersion} "${trimmedCodename}"`;
 }
 
-const WHISPR_VERSION_NUMBER = process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.15";
+/** Çıplak semver — süslenmemiş hâli açılış ekranının sürüm satırına girer. */
+export const WHISPR_VERSION_NUMBER = process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.15";
 export const WHISPR_RELEASE_CODENAME = process.env.NEXT_PUBLIC_WHISPR_RELEASE_CODENAME ?? "Echo";
 export const WHISPR_APP_VERSION = formatWhisprVersion(
   WHISPR_VERSION_NUMBER,
   WHISPR_RELEASE_CODENAME,
 );
 export const WHISPR_BUILD_ID = process.env.NEXT_PUBLIC_WHISPR_BUILD_ID ?? "development";
+/**
+ * Yayın numarası — açılış ekranının sürüm satırındaki parantez (SPEC-SPLASH §3.4).
+ *
+ * `WHISPR_BUILD_ID`'den ayrıdır: o commit/deploy kimliğinden türer ve güncelleme
+ * bildiricisinin `x-whispr-client-build` başlığını besler. Verilmediğinde boş kalır
+ * ve satırdan parantez bloğu tümüyle düşer.
+ */
+export const WHISPR_BUILD_NUMBER = process.env.NEXT_PUBLIC_WHISPR_BUILD_NUMBER ?? "";
 export const WHISPR_BUILD_TIME = process.env.NEXT_PUBLIC_WHISPR_BUILD_TIME ?? "";
 export const WHISPR_RELEASE_CHANNEL = process.env.NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL ?? "beta";
 

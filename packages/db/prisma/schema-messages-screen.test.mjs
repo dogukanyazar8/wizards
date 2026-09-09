@@ -7,12 +7,22 @@ import { describe, it } from "node:test";
 const prismaDir = dirname(fileURLToPath(import.meta.url));
 const schema = readFileSync(join(prismaDir, "schema.prisma"), "utf8");
 
-const migrationDir = readdirSync(join(prismaDir, "rebaseline-migrations")).find((entry) =>
-  entry.endsWith("_messages_screen"),
-);
-const migration = migrationDir
-  ? readFileSync(join(prismaDir, "rebaseline-migrations", migrationDir, "migration.sql"), "utf8")
-  : "";
+const migrationDirs = readdirSync(join(prismaDir, "rebaseline-migrations"));
+
+function readMigration(suffix) {
+  const dir = migrationDirs.find((entry) => entry.endsWith(suffix));
+  return {
+    dir,
+    sql: dir
+      ? readFileSync(join(prismaDir, "rebaseline-migrations", dir, "migration.sql"), "utf8")
+      : "",
+  };
+}
+
+const { dir: migrationDir, sql: migration } = readMigration("_messages_screen");
+/** §15–§17 turu ayrı bir migration ile geldi; ilk tur dokunulmadan bıraktı. */
+const { dir: profileMigrationDir, sql: profileMigration } =
+  readMigration("_messages_profile_panel");
 
 function model(name) {
   const match = schema.match(new RegExp(`model ${name} \\{([\\s\\S]*?)\\n\\}`));
@@ -186,5 +196,56 @@ describe("Mesajlar screen schema", () => {
       assert.match(attachment, /waveform\s+String\?/);
       assert.doesNotMatch(migration, /ALTER TABLE "Attachment"/);
     });
+  });
+});
+
+describe("Mesajlar profil paneli schema (§15–§17)", () => {
+  it("ships its own migration rather than editing the first one", () => {
+    assert.ok(profileMigrationDir, "profile-panel migration is missing");
+    assert.ok(profileMigration.length > 0);
+    assert.notEqual(profileMigrationDir, migrationDir);
+  });
+
+  describe("timed mute (§17, karar K8)", () => {
+    it("adds mutedUntil next to the muted flag it complements", () => {
+      const participant = model("DMParticipant");
+
+      assert.match(participant, /muted\s+Boolean\s+@default\(false\)/);
+      assert.match(participant, /mutedUntil\s+DateTime\?/);
+      assert.match(profileMigration, /ALTER TABLE "DMParticipant" ADD COLUMN "mutedUntil"/);
+    });
+
+    it("keeps the boolean so an indefinite mute still has a home", () => {
+      // "Süresiz" is `muted = true, mutedUntil = null`. Dropping `muted` would force a
+      // sentinel date and every read would have to know which date meant "forever".
+      assert.doesNotMatch(profileMigration, /DROP COLUMN "muted"/);
+    });
+
+    it("adds no index for a column nothing filters on", () => {
+      assert.doesNotMatch(profileMigration, /CREATE INDEX[^;]*"mutedUntil"/);
+    });
+  });
+
+  describe("privacy switches (§15.5, karar K9)", () => {
+    it("pairs showTypingIndicator with the read-receipt preference already there", () => {
+      const settings = model("UserSettings");
+
+      assert.match(settings, /showReadReceipts\s+Boolean\s+@default\(true\)/);
+      assert.match(settings, /showTypingIndicator\s+Boolean\s+@default\(true\)/);
+      assert.match(
+        profileMigration,
+        /ALTER TABLE "UserSettings" ADD COLUMN "showTypingIndicator" BOOLEAN NOT NULL DEFAULT true/,
+      );
+    });
+
+    it("opens no third column for the read-only encryption row", () => {
+      // §15.5's first row reports transport encryption; it is a status, not a preference.
+      assert.doesNotMatch(model("UserSettings"), /encryption/i);
+    });
+  });
+
+  it("backfills nothing — one column is nullable, the other defaulted", () => {
+    assert.doesNotMatch(profileMigration, /UPDATE "DMParticipant"/);
+    assert.doesNotMatch(profileMigration, /UPDATE "UserSettings"/);
   });
 });

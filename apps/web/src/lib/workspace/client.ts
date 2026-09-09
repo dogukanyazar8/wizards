@@ -5,13 +5,21 @@ import {
   WorkspaceServerResponseSchema,
   WorkspaceServersResponseSchema,
   WorkspaceMembersResponseSchema,
+  ServerPendingInvitesResponseSchema,
+  WorkspaceInviteSchema,
+  WorkspaceInvitesResponseSchema,
+  ServerBansResponseSchema,
   WorkspaceChannelPermissionSettingsSchema,
   ChannelThreadStateSchema,
   WorkspaceRoleSchema,
   ChatMessageSchema,
   type CreateChannelInput,
+  type CreateServerInviteInput,
+  type ServerBanInput,
+  type ServerMemberTimeoutInput,
   type CreateServerScheduledEventInput,
   type CreateWorkspaceRoleInput,
+  type ServerIconTone,
   type ServerScheduledEvent,
   type UpdateServerScheduledEventInput,
   type UpdateChannelInput,
@@ -21,6 +29,7 @@ import {
   type WorkspaceCategory,
   type WorkspaceChannel,
   type WorkspaceChannelPermissionSettings,
+  type WorkspaceMemberFilter,
   type WorkspaceRole,
   type WorkspaceServerDetail,
   type WorkspaceServerSummary,
@@ -51,6 +60,17 @@ export const workspaceQueryKeys = {
   server: (serverId: string) => ["workspace", "server", serverId] as const,
   servers: ["workspace", "servers"] as const,
   serverEvents: (serverId: string) => ["workspace", "server", serverId, "events"] as const,
+  serverBans: (serverId: string) => ["workspace", "server", serverId, "bans"] as const,
+  /**
+   * Ş13 — `Sunucu ayarları › Davetler`. Bekleyen liste düz listenin **alt anahtarıdır**:
+   * bir davet iptal edilince ikisinin de tazelenmesi gerekiyor ve `serverInvites` öneki
+   * tek `invalidateQueries` çağrısıyla ikisini birden yakalar.
+   */
+  serverInvites: (serverId: string) => ["workspace", "server", serverId, "invites"] as const,
+  serverPendingInvites: (serverId: string) =>
+    ["workspace", "server", serverId, "invites", "pending"] as const,
+  serverMembers: (serverId: string, filter: WorkspaceMemberFilter, query: string) =>
+    ["workspace", "server", serverId, "members", filter, query] as const,
 };
 
 const WorkspaceChannelPinnedMessagesResponseSchema = z.object({
@@ -75,6 +95,11 @@ const WorkspaceChannelPermissionsResponseSchema = z.object({
 
 const ChannelNotificationSettingsResponseSchema = z.object({
   level: z.enum(["all", "mentions", "muted"]),
+  /**
+   * SPEC-SUNUCU §6.4 (Ş9) — "Mobil bildirimleri de sustur" anahtarının kaynağı.
+   * `UserChannelSettings.mobilePush` kolonu; satır yoksa `true`.
+   */
+  mobilePush: z.boolean().default(true),
 });
 
 async function requestJson<T>(url: string, options: RequestOptions = {}): Promise<T> {
@@ -158,8 +183,67 @@ export async function fetchWorkspaceServerMembers(
   serverId: string,
   options: {
     cursor?: string;
+    filter?: WorkspaceMemberFilter;
     limit?: number;
+    q?: string;
   } = {},
+) {
+  const params = new URLSearchParams();
+  if (options.cursor) {
+    params.set("cursor", options.cursor);
+  }
+  // `all` yazılmaz: varsayılan çip sorgu dizesini kirletmemeli, yoksa React Query anahtarı
+  // "filtresiz" ile "filter=all" diye iki ayrı önbellek satırı üretir.
+  if (options.filter && options.filter !== "all") {
+    params.set("filter", options.filter);
+  }
+  if (options.limit) {
+    params.set("limit", String(options.limit));
+  }
+  const query = options.q?.trim();
+  if (query) {
+    params.set("q", query);
+  }
+
+  const search = params.size > 0 ? `?${params.toString()}` : "";
+  const payload = await requestJson<unknown>(`/api/v1/servers/${serverId}/members${search}`);
+  return WorkspaceMembersResponseSchema.parse(payload);
+}
+
+/** Ş2 §6. Ban ucu üye kimliğini alır (kim atılıyor), ban kaldırma kullanıcı kimliğini
+ * (kim geri alınıyor) — banlanan artık üye değil, üyelik satırı silinmiş oluyor. */
+export async function banServerMember(
+  serverId: string,
+  memberId: string,
+  input: ServerBanInput = {},
+) {
+  return requestJson<{ deletedMessageCount: number; success: true }>(
+    `/api/v1/servers/${serverId}/members/${memberId}/ban`,
+    { body: input, method: "POST" },
+  );
+}
+
+export async function unbanServerMember(serverId: string, userId: string) {
+  return requestJson<{ success: true }>(`/api/v1/servers/${serverId}/bans/${userId}`, {
+    method: "DELETE",
+  });
+}
+
+/** `until: null` zaman aşımını kaldırır; ayrı bir uç yok (Ş2 §2). */
+export async function timeoutServerMember(
+  serverId: string,
+  memberId: string,
+  input: ServerMemberTimeoutInput,
+) {
+  return requestJson<{ communicationDisabledUntil: string | null; success: true }>(
+    `/api/v1/servers/${serverId}/members/${memberId}/timeout`,
+    { body: input, method: "PATCH" },
+  );
+}
+
+export async function fetchServerBans(
+  serverId: string,
+  options: { cursor?: string; limit?: number } = {},
 ) {
   const params = new URLSearchParams();
   if (options.cursor) {
@@ -169,19 +253,30 @@ export async function fetchWorkspaceServerMembers(
     params.set("limit", String(options.limit));
   }
 
-  const query = params.size > 0 ? `?${params.toString()}` : "";
-  const payload = await requestJson<unknown>(`/api/v1/servers/${serverId}/members${query}`);
-  return WorkspaceMembersResponseSchema.parse(payload);
+  const search = params.size > 0 ? `?${params.toString()}` : "";
+  const payload = await requestJson<unknown>(`/api/v1/servers/${serverId}/bans${search}`);
+  return ServerBansResponseSchema.parse(payload);
 }
 
+/**
+ * Ş10 §7: `ERİŞİM` radyosu, keşif etiketleri ve `Gelişmiş` çip grupları oluşturma
+ * gövdesinde gider — pencere kapandıktan sonra bir `PATCH` daha atmak, kullanıcının
+ * `Keşfet'te listelensin` seçtiği sunucunun bir an için özel doğması demek olurdu.
+ */
 export async function createServerRequest(input: {
   allowFileUploads?: boolean;
   allowGifs?: boolean;
   allowMemberAdds?: boolean;
+  deletedMessageNoticeMinutes?: number;
   description?: string | null;
+  discoverable?: boolean;
+  iconColor?: ServerIconTone;
   iconUrl?: string | null;
+  isPublic?: boolean;
+  messageCharacterLimit?: number;
   name: string;
   shortName?: string | null;
+  tags?: string[];
 }) {
   return requestJson<{
     channelId: string | null;
@@ -202,10 +297,12 @@ export async function updateServerRequest(
     discoverable?: boolean;
     iconUrl?: string | null;
     isPublic?: boolean;
+    iconColor?: ServerIconTone | null;
     messageCharacterLimit?: number;
     deletedMessageNoticeMinutes?: number;
     name?: string;
     shortName?: string | null;
+    slowModeDelay?: number;
     tags?: string[];
   },
 ) {
@@ -213,6 +310,32 @@ export async function updateServerRequest(
     body: input,
     method: "PATCH",
   });
+}
+
+/**
+ * Ş1 §5. Üç ince sarmalayıcı, tek uç: swatch satırı, yavaş mod çip grubu ve
+ * Tehlike bölgesi kendi alanlarını adlarıyla yazsın diye. `iconColor: null`
+ * seçimi geri alır (deterministik türetmeye dönüş), alanı atlamaz.
+ */
+export async function updateServerAppearance(serverId: string, iconColor: ServerIconTone | null) {
+  return updateServerRequest(serverId, { iconColor });
+}
+
+/** Sunucu geneli yavaş mod; kanalda geçerli olan `max(server, channel)`. */
+export async function updateServerSlowMode(serverId: string, slowModeDelay: number) {
+  return updateServerRequest(serverId, { slowModeDelay });
+}
+
+export async function transferServerOwnership(serverId: string, newOwnerUserId: string) {
+  return requestJson<{ newOwnerUserId: string; success: true }>(
+    `/api/v1/servers/${serverId}/transfer-ownership`,
+    {
+      // `acknowledged` sözleşmede `literal(true)`: onay anahtarı kapalıyken
+      // düğme pasif olduğu için `false` diye geçerli bir istek yok.
+      body: { acknowledged: true, newOwnerUserId },
+      method: "POST",
+    },
+  );
 }
 
 export async function deleteServerRequest(serverId: string, confirmationName: string) {
@@ -384,14 +507,20 @@ export async function fetchChannelNotificationSettings(channelId: string) {
   return ChannelNotificationSettingsResponseSchema.parse(payload);
 }
 
+/**
+ * `level` tek başına da geçilebilir: `mobilePush` atlandığında uç satırın mevcut mobil
+ * tercihini korur. Bildirim menüsü (yalnız düzey değiştirir) ile §6.4 penceresi (ikisini
+ * birden yazar) böylece aynı ucu paylaşır.
+ */
 export async function updateChannelNotificationSettings(
   channelId: string,
-  level: "all" | "mentions" | "muted",
+  input:
+    "all" | "mentions" | "muted" | { level: "all" | "mentions" | "muted"; mobilePush?: boolean },
 ) {
   const payload = await requestJson<unknown>(
     `/api/v1/channels/${channelId}/notification-settings`,
     {
-      body: { level },
+      body: typeof input === "string" ? { level: input } : input,
       method: "PATCH",
     },
   );
@@ -425,21 +554,43 @@ export async function reorderCategoriesRequest(
   });
 }
 
-export async function createInviteRequest(
-  serverId: string,
-  input: {
-    channelId?: string | null;
-    expiresInHours?: number | null;
-    maxUses?: number | null;
-  },
-) {
-  return requestJson<{ code: string }>(`/api/v1/servers/${serverId}/invites`, {
+/**
+ * Ş3 — davet oluşturma. `targetUserId` verildiğinde uç hedefli davete geçer: arkadaşlık
+ * kontrolünden geçmeyen hedef `400`, açık daveti olan hedef için **aynı** davet döner.
+ */
+export async function createServerInvite(serverId: string, input: CreateServerInviteInput) {
+  const payload = await requestJson<unknown>(`/api/v1/servers/${serverId}/invites`, {
     body: input,
     method: "POST",
   });
+
+  return WorkspaceInviteSchema.parse(payload);
 }
 
-export async function revokeInviteRequest(serverId: string, inviteId: string) {
+/**
+ * `pending: true` → yalnız hedefi olan, kullanılmamış, süresi geçmemiş davetler; satır
+ * hedef kimliğini de taşır (`ServerPendingInvite`).
+ */
+export async function fetchServerInvites(
+  serverId: string,
+  options: { pending: true },
+): Promise<z.infer<typeof ServerPendingInvitesResponseSchema>>;
+export async function fetchServerInvites(
+  serverId: string,
+  options?: { pending?: false },
+): Promise<z.infer<typeof WorkspaceInvitesResponseSchema>>;
+export async function fetchServerInvites(serverId: string, options: { pending?: boolean } = {}) {
+  const query = options.pending ? "?pending=1" : "";
+  const payload = await requestJson<unknown>(`/api/v1/servers/${serverId}/invites${query}`, {
+    method: "GET",
+  });
+
+  return options.pending
+    ? ServerPendingInvitesResponseSchema.parse(payload)
+    : WorkspaceInvitesResponseSchema.parse(payload);
+}
+
+export async function revokeServerInvite(serverId: string, inviteId: string) {
   return requestJson<{ success: true }>(`/api/v1/servers/${serverId}/invites/${inviteId}`, {
     method: "DELETE",
   });

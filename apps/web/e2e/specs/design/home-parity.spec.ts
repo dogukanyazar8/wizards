@@ -66,6 +66,17 @@ async function waitForHomeReady(page: Page): Promise<void> {
   await gotoAppRoute(page, "/home", { readyTestId: "home-command-center" });
 
   await expect(page.getByTestId("home-bento-grid")).toBeVisible();
+
+  /*
+   * Sunucu rayı, sunucu sorgusu inene kadar `ServerRailSkeleton` çiziyor ve iskelette marka
+   * logosu **yok**. `expectCanonicalShellSurfaces` logonun animasyonunu ölçtüğü için, hazırlık
+   * kapısı iskeleti geçmezse ölçüm "yüzey yok" diye kırılır — testin kendi yarışıydı.
+   *
+   * `.whispr-logo-bar` beş ayrı çubuktur; `.first()` olmadan strict kip ihlal olur.
+   */
+  await expect(page.locator('[data-testid="server-rail"] .whispr-logo-bar').first()).toBeVisible({
+    timeout: 15_000,
+  });
   await expect
     .poll(
       () =>

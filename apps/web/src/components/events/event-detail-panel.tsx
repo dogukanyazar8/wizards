@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, X } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import type { EventAttendee, EventRsvp, WhisprEvent } from "@wizards/types";
 
 import { EventAttendeeRow } from "@/components/events/event-attendee-row";
@@ -18,6 +18,7 @@ import { useAccountPreferenceRuntime } from "@/components/providers/account-pref
 import { useI18n } from "@/components/providers/locale-provider";
 import { Avatar } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WindowCloseButton } from "@/components/ui/window-close-button";
 import { useToast } from "@/hooks/use-toast";
 import {
   EVENTS_STALE_TIME_MS,
@@ -245,21 +246,12 @@ export function EventDetailPanel({ eventId, onClose }: EventDetailPanelProps) {
           )}
         </div>
 
-        <button
+        <WindowCloseButton
           aria-label={t("events.detail.close")}
-          className="grid shrink-0 place-items-center text-[hsl(var(--text-muted))] transition hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
-          data-testid="event-detail-close"
           onClick={onClose}
           ref={closeRef}
-          style={{
-            borderRadius: pxToRem(detailPanel.closeRadius),
-            height: pxToRem(detailPanel.closeSize),
-            width: pxToRem(detailPanel.closeSize),
-          }}
-          type="button"
-        >
-          <X aria-hidden="true" size={pxToEm(detailPanel.closeIconSize)} strokeWidth={2} />
-        </button>
+          testId="event-detail-close"
+        />
       </header>
 
       <div
@@ -465,7 +457,7 @@ export function EventDetailPanel({ eventId, onClose }: EventDetailPanelProps) {
           />
 
           <button
-            className="shrink-0 bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+            className="shrink-0 bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition hover:bg-[var(--surface-hover)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
             data-testid="event-detail-share"
             onClick={() => {
               const href = `${window.location.origin}${buildEventsHref({}, { panel: eventId })}`;

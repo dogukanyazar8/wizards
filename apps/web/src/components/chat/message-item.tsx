@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertCircle,
   BarChart3,
@@ -43,6 +44,8 @@ import type { ChatMessage, DMParticipantRole } from "@wizards/types";
 import { mentionsUser } from "@/lib/messages/message-blocks";
 import { MESSAGES_METRICS, pxToRem } from "@/lib/messages/metrics";
 import { cn } from "@/lib/utils";
+import { shouldReplyFromMessageDoubleClick } from "./message-item-interactions";
+import { resolveAppShortcut } from "@/lib/shortcuts/catalog";
 
 const mentionHrefPrefix = "mention:";
 const underlineHrefPrefix = "underline:";
@@ -956,6 +959,47 @@ export const MessageItem = React.memo(
       };
     }, [actionsOpen]);
 
+    const handleMessageDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+      const target = event.target;
+      const interactiveTarget =
+        target instanceof Element &&
+        Boolean(
+          target.closest(
+            'a,button,input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="button"],[role="link"]',
+          ),
+        );
+      if (
+        !shouldReplyFromMessageDoubleClick({
+          interactiveTarget,
+          replyable: !isEditing && !isOptimistic && !isFailed,
+        })
+      ) {
+        return;
+      }
+
+      window.getSelection()?.removeAllRanges();
+      onReply(message.id, message.author.displayName, message.content);
+    };
+
+    const handleMessageKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget || isEditing || isOptimistic || isFailed) {
+        return;
+      }
+
+      const shortcut = resolveAppShortcut(["message.reply", "message.addReaction"], event);
+      if (!shortcut) return;
+
+      event.preventDefault();
+      if (shortcut === "message.reply") {
+        onReply(message.id, message.author.displayName, message.content);
+        return;
+      }
+
+      event.currentTarget
+        .querySelector<HTMLButtonElement>('[data-message-shortcut-action="react"]')
+        ?.click();
+    };
+
     if (message.type !== "DEFAULT") {
       const Icon = message.type === "SYSTEM_LEAVE" ? UserMinus : UserPlus;
       const systemContent =
@@ -1049,9 +1093,22 @@ export const MessageItem = React.memo(
             author: message.author.displayName,
             time: formattedTime,
           })}
+          /*
+           * Sanal liste satırı `transform` taşır ve ayrı bir yığın bağlamı
+           * açar; `...` menüsü satırın içinde `z-30` olsa bile sonraki
+           * satırların altında kalır. Liste bu imi görünce satırı kardeşlerinin
+           * üstüne alır (bkz. message-list.tsx sanal satır sarmalayıcısı).
+           */
+          data-actions-open={actionsOpen ? "true" : undefined}
+          data-message-author-id={message.author.id}
+          data-message-context={message.threadParentId ? "thread" : "main"}
+          data-message-conversation-id={message.channelId}
+          data-message-editable={isOwner && !isOptimistic && !isFailed ? "true" : undefined}
           data-message-id={message.id}
           data-mentions-me={mentionsMe ? "true" : undefined}
           data-testid="message-item"
+          onDoubleClick={handleMessageDoubleClick}
+          onKeyDown={handleMessageKeyDown}
           role="article"
           style={
             mentionsMe
@@ -1060,8 +1117,18 @@ export const MessageItem = React.memo(
                 }
               : undefined
           }
-          tabIndex={-1}
+          tabIndex={0}
         >
+          {isOwner && !isOptimistic && !isFailed ? (
+            <button
+              aria-hidden="true"
+              data-message-shortcut-action="edit"
+              hidden
+              onClick={() => setIsEditing(true)}
+              tabIndex={-1}
+              type="button"
+            />
+          ) : null}
           {!isEditing && !isOptimistic ? (
             <div
               className={cn(
@@ -1484,42 +1551,52 @@ export const MessageItem = React.memo(
                 </div>
               ) : null}
 
-              {!isEditing && !isOptimistic && actionsOpen ? (
-                <div
-                  className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[90] flex justify-center md:hidden"
-                  onClick={(event) => event.stopPropagation()}
-                  ref={actionsRef}
-                >
-                  <MessageToolbar
-                    allowReact
-                    allowThread={!message.threadParentId}
-                    messageId={message.id}
-                    isOwner={isOwner}
-                    canModerate={canModerate}
-                    isPinned={Boolean(message.isPinned)}
-                    onReact={(emoji) => onReact(message.id, emoji)}
-                    onCopyLink={copyMessageLink}
-                    onCopyRawText={copyRawText}
-                    onThread={() => {
-                      setActionsOpen(false);
-                      onThread(message);
-                    }}
-                    onReply={() => {
-                      setActionsOpen(false);
-                      onReply(message.id, message.author.displayName, message.content);
-                    }}
-                    onEdit={() => {
-                      setActionsOpen(false);
-                      setIsEditing(true);
-                    }}
-                    onDelete={() => {
-                      setActionsOpen(false);
-                      handleDelete();
-                    }}
-                    onPin={pinHandler}
-                  />
-                </div>
-              ) : null}
+              {/*
+                Alt eylem çubuğu `fixed` ama sanal satır sarmalayıcısı
+                `transform` taşıyor ve transform'lu ata `fixed` için içeren
+                blok olur: çubuk ekranın altına değil **satırın** altına
+                oturuyordu (720px görünümde 668-708 yerine 282-322). Tepki
+                seçicisiyle aynı çıkış: gövdeye portal.
+              */}
+              {!isEditing && !isOptimistic && actionsOpen && typeof document !== "undefined"
+                ? createPortal(
+                    <div
+                      className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[90] flex justify-center md:hidden"
+                      onClick={(event) => event.stopPropagation()}
+                      ref={actionsRef}
+                    >
+                      <MessageToolbar
+                        allowReact
+                        allowThread={!message.threadParentId}
+                        messageId={message.id}
+                        isOwner={isOwner}
+                        canModerate={canModerate}
+                        isPinned={Boolean(message.isPinned)}
+                        onReact={(emoji) => onReact(message.id, emoji)}
+                        onCopyLink={copyMessageLink}
+                        onCopyRawText={copyRawText}
+                        onThread={() => {
+                          setActionsOpen(false);
+                          onThread(message);
+                        }}
+                        onReply={() => {
+                          setActionsOpen(false);
+                          onReply(message.id, message.author.displayName, message.content);
+                        }}
+                        onEdit={() => {
+                          setActionsOpen(false);
+                          setIsEditing(true);
+                        }}
+                        onDelete={() => {
+                          setActionsOpen(false);
+                          handleDelete();
+                        }}
+                        onPin={pinHandler}
+                      />
+                    </div>,
+                    document.body,
+                  )
+                : null}
             </div>
           </div>
         </div>

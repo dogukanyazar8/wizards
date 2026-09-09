@@ -1,9 +1,11 @@
 import { ChannelType, prisma } from "@wizards/db";
+import type Redis from "ioredis";
 import type { ChatMessage, UploadedAttachmentInput } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
 import type { ClientAttribution } from "@/lib/analytics/client-attribution";
 import { logError } from "@/lib/logger";
+import { getRedisRate } from "@/lib/redis";
 import {
   isMessageGifContentType,
   normalizeMessageContentForSend,
@@ -11,8 +13,14 @@ import {
 } from "@/lib/messages/attachments";
 import { redactMessageAttachmentUrlsForViewer } from "@/lib/messages/attachment-visibility";
 import { deferMessageFanout } from "@/lib/messages/deferred-fanout";
+import type { checkChannelSlowMode } from "@/lib/socket/rate-limits";
 import type { AppSocketServer } from "@/lib/socket/runtime";
-import { createMessageWithClientNonce } from "@/lib/workspace/message-service";
+import { checkEffectiveChannelSlowMode } from "@/lib/workspace/channel-slow-mode";
+import { assertMemberNotTimedOut } from "@/lib/workspace/member-timeout";
+import {
+  createMessageWithClientNonce,
+  type ChannelMessagePollInput,
+} from "@/lib/workspace/message-service";
 import { toMobileChannelMessagePreview } from "@/lib/workspace/mobile-channel-message-preview";
 import {
   PRIVILEGED_PERMISSION_CACHE_MAX_AGE_SECONDS,
@@ -200,16 +208,69 @@ async function emitChannelMessageFanout(args: {
   return { readUserIds };
 }
 
+/**
+ * Ş1 §2 — yavaş modun REST yolundaki kapısı.
+ *
+ * Bu yol bugüne kadar yavaş modu **hiç** uygulamıyordu: kural yalnızca soket
+ * `message:send` işleyicisindeydi, dolayısıyla aynı hesap mobil uçtan sınırsız
+ * gönderebiliyordu. Etkin süre `max(server, channel)` (SPEC-SUNUCU §8.3) ve iki
+ * yol da `checkEffectiveChannelSlowMode`'dan geçiyor.
+ *
+ * Hata kodu ve metni soket yolundakinin aynısı; yeni kod üretilmedi.
+ */
+export async function assertChannelSlowModeAllowsSend(args: {
+  channelDelaySeconds: number;
+  channelId: string;
+  checkSlowMode?: typeof checkChannelSlowMode;
+  permissions: bigint;
+  /** Test seam; production reads the shared rate-limit connection. */
+  redis?: Redis;
+  serverDelaySeconds: number;
+  userId: string;
+}) {
+  const result = await checkEffectiveChannelSlowMode({
+    channelDelaySeconds: args.channelDelaySeconds,
+    channelId: args.channelId,
+    ...(args.checkSlowMode ? { check: args.checkSlowMode } : {}),
+    permissions: args.permissions,
+    redis: args.redis ?? getRedisRate(),
+    serverDelaySeconds: args.serverDelaySeconds,
+    userId: args.userId,
+  });
+
+  if (result.status === "limited") {
+    throw new ApiError(
+      "Slow mode is active. Please wait before sending another message.",
+      429,
+      "SLOW_MODE",
+    );
+  }
+
+  // Fails closed, exactly like the socket path: an unreadable slow-mode key is
+  // not permission to ignore the setting.
+  if (result.status === "unavailable") {
+    logError("[mobile-api] Channel slow mode unavailable; blocking message send", result.error);
+    throw new ApiError(
+      "Message controls are temporarily unavailable. Please try again shortly.",
+      503,
+      "RATE_LIMIT_UNAVAILABLE",
+    );
+  }
+}
+
 export async function sendChannelMessage(args: {
   alsoSendToChannel?: boolean;
   attachments?: UploadedAttachmentInput[];
   attribution?: ClientAttribution;
   channelId: string;
+  /** Test seam for the Redis-backed slow-mode window; production uses the real check. */
+  checkSlowMode?: typeof checkChannelSlowMode;
   /** Echoed back to the author so their optimistic bubble can absorb the echo. */
   clientNonce?: string | null;
   content: string;
   forwardOfMessageId?: string | null;
   io?: AppSocketServer | null;
+  poll?: ChannelMessagePollInput | null;
   replyToId?: string | null;
   threadParentId?: string | null;
   userId: string;
@@ -228,7 +289,21 @@ export async function sendChannelMessage(args: {
       respectLocked: true,
     },
   );
+  // Zaman aşımı kanal yetkisinin değil üyeliğin bir durumu, ve süresi geçtiğinde kendiliğinden
+  // biter — bu yüzden `requireChannelPermissionForUser`ın önbelleğine giremez, her gönderimde
+  // taze okunur (Ş2 §4).
+  await assertMemberNotTimedOut(channel.serverId, args.userId);
   const canBypassMessageLimit = hasPermission(permissions, PermissionBits.MANAGE_MESSAGES);
+
+  await assertChannelSlowModeAllowsSend({
+    channelDelaySeconds: channel.slowModeDelay,
+    channelId: args.channelId,
+    ...(args.checkSlowMode ? { checkSlowMode: args.checkSlowMode } : {}),
+    permissions,
+    serverDelaySeconds: channel.server.slowModeDelay,
+    userId: args.userId,
+  });
+
   const attachmentInputs = parseUploadedAttachmentInputs(args.attachments ?? []);
 
   await assertChannelAttachmentsAllowed({
@@ -258,6 +333,7 @@ export async function sendChannelMessage(args: {
       // Enqueued by the same transaction that writes the message; the fan-out
       // below no longer decides whether anyone is told.
       notification: { channelName: channel.name, serverId: channel.serverId },
+      poll: args.poll ?? null,
       permissions,
     },
   );

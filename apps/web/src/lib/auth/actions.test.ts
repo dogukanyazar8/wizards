@@ -16,8 +16,10 @@ describe("password reset actions", () => {
 
   it("rejects a missing Turnstile credential before consuming a reset token", async () => {
     const formData = new FormData();
-    formData.set("confirmPassword", "correct-horse");
-    formData.set("password", "correct-horse");
+    // SPEC-GIRIS-KAYIT §10 / paket kararı K9: parola artık dört kuralın üçünü karşılamak
+    // zorunda, yoksa Turnstile'a sıra gelmeden parola hatası döner.
+    formData.set("confirmPassword", "Whispr!2026x");
+    formData.set("password", "Whispr!2026x");
     formData.set("token", "reset-token");
 
     assert.deepEqual(await resetPasswordAction(formData), {

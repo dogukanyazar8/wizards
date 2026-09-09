@@ -89,6 +89,8 @@ function DiscoverServerCardComponent({
         <DiscoverCategoryTile
           category={server.category}
           fontSize={metrics.tileFontSize}
+          iconColor={server.iconColor}
+          iconUrl={server.iconUrl}
           initials={server.initials}
           radius={metrics.tileRadius}
           ringToken="surface-card"
@@ -227,7 +229,7 @@ function DiscoverServerCardComponent({
           {t(server.joined ? "discover.card.joined" : "discover.card.join")}
         </button>
         <button
-          className="shrink-0 border-[hsl(var(--border)/0.7)] bg-transparent text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="shrink-0 border-[hsl(var(--border)/0.7)] bg-transparent text-[hsl(var(--text-secondary))] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           onClick={() => onPreview(server)}
           style={{
             borderRadius: pxToRem(metrics.previewButtonRadius),

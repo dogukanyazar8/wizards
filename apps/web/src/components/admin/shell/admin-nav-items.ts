@@ -24,6 +24,7 @@ export type AdminNavItem = {
     | "mic"
     | "package"
     | "book"
+    | "download"
     | "life-buoy";
   key: string;
   label: string;
@@ -107,6 +108,15 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
         icon: "book",
         key: "help",
         label: "Yardım Makaleleri",
+      },
+      {
+        // SPEC-INDIRME §B kataloğu bir yayın malzemesidir; kendi yetkisi yok,
+        // sürümlerle aynı kapıdan geçer.
+        capability: "release.read",
+        href: "/admin/downloads",
+        icon: "download",
+        key: "downloads",
+        label: "İndirme Paketleri",
       },
       {
         capability: "support.read",

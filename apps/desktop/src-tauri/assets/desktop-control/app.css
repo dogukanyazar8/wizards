@@ -37,7 +37,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 button {
@@ -64,7 +65,8 @@ button:disabled {
   opacity: 0.5;
 }
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--accent) 65%, transparent);
   outline-offset: 2px;
 }
@@ -200,6 +202,28 @@ input[type="text"] {
   min-height: 40px;
   padding: 8px 10px;
 }
+input[type="text"][readonly] {
+  cursor: pointer;
+}
+.shortcut-status {
+  color: var(--muted);
+  font-size: 0.72rem;
+  min-height: 1rem;
+}
+.shortcut-status[data-tone="error"] {
+  color: var(--danger);
+}
+.shortcut-status[data-tone="success"] {
+  color: var(--success);
+}
+select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--text);
+  min-height: 40px;
+  padding: 8px 10px;
+}
 .toggle-row {
   display: flex;
   gap: 9px;
@@ -242,6 +266,48 @@ code {
 .permission-card p {
   color: var(--muted);
   margin: 0;
+}
+
+dialog {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 28px 90px rgb(0 0 0 / 52%);
+  color: var(--text);
+  max-width: min(430px, calc(100vw - 32px));
+  padding: 24px;
+}
+dialog::backdrop {
+  background: rgb(3 5 10 / 72%);
+  backdrop-filter: blur(5px);
+}
+.media-permission-icon {
+  align-items: center;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 44%, transparent);
+  border-radius: 14px;
+  color: var(--accent);
+  display: flex;
+  font-size: 1.45rem;
+  height: 48px;
+  justify-content: center;
+  margin-bottom: 18px;
+  width: 48px;
+}
+.media-permission-trust {
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  padding: 11px 12px;
+}
+.media-permission-actions {
+  justify-content: flex-end;
+}
+.media-permission-actions button {
+  min-width: 108px;
 }
 
 @media (max-width: 640px) {

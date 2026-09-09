@@ -20,11 +20,41 @@ const AUDITED_EXTENSIONS = [".ts", ".tsx"];
 export const HOME_TOKEN_AUDIT_SCOPE = [
   "app/(main)/events",
   "app/(main)/home",
-  "app/(main)/inbox",
   "app/(main)/mentions",
   "components/command",
   "components/home",
   "components/shell/app-nav-panel.tsx",
+] as const;
+
+/**
+ * Ş14 (SPEC-SUNUCU §12 / PROMPT "Ortak") — sunucu ekranı paketinin yüzeyleri.
+ *
+ * Kapsam `lib/servers` klasörünü **bütün olarak** almaz: `discovery-presentation.ts`,
+ * `server-discovery-service.ts` ve `server-public-profile-service.ts` bu paketten önce yazıldı
+ * ve Keşfet'e ait. Denetim yalnız paketin çizdiği yüzeyleri ve **ölçü sözlüğünü** kapsar;
+ * sözlüğün renk taşımadığını `lib/servers/parity.test.ts` ayrıca kanıtlıyor.
+ *
+ * `components/servers/server-profile-card.tsx` de kapsam dışıdır — `/servers/[serverId]/about`
+ * rotasının dosyası (00 §1 onu ayrı tutuyor).
+ */
+export const SERVER_TOKEN_AUDIT_SCOPE = [
+  "components/chat/server-channel-header.tsx",
+  "components/servers/modals",
+  "components/servers/shared",
+  "components/shell/channel-item.tsx",
+  "components/shell/channel-search-popover.tsx",
+  "components/shell/channel-sidebar.tsx",
+  "components/shell/connected-voice-strip.tsx",
+  "components/shell/server-member-panel.tsx",
+  "components/shell/server-menu.tsx",
+  "components/shell/server-settings",
+  "components/shell/workspace-modals.tsx",
+  "components/voice/server",
+  "lib/servers/channel-access-count.ts",
+  "lib/servers/channel-pins.ts",
+  "lib/servers/metrics.ts",
+  "lib/servers/shell-layout.ts",
+  "lib/servers/voice-presentation.ts",
 ] as const;
 
 /**
@@ -39,12 +69,19 @@ export const HOME_TOKEN_AUDIT_SCOPE = [
  * içindeki SVG'nin CSS bağlamı yoktur: `var(--primary)` orada çözülmez, ham metin olarak kalır
  * ve tarayıcı imleci hiç çizmez. Yani bunlar "token'a taşınmamış renk" değil, **taşınamayan**
  * renk. Beşincisi eklenmeden önce imleçlerin gerçekten SVG olarak kalması gerektiği sorulmalı.
+ *
+ * `fontFamily: DISPLAY_FONT` (Ş6) listedeki tek **dolaylılıktır**, istisna değil: sabit
+ * `components/servers/shared/typography.ts`te yaşıyor ve `var(--font-display), sans-serif`e
+ * çıkıyor. Kural değerin token'a bağlı olup olmadığına bakar; on beş dosyada aynı metni tekrar
+ * yazmak ilk yazım hatasında sessizce Figtree'ye düşerdi. Sabitin gerçekten bir token'a çıktığı
+ * `lib/servers/token-audit.test.ts`te ayrıca kanıtlanıyor.
  */
 export const HOME_TOKEN_AUDIT_ALLOWLIST = [
   "#312e81",
   "#6366f1",
   "#a5b4fc",
   "bg-amber-400",
+  "fontFamily: DISPLAY_FONT",
   "hsl(199 89% 48%)",
   "hsl(222 30% 14%)",
   "hsl(291 64% 55%)",
@@ -130,7 +167,18 @@ const AUDIT_RULES: readonly { pattern: RegExp; rule: TokenAuditRule }[] = [
     rule: "tailwind-palette-color",
   },
   { pattern: /\b(?:Figtree|Outfit)\b/g, rule: "embedded-font-name" },
-  { pattern: /\b(?:font-family|fontFamily)\s*:(?!\s*var\()/g, rule: "font-family" },
+  // Tırnak isteğe bağlıdır: `fontFamily: "var(--font-display)"` de sözleşmenin kendisidir.
+  // Satır içi `style` nesnesinde değer bir **dizedir**; tırnağı saymayan bir kural token'a
+  // bağlanmış her satırı sapma sayardı.
+  //
+  // Üç tırnak karakteri `"` `'` ``` olarak yazıldı, ham hâlleriyle değil:
+  // `copy-audit.ts`in yorum maskeleyicisi bir mini-lexer ve **düzenli ifade değişmezini
+  // tanımıyor**; ham bir tırnak orada bir dize açar ve dosyanın geri kalanındaki yorumlar
+  // maskelenmeden kalır (denetim kendi yorumlarını sapma sanardı).
+  {
+    pattern: /\b(?:font-family|fontFamily)\s*:(?!\s*[\u0022\u0027\u0060]?\s*var\()/gu,
+    rule: "font-family",
+  },
 ];
 
 /**
@@ -196,9 +244,18 @@ function collectFilesFrom(absolutePath: string): string[] {
   return readdirSync(absolutePath).flatMap((entry) => collectFilesFrom(join(absolutePath, entry)));
 }
 
-/** Kapsamdaki mevcut dosyaların `apps/web/src` göreli yolları. */
-export function collectTokenAuditFiles(): string[] {
-  return HOME_TOKEN_AUDIT_SCOPE.flatMap((entry) => collectFilesFrom(join(SRC_ROOT, entry)))
+/**
+ * Kapsamdaki mevcut dosyaların `apps/web/src` göreli yolları.
+ *
+ * Kapsam parametreli: kurallar tek yerde yaşar, hangi yüzeylerin denetlendiği çağırana aittir
+ * (`HOME_TOKEN_AUDIT_SCOPE` · `SERVER_TOKEN_AUDIT_SCOPE`). İki kapsamı tek listede birleştirmek
+ * bir paketin kırmızısını diğerinin testine yazardı.
+ */
+export function collectTokenAuditFiles(
+  scope: readonly string[] = HOME_TOKEN_AUDIT_SCOPE,
+): string[] {
+  return scope
+    .flatMap((entry) => collectFilesFrom(join(SRC_ROOT, entry)))
     .map((absolutePath) => relative(SRC_ROOT, absolutePath).split(sep).join("/"))
     .sort((left, right) => left.localeCompare(right));
 }

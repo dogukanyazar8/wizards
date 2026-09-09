@@ -1,4 +1,8 @@
-import { MobileServerCreateRequestSchema, MobileServerCreateResponseSchema } from "@wizards/types";
+import {
+  deriveServerShortName,
+  MobileServerCreateRequestSchema,
+  MobileServerCreateResponseSchema,
+} from "@wizards/types";
 
 import { jsonError, parseJsonBody } from "@/lib/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
@@ -29,7 +33,11 @@ export async function mobileServerCreateRoute(
     const userId = await dependencies.authenticate(request);
     await dependencies.enforceRateLimit(userId, "mobile:server:create");
     const input = await dependencies.parseBody(request, MobileServerCreateRequestSchema);
-    const created = await dependencies.createServer(userId, { ...input, iconUrl: null });
+    const created = await dependencies.createServer(userId, {
+      ...input,
+      iconUrl: null,
+      shortName: deriveServerShortName(input.name),
+    });
 
     return Response.json(
       MobileServerCreateResponseSchema.parse({ server: { id: created.serverId } }),

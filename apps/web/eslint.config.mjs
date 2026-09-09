@@ -73,7 +73,6 @@ const eslintConfig = defineConfig(
       "src/components/chat/**",
       "src/components/dm/**",
       "src/app/(main)/home/**",
-      "src/app/(main)/inbox/**",
       "src/app/(main)/mentions/**",
       "src/components/command/**",
       // Etkinlikler Dalga 2 / Ş7: ekranın ilk bileşenleri iniyor. Kapsam kod yazılmadan
@@ -94,7 +93,35 @@ const eslintConfig = defineConfig(
       "src/lib/events/**",
       "src/lib/mentions/**",
       "src/lib/messages/**",
+      // Sunucu ekranı Dalga 4 / Ş8: paylaşılan parçalar, pencere kabuğu ve iki pencere ilk
+      // satırından itibaren rem-only yazılır. Kapsam **yalnız** yeni klasörler: kardeş
+      // `components/servers/*.tsx` (profil kartı, etkinlik paneli) 37 arbitrary px taşıyor ve
+      // onların taşınması bu şeridin işi değil.
+      "src/components/servers/modals/**",
+      "src/components/servers/shared/**",
+      "src/lib/servers/**",
+      // Sunucu ekranı Dalga 5 / Ş11: ayarlar kabuğu ve dokuz bölümü de rem-only yazılır.
+      // Kapsam yine yalnız yeni klasör; `components/shell/*.tsx`'in geri kalanı (kanal kenar
+      // çubuğu, kullanıcı barı) bu şeridin işi değil.
+      "src/components/shell/server-settings/**",
+      // Bildirimler + Ayarlar Dalga 2 / Ş5: pencere kabuğu ilk satırından itibaren rem-only
+      // yazılır. Kapsam kod yazılmadan **önce** açılır — sonradan açılan bir kural, taşınacak
+      // borcu önce büyütür sonra ölçer.
+      "src/app/settings/**",
+      "src/components/settings/**",
+      "src/lib/settings/**",
+      // İndirme + Sorun bildir Dalga 2: iki pencere ve ray alt bloğu ilk satırından
+      // itibaren rem-only yazılır. Kapsam kod yazılmadan **önce** açılır — sonradan
+      // açılan bir kural, taşınacak borcu önce büyütür sonra ölçer.
+      "src/components/downloads/**",
+      "src/components/support/**",
+      "src/lib/downloads/**",
+      "src/lib/support/**",
     ],
+    // Ş13 — muafiyet listesi **boşaldı**. `settings-panel.tsx` ve `settings-sidebar.tsx`
+    // silindi (K1); korunan dört özel blok (`account-badges-card`, `account-data-controls`,
+    // `active-sessions-card`, `profile-avatar-field`) 26 arbitrary px değerini rem'e taşıdı.
+    // Ayarlar yüzeyinin tamamı artık kuralın altında.
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -117,9 +144,15 @@ const eslintConfig = defineConfig(
   },
   globalIgnores([
     ".next/**",
+    "coverage/**",
     "dist/**",
     "node_modules/**",
     "next-env.d.ts",
+    // Playwright'in HTML raporu paketlenmiş üçüncü parti JS taşır (CodeMirror,
+    // trace görüntüleyici). `.gitignore` onu zaten dışarıda tutuyor; rapor bir kez
+    // üretildiğinde lint kapısı o paketlerde binlerce hata sayıyordu.
+    "playwright-report/**",
+    "test-results/**",
     "tsconfig.tsbuildinfo",
   ]),
 );

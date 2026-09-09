@@ -15,6 +15,15 @@ import {
 import { prisma } from "@wizards/db";
 
 import { ApiError } from "@/lib/api";
+/**
+ * §15.5.3's two destructive rows write here. `AuditLog` — the workspace trail —
+ * cannot take them: its `serverId` is a non-null foreign key to `Server`, and a
+ * group DM has no server. `AdminAuditLog` is the only server-less trail in the
+ * schema, its `action` is free text, and its reader filters by `targetType`
+ * (`listAdminServerAuditTrail` asks for `"Server"`), so `"DMConversation"` rows
+ * sit alongside without landing in the server console.
+ */
+import { writeAdminAuditLog } from "@/lib/admin/audit-log";
 
 import {
   assertGroupAdmin,
@@ -1274,6 +1283,13 @@ export type ParticipantWriteDependencies = {
     conversationId: string;
     data: {
       muted?: boolean;
+      /**
+       * Mesajlar §17. Travels with `muted` rather than on its own: the pair is one
+       * fact ("is this silenced, and until when"), and a patch type that let one
+       * through without the other is what made a level change leave a stale expiry
+       * behind.
+       */
+      mutedUntil?: Date | null;
       notifyLevel?: DMNotifyLevel;
       pinnedAt?: Date | null;
       pinnedStripDismissedId?: string | null;
@@ -1313,6 +1329,14 @@ async function writeOwnParticipant(
  * mirror, and the two are written in the same statement. Splitting them into two
  * updates is what lets a crash between them leave the app muted in one surface
  * and loud in another.
+ *
+ * Mesajlar §17 added a third column to that statement. `mutedUntil` is cleared here
+ * because picking a notification level is a **standing** decision and a timer is a
+ * temporary one — the newer answer wins outright rather than expiring into the older.
+ *
+ * Without the clear, choosing `Kapalı` on a conversation that still carried an eight-hour
+ * mute looked like it worked and then quietly un-muted itself when the timer ran out,
+ * because `isMuteActive` reads the expiry and not the radio.
  */
 export async function setNotifyLevel(
   userId: string,
@@ -1323,7 +1347,7 @@ export async function setNotifyLevel(
   await writeOwnParticipant(
     userId,
     conversationId,
-    { muted: notifyLevel === "NONE", notifyLevel },
+    { muted: notifyLevel === "NONE", mutedUntil: null, notifyLevel },
     dependencies,
   );
 
@@ -1342,6 +1366,193 @@ export async function setConversationPin(
   await writeOwnParticipant(userId, conversationId, { pinnedAt }, dependencies);
 
   return { pinnedAt: pinnedAt?.toISOString() ?? null };
+}
+
+// ---------------------------------------------------------------------------
+// §15.5.3's two destructive rows: `Geçmişi temizle` and `Grubu sil`
+// ---------------------------------------------------------------------------
+
+/**
+ * Both actions carry their own dependency set rather than joining
+ * `GroupServiceDependencies`. That type is already satisfied by four call sites
+ * and two test builders; growing it for two functions nothing else calls would
+ * make every one of them declare stubs it never uses.
+ */
+export type GroupAdminAuditInput = {
+  readonly actorId: string;
+  readonly conversationId: string;
+  readonly headers: Headers | null;
+  readonly memberCount: number;
+};
+
+export type GroupAdminActionOptions = {
+  /**
+   * The caller's request headers, so the audit row carries the same hashed
+   * address the session tables do. Optional because the services are also driven
+   * from tests and from jobs that have no request.
+   */
+  readonly headers?: Headers | null;
+};
+
+export type GroupAdminActionDependencies = {
+  loadConversation(conversationId: string): Promise<GroupConversationDetail>;
+  now(): Date;
+  /**
+   * Raises every member's history floor **and** writes the audit row in one
+   * transaction. Split into two dependencies they could commit apart, and a
+   * cleared history with no trail is the exact pair an audit exists to prevent.
+   *
+   * Answers with the number of membership rows moved.
+   */
+  writeClearedHistory(input: GroupAdminAuditInput & { historyFromAt: Date }): Promise<number>;
+  /** Deletes the conversation and writes its audit row in the same transaction. */
+  writeDeletedGroup(input: GroupAdminAuditInput): Promise<void>;
+};
+
+const groupAdminActionDefaults: GroupAdminActionDependencies = {
+  loadConversation: (conversationId) => defaults.loadConversation(conversationId),
+  now: () => new Date(),
+  writeClearedHistory: async (input) =>
+    await prisma.$transaction(async (tx) => {
+      const result = await tx.dMParticipant.updateMany({
+        data: { historyFromAt: input.historyFromAt },
+        where: { conversationId: input.conversationId },
+      });
+
+      await writeAdminAuditLog(
+        {
+          action: "DM_GROUP_HISTORY_CLEARED",
+          adminUserId: input.actorId,
+          headers: input.headers,
+          metadata: { memberCount: input.memberCount },
+          targetId: input.conversationId,
+          targetType: "DMConversation",
+        },
+        tx,
+      );
+
+      return result.count;
+    }),
+  writeDeletedGroup: async (input) => {
+    await prisma.$transaction(async (tx) => {
+      // Cascades take the participants, messages, reactions, attachments, pins
+      // and the invite row with it — `onDelete: Cascade` is declared on every one
+      // of those relations, so a hand-written teardown loop would only be a
+      // second, slower copy of the constraint that already exists.
+      await tx.dMConversation.delete({ where: { id: input.conversationId } });
+
+      await writeAdminAuditLog(
+        {
+          action: "DM_GROUP_DELETED",
+          adminUserId: input.actorId,
+          headers: input.headers,
+          metadata: { memberCount: input.memberCount },
+          targetId: input.conversationId,
+          targetType: "DMConversation",
+        },
+        tx,
+      );
+    });
+  },
+};
+
+export type ClearGroupHistoryResult = {
+  readonly clearedAt: string;
+  readonly memberCount: number;
+  readonly participantUserIds: readonly string[];
+};
+
+/**
+ * §15.5.3 / §17's `Geçmişi temizle`. OWNER and ADMIN only, re-derived from the
+ * database — the panel hides the row for a member, but hiding a row is a layout
+ * decision and this is the gate.
+ *
+ * **Nothing is deleted.** Every participant's `historyFromAt` is moved to now,
+ * which is the column 2c §7 opened for exactly this question ("oldest message
+ * this member may read") and which the five DM read paths already honour. Three
+ * reasons the tempting `deleteMany` is wrong here:
+ *
+ * 1. `DMMessage` is the parent of replies, thread roots, reactions, attachments,
+ *    pins and poll rows. Deleting the history detonates that chain across the
+ *    whole conversation, and the disappearing-message worker walks the same
+ *    rows.
+ * 2. A group history is shared property. One admin pressing a button must not
+ *    destroy what 249 other people wrote — moving the floor hides it from the
+ *    conversation without claiming the right to erase it.
+ * 3. It is reversible by a support action and auditable; a hard delete is
+ *    neither.
+ *
+ * The one thing it does **not** cover: somebody who joins *after* the clear in a
+ * group whose `historyVisibility` is `ALL` gets no floor at all and would see
+ * the hidden messages. Closing that needs a conversation-level
+ * `historyClearedAt` column — a migration, and out of this stripe's scope.
+ */
+export async function clearGroupHistory(
+  actorId: string,
+  conversationId: string,
+  dependencies: GroupAdminActionDependencies = groupAdminActionDefaults,
+  options: GroupAdminActionOptions = {},
+): Promise<ClearGroupHistoryResult> {
+  const conversation = await dependencies.loadConversation(conversationId);
+  assertGroupConversation(conversation);
+  assertGroupAdmin(toContext(conversation, actorId));
+
+  const historyFromAt = dependencies.now();
+  const memberCount = await dependencies.writeClearedHistory({
+    actorId,
+    conversationId,
+    headers: options.headers ?? null,
+    historyFromAt,
+    memberCount: conversation.participants.length,
+  });
+
+  return {
+    clearedAt: historyFromAt.toISOString(),
+    memberCount,
+    participantUserIds: conversation.participantUserIds,
+  };
+}
+
+export type DeleteGroupConversationResult = {
+  readonly participantUserIds: readonly string[];
+};
+
+/**
+ * §15.5.3's `Grubu sil`. **OWNER only — an ADMIN cannot.**
+ *
+ * SPEC marks the row "yönetici", and every other admin row in this panel really
+ * does admit both tiers. This one does not, and the difference is deliberate:
+ * `Geçmişi temizle` hides content, `Gruptan ayrıl` removes one person, but
+ * deleting takes the conversation away from everybody at once and it cannot be
+ * undone. `updateMemberRole` already refuses to let an admin appoint admins for
+ * the same reason — an admin who can delete the group is an owner with extra
+ * steps, and ownership would stop meaning anything.
+ *
+ * Ş8 draws the row only when `viewerRole === "OWNER"`; that is the contract, and
+ * this gate is what makes it true rather than decorative.
+ */
+export async function deleteGroupConversation(
+  actorId: string,
+  conversationId: string,
+  dependencies: GroupAdminActionDependencies = groupAdminActionDefaults,
+  options: GroupAdminActionOptions = {},
+): Promise<DeleteGroupConversationResult> {
+  const conversation = await dependencies.loadConversation(conversationId);
+  assertGroupConversation(conversation);
+  assertGroupOwner(toContext(conversation, actorId));
+
+  // Captured before the delete: afterwards there is no roster left to read, and
+  // the members still have to be told the conversation is gone.
+  const participantUserIds = [...conversation.participantUserIds];
+
+  await dependencies.writeDeletedGroup({
+    actorId,
+    conversationId,
+    headers: options.headers ?? null,
+    memberCount: participantUserIds.length,
+  });
+
+  return { participantUserIds };
 }
 
 /**

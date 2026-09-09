@@ -187,6 +187,7 @@ function makeWorkspace(): MobileManagedWorkspaceServerDetailResponse {
         {
           accessLevel: "MEMBER",
           avatarUrl: null,
+          communicationDisabledUntil: null,
           customStatus: null,
           displayName: "Ada",
           id: "membership-1",
@@ -198,6 +199,7 @@ function makeWorkspace(): MobileManagedWorkspaceServerDetailResponse {
         {
           accessLevel: "MEMBER",
           avatarUrl: null,
+          communicationDisabledUntil: null,
           customStatus: "Busy",
           displayName: "Grace",
           id: "membership-2",

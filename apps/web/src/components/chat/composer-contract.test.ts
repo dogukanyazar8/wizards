@@ -23,6 +23,11 @@ import { fileURLToPath } from "node:url";
 const SOURCE =
   readFileSync(fileURLToPath(new URL("./message-input.tsx", import.meta.url)), "utf8") +
   readFileSync(fileURLToPath(new URL("./composer-formatting-bar.tsx", import.meta.url)), "utf8");
+const CHAT_AREA = readFileSync(fileURLToPath(new URL("./chat-area.tsx", import.meta.url)), "utf8");
+const VOICE_RECORDER = readFileSync(
+  fileURLToPath(new URL("./voice-recorder.tsx", import.meta.url)),
+  "utf8",
+);
 
 describe("biçimlendirme şeridi — dokuz araç", () => {
   const TOOLS = [
@@ -74,10 +79,19 @@ describe("biçimlendirme şeridi — dokuz araç", () => {
 
 describe("klavye kısayolları", () => {
   it("Ctrl/Cmd + B, I, U bağlı", () => {
-    assert.match(SOURCE, /FORMATTING_SHORTCUTS\[event\.key\.toLowerCase\(\)\]/);
-    assert.match(SOURCE, /b: \{ fallbackKey: "chat\.input\.boldFallback", marker: "\*\*" \}/);
-    assert.match(SOURCE, /i: \{ fallbackKey: "chat\.input\.italicFallback", marker: "_" \}/);
-    assert.match(SOURCE, /u: \{ fallbackKey: "chat\.input\.underlineFallback", marker: "\+\+" \}/);
+    assert.match(SOURCE, /resolveAppShortcut\(COMPOSER_FORMATTING_SHORTCUT_IDS, event\)/);
+    assert.match(
+      SOURCE,
+      /"composer\.bold": \{ fallbackKey: "chat\.input\.boldFallback", marker: "\*\*" \}/,
+    );
+    assert.match(
+      SOURCE,
+      /"composer\.italic": \{ fallbackKey: "chat\.input\.italicFallback", marker: "_" \}/,
+    );
+    assert.match(
+      SOURCE,
+      /"composer\.underline": \{ fallbackKey: "chat\.input\.underlineFallback", marker: "\+\+" \}/,
+    );
   });
 
   /**
@@ -85,13 +99,19 @@ describe("klavye kısayolları", () => {
    * yazmak isteyen kullanıcıya kalın metin açılırdı.
    */
   it("AltGr dışlanıyor", () => {
-    assert.match(SOURCE, /\(event\.metaKey \|\| event\.ctrlKey\) && !event\.altKey/);
+    assert.match(SOURCE, /resolveAppShortcut\(COMPOSER_FORMATTING_SHORTCUT_IDS, event\)/);
   });
 
   it("Esc yalnız yanıt açıkken tüketiliyor", () => {
     // Boş bestekârda `Esc`'i yutmak, üstteki paneli kapatmak isteyen kullanıcının
     // tuşunu kaybetmesi olurdu.
     assert.match(SOURCE, /event\.key === "Escape" && replyTo/);
+  });
+
+  it("boş bestekârda Yukarı son düzenlenebilir mesajı aynı bağlamda açar", () => {
+    assert.match(SOURCE, /matchesAppShortcut\("message\.editLast", event/u);
+    assert.match(SOURCE, /message\.dataset\.messageConversationId === conversationId/u);
+    assert.match(SOURCE, /message\.dataset\.messageContext === messageContext/u);
   });
 
   it("Enter gönderir, Shift+Enter satır açar", () => {
@@ -118,6 +138,16 @@ describe("anket girişi (karar #1)", () => {
     const guards = SOURCE.match(/pollEnabled && onOpenPoll/g) ?? [];
 
     assert.equal(guards.length, 3);
+  });
+
+  it("DM/grup ve sunucu metin kanalı aynı gerçek anket akışını açar", () => {
+    assert.equal(
+      CHAT_AREA.match(/onOpenPoll=\{\(\) => setPollComposerOpen\(true\)\}/gu)?.length,
+      2,
+    );
+    assert.equal(CHAT_AREA.match(/pollEnabled/gu)?.length, 2);
+    assert.doesNotMatch(CHAT_AREA, /\{mode === "dm" \? \(\s*<Modal[\s\S]{0,250}pollComposerOpen/u);
+    assert.match(CHAT_AREA, /mode === "channel"[\s\S]{0,300}channelId: conversationId/u);
   });
 });
 
@@ -147,5 +177,23 @@ describe("Mesajlar referans bestekâr düzeni", () => {
       SOURCE,
       /data-testid="message-poll-button"[\s\S]*<VoiceRecorder[\s\S]*data-testid="message-send-button"/,
     );
+  });
+
+  it("araç ve ses düğmeleri çerçevesizdir", () => {
+    assert.match(SOURCE, /group\/composer-button[^"\n]*border-0/u);
+    assert.match(SOURCE, /compactToolButtonClass = cn\([\s\S]{0,220}"[^"\n]*border-0/u);
+    assert.match(
+      VOICE_RECORDER,
+      /"grid shrink-0 place-items-center border-0[^"\n]*"[\s\S]{0,250}data-testid="voice-recorder-start"/u,
+    );
+  });
+
+  it("tüm gönder düğmeleri sunucu referansının sabit geometrisini kullanır", () => {
+    assert.match(SOURCE, /function messageSendButtonStyle\(\): React\.CSSProperties/u);
+    assert.match(
+      SOURCE,
+      /data-testid="message-send-button"[\s\S]{0,260}style=\{messageSendButtonStyle\(\)\}/u,
+    );
+    assert.match(SOURCE, /background: "hsl\(var\(--primary\)\)"/u);
   });
 });

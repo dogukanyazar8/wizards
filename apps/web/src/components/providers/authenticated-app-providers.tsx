@@ -4,6 +4,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import { AppUpdateNotifier } from "@/components/app/app-update-notifier";
 import { UiScaleBoundary } from "@/components/app/ui-scale-boundary";
 import { DesktopExperience } from "@/components/desktop/desktop-experience";
+import { DesktopNavigationBridge } from "@/components/desktop/desktop-navigation-bridge";
 import { DMCallProvider } from "@/components/providers/dm-call-provider";
 import { SocketProvider } from "@/components/providers/socket-provider";
 import { SoundEffectsProvider } from "@/components/providers/sound-effects-provider";
@@ -48,6 +49,7 @@ export function AuthenticatedAppProviders({
     voiceFeatures === "always" || (voiceFeatures === "active" && Boolean(activeVoiceChannelId));
   const content = (
     <>
+      <DesktopNavigationBridge />
       <UiScaleBoundary />
       <AppUpdateNotifier />
       {children}

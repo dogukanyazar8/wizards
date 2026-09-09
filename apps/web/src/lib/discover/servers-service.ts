@@ -1,5 +1,6 @@
 import { Prisma } from "@wizards/db";
 import type { PrismaClient, ServerCategory } from "@wizards/db";
+import { normalizeServerIconTone } from "@wizards/types";
 import type {
   DiscoverCategory,
   DiscoverCategoryKey,
@@ -9,13 +10,14 @@ import type {
 } from "@wizards/types";
 
 import { DISCOVER_CATEGORIES } from "@/lib/discover/contracts";
-import { toCategoryKey, toDiscoverInitials, toServerCategory } from "@/lib/discover/identity";
+import { toCategoryKey, toServerCategory } from "@/lib/discover/identity";
 import { logWarning } from "@/lib/logger";
 import {
   normalizeServerDiscoveryTagQuery,
   SERVER_DISCOVERY_FEATURED_FLAG,
   SERVER_DISCOVERY_SELECT,
 } from "@/lib/servers/server-discovery-service";
+import { resolveServerAbbreviation } from "@/lib/servers/server-icon-presentation";
 import {
   countServerOnlineMembersBatch,
   type ServerOnlinePresenceBatchRedis,
@@ -333,9 +335,10 @@ function buildDiscoverServer(
     category: toCategoryKey(row.category),
     description: row.description ?? "",
     featured: row.features.includes(SERVER_DISCOVERY_FEATURED_FLAG),
+    iconColor: normalizeServerIconTone(row.iconColor),
     iconUrl: row.iconUrl,
     id: row.id,
-    initials: toDiscoverInitials(row.name, row.shortName),
+    initials: resolveServerAbbreviation(row.name, row.shortName),
     joined,
     languages: row.languages,
     memberCount: row.memberCount,

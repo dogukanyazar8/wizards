@@ -78,7 +78,7 @@ describe("mobile auth exchange contract", () => {
       },
     };
 
-    const session = await signInMobileWithPassword(client, {
+    const outcome = await signInMobileWithPassword(client, {
       email: "ada@example.com",
       password: "correct-horse-battery",
     });
@@ -88,12 +88,15 @@ describe("mobile auth exchange contract", () => {
         body: {
           email: "ada@example.com",
           password: "correct-horse-battery",
+          // SPEC-GIRIS-KAYIT §4.2 — istemci ayrı ikinci adım ekranını destekliyor (K2).
+          supportsTwoFactorChallenge: true,
         },
         method: "POST",
         path: MOBILE_AUTH_LOGIN_ENDPOINT,
       },
     ]);
-    assert.equal(session.tokens.tokenType, "Bearer");
+    assert.equal(outcome.kind, "session");
+    assert.equal(outcome.kind === "session" && outcome.session.tokens.tokenType, "Bearer");
   });
 
   it("registers mobile email/password accounts without creating a session first", async () => {
@@ -192,7 +195,12 @@ describe("mobile auth exchange contract", () => {
 
     assert.deepEqual(requests, [
       {
-        body: { email: "ada@example.com", password: "correct-horse-battery" },
+        body: {
+          email: "ada@example.com",
+          password: "correct-horse-battery",
+          // SPEC-GIRIS-KAYIT §4.2 — istemci ayrı ikinci adım ekranını destekliyor (K2).
+          supportsTwoFactorChallenge: true,
+        },
         method: "POST",
         path: MOBILE_AUTH_LOGIN_ENDPOINT,
       },

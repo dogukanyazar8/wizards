@@ -6,7 +6,12 @@ import { ApiError } from "@/lib/api";
 import { setSocketServer, type AppSocketServer } from "@/lib/socket/runtime";
 import { setServerRoomIdsCacheRedisForTest } from "@/lib/socket/server-room-cache";
 import { setPermissionCacheRedisForTest } from "@/lib/workspace/permission-cache";
-import { joinPublicWorkspaceServer } from "./invite-service";
+import {
+  createWorkspaceInvite,
+  joinPublicWorkspaceServer,
+  listPendingWorkspaceInvites,
+  revokeWorkspaceInvite,
+} from "./invite-service";
 
 /**
  * Mirrors the monkey-patch harness `service.test.ts` uses for
@@ -574,6 +579,626 @@ describe("joinPublicWorkspaceServer", () => {
         (error) =>
           error instanceof ApiError && error.status === 403 && error.code === "SERVER_FULL",
       );
+    });
+  });
+});
+
+/**
+ * Å3 â€” davet oluÅŸturma, hedefli davet ve bekleyen davetler.
+ *
+ * AynÄ± yama dÃ¼zeni: `invite-service.ts` gerÃ§ek `prisma` tekilini Ã§aÄŸÄ±rÄ±yor, bu yÃ¼zden her
+ * senaryo yalnÄ±z dokunduÄŸu metotlarÄ± yamalar. Davet oluÅŸturma iki ayrÄ± `prisma.server`
+ * okumasÄ± yapar (Ã¶zellik bayraklarÄ± ve kod benzersizliÄŸi), o yÃ¼zden yama `where`'e bakar.
+ */
+
+const MANAGE_INVITES_BIT = 1n << 18n;
+
+type InviteCreateArgs = {
+  data: {
+    channelId: string | null;
+    code: string;
+    createdById: string;
+    expiresAt: Date | null;
+    maxUses: number | null;
+    serverId: string;
+    targetUserId?: string;
+  };
+};
+
+type InviteEnvironmentOptions = {
+  channelRow?: { id: string } | null;
+  features?: string[];
+  ownerId?: string;
+  rolePermissions?: bigint;
+};
+
+function inviteRow(overrides: Record<string, unknown> = {}) {
+  return {
+    channelId: "channel-1",
+    code: "whspr-a7k2",
+    createdAt: new Date("2026-08-25T09:00:00.000Z"),
+    creator: { displayName: "DY", username: "dy" },
+    expiresAt: null as Date | null,
+    id: "invite-1",
+    maxUses: null as number | null,
+    targetUserId: null as string | null,
+    uses: 0,
+    ...overrides,
+  };
+}
+
+/** Yetki baÄŸlamÄ± + kanal + kod benzersizliÄŸi; davet yazÄ±mÄ±nÄ± bilerek yamalamaz. */
+function patchInviteEnvironment(
+  restores: Restore[],
+  userId: string,
+  options: InviteEnvironmentOptions = {},
+) {
+  const {
+    channelRow = { id: "channel-1" },
+    features = [],
+    ownerId = userId,
+    rolePermissions = MANAGE_INVITES_BIT,
+  } = options;
+
+  patchMethod(prisma.serverBan, "findUnique", async () => null, restores);
+  patchMethod(
+    prisma.serverMember,
+    "findFirst",
+    async () => ({
+      id: "member-1",
+      roles: [
+        {
+          role: {
+            color: 0,
+            id: "role-1",
+            isDefault: false,
+            name: "Davetci",
+            permissions: rolePermissions,
+          },
+        },
+      ],
+      server: {
+        id: "server-1",
+        isPublic: true,
+        name: "Whispr",
+        ownerId,
+        roles: [],
+        type: "COMMUNITY",
+      },
+    }),
+    restores,
+  );
+  patchMethod(
+    prisma.server,
+    "findUnique",
+    async (args: { where: Record<string, unknown> }) =>
+      "inviteCode" in args.where ? null : { features, name: "Whispr" },
+    restores,
+  );
+  patchMethod(prisma.channel, "findFirst", async () => channelRow, restores);
+  patchMethod(prisma.serverInvite, "findUnique", async () => null, restores);
+}
+
+describe("createWorkspaceInvite", () => {
+  it("maps the SPEC duration and usage chips straight onto the stored row", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchInviteEnvironment(restores, "owner-1");
+      const calls: InviteCreateArgs[] = [];
+      patchMethod(
+        prisma.serverInvite,
+        "create",
+        async (args: InviteCreateArgs) => {
+          calls.push(args);
+          return inviteRow({ expiresAt: args.data.expiresAt, maxUses: args.data.maxUses });
+        },
+        restores,
+      );
+
+      const before = Date.now();
+      const invite = await createWorkspaceInvite("owner-1", "server-1", {
+        expiresInHours: 168,
+        maxUses: 25,
+      });
+      const after = Date.now();
+
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0]?.data.maxUses, 25);
+      const expiresAt = calls[0]?.data.expiresAt?.getTime() ?? 0;
+      assert.ok(expiresAt >= before + 168 * 60 * 60 * 1000);
+      assert.ok(expiresAt <= after + 168 * 60 * 60 * 1000);
+      assert.equal(calls[0]?.data.targetUserId, undefined);
+      assert.equal(invite.maxUses, 25);
+      assert.equal(invite.targetUserId, null);
+    });
+  });
+
+  it("stores the 'Suresiz' and 'Sinirsiz' chips as null on both fields", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchInviteEnvironment(restores, "owner-1");
+      const calls: InviteCreateArgs[] = [];
+      patchMethod(
+        prisma.serverInvite,
+        "create",
+        async (args: InviteCreateArgs) => {
+          calls.push(args);
+          return inviteRow();
+        },
+        restores,
+      );
+
+      await createWorkspaceInvite("owner-1", "server-1", {
+        expiresInHours: null,
+        maxUses: null,
+      });
+
+      assert.equal(calls[0]?.data.expiresAt, null);
+      assert.equal(calls[0]?.data.maxUses, null);
+    });
+  });
+
+  it("falls back to a text channel that lives inside a category", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchInviteEnvironment(restores, "owner-1");
+      const channelQueries: Array<{ where: Record<string, unknown> }> = [];
+      patchMethod(
+        prisma.channel,
+        "findFirst",
+        async (args: { where: Record<string, unknown> }) => {
+          channelQueries.push(args);
+          return { id: "channel-in-category" };
+        },
+        restores,
+      );
+      patchMethod(
+        prisma.serverInvite,
+        "create",
+        async (args: InviteCreateArgs) => inviteRow({ channelId: args.data.channelId }),
+        restores,
+      );
+
+      const invite = await createWorkspaceInvite("owner-1", "server-1", {});
+
+      assert.equal(invite.channelId, "channel-in-category");
+      assert.equal("parentId" in (channelQueries[0]?.where ?? {}), false);
+      assert.equal(channelQueries[0]?.where.type, "TEXT");
+    });
+  });
+
+  it("rejects a requested channel that is not a text channel of this server", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchInviteEnvironment(restores, "owner-1", { channelRow: null });
+      patchMethod(
+        prisma.serverInvite,
+        "create",
+        async () => {
+          throw new Error("should not create an invite for a rejected channel");
+        },
+        restores,
+      );
+
+      await assert.rejects(
+        () => createWorkspaceInvite("owner-1", "server-1", { channelId: "voice-1" }),
+        (error) => error instanceof ApiError && error.status === 404,
+      );
+    });
+  });
+
+  it("closes invite creation to a plain member when member adds are switched off", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchInviteEnvironment(restores, "member-user", {
+        features: ["MEMBER_ADDS_DISABLED"],
+        ownerId: "owner-1",
+      });
+      patchMethod(
+        prisma.serverInvite,
+        "create",
+        async () => {
+          throw new Error("should not create an invite once member adds are disabled");
+        },
+        restores,
+      );
+
+      await assert.rejects(
+        () => createWorkspaceInvite("member-user", "server-1", {}),
+        (error) => error instanceof ApiError && error.status === 403 && error.code === "FORBIDDEN",
+      );
+    });
+  });
+
+  it("still lets the owner invite while member adds are off", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchInviteEnvironment(restores, "owner-1", { features: ["MEMBER_ADDS_DISABLED"] });
+      patchMethod(prisma.serverInvite, "create", async () => inviteRow(), restores);
+
+      const invite = await createWorkspaceInvite("owner-1", "server-1", {});
+
+      assert.equal(invite.code, "whspr-a7k2");
+    });
+  });
+});
+
+describe("createWorkspaceInvite - targeted invite", () => {
+  function patchTargetedEnvironment(
+    restores: Restore[],
+    options: {
+      friends?: boolean;
+      openInvites?: ReturnType<typeof inviteRow>[];
+    } = {},
+  ) {
+    const { friends = true, openInvites = [] } = options;
+
+    patchInviteEnvironment(restores, "owner-1");
+    patchMethod(
+      prisma.friendRequest,
+      "findFirst",
+      async () => (friends ? { id: "friendship-1" } : null),
+      restores,
+    );
+    patchMethod(
+      prisma.user,
+      "findUnique",
+      async (args: { where: { id: string } }) =>
+        args.where.id === "friend-1"
+          ? {
+              avatarUrl: null,
+              displayName: "Ayse Kaya",
+              id: "friend-1",
+              isBanned: false,
+              locale: "tr",
+              username: "aysek",
+            }
+          : { displayName: "DY", username: "dy" },
+      restores,
+    );
+    // Bildirim gÃ¶nderildikten sonraki mobil push sÃ¼zgeci de bu okumaya dÃ¼ÅŸer; boÅŸ
+    // liste onu erken bitirir ve test veri tabanÄ±na uzanmaz.
+    patchMethod(prisma.user, "findMany", async () => [], restores);
+    patchMethod(prisma.serverMember, "findUnique", async () => null, restores);
+    patchMethod(prisma.serverInvite, "findMany", async () => openInvites, restores);
+    patchMethod(prisma.notification, "create", async () => ({}), restores);
+  }
+
+  it("rejects a target who is not a friend with 400, and writes nothing", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchTargetedEnvironment(restores, { friends: false });
+      patchMethod(
+        prisma.serverInvite,
+        "create",
+        async () => {
+          throw new Error("should not create a targeted invite for a stranger");
+        },
+        restores,
+      );
+
+      await assert.rejects(
+        () =>
+          createWorkspaceInvite("owner-1", "server-1", {
+            expiresInHours: 168,
+            maxUses: 25,
+            targetUserId: "friend-1",
+          }),
+        (error) =>
+          error instanceof ApiError && error.status === 400 && error.code === "NOT_FRIENDS",
+      );
+    });
+  });
+
+  it("checks friendship before it ever looks the target up", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchTargetedEnvironment(restores, { friends: false });
+      patchMethod(
+        prisma.user,
+        "findUnique",
+        async () => {
+          throw new Error("a stranger's existence must not be probed");
+        },
+        restores,
+      );
+
+      await assert.rejects(
+        () => createWorkspaceInvite("owner-1", "server-1", { targetUserId: "friend-1" }),
+        (error) => error instanceof ApiError && error.code === "NOT_FRIENDS",
+      );
+    });
+  });
+
+  it("stores the target and notifies them through the existing SERVER_INVITE family", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchTargetedEnvironment(restores);
+      const created: InviteCreateArgs[] = [];
+      const notifications: Array<{ data: Record<string, unknown> }> = [];
+      patchMethod(
+        prisma.serverInvite,
+        "create",
+        async (args: InviteCreateArgs) => {
+          created.push(args);
+          return inviteRow({
+            expiresAt: args.data.expiresAt,
+            maxUses: args.data.maxUses,
+            targetUserId: args.data.targetUserId ?? null,
+          });
+        },
+        restores,
+      );
+      patchMethod(
+        prisma.notification,
+        "create",
+        async (args: { data: Record<string, unknown> }) => {
+          notifications.push(args);
+          return {
+            actionUrl: args.data.actionUrl,
+            body: args.data.body,
+            createdAt: new Date("2026-08-25T09:00:00.000Z"),
+            id: "notification-1",
+            imageUrl: null,
+            metadata: args.data.metadata,
+            read: false,
+            readAt: null,
+            title: args.data.title,
+            type: "SERVER_INVITE",
+            userId: args.data.userId,
+          };
+        },
+        restores,
+      );
+
+      const invite = await createWorkspaceInvite("owner-1", "server-1", {
+        expiresInHours: 24,
+        maxUses: 1,
+        targetUserId: "friend-1",
+      });
+
+      assert.equal(created.length, 1);
+      assert.equal(created[0]?.data.targetUserId, "friend-1");
+      assert.equal(created[0]?.data.maxUses, 1);
+      assert.equal(invite.targetUserId, "friend-1");
+      assert.equal(notifications.length, 1);
+      assert.equal(notifications[0]?.data.type, "SERVER_INVITE");
+      assert.equal(notifications[0]?.data.userId, "friend-1");
+    });
+  });
+
+  it("returns the open invite instead of minting a second one for the same friend", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchTargetedEnvironment(restores, {
+        openInvites: [
+          inviteRow({
+            code: "whspr-open",
+            expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+            id: "invite-open",
+            maxUses: 25,
+            targetUserId: "friend-1",
+          }),
+        ],
+      });
+      patchMethod(
+        prisma.serverInvite,
+        "create",
+        async () => {
+          throw new Error("should reuse the live targeted invite");
+        },
+        restores,
+      );
+      patchMethod(
+        prisma.notification,
+        "create",
+        async () => {
+          throw new Error("should not notify twice for the same pending invite");
+        },
+        restores,
+      );
+
+      const invite = await createWorkspaceInvite("owner-1", "server-1", {
+        targetUserId: "friend-1",
+      });
+
+      assert.equal(invite.id, "invite-open");
+      assert.equal(invite.code, "whspr-open");
+    });
+  });
+
+  it("mints a fresh invite when the only earlier one has expired", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchTargetedEnvironment(restores, {
+        openInvites: [
+          inviteRow({
+            expiresAt: new Date(Date.now() - 60 * 1000),
+            id: "invite-expired",
+            targetUserId: "friend-1",
+          }),
+        ],
+      });
+      patchMethod(
+        prisma.serverInvite,
+        "create",
+        async (args: InviteCreateArgs) =>
+          inviteRow({ id: "invite-new", targetUserId: args.data.targetUserId ?? null }),
+        restores,
+      );
+
+      const invite = await createWorkspaceInvite("owner-1", "server-1", {
+        targetUserId: "friend-1",
+      });
+
+      assert.equal(invite.id, "invite-new");
+    });
+  });
+
+  it("refuses a self-invite before any friendship read", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchTargetedEnvironment(restores);
+      patchMethod(
+        prisma.friendRequest,
+        "findFirst",
+        async () => {
+          throw new Error("self-invite must be rejected without a friendship read");
+        },
+        restores,
+      );
+
+      await assert.rejects(
+        () => createWorkspaceInvite("owner-1", "server-1", { targetUserId: "owner-1" }),
+        (error) =>
+          error instanceof ApiError && error.status === 400 && error.code === "INVITE_SELF",
+      );
+    });
+  });
+});
+
+describe("listPendingWorkspaceInvites", () => {
+  it("asks only for targeted, unused, unexpired invites", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchInviteEnvironment(restores, "owner-1");
+      const queries: Array<{ where: Record<string, unknown> }> = [];
+      patchMethod(
+        prisma.serverInvite,
+        "findMany",
+        async (args: { where: Record<string, unknown> }) => {
+          queries.push(args);
+          return [];
+        },
+        restores,
+      );
+
+      assert.deepEqual(await listPendingWorkspaceInvites("owner-1", "server-1"), []);
+      assert.equal(queries.length, 1);
+      assert.deepEqual(queries[0]?.where.targetUserId, { not: null });
+      assert.equal(queries[0]?.where.uses, 0);
+      assert.equal(queries[0]?.where.serverId, "server-1");
+      assert.equal(Array.isArray(queries[0]?.where.OR), true);
+    });
+  });
+
+  it("joins the recipient identity onto every row", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchInviteEnvironment(restores, "owner-1");
+      patchMethod(
+        prisma.serverInvite,
+        "findMany",
+        async () => [
+          inviteRow({
+            code: "whspr-p1",
+            expiresAt: new Date("2026-09-01T09:00:00.000Z"),
+            id: "invite-pending",
+            maxUses: 1,
+            targetUserId: "friend-1",
+          }),
+        ],
+        restores,
+      );
+      patchMethod(
+        prisma.user,
+        "findMany",
+        async () => [
+          { avatarUrl: null, displayName: "Ayse Kaya", id: "friend-1", username: "aysek" },
+        ],
+        restores,
+      );
+
+      const rows = await listPendingWorkspaceInvites("owner-1", "server-1");
+
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0]?.code, "whspr-p1");
+      assert.equal(rows[0]?.channelId, "channel-1");
+      assert.equal(rows[0]?.createdByDisplayName, "DY");
+      assert.equal(rows[0]?.expiresAt, "2026-09-01T09:00:00.000Z");
+      assert.deepEqual(rows[0]?.targetUser, {
+        avatarUrl: null,
+        displayName: "Ayse Kaya",
+        id: "friend-1",
+        username: "aysek",
+      });
+    });
+  });
+
+  it("drops a row whose recipient account no longer exists", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchInviteEnvironment(restores, "owner-1");
+      patchMethod(
+        prisma.serverInvite,
+        "findMany",
+        async () => [inviteRow({ id: "invite-orphan", targetUserId: "deleted-user" })],
+        restores,
+      );
+      patchMethod(prisma.user, "findMany", async () => [], restores);
+
+      assert.deepEqual(await listPendingWorkspaceInvites("owner-1", "server-1"), []);
+    });
+  });
+
+  it("refuses a member without MANAGE_INVITES", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchInviteEnvironment(restores, "member-user", {
+        ownerId: "owner-1",
+        rolePermissions: 0n,
+      });
+      patchMethod(
+        prisma.serverInvite,
+        "findMany",
+        async () => {
+          throw new Error("should not read invites without MANAGE_INVITES");
+        },
+        restores,
+      );
+
+      await assert.rejects(
+        () => listPendingWorkspaceInvites("member-user", "server-1"),
+        (error) => error instanceof ApiError && error.status === 403,
+      );
+    });
+  });
+});
+
+describe("revokeWorkspaceInvite", () => {
+  it("clears the recipient's notification when a pending targeted invite is cancelled", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchInviteEnvironment(restores, "owner-1");
+      patchMethod(
+        prisma.serverInvite,
+        "findFirst",
+        async () => ({ code: "whspr-p1", targetUserId: "friend-1" }),
+        restores,
+      );
+      patchMethod(prisma.serverInvite, "deleteMany", async () => ({ count: 1 }), restores);
+      const cleared: Array<{ where: Record<string, unknown> }> = [];
+      patchMethod(
+        prisma.notification,
+        "deleteMany",
+        async (args: { where: Record<string, unknown> }) => {
+          cleared.push(args);
+          return { count: 1 };
+        },
+        restores,
+      );
+
+      await revokeWorkspaceInvite("owner-1", "server-1", "invite-pending");
+
+      assert.equal(cleared.length, 1);
+      assert.equal(cleared[0]?.where.type, "SERVER_INVITE");
+      assert.equal(cleared[0]?.where.userId, "friend-1");
+    });
+  });
+
+  it("touches no notification when the cancelled invite was a plain link", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchInviteEnvironment(restores, "owner-1");
+      patchMethod(
+        prisma.serverInvite,
+        "findFirst",
+        async () => ({ code: "whspr-a7k2", targetUserId: null }),
+        restores,
+      );
+      patchMethod(prisma.serverInvite, "deleteMany", async () => ({ count: 1 }), restores);
+      patchMethod(
+        prisma.notification,
+        "deleteMany",
+        async () => {
+          throw new Error("a shared link has no recipient notification to clear");
+        },
+        restores,
+      );
+
+      await revokeWorkspaceInvite("owner-1", "server-1", "invite-1");
     });
   });
 });

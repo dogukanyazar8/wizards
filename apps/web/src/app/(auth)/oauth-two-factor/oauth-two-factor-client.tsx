@@ -87,7 +87,11 @@ export function OAuthTwoFactorClient({
             <span className="text-app-foreground text-sm font-semibold">
               {t("auth.oauthTwoFactor.codeLabel")}
             </span>
-            <span className="app-input flex h-14 items-center gap-3 rounded-2xl border px-4">
+            {/*
+             * Odak halkası sarmalayıcıda: iç alan `outline-none` taşıyor, halka olmasaydı
+             * klavyeyle gelen kullanıcı alanın odakta olduğunu göremezdi (SPEC §11/6).
+             */}
+            <span className="app-input flex h-14 items-center gap-3 rounded-2xl border px-4 focus-within:border-[hsl(var(--ring)/0.78)] focus-within:ring-4 focus-within:ring-[hsl(var(--ring)/0.13)]">
               <KeyRound className="text-app-muted h-5 w-5" aria-hidden="true" />
               <input
                 autoCapitalize="none"

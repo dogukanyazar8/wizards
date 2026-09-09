@@ -36,6 +36,8 @@ test.describe("Komut paleti", () => {
     // kipte iki eşleşmede kırılır. Deponun kendi kalıbı görünür olanı seçiyor.
     await expect(visibleTestId(page, "home-command-center")).toBeVisible();
     await hydrated;
+    await expect(page).toHaveURL(/\/home$/u);
+    await page.waitForLoadState("domcontentloaded");
   });
 
   test("Ctrl+K açar, tekrar basmak kapatır — ikinci palet açılmaz", async ({ page }) => {

@@ -2,12 +2,14 @@
 
 import React, {
   useCallback,
+  useContext,
   useEffect,
   useRef,
   useState,
   useTransition,
   type CSSProperties,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   closestCenter,
   DndContext,
@@ -24,23 +26,14 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { QueryClientContext, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowDown,
-  ArrowUp,
-  Check,
   ChevronDown,
-  Clock3,
   Edit3,
-  GripVertical,
   Hash,
   Headphones,
-  LogOut,
   Mic,
-  MoreHorizontal,
   Plus,
-  Search,
-  Settings2,
   SlidersHorizontal,
   Trash2,
   UserPlus,
@@ -55,11 +48,30 @@ import { useSocket } from "@/hooks/use-socket";
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { Modal } from "@/components/ui/modal";
 import { ChannelItem } from "@/components/shell/channel-item";
+import {
+  ChannelSearchPopover,
+  ChannelSearchTrigger,
+  type ChannelSearchHit,
+} from "@/components/shell/channel-search-popover";
+import { ConnectedVoiceStripLive } from "@/components/shell/connected-voice-strip";
+import { ServerMenu, type ServerMenuRowKey } from "@/components/shell/server-menu";
+import { VoiceChannelItem } from "@/components/shell/voice-activity";
 import { ChannelSidebarSkeleton } from "@/components/shell/shell-skeletons";
-import { AudioDeviceSelect } from "@/components/voice/audio-device-select";
+import { UserBarMenu, useSettingsShortcut } from "@/components/shell/user-bar-menu";
 import { useOptionalFocusControls } from "@/components/providers/focus-controls-provider";
 import { useVoiceState } from "@/components/providers/voice-provider";
 import { hairline, HOME_METRICS, HOME_TYPE_SCALE, pxToRem } from "@/lib/home/metrics";
+import { DISPLAY_FONT, DISPLAY_TRACKING } from "@/components/servers/shared/typography";
+import {
+  countHiddenInCollapsedCategory,
+  filterCollapsedCategoryChannels,
+} from "@/lib/servers/channel-visibility";
+import { SERVER_METRICS } from "@/lib/servers/metrics";
+import { SERVER_INVITE_DEFAULT_DURATION_ID } from "@/lib/servers/invite-form";
+import { getServerIconToneColor } from "@/lib/servers/server-icon-tone";
+import { resolveServerIconPresentation } from "@/lib/servers/server-icon-presentation";
+import { useLayerStack } from "@/lib/servers/use-layer-stack";
+import { resolveViewerPermissions, viewerCan } from "@/lib/servers/viewer-permissions";
 import { cn } from "@/lib/utils";
 import {
   applyCategoryReorder,
@@ -70,14 +82,22 @@ import {
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
 import { useVoiceStates } from "@/hooks/use-voice-states";
-import {
-  PRESENCE_IDLE_TIMEOUT_OPTIONS,
-  usePresenceIdleTimeoutPreference,
-} from "@/hooks/use-presence-activity";
 import { useAppStore } from "@/lib/store";
-import { announceOverlayOpen } from "@/lib/ui/overlay-coordinator";
-import { updatePresenceStatusAction } from "@/lib/account/actions";
+import { updatePresenceDndAction, updatePresenceStatusAction } from "@/lib/account/actions";
 import { logoutAction } from "@/lib/auth/actions";
+import { homeQueryKeys } from "@/lib/home/client";
+import {
+  DEFAULT_DND_DURATION,
+  resolveStatusMenuDndDuration,
+  selectDndDuration,
+  type DndDuration,
+} from "@/lib/presence/dnd";
+import { SETTINGS_METRICS } from "@/lib/settings/metrics";
+import {
+  resolveUserBarMenuPlacement,
+  USER_BAR_MENU_MAX_HEIGHT,
+  type UserBarMenuPlacement,
+} from "@/lib/shell/user-bar-menu-placement";
 import type { VoiceChannelStateDTO } from "@/lib/voice/types";
 
 type PresenceStatus = "ONLINE" | "IDLE" | "DND" | "OFFLINE";
@@ -95,6 +115,11 @@ type ChannelSidebarProps = {
   loading: boolean;
   onNavigate: (href: string) => void;
   onCurrentUserStatusChange: (status: PresenceStatus) => void;
+  /**
+   * Sunucu menüsünün `Sunucudan ayrıl` satırı. Kabuğun **mevcut** onay penceresini ve
+   * `leaveServerRequest` mutation'ını tetikler; kenar çubuğu ikinci bir ayrılma yolu açmaz.
+   */
+  onLeaveServer?: (() => void) | undefined;
   onOpenSettings: () => void;
   onPrefetch?: (href: string) => void;
   showUserFooter?: boolean;
@@ -105,8 +130,8 @@ type SortableChannelRowProps = {
   canManage: boolean;
   channel: WorkspaceChannel;
   currentUserId: string;
-  onDelete: () => void;
-  onEdit: () => void;
+  /** Satırın sağ tık menüsü — düzenle/sil buradan açılır, satırda kaplama düğme yok. */
+  onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onPrefetch?: () => void;
   onSelect: () => void;
   testId?: string;
@@ -134,6 +159,19 @@ type ChannelDropZoneProps = {
   emptyLabel: string;
 };
 
+/**
+ * Kenar çubuğunun zemini ve sağ kenarı — referans satır 1:
+ * `background:hsl(var(--surface-panel));border-right:1px solid hsl(var(--border)/.4)`.
+ *
+ * Eskiden burada bir degrade vardı **ve** kabuk sütunu ikinci bir degrade + kenar çiziyordu;
+ * iki katman üst üste binince zemin hiçbir temada referansın rengi olmuyordu. Kolon artık tek
+ * yerden boyanıyor: kabuk sütunu şeffaf, `aside` opak.
+ */
+const SIDEBAR_SURFACE_STYLE: CSSProperties = {
+  background: "hsl(var(--surface-panel))",
+  borderRight: `${hairline(SERVER_METRICS.layout.columnBorderWidth)} solid hsl(var(--border) / ${SERVER_METRICS.layout.sidebarBorderAlpha})`,
+};
+
 const OPEN_CHANNEL_GROUP_KEY = "open-channels-group";
 
 type SidebarDisplayGroup =
@@ -152,8 +190,7 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
   canManage,
   channel,
   currentUserId,
-  onDelete,
-  onEdit,
+  onContextMenu,
   onPrefetch,
   onSelect,
   testId,
@@ -165,52 +202,40 @@ const SortableChannelRow = React.memo(function SortableChannelRow({
     data: { categoryId: channel.categoryId ?? null, itemType: "channel" },
   });
   const verticalTransform = transform ? { ...transform, x: 0 } : null;
+  /*
+    Referansın satırında **tutamak yok** (§2.4): satırın kendisi sürükleniyor. `PointerSensor`
+    4 px eşiğinde olduğu için tıklama ile sürükleme birbirine karışmıyor ve satır yöneticide
+    de üyede de aynı `7px 9px` geometrisinde kalıyor. dnd kablolaması değişmedi; yalnız
+    `attributes`/`listeners`'ın gittiği düğüm değişti.
+  */
+  const Item = channel.type === "VOICE" ? VoiceChannelItem : ChannelItem;
 
   return (
     <div
       ref={setNodeRef}
       className="min-w-0"
+      onContextMenu={onContextMenu}
       style={{
         opacity: isDragging ? 0.75 : 1,
         transform: verticalTransform ? CSS.Transform.toString(verticalTransform) : undefined,
         transition,
       }}
     >
-      <div className="flex min-w-0 items-center gap-0.5">
-        {canManage ? (
-          <button
-            aria-label={`Drag channel ${channel.name}`}
-            className="text-app-soft -ml-0.5 rounded-lg p-0.5 transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-[hsl(var(--foreground))]"
-            type="button"
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="h-3.5 w-3.5" />
-          </button>
-        ) : (
-          <div className="w-[26px]" />
-        )}
-
-        <div className="min-w-0 flex-1 overflow-hidden">
-          <ChannelItem
-            active={active}
-            canAccess={channel.canAccess}
-            canManage={canManage}
-            currentUserId={currentUserId}
-            mentionCount={channel.mentionCount}
-            name={channel.name}
-            onDelete={onDelete}
-            onEdit={onEdit}
-            onSelect={onSelect}
-            readOnly={channel.readOnly}
-            type={channel.type}
-            unreadCount={channel.unreadCount}
-            voiceState={voiceState}
-            {...(onPrefetch ? { onPrefetch } : {})}
-            {...(testId ? { testId } : {})}
-          />
-        </div>
-      </div>
+      <Item
+        active={active}
+        canAccess={channel.canAccess}
+        currentUserId={currentUserId}
+        mentionCount={channel.mentionCount}
+        name={channel.name}
+        onSelect={onSelect}
+        readOnly={channel.readOnly}
+        type={channel.type}
+        unreadCount={channel.unreadCount}
+        voiceState={voiceState}
+        {...(canManage ? { dragHandleProps: { ...attributes, ...listeners } } : {})}
+        {...(onPrefetch ? { onPrefetch } : {})}
+        {...(testId ? { testId } : {})}
+      />
     </div>
   );
 });
@@ -254,7 +279,7 @@ function ChannelDropZone({
     <div
       ref={setNodeRef}
       className={cn(
-        "min-h-5 rounded-[16px] border border-transparent px-0.5 py-0 transition",
+        "min-h-5 rounded-[11px] border border-transparent transition",
         canManage && isOver
           ? "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.08)] shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.08)]"
           : "",
@@ -362,23 +387,103 @@ export function UserProfileFooter({
     value: PresenceStatus;
   } | null>(null);
   const [activeUserPopup, setActiveUserPopup] = useState<"quick" | "status" | null>(null);
-  const [isIdleTimeoutMenuRequested, setIsIdleTimeoutMenuRequested] = useState(false);
+  /**
+   * Hızlı menünün **sabit** koordinatı (`lib/shell/user-bar-menu-placement.ts`).
+   *
+   * Menü artık kullanıcı barının içinde değil `document.body`'de duruyor: gezinme paneli sütunu
+   * `overflow:hidden` taşıyor ve 280 px'lik sütun 308 px'lik menüyü kırpıyordu. Kırpma `z-index`
+   * ile aşılamaz, o yüzden kutu kırpma kutusunun **dışına** taşındı.
+   *
+   * Koordinat açılış anında, tıklama olayının içinde ölçülür — bir efektin içinde ölçmek
+   * zincirleme render demekti ve dikdörtgen zaten o karede biliniyor.
+   */
+  const [quickMenuPlacement, setQuickMenuPlacement] = useState<UserBarMenuPlacement | null>(null);
   const userBarRef = useRef<HTMLDivElement | null>(null);
-  const { idleTimeoutMinutes, setIdleTimeoutMinutes } = usePresenceIdleTimeoutPreference();
+  const quickMenuRef = useRef<HTMLDivElement | null>(null);
+  const quickMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
+  /**
+   * Bu bileşen sorgu sağlayıcısı olmayan yüzeylerde de çiziliyor (gezinme paneli testleri,
+   * kabuk dışı önizlemeler). Eksik bir istemci burada hata değil, "tazelenecek önbellek yok"
+   * bilgisidir; bu yüzden zorunlu `useQueryClient` değil bağlamın kendisi okunur.
+   */
+  const queryClient = useContext(QueryClientContext);
   const { isDeafened, isMuted, leaveChannel, toggleDeafen, toggleMute } = useVoiceState();
-  const focusMinutesLeft = useOptionalFocusControls()?.minutesLeft ?? null;
+  const focusControls = useOptionalFocusControls();
+  const focusMinutesLeft = focusControls?.minutesLeft ?? null;
   const isQuickMenuOpen = activeUserPopup === "quick";
   const isStatusMenuOpen = activeUserPopup === "status";
   const status = statusOverride?.sourceStatus === user.status ? statusOverride.value : user.status;
-  const isIdleTimeoutMenuOpen = isIdleTimeoutMenuRequested && isQuickMenuOpen;
 
+  /**
+   * Ş12 §2 / K8 — hangi süre çipi seçili.
+   *
+   * Kaynak **mevcut odak katmanıdır**: `FocusControlsProvider` zaten açık pencereyi tutuyor ve
+   * kullanıcı barındaki durum satırı da onu okuyor. Buraya ikinci bir geri sayım ya da ikinci
+   * bir "DND açık mı" bayrağı konulmaz.
+   */
+  const derivedDndDuration = selectDndDuration({
+    status,
+    statusExpiresAt: focusControls?.focus?.expiresAt ?? null,
+    statusFocusMinutes: focusControls?.focus?.totalMinutes ?? null,
+  });
+  /**
+   * İyimser çip seçimi. `baseline`, yazma başlarken sunucunun söylediği değerdir; sunucu bundan
+   * başka bir şey söylediği an iyimser değer düşer. Ayarlama **render sırasında** yapılır
+   * (React'in "state'i props değişince ayarla" deseni): bir efektle yapmak zincirleme render
+   * demekti ve çipin doğrusu zaten aynı karede biliniyor.
+   */
+  const [pendingDnd, setPendingDnd] = useState<{
+    baseline: DndDuration | null;
+    value: DndDuration | null;
+  } | null>(null);
+
+  if (pendingDnd !== null && pendingDnd.baseline !== derivedDndDuration) {
+    setPendingDnd(null);
+  }
+
+  const dndDuration = pendingDnd === null ? derivedDndDuration : pendingDnd.value;
+
+  /**
+   * Menü kapanırken odak **dişliye** döner.
+   *
+   * Popover kapandığında odak sahipsiz kalıyordu: menü ögesi DOM'dan düştüğü için
+   * `document.activeElement` `<body>`ye düşüyor, klavye kullanıcısı ray'ın başına savruluyordu.
+   * Ayarlar penceresi de açılışta `document.activeElement`i "geri dönülecek yer" olarak
+   * yakaladığı için, `Esc` ile kapandığında dönecek bir yer bulamıyordu (SPEC §"kapanışta focus
+   * tetikleyiciye döner").
+   *
+   * Geri verme **eşzamanlı**: pencereyi açan tıklama önce burayı, sonra rota geçişini işletiyor,
+   * yani pencere mount olduğunda odak zaten dişlide oluyor ve doğru hedefi yakalıyor.
+   */
   const closeUserPopups = useCallback(() => {
-    setIsIdleTimeoutMenuRequested(false);
-    setActiveUserPopup(null);
+    setActiveUserPopup((current) => {
+      if (current === "quick") {
+        quickMenuTriggerRef.current?.focus({ preventScroll: true });
+      }
+
+      return null;
+    });
   }, []);
 
   const toggleUserPopup = useCallback((popup: "quick" | "status") => {
-    setIsIdleTimeoutMenuRequested(false);
+    if (popup === "quick") {
+      const anchor = userBarRef.current?.getBoundingClientRect() ?? null;
+
+      setQuickMenuPlacement(
+        resolveUserBarMenuPlacement({
+          anchor: anchor ? { left: anchor.left, top: anchor.top, width: anchor.width } : null,
+          maxHeight: USER_BAR_MENU_MAX_HEIGHT,
+          // Ölçek adımı kök font boyutunda yaşıyor (SPEC-ANA-SAYFA §8); tasarım ölçülerinin
+          // fiziksel karşılığı ondan türer. Sabit 16 yazmak ×1.5 ve ×2 adımlarında menüyü
+          // olması gerekenden dar çizerdi.
+          rootFontSizePx: Number.parseFloat(
+            window.getComputedStyle(document.documentElement).fontSize,
+          ),
+          viewport: { height: window.innerHeight, width: window.innerWidth },
+        }),
+      );
+    }
+
     setActiveUserPopup((current) => (current === popup ? null : popup));
   }, []);
 
@@ -389,6 +494,13 @@ export function UserProfileFooter({
       await logoutAction();
     });
   };
+
+  /**
+   * `⌘,` / `Ctrl+,` — menü kapalıyken de çalışır, o yüzden dinleyici menünün değil kullanıcı
+   * barının ömrüne bağlı. Kaç kullanıcı barı çizilirse çizilsin tek `keydown` kurulur
+   * (`useSettingsShortcut`).
+   */
+  useSettingsShortcut(onOpenAppearanceSettings);
 
   const handleStatusChange = (nextStatus: PresenceStatus) => {
     closeUserPopups();
@@ -409,13 +521,42 @@ export function UserProfileFooter({
     });
   };
 
-  const handleIdleTimeoutSelect = (minutes: number) => {
-    setIdleTimeoutMinutes(minutes);
-    setIsIdleTimeoutMenuRequested(false);
+  /**
+   * Ş12 §2 — anahtar ve dört çip tek yazma yolundan geçer.
+   *
+   * `duration === null` anahtarın kapatılmasıdır; `statusRestoreTo` sunucuda durduğu için
+   * iyimser değer odak katmanının bildiği hedeften okunur, o da yoksa `ONLINE`. Sunucunun
+   * cevabı her hâlde son sözü söyler.
+   */
+  const applyDnd = (duration: DndDuration | null) => {
+    closeUserPopups();
+    const previousStatus = status;
+    const optimisticStatus: PresenceStatus =
+      duration === null ? (focusControls?.restoreTo ?? "ONLINE") : "DND";
+
+    setStatusOverride({ sourceStatus: user.status, value: optimisticStatus });
+    onStatusChange(optimisticStatus);
+    setPendingDnd({ baseline: derivedDndDuration, value: duration });
+
+    startStatusTransition(async () => {
+      const result = await updatePresenceDndAction(duration);
+
+      if (!result.success || !result.status) {
+        setStatusOverride({ sourceStatus: user.status, value: previousStatus });
+        onStatusChange(previousStatus);
+        setPendingDnd(null);
+        return;
+      }
+
+      setStatusOverride({ sourceStatus: user.status, value: result.status });
+      onStatusChange(result.status);
+      // Süreyi odak katmanı yönetiyor; penceresini yeni satırdan okuması için özeti tazeler.
+      void queryClient?.invalidateQueries({ queryKey: homeQueryKeys.summary });
+    });
   };
 
   useEffect(() => {
-    if (!isQuickMenuOpen && !isStatusMenuOpen && !isIdleTimeoutMenuOpen) {
+    if (!isQuickMenuOpen && !isStatusMenuOpen) {
       return;
     }
 
@@ -427,27 +568,45 @@ export function UserProfileFooter({
         return;
       }
 
-      if (userBarRef.current && target instanceof Node && !userBarRef.current.contains(target)) {
-        setIsIdleTimeoutMenuRequested(false);
+      // Menü portalda: kullanıcı barının **içinde** değil, ama kullanıcı için içeridedir.
+      // İki kabı da saymayan bir kontrol, menüye yapılan ilk tıklamada menüyü kapatırdı.
+      const insideAnchor = target instanceof Node && userBarRef.current?.contains(target);
+      const insideMenu = target instanceof Node && quickMenuRef.current?.contains(target);
+
+      if (!insideAnchor && !insideMenu) {
         setActiveUserPopup(null);
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setIsIdleTimeoutMenuRequested(false);
         setActiveUserPopup(null);
+
+        // Ş12 §1 — menü kapanınca focus dişliye döner. Durum listesi kendi tetikleyicisine
+        // sahiptir ve onun davranışı bu şeritte değişmez.
+        if (isQuickMenuOpen) {
+          quickMenuTriggerRef.current?.focus();
+        }
       }
     };
 
+    // Sabit koordinat açılışta ölçüldü; görünüm alanı değişirse menü **kapanır**, yeniden
+    // konumlanmaz. Yeniden konumlamak menüyü parmağın altında zıplatır (satır motorunun
+    // açılır menüsü de aynı kuralı izliyor); kapatmak kullanıcının niyetine saygı duyar.
+    const closeOnViewportChange = () => setActiveUserPopup(null);
+
     window.addEventListener("pointerdown", handlePointerDown);
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", closeOnViewportChange, { passive: true });
+    window.addEventListener("scroll", closeOnViewportChange, { capture: true, passive: true });
 
     return () => {
       window.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", closeOnViewportChange);
+      window.removeEventListener("scroll", closeOnViewportChange, { capture: true });
     };
-  }, [isIdleTimeoutMenuOpen, isQuickMenuOpen, isStatusMenuOpen]);
+  }, [isQuickMenuOpen, isStatusMenuOpen]);
 
   const currentStatusOption = USER_STATUS_OPTIONS.find((option) => option.value === status) ?? {
     key: "friends.status.online",
@@ -455,6 +614,14 @@ export function UserProfileFooter({
   };
 
   const presenceToken = getPresenceToken(status);
+  /**
+   * Ölçüm açılış tıklamasında yapılır; buradaki yedek yalnız ölçümün hiç koşamadığı yol için
+   * (kutu açık render edilirse) ve SPEC'in sabit koordinatını verir — konumsuz bir menü
+   * çizmektense yanlış yerde ama görünür bir menü çizmek yeğdir.
+   */
+  const placement =
+    quickMenuPlacement ??
+    resolveUserBarMenuPlacement({ anchor: null, viewport: { height: 0, width: 0 } });
 
   return (
     <div
@@ -567,7 +734,15 @@ export function UserProfileFooter({
                           : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-app-foreground",
                       )}
                       key={option.value}
-                      onClick={() => handleStatusChange(option.value)}
+                      onClick={() => {
+                        const duration = resolveStatusMenuDndDuration(option.value);
+                        if (duration) {
+                          applyDnd(duration);
+                          return;
+                        }
+
+                        handleStatusChange(option.value);
+                      }}
                       role="option"
                       type="button"
                     >
@@ -596,7 +771,7 @@ export function UserProfileFooter({
               "inline-flex shrink-0 items-center justify-center transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
               isMuted
                 ? "bg-[hsl(var(--danger)/0.12)] text-[hsl(var(--danger))]"
-                : "text-app-muted hover:bg-[hsl(var(--surface-soft))] hover:text-app-foreground",
+                : "text-app-muted hover:bg-[var(--surface-hover)] hover:text-app-foreground",
             )}
             onClick={() => {
               void toggleMute();
@@ -614,7 +789,7 @@ export function UserProfileFooter({
               "inline-flex shrink-0 items-center justify-center transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
               isDeafened
                 ? "bg-[hsl(var(--danger)/0.12)] text-[hsl(var(--danger))]"
-                : "text-app-muted hover:bg-[hsl(var(--surface-soft))] hover:text-app-foreground",
+                : "text-app-muted hover:bg-[var(--surface-hover)] hover:text-app-foreground",
             )}
             onClick={() => {
               void toggleDeafen();
@@ -632,10 +807,11 @@ export function UserProfileFooter({
               "inline-flex items-center justify-center transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
               isQuickMenuOpen
                 ? "bg-[hsl(var(--surface-soft))] text-app-foreground"
-                : "text-app-muted hover:bg-[hsl(var(--surface-soft))] hover:text-app-foreground",
+                : "text-app-muted hover:bg-[var(--surface-hover)] hover:text-app-foreground",
             )}
             data-testid="user-settings-button"
             onClick={() => toggleUserPopup("quick")}
+            ref={quickMenuTriggerRef}
             style={FOOTER_ACTION_STYLE}
             title={t("shell.user.appearanceSettingsTitle")}
             type="button"
@@ -647,204 +823,47 @@ export function UserProfileFooter({
           </button>
         </div>
 
-        {isQuickMenuOpen ? (
-          <div
-            aria-label={t("shell.user.quickMenu")}
-            className="absolute bottom-[calc(100%+0.55rem)] left-0 right-0 z-40 max-h-[min(27rem,calc(100dvh-6.5rem))] overflow-y-auto overflow-x-hidden overscroll-contain rounded-[20px] border border-[hsl(var(--border)/0.58)] bg-[linear-gradient(180deg,hsl(var(--surface-overlay)/0.98),hsl(var(--surface-panel)/0.9))] p-2.5 shadow-[0_18px_54px_hsl(var(--shadow-color)/0.14)] backdrop-blur-xl [scrollbar-width:none] sm:left-auto sm:right-0 sm:w-[min(19rem,calc(100vw-1.25rem))] [&::-webkit-scrollbar]:hidden"
-            data-testid="user-quick-menu"
-            role="dialog"
-          >
-            <div className="absolute -bottom-1.5 right-6 h-3 w-3 rotate-45 border-b border-r border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-panel)/0.9)]" />
-
-            <div className="grid grid-cols-[2rem_minmax(0,1fr)_6.75rem] items-center gap-2">
-              <span className="grid h-8 w-8 place-items-center rounded-[14px] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted">
-                <Clock3 className="h-4 w-4" />
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-[13px] font-bold text-app-foreground">
-                  {t("shell.user.idleAfter")}
-                </p>
-                <p className="mt-0.5 truncate text-[11px] leading-4 text-app-muted">
-                  {t("shell.user.idleAfterDescription")}
-                </p>
-              </div>
-              <label className="sr-only" htmlFor="user-presence-idle-timeout">
-                {t("shell.user.idleAfterTitle")}
-              </label>
-              <div className="relative min-w-0">
-                <button
-                  aria-controls={
-                    isIdleTimeoutMenuOpen ? "user-presence-idle-timeout-menu" : undefined
-                  }
-                  aria-expanded={isIdleTimeoutMenuOpen}
-                  aria-haspopup="listbox"
-                  className={cn(
-                    "flex h-8 w-full min-w-0 items-center justify-between gap-2 rounded-[14px] border border-[hsl(var(--border)/0.48)] bg-[hsl(var(--surface-soft)/0.34)] px-2.5 text-left text-[11px] font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]",
-                    isIdleTimeoutMenuOpen &&
-                      "border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary)/0.1)] shadow-[0_10px_28px_hsl(var(--primary)/0.1)]",
-                  )}
-                  id="user-presence-idle-timeout"
-                  onClick={() =>
-                    setIsIdleTimeoutMenuRequested((open) => {
-                      const nextOpen = !open;
-
-                      if (nextOpen) {
-                        announceOverlayOpen("compact-control-select", "idle-duration");
-                      }
-
-                      return nextOpen;
-                    })
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      announceOverlayOpen("compact-control-select", "idle-duration");
-                      setIsIdleTimeoutMenuRequested(true);
-                      return;
-                    }
-
-                    if (event.key === "Escape") {
-                      setIsIdleTimeoutMenuRequested(false);
-                    }
+        {isQuickMenuOpen && typeof document !== "undefined"
+          ? createPortal(
+              <div
+                aria-label={t("shell.user.quickMenu")}
+                className="fixed overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                data-testid="user-quick-menu"
+                ref={quickMenuRef}
+                role="dialog"
+                // Ölçülmüş koordinatlar **fiziksel** pikseldir ve `rem`'e çevrilmez: rem'e çevrilen
+                // bir `left`, ölçek adımı değiştiğinde ölçüldüğü yerden kayardı
+                // (`user-bar-menu-placement.ts` birim sözleşmesi).
+                style={{
+                  bottom: `${placement.bottom}px`,
+                  left: `${placement.left}px`,
+                  maxHeight: `${placement.maxHeight}px`,
+                  width: `${placement.width}px`,
+                  zIndex: SETTINGS_METRICS.userMenu.zIndex,
+                }}
+              >
+                {/* SPEC §3 kutuyu kabuğun `left:82px · bottom:14px` koordinatına koyuyor. Kutu
+                `document.body`'ye portallanıyor çünkü gezinme paneli sütunu `overflow:hidden`
+                taşıyor ve 280 px'lik sütun 308 px'lik menüyü kırpıyordu — kırpma `z-index` ile
+                aşılamaz. Koordinat çapadan türer (menü üç ayrı yüzeyde açılıyor);
+                ölçü, yarıçap ve içerik `UserBarMenu` içinde tasarımın ölçüsündedir. */}
+                <UserBarMenu
+                  dndActive={status === "DND"}
+                  dndDuration={dndDuration}
+                  dndPending={isUpdatingStatus}
+                  logoutPending={isLoggingOut}
+                  onLogout={handleLogout}
+                  onOpenSettings={() => {
+                    closeUserPopups();
+                    onOpenAppearanceSettings();
                   }}
-                  title={t("shell.user.idleAfterTitle")}
-                  type="button"
-                >
-                  <span className="min-w-0 truncate">
-                    {t("shell.user.idleMinutes", { count: idleTimeoutMinutes })}
-                  </span>
-                  <ChevronDown
-                    className={cn(
-                      "h-3.5 w-3.5 shrink-0 text-app-muted transition",
-                      isIdleTimeoutMenuOpen && "rotate-180 text-[hsl(var(--primary))]",
-                    )}
-                  />
-                </button>
-
-                {isIdleTimeoutMenuOpen ? (
-                  <div
-                    className="absolute right-0 top-[calc(100%+0.35rem)] z-[95] max-h-[min(14rem,48dvh)] w-full overflow-y-auto overscroll-contain rounded-[16px] border border-[hsl(var(--border)/0.52)] bg-[linear-gradient(180deg,hsl(var(--surface-overlay)/0.98),hsl(var(--surface-panel)/0.94))] p-1.5 shadow-[0_16px_44px_hsl(var(--shadow-color)/0.14)] backdrop-blur-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                    id="user-presence-idle-timeout-menu"
-                    role="listbox"
-                  >
-                    {PRESENCE_IDLE_TIMEOUT_OPTIONS.map((minutes) => {
-                      const selected = minutes === idleTimeoutMinutes;
-
-                      return (
-                        <button
-                          aria-selected={selected}
-                          className={cn(
-                            "flex h-8 w-full items-center justify-between gap-2 rounded-[12px] px-2 text-left text-[11px] font-bold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]",
-                            selected
-                              ? "bg-[hsl(var(--primary)/0.13)] text-[hsl(var(--primary))]"
-                              : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.62)] hover:text-app-foreground",
-                          )}
-                          key={minutes}
-                          onClick={() => handleIdleTimeoutSelect(minutes)}
-                          role="option"
-                          type="button"
-                        >
-                          <span className="truncate">
-                            {t("shell.user.idleMinutes", { count: minutes })}
-                          </span>
-                          {selected ? <Check className="h-3 w-3 shrink-0" /> : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="my-3 h-px bg-[hsl(var(--border)/0.42)]" />
-
-            <div className="grid gap-2.5">
-              <div className="grid grid-cols-[2rem_minmax(0,1fr)] items-start gap-2">
-                <span className="grid h-8 w-8 place-items-center rounded-[14px] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted">
-                  <Mic className="h-4 w-4" />
-                </span>
-                <div className="min-w-0 space-y-1.5">
-                  <div className="min-w-0">
-                    <p className="truncate text-[13px] font-bold text-app-foreground">
-                      {t("shell.user.microphone")}
-                    </p>
-                    <p className="mt-0.5 truncate text-[11px] text-app-muted">
-                      {t("shell.user.inputDevice")}
-                    </p>
-                  </div>
-                  <div className="min-w-0">
-                    <AudioDeviceSelect kind="input" showIcon={false} variant="compact" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-[2rem_minmax(0,1fr)] items-start gap-2">
-                <span className="grid h-8 w-8 place-items-center rounded-[14px] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted">
-                  <Volume2 className="h-4 w-4" />
-                </span>
-                <div className="min-w-0 space-y-1.5">
-                  <div className="min-w-0">
-                    <p className="truncate text-[13px] font-bold text-app-foreground">
-                      {t("shell.user.speaker")}
-                    </p>
-                    <p className="mt-0.5 truncate text-[11px] text-app-muted">
-                      {t("shell.user.outputDevice")}
-                    </p>
-                  </div>
-                  <div className="min-w-0">
-                    <AudioDeviceSelect kind="output" showIcon={false} variant="compact" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="my-3 h-px bg-[hsl(var(--border)/0.42)]" />
-
-            <button
-              className="grid w-full grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-[16px] px-1 py-1 text-left transition hover:bg-[hsl(var(--surface-soft)/0.44)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
-              data-testid="user-appearance-settings-button"
-              onClick={() => {
-                closeUserPopups();
-                onOpenAppearanceSettings();
-              }}
-              type="button"
-            >
-              <span className="grid h-8 w-8 place-items-center rounded-[14px] bg-[hsl(var(--primary)/0.09)] text-[hsl(var(--primary))]">
-                <Settings2 className="h-4 w-4" />
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-[13px] font-bold text-app-foreground">
-                  {t("shell.user.appearanceSettingsTitle")}
-                </span>
-                <span className="mt-0.5 block truncate text-[11px] text-app-muted">
-                  {t("shell.user.settingsDescription")}
-                </span>
-              </span>
-            </button>
-
-            <button
-              aria-label={t("shell.user.logout")}
-              className="mt-1.5 grid w-full grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-[16px] px-1 py-1 text-left transition hover:bg-[hsl(var(--danger)/0.07)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.38)] disabled:cursor-not-allowed disabled:opacity-60"
-              data-testid="user-logout-button"
-              disabled={isLoggingOut}
-              onClick={handleLogout}
-              title={t("shell.user.logoutTitle")}
-              type="button"
-            >
-              <span className="grid h-8 w-8 place-items-center rounded-[14px] bg-[hsl(var(--danger)/0.08)] text-[hsl(var(--danger))]">
-                <LogOut className="h-4 w-4" />
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-[13px] font-bold text-[hsl(var(--danger))]">
-                  {t("shell.user.logout")}
-                </span>
-                <span className="mt-0.5 block truncate text-[11px] text-app-muted">
-                  {t("shell.user.logoutDescription")}
-                </span>
-              </span>
-            </button>
-          </div>
-        ) : null}
+                  onSelectDndDuration={applyDnd}
+                  onToggleDnd={() => applyDnd(status === "DND" ? null : DEFAULT_DND_DURATION)}
+                />
+              </div>,
+              document.body,
+            )
+          : null}
       </div>
     </div>
   );
@@ -873,14 +892,20 @@ export function ChannelSidebar({
   loading,
   onNavigate,
   onCurrentUserStatusChange,
+  onLeaveServer,
   onOpenSettings,
   onPrefetch,
   showUserFooter = true,
 }: ChannelSidebarProps) {
-  const { locale, t } = useI18n();
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const voiceStatesQuery = useVoiceStates(detail?.server.id ?? null);
-  const { prepareForVoiceJoin } = useVoiceState();
+  const {
+    activeChannelId: connectedVoiceChannelId,
+    leaveChannel,
+    prepareForVoiceJoin,
+    serverId: connectedVoiceServerId,
+  } = useVoiceState();
   const {
     collapsedCategories,
     openCategoryModal,
@@ -889,9 +914,6 @@ export function ChannelSidebar({
     openChannelGroupPositions,
     openInviteModal,
     openServerSettings,
-    setOpenChannelGroupPosition,
-    setShowCategoryMoveControls,
-    showCategoryMoveControls,
     toggleCategoryCollapse,
   } = useAppStore(
     useShallow((state) => ({
@@ -902,15 +924,45 @@ export function ChannelSidebar({
       openChannelGroupPositions: state.openChannelGroupPositions,
       openInviteModal: state.openInviteModal,
       openServerSettings: state.openServerSettings,
-      setOpenChannelGroupPosition: state.setOpenChannelGroupPosition,
-      setShowCategoryMoveControls: state.setShowCategoryMoveControls,
-      showCategoryMoveControls: state.showCategoryMoveControls,
       toggleCategoryCollapse: state.toggleCategoryCollapse,
     })),
   );
 
-  const [headerMenu, setHeaderMenu] = useState({
+  /**
+   * K11'in "aynı anda tek açılır" kuralı tek bir değerle uygulanıyor: menü ile arama
+   * popover'ı aynı state'i paylaşınca biri açılırken diğerinin kapanması bir yan etki değil,
+   * tanım gereği oluyor. İki ayrı boolean iki ayrı doğruluk kaynağı demekti.
+   */
+  const [sidebarOverlay, setSidebarOverlay] = useState<"menu" | "search" | null>(null);
+  const serverMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const channelSearchTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const closeSidebarOverlay = useCallback(() => setSidebarOverlay(null), []);
+
+  useLayerStack({
+    id: "server-sidebar-overlay",
+    kind: "popover",
+    onClose: closeSidebarOverlay,
+    open: sidebarOverlay !== null,
+  });
+
+  /**
+   * Kanal satırının sağ tık menüsü. Referansın satırında kalem/çöp kaplaması **yok** (§2.4);
+   * düzenleme ve silme kategorininkiyle aynı desende, sağ tıkla açılıyor.
+   */
+  const [channelMenu, setChannelMenu] = useState<{
+    categoryId: string | null;
+    channelId: string | null;
+    channelName: string;
+    open: boolean;
+    type: "TEXT" | "VOICE";
+    x: number;
+    y: number;
+  }>({
+    categoryId: null,
+    channelId: null,
+    channelName: "",
     open: false,
+    type: "TEXT",
     x: 0,
     y: 0,
   });
@@ -936,19 +988,6 @@ export function ChannelSidebar({
     id: string;
     name: string;
   } | null>(null);
-  const [channelSearchQuery, setChannelSearchQuery] = useState("");
-  const normalizedChannelSearchQuery = channelSearchQuery.trim().toLocaleLowerCase(locale);
-  const isFilteringChannels = normalizedChannelSearchQuery.length > 0;
-  const filterChannels = (channels: WorkspaceChannel[]) => {
-    if (!isFilteringChannels) {
-      return channels;
-    }
-
-    return channels.filter((channel) =>
-      channel.name.toLocaleLowerCase(locale).includes(normalizedChannelSearchQuery),
-    );
-  };
-
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -1192,65 +1231,6 @@ export function ChannelSidebar({
     [categoryReorderMutation, detail, reorderMutation],
   );
 
-  const renderSidebarControls = () => (
-    <div className="w-60 max-w-[calc(100vw-2.5rem)] space-y-2 px-2 py-2">
-      <div className="flex items-start gap-2 px-1">
-        <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted">
-          <ArrowUp className="h-4 w-4" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-xs font-bold text-app-foreground">
-            {t("shell.channelSidebar.categoryMoveArrows")}
-          </p>
-          <p className="mt-0.5 text-[11px] leading-4 text-app-soft">
-            {t("shell.channelSidebar.categoryMoveArrowsHint")}
-          </p>
-        </div>
-      </div>
-      <button
-        aria-pressed={showCategoryMoveControls}
-        className="flex w-full items-center gap-2.5 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.32)] p-2.5 text-left transition hover:bg-[hsl(var(--surface-soft)/0.56)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
-        onClick={() => setShowCategoryMoveControls(!showCategoryMoveControls)}
-        type="button"
-      >
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.68)] text-app-muted">
-          <span className="flex flex-col">
-            <ArrowUp className="h-3.5 w-3.5" />
-            <ArrowDown className="-mt-1 h-3.5 w-3.5" />
-          </span>
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-xs font-bold text-app-foreground">
-            {t("shell.channelSidebar.categoryMoveArrows")}
-          </span>
-          <span className="mt-0.5 block text-[11px] leading-4 text-app-soft">
-            {t("shell.channelSidebar.categoryMoveArrowsHint")}
-          </span>
-        </span>
-        <span
-          className={cn(
-            "relative h-6 w-11 shrink-0 rounded-full border transition",
-            showCategoryMoveControls
-              ? "border-[hsl(var(--primary)/0.35)] bg-[hsl(var(--primary)/0.22)]"
-              : "border-[hsl(var(--border)/0.6)] bg-[hsl(var(--muted)/0.34)]",
-          )}
-          title={t(
-            showCategoryMoveControls
-              ? "shell.channelSidebar.categoryMoveArrowsVisible"
-              : "shell.channelSidebar.categoryMoveArrowsHidden",
-          )}
-        >
-          <span
-            className={cn(
-              "absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-[hsl(var(--surface-card))] shadow-[0_4px_12px_hsl(var(--shadow-color)/0.16)] transition",
-              showCategoryMoveControls ? "left-5" : "left-1",
-            )}
-          />
-        </span>
-      </button>
-    </div>
-  );
-
   const setAllCategoriesCollapsed = useCallback(
     (collapsed: boolean) => {
       if (!detail) {
@@ -1265,7 +1245,7 @@ export function ChannelSidebar({
         }
       });
 
-      setHeaderMenu((state) => ({ ...state, open: false }));
+      setSidebarOverlay(null);
       setEmptyMenu((state) => ({ ...state, open: false }));
       setCategoryMenu((state) => ({ ...state, open: false }));
     },
@@ -1275,8 +1255,9 @@ export function ChannelSidebar({
   if (loading) {
     return (
       <aside
-        className="app-sidebar h-full w-full min-w-0 overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0"
+        className="h-full w-full min-w-0 overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0"
         data-testid="channel-sidebar"
+        style={SIDEBAR_SURFACE_STYLE}
       >
         <ChannelSidebarSkeleton />
       </aside>
@@ -1286,8 +1267,9 @@ export function ChannelSidebar({
   if (!detail) {
     return (
       <aside
-        className="app-sidebar flex h-full w-full min-w-0 flex-col overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0"
+        className="flex h-full w-full min-w-0 flex-col overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0"
         data-testid="channel-sidebar"
+        style={SIDEBAR_SURFACE_STYLE}
       >
         {/*
           Detay yoksa sunucu bilinmiyor demek (yükleme bitti, cevap gelmedi).
@@ -1314,15 +1296,26 @@ export function ChannelSidebar({
   }
 
   const canManage = detail.server.isAdmin;
-  const visibleCategories = isFilteringChannels
-    ? detail.categories
-        .map((category) => ({
-          ...category,
-          channels: filterChannels(category.channels),
-        }))
-        .filter((category) => category.channels.length > 0)
-    : detail.categories;
-  const visibleUngroupedChannels = filterChannels(detail.ungroupedChannels);
+  /**
+   * Menü kapısı `isAdmin`'e değil **yetki bitlerine** bakıyor (00 §5): `MANAGE_CHANNELS`
+   * taşıyan ama yönetici olmayan bir rol kategori/kanal satırını görmeli, `MANAGE_SERVER`
+   * taşımayan bir yönetici yardımcısı ayarlar satırını görmemeli.
+   */
+  const viewerPermissions = resolveViewerPermissions({
+    currentUserId: currentUser.id,
+    members: detail.members,
+    roles: detail.roles,
+    server: { isOwner: detail.server.isOwner },
+  });
+  const canManageChannels = viewerCan(viewerPermissions, "MANAGE_CHANNELS");
+  const canManageServer = viewerCan(viewerPermissions, "MANAGE_SERVER");
+  /** Kanal kimliği → o kanaldaki katılımcı sayısı; daraltma filtresinin üçüncü ölçütü. */
+  const voiceParticipantCounts = new Map(
+    (voiceStatesQuery.data ?? []).map((state) => [state.channelId, state.participants.length]),
+  );
+  const collapsedContext = { activeChannelId, voiceStates: voiceParticipantCounts };
+  const visibleCategories = detail.categories;
+  const visibleUngroupedChannels = detail.ungroupedChannels;
   const hasOpenChannelGroup = visibleUngroupedChannels.length > 0;
   const openChannelGroupPosition = hasOpenChannelGroup
     ? Math.min(
@@ -1348,51 +1341,143 @@ export function ChannelSidebar({
 
   const getCategoryCollapsed = (categoryId: string) =>
     collapsedCategories[`${detail.server.id}:${categoryId}`] ?? false;
-  const moveDisplayGroup = (groupKey: string, direction: "down" | "up") => {
-    const oldIndex = displayGroups.findIndex((group) => group.key === groupKey);
-    if (oldIndex < 0) {
-      return;
-    }
 
-    const newIndex = direction === "up" ? oldIndex - 1 : oldIndex + 1;
-    if (newIndex < 0 || newIndex >= displayGroups.length) {
-      return;
-    }
-
-    const movingGroup = displayGroups[oldIndex];
-    const targetGroup = displayGroups[newIndex];
-
-    if (!movingGroup || !targetGroup) {
-      return;
-    }
-
-    if (movingGroup.type === "open") {
-      setOpenChannelGroupPosition(detail.server.id, newIndex);
-      return;
-    }
-
-    if (targetGroup.type === "open") {
-      setOpenChannelGroupPosition(detail.server.id, oldIndex);
-      return;
-    }
-
-    const oldCategoryIndex = detail.categories.findIndex(
-      (category) => category.id === movingGroup.category.id,
-    );
-    const newCategoryIndex = detail.categories.findIndex(
-      (category) => category.id === targetGroup.category.id,
-    );
-
-    if (oldCategoryIndex < 0 || newCategoryIndex < 0) {
-      return;
-    }
-
-    const reordered = arrayMove(detail.categories, oldCategoryIndex, newCategoryIndex);
-    categoryReorderMutation.mutate(
-      reordered.map((category, index) => ({
-        id: category.id,
-        position: index,
+  /**
+   * Arama popover'ının kaynağı **daraltmadan önceki** listedir: daraltılmış bir kategorideki
+   * kanal listede görünmese de aramada bulunur (Ş0'ın `channel-visibility` notu).
+   */
+  const channelSearchHits: ChannelSearchHit[] = [
+    ...detail.categories.flatMap((category) =>
+      category.channels.map((channel) => ({
+        categoryLabel: category.name,
+        id: channel.id,
+        name: channel.name,
+        type: channel.type,
       })),
+    ),
+    ...detail.ungroupedChannels.map((channel) => ({
+      categoryLabel: t("shell.channelSidebar.openChannels"),
+      id: channel.id,
+      name: channel.name,
+      type: channel.type,
+    })),
+  ];
+
+  const connectedVoiceChannel =
+    connectedVoiceServerId === detail.server.id && connectedVoiceChannelId
+      ? ([
+          ...detail.categories.flatMap((category) => category.channels),
+          ...detail.ungroupedChannels,
+        ].find((channel) => channel.id === connectedVoiceChannelId) ?? null)
+      : null;
+
+  const onlineMemberCount = detail.members.filter((member) => member.status !== "OFFLINE").length;
+  const serverIcon = resolveServerIconPresentation({
+    iconColor: detail.server.iconColor,
+    iconUrl: detail.server.iconUrl,
+    name: detail.server.name,
+    shortName: detail.server.shortName,
+  });
+
+  const handleServerMenuSelect = (key: ServerMenuRowKey) => {
+    setSidebarOverlay(null);
+
+    if (key === "invite") {
+      openInviteModal(detail.server.id);
+      return;
+    }
+
+    if (key === "createCategory") {
+      openCategoryModal(detail.server.id);
+      return;
+    }
+
+    if (key === "createChannel") {
+      openChannelModal({ mode: "create", serverId: detail.server.id, type: "TEXT" });
+      return;
+    }
+
+    if (key === "settings") {
+      openServerSettings(detail.server.id);
+      return;
+    }
+
+    onLeaveServer?.();
+  };
+
+  const openChannelContextMenu = (
+    channel: WorkspaceChannel,
+    event: React.MouseEvent<HTMLElement>,
+  ) => {
+    if (!canManage) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    setChannelMenu({
+      channelId: channel.id,
+      channelName: channel.name,
+      categoryId: channel.categoryId,
+      open: true,
+      type: channel.type,
+      x: event.clientX,
+      y: event.clientY,
+    });
+  };
+
+  const renderChannelRow = (channel: WorkspaceChannel, sortable: boolean) => {
+    const voiceState =
+      channel.type === "VOICE"
+        ? (voiceStatesQuery.data?.find((state) => state.channelId === channel.id) ?? null)
+        : null;
+    const itemProps = {
+      active: channel.id === activeChannelId,
+      currentUserId: currentUser.id,
+      name: channel.name,
+      onSelect: () => {
+        if (!channel.canAccess) {
+          return;
+        }
+        void navigateToChannel(channel.id, channel.type);
+      },
+      testId: `channel-item-${channel.id}`,
+      ...(channel.canAccess ? { onPrefetch: () => prefetchChannel(channel.id) } : {}),
+    };
+
+    if (sortable) {
+      return (
+        <SortableChannelRow
+          canManage={canManage}
+          channel={channel}
+          key={channel.id}
+          onContextMenu={(event) => openChannelContextMenu(channel, event)}
+          voiceState={voiceState}
+          {...itemProps}
+        />
+      );
+    }
+
+    /*
+      Daraltılmış kategoride satırlar **sürüklenmez**. Sıralama yükü listenin tamamından
+      türetiliyor (`buildReorderPayload`); süzülmüş üç satırdan üretilen bir yük geri kalan
+      kanalların konumunu sıfırlardı. Daraltılmış hâl bir görünüm kısayolu, bir düzenleme
+      kipi değil.
+    */
+    const Item = channel.type === "VOICE" ? VoiceChannelItem : ChannelItem;
+
+    return (
+      <div key={channel.id} onContextMenu={(event) => openChannelContextMenu(channel, event)}>
+        <Item
+          canAccess={channel.canAccess}
+          mentionCount={channel.mentionCount}
+          readOnly={channel.readOnly}
+          type={channel.type}
+          unreadCount={channel.unreadCount}
+          voiceState={voiceState}
+          {...itemProps}
+        />
+      </div>
     );
   };
 
@@ -1403,119 +1488,171 @@ export function ChannelSidebar({
     groupKey: string,
     categorySortable?: CategorySortableHandle,
   ) => {
+    const { sidebar } = SERVER_METRICS;
     const collapsed = categoryId ? getCategoryCollapsed(categoryId) : false;
-    const groupIndex = displayGroups.findIndex((group) => group.key === groupKey);
-    const canShowMoveControls =
-      canManage &&
-      showCategoryMoveControls &&
-      displayGroups.length > 1 &&
-      (categoryId !== null || groupKey === OPEN_CHANNEL_GROUP_KEY);
-    const canMoveGroupUp = canShowMoveControls && groupIndex > 0;
-    const canMoveGroupDown =
-      canShowMoveControls && groupIndex >= 0 && groupIndex < displayGroups.length - 1;
+    const categoryCaretTransform = collapsed ? "rotate(-90deg)" : "rotate(0deg)";
+    /**
+     * SPEC §2.4: daraltıldığında yalnız aktif / okunmamışı olan / içinde konuşan kanal
+     * görünür. Kural Ş0'ın saf fonksiyonundan gelir, burada ikinci kez yazılmaz.
+     */
+    const collapsedChannels = collapsed
+      ? filterCollapsedCategoryChannels(channels, collapsedContext)
+      : channels;
+    const hiddenCount = collapsed ? countHiddenInCollapsedCategory(channels, collapsedContext) : 0;
+    /*
+      Kategori başlığının **kendisi** sürükleme tutamağı: referansın satırında ayrı bir
+      tutamak, ok çifti ya da `···` düğmesi yok (§2.4). Kategori işlemleri sağ tık menüsünde,
+      klavye ile sıralama ise sunucu ayarlarının Kanallar bölümünde (Ş12) yaşıyor.
+    */
+    const categoryDragProps =
+      canManage && categorySortable
+        ? { ...categorySortable.attributes, ...categorySortable.listeners }
+        : {};
 
     return (
       <div
-        className="group/category space-y-0.5 rounded-[16px] px-1 py-1"
         data-sidebar-interactive="true"
+        data-testid={`channel-category-${categoryId ?? "open"}`}
         key={groupKey}
+        style={{ marginTop: pxToRem(sidebar.categoryMarginTop) }}
       >
-        <div className="flex items-center gap-1">
-          {canManage && categoryId && categorySortable ? (
-            <button
-              aria-label={t("shell.channelSidebar.dragCategory", { name: label })}
-              className={cn(
-                "text-app-soft inline-flex h-6 w-5 shrink-0 items-center justify-center rounded-lg transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
-                categorySortable.isDragging && "cursor-grabbing text-app-foreground",
-              )}
-              type="button"
-              {...categorySortable.attributes}
-              {...categorySortable.listeners}
-            >
-              <GripVertical className="h-3 w-3" />
-            </button>
-          ) : null}
-          {canShowMoveControls ? (
-            <div
-              aria-label={t("shell.channelSidebar.sectionMoveControls", { name: label })}
-              className="hidden shrink-0 items-center rounded-xl bg-[hsl(var(--surface-card)/0.48)] p-0.5 group-hover/category:flex group-focus-within/category:flex"
-            >
-              <button
-                aria-label={t("shell.channelSidebar.moveSectionUp", { name: label })}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-35"
-                disabled={!canMoveGroupUp || categoryReorderMutation.isPending}
-                onClick={(event) => {
+        <div
+          className="flex items-center"
+          onContextMenu={
+            categoryId
+              ? (event) => {
+                  if (!canManage) {
+                    return;
+                  }
+
+                  event.preventDefault();
                   event.stopPropagation();
-                  moveDisplayGroup(groupKey, "up");
-                }}
-                title={t("shell.channelSidebar.moveSectionUp", { name: label })}
-                type="button"
-              >
-                <ArrowUp className="h-3 w-3" />
-              </button>
-              <button
-                aria-label={t("shell.channelSidebar.moveSectionDown", { name: label })}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-35"
-                disabled={!canMoveGroupDown || categoryReorderMutation.isPending}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  moveDisplayGroup(groupKey, "down");
-                }}
-                title={t("shell.channelSidebar.moveSectionDown", { name: label })}
-                type="button"
-              >
-                <ArrowDown className="h-3 w-3" />
-              </button>
-            </div>
-          ) : null}
+                  setCategoryMenu({
+                    categoryId,
+                    categoryName: label,
+                    open: true,
+                    x: event.clientX,
+                    y: event.clientY,
+                  });
+                }
+              : undefined
+          }
+          style={{
+            gap: pxToRem(sidebar.categoryHeaderGap),
+            padding: `${pxToRem(sidebar.categoryHeaderPaddingY)} ${pxToRem(
+              sidebar.categoryHeaderPaddingRight,
+            )} ${pxToRem(sidebar.categoryHeaderPaddingY)} ${pxToRem(
+              sidebar.categoryHeaderPaddingLeft,
+            )}`,
+          }}
+        >
           <button
-            className="text-app-soft flex min-w-0 flex-1 items-center justify-between rounded-[12px] px-1.5 py-0.5 text-left text-[10px] font-semibold uppercase tracking-[0.2em] transition hover:bg-[hsl(var(--surface-soft)/0.5)] hover:text-[hsl(var(--foreground))]"
+            aria-expanded={categoryId ? !collapsed : undefined}
+            className="flex min-w-0 flex-1 cursor-pointer items-center text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            data-testid={categoryId ? `channel-category-toggle-${categoryId}` : undefined}
             onClick={() => {
               if (categoryId) {
                 toggleCategoryCollapse(detail.server.id, categoryId);
               }
             }}
+            style={{ gap: pxToRem(sidebar.categoryHeaderGap) }}
             type="button"
+            {...categoryDragProps}
           >
-            <span className="truncate">{label}</span>
             {categoryId ? (
-              <ChevronDown
-                className={cn("h-3 w-3 shrink-0 transition", collapsed && "-rotate-90")}
-              />
+              <span
+                className="grid flex-none place-items-center"
+                style={{
+                  color: "hsl(var(--text-muted))",
+                  height: pxToRem(sidebar.categoryCaretSize),
+                  transform: categoryCaretTransform,
+                  transition: `transform ${sidebar.categoryCaretTransitionMs}ms`,
+                  width: pxToRem(sidebar.categoryCaretSize),
+                }}
+              >
+                <ChevronDown
+                  aria-hidden="true"
+                  strokeWidth={sidebar.categoryCaretStrokeWidth}
+                  style={{
+                    height: pxToRem(sidebar.categoryCaretSize),
+                    width: pxToRem(sidebar.categoryCaretSize),
+                  }}
+                />
+              </span>
+            ) : null}
+            <span
+              className="min-w-0 truncate uppercase"
+              style={{
+                color: collapsed ? "hsl(var(--text-muted))" : "hsl(var(--text-secondary))",
+                fontFamily: DISPLAY_FONT,
+                fontSize: pxToRem(sidebar.categoryLabelFontSize),
+                fontWeight: 600,
+                letterSpacing: `${sidebar.categoryLabelLetterSpacing}em`,
+                lineHeight: sidebar.categoryLabelLineHeight,
+              }}
+            >
+              {label}
+            </span>
+            {hiddenCount > 0 ? (
+              <span
+                className="flex-none"
+                data-testid={`channel-category-hidden-${categoryId ?? "open"}`}
+                style={{
+                  background: "hsl(var(--surface-tertiary))",
+                  borderRadius: pxToRem(sidebar.categoryHiddenChipRadius),
+                  color: "hsl(var(--text-muted))",
+                  fontFamily: DISPLAY_FONT,
+                  fontSize: pxToRem(sidebar.categoryHiddenChipFontSize),
+                  fontWeight: 600,
+                  lineHeight: 1,
+                  padding: `${pxToRem(sidebar.categoryHiddenChipPaddingY)} ${pxToRem(
+                    sidebar.categoryHiddenChipPaddingX,
+                  )}`,
+                }}
+              >
+                {t("server.sidebar.category.hidden", { count: hiddenCount })}
+              </span>
             ) : null}
           </button>
-          {canManage && categoryId ? (
+
+          {canManageChannels && categoryId ? (
             <button
-              aria-label={t("shell.channelSidebar.categoryActions")}
-              className="text-app-soft inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-xl border border-transparent opacity-0 transition hover:border-[hsl(var(--border)/0.58)] hover:bg-[hsl(var(--surface-soft)/0.68)] hover:text-app-foreground focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] group-hover/category:opacity-100"
+              aria-label={t("server.sidebar.category.addChannel", { name: label })}
+              className="grid flex-none cursor-pointer place-items-center transition-colors hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              data-testid={`channel-category-add-${categoryId}`}
               onClick={(event) => {
                 event.stopPropagation();
-                const rect = event.currentTarget.getBoundingClientRect();
-                setCategoryMenu({
+                openChannelModal({
                   categoryId,
-                  categoryName: label,
-                  open: true,
-                  x: rect.left,
-                  y: rect.bottom + 8,
+                  mode: "create",
+                  serverId: detail.server.id,
+                  type: "TEXT",
                 });
               }}
+              style={{
+                borderRadius: pxToRem(sidebar.categoryAddButtonRadius),
+                color: "hsl(var(--text-muted))",
+                height: pxToRem(sidebar.categoryAddButtonSize),
+                width: pxToRem(sidebar.categoryAddButtonSize),
+              }}
+              title={t("server.sidebar.category.addChannel", { name: label })}
               type="button"
             >
-              <MoreHorizontal className="h-3.5 w-3.5" />
+              <Plus
+                aria-hidden="true"
+                strokeWidth={sidebar.categoryAddIconStrokeWidth}
+                style={{
+                  height: pxToRem(sidebar.categoryAddIconSize),
+                  width: pxToRem(sidebar.categoryAddIconSize),
+                }}
+              />
             </button>
           ) : null}
         </div>
-        {canShowMoveControls ? (
-          <p className="hidden px-2 text-[9.5px] font-medium leading-4 text-app-soft transition group-hover/category:block group-focus-within/category:block">
-            {t(
-              categoryId
-                ? "shell.channelSidebar.categoryMoveHint"
-                : "shell.channelSidebar.openChannelsMoveHint",
-            )}
-          </p>
-        ) : null}
 
-        {!collapsed ? (
+        {collapsed ? (
+          collapsedChannels.map((channel) => renderChannelRow(channel, false))
+        ) : (
           <SortableContext
             items={channels.map((channel) => channel.id)}
             strategy={verticalListSortingStrategy}
@@ -1526,152 +1663,152 @@ export function ChannelSidebar({
               empty={channels.length === 0}
               emptyLabel={t("shell.channelSidebar.dropChannelsHere")}
             >
-              <div className="space-y-0.5">
-                {channels.map((channel) => {
-                  const voiceState =
-                    channel.type === "VOICE"
-                      ? (voiceStatesQuery.data?.find((state) => state.channelId === channel.id) ??
-                        null)
-                      : null;
-
-                  return (
-                    <SortableChannelRow
-                      active={channel.id === activeChannelId}
-                      canManage={canManage}
-                      channel={channel}
-                      currentUserId={currentUser.id}
-                      key={channel.id}
-                      onDelete={() => openDeleteChannelDialog(channel.id, channel.name)}
-                      onEdit={() =>
-                        openChannelModal({
-                          categoryId: channel.categoryId,
-                          channelId: channel.id,
-                          mode: "edit",
-                          serverId: detail.server.id,
-                          type: channel.type,
-                        })
-                      }
-                      onSelect={() => {
-                        if (!channel.canAccess) {
-                          return;
-                        }
-                        void navigateToChannel(channel.id, channel.type);
-                      }}
-                      testId={`channel-item-${channel.id}`}
-                      voiceState={voiceState}
-                      {...(channel.canAccess
-                        ? { onPrefetch: () => prefetchChannel(channel.id) }
-                        : {})}
-                    />
-                  );
-                })}
-              </div>
+              {channels.map((channel) => renderChannelRow(channel, true))}
             </ChannelDropZone>
           </SortableContext>
-        ) : null}
+        )}
       </div>
     );
   };
 
   return (
     <aside
-      className="app-sidebar flex h-full w-full min-w-0 flex-col overflow-hidden bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.96),hsl(var(--surface-soft)/0.32))] pt-[env(safe-area-inset-top)] md:pt-0"
+      className="relative flex h-full w-full min-w-0 flex-col overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0"
       data-testid="channel-sidebar"
+      style={SIDEBAR_SURFACE_STYLE}
     >
-      <div className="space-y-2 border-b border-[hsl(var(--border)/0.36)] px-2.5 py-2.5">
-        <button
-          aria-label={`Open ${detail.server.name} menu`}
-          className="flex min-h-[3.35rem] w-full min-w-0 items-center justify-between gap-2.5 rounded-[18px] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.54),hsl(var(--primary)/0.06))] px-2.5 py-2 text-left transition hover:bg-[hsl(var(--surface-card)/0.72)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-          data-sidebar-interactive="true"
-          onClick={(event) => {
-            const rect = event.currentTarget.getBoundingClientRect();
-            setHeaderMenu({
-              open: true,
-              x: rect.left,
-              y: rect.bottom + 8,
-            });
+      {/* SPEC §2.1 — sunucu başlığı. Açıkken zemin `surface-soft`, altında `border/.45`. */}
+      <button
+        aria-expanded={sidebarOverlay === "menu"}
+        aria-haspopup="menu"
+        className="flex w-full min-w-0 items-center text-left transition-colors hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+        data-sidebar-interactive="true"
+        data-testid="server-header-button"
+        onClick={() => setSidebarOverlay((current) => (current === "menu" ? null : "menu"))}
+        ref={serverMenuTriggerRef}
+        style={{
+          background: sidebarOverlay === "menu" ? "hsl(var(--surface-soft))" : "transparent",
+          borderBottom: `${hairline()} solid hsl(var(--border) / ${SERVER_METRICS.sidebar.headerBorderBottomAlpha})`,
+          gap: pxToRem(SERVER_METRICS.sidebar.headerGap),
+          padding: `${pxToRem(SERVER_METRICS.sidebar.headerPaddingY)} ${pxToRem(
+            SERVER_METRICS.sidebar.headerPaddingX,
+          )}`,
+        }}
+        type="button"
+      >
+        <span
+          className="grid flex-none place-items-center uppercase"
+          style={{
+            background:
+              serverIcon.kind === "image"
+                ? `center / cover no-repeat url(${JSON.stringify(serverIcon.imageUrl)})`
+                : getServerIconToneColor(serverIcon.tone),
+            borderRadius: pxToRem(SERVER_METRICS.sidebar.headerIconRadius),
+            color: "hsl(var(--primary-foreground))",
+            fontFamily: DISPLAY_FONT,
+            fontSize: pxToRem(SERVER_METRICS.sidebar.headerIconFontSize),
+            fontWeight: 600,
+            height: pxToRem(SERVER_METRICS.sidebar.headerIconSize),
+            lineHeight: 1,
+            width: pxToRem(SERVER_METRICS.sidebar.headerIconSize),
           }}
-          type="button"
         >
-          <div className="min-w-0">
-            <p className="text-app-soft text-[9.5px] font-semibold uppercase tracking-[0.2em]">
-              {t("shell.channelSidebar.manageServer")}
-            </p>
-            <p className="text-app-foreground mt-0.5 truncate text-[15px] font-semibold leading-5">
-              {detail.server.name}
-            </p>
-            <p className="text-app-soft truncate text-[11px]">
-              {t("shell.channelSidebar.membersCount", { count: detail.server.memberCount })}
-            </p>
-          </div>
-          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] bg-[hsl(var(--surface-soft)/0.34)] text-app-muted">
-            <ChevronDown className="h-4 w-4" />
-          </span>
-        </button>
-        <label className="relative block" data-sidebar-interactive="true">
-          <span className="sr-only">{t("shell.channelSidebar.searchLabel")}</span>
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-app-soft" />
-          <input
-            className="h-10 w-full rounded-[16px] border border-[hsl(var(--border)/0.42)] bg-[hsl(var(--surface-card)/0.5)] pl-8 pr-16 text-[13px] font-medium text-app-foreground outline-hidden transition placeholder:text-app-soft hover:border-[hsl(var(--primary)/0.22)] focus:border-[hsl(var(--primary)/0.42)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
-            onChange={(event) => setChannelSearchQuery(event.target.value)}
-            placeholder={t("shell.channelSidebar.searchPlaceholder")}
-            type="search"
-            value={channelSearchQuery}
-          />
-          <span className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-[10px] bg-[hsl(var(--surface-soft)/0.48)] px-1.5 py-0.5 text-[9.5px] font-bold text-app-soft sm:inline-flex">
-            Ctrl K
-          </span>
-        </label>
-        {canManage ? (
-          <div
-            className="grid grid-cols-[0.72fr_0.68fr_1.18fr] gap-1"
-            data-sidebar-interactive="true"
+          {serverIcon.kind === "fallback" ? serverIcon.label : ""}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span
+            className="block truncate"
+            style={{
+              color: "hsl(var(--foreground))",
+              fontFamily: DISPLAY_FONT,
+              fontSize: pxToRem(SERVER_METRICS.sidebar.headerNameFontSize),
+              fontWeight: 600,
+              letterSpacing: DISPLAY_TRACKING,
+              lineHeight: SERVER_METRICS.sidebar.headerNameLineHeight,
+            }}
           >
-            <button
-              className="inline-flex h-8 min-w-0 items-center justify-center gap-0.5 rounded-[13px] bg-[hsl(var(--surface-soft)/0.22)] px-1 text-[10.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-              data-testid="create-text-channel-button"
-              onClick={() =>
-                openChannelModal({
-                  mode: "create",
-                  serverId: detail.server.id,
-                  type: "TEXT",
-                })
-              }
-              type="button"
-            >
-              <Hash className="h-3 w-3 shrink-0" />
-              <span className="min-w-0 truncate">{t("shell.channelSidebar.addTextChannel")}</span>
-            </button>
-            <button
-              className="inline-flex h-8 min-w-0 items-center justify-center gap-0.5 rounded-[13px] bg-[hsl(var(--surface-soft)/0.22)] px-1 text-[10.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-              data-testid="create-voice-channel-button"
-              onClick={() =>
-                openChannelModal({
-                  mode: "create",
-                  serverId: detail.server.id,
-                  type: "VOICE",
-                })
-              }
-              type="button"
-            >
-              <Volume2 className="h-3 w-3 shrink-0" />
-              <span className="min-w-0 truncate">{t("shell.channelSidebar.addVoiceChannel")}</span>
-            </button>
-            <button
-              className="inline-flex h-8 min-w-0 items-center justify-center gap-0.5 rounded-[13px] bg-[hsl(var(--surface-soft)/0.22)] px-1 text-[10.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-              onClick={() => openInviteModal(detail.server.id)}
-              type="button"
-            >
-              <UserPlus className="h-3 w-3 shrink-0" />
-              <span className="min-w-0 truncate">{t("shell.channelSidebar.createInvite")}</span>
-            </button>
-          </div>
-        ) : null}
-      </div>
+            {detail.server.name}
+          </span>
+          <span
+            className="flex items-center"
+            style={{
+              color: "hsl(var(--text-muted))",
+              fontSize: pxToRem(SERVER_METRICS.sidebar.headerMetaFontSize),
+              fontWeight: 500,
+              gap: pxToRem(SERVER_METRICS.sidebar.headerMetaGap),
+              lineHeight: 1,
+              marginTop: pxToRem(SERVER_METRICS.sidebar.headerMetaMarginTop),
+            }}
+          >
+            <span
+              aria-hidden="true"
+              className="flex-none rounded-full"
+              style={{
+                background: "hsl(var(--success))",
+                height: pxToRem(SERVER_METRICS.sidebar.headerPresenceDotSize),
+                width: pxToRem(SERVER_METRICS.sidebar.headerPresenceDotSize),
+              }}
+            />
+            <span className="truncate">
+              {t("server.sidebar.header.presence", {
+                members: detail.server.memberCount,
+                online: onlineMemberCount,
+              })}
+            </span>
+          </span>
+        </span>
+        <ChevronDown
+          aria-hidden="true"
+          style={{
+            color: "hsl(var(--text-muted))",
+            flex: "none",
+            height: pxToRem(SERVER_METRICS.sidebar.headerChevronSize),
+            width: pxToRem(SERVER_METRICS.sidebar.headerChevronSize),
+          }}
+        />
+      </button>
+
+      {sidebarOverlay === "menu" ? (
+        <ServerMenu
+          canManageChannels={canManageChannels}
+          canManageServer={canManageServer}
+          inviteHint={t(`server.modal.invite.duration.${SERVER_INVITE_DEFAULT_DURATION_ID}`)}
+          onClose={closeSidebarOverlay}
+          onSelect={handleServerMenuSelect}
+          triggerRef={serverMenuTriggerRef}
+        />
+      ) : null}
+
+      <ChannelSearchTrigger
+        onOpen={() => setSidebarOverlay("search")}
+        open={sidebarOverlay === "search"}
+        triggerRef={channelSearchTriggerRef}
+      />
+
+      {sidebarOverlay === "search" ? (
+        <ChannelSearchPopover
+          channels={channelSearchHits}
+          onClose={closeSidebarOverlay}
+          onSelect={(channelId) => {
+            const channel = channelSearchHits.find((hit) => hit.id === channelId);
+            setSidebarOverlay(null);
+            if (channel) {
+              void navigateToChannel(channel.id, channel.type);
+            }
+          }}
+          triggerRef={channelSearchTriggerRef}
+        />
+      ) : null}
 
       <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd} sensors={sensors}>
         <div
-          className="min-w-0 flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden px-2 py-2.5"
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden"
+          data-testid="channel-sidebar-list"
+          style={{
+            padding: `0 ${pxToRem(SERVER_METRICS.sidebar.listPaddingX)} ${pxToRem(
+              SERVER_METRICS.sidebar.listPaddingBottom,
+            )}`,
+          }}
           onContextMenu={(event) => {
             const target = event.target;
             if (
@@ -1734,6 +1871,18 @@ export function ChannelSidebar({
         </div>
       </DndContext>
 
+      {connectedVoiceChannel ? (
+        <ConnectedVoiceStripLive
+          channelName={connectedVoiceChannel.name}
+          /* TODO(api): odanın RTT'sini veren bir alan yok; sayı uydurulmuyor (bkz. bileşen). */
+          latencyMs={null}
+          onLeave={() => {
+            void leaveChannel();
+          }}
+          serverName={detail.server.name}
+        />
+      ) : null}
+
       {showUserFooter ? (
         <div
           className="flex items-center"
@@ -1749,93 +1898,50 @@ export function ChannelSidebar({
       ) : null}
 
       <ContextMenu
-        onClose={() => setHeaderMenu((state) => ({ ...state, open: false }))}
-        open={headerMenu.open}
-        position={headerMenu}
+        onClose={() => setChannelMenu((state) => ({ ...state, open: false }))}
+        open={channelMenu.open}
+        position={channelMenu}
       >
+        <div className="px-3 py-2">
+          <p className="text-app-soft text-[10px] font-semibold uppercase tracking-[0.2em]">
+            {t("server.sidebar.channel.actions")}
+          </p>
+          <p className="mt-0.5 max-w-48 truncate text-sm font-semibold text-app-foreground">
+            {channelMenu.channelName}
+          </p>
+        </div>
+        <ContextMenuSeparator />
         <ContextMenuItem
+          data-testid="channel-context-edit"
           onClick={() => {
-            setHeaderMenu((state) => ({ ...state, open: false }));
-            onNavigate(`/servers/${detail.server.id}/about`);
+            if (!channelMenu.channelId) return;
+            const { categoryId, channelId, type } = channelMenu;
+            setChannelMenu((state) => ({ ...state, open: false }));
+            openChannelModal({
+              categoryId,
+              channelId,
+              mode: "edit",
+              serverId: detail.server.id,
+              type,
+            });
           }}
         >
-          Sunucu profili
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        {canManage ? (
-          <>
-            <ContextMenuItem
-              onClick={() => {
-                setHeaderMenu((state) => ({ ...state, open: false }));
-                openServerSettings(detail.server.id);
-              }}
-            >
-              {t("shell.channelSidebar.serverSettings")}
-            </ContextMenuItem>
-            <ContextMenuItem
-              onClick={() => {
-                setHeaderMenu((state) => ({ ...state, open: false }));
-                openInviteModal(detail.server.id);
-              }}
-            >
-              {t("shell.channelSidebar.createInvite")}
-            </ContextMenuItem>
-            <ContextMenuSeparator />
-            <ContextMenuItem
-              onClick={() => {
-                setHeaderMenu((state) => ({ ...state, open: false }));
-                openCategoryModal(detail.server.id);
-              }}
-            >
-              {t("shell.channelSidebar.createCategory")}
-            </ContextMenuItem>
-            <ContextMenuItem
-              onClick={() => {
-                setHeaderMenu((state) => ({ ...state, open: false }));
-                openChannelModal({
-                  mode: "create",
-                  serverId: detail.server.id,
-                  type: "TEXT",
-                });
-              }}
-            >
-              {t("shell.channelSidebar.createTextChannel")}
-            </ContextMenuItem>
-            <ContextMenuItem
-              onClick={() => {
-                setHeaderMenu((state) => ({ ...state, open: false }));
-                openChannelModal({
-                  mode: "create",
-                  serverId: detail.server.id,
-                  type: "VOICE",
-                });
-              }}
-            >
-              {t("shell.channelSidebar.createVoiceChannel")}
-            </ContextMenuItem>
-          </>
-        ) : (
-          <div className="text-app-soft px-3 py-2 text-xs uppercase tracking-[0.2em]">
-            {t("shell.channelSidebar.memberView")}
-          </div>
-        )}
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          disabled={detail.categories.length === 0}
-          onClick={() => setAllCategoriesCollapsed(false)}
-        >
-          <ChevronDown className="mr-2 h-4 w-4" />
-          {t("shell.channelSidebar.expandAllCategories")}
+          <Edit3 className="mr-2 h-4 w-4" />
+          {t("server.sidebar.channel.edit")}
         </ContextMenuItem>
         <ContextMenuItem
-          disabled={detail.categories.length === 0}
-          onClick={() => setAllCategoriesCollapsed(true)}
+          data-testid="channel-context-delete"
+          destructive
+          onClick={() => {
+            if (!channelMenu.channelId) return;
+            const { channelId, channelName } = channelMenu;
+            setChannelMenu((state) => ({ ...state, open: false }));
+            openDeleteChannelDialog(channelId, channelName);
+          }}
         >
-          <ChevronDown className="mr-2 h-4 w-4 -rotate-90" />
-          {t("shell.channelSidebar.collapseAllCategories")}
+          <Trash2 className="mr-2 h-4 w-4" />
+          {t("server.sidebar.channel.delete")}
         </ContextMenuItem>
-        <ContextMenuSeparator />
-        {renderSidebarControls()}
       </ContextMenu>
 
       <ContextMenu
@@ -1932,6 +2038,20 @@ export function ChannelSidebar({
         open={emptyMenu.open}
         position={emptyMenu}
       >
+        {/*
+          `Sunucu profili` eskiden başlığın açtığı menüdeydi. Başlık artık SPEC §2.2'nin beş
+          satırını çiziyor ve o beşin içinde profil yok; rota kaybolmasın diye boş alanın
+          sağ tık menüsüne taşındı.
+        */}
+        <ContextMenuItem
+          onClick={() => {
+            setEmptyMenu((state) => ({ ...state, open: false }));
+            onNavigate(`/servers/${detail.server.id}/about`);
+          }}
+        >
+          {t("server.sidebar.serverProfile")}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
         {canManage ? (
           <>
             <ContextMenuItem
@@ -1996,8 +2116,6 @@ export function ChannelSidebar({
           <ChevronDown className="mr-2 h-4 w-4 -rotate-90" />
           {t("shell.channelSidebar.collapseAllCategories")}
         </ContextMenuItem>
-        <ContextMenuSeparator />
-        {renderSidebarControls()}
       </ContextMenu>
 
       <Modal

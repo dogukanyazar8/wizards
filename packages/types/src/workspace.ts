@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { DiscoverLanguagesSchema, DiscoverServerCategoryKeySchema } from "./discover-screen";
+import { SERVER_ICON_TONES, ServerIconToneSchema } from "./server-icon";
 import { CHANNEL_BITRATE_OPTIONS, CHANNEL_VIDEO_QUALITY_MODES } from "./voice-media-policy";
 
 function emptyStringToNull(value: string | null | undefined) {
@@ -22,22 +23,13 @@ const optionalTrimmedString = (maxLength: number, preserveUndefined = false) =>
       preserveUndefined && value === undefined ? undefined : emptyStringToNull(value),
     );
 
-const optionalServerShortName = z
+/** Yeni yazmalarda kısaltma zorunlu ve tam üç karakterdir; okuma şemaları eski kayıtları taşır. */
+const serverShortNameWriteSchema = z
   .string()
   .trim()
-  .max(4)
-  .regex(/^[\p{L}\p{N}][\p{L}\p{N}_-]{0,3}$/u, "validation.server.shortNamePattern")
-  .optional()
-  .or(z.literal(""))
-  .or(z.null())
-  .transform((value) => {
-    if (value === undefined) {
-      return undefined;
-    }
-
-    const normalized = emptyStringToNull(value);
-    return normalized ? normalized.toUpperCase() : null;
-  });
+  .length(3)
+  .regex(/^[\p{L}\p{N}][\p{L}\p{N}_-]{2}$/u, "validation.server.shortNamePattern")
+  .transform((value) => value.toLocaleUpperCase("tr-TR"));
 
 const workspaceNameSchema = (maxLength: number, patternMessage: string) =>
   z
@@ -56,6 +48,29 @@ export const CHANNEL_SLOW_MODE_DELAYS = [
   0, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1_800, 3_600,
 ] as const;
 export const CHANNEL_USER_LIMIT_MAX = 10;
+
+/**
+ * Sunucu geneli yavaş mod; kanal ayarıyla **aynı** değer kümesi (SPEC-SUNUCU §8.3).
+ *
+ * İki ayrı küme, "iki süre birlikte tanımlıysa uzun olan uygulanır" kuralını
+ * anlamsız kılardı: 45 saniyelik bir sunucu ayarı hiçbir kanal seçeneğine
+ * denk gelmez ve çip grubunda seçili görünecek bir seçenek kalmazdı.
+ */
+export const ServerSlowModeSchema = z
+  .number()
+  .int()
+  .refine((value) => CHANNEL_SLOW_MODE_DELAYS.includes(value as never));
+
+/**
+ * Sunucu ikonunun renk tonu (SPEC-SUNUCU §7, §8.1 — altı swatch).
+ *
+ * Tonlar token adlarıdır, renk değil: tüketici `hsl(var(--primary))` /
+ * `hsl(var(--accent-2))` ile boyar. `null` (kolonun varsayılanı) eski
+ * deterministik türetmeyi korur — kısa adın harf kodları toplamı % palet uzunluğu.
+ */
+export { SERVER_ICON_TONES, ServerIconToneSchema } from "./server-icon";
+export type { ServerIconTone } from "./server-icon";
+
 const ChannelVideoQualityModeSchema = z.enum(CHANNEL_VIDEO_QUALITY_MODES);
 
 const channelSlowModeDelaySchema = z
@@ -167,6 +182,12 @@ export const WorkspaceMemberSchema = z.object({
   userId: z.string(),
   accessLevel: WorkspaceAccessLevelSchema,
   avatarUrl: z.string().nullable(),
+  /**
+   * Zaman aşımı bitiş anı (`ServerMember.communicationDisabledUntil`, K3). `null` = zaman
+   * aşımı yok. Kolon ve servis zaten vardı; eksik olan tek şey okuma sözleşmesiydi, bu
+   * yüzden üye satırı "susturuldu" durumunu çizemiyordu.
+   */
+  communicationDisabledUntil: z.string().datetime().nullable().default(null),
   customStatus: z.string().nullable(),
   displayName: z.string(),
   status: z.enum(["ONLINE", "IDLE", "DND", "OFFLINE"]),
@@ -182,7 +203,43 @@ export const WorkspaceInviteSchema = z.object({
   createdByDisplayName: z.string(),
   expiresAt: z.string().datetime().nullable(),
   maxUses: z.number().int().positive().nullable(),
+  /**
+   * Hedefli davet: `ServerInvite.targetUserId` dolu olan davet (K3). "Bekleyen davetler"
+   * listesi bu kolondan beslenir — yeni tablo yok. Eski bir yanıt alanı hiç göndermez,
+   * `null` varsayılanı o yanıtı ayrıştırılabilir tutar.
+   */
+  targetUserId: z.string().nullable().default(null),
   uses: z.number().int().nonnegative(),
+});
+
+/**
+ * Bekleyen davet satırının hedef kimliği (Ş3, SPEC §8.7 "Arkadaş seçerek davet").
+ *
+ * `ServerInvite.targetUserId` bir Prisma ilişkisi taşımıyor, o yüzden kimlik ayrı bir
+ * okumadan geliyor ve satıra burada iliştiriliyor.
+ */
+export const ServerPendingInviteUserSchema = z.object({
+  avatarUrl: z.string().nullable(),
+  displayName: z.string().nullable(),
+  id: z.string(),
+  username: z.string(),
+});
+
+/**
+ * `GET /servers/[serverId]/invites?pending=1` satırı: davetin kendisi (kod, kanal,
+ * oluşturan, kalan süre `expiresAt`'ten) **artı** hedefin kimliği. `WorkspaceInviteSchema`'nın
+ * üst kümesi olduğu için taban şemayla ayrıştıran bir istemci bozulmadan çalışmaya devam eder.
+ */
+export const ServerPendingInviteSchema = WorkspaceInviteSchema.extend({
+  targetUser: ServerPendingInviteUserSchema,
+});
+
+export const WorkspaceInvitesResponseSchema = z.object({
+  invites: z.array(WorkspaceInviteSchema),
+});
+
+export const ServerPendingInvitesResponseSchema = z.object({
+  invites: z.array(ServerPendingInviteSchema),
 });
 
 export const WorkspaceMemberPageSchema = z.object({
@@ -226,6 +283,14 @@ export const WorkspaceServerSummarySchema = z.object({
   memberCount: z.number().int().nonnegative(),
   messageCharacterLimit: z.number().int().positive(),
   deletedMessageNoticeMinutes: z.number().int().min(5).max(10080),
+  /**
+   * SPEC-SUNUCU §7/§8.1'in altı swatch'ı. `null` = kısa addan deterministik türetme; alan
+   * **zorunlu** okunur çünkü "alan yok" ile "sahibi henüz seçmedi" aynı şey değil ve rayın
+   * ikonu ikisini farklı çizemezse swatch yalan söyler.
+   */
+  iconColor: ServerIconToneSchema.nullable(),
+  /** SPEC-SUNUCU §8.3 — kanal ayarından bağımsız, uygulamada `max(server, channel)`. */
+  slowModeDelay: ServerSlowModeSchema,
   name: z.string(),
   shortName: z.string().nullable(),
   defaultChannelId: z.string().nullable(),
@@ -272,7 +337,44 @@ export const WorkspaceServerResponseSchema = z.object({
   detail: WorkspaceServerDetailSchema,
 });
 
+/**
+ * Üye listesi filtresi (SPEC-SUNUCU §8.6). Yedi çip: dördü **atanmış role**, ikisi
+ * **presence**'a bakar, biri her şeyi geçirir.
+ *
+ * `moderator` üründe bir erişim seviyesi **değil** — `WorkspaceAccessLevel` yalnız
+ * `OWNER | ADMIN | MEMBER` taşır ve mobil sözleşmesi ona bağlı (K10). Bu yüzden filtre
+ * seviyeden değil, üye moderasyonu bitlerinden türetilir; ayrıntı
+ * `lib/workspace/member-filters.ts` içinde.
+ */
+export const WorkspaceMemberFilterSchema = z.enum([
+  "all",
+  "member",
+  "moderator",
+  "admin",
+  "owner",
+  "online",
+  "offline",
+]);
+
+/**
+ * `N / toplam` sayacı (SPEC-SUNUCU §8.6). `total` **filtreden bağımsız** sunucu üye sayısıdır;
+ * `filtered` aramanın ve çipin ardından kalan sayıdır. İkisi de sayfadan değil, veritabanı
+ * sayımından gelir — sayfa boyu 100'de kesildiği için "sayfadaki satırları say" iki farklı
+ * gerçek üretirdi.
+ */
+export const WorkspaceMemberCountsSchema = z
+  .object({
+    filtered: z.number().int().nonnegative(),
+    total: z.number().int().nonnegative(),
+  })
+  .strict();
+
 export const WorkspaceMembersResponseSchema = z.object({
+  /**
+   * Ş2: `N / toplam` sayacının tek kaynağı. Zorunlu, çünkü tek üreticisi
+   * `listWorkspaceServerMembers` ve eksik bir sayaç `0 / 0` çizerdi — yani yalan.
+   */
+  memberCounts: WorkspaceMemberCountsSchema,
   memberPage: WorkspaceMemberPageSchema,
   members: z.array(WorkspaceMemberSchema),
 });
@@ -284,7 +386,28 @@ export const CreateServerSchema = z
     allowFileUploads: z.boolean().optional().default(true),
     allowGifs: z.boolean().optional().default(true),
     allowMemberAdds: z.boolean().optional().default(true),
+    /**
+     * Ş10 §7 `Gelişmiş` katlanır bloğunun ikinci çip grubu. Sınırlar
+     * `UpdateServerFieldsSchema` ile birebir aynı; iki uçta iki farklı sınır olsaydı
+     * oluşturma penceresinde seçilebilen bir değer ayarlar ekranında reddedilirdi.
+     *
+     * **K7:** alan verilmezse kolonun varsayılanı (60 dk) yazılır — geri doldurma yok.
+     */
+    deletedMessageNoticeMinutes: z.number().int().min(5).max(10080).optional(),
     description: optionalTrimmedString(160),
+    /**
+     * Ş10 §7 `ERİŞİM` radyosunun üç kombinasyonundan ikincisi.
+     *
+     * Varsayılan `false`: alanı hiç göndermeyen eski istemci (mobil, admin ötesi bütün
+     * çağrılar) eskisi gibi **özel** bir sunucu oluşturur. `discoverable: true` +
+     * `isPublic: false` gövdesi şemadan geçer ama servis onu `discoverable: false`'a
+     * indirir — değişmez kural `resolveVisibilityCreateData`'da, `.refine()` ile değil:
+     * `AdminCreateServerSchema` bu nesneyi `.extend()`, mobil sözleşmesi `.omit()` eder ve
+     * `ZodEffects` ikisini de kırardı.
+     */
+    discoverable: z.boolean().optional().default(false),
+    /** Oluşturma penceresinin altı swatch'ı; verilmezse kısa addan türetilir (SPEC §7). */
+    iconColor: ServerIconToneSchema.optional(),
     iconUrl: z
       .string()
       .url()
@@ -292,8 +415,18 @@ export const CreateServerSchema = z
       .or(z.literal(""))
       .or(z.null())
       .transform((value) => emptyStringToNull(value)),
+    /** Ş10 §7 `ERİŞİM` radyosu; `Özel` dışındaki iki seçenek bunu açar. */
+    isPublic: z.boolean().optional().default(false),
+    /** Ş10 §7 `Gelişmiş` bloğunun ilk çip grubu: 2B · 250 · 40.000. */
+    messageCharacterLimit: z.number().int().min(250).max(40000).optional(),
     name: z.string().trim().min(2).max(64),
-    shortName: optionalServerShortName,
+    shortName: serverShortNameWriteSchema,
+    /**
+     * Ş10 §7 `KEŞİF ETİKETLERİ`. Aynı `ServerTagsSchema` hem oluşturmada hem
+     * `PATCH`'te geçerli — oluşturma penceresi ile ayarlar bölümü tek bileşen paylaştığı
+     * için (PROMPT §3) tek sınır kümesi paylaşmak zorundalar.
+     */
+    tags: ServerTagsSchema.optional(),
   })
   .strict();
 
@@ -301,6 +434,12 @@ export const CreateServerSchema = z
  * Community servers exist only behind the admin surface, so the privileged
  * fields live on a separate schema. The consumer contract never carries them —
  * the gate is the shape of the request, not a runtime check inside the service.
+ *
+ * Ş10 notu: `isPublic`/`discoverable` **artık** tüketici şemasında da var (SPEC §7'nin
+ * `ERİŞİM` radyosu). Buradaki gate onlar değil, `type` ve `verificationLevel`: bir
+ * sunucunun `COMMUNITY` olması ya da doğrulanmış sayılması hâlâ yalnız admin yüzeyinden
+ * gelir. İki alan burada tekrar tanımlı kalıyor ki `.refine()`'ın okuduğu `isPublic`
+ * varsayılanı admin tarafında değişmesin.
  */
 export const AdminCreateServerSchema = CreateServerSchema.extend({
   discoverable: z.boolean().optional().default(false),
@@ -351,6 +490,12 @@ export const UpdateServerFieldsSchema = z.object({
   allowMemberAdds: z.boolean().optional(),
   description: optionalTrimmedString(160, true),
   discoverable: z.boolean().optional(),
+  /**
+   * `null` gönderilebilir olmalı: swatch'lardan `Kaldır`a basmak "eski türetmeye dön"
+   * demektir, "alanı gönderme" değil. `optional()` alanı hiç yollamamayı, `nullable()`
+   * seçimi geri almayı ifade eder; ikisi farklı niyettir.
+   */
+  iconColor: ServerIconToneSchema.nullable().optional(),
   iconUrl: z
     .string()
     .url()
@@ -362,7 +507,9 @@ export const UpdateServerFieldsSchema = z.object({
   name: z.string().trim().min(2).max(64).optional(),
   messageCharacterLimit: z.number().int().min(250).max(40000).optional(),
   deletedMessageNoticeMinutes: z.number().int().min(5).max(10080).optional(),
-  shortName: optionalServerShortName,
+  shortName: serverShortNameWriteSchema.optional(),
+  /** SPEC §8.3'ün üçüncü seçenek kartı; `Kapalı` = 0, kolonun varsayılanı. */
+  slowModeDelay: ServerSlowModeSchema.optional(),
   /**
    * 6d edits tags through the existing `server:update` endpoint rather than a
    * dedicated route — one owner-writes-server-fields budget, not two. The
@@ -390,6 +537,83 @@ export const AddServerMemberSchema = z.object({
 export const DeleteServerSchema = z.object({
   confirmationName: z.string().trim().min(1),
 });
+
+/**
+ * Sahipliği devret (SPEC-SUNUCU §8.9, K2).
+ *
+ * `acknowledged` bir `literal(true)`, `boolean` değil: tasarımdaki onay anahtarı kapalıyken
+ * düğme pasiftir, yani `false` diye bir geçerli istek yok. `boolean().refine(Boolean)` aynı
+ * şeyi söyler ama sözleşmeyi okuyan "false gönderirsem ne olur" sorusuyla baş başa kalır.
+ */
+export const TransferServerOwnershipSchema = z
+  .object({
+    acknowledged: z.literal(true),
+    newOwnerUserId: z.string().min(1),
+  })
+  .strict();
+
+/**
+ * Üye zaman aşımı (K3). `ServerMember.communicationDisabledUntil` ve `member-ban-service.ts`
+ * zaten var; eksik olan yalnızca web sözleşmesiydi.
+ *
+ * `until: null` = zaman aşımını **kaldır**. Ayrı bir "kaldır" ucu açmak, iki uç arasında
+ * hangisinin audit satırı yazdığı sorusunu doğururdu.
+ */
+export const ServerMemberTimeoutSchema = z
+  .object({
+    reason: z.string().trim().max(200).optional(),
+    until: z.string().datetime().nullable(),
+  })
+  .strict();
+
+/**
+ * Ban (K3). `deleteMessageSeconds` üst sınırı 7 gün (604 800 sn) — `ServerBan` tablosu ve
+ * `/servers/[serverId]/bans` ucu zaten mevcut.
+ */
+export const ServerBanSchema = z
+  .object({
+    deleteMessageSeconds: z.number().int().min(0).max(604_800).optional(),
+    reason: z.string().trim().max(200).optional(),
+  })
+  .strict();
+
+/**
+ * Ban listesi satırı (Ş2). `GET /servers/[serverId]/bans` yanıtı: kim, neden, kim attı, ne zaman.
+ *
+ * `reason` `null` olabilir çünkü `ServerBan.reason` opsiyonel; boş sebep "sebep girilmedi"
+ * demektir, boş metin değil.
+ */
+export const ServerBanEntrySchema = z
+  .object({
+    avatarUrl: z.string().nullable(),
+    bannedAt: z.string().datetime(),
+    bannedByDisplayName: z.string().nullable(),
+    bannedByUserId: z.string(),
+    displayName: z.string(),
+    reason: z.string().nullable(),
+    userId: z.string(),
+    username: z.string(),
+  })
+  .strict();
+
+export const ServerBansResponseSchema = z
+  .object({
+    bans: z.array(ServerBanEntrySchema),
+    nextCursor: z.string().nullable(),
+    total: z.number().int().nonnegative(),
+  })
+  .strict();
+
+/**
+ * Arkadaş seçerek davet (K3): `ServerInvite.targetUserId` dolu bir davet. Süre ve kullanım
+ * sınırı `CreateInviteSchema`'dan gelir; bu şema yalnız hedefi taşır, çünkü iki alan kümesini
+ * kopyalamak "hedefli davetin varsayılan süresi farklı mı" sorusunu açardı.
+ */
+export const TargetedInviteSchema = z
+  .object({
+    targetUserId: z.string().min(1),
+  })
+  .strict();
 
 export const CreateCategorySchema = z.object({
   name: workspaceNameSchema(48, "validation.category.pattern"),
@@ -492,15 +716,39 @@ export const CreateInviteSchema = z.object({
   maxUses: z.number().int().min(1).max(1000).nullable().optional(),
 });
 
+/**
+ * Web davet penceresinin gövdesi (Ş3, SPEC §8.7): süre ve kullanım çipleri
+ * `CreateInviteSchema`'dan, hedef alanı `TargetedInviteSchema`'dan gelir.
+ *
+ * Neden `CreateInviteSchema`'nın kendisine eklenmedi: `MobileServerInviteCreateRequestSchema`
+ * o şemayı `.strict()` sararak mobil davet ucunu tanımlıyor. Hedef alanı tabana konsaydı
+ * mobil "bağlantı oluştur" ucu da hedefli davet kabul etmeye başlardı — ve o uç arkadaşlık
+ * kontrolünü yapmıyor. Hedefli davet mobilde kendi ucunda (`invites/targeted`) duruyor.
+ */
+export const CreateServerInviteSchema = CreateInviteSchema.extend({
+  targetUserId: TargetedInviteSchema.shape.targetUserId.nullable().optional(),
+});
+
+/**
+ * K6 daraltması: rol adı 48 → **32**.
+ *
+ * SPEC-SUNUCU §8.5 `Rol adı` girdisine `max 32` yazıyor. İki sınır bırakmak, mobilde kabul
+ * edilip webde reddedilen bir rol adı demekti. Daraltmadan önce yerel (`wizards`) ve e2e
+ * (`wizards_e2e`) veritabanlarında ihlal tarandı: `length(name) > 32` her ikisinde de **0**
+ * satır (en uzun rol adı 9 karakter). UAT'a dışarıdan bağlanılamıyor; oradaki tarama deploy
+ * öncesi koşulmalı.
+ */
+const ROLE_NAME_MAX_LENGTH = 32;
+
 export const WorkspaceRoleMutationSchema = z.object({
   color: z.number().int().min(0).max(0xffffff).optional(),
   mentionable: z.boolean().optional(),
-  name: workspaceNameSchema(48, "validation.role.pattern").optional(),
+  name: workspaceNameSchema(ROLE_NAME_MAX_LENGTH, "validation.role.pattern").optional(),
   permissions: z.array(WorkspacePermissionKeySchema).optional(),
 });
 
 export const CreateWorkspaceRoleSchema = WorkspaceRoleMutationSchema.extend({
-  name: workspaceNameSchema(48, "validation.role.pattern"),
+  name: workspaceNameSchema(ROLE_NAME_MAX_LENGTH, "validation.role.pattern"),
   permissions: z.array(WorkspacePermissionKeySchema).default([]),
 });
 
@@ -579,12 +827,23 @@ export const ServerScheduledEventSchema = z.object({
   viewerInterested: z.boolean(),
 });
 
+/**
+ * K6 daraltması: etkinlik adı 100 → **60**, açıklaması 1000 → **180**.
+ *
+ * SPEC-SUNUCU §6.5 sayaçları `0/60` ve `0/180` yazıyor; 100/1000 bırakmak sayacın kırmızıya
+ * dönmediği ama kaydın da geçmediği bir aralık üretirdi. Daraltmadan önce ihlal tarandı:
+ * yerel ve e2e veritabanlarında `length(name) > 60` **0** satır (en uzun 34 karakter),
+ * `length(coalesce(description,'')) > 180` **0** satır (en uzun 11 karakter).
+ */
+const EVENT_NAME_MAX_LENGTH = 60;
+const EVENT_DESCRIPTION_MAX_LENGTH = 180;
+
 const ServerScheduledEventFieldsSchema = z.object({
   channelId: z.string().min(1).nullable().optional(),
-  description: z.string().trim().max(1000).nullable().optional(),
+  description: z.string().trim().max(EVENT_DESCRIPTION_MAX_LENGTH).nullable().optional(),
   entityType: ServerScheduledEventEntityTypeSchema.optional(),
   externalLocation: z.string().trim().max(200).nullable().optional(),
-  name: z.string().trim().min(1).max(100).optional(),
+  name: z.string().trim().min(1).max(EVENT_NAME_MAX_LENGTH).optional(),
   scheduledEndAt: z.string().datetime().nullable().optional(),
   scheduledStartAt: z.string().datetime().optional(),
 });
@@ -611,7 +870,7 @@ function hasOrderedSchedule(value: {
 
 export const CreateServerScheduledEventSchema = ServerScheduledEventFieldsSchema.extend({
   entityType: ServerScheduledEventEntityTypeSchema,
-  name: z.string().trim().min(1).max(100),
+  name: z.string().trim().min(1).max(EVENT_NAME_MAX_LENGTH),
   scheduledStartAt: z.string().datetime(),
 })
   .strict()
@@ -743,6 +1002,7 @@ export const ServerPublicProfileSchema = z.object({
   createdAt: z.string().datetime(),
   description: z.string(),
   discoverable: z.boolean(),
+  iconColor: ServerIconToneSchema.nullable(),
   iconUrl: z.string().nullable(),
   /** `<origin host>/invite/<vanityUrlCode ?? inviteCode>`; `null` when the deployment origin is unset. */
   inviteAddress: z.string().nullable(),
@@ -789,6 +1049,7 @@ export const ServerPublicProfileSchema = z.object({
 export const ServerDiscoveryCardSchema = z.object({
   bannerUrl: z.string().nullable(),
   description: z.string(),
+  iconColor: ServerIconToneSchema.nullable(),
   iconUrl: z.string().nullable(),
   id: z.string(),
   memberCount: z.number().int().nonnegative(),
@@ -825,6 +1086,10 @@ export type WorkspaceChannelPermissionSettings = z.infer<
 >;
 export type WorkspaceChannelType = z.infer<typeof WorkspaceChannelTypeSchema>;
 export type WorkspaceInvite = z.infer<typeof WorkspaceInviteSchema>;
+export type WorkspaceInvitesResponse = z.infer<typeof WorkspaceInvitesResponseSchema>;
+export type ServerPendingInvite = z.infer<typeof ServerPendingInviteSchema>;
+export type ServerPendingInviteUser = z.infer<typeof ServerPendingInviteUserSchema>;
+export type ServerPendingInvitesResponse = z.infer<typeof ServerPendingInvitesResponseSchema>;
 export type WorkspaceMember = z.infer<typeof WorkspaceMemberSchema>;
 export type WorkspaceMemberPage = z.infer<typeof WorkspaceMemberPageSchema>;
 export type WorkspaceMembersResponse = z.infer<typeof WorkspaceMembersResponseSchema>;
@@ -842,6 +1107,7 @@ export type UpdateChannelInput = z.infer<typeof UpdateChannelSchema>;
 export type ReorderChannelsInput = z.infer<typeof ReorderChannelsSchema>;
 export type ReorderCategoriesInput = z.infer<typeof ReorderCategoriesSchema>;
 export type CreateInviteInput = z.infer<typeof CreateInviteSchema>;
+export type CreateServerInviteInput = z.infer<typeof CreateServerInviteSchema>;
 export type AddServerMemberInput = z.infer<typeof AddServerMemberSchema>;
 export type CreateWorkspaceRoleInput = z.infer<typeof CreateWorkspaceRoleSchema>;
 export type UpdateWorkspaceRoleInput = z.infer<typeof UpdateWorkspaceRoleSchema>;
@@ -859,6 +1125,15 @@ export type ServerPublicProfileFriend = z.infer<typeof ServerPublicProfileFriend
 export type ServerPublicProfileParticipant = z.infer<typeof ServerPublicProfileParticipantSchema>;
 export type ServerProfileAccessLevel = z.infer<typeof ServerProfileAccessLevelSchema>;
 export type ServerNotificationLevel = z.infer<typeof ServerNotificationLevelSchema>;
+export type ServerBanInput = z.infer<typeof ServerBanSchema>;
+export type ServerBanEntry = z.infer<typeof ServerBanEntrySchema>;
+export type ServerBansResponse = z.infer<typeof ServerBansResponseSchema>;
+export type WorkspaceMemberFilter = z.infer<typeof WorkspaceMemberFilterSchema>;
+export type WorkspaceMemberCounts = z.infer<typeof WorkspaceMemberCountsSchema>;
+export type ServerMemberTimeoutInput = z.infer<typeof ServerMemberTimeoutSchema>;
+export type ServerSlowMode = z.infer<typeof ServerSlowModeSchema>;
+export type TargetedInviteInput = z.infer<typeof TargetedInviteSchema>;
+export type TransferServerOwnershipInput = z.infer<typeof TransferServerOwnershipSchema>;
 export type ServerTag = z.infer<typeof ServerTagSchema>;
 export type ServerTagsInput = z.input<typeof ServerTagsSchema>;
 export type UpdateServerTagsInput = z.input<typeof UpdateServerTagsSchema>;

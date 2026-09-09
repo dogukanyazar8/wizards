@@ -18,6 +18,7 @@ function pageFixture(): ServerDiscoveryPage {
       {
         bannerUrl: null,
         description: "",
+        iconColor: null,
         iconUrl: null,
         id: "s1",
         memberCount: 12_400,

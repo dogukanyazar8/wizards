@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { applyPollVote, type PollDTO } from "@wizards/types";
 
-import { castPollVote, clearPollVote } from "@/lib/messages/screen-client";
+import { castPollVote, clearPollVote, fetchPoll } from "@/lib/messages/screen-client";
+import { useSocket } from "@/hooks/use-socket";
 
 /**
  * Anket oy durumu — SPEC-MESAJLAR §5.5, karar #1.
@@ -33,8 +34,10 @@ export type UsePollResult = {
 };
 
 export function usePoll({ poll }: UsePollOptions): UsePollResult {
+  const socket = useSocket();
   const [optimistic, setOptimistic] = useState<PollDTO | null>(null);
   const [serverPoll, setServerPoll] = useState<PollDTO>(poll);
+  const [propPoll, setPropPoll] = useState<PollDTO>(poll);
   const [isVoting, setIsVoting] = useState(false);
   const [hasError, setHasError] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -49,7 +52,8 @@ export function usePoll({ poll }: UsePollOptions): UsePollResult {
    * çağırmak fazladan bir render turu doğurur ve kart bir kare boyunca bayat
    * durumu çizerdi. React'in `props` değişiminde durum düzeltme kalıbı bu.
    */
-  if (poll !== serverPoll) {
+  if (poll !== propPoll) {
+    setPropPoll(poll);
     setServerPoll(poll);
     setOptimistic(null);
   }
@@ -61,9 +65,29 @@ export function usePoll({ poll }: UsePollOptions): UsePollResult {
     [],
   );
 
+  useEffect(() => {
+    const handleUpdated = (event: { pollId: string }) => {
+      if (event.pollId !== poll.id) {
+        return;
+      }
+
+      void fetchPoll(poll.id)
+        .then((nextPoll) => {
+          setServerPoll(nextPoll);
+          setOptimistic(null);
+        })
+        .catch(() => undefined);
+    };
+
+    socket.on("poll:updated", handleUpdated);
+    return () => {
+      socket.off("poll:updated", handleUpdated);
+    };
+  }, [poll.id, socket]);
+
   const toggleOption = useCallback(
     (optionId: string) => {
-      const current = optimistic ?? poll;
+      const current = optimistic ?? serverPoll;
       const next = applyPollVote(current, optionId);
 
       setOptimistic(next);
@@ -90,7 +114,8 @@ export function usePoll({ poll }: UsePollOptions): UsePollResult {
             return;
           }
 
-          setOptimistic(server);
+          setServerPoll(server);
+          setOptimistic(null);
           setIsVoting(false);
         })
         .catch(() => {
@@ -104,8 +129,8 @@ export function usePoll({ poll }: UsePollOptions): UsePollResult {
           setIsVoting(false);
         });
     },
-    [optimistic, poll],
+    [optimistic, poll.id, serverPoll],
   );
 
-  return { hasError, isVoting, poll: optimistic ?? poll, toggleOption };
+  return { hasError, isVoting, poll: optimistic ?? serverPoll, toggleOption };
 }

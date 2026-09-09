@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { LoginCredentialsSchema, LoginSchema } from "@wizards/types";
+import { LoginCredentialsSchema, LoginSchema, TwoFactorChallengeSchema } from "@wizards/types";
 
 describe("auth schemas", () => {
   it("requires Turnstile for login form submissions but not internal credentials parsing", () => {
@@ -49,7 +49,7 @@ describe("auth schemas", () => {
     assert.equal(oneTime.rememberMe, false);
   });
 
-  it("accepts an optional two-factor code on login form submissions only", () => {
+  it("no longer carries the two-factor code on the login form (K2)", () => {
     const parsed = LoginSchema.parse({
       email: "ada@example.test",
       password: "password123",
@@ -57,14 +57,26 @@ describe("auth schemas", () => {
       turnstileToken: "token",
     });
 
-    assert.equal(parsed.twoFactorCode, "123456");
+    // Kod ayrı ekrandan, challenge kimliğiyle gelir; giriş formu artık taşımaz.
+    assert.equal("twoFactorCode" in (parsed as Record<string, unknown>), false);
+  });
+
+  it("takes the two-factor code with a challenge id instead", () => {
+    const parsed = TwoFactorChallengeSchema.parse({
+      challengeId: "aGVsbG8td29ybGQtY2hhbGxlbmdlLWlk",
+      code: " 123456 ",
+      rememberDevice: "on",
+    });
+
+    assert.equal(parsed.code, "123456");
+    assert.equal(parsed.rememberDevice, true);
     assert.equal(
-      LoginCredentialsSchema.safeParse({
-        email: "ada@example.test",
-        password: "password123",
-        twoFactorCode: "123456",
+      TwoFactorChallengeSchema.safeParse({
+        challengeId: "aGVsbG8td29ybGQtY2hhbGxlbmdlLWlk",
+        code: "12345",
+        rememberDevice: false,
       }).success,
-      true,
+      false,
     );
   });
 });

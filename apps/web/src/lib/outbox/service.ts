@@ -205,6 +205,9 @@ const DMMessageNotificationsPayloadSchema = z.object({
   participants: z.array(
     z.object({
       muted: z.boolean().default(false),
+      // Karar K8. Absent on jobs queued before the column shipped, and absent
+      // reads as `Süresiz` — which is exactly what those rows meant.
+      mutedUntil: z.string().datetime().nullish(),
       notifyLevel: z.enum(["ALL", "MENTIONS", "NONE"]).optional(),
       userId: z.string().min(1),
       user: z.object({
@@ -478,6 +481,7 @@ export async function enqueueDMMessageNotificationJob(
     messageId: string;
     participants: Array<{
       muted: boolean;
+      mutedUntil: Date | null;
       notifyLevel: DMNotifyLevel;
       userId: string;
       user: {
@@ -497,6 +501,9 @@ export async function enqueueDMMessageNotificationJob(
       ...args,
       participants: args.participants.map((participant) => ({
         muted: participant.muted,
+        // Serialised explicitly rather than left as a Date: the payload is a
+        // JSON column, and the worker parses this back as a string.
+        mutedUntil: participant.mutedUntil?.toISOString() ?? null,
         notifyLevel: participant.notifyLevel,
         userId: participant.userId,
         user: { locale: participant.user.locale },

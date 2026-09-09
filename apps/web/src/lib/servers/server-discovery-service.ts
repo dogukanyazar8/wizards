@@ -1,6 +1,10 @@
 import { Prisma } from "@wizards/db";
 import type { PrismaClient, ServerType } from "@wizards/db";
-import type { ServerDiscoveryCard, ServerDiscoveryPage } from "@wizards/types";
+import {
+  normalizeServerIconTone,
+  type ServerDiscoveryCard,
+  type ServerDiscoveryPage,
+} from "@wizards/types";
 
 import {
   countServerOnlineMembersBatch,
@@ -14,6 +18,7 @@ export const SERVER_DISCOVERY_SELECT = {
   bannerUrl: true,
   description: true,
   features: true,
+  iconColor: true,
   iconUrl: true,
   id: true,
   memberCount: true,
@@ -51,6 +56,7 @@ export function buildServerDiscoveryCard(
   return {
     bannerUrl: server.bannerUrl,
     description: server.description ?? "",
+    iconColor: normalizeServerIconTone(server.iconColor),
     iconUrl: server.iconUrl,
     id: server.id,
     memberCount: server.memberCount,

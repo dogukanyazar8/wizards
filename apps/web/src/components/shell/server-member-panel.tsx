@@ -1,46 +1,64 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import {
-  ChevronRight,
-  Crown,
-  Download,
-  ExternalLink,
-  Hash,
-  Info,
-  Laptop,
-  PanelRightClose,
-  PanelRightOpen,
-  Radio,
-  Settings2,
-  ShieldCheck,
-  SlidersHorizontal,
-  UserPlus,
-  Users,
-  Volume2,
-  X,
-} from "lucide-react";
-import type {
-  WorkspaceChannel,
-  WorkspaceMember,
-  WorkspacePermissionKey,
-  WorkspaceRole,
-  WorkspaceServerDetail,
-} from "@wizards/types";
-import { useShallow } from "zustand/react/shallow";
+import React, { useCallback, useMemo, useState } from "react";
+import { Check, Link2, MicOff, MonitorUp, Search } from "lucide-react";
+import type { WorkspaceChannel, WorkspaceServerDetail } from "@wizards/types";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
-import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
+import { WindowCloseButton } from "@/components/ui/window-close-button";
+import { ChannelSearchPanel } from "@/components/chat/message-search-panel";
+import { useRightPanelVisibility } from "@/hooks/use-right-panel-visibility";
+import { useToast } from "@/hooks/use-toast";
 import { useVoiceStates } from "@/hooks/use-voice-states";
+import { getSocket } from "@/lib/socket/client";
+import { jumpToMessageInDocument } from "@/lib/messages/jump-to-message";
 import {
-  WHISPR_APP_VERSION,
-  WHISPR_DESKTOP_DOWNLOAD_URL,
-  WHISPR_RELEASE_CHANNEL,
-} from "@/lib/app-version";
-import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
+  buildPresenceGroups,
+  buildVoiceGroups,
+  buildVoicePresenceIndex,
+  canInviteToVoice,
+  getPresenceColor,
+  getRoleBadgeColors,
+  getVoiceInviteState,
+  markVoiceInviteSent,
+  type MemberPanelGroup,
+  type MemberPanelGroupKey,
+  type MemberPanelRow,
+} from "@/lib/servers/member-panel-model";
+import { SERVER_METRICS, hairline, pxToEm, pxToRem } from "@/lib/servers/metrics";
+import {
+  setServerRightPanelContent,
+  useServerRightPanelContent,
+} from "@/lib/servers/right-panel-store";
+import { DISPLAY_FONT, DISPLAY_TRACKING } from "@/components/servers/shared/typography";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import type { VoiceChannelStateDTO } from "@/lib/voice/types";
+
+/**
+ * Sağ panel (326) — SPEC-SUNUCU §4.
+ *
+ * Panel üç içerikten **birini** gösterir ve üçü de aynı kabuğu paylaşır: aynı başlık, aynı
+ * kapatma düğmesi, aynı kolon genişliği. Kabuk tek yerde durduğu için "arama paneli üye
+ * panelinden 2px dar" gibi bir sapma doğamaz.
+ *
+ * | İçerik | Ne zaman | Kaynak |
+ * | --- | --- | --- |
+ * | `members` | yazı kanalı | SPEC §4.1 — `ÇEVRİMİÇİ` / `ÇEVRİMDIŞI` |
+ * | `voice` | ses kanalı | SPEC §4.2 — `BU KANALDA` / `KANALDA DEĞİL` |
+ * | `search` | başlıktaki `ara` düğmesi | SPEC §4.3 |
+ *
+ * `voice` bir **seçim değil**, kanal türünden türetilir (`right-panel-store.ts`'in gerekçesi).
+ *
+ * **Kaldırılanlar.** Bugünkü `ServerInfoCard`, `ActiveVoiceCard`, `QuickAccessCard` ve
+ * `DesktopDownloadCard` SPEC §4'te yok ve panelden çıktı. Kaybolan yetenek yok:
+ * sunucu adı/açıklaması kanal kenar çubuğunun başlığında ve sunucu ayarlarının Genel
+ * bölümünde, aktif ses kanalları kenar çubuğunun kanal satırlarında ve bağlı ses şeridinde,
+ * hızlı eylemler (`Sunucu ayarları` · `Kanal oluştur` · `Davet bağlantısı`) sunucu menüsünde,
+ * masaüstü indirme bağlantısı ise Ayarlar › Hakkında'da yaşıyor.
+ *
+ * Rol bazlı beş gruplama da SPEC'in iki grubuna indi; rol bilgisi satırın içindeki rozete
+ * taşındı (`member-panel-model.ts`).
+ */
 
 type ServerMemberPanelProps = {
   detail: WorkspaceServerDetail;
@@ -48,706 +66,520 @@ type ServerMemberPanelProps = {
   variant?: "sidebar" | "drawer";
 };
 
-type MemberGroupKind = "owner" | "admin" | "role" | "member" | "offline" | "online";
+export type ServerMemberPanelContent = "members" | "search" | "voice";
 
-type MemberGroup = {
-  color?: number;
-  key: string;
-  kind: MemberGroupKind;
-  members: WorkspaceMember[];
-  preview: string;
-  rank: number;
-  title: string;
+const GROUP_LABEL_KEYS: Record<MemberPanelGroupKey, string> = {
+  inChannel: "server.panel.group.inChannel",
+  notInChannel: "server.panel.group.notInChannel",
+  offline: "server.panel.group.offline",
+  online: "server.panel.group.online",
 };
 
-type MemberRoleDisplay = {
-  color?: number;
-  kind: MemberGroupKind;
-  label: string;
-};
-
-const statusOrder: Record<WorkspaceMember["status"], number> = {
-  ONLINE: 0,
-  IDLE: 1,
-  DND: 2,
-  OFFLINE: 3,
-};
-
-const permissionWeight: Partial<Record<WorkspacePermissionKey, number>> = {
-  ADMINISTRATOR: 10_000,
-  MANAGE_SERVER: 9_000,
-  MANAGE_ROLES: 8_800,
-  MANAGE_CHANNELS: 8_200,
-  VIEW_AUDIT_LOG: 7_800,
-  BAN_MEMBERS: 7_400,
-  KICK_MEMBERS: 7_200,
-  TIMEOUT_MEMBERS: 7_000,
-  MUTE_MEMBERS: 6_600,
-  DEAFEN_MEMBERS: 6_500,
-  MOVE_MEMBERS: 6_400,
-  CLEAR_CHANNEL_HISTORY: 6_200,
-  MANAGE_MESSAGES: 6_000,
-  MANAGE_INVITES: 5_600,
-  STREAM: 4_400,
-  USE_VIDEO: 4_200,
-  CONNECT_VOICE: 4_000,
-  SPEAK: 3_800,
-  ATTACH_FILES: 3_200,
-  USE_GIFS: 3_000,
-  SEND_MESSAGES: 2_800,
-  ADD_REACTIONS: 2_400,
-  VIEW_CHANNEL: 2_000,
-};
-
-const OWNER_GROUP_RANK = 20_000_000;
-const ADMIN_GROUP_RANK = 10_000_000;
-const MEMBER_GROUP_RANK = 0;
-const OFFLINE_GROUP_RANK = -1;
-
-function getServerChannels(detail: WorkspaceServerDetail) {
+function getServerChannels(detail: WorkspaceServerDetail): WorkspaceChannel[] {
   return [
     ...detail.ungroupedChannels,
     ...detail.categories.flatMap((category) => category.channels),
   ];
 }
 
-function getVoiceChannelName(
-  channelsById: Map<string, WorkspaceChannel>,
-  state: VoiceChannelStateDTO,
-) {
-  return channelsById.get(state.channelId)?.name ?? null;
-}
+/* ------------------------------------------------------------------------------------------ */
+/* Sunum katmanı — kancasız, sağlayıcısız test edilebilir                                       */
+/* ------------------------------------------------------------------------------------------ */
 
-function getStatusDotClass(status: WorkspaceMember["status"]) {
-  if (status === "ONLINE") {
-    return "bg-[hsl(var(--success))] shadow-[0_0_0_3px_hsl(var(--success)/0.12)]";
-  }
-
-  if (status === "IDLE") {
-    return "bg-amber-400 shadow-[0_0_0_3px_hsl(var(--warning)/0.12)]";
-  }
-
-  if (status === "DND") {
-    return "bg-[hsl(var(--danger))] shadow-[0_0_0_3px_hsl(var(--danger)/0.12)]";
-  }
-
-  return "bg-slate-400 shadow-[0_0_0_3px_hsl(var(--muted)/0.18)]";
-}
-
-function getRoleColorStyle(color: number | undefined) {
-  if (!color) {
-    return undefined;
-  }
-
-  return {
-    backgroundColor: `#${color.toString(16).padStart(6, "0")}`,
-  };
-}
-
-function getRoleRank(role: WorkspaceRole) {
-  const strongestPermission = role.permissions.reduce(
-    (strongest, permission) => Math.max(strongest, permissionWeight[permission] ?? 0),
-    0,
-  );
-
-  return strongestPermission * 1_000 + role.position;
-}
-
-function getRoleKind(role: WorkspaceRole): MemberGroupKind {
-  if (
-    role.permissions.includes("ADMINISTRATOR") ||
-    role.permissions.includes("MANAGE_SERVER") ||
-    role.permissions.includes("MANAGE_ROLES")
-  ) {
-    return "admin";
-  }
-
-  return "role";
-}
-
-function getGroupPreview(title: string, locale: string) {
-  return title.replace(/^@/, "").trim().slice(0, 2).toLocaleUpperCase(locale);
-}
-
-function sortMembers(locale: string, members: WorkspaceMember[]) {
-  return [...members].sort((left, right) => {
-    const statusDelta = statusOrder[left.status] - statusOrder[right.status];
-    if (statusDelta !== 0) {
-      return statusDelta;
-    }
-
-    return left.displayName.localeCompare(right.displayName, locale, {
-      sensitivity: "base",
-    });
-  });
-}
-
-function pickHighestRole(member: WorkspaceMember, roleById: Map<string, WorkspaceRole>) {
-  return member.roles
-    .map((roleBadge) => roleById.get(roleBadge.id))
-    .filter((role): role is WorkspaceRole => role != null && !role.isDefault)
-    .sort((left, right) => getRoleRank(right) - getRoleRank(left))[0];
-}
-
-function getRoleDisplay(
-  member: WorkspaceMember,
-  roleById: Map<string, WorkspaceRole>,
-  labels: {
-    admin: string;
-    member: string;
-    owner: string;
-  },
-): MemberRoleDisplay {
-  if (member.accessLevel === "OWNER") {
-    return {
-      kind: "owner",
-      label: labels.owner,
-    };
-  }
-
-  const highestRole = pickHighestRole(member, roleById);
-  if (highestRole) {
-    return {
-      color: highestRole.color,
-      kind: getRoleKind(highestRole),
-      label: highestRole.name,
-    };
-  }
-
-  if (member.accessLevel === "ADMIN") {
-    return {
-      kind: "admin",
-      label: labels.admin,
-    };
-  }
-
-  return {
-    kind: "member",
-    label: labels.member,
-  };
-}
-
-function buildMemberGroups({
-  detail,
-  locale,
-  labels,
-}: {
-  detail: WorkspaceServerDetail;
-  labels: {
-    admin: string;
-    member: string;
-    offline: string;
-    online: string;
-    owner: string;
-  };
-  locale: string;
-}) {
-  const roleById = new Map(detail.roles.map((role) => [role.id, role]));
-  const groups = new Map<string, MemberGroup>();
-  const offlineGroup: MemberGroup = {
-    key: "offline",
-    kind: "offline",
-    members: [],
-    preview: getGroupPreview(labels.offline, locale),
-    rank: OFFLINE_GROUP_RANK,
-    title: labels.offline,
-  };
-
-  const ensureGroup = (group: Omit<MemberGroup, "members">) => {
-    const existingGroup = groups.get(group.key);
-    if (existingGroup) {
-      return existingGroup;
-    }
-
-    const nextGroup: MemberGroup = {
-      ...group,
-      members: [],
-    };
-    groups.set(group.key, nextGroup);
-    return nextGroup;
-  };
-
-  for (const member of detail.members) {
-    if (member.status === "OFFLINE") {
-      offlineGroup.members.push(member);
-      continue;
-    }
-
-    if (member.accessLevel === "OWNER") {
-      ensureGroup({
-        key: "owner",
-        kind: "owner",
-        preview: getGroupPreview(labels.owner, locale),
-        rank: OWNER_GROUP_RANK,
-        title: labels.owner,
-      }).members.push(member);
-      continue;
-    }
-
-    const highestRole = pickHighestRole(member, roleById);
-    if (highestRole) {
-      ensureGroup({
-        color: highestRole.color,
-        key: `role:${highestRole.id}`,
-        kind: getRoleKind(highestRole),
-        preview: getGroupPreview(highestRole.name, locale),
-        rank: getRoleRank(highestRole),
-        title: highestRole.name,
-      }).members.push(member);
-      continue;
-    }
-
-    if (member.accessLevel === "ADMIN") {
-      ensureGroup({
-        key: "admin",
-        kind: "admin",
-        preview: getGroupPreview(labels.admin, locale),
-        rank: ADMIN_GROUP_RANK,
-        title: labels.admin,
-      }).members.push(member);
-      continue;
-    }
-
-    ensureGroup({
-      key: "member",
-      kind: "member",
-      preview: getGroupPreview(labels.member, locale),
-      rank: MEMBER_GROUP_RANK,
-      title: labels.member,
-    }).members.push(member);
-  }
-
-  const onlineGroups = [...groups.values()]
-    .map((group) => ({
-      ...group,
-      members: sortMembers(locale, group.members),
-    }))
-    .sort(
-      (left, right) =>
-        right.rank - left.rank ||
-        left.title.localeCompare(right.title, locale, { sensitivity: "base" }),
-    );
-
-  return {
-    offlineGroup: {
-      ...offlineGroup,
-      members: sortMembers(locale, offlineGroup.members),
-    },
-    onlineGroups,
-  };
-}
-
-function RoleGlyph({ group }: { group: Pick<MemberGroup, "color" | "kind"> }) {
-  if (group.kind === "owner") {
-    return <Crown className="h-3.5 w-3.5 text-amber-500" />;
-  }
-
-  if (group.kind === "admin") {
-    return <ShieldCheck className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />;
-  }
-
-  if (group.color) {
-    return (
-      <span
-        aria-hidden="true"
-        className="h-2.5 w-2.5 rounded-full shadow-[0_0_0_3px_hsl(var(--surface-soft)/0.58)]"
-        style={getRoleColorStyle(group.color)}
-      />
-    );
-  }
-
-  return <Users className="h-3.5 w-3.5 text-app-muted" />;
-}
-
-function MemberRow({
-  collapsed,
-  member,
-  role,
-}: {
-  collapsed: boolean;
-  member: WorkspaceMember;
-  role: MemberRoleDisplay;
-}) {
-  const memberTitle = `${member.displayName} - ${role.label}`;
-
-  if (collapsed) {
-    return (
-      <div
-        aria-label={memberTitle}
-        className="group/member relative mx-auto flex h-12 w-12 items-center justify-center rounded-[20px] transition hover:bg-[hsl(var(--surface-soft)/0.42)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
-        data-testid={`server-member-${member.username}`}
-        title={memberTitle}
-      >
-        <Avatar
-          alt={member.displayName}
-          className="h-10 w-10"
-          fallback={member.displayName}
-          src={member.avatarUrl}
-        />
-        <span
-          aria-hidden="true"
-          className={cn(
-            "absolute bottom-1 right-1 h-3 w-3 rounded-full border-2 border-[hsl(var(--surface-card))]",
-            getStatusDotClass(member.status),
-          )}
-        />
-      </div>
-    );
-  }
+function GroupHeader({ group }: { group: MemberPanelGroup }) {
+  const { t } = useI18n();
+  const { rightPanel } = SERVER_METRICS;
+  const dotColor = group.key === "online" || group.key === "inChannel" ? "success" : "text-muted";
 
   return (
     <div
-      className="group/member flex min-w-0 items-center gap-3 rounded-[22px] px-2.5 py-2 transition hover:bg-[hsl(var(--surface-soft)/0.36)]"
-      data-testid={`server-member-${member.username}`}
+      className="flex items-center"
+      style={{
+        gap: pxToRem(rightPanel.groupHeaderGap),
+        padding: `0 ${pxToRem(rightPanel.groupHeaderPaddingX)} ${pxToRem(
+          rightPanel.groupHeaderPaddingBottom,
+        )}`,
+      }}
     >
-      <div className="relative shrink-0">
-        <Avatar
-          alt={member.displayName}
-          className="h-10 w-10"
-          fallback={member.displayName}
-          src={member.avatarUrl}
-        />
-        <span
-          aria-hidden="true"
-          className={cn(
-            "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[hsl(var(--surface-card))]",
-            getStatusDotClass(member.status),
-          )}
-        />
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <p className="truncate text-sm font-semibold text-app-foreground">{member.displayName}</p>
-          {role.kind === "owner" ? (
-            <Crown className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-          ) : role.kind === "admin" ? (
-            <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--primary))]" />
-          ) : role.color ? (
-            <span
-              aria-hidden="true"
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={getRoleColorStyle(role.color)}
-            />
-          ) : null}
-        </div>
-        <p className="truncate text-xs font-medium text-app-soft">
-          @{member.username}
-          {member.customStatus ? ` - ${member.customStatus}` : ""}
-        </p>
-      </div>
-
-      <span className="hidden max-w-[7rem] truncate rounded-full border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card)/0.74)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-app-soft group-hover/member:inline-flex">
-        {role.label}
+      <span
+        aria-hidden="true"
+        className="shrink-0 rounded-full"
+        style={{
+          background: `hsl(var(--${dotColor}))`,
+          height: pxToRem(rightPanel.groupDotSize),
+          width: pxToRem(rightPanel.groupDotSize),
+        }}
+      />
+      <span
+        style={{
+          color: "hsl(var(--text-muted))",
+          font: `600 ${pxToRem(rightPanel.groupLabelFontSize)}/1 ${DISPLAY_FONT}`,
+          letterSpacing: `${rightPanel.groupLabelLetterSpacing}em`,
+          textTransform: "uppercase",
+        }}
+      >
+        {t(GROUP_LABEL_KEYS[group.key])}
+      </span>
+      <span
+        className="ml-auto shrink-0"
+        style={{
+          color: "hsl(var(--text-muted))",
+          font: `600 ${pxToRem(rightPanel.groupCountFontSize)}/1 ${DISPLAY_FONT}`,
+        }}
+      >
+        {group.rows.length}
       </span>
     </div>
   );
 }
 
-function MemberSection({
-  collapsed,
-  emptyLabel,
-  group,
-  roleById,
-  roleLabels,
-}: {
-  collapsed: boolean;
-  emptyLabel: string;
-  group: MemberGroup;
-  roleById: Map<string, WorkspaceRole>;
-  roleLabels: {
-    admin: string;
-    member: string;
-    owner: string;
-  };
-}) {
-  if (collapsed) {
-    return (
-      <section className="space-y-2" title={group.title}>
-        <div className="flex flex-col items-center gap-1">
-          <span className="grid h-8 w-8 place-items-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.72)] text-[10px] font-black uppercase tracking-[0.08em] text-app-muted">
-            {group.preview}
-          </span>
-          <span className="rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.42)] px-1.5 py-0.5 text-[10px] font-bold text-app-muted">
-            {group.members.length}
-          </span>
-        </div>
+function StatusIcons({ row }: { row: MemberPanelRow }) {
+  const { t } = useI18n();
+  const { rightPanel } = SERVER_METRICS;
 
-        {group.members.length > 0 ? (
-          <div className="space-y-1.5">
-            {group.members.map((member) => (
-              <MemberRow
-                collapsed
-                key={member.userId}
-                member={member}
-                role={getRoleDisplay(member, roleById, roleLabels)}
-              />
-            ))}
-          </div>
-        ) : null}
-      </section>
-    );
-  }
-
-  return (
-    <section className="space-y-2">
-      <div className="flex items-center justify-between gap-2 px-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <RoleGlyph group={group} />
-          <h3 className="truncate text-[11px] font-semibold uppercase tracking-[0.22em] text-app-soft">
-            {group.title}
-          </h3>
-        </div>
-        <span className="rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.4)] px-2 py-0.5 text-[10px] font-semibold text-app-muted">
-          {group.members.length}
-        </span>
-      </div>
-
-      {group.members.length > 0 ? (
-        <div className="space-y-1">
-          {group.members.map((member) => (
-            <MemberRow
-              collapsed={false}
-              key={member.userId}
-              member={member}
-              role={getRoleDisplay(member, roleById, roleLabels)}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-[24px] border border-dashed border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-soft)/0.22)] px-4 py-5 text-center text-xs font-medium text-app-muted">
-          {emptyLabel}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function ServerInfoCard({
-  detail,
-  memberCountLabel,
-}: {
-  detail: WorkspaceServerDetail;
-  memberCountLabel: string;
-}) {
-  const description = detail.server.description?.trim();
-
-  return (
-    <section className="rounded-[24px] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.42),hsl(var(--surface-soft)/0.18))] p-3.5">
-      <div className="flex items-center gap-3">
-        <Avatar
-          alt={detail.server.name}
-          className="h-12 w-12 rounded-[20px] ring-4 ring-[hsl(var(--primary)/0.1)]"
-          fallback={detail.server.shortName ?? detail.server.name}
-          src={detail.server.iconUrl}
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold text-app-foreground">{detail.server.name}</p>
-          <p className="mt-1 text-xs font-semibold text-app-muted">{memberCountLabel}</p>
-        </div>
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-[hsl(var(--primary)/0.08)] text-[hsl(var(--primary))]">
-          <Info className="h-4 w-4" />
-        </span>
-      </div>
-      {description ? (
-        <p className="mt-3 line-clamp-3 text-xs leading-5 text-app-muted">{description}</p>
-      ) : null}
-    </section>
-  );
-}
-
-function ActiveVoiceCard({
-  channelsById,
-  liveLabel,
-  states,
-  title,
-  voiceParticipantsLabel,
-}: {
-  channelsById: Map<string, WorkspaceChannel>;
-  liveLabel: string;
-  states: VoiceChannelStateDTO[];
-  title: string;
-  voiceParticipantsLabel: (count: number) => string;
-}) {
-  const activeStates = states
-    .filter((state) => state.participants.length > 0)
-    .map((state) => ({
-      channelName: getVoiceChannelName(channelsById, state),
-      state,
-    }))
-    .filter(
-      (entry): entry is { channelName: string; state: VoiceChannelStateDTO } =>
-        entry.channelName != null,
-    );
-
-  if (activeStates.length === 0) {
+  if (!row.screenSharing && !row.deafened) {
     return null;
   }
 
-  return (
-    <section className="rounded-[26px] border border-[hsl(var(--primary)/0.14)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.11),hsl(var(--surface-card)/0.72)_45%,hsl(var(--accent)/0.07))] p-4 shadow-[0_12px_34px_hsl(var(--primary)/0.06)]">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
-            <Radio className="h-4 w-4" />
-          </span>
-          <h2 className="truncate text-xs font-black uppercase tracking-[0.18em] text-app-muted">
-            {title}
-          </h2>
-        </div>
-        <span className="rounded-full border border-[hsl(var(--success)/0.24)] bg-[hsl(var(--success)/0.1)] px-2 py-1 text-[10px] font-bold text-[hsl(var(--success))]">
-          {liveLabel}
-        </span>
-      </div>
+  const size = pxToEm(rightPanel.statusIconSize, rightPanel.nameFontSize);
 
-      <div className="mt-3 space-y-2.5">
-        {activeStates.map(({ channelName, state }) => {
-          return (
-            <div
-              className="rounded-[20px] bg-[hsl(var(--surface-card)/0.54)] px-3 py-2.5"
-              key={state.channelId}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-2">
-                  <Volume2 className="h-4 w-4 shrink-0 text-[hsl(var(--primary))]" />
-                  <p className="truncate text-sm font-semibold text-app-foreground">
-                    {channelName}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs font-semibold text-app-muted">
-                  {voiceParticipantsLabel(state.participants.length)}
-                </span>
-              </div>
-              <div className="mt-2 flex -space-x-2 overflow-hidden">
-                {state.participants.slice(0, 5).map((participant) => (
-                  <Avatar
-                    alt={participant.displayName ?? participant.username}
-                    className="h-7 w-7 rounded-full border-2 border-[hsl(var(--surface-card))]"
-                    fallback={participant.displayName ?? participant.username}
-                    key={participant.userId}
-                    src={participant.avatarUrl}
-                  />
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
+  return (
+    <span
+      className="flex shrink-0 items-center"
+      style={{ gap: pxToRem(rightPanel.statusIconsGap) }}
+    >
+      {row.screenSharing ? (
+        <MonitorUp
+          aria-label={t("server.panel.status.screenSharing")}
+          role="img"
+          style={{ color: "hsl(var(--primary))", height: size, width: size }}
+        />
+      ) : null}
+      {row.deafened ? (
+        <MicOff
+          aria-label={t("server.panel.status.deafened")}
+          role="img"
+          style={{ color: "hsl(var(--danger))", height: size, width: size }}
+        />
+      ) : null}
+    </span>
   );
 }
 
-type QuickAction = {
-  icon: typeof Settings2;
-  label: string;
-  onClick: () => void;
+function VoiceInviteButton({
+  onInvite,
+  row,
+  sent,
+}: {
+  onInvite: (row: MemberPanelRow) => void;
+  row: MemberPanelRow;
+  sent: boolean;
+}) {
+  const { t } = useI18n();
+  const { rightPanel } = SERVER_METRICS;
+  const iconSize = pxToEm(rightPanel.statusIconSize, rightPanel.inviteButtonFontSize);
+
+  return (
+    <button
+      aria-disabled={sent || undefined}
+      className={cn(
+        "flex shrink-0 items-center whitespace-nowrap transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+        sent ? "cursor-default" : "cursor-pointer",
+      )}
+      data-invite-state={sent ? "sent" : "idle"}
+      data-testid={`server-voice-invite-${row.username}`}
+      onClick={() => {
+        if (!sent) {
+          onInvite(row);
+        }
+      }}
+      style={{
+        background: sent ? "hsl(var(--success)/0.14)" : "hsl(var(--surface-card))",
+        border: `${hairline()} solid ${sent ? "hsl(var(--success)/0.45)" : "hsl(var(--border))"}`,
+        borderRadius: pxToRem(rightPanel.inviteButtonRadius),
+        color: sent ? "hsl(var(--success))" : "hsl(var(--primary))",
+        font: `600 ${pxToRem(rightPanel.inviteButtonFontSize)}/1 var(--font-sans), sans-serif`,
+        gap: pxToRem(rightPanel.inviteButtonGap),
+        height: pxToRem(rightPanel.inviteButtonHeight),
+        padding: `0 ${pxToRem(rightPanel.inviteButtonPaddingX)}`,
+      }}
+      type="button"
+    >
+      {sent ? <Check aria-hidden="true" style={{ height: iconSize, width: iconSize }} /> : null}
+      <span>{sent ? t("server.panel.voice.invited") : t("server.panel.voice.invite")}</span>
+    </button>
+  );
+}
+
+function MemberRow({
+  invitable,
+  onInvite,
+  row,
+  sent,
+}: {
+  invitable: boolean;
+  onInvite: (row: MemberPanelRow) => void;
+  row: MemberPanelRow;
+  sent: boolean;
+}) {
+  const { rightPanel } = SERVER_METRICS;
+  const offline = row.presence === "OFFLINE";
+  const badgeColors = row.roleBadge ? getRoleBadgeColors(row.roleBadge) : null;
+
+  return (
+    <li
+      className="flex items-center transition-colors hover:bg-[hsl(var(--surface-soft)/0.7)]"
+      data-testid={`server-member-${row.username}`}
+      style={{
+        borderRadius: pxToRem(rightPanel.memberRowRadius),
+        gap: pxToRem(rightPanel.memberRowGap),
+        opacity: offline ? rightPanel.memberOfflineOpacity : 1,
+        padding: `${pxToRem(rightPanel.memberRowPaddingY)} ${pxToRem(
+          rightPanel.memberRowPaddingX,
+        )}`,
+      }}
+    >
+      <div className="relative shrink-0">
+        <Avatar
+          alt={row.displayName}
+          fallback={row.displayName}
+          src={row.avatarUrl}
+          style={{
+            fontSize: pxToRem(rightPanel.avatarFontSize),
+            height: pxToRem(rightPanel.avatarSize),
+            width: pxToRem(rightPanel.avatarSize),
+          }}
+        />
+        <span
+          aria-hidden="true"
+          className="absolute rounded-full"
+          style={{
+            background: getPresenceColor(row.presence),
+            border: `${pxToRem(rightPanel.presenceDotBorderWidth)} solid hsl(var(--surface-panel))`,
+            bottom: pxToRem(rightPanel.presenceDotOffset),
+            height: pxToRem(rightPanel.presenceDotSize),
+            right: pxToRem(rightPanel.presenceDotOffset),
+            width: pxToRem(rightPanel.presenceDotSize),
+          }}
+        />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center" style={{ gap: pxToRem(rightPanel.nameGap) }}>
+          <span
+            className="min-w-0 truncate"
+            style={{
+              color: offline ? "hsl(var(--text-secondary))" : "hsl(var(--foreground))",
+              font: `600 ${pxToRem(rightPanel.nameFontSize)}/${
+                rightPanel.nameLineHeight
+              } var(--font-sans), sans-serif`,
+            }}
+          >
+            {row.displayName}
+          </span>
+          {row.roleBadge && badgeColors ? (
+            <span
+              className="shrink-0"
+              data-testid={`server-member-role-${row.username}`}
+              style={{
+                background: badgeColors.background,
+                borderRadius: pxToRem(rightPanel.roleChipRadius),
+                color: badgeColors.foreground,
+                font: `600 ${pxToRem(rightPanel.roleChipFontSize)}/1 ${DISPLAY_FONT}`,
+                padding: `${pxToRem(rightPanel.roleChipPaddingY)} ${pxToRem(
+                  rightPanel.roleChipPaddingX,
+                )}`,
+              }}
+            >
+              {row.roleBadge.label}
+            </span>
+          ) : null}
+        </div>
+        <div
+          className="truncate"
+          style={{
+            color: "hsl(var(--text-muted))",
+            font: `500 ${pxToRem(rightPanel.subtitleFontSize)}/${
+              rightPanel.subtitleLineHeight
+            } var(--font-sans), sans-serif`,
+            marginTop: pxToRem(rightPanel.subtitleMarginTop),
+          }}
+        >
+          {row.subtitle}
+        </div>
+      </div>
+
+      {invitable ? <VoiceInviteButton onInvite={onInvite} row={row} sent={sent} /> : null}
+      <StatusIcons row={row} />
+    </li>
+  );
+}
+
+export type ServerMemberPanelViewProps = {
+  /**
+   * `Davet bağlantısı kopyala` düğmesinin kapısı. `false` ise düğme **hiç çizilmez**
+   * (00 §5): sunucu `Üyeler davet edebilir` kapalıyken davet yalnız yöneticinin işidir ve
+   * pasif bir düğme, kullanıcıya olmayan bir yetkiyi vaat ederdi.
+   */
+  readonly canCopyInviteLink: boolean;
+  readonly content: ServerMemberPanelContent;
+  readonly groups: readonly MemberPanelGroup[];
+  readonly invitedUserIds: ReadonlySet<string>;
+  readonly memberCount: number;
+  readonly onClose: () => void;
+  readonly onCopyInviteLink: () => void;
+  readonly onInviteToVoice: (row: MemberPanelRow) => void;
+  readonly onQueryChange: (query: string) => void;
+  readonly query: string;
+  /** SPEC §4.3'ün içeriği; kabuk onu yalnız yerleştirir. */
+  readonly searchSlot?: React.ReactNode;
+  /**
+   * SPEC §11: `<1400px`'te panel akıştan çıkar ve içeriğin üstüne biner. Eşiğin **hangi
+   * tarafında** olunduğunu kanca ölçer; görünüm yalnız sonucu uygular, böylece bu davranış
+   * `viewportWidth` taklidi olmadan test edilebilir.
+   */
+  readonly overlay: boolean;
+  readonly variant: "drawer" | "sidebar";
+  readonly voiceParticipantCount: number;
 };
 
-function QuickAccessCard({
-  actions,
-  hint,
-  title,
-}: {
-  actions: QuickAction[];
-  hint: string;
-  title: string;
-}) {
-  if (actions.length === 0) {
-    return null;
-  }
+export function ServerMemberPanelView({
+  canCopyInviteLink,
+  content,
+  groups,
+  invitedUserIds,
+  memberCount,
+  onClose,
+  onCopyInviteLink,
+  onInviteToVoice,
+  onQueryChange,
+  overlay,
+  query,
+  searchSlot,
+  variant,
+  voiceParticipantCount,
+}: ServerMemberPanelViewProps) {
+  const { t } = useI18n();
+  const { layout, rightPanel, textHeader } = SERVER_METRICS;
+  const isDrawer = variant === "drawer";
+  const isOverlay = overlay && !isDrawer;
+  const isVoice = content === "voice";
+  const isSearch = content === "search";
+  const title = isSearch
+    ? t("server.panel.search.title")
+    : isVoice
+      ? t("server.panel.voice.title")
+      : t("server.panel.members.title", { count: memberCount });
 
   return (
-    <section className="rounded-[24px] bg-[hsl(var(--surface-card)/0.38)] p-3.5">
-      <div className="flex items-start gap-3">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-[hsl(var(--surface-soft)/0.44)] text-app-muted">
-          <SlidersHorizontal className="h-4 w-4" />
-        </span>
-        <div className="min-w-0">
-          <h2 className="text-sm font-bold text-app-foreground">{title}</h2>
-          <p className="mt-1 text-xs leading-5 text-app-muted">{hint}</p>
-        </div>
-      </div>
-
-      <div className="mt-3 space-y-1.5">
-        {actions.map((action) => {
-          const Icon = action.icon;
-          return (
-            <button
-              className="group/action flex min-h-11 w-full items-center gap-3 rounded-[18px] px-2.5 py-2 text-left transition hover:bg-[hsl(var(--surface-soft)/0.44)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-              key={action.label}
-              onClick={action.onClick}
-              type="button"
-            >
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-[hsl(var(--surface-card)/0.62)] text-app-muted transition group-hover/action:text-[hsl(var(--primary))]">
-                <Icon className="h-4 w-4" />
-              </span>
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-app-foreground">
-                {action.label}
-              </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-app-soft" />
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function DesktopDownloadCard({
-  ctaLabel,
-  description,
-  downloadUrl,
-  hint,
-  title,
-  versionLabel,
-}: {
-  ctaLabel: string;
-  description: string;
-  downloadUrl: string;
-  hint: string;
-  title: string;
-  versionLabel: string;
-}) {
-  return (
-    <section
-      aria-label={title}
-      className="mt-4 rounded-[24px] bg-[linear-gradient(135deg,hsl(var(--primary)/0.1),hsl(var(--surface-card)/0.64)_48%,hsl(var(--accent)/0.08))] p-3.5"
+    <aside
+      className={cn(
+        "flex min-h-0 flex-col",
+        !isOverlay && "h-full",
+        isDrawer ? "w-full" : "shrink-0",
+        isOverlay && "absolute right-0 bottom-0",
+      )}
+      data-shortcut-region="support"
+      data-panel-content={content}
+      data-panel-overlay={isOverlay ? "true" : undefined}
+      data-testid={isDrawer ? "server-member-panel-drawer" : "server-member-panel"}
+      tabIndex={-1}
+      style={{
+        background: "hsl(var(--surface-panel))",
+        borderLeft: isDrawer
+          ? undefined
+          : `${hairline(layout.columnBorderWidth)} solid hsl(var(--border)/${layout.rightPanelBorderAlpha})`,
+        boxShadow: isOverlay
+          ? `0 ${pxToRem(24)} ${pxToRem(60)} ${pxToRem(-30)} hsl(var(--shadow-color))`
+          : undefined,
+        top: isOverlay
+          ? pxToRem(
+              textHeader.paddingY * 2 +
+                textHeader.nameFontSize * textHeader.nameLineHeight +
+                textHeader.subtitleMarginTop +
+                textHeader.subtitleFontSize * textHeader.subtitleLineHeight,
+            )
+          : undefined,
+        width: isDrawer ? undefined : pxToRem(layout.rightPanelWidth),
+        zIndex: isOverlay ? layout.rightPanelOverlayZIndex : undefined,
+      }}
+      suppressHydrationWarning
     >
-      <div className="flex items-start gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[18px] bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
-          <Laptop className="h-[18px] w-[18px]" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-bold text-app-foreground">{title}</h2>
-          <p className="mt-1 text-xs leading-5 text-app-muted">{description}</p>
-        </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="max-w-full truncate rounded-full bg-[hsl(var(--surface-card)/0.72)] px-2.5 py-1 text-[11px] font-bold text-app-muted">
-          {versionLabel}
-        </span>
-        <span className="rounded-full bg-[hsl(var(--primary)/0.1)] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[hsl(var(--primary))]">
-          {WHISPR_RELEASE_CHANNEL}
-        </span>
-      </div>
-
-      <a
-        aria-label={ctaLabel}
-        className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-[18px] bg-[hsl(var(--primary))] px-3 py-2 text-sm font-bold text-[hsl(var(--primary-foreground))] shadow-[0_14px_32px_hsl(var(--primary)/0.18)] transition hover:translate-y-[-1px] hover:bg-[hsl(var(--primary)/0.92)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface-card))] motion-reduce:transform-none"
-        href={downloadUrl}
-        rel="noopener noreferrer"
-        target="_blank"
+      <div
+        className="flex items-center"
+        style={{
+          borderBottom: `${hairline()} solid hsl(var(--border)/${rightPanel.headerBorderBottomAlpha})`,
+          gap: pxToRem(rightPanel.headerGap),
+          padding: `${pxToRem(rightPanel.headerPaddingTop)} ${pxToRem(
+            rightPanel.headerPaddingX,
+          )} ${pxToRem(rightPanel.headerPaddingBottom)}`,
+        }}
       >
-        <Download className="h-4 w-4" />
-        <span>{ctaLabel}</span>
-        <ExternalLink className="h-3.5 w-3.5 opacity-75" />
-      </a>
+        {isSearch ? (
+          <Search
+            aria-hidden="true"
+            className="shrink-0"
+            style={{
+              color: "hsl(var(--primary))",
+              height: pxToEm(rightPanel.titleIconSize, rightPanel.titleFontSize),
+              width: pxToEm(rightPanel.titleIconSize, rightPanel.titleFontSize),
+            }}
+          />
+        ) : null}
+        <h2
+          className="min-w-0 flex-1 truncate"
+          style={{
+            color: "hsl(var(--foreground))",
+            font: `600 ${pxToRem(rightPanel.titleFontSize)}/${
+              rightPanel.titleLineHeight
+            } ${DISPLAY_FONT}`,
+            letterSpacing: DISPLAY_TRACKING,
+          }}
+        >
+          {title}
+        </h2>
+        {isVoice ? (
+          <span
+            className="shrink-0"
+            data-testid="server-panel-joined-chip"
+            style={{
+              background: "hsl(var(--success)/0.16)",
+              borderRadius: pxToRem(rightPanel.joinedChipRadius),
+              color: "hsl(var(--success))",
+              font: `600 ${pxToRem(rightPanel.joinedChipFontSize)}/1 ${DISPLAY_FONT}`,
+              padding: `${pxToRem(rightPanel.joinedChipPaddingY)} ${pxToRem(
+                rightPanel.joinedChipPaddingX,
+              )}`,
+              textTransform: "uppercase",
+            }}
+          >
+            {t("server.panel.voice.joined", { count: voiceParticipantCount })}
+          </span>
+        ) : null}
+        <WindowCloseButton
+          aria-label={t("server.panel.close")}
+          onClick={onClose}
+          testId="server-panel-close"
+        />
+      </div>
 
-      <p className="mt-2 text-[11px] leading-4 text-app-soft">{hint}</p>
-    </section>
+      {isSearch ? (
+        searchSlot
+      ) : (
+        <>
+          {!isVoice ? (
+            <div
+              style={{
+                padding: `${pxToRem(rightPanel.searchWrapperPaddingTop)} ${pxToRem(
+                  rightPanel.searchWrapperPaddingX,
+                )} 0`,
+              }}
+            >
+              <label
+                className="flex items-center"
+                style={{
+                  background: "hsl(var(--surface-card))",
+                  border: `${hairline()} solid hsl(var(--border)/${rightPanel.searchBorderAlpha})`,
+                  borderRadius: pxToRem(rightPanel.searchRadius),
+                  gap: pxToRem(rightPanel.searchGap),
+                  padding: `${pxToRem(rightPanel.searchPaddingY)} ${pxToRem(
+                    rightPanel.searchPaddingX,
+                  )}`,
+                }}
+              >
+                <Search
+                  aria-hidden="true"
+                  className="shrink-0 text-app-muted"
+                  style={{
+                    height: pxToEm(rightPanel.searchIconSize, rightPanel.searchFontSize),
+                    width: pxToEm(rightPanel.searchIconSize, rightPanel.searchFontSize),
+                  }}
+                />
+                <input
+                  className="min-w-0 flex-1 border-0 bg-transparent text-app-foreground outline-hidden placeholder:text-app-muted"
+                  data-testid="server-member-search"
+                  onChange={(event) => onQueryChange(event.target.value)}
+                  placeholder={t("server.panel.members.searchPlaceholder")}
+                  style={{ fontSize: pxToRem(rightPanel.searchFontSize) }}
+                  value={query}
+                />
+              </label>
+            </div>
+          ) : null}
+
+          <div
+            className="min-h-0 flex-1 overflow-y-auto"
+            style={{
+              padding: `${pxToRem(rightPanel.listPaddingTop)} ${pxToRem(
+                rightPanel.listPaddingX,
+              )} ${pxToRem(rightPanel.listPaddingBottom)}`,
+            }}
+          >
+            {groups.map((group) => (
+              <section
+                key={group.key}
+                style={{ marginBottom: pxToRem(rightPanel.groupMarginBottom) }}
+              >
+                <GroupHeader group={group} />
+                <ul>
+                  {group.rows.map((row) => (
+                    <MemberRow
+                      invitable={group.key === "notInChannel" && canInviteToVoice(row)}
+                      key={row.userId}
+                      onInvite={onInviteToVoice}
+                      row={row}
+                      sent={getVoiceInviteState(invitedUserIds, row.userId) === "sent"}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+
+          {isVoice && canCopyInviteLink ? (
+            <div
+              style={{
+                borderTop: `${hairline()} solid hsl(var(--border)/${rightPanel.footerBorderTopAlpha})`,
+                padding: `${pxToRem(rightPanel.footerPaddingY)} ${pxToRem(
+                  rightPanel.footerPaddingX,
+                )} ${pxToRem(rightPanel.footerPaddingBottom)}`,
+              }}
+            >
+              <button
+                className="flex w-full cursor-pointer items-center justify-center transition-colors hover:bg-[hsl(var(--primary)/0.24)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                data-testid="server-panel-copy-invite"
+                onClick={onCopyInviteLink}
+                style={{
+                  background: `hsl(var(--primary)/${rightPanel.copyLinkBackgroundAlpha})`,
+                  border: `${hairline()} solid hsl(var(--primary)/${rightPanel.copyLinkBorderAlpha})`,
+                  borderRadius: pxToRem(rightPanel.copyLinkRadius),
+                  color: "hsl(var(--primary))",
+                  font: `600 ${pxToRem(rightPanel.copyLinkFontSize)}/1 var(--font-sans), sans-serif`,
+                  gap: pxToRem(rightPanel.copyLinkGap),
+                  height: pxToRem(rightPanel.copyLinkHeight),
+                }}
+                type="button"
+              >
+                <Link2
+                  aria-hidden="true"
+                  style={{
+                    height: pxToEm(rightPanel.copyLinkIconSize, rightPanel.copyLinkFontSize),
+                    width: pxToEm(rightPanel.copyLinkIconSize, rightPanel.copyLinkFontSize),
+                  }}
+                />
+                {t("server.panel.voice.copyInvite")}
+              </button>
+            </div>
+          ) : null}
+        </>
+      )}
+    </aside>
   );
 }
+
+/* ------------------------------------------------------------------------------------------ */
+/* Kancalar                                                                                     */
+/* ------------------------------------------------------------------------------------------ */
 
 export function ServerMemberPanel({
   detail,
@@ -755,311 +587,179 @@ export function ServerMemberPanel({
   variant = "sidebar",
 }: ServerMemberPanelProps) {
   const { locale, t } = useI18n();
-  const {
-    memberPanelCollapsed,
-    openChannelModal,
-    openInviteModal,
-    openServerSettings,
-    setMemberPanelCollapsed,
-  } = useAppStore(
-    useShallow((state) => ({
-      memberPanelCollapsed: state.memberPanelCollapsed,
-      openChannelModal: state.openChannelModal,
-      openInviteModal: state.openInviteModal,
-      openServerSettings: state.openServerSettings,
-      setMemberPanelCollapsed: state.setMemberPanelCollapsed,
-    })),
-  );
+  const toast = useToast();
+  const activeChannelId = useAppStore((state) => state.activeChannelId);
+  const rightPanel = useRightPanelVisibility();
+  const panelContent = useServerRightPanelContent();
   const voiceStatesQuery = useVoiceStates(detail.server.id);
-  const [panelMenu, setPanelMenu] = useState({
-    open: false,
-    x: 0,
-    y: 0,
-  });
-  const roleLabels = useMemo(
+  const [query, setQuery] = useState("");
+  const [invitedUserIds, setInvitedUserIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [searchChannelId, setSearchChannelId] = useState<string | null>(null);
+
+  const channels = useMemo(() => getServerChannels(detail), [detail]);
+  const activeChannel = useMemo(
+    () => channels.find((channel) => channel.id === activeChannelId) ?? null,
+    [activeChannelId, channels],
+  );
+  const isVoiceChannel = activeChannel?.type === "VOICE";
+  const content: ServerMemberPanelContent = isVoiceChannel
+    ? "voice"
+    : panelContent === "search"
+      ? "search"
+      : "members";
+
+  const channelNameById = useMemo(
+    () => new Map(channels.map((channel) => [channel.id, channel.name])),
+    [channels],
+  );
+  // `?? []` her render'da yeni bir dizi üretir; aşağıdaki iki `useMemo` ona bağlı olduğu için
+  // referans sabitlenmezse ikisi de her karede yeniden koşardı.
+  const voiceStates = useMemo(() => voiceStatesQuery.data ?? [], [voiceStatesQuery.data]);
+  const voiceIndex = useMemo(
+    () => buildVoicePresenceIndex(voiceStates, channelNameById),
+    [channelNameById, voiceStates],
+  );
+  const labels = useMemo(
     () => ({
-      admin: t("shell.memberPanel.admin"),
-      member: t("shell.memberPanel.member"),
-      owner: t("shell.memberPanel.owner"),
+      admin: t("server.panel.role.admin"),
+      deafened: t("server.panel.status.deafened"),
+      owner: t("server.panel.role.owner"),
+      screenSharing: t("server.panel.status.screenSharing"),
+      separator: t("server.panel.subtitleSeparator"),
     }),
     [t],
   );
-  const roleById = useMemo(
-    () => new Map(detail.roles.map((role) => [role.id, role])),
-    [detail.roles],
-  );
-  const channelsById = useMemo(
-    () => new Map(getServerChannels(detail).map((channel) => [channel.id, channel])),
-    [detail],
-  );
-  const { offlineGroup, onlineGroups } = useMemo(
+  const participantIds = useMemo(
     () =>
-      buildMemberGroups({
-        detail,
-        labels: {
-          ...roleLabels,
-          offline: t("shell.memberPanel.offline"),
-          online: t("shell.memberPanel.online"),
-        },
-        locale,
-      }),
-    [detail, locale, roleLabels, t],
+      new Set(
+        (activeChannel
+          ? (voiceStates.find((state) => state.channelId === activeChannel.id)?.participants ?? [])
+          : []
+        ).map((participant) => participant.userId),
+      ),
+    [activeChannel, voiceStates],
   );
-  const visibleGroups =
-    onlineGroups.length > 0
-      ? onlineGroups
-      : [
-          {
-            key: "online-empty",
-            kind: "online" as const,
-            members: [],
-            preview: getGroupPreview(t("shell.memberPanel.online"), locale),
-            rank: 0,
-            title: t("shell.memberPanel.online"),
-          },
-        ];
 
-  const closePanelMenu = useCallback(() => {
-    setPanelMenu((current) => (current.open ? { open: false, x: 0, y: 0 } : current));
-  }, []);
-
-  const handlePanelContextMenu = useCallback((event: React.MouseEvent<HTMLElement>) => {
-    event.preventDefault();
-    setPanelMenu({
-      open: true,
-      x: event.clientX,
-      y: event.clientY,
-    });
-  }, []);
-
-  const toggleMemberPanelCollapsed = useCallback(() => {
-    setMemberPanelCollapsed(!memberPanelCollapsed);
-    closePanelMenu();
-  }, [closePanelMenu, memberPanelCollapsed, setMemberPanelCollapsed]);
-  const isDrawer = variant === "drawer";
-  const isCollapsed = !isDrawer && memberPanelCollapsed;
-  const showDesktopDownloadCard = !isCollapsed && !isWhisprDesktopRuntime();
-  const canManageServer = detail.server.isAdmin || detail.server.isOwner;
-  const quickActions = useMemo<QuickAction[]>(() => {
-    if (!canManageServer) {
-      return [];
-    }
-
-    const runAction = (action: () => void) => {
-      action();
-      onClose?.();
+  const groups = useMemo(() => {
+    const input = {
+      labels,
+      locale,
+      members: detail.members,
+      query,
+      roles: detail.roles,
+      voiceIndex,
     };
 
-    return [
-      {
-        icon: Settings2,
-        label: t("shell.channelSidebar.serverSettings"),
-        onClick: () => runAction(() => openServerSettings(detail.server.id)),
-      },
-      {
-        icon: Hash,
-        label: t("shell.channelSidebar.createTextChannel"),
-        onClick: () =>
-          runAction(() =>
-            openChannelModal({
-              mode: "create",
-              serverId: detail.server.id,
-              type: "TEXT",
-            }),
-          ),
-      },
-      {
-        icon: Volume2,
-        label: t("shell.channelSidebar.createVoiceChannel"),
-        onClick: () =>
-          runAction(() =>
-            openChannelModal({
-              mode: "create",
-              serverId: detail.server.id,
-              type: "VOICE",
-            }),
-          ),
-      },
-      {
-        icon: UserPlus,
-        label: t("shell.channelSidebar.createInvite"),
-        onClick: () => runAction(() => openInviteModal(detail.server.id)),
-      },
-    ];
+    return isVoiceChannel
+      ? buildVoiceGroups({ ...input, participantIds })
+      : buildPresenceGroups(input);
   }, [
-    canManageServer,
-    detail.server.id,
-    onClose,
-    openChannelModal,
-    openInviteModal,
-    openServerSettings,
-    t,
+    detail.members,
+    detail.roles,
+    isVoiceChannel,
+    labels,
+    locale,
+    participantIds,
+    query,
+    voiceIndex,
   ]);
 
+  const textChannels = useMemo(
+    () =>
+      channels
+        .filter((channel) => channel.type === "TEXT")
+        .map((channel) => ({ id: channel.id, name: channel.name })),
+    [channels],
+  );
+  const memberOptions = useMemo(
+    () =>
+      detail.members.map((member) => ({
+        // Uç `author`ı `username`/`displayName` üstünde eşleştiriyor; değer olarak `username`
+        // gider çünkü görünen ad iki üyede aynı olabilir.
+        id: member.username,
+        name: member.displayName,
+      })),
+    [detail.members],
+  );
+
+  const handleClose = useCallback(() => {
+    if (onClose) {
+      onClose();
+      return;
+    }
+
+    setServerRightPanelContent("members");
+    rightPanel.setOpen(false);
+  }, [onClose, rightPanel]);
+
+  const handleInviteToVoice = useCallback(
+    (row: MemberPanelRow) => {
+      if (!activeChannel) {
+        return;
+      }
+
+      // SPEC §4.2: geçiş tek yönlü. İyimser yazım kasıtlı — soket `ack` döndürmüyor ve
+      // düğmenin `Davet et`e geri dönmesi kullanıcıya daveti iki kez göndertirdi.
+      setInvitedUserIds((current) => markVoiceInviteSent(current, row.userId));
+      getSocket().emit("voice:invite:send", {
+        channelId: activeChannel.id,
+        serverId: detail.server.id,
+        targetUserId: row.userId,
+      });
+    },
+    [activeChannel, detail.server.id],
+  );
+
+  const handleCopyInviteLink = useCallback(() => {
+    const code = detail.server.inviteCode;
+    if (!code || typeof window === "undefined" || !navigator.clipboard) {
+      toast.show({ message: t("server.panel.voice.copyInviteError"), tone: "danger" });
+      return;
+    }
+
+    void navigator.clipboard
+      .writeText(new URL(`/invite/${code}`, window.location.origin).toString())
+      .then(() => {
+        toast.show({ message: t("server.panel.voice.copyInviteDone") });
+      })
+      .catch(() => {
+        toast.show({ message: t("server.panel.voice.copyInviteError"), tone: "danger" });
+      });
+  }, [detail.server.inviteCode, t, toast]);
+
+  const isDrawer = variant === "drawer";
+  if (!isDrawer && !rightPanel.isOpen) {
+    return null;
+  }
+
+  const searchChannel = searchChannelId ?? activeChannel?.id ?? textChannels[0]?.id ?? null;
+
   return (
-    <aside
-      className={cn(
-        "h-full shrink-0 border-l border-[hsl(var(--border)/0.48)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.62),hsl(var(--surface-soft)/0.24))] backdrop-blur-xl transition-[width,padding] duration-200",
-        isDrawer ? "flex w-full flex-col p-4" : "hidden xl:flex xl:flex-col",
-        !isDrawer && (isCollapsed ? "w-[88px] p-3" : "w-[312px] p-4"),
-      )}
-      data-testid={isDrawer ? "server-member-panel-drawer" : "server-member-panel"}
-      onContextMenu={isDrawer ? undefined : handlePanelContextMenu}
-      suppressHydrationWarning
-    >
-      {isDrawer && onClose ? (
-        <div className="mb-3 flex items-center justify-end">
-          <button
-            aria-label={t("common.close")}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--surface-soft)/0.42)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.68)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-            onClick={onClose}
-            type="button"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      ) : null}
-
-      {isCollapsed ? (
-        <div className="rounded-[30px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.66)] p-2.5 shadow-[0_22px_54px_hsl(var(--shadow-color)/0.08)]">
-          <div className="flex flex-col items-center gap-2">
-            <div className="app-panel-soft flex h-12 w-12 items-center justify-center rounded-[20px] border">
-              <Users className="h-5 w-5 text-app-foreground" />
-            </div>
-            <span className="rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.42)] px-2 py-0.5 text-[10px] font-bold text-app-muted">
-              {detail.server.memberCount}
-            </span>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <ServerInfoCard
-            detail={detail}
-            memberCountLabel={t("shell.memberPanel.subtitle", {
-              count: detail.server.memberCount,
-            })}
+    <ServerMemberPanelView
+      canCopyInviteLink={detail.server.isAdmin || detail.server.allowMemberAdds}
+      content={content}
+      groups={groups}
+      invitedUserIds={invitedUserIds}
+      memberCount={detail.server.memberCount}
+      onClose={handleClose}
+      onCopyInviteLink={handleCopyInviteLink}
+      onInviteToVoice={handleInviteToVoice}
+      onQueryChange={setQuery}
+      overlay={rightPanel.isOverlay}
+      query={query}
+      searchSlot={
+        content === "search" && searchChannel ? (
+          <ChannelSearchPanel
+            channelId={searchChannel}
+            channelOptions={textChannels}
+            memberOptions={memberOptions}
+            onChannelChange={setSearchChannelId}
+            onJumpToMessage={jumpToMessageInDocument}
           />
-          <ActiveVoiceCard
-            channelsById={channelsById}
-            liveLabel={t("shell.memberPanel.activeVoiceLive")}
-            states={voiceStatesQuery.data ?? []}
-            title={t("shell.memberPanel.activeVoice")}
-            voiceParticipantsLabel={(count) =>
-              t("shell.memberPanel.voiceParticipants", {
-                count,
-              })
-            }
-          />
-          <QuickAccessCard
-            actions={quickActions}
-            hint={t("shell.memberPanel.quickAccessHint")}
-            title={t("shell.memberPanel.quickAccess")}
-          />
-        </div>
-      )}
-
-      <div
-        aria-label={t("shell.memberPanel.membersTitle")}
-        className={cn(
-          "mt-4 min-h-0 flex-1 overflow-y-auto",
-          isCollapsed ? "space-y-4 px-0.5" : "pr-1",
-        )}
-        role="region"
-        tabIndex={0}
-      >
-        <section
-          className={cn(
-            isCollapsed
-              ? "space-y-4"
-              : "space-y-5 rounded-[24px] bg-[hsl(var(--surface-card)/0.32)] p-3.5",
-          )}
-        >
-          {!isCollapsed ? (
-            <div className="flex items-center justify-between gap-3 px-1">
-              <div className="flex min-w-0 items-center gap-2">
-                <Users className="h-4 w-4 shrink-0 text-app-muted" />
-                <h2 className="truncate text-xs font-black uppercase tracking-[0.18em] text-app-muted">
-                  {t("shell.memberPanel.membersTitle")}
-                </h2>
-              </div>
-              <span className="rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.42)] px-2 py-0.5 text-[10px] font-bold text-app-muted">
-                {detail.server.memberCount}
-              </span>
-            </div>
-          ) : null}
-          {visibleGroups.map((group) => (
-            <MemberSection
-              collapsed={isCollapsed}
-              emptyLabel={t("shell.memberPanel.emptyOnline")}
-              group={group}
-              key={group.key}
-              roleById={roleById}
-              roleLabels={roleLabels}
-            />
-          ))}
-          <MemberSection
-            collapsed={isCollapsed}
-            emptyLabel={t("shell.memberPanel.emptyOffline")}
-            group={offlineGroup}
-            roleById={roleById}
-            roleLabels={roleLabels}
-          />
-        </section>
-      </div>
-
-      {showDesktopDownloadCard ? (
-        <DesktopDownloadCard
-          ctaLabel={t("shell.memberPanel.desktopDownloadCta")}
-          description={t("shell.memberPanel.desktopDownloadDescription")}
-          downloadUrl={WHISPR_DESKTOP_DOWNLOAD_URL}
-          hint={t("shell.memberPanel.desktopDownloadHint")}
-          title={t("shell.memberPanel.desktopDownloadTitle")}
-          versionLabel={WHISPR_APP_VERSION}
-        />
-      ) : null}
-
-      <ContextMenu onClose={closePanelMenu} open={!isDrawer && panelMenu.open} position={panelMenu}>
-        <ContextMenuItem className="gap-2" onClick={toggleMemberPanelCollapsed}>
-          {memberPanelCollapsed ? (
-            <PanelRightOpen className="h-4 w-4" />
-          ) : (
-            <PanelRightClose className="h-4 w-4" />
-          )}
-          {memberPanelCollapsed
-            ? t("shell.memberPanel.expandPanel")
-            : t("shell.memberPanel.collapsePanel")}
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <div className="w-64 max-w-[calc(100vw-2.5rem)] space-y-3 px-2 py-2">
-          <div className="flex items-start gap-2 px-1">
-            <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted">
-              <SlidersHorizontal className="h-4 w-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-app-foreground">
-                {t("shell.memberPanel.contextTitle")}
-              </p>
-              <p className="mt-0.5 text-[11px] leading-4 text-app-soft">
-                {t("shell.memberPanel.contextHint")}
-              </p>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            {[...onlineGroups, offlineGroup].map((group) => (
-              <div
-                className="flex items-center justify-between rounded-2xl border border-[hsl(var(--border)/0.48)] bg-[hsl(var(--surface-soft)/0.28)] px-3 py-2 text-xs"
-                key={group.key}
-              >
-                <span className="flex min-w-0 items-center gap-2 font-semibold text-app-foreground">
-                  <RoleGlyph group={group} />
-                  <span className="truncate">{group.title}</span>
-                </span>
-                <span className="font-bold text-app-muted">{group.members.length}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </ContextMenu>
-    </aside>
+        ) : null
+      }
+      variant={variant}
+      voiceParticipantCount={participantIds.size}
+    />
   );
 }

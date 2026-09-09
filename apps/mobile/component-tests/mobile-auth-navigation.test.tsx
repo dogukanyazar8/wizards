@@ -39,26 +39,47 @@ jest.mock("../src/app/screens/auth/auth-language-picker-sheet", () => {
   };
 });
 
-jest.mock("../src/app/screens/auth/auth-welcome-screen", () => {
+jest.mock("../src/app/screens/auth/auth-two-factor-screen", () => {
   const ReactRuntime = require("react");
   const { Pressable, View } = require("react-native");
 
   return {
-    AuthWelcomeScreen: ({ onOpenLanguagePicker, onSignIn, onSignUp }: any) =>
+    AuthTwoFactorScreen: ({ onBackToSignIn, onSubmit, onUseBackupCode }: any) =>
       ReactRuntime.createElement(
         View,
-        { testID: "mobile-auth-welcome-screen" },
+        { testID: "mobile-auth-two-factor-screen" },
         ReactRuntime.createElement(Pressable, {
-          onPress: onSignIn,
-          testID: "mobile-auth-welcome-sign-in",
+          onPress: onBackToSignIn,
+          testID: "mobile-auth-two-factor-back",
         }),
         ReactRuntime.createElement(Pressable, {
-          onPress: onSignUp,
-          testID: "mobile-auth-welcome-sign-up",
+          onPress: onUseBackupCode,
+          testID: "mobile-auth-two-factor-backup",
         }),
         ReactRuntime.createElement(Pressable, {
-          onPress: onOpenLanguagePicker,
-          testID: "mobile-auth-language-picker",
+          onPress: () => void onSubmit({ code: "481029", rememberDevice: true }),
+          testID: "mobile-auth-two-factor-submit",
+        }),
+      ),
+  };
+});
+
+jest.mock("../src/app/screens/auth/auth-backup-code-screen", () => {
+  const ReactRuntime = require("react");
+  const { Pressable, View } = require("react-native");
+
+  return {
+    AuthBackupCodeScreen: ({ onBackToSignIn, onSubmit }: any) =>
+      ReactRuntime.createElement(
+        View,
+        { testID: "mobile-auth-backup-code-screen" },
+        ReactRuntime.createElement(Pressable, {
+          onPress: onBackToSignIn,
+          testID: "mobile-auth-backup-code-back",
+        }),
+        ReactRuntime.createElement(Pressable, {
+          onPress: () => void onSubmit({ backupCode: "A1B2C3D4" }),
+          testID: "mobile-auth-backup-code-submit",
         }),
       ),
   };
@@ -70,6 +91,7 @@ const LOGIN_INPUT = {
 };
 const REGISTER_INPUT = {
   confirmPassword: "password-123",
+  displayName: "Register User",
   email: "register@example.com",
   password: "password-123",
   username: "register_user",
@@ -83,8 +105,8 @@ jest.mock("../src/app/screens/auth/auth-login-screen", () => {
   return {
     AuthLoginScreen: ({
       developmentCredentials,
-      onBack,
       onForgotPassword,
+      onOpenLanguagePicker,
       onRegister,
       onSignIn,
       onSocialSignIn,
@@ -98,8 +120,8 @@ jest.mock("../src/app/screens/auth/auth-login-screen", () => {
           developmentCredentials ? "available" : "absent",
         ),
         ReactRuntime.createElement(Pressable, {
-          onPress: onBack,
-          testID: "mobile-auth-login-back",
+          onPress: onOpenLanguagePicker,
+          testID: "mobile-auth-language-picker",
         }),
         ReactRuntime.createElement(Pressable, {
           onPress: onForgotPassword,
@@ -146,6 +168,7 @@ jest.mock("../src/app/screens/auth/auth-register-screen", () => {
           onPress: () =>
             void onRegister({
               confirmPassword: "password-123",
+              displayName: "Register User",
               email: "register@example.com",
               password: "password-123",
               username: "register_user",
@@ -189,7 +212,17 @@ import { MobileAuthNavigator } from "../src/navigation/mobile-auth-navigator";
 const mockedUseMobileAuth = jest.mocked(useMobileAuth);
 const mockedGetMobileDevLoginCredentials = jest.mocked(getMobileDevLoginCredentials);
 
+const TWO_FACTOR_INPUT = {
+  challengeId: "challenge-1",
+  code: "481029",
+  rememberDevice: true,
+};
+const BACKUP_CODE_INPUT = { backupCode: "A1B2C3D4", challengeId: "challenge-1" };
+
 const auth = {
+  completeTwoFactorChallenge: jest
+    .fn<Promise<{ ok: true }>, [Record<string, unknown>]>()
+    .mockResolvedValue({ ok: true }),
   error: "Oturum güvenli şekilde okunamadı.",
   openWebSignIn: jest.fn<Promise<void>, []>().mockResolvedValue(undefined),
   startSocialSignIn: jest
@@ -240,22 +273,22 @@ describe("MobileAuthNavigator", () => {
     mockedGetMobileDevLoginCredentials.mockReturnValue(null);
   });
 
-  it("starts on Welcome and uses the exact typed auth route names", async () => {
+  it("starts on Login and uses the exact typed auth route names", async () => {
     const view = await renderNavigator();
 
-    expect(view.getByTestId("mobile-auth-welcome-screen")).toBeTruthy();
-    await fireEvent.press(view.getByTestId("mobile-auth-welcome-sign-in"));
+    // SPEC-GIRIS-KAYIT §6 — karsilama ekrani K4 ile kaldirildi: yigin kokü Giris.
     expect(view.getByTestId("mobile-auth-login-screen")).toBeTruthy();
-    await fireEvent.press(view.getByTestId("mobile-auth-login-back"));
-    await waitFor(() => expect(view.getByTestId("mobile-auth-welcome-screen")).toBeTruthy());
-    await fireEvent.press(view.getByTestId("mobile-auth-welcome-sign-up"));
+    await fireEvent.press(view.getByTestId("mobile-auth-login-register"));
     expect(view.getByTestId("mobile-auth-register-screen")).toBeTruthy();
+    await fireEvent.press(view.getByTestId("mobile-auth-register-back"));
+    await waitFor(() => expect(view.getByTestId("mobile-auth-login-screen")).toBeTruthy());
+    await fireEvent.press(view.getByTestId("mobile-auth-login-forgot-password"));
+    expect(view.getByTestId("mobile-auth-forgot-password-screen")).toBeTruthy();
   });
 
   it("maps login, registration, and reset actions to the existing auth context without changing payloads", async () => {
     const view = await renderNavigator();
 
-    await fireEvent.press(view.getByTestId("mobile-auth-welcome-sign-in"));
     await fireEvent.press(view.getByTestId("mobile-auth-login-social-google"));
     await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
     await fireEvent.press(view.getByTestId("mobile-auth-login-forgot-password"));
@@ -271,23 +304,23 @@ describe("MobileAuthNavigator", () => {
     expect(auth.registerWithPassword).toHaveBeenCalledWith(REGISTER_INPUT);
   });
 
-  it("renders the session-checking surface without mounting Welcome", async () => {
+  it("renders the session-checking surface without mounting the sign-in stack", async () => {
     const view = await renderNavigator("checking");
 
     expect(view.getByTestId("mobile-auth-session-checking")).toBeTruthy();
-    expect(view.queryByTestId("mobile-auth-welcome-screen")).toBeNull();
+    expect(view.queryByTestId("mobile-auth-login-screen")).toBeNull();
   });
 
   it("keeps a secure-storage failure off the sign-in stack and offers retry", async () => {
     const view = await renderNavigator("session-error");
 
     expect(view.getByTestId("mobile-auth-session-error")).toBeTruthy();
-    expect(view.queryByTestId("mobile-auth-welcome-screen")).toBeNull();
+    expect(view.queryByTestId("mobile-auth-login-screen")).toBeNull();
     await fireEvent.press(view.getByTestId("mobile-auth-session-retry"));
     expect(auth.refreshSessionFromStorage).toHaveBeenCalledTimes(1);
   });
 
-  it("opens the welcome language sheet, applies the selected locale, and closes it", async () => {
+  it("opens the login language sheet, applies the selected locale, and closes it", async () => {
     const view = await renderNavigator();
 
     await fireEvent.press(view.getByTestId("mobile-auth-language-picker"));
@@ -300,23 +333,62 @@ describe("MobileAuthNavigator", () => {
     await waitFor(() => expect(view.queryByTestId("mobile-auth-language-sheet")).toBeNull());
   });
 
-  it("passes development credentials to Login only when the helper returns them", async () => {
+  /*
+   * Giris artik yigin koku (K4) ve hicbir zaman unmount olmuyor; yardimcinin iki durumu
+   * ayni montajda gorulemez, bu yuzden iki ayri temiz montaj olarak dogrulanir.
+   */
+  it("passes development credentials to Login when the helper returns them", async () => {
     mockedGetMobileDevLoginCredentials.mockReturnValue({
       email: "dev@example.com",
       password: "development-password",
     });
     const view = await renderNavigator();
 
-    await fireEvent.press(view.getByTestId("mobile-auth-welcome-sign-in"));
     expect(view.getByTestId("mobile-auth-login-development-credentials").props.children).toBe(
       "available",
     );
+  });
 
+  it("leaves Login without development credentials when the helper returns none", async () => {
     mockedGetMobileDevLoginCredentials.mockReturnValue(null);
-    await fireEvent.press(view.getByTestId("mobile-auth-login-back"));
-    await fireEvent.press(view.getByTestId("mobile-auth-welcome-sign-in"));
+    const view = await renderNavigator();
+
     expect(view.getByTestId("mobile-auth-login-development-credentials").props.children).toBe(
       "absent",
     );
+  });
+
+  it("carries the challenge to the two-step route and on to the backup-code route", async () => {
+    auth.signInWithPassword.mockResolvedValueOnce({
+      challengeId: "challenge-1",
+      message: "İki adımlı doğrulama gerekli.",
+      ok: false,
+      requiresTwoFactor: true,
+    } as never);
+    const view = await renderNavigator();
+
+    await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
+    await waitFor(() => expect(view.getByTestId("mobile-auth-two-factor-screen")).toBeTruthy());
+
+    await fireEvent.press(view.getByTestId("mobile-auth-two-factor-submit"));
+    expect(auth.completeTwoFactorChallenge).toHaveBeenCalledWith(TWO_FACTOR_INPUT);
+
+    await fireEvent.press(view.getByTestId("mobile-auth-two-factor-backup"));
+    await waitFor(() => expect(view.getByTestId("mobile-auth-backup-code-screen")).toBeTruthy());
+    await fireEvent.press(view.getByTestId("mobile-auth-backup-code-submit"));
+    expect(auth.completeTwoFactorChallenge).toHaveBeenCalledWith(BACKUP_CODE_INPUT);
+
+    await fireEvent.press(view.getByTestId("mobile-auth-backup-code-back"));
+    await waitFor(() => expect(view.getByTestId("mobile-auth-login-screen")).toBeTruthy());
+  });
+
+  it("keeps the two-step routes out of reach without a challenge", async () => {
+    const view = await renderNavigator();
+
+    await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
+
+    await waitFor(() => expect(auth.signInWithPassword).toHaveBeenCalled());
+    expect(view.queryByTestId("mobile-auth-two-factor-screen")).toBeNull();
+    expect(view.queryByTestId("mobile-auth-backup-code-screen")).toBeNull();
   });
 });

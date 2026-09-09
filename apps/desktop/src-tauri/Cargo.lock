@@ -5346,6 +5346,8 @@ dependencies = [
  "tauri-plugin-updater",
  "tauri-plugin-window-state",
  "url",
+ "webview2-com",
+ "windows",
  "windows-sys 0.61.2",
 ]
 

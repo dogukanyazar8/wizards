@@ -16,6 +16,7 @@ function buildSource(
     bannerUrl: null,
     description: "Yol haritasını burada tartışıyoruz.",
     features: ["VERIFIED"],
+    iconColor: "warning",
     iconUrl: null,
     id: "s1",
     memberCount: 12_400,
@@ -34,6 +35,7 @@ describe("buildServerDiscoveryCard", () => {
     assert.equal(card.id, "s1");
     assert.equal(card.name, "Whispr Topluluk");
     assert.equal(card.shortName, "WT");
+    assert.equal(card.iconColor, "warning");
     assert.equal(card.memberCount, 12_400);
     assert.equal(card.onlineCount, 42);
     assert.equal(card.type, "COMMUNITY");
@@ -59,6 +61,7 @@ describe("buildServerDiscoveryCard", () => {
     assert.deepEqual(Object.keys(card).sort(), [
       "bannerUrl",
       "description",
+      "iconColor",
       "iconUrl",
       "id",
       "memberCount",

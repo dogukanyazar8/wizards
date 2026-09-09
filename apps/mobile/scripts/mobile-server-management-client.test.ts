@@ -88,7 +88,6 @@ describe("mobile server management client", () => {
       allowMemberAdds: true,
       description: "  A secure community  ",
       name: "  Wizards  ",
-      shortName: "wiz",
     });
 
     assert.deepEqual(requests, [
@@ -99,8 +98,12 @@ describe("mobile server management client", () => {
             allowGifs: true,
             allowMemberAdds: true,
             description: "A secure community",
+            // A body that says nothing about visibility still reaches the API as a
+            // private, undiscoverable server -- the schema default, pinned here so a
+            // later flip of that default cannot pass silently.
+            discoverable: false,
+            isPublic: false,
             name: "Wizards",
-            shortName: "WIZ",
           },
           method: "POST",
         },
@@ -113,6 +116,7 @@ describe("mobile server management client", () => {
       () =>
         createMobileServer(client, {
           iconUrl: "https://provider.example/private-key",
+          shortName: "WIZ",
           allowFileUploads: true,
           allowGifs: true,
           allowMemberAdds: true,

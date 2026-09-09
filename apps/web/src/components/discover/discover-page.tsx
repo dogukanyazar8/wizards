@@ -62,7 +62,7 @@ import { useI18n } from "@/components/providers/locale-provider";
 import { useAuthenticatedAppRuntime } from "@/components/providers/authenticated-app-providers";
 import { useToast } from "@/hooks/use-toast";
 import { DISCOVER_CARD_SIZE_STORAGE_KEY } from "@/lib/discover/contracts";
-import { toDiscoverInitials } from "@/lib/discover/identity";
+import { resolveServerAbbreviation } from "@/lib/servers/server-icon-presentation";
 import {
   DISCOVER_STALE_TIME_MS,
   discoverQueryKeys,
@@ -271,7 +271,7 @@ export function resolveDiscoverPanelPlaceholder(
   return channel
     ? {
         category: channel.serverCategory,
-        initials: toDiscoverInitials(channel.serverName, null),
+        initials: resolveServerAbbreviation(channel.serverName, null),
         name: channel.serverName,
       }
     : null;

@@ -1,70 +1,114 @@
 "use client";
 
-import { Eye, Hash, Lock, MonitorUp, Pencil, Trash2, Volume2 } from "lucide-react";
+import React from "react";
+import { Eye, Hash, Lock, MicOff, Volume2 } from "lucide-react";
+
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
+import { DISPLAY_FONT } from "@/components/servers/shared/typography";
+import { SERVER_METRICS, pxToEm, pxToRem } from "@/lib/servers/metrics";
 import { cn } from "@/lib/utils";
 import type { VoiceChannelStateDTO } from "@/lib/voice/types";
+
+/**
+ * Kanal satırı ve altındaki ses katılımcıları — SPEC-SUNUCU §2.4.
+ *
+ * Ölçünün tamamı `SERVER_METRICS.sidebar`'dan gelir; satır artık kendi `px`'ini yazmıyor.
+ * Referansın satırında **yönetici eylemi yok**: kalem/çöp kaplaması kaldırıldı, düzenleme ve
+ * silme satırın sağ tık menüsüne taşındı (`channel-sidebar.tsx`). Sürükleme tutamağı da yok;
+ * satırın kendisi sürükleniyor (`dragHandleProps`).
+ *
+ * SPEC'te olmayan ama üründe **gerçek** olduğu için korunan iki şey raporda sapma olarak
+ * kayıtlı:
+ *
+ * 1. **Salt-okunur göstergesi** (`Eye`, 12) kilit ikonunun ölçüsünü paylaşır. SPEC satırı
+ *    yalnız kilit/okunmamış/sayaç çiziyor ama "yazamazsın" bilgisini üründe başka hiçbir
+ *    yüzey taşımıyor.
+ * 2. **Katılımcı listesi her ses kanalının altında**, yalnız bağlı olunanın değil. Referans
+ *    tek kanalı doldurur çünkü tek ekran durumu gösteriyor; ürün bunu zaten canlı veriyle
+ *    çiziyor ve `voice.spec.ts` buna bağlı.
+ *
+ * `isSpeaking` / `isMuted` yalnız **bağlı olunan** kanal için gerçektir: sunucu genelindeki
+ * `VoiceChannelStateDTO` konuşma ve mikrofon durumu taşımaz, LiveKit odası taşır. Bu yüzden
+ * iki küme dışarıdan geçirilir; geçmediğinde satır `isDeafened`'a düşer (sağır olan aynı
+ * zamanda susturulmuştur) ve konuşma halkası çizilmez.
+ */
 
 type ChannelItemProps = {
   active: boolean;
   canAccess?: boolean;
-  canManage: boolean;
   currentUserId?: string;
+  /**
+   * dnd-kit'in `attributes` + `listeners` demeti. Referansta ayrı bir tutamak **yok**:
+   * satırın kendisi sürükleniyor. `PointerSensor` 4 px eşiğinde olduğu için tıklama ile
+   * sürükleme birbirine karışmaz.
+   */
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
   name: string;
   mentionCount?: number;
-  onDelete: () => void;
-  onEdit: () => void;
+  /** Bağlı odadan gelen susturulmuş kullanıcılar; yoksa `isDeafened`'a düşülür. */
+  mutedUserIds?: ReadonlySet<string>;
   onPrefetch?: () => void;
   readOnly?: boolean;
   onSelect: () => void;
+  /** Bağlı odadan gelen konuşanlar; ekran okuyucu için ayrıca metin yazılır (00 §8). */
+  speakingUserIds?: ReadonlySet<string>;
   testId?: string;
   type: "TEXT" | "VOICE";
   unreadCount?: number;
   voiceState?: VoiceChannelStateDTO | null;
 };
 
+const MAX_PARTICIPANT_ROWS = 4;
+
 export function ChannelItem({
   active,
   canAccess = true,
-  canManage,
   currentUserId,
+  dragHandleProps,
   mentionCount = 0,
+  mutedUserIds,
   name,
-  onDelete,
-  onEdit,
   onPrefetch,
   readOnly = false,
   onSelect,
+  speakingUserIds,
   testId,
   type,
   unreadCount = 0,
   voiceState = null,
 }: ChannelItemProps) {
   const { t } = useI18n();
+  const { sidebar } = SERVER_METRICS;
   const Icon = type === "VOICE" ? Volume2 : Hash;
   const isLocked = !canAccess;
   const isReadOnly = !isLocked && type === "TEXT" && readOnly;
-  const previewParticipants = !isLocked ? (voiceState?.participants.slice(0, 3) ?? []) : [];
-  const participantCount = !isLocked ? (voiceState?.participants.length ?? 0) : 0;
-  const visibleParticipantRows = !isLocked ? (voiceState?.participants.slice(0, 4) ?? []) : [];
+  const isUnread = !isLocked && type === "TEXT" && unreadCount > 0;
+  const participants = isLocked ? [] : (voiceState?.participants ?? []);
+  const participantCount = participants.length;
+  const visibleParticipantRows = participants.slice(0, MAX_PARTICIPANT_ROWS);
   const hiddenParticipantCount = Math.max(0, participantCount - visibleParticipantRows.length);
+  const badgeCount = mentionCount > 0 ? mentionCount : unreadCount;
 
   return (
-    <div className="min-w-0 max-w-full overflow-hidden">
-      <div
-        className={cn(
-          "group relative flex min-w-0 max-w-full items-center gap-0.5 overflow-hidden rounded-[15px] px-0.5 py-0 transition sm:gap-0.5",
-          active
-            ? "bg-[linear-gradient(135deg,hsl(var(--primary)/0.16),hsl(var(--surface-card)/0.58))] text-[hsl(var(--foreground))]"
-            : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.42)] hover:text-[hsl(var(--foreground))]",
-          isLocked &&
-            "bg-[hsl(var(--surface-soft)/0.18)] text-app-soft hover:bg-[hsl(var(--surface-soft)/0.22)] hover:text-app-soft",
-        )}
-      >
+    <div className="min-w-0 max-w-full">
+      <div className="relative min-w-0 max-w-full">
         {active && !isLocked ? (
-          <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-[hsl(var(--primary))]" />
+          <span
+            aria-hidden="true"
+            className="absolute top-1/2 -translate-y-1/2"
+            style={{
+              background: "hsl(var(--primary))",
+              borderRadius: `0 ${pxToRem(sidebar.channelActiveStripeRadius)} ${pxToRem(
+                sidebar.channelActiveStripeRadius,
+              )} 0`,
+              height: pxToRem(sidebar.channelActiveStripeHeight),
+              left: pxToRem(sidebar.channelActiveStripeLeft),
+              width: pxToRem(sidebar.channelActiveStripeWidth),
+            }}
+          />
         ) : null}
+
         <button
           aria-current={active && !isLocked ? "page" : undefined}
           aria-label={t(
@@ -76,162 +120,231 @@ export function ChannelItem({
             { name },
           )}
           className={cn(
-            "flex min-h-9 min-w-0 flex-1 items-center gap-1 rounded-[14px] px-1.5 py-0.5 text-left outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)] md:min-h-8",
+            "flex w-full min-w-0 items-center text-left transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)]",
+            active ? "" : "hover:bg-[hsl(var(--surface-soft))]",
             isLocked && "cursor-not-allowed",
           )}
+          data-testid={testId}
           disabled={isLocked}
           onClick={isLocked ? undefined : onSelect}
           onFocus={isLocked ? undefined : onPrefetch}
-          onKeyDown={(event) => {
-            if (!isLocked && event.key === "Enter") {
-              onSelect();
-            }
-          }}
           onMouseEnter={isLocked ? undefined : onPrefetch}
-          data-testid={testId}
+          style={{
+            background: active
+              ? `hsl(var(--primary) / ${sidebar.channelActiveBackgroundAlpha})`
+              : "transparent",
+            borderRadius: pxToRem(sidebar.channelRowRadius),
+            gap: pxToRem(sidebar.channelRowGap),
+            padding: `${pxToRem(sidebar.channelRowPaddingY)} ${pxToRem(
+              sidebar.channelRowPaddingX,
+            )}`,
+          }}
           type="button"
+          {...dragHandleProps}
         >
           <span
-            className={cn(
-              "flex h-5 w-5 shrink-0 items-center justify-center rounded-[10px] transition",
-              active
-                ? "bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]"
-                : "bg-[hsl(var(--surface-card)/0.28)] text-app-soft group-hover:text-app-foreground",
-              isLocked &&
-                "bg-[hsl(var(--surface-soft)/0.32)] text-app-soft group-hover:text-app-soft",
-            )}
+            className="grid flex-none place-items-center"
+            style={{
+              color: active ? "hsl(var(--primary))" : "hsl(var(--text-muted))",
+              height: pxToRem(sidebar.channelIconSize),
+              width: pxToRem(sidebar.channelIconSize),
+            }}
           >
-            <Icon className="h-3.5 w-3.5" />
+            <Icon
+              aria-hidden="true"
+              style={{
+                height: pxToEm(sidebar.channelIconSize, sidebar.channelNameFontSize),
+                width: pxToEm(sidebar.channelIconSize, sidebar.channelNameFontSize),
+              }}
+            />
           </span>
-          <span className="min-w-0 truncate text-[13px] font-semibold tracking-[-0.01em]">
+
+          <span
+            className="min-w-0 flex-1 truncate"
+            style={{
+              color: active || isUnread ? "hsl(var(--foreground))" : "hsl(var(--text-secondary))",
+              fontSize: pxToRem(sidebar.channelNameFontSize),
+              fontWeight:
+                active || isUnread
+                  ? sidebar.channelNameWeightActive
+                  : sidebar.channelNameWeightRead,
+              lineHeight: sidebar.channelNameLineHeight,
+            }}
+          >
             {name}
           </span>
-          {isLocked ? (
-            <span
-              className="ml-auto inline-flex h-5 shrink-0 items-center gap-1 rounded-full border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-card)/0.38)] px-1.5 text-[9.5px] font-bold uppercase tracking-[0.1em] text-app-soft"
-              title={t("shell.channelItem.locked", { name })}
-            >
-              <Lock className="h-3 w-3" />
-              <span className="hidden sm:inline">{t("shell.channelItem.lockedBadge")}</span>
-            </span>
-          ) : type === "TEXT" ? (
-            <div className="ml-auto flex shrink-0 items-center gap-1">
-              {isReadOnly ? (
-                <span
-                  className="inline-flex h-5 shrink-0 items-center gap-1 rounded-full border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-card)/0.38)] px-1.5 text-[9.5px] font-bold uppercase tracking-[0.1em] text-app-soft"
-                  title={t("shell.channelItem.readOnly", { name })}
-                >
-                  <Eye className="h-3 w-3" />
-                  <span className="hidden sm:inline">{t("shell.channelItem.readOnlyBadge")}</span>
-                </span>
-              ) : null}
-              {unreadCount > 0 ? (
-                <span
-                  className={cn(
-                    "inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full border px-1.5 text-[10px] font-black shadow-[0_8px_18px_hsl(var(--primary)/0.1)]",
-                    mentionCount > 0
-                      ? "border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.14)] text-[hsl(var(--danger))]"
-                      : "border-[hsl(var(--primary)/0.26)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]",
-                  )}
-                  title={t(
-                    mentionCount > 0
-                      ? "shell.channelItem.mentionCount"
-                      : "shell.channelItem.unreadCount",
-                    { count: mentionCount > 0 ? mentionCount : unreadCount },
-                  )}
-                >
-                  {mentionCount > 0 ? `@${mentionCount}` : unreadCount > 99 ? "99+" : unreadCount}
-                </span>
-              ) : null}
-            </div>
+
+          {isReadOnly ? (
+            <Eye
+              aria-label={t("shell.channelItem.readOnly", { name })}
+              role="img"
+              style={{
+                color: "hsl(var(--text-muted))",
+                flex: "none",
+                height: pxToRem(sidebar.channelLockIconSize),
+                width: pxToRem(sidebar.channelLockIconSize),
+              }}
+            />
           ) : null}
-          {!isLocked && type === "VOICE" ? (
-            <div className="ml-auto flex shrink-0 items-center gap-1">
-              {participantCount > 0 ? (
-                <span className="rounded-full border border-[hsl(var(--border)/0.5)] bg-[hsl(var(--surface-card)/0.38)] px-1.5 py-0.5 text-[10px] font-semibold text-app-soft">
-                  {participantCount}
-                </span>
-              ) : null}
-              {previewParticipants.length > 0 ? (
-                <div className="hidden items-center -space-x-2 min-[390px]:flex">
-                  {previewParticipants.map((participant) => (
-                    <Avatar
-                      alt={participant.displayName ?? participant.username}
-                      className="h-[18px] w-[18px] border-2 border-[hsl(var(--surface-card))] text-[8px]"
-                      fallback={participant.displayName ?? participant.username}
-                      key={participant.userId}
-                      src={participant.avatarUrl}
-                    />
-                  ))}
-                  {participantCount > previewParticipants.length ? (
-                    <span className="ml-1 text-[10px] font-semibold text-app-soft">
-                      +{participantCount - previewParticipants.length}
-                    </span>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
+
+          {isLocked ? (
+            <Lock
+              aria-label={t("shell.channelItem.lockedBadge")}
+              role="img"
+              style={{
+                color: "hsl(var(--text-muted))",
+                flex: "none",
+                height: pxToRem(sidebar.channelLockIconSize),
+                width: pxToRem(sidebar.channelLockIconSize),
+              }}
+            />
+          ) : null}
+
+          {isUnread ? (
+            <span
+              aria-label={t(
+                mentionCount > 0
+                  ? "shell.channelItem.mentionCount"
+                  : "shell.channelItem.unreadCount",
+                { count: badgeCount },
+              )}
+              className="grid flex-none place-items-center"
+              role="status"
+              style={{
+                background: "hsl(var(--danger))",
+                borderRadius: pxToRem(sidebar.channelUnreadRadius),
+                color: "hsl(var(--danger-foreground))",
+                fontFamily: DISPLAY_FONT,
+                fontSize: pxToRem(sidebar.channelUnreadFontSize),
+                fontWeight: 600,
+                height: pxToRem(sidebar.channelUnreadHeight),
+                lineHeight: 1,
+                minWidth: pxToRem(sidebar.channelUnreadMinWidth),
+                padding: `0 ${pxToRem(sidebar.channelUnreadPaddingX)}`,
+              }}
+            >
+              {mentionCount > 0 ? `@${mentionCount}` : badgeCount > 99 ? "99+" : badgeCount}
+            </span>
+          ) : null}
+
+          {type === "VOICE" && participantCount > 0 ? (
+            <span
+              aria-label={t("voice.sidebar.participantCount", { count: participantCount })}
+              className="flex flex-none items-center"
+              role="status"
+              style={{
+                color: "hsl(var(--success))",
+                fontFamily: DISPLAY_FONT,
+                fontSize: pxToRem(sidebar.channelVoiceCountFontSize),
+                fontWeight: 600,
+                gap: pxToRem(sidebar.channelVoiceCountGap),
+                lineHeight: 1,
+              }}
+            >
+              <Volume2
+                aria-hidden="true"
+                style={{
+                  height: pxToRem(sidebar.channelVoiceCountIconSize),
+                  width: pxToRem(sidebar.channelVoiceCountIconSize),
+                }}
+              />
+              {participantCount}
+            </span>
           ) : null}
         </button>
-
-        {canManage ? (
-          <div className="hidden items-center gap-1 opacity-0 transition group-hover:opacity-100 sm:flex">
-            <button
-              aria-label={t("shell.channelItem.edit", { name })}
-              className="text-app-muted rounded-lg p-1 transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-[hsl(var(--foreground))]"
-              data-channel-edit-name={name}
-              onClick={onEdit}
-              type="button"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-            <button
-              aria-label={t("shell.channelItem.delete", { name })}
-              className="text-app-muted rounded-lg p-1 transition hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger))]"
-              onClick={onDelete}
-              type="button"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        ) : null}
       </div>
 
       {type === "VOICE" && visibleParticipantRows.length > 0 ? (
-        <div className="mt-1 space-y-1 pl-5 sm:pl-6">
+        <div>
           {visibleParticipantRows.map((participant) => {
             const participantLabel = participant.displayName ?? participant.username;
+            const isSpeaking = speakingUserIds?.has(participant.userId) ?? false;
+            const isMuted =
+              mutedUserIds?.has(participant.userId) ?? Boolean(participant.isDeafened);
             const isCurrentUser = participant.userId === currentUserId;
 
             return (
               <div
-                className="app-panel-soft flex min-h-8 items-center gap-1.5 rounded-xl border px-2 py-1 text-[11px] text-app-muted"
+                className="flex items-center transition-colors hover:bg-[hsl(var(--surface-soft)/0.6)]"
                 data-testid={`voice-sidebar-participant-${participant.username}`}
                 data-user-id={participant.userId}
                 key={participant.userId}
+                style={{
+                  borderRadius: pxToRem(sidebar.participantRadius),
+                  gap: pxToRem(sidebar.participantGap),
+                  padding: `${pxToRem(sidebar.participantPaddingY)} ${pxToRem(
+                    sidebar.participantPaddingRight,
+                  )} ${pxToRem(sidebar.participantPaddingY)} ${pxToRem(
+                    sidebar.participantPaddingLeft,
+                  )}`,
+                }}
               >
                 <Avatar
                   alt={participantLabel}
-                  className="h-[18px] w-[18px] border border-[hsl(var(--border)/0.72)] text-[8px]"
+                  className="border-0"
                   fallback={participantLabel}
                   src={participant.avatarUrl}
+                  style={{
+                    boxShadow: isSpeaking
+                      ? `0 0 0 ${pxToRem(sidebar.participantSpeakingRingWidth)} hsl(var(--success))`
+                      : undefined,
+                    fontFamily: DISPLAY_FONT,
+                    fontSize: pxToRem(sidebar.participantAvatarFontSize),
+                    height: pxToRem(sidebar.participantAvatarSize),
+                    width: pxToRem(sidebar.participantAvatarSize),
+                  }}
                 />
-                <span className="min-w-0 flex-1 truncate font-medium text-app-foreground">
+                <span
+                  className="min-w-0 flex-1 truncate"
+                  style={{
+                    color: isCurrentUser
+                      ? "hsl(var(--primary))"
+                      : isSpeaking
+                        ? "hsl(var(--foreground))"
+                        : "hsl(var(--text-secondary))",
+                    fontSize: pxToRem(sidebar.participantNameFontSize),
+                    fontWeight: 500,
+                    lineHeight: 1,
+                  }}
+                >
                   {participantLabel}
                 </span>
-                {isCurrentUser ? (
-                  <span className="rounded-full bg-[hsl(var(--primary)/0.12)] px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.1em] text-[hsl(var(--primary))]">
-                    {t("voice.sidebar.you")}
+                {isSpeaking ? (
+                  <span className="sr-only">
+                    {t("voice.sidebar.speaking", { name: participantLabel })}
                   </span>
+                ) : null}
+                {isMuted ? (
+                  <MicOff
+                    aria-label={t("voice.sidebar.muted", { name: participantLabel })}
+                    role="img"
+                    style={{
+                      color: "hsl(var(--danger))",
+                      flex: "none",
+                      height: pxToRem(sidebar.participantMutedIconSize),
+                      width: pxToRem(sidebar.participantMutedIconSize),
+                    }}
+                  />
                 ) : null}
                 {participant.isScreenSharing ? (
                   <span
-                    className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.12)] px-1.5 py-0.5 text-[9.5px] font-semibold text-[hsl(var(--success))]"
+                    className="flex flex-none items-center"
                     data-testid={`voice-sidebar-screen-share-${participant.username}`}
+                    style={{
+                      background: "hsl(var(--primary) / 0.16)",
+                      borderRadius: pxToRem(sidebar.participantLiveChipRadius),
+                      color: "hsl(var(--primary))",
+                      fontFamily: DISPLAY_FONT,
+                      fontSize: pxToRem(sidebar.participantLiveChipFontSize),
+                      fontWeight: 600,
+                      lineHeight: 1,
+                      padding: `${pxToRem(sidebar.participantLiveChipPaddingY)} ${pxToRem(
+                        sidebar.participantLiveChipPaddingX,
+                      )}`,
+                    }}
                     title={t("voice.sidebar.screenSharing")}
                   >
-                    <MonitorUp className="h-3 w-3" />
-                    <span className="sr-only">{t("voice.sidebar.screenSharing")}</span>
+                    {t("voice.sidebar.liveChip")}
                   </span>
                 ) : null}
               </div>
@@ -239,7 +352,18 @@ export function ChannelItem({
           })}
 
           {hiddenParticipantCount > 0 ? (
-            <div className="pl-1 text-[10px] font-medium text-app-soft">
+            <div
+              style={{
+                color: "hsl(var(--text-muted))",
+                fontSize: pxToRem(sidebar.participantNameFontSize),
+                fontWeight: 500,
+                padding: `${pxToRem(sidebar.participantPaddingY)} ${pxToRem(
+                  sidebar.participantPaddingRight,
+                )} ${pxToRem(sidebar.participantPaddingY)} ${pxToRem(
+                  sidebar.participantPaddingLeft,
+                )}`,
+              }}
+            >
               {t("voice.sidebar.moreParticipants", { count: hiddenParticipantCount })}
             </div>
           ) : null}

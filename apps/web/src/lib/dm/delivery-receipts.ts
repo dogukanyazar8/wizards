@@ -5,6 +5,7 @@ import {
   markDirectMessagesDelivered,
   type DirectMessageDeliveryMark,
 } from "@/lib/dm/service";
+import { canPublishReadReceipt } from "@/lib/messages/typing-visibility";
 import { getSocketServer } from "@/lib/socket/runtime";
 
 /**
@@ -63,16 +64,38 @@ export async function recordDirectMessageDelivery(
  * the tick is frequently on mobile, so this lives beside the mobile emitter
  * rather than inside either route.
  */
+export type BroadcastDirectMessageReadDependencies = {
+  canPublishReadReceipt(userId: string): Promise<boolean>;
+  getReadStates(
+    conversationId: string,
+  ): Promise<readonly { readonly lastReadAt: Date | null; readonly userId: string }[]>;
+};
+
+const broadcastReadDefaults: BroadcastDirectMessageReadDependencies = {
+  canPublishReadReceipt,
+  getReadStates: getDirectMessageParticipantReadStates,
+};
+
 export async function broadcastDirectMessageRead(
   userId: string,
   conversationId: string,
+  dependencies: BroadcastDirectMessageReadDependencies = broadcastReadDefaults,
 ): Promise<void> {
   const io = getSocketServer();
   if (!io) {
     return;
   }
 
-  const states = await getDirectMessageParticipantReadStates(conversationId);
+  // §15.5's `Okundu bilgisi` switch, enforced where the stamp is published
+  // rather than where it lands. Suppressing the whole event — not just the leg
+  // that reaches the counterpart — is the point: the conversation room holds
+  // the other side, so any emit at all would put the stamp on the wire. The
+  // reader's own unread count is a column, untouched by this.
+  if (!(await dependencies.canPublishReadReceipt(userId))) {
+    return;
+  }
+
+  const states = await dependencies.getReadStates(conversationId);
   const reader = states.find((state) => state.userId === userId);
   if (!reader) {
     return;

@@ -82,7 +82,7 @@ export async function gotoAppRoute(
   }
 
   if (path.startsWith("/channels") || path.startsWith("/messages")) {
-    await expect(visibleTestId(page, "app-startup-screen")).toBeHidden({
+    await expect(visibleTestId(page, "splash-screen")).toBeHidden({
       timeout: options.timeout ?? DEFAULT_APP_READY_TIMEOUT,
     });
   }

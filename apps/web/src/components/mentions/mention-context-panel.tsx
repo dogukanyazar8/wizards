@@ -3,7 +3,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { X } from "lucide-react";
 import type { Mention, MentionContextMessage } from "@wizards/types";
 
 import { DISPLAY_FONT } from "@/components/home/home-primitives";
@@ -15,6 +14,7 @@ import { useAccountPreferenceRuntime } from "@/components/providers/account-pref
 import { useI18n } from "@/components/providers/locale-provider";
 import { Avatar } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WindowCloseButton } from "@/components/ui/window-close-button";
 import {
   MENTIONS_STALE_TIME_MS,
   fetchMentionContext,
@@ -208,26 +208,11 @@ export function MentionContextPanel({
             ) : null}
           </div>
 
-          <button
+          <WindowCloseButton
             aria-label={t("mentions.context.close")}
-            className="grid shrink-0 place-items-center text-[hsl(var(--text-muted))] transition hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
-            data-testid="mention-context-close"
             onClick={onClose}
-            style={{
-              borderRadius: pxToRem(contextPanel.closeRadius),
-              height: pxToRem(contextPanel.closeSize),
-              width: pxToRem(contextPanel.closeSize),
-            }}
-            type="button"
-          >
-            <X
-              aria-hidden="true"
-              style={{
-                height: pxToRem(contextPanel.closeIconSize),
-                width: pxToRem(contextPanel.closeIconSize),
-              }}
-            />
-          </button>
+            testId="mention-context-close"
+          />
         </header>
 
         {/* Gövde */}
@@ -285,7 +270,7 @@ export function MentionContextPanel({
 
           {showThreadReply ? (
             <button
-              className="grid shrink-0 place-items-center bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+              className="grid shrink-0 place-items-center bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition hover:bg-[var(--surface-hover)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
               data-testid="mention-context-reply-thread"
               onClick={onReplyInThread}
               style={{

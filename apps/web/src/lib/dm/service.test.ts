@@ -5,6 +5,7 @@ import { prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 
 import {
+  clearExpiredDirectMessageMutes,
   deleteDMMessage,
   editDMMessage,
   listDirectMessageMutualServers,
@@ -40,6 +41,7 @@ describe("DM service mutual servers", () => {
           {
             server: {
               _count: { members: 24 },
+              iconColor: "danger",
               iconUrl: "https://cdn.whispr.test/server.png",
               id: "server-1",
               name: "Design Studio",
@@ -56,6 +58,7 @@ describe("DM service mutual servers", () => {
 
       assert.deepEqual(result, [
         {
+          iconColor: "danger",
           iconUrl: "https://cdn.whispr.test/server.png",
           id: "server-1",
           memberCount: 24,
@@ -75,6 +78,7 @@ describe("DM service mutual servers", () => {
                   members: true,
                 },
               },
+              iconColor: true,
               iconUrl: true,
               id: true,
               name: true,
@@ -298,7 +302,10 @@ describe("DM participant preferences", () => {
     );
 
     try {
-      await setDirectMessageMuted("user-1", "conversation-1", true);
+      await setDirectMessageMuted("user-1", "conversation-1", true, {
+        emitMuteChanged: () => undefined,
+        now: () => new Date("2026-08-27T09:00:00.000Z"),
+      });
 
       assert.deepEqual(calls, [
         {
@@ -316,9 +323,14 @@ describe("DM participant preferences", () => {
         },
         {
           key: "update",
+          // Tuzak 5 / karar K8: one statement carries all three columns. Two
+          // updates is what leaves the app silent in one surface and loud in
+          // another when the second one fails.
           value: {
             data: {
               muted: true,
+              mutedUntil: null,
+              notifyLevel: "NONE",
             },
             where: {
               conversationId_userId: {
@@ -329,6 +341,198 @@ describe("DM participant preferences", () => {
           },
         },
       ]);
+    } finally {
+      for (const restore of restores.reverse()) {
+        restore();
+      }
+    }
+  });
+});
+
+/** Mesajlar §17's `Sessize al` submenu — karar K8. */
+describe("timed DM mute", () => {
+  const NOW = new Date("2026-08-27T09:00:00.000Z");
+
+  function stubMuteWrite(restores: Restore[]) {
+    const writes: Array<Record<string, unknown>> = [];
+
+    patchMethod(
+      prisma.dMConversation,
+      "findUnique",
+      async () => ({ participants: [{ historyFromAt: null }], type: "DM" }),
+      restores,
+    );
+    patchMethod(
+      prisma.dMParticipant,
+      "update",
+      async (args: unknown) => {
+        writes.push((args as { data: Record<string, unknown> }).data);
+        return {};
+      },
+      restores,
+    );
+
+    return writes;
+  }
+
+  for (const [duration, expected] of [
+    ["15m", "2026-08-27T09:15:00.000Z"],
+    ["1h", "2026-08-27T10:00:00.000Z"],
+    ["8h", "2026-08-27T17:00:00.000Z"],
+  ] as const) {
+    it(`writes the deadline the ${duration} rung promises`, async () => {
+      const restores: Restore[] = [];
+      const writes = stubMuteWrite(restores);
+
+      try {
+        const state = await setDirectMessageMuted(
+          "user-1",
+          "conversation-1",
+          { duration, muted: true },
+          { emitMuteChanged: () => undefined, now: () => NOW },
+        );
+
+        assert.deepEqual(writes, [
+          { muted: true, mutedUntil: new Date(expected), notifyLevel: "NONE" },
+        ]);
+        assert.deepEqual(state, { muted: true, mutedUntil: expected, notifyLevel: "NONE" });
+      } finally {
+        for (const restore of restores.reverse()) {
+          restore();
+        }
+      }
+    });
+  }
+
+  it("stores no deadline for Süresiz", async () => {
+    const restores: Restore[] = [];
+    const writes = stubMuteWrite(restores);
+
+    try {
+      const state = await setDirectMessageMuted(
+        "user-1",
+        "conversation-1",
+        { duration: "forever", muted: true },
+        { emitMuteChanged: () => undefined, now: () => NOW },
+      );
+
+      assert.deepEqual(writes, [{ muted: true, mutedUntil: null, notifyLevel: "NONE" }]);
+      assert.equal(state.mutedUntil, null);
+    } finally {
+      for (const restore of restores.reverse()) {
+        restore();
+      }
+    }
+  });
+
+  // The pre-submenu body. A caller that never learned about durations keeps the
+  // behaviour it always had.
+  it("treats a bare boolean and a duration-less body as Süresiz", async () => {
+    const restores: Restore[] = [];
+    const writes = stubMuteWrite(restores);
+
+    try {
+      await setDirectMessageMuted("user-1", "conversation-1", true, {
+        emitMuteChanged: () => undefined,
+        now: () => NOW,
+      });
+      await setDirectMessageMuted(
+        "user-1",
+        "conversation-1",
+        { muted: true },
+        { emitMuteChanged: () => undefined, now: () => NOW },
+      );
+
+      assert.deepEqual(writes, [
+        { muted: true, mutedUntil: null, notifyLevel: "NONE" },
+        { muted: true, mutedUntil: null, notifyLevel: "NONE" },
+      ]);
+    } finally {
+      for (const restore of restores.reverse()) {
+        restore();
+      }
+    }
+  });
+
+  it("clears the deadline and the tier when the mute is lifted", async () => {
+    const restores: Restore[] = [];
+    const writes = stubMuteWrite(restores);
+
+    try {
+      const state = await setDirectMessageMuted(
+        "user-1",
+        "conversation-1",
+        { duration: "8h", muted: false },
+        { emitMuteChanged: () => undefined, now: () => NOW },
+      );
+
+      // The duration is ignored rather than honoured: unmuting for eight hours
+      // is not a thing the submenu can express.
+      assert.deepEqual(writes, [{ muted: false, mutedUntil: null, notifyLevel: "ALL" }]);
+      assert.deepEqual(state, { muted: false, mutedUntil: null, notifyLevel: "ALL" });
+    } finally {
+      for (const restore of restores.reverse()) {
+        restore();
+      }
+    }
+  });
+
+  it("announces the new state to the muter's own room only", async () => {
+    const restores: Restore[] = [];
+    stubMuteWrite(restores);
+    const emitted: Array<{ payload: unknown; userId: string }> = [];
+
+    try {
+      await setDirectMessageMuted(
+        "user-1",
+        "conversation-1",
+        { duration: "1h", muted: true },
+        {
+          emitMuteChanged: (userId, payload) => emitted.push({ payload, userId }),
+          now: () => NOW,
+        },
+      );
+
+      assert.deepEqual(emitted, [
+        {
+          payload: {
+            conversationId: "conversation-1",
+            muted: true,
+            mutedUntil: "2026-08-27T10:00:00.000Z",
+            notifyLevel: "NONE",
+          },
+          userId: "user-1",
+        },
+      ]);
+    } finally {
+      for (const restore of restores.reverse()) {
+        restore();
+      }
+    }
+  });
+
+  it("normalises only this person's lapsed mutes and never a live one", async () => {
+    const restores: Restore[] = [];
+    let captured: unknown;
+
+    patchMethod(
+      prisma.dMParticipant,
+      "updateMany",
+      async (args: unknown) => {
+        captured = args;
+        return { count: 2 };
+      },
+      restores,
+    );
+
+    try {
+      assert.equal(await clearExpiredDirectMessageMutes("user-1", NOW), 2);
+      assert.deepEqual(captured, {
+        data: { muted: false, mutedUntil: null, notifyLevel: "ALL" },
+        // `mutedUntil: null` is `Süresiz` and never matches `lte`, so a
+        // deliberate forever-mute survives the sweepless cleanup.
+        where: { muted: true, mutedUntil: { lte: NOW }, userId: "user-1" },
+      });
     } finally {
       for (const restore of restores.reverse()) {
         restore();

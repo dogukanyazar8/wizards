@@ -1,9 +1,20 @@
 import { prisma } from "@wizards/db";
-import type { MentionQuietHours } from "@wizards/types";
+import type { NotificationPrefs } from "@wizards/types";
 
-import { normalizeAppLocale, translate } from "@/lib/locale";
+import { normalizeAppLocale, translate, type AppLocale } from "@/lib/locale";
 import { sendMobilePushForNotifications } from "@/lib/mobile/push-sender";
-import { isWithinQuietHours } from "@/lib/notifications/quiet-hours";
+import {
+  MASKED_NOTIFICATION_KEYS,
+  resolveNotificationDelivery,
+  type NotificationDelivery,
+  type NotificationKindKey,
+} from "@/lib/notifications/prefs-policy";
+import {
+  NOTIFICATION_PREFS_SELECT,
+  readPrefs,
+  toNotificationPrefs,
+  type NotificationPrefsRow,
+} from "@/lib/notifications/prefs-service";
 import {
   loadNotificationActor,
   loadNotificationServerName,
@@ -43,92 +54,88 @@ export function chunkForFanOut<T>(items: readonly T[], size = CHANNEL_FANOUT_BAT
   return batches;
 }
 
-export type MentionNotificationSettingsRow = {
-  mentionSelf: boolean;
-  mentionThreadReplies: boolean;
-  /** Ş4 `isWithinQuietHours` sözleşmesinin beklediği taşıyıcı. */
-  quietHours: MentionQuietHours;
-  suppressEveryoneMentions: boolean;
-  suppressRoleMentions: boolean;
-};
-
-const MENTION_NOTIFICATION_SETTINGS_DEFAULTS: MentionNotificationSettingsRow = {
-  mentionSelf: true,
-  mentionThreadReplies: false,
-  quietHours: { enabled: false, from: null, to: null, timeZone: null },
-  suppressEveryoneMentions: false,
-  suppressRoleMentions: false,
-};
-
 /**
- * Satırı olmayan kullanıcı **varsayılanları** taşır. `mentionThreadReplies` varsayılanı kapalı
- * (K6): bu şerit yayına girdiğinde ayarına hiç dokunmamış hiç kimse thread yanıtı bildirimi
- * almamalı.
+ * Ayarlar Ş1 §5 — **the** point where a stored preference becomes a delivered (or undelivered)
+ * notification. Before this lane the fan-out read five mention columns and consulted quiet hours
+ * by hand; it now reads the whole preference object and asks `prefs-policy` once per recipient.
  *
- * `suppress*` ters mantığı yalnız burada, servis katmanında çözülür (Dalga 0 notu #4).
+ * The row is still read through `userNotificationSettings.findMany` rather than through
+ * `listNotificationPrefs`: this is the send path, and a per-recipient join onto `User` for the
+ * account time zone would double the query on the hottest write in the product. The zone stored
+ * on the notification row is used, which is what the previous code did too.
  */
 export async function readMentionNotificationSettings(
   userIds: readonly string[],
-): Promise<Map<string, MentionNotificationSettingsRow>> {
-  const settings = new Map<string, MentionNotificationSettingsRow>();
+): Promise<Map<string, NotificationPrefs>> {
+  const settings = new Map<string, NotificationPrefs>();
   if (userIds.length === 0) {
     return settings;
   }
 
   const rows = await prisma.userNotificationSettings.findMany({
     where: { userId: { in: [...new Set(userIds)] } },
-    select: {
-      mentionSelf: true,
-      mentionThreadReplies: true,
-      quietHoursEnabled: true,
-      quietHoursFrom: true,
-      quietHoursTimeZone: true,
-      quietHoursTo: true,
-      suppressEveryoneMentions: true,
-      suppressRoleMentions: true,
-      userId: true,
-    },
+    select: { ...NOTIFICATION_PREFS_SELECT, userId: true },
   });
 
   for (const row of rows) {
-    settings.set(row.userId, {
-      mentionSelf: row.mentionSelf,
-      mentionThreadReplies: row.mentionThreadReplies,
-      quietHours: {
-        enabled: row.quietHoursEnabled,
-        from: row.quietHoursFrom,
-        to: row.quietHoursTo,
-        timeZone: row.quietHoursTimeZone,
-      },
-      suppressEveryoneMentions: row.suppressEveryoneMentions,
-      suppressRoleMentions: row.suppressRoleMentions,
-    });
+    settings.set(row.userId, toNotificationPrefs(row as unknown as NotificationPrefsRow, null));
   }
 
   return settings;
 }
 
+/** Satırı olmayan kullanıcı **varsayılanları** taşır. */
 export function readMentionSetting(
-  settings: Map<string, MentionNotificationSettingsRow>,
+  settings: Map<string, NotificationPrefs>,
   userId: string,
-): MentionNotificationSettingsRow {
-  return settings.get(userId) ?? MENTION_NOTIFICATION_SETTINGS_DEFAULTS;
+): NotificationPrefs {
+  return readPrefs(settings, userId);
 }
 
-/** Şu an sessiz saatte olan alıcılar. Bildirimi alırlar, push'u almazlar. */
-export function collectQuietUserIds(
-  settings: Map<string, MentionNotificationSettingsRow>,
+/**
+ * §5 — the gate table, one entry per recipient, resolved at one instant.
+ *
+ * `level = OFF` lands here and nowhere earlier: the `Notification` row is written before this is
+ * consulted, so the notification centre keeps its record and only the push, the toast and the
+ * system notification go quiet. That is the promise the 560 px window prints on the `Kapalı`
+ * card, and it is the reason this is a delivery filter rather than a recipient filter.
+ */
+export function collectNotificationDelivery(
+  settings: Map<string, NotificationPrefs>,
   userIds: readonly string[],
+  kind: NotificationKindKey,
   now = new Date(),
-): Set<string> {
-  const quiet = new Set<string>();
-  for (const userId of userIds) {
-    if (isWithinQuietHours(readMentionSetting(settings, userId), now)) {
-      quiet.add(userId);
-    }
+): Map<string, NotificationDelivery> {
+  const delivery = new Map<string, NotificationDelivery>();
+  for (const userId of new Set(userIds)) {
+    delivery.set(
+      userId,
+      resolveNotificationDelivery(readMentionSetting(settings, userId), kind, now),
+    );
   }
 
-  return quiet;
+  return delivery;
+}
+
+/**
+ * §5 last row — `systemPreview = false` hides the sender and the message from the notification
+ * the operating system draws. On a phone the push **is** that notification, so the masking has to
+ * happen before the payload leaves this process; the in-app card keeps its own switch
+ * (`panel.showContent`) and is untouched (tuzak #4).
+ */
+export function maskPushText(
+  locale: AppLocale,
+  delivery: NotificationDelivery | undefined,
+  text: { body: string; title: string },
+): { body: string; title: string } {
+  if (delivery && !delivery.systemPreview) {
+    return {
+      body: translate(locale, MASKED_NOTIFICATION_KEYS.body),
+      title: translate(locale, MASKED_NOTIFICATION_KEYS.title),
+    };
+  }
+
+  return text;
 }
 
 /**
@@ -192,16 +199,17 @@ export async function createChannelMuteFilter(args: {
 export async function deliverChannelNotifications(args: {
   channelId: string;
   channelName: string;
+  /**
+   * Ayarlar Ş1 §5. One entry per recipient, from `collectNotificationDelivery`. Absent means
+   * "no preference was read", which is deliberately the permissive answer: the branches that
+   * have not been migrated yet keep behaving exactly as they did.
+   */
+  deliveryByUserId?: ReadonlyMap<string, NotificationDelivery>;
   emitServerUnread?: boolean;
   io?: AppSocketServer;
   notifications: NotificationRecord[];
   pushBodyByUserId?: Map<string, string>;
-  /**
-   * Ş4 sözleşmesi: sessiz saat **yalnız** push'u bastırır. Satır, sayaç ve socket olayı yerinde
-   * kalır — tasarımın kendi metni "bahsetmeler sayaçta birikir" diyor. Küme verilmezse kimse
-   * sessiz saatte değildir (`@herkes` gibi ayarları zaten okumuş dallar kümeyi geçirir).
-   */
-  quietUserIds?: ReadonlySet<string>;
+  pushTitleByUserId?: Map<string, string>;
   senderId: string;
   serverId: string;
 }) {
@@ -217,30 +225,54 @@ export async function deliverChannelNotifications(args: {
     : [null, null];
 
   for (const notification of args.notifications) {
-    args.io?.to(`user:${notification.userId}`).emit(
-      "notification:new",
-      serializeNotification(notification, {
-        actor,
-        channel: { id: args.channelId, name: args.channelName },
-        server,
-      }),
-    );
-    if (args.emitServerUnread) {
+    const delivery = args.deliveryByUserId?.get(notification.userId);
+
+    // `na1` — the in-app card. The socket event is what draws it, so the switch has to be here
+    // rather than in the component: an event the client throws away is still a wake-up.
+    if (!delivery || delivery.inAppToast) {
+      args.io?.to(`user:${notification.userId}`).emit(
+        "notification:new",
+        serializeNotification(notification, {
+          actor,
+          channel: { id: args.channelId, name: args.channelName },
+          server,
+        }),
+      );
+    }
+
+    // The unread badge counts rows, not deliveries, so a refused notification still moves it —
+    // as long as the reader asked for a counter at all (`na3`).
+    if (args.emitServerUnread && (!delivery || delivery.appBadge)) {
       void emitServerUnreadUpdateToUser(notification.userId, args.serverId).catch(() => undefined);
     }
   }
 
+  // K12 — the push gate runs **before** `sendMobilePushForNotifications`, so a recipient with
+  // `delivery.push = false` costs zero token lookups rather than being filtered after the read.
+  const pushable = args.notifications.filter((notification) => {
+    const delivery = args.deliveryByUserId?.get(notification.userId);
+    return !delivery || delivery.push;
+  });
+
+  if (pushable.length === 0) {
+    return;
+  }
+
   void sendMobilePushForNotifications(
-    args.notifications
-      .filter((notification) => !args.quietUserIds?.has(notification.userId))
-      .map((notification) => ({
-        actionUrl: notification.actionUrl,
-        body: args.pushBodyByUserId?.get(notification.userId) ?? notification.body,
-        id: notification.id,
-        title: notification.title,
-        type: notification.type,
-        userId: notification.userId,
-      })),
+    pushable.map((notification) => ({
+      actionUrl: notification.actionUrl,
+      body: args.pushBodyByUserId?.get(notification.userId) ?? notification.body,
+      id: notification.id,
+      title: args.pushTitleByUserId?.get(notification.userId) ?? notification.title,
+      type: notification.type,
+      userId: notification.userId,
+    })),
+    {
+      // Ş13 — gönderici artık kapıyı kendi içinde uyguluyor (borç B1). Bu yol tercihleri
+      // **zaten** okumuş durumda (deliveryByUserId) ve yukarıdaki süzgeç onu uyguladı;
+      // ikinci bir okuma aynı satırları bir kez daha çekerdi.
+      filterEligible: async (userIds) => new Set(userIds),
+    },
   ).catch(() => undefined);
 }
 
@@ -337,13 +369,14 @@ export async function createChannelMentionNotifications(args: {
   const mentionRecipients = permittedMentionedMembers.filter(
     (member) =>
       shouldReceiveMention(member.userId) &&
-      readMentionSetting(settings, member.userId).mentionSelf,
+      readMentionSetting(settings, member.userId).types.mentionSelf,
   );
 
   if (mentionRecipients.length === 0) {
     return;
   }
 
+  const delivery = collectNotificationDelivery(settings, mentionedUserIds, "mentionSelf");
   const mentionPreview = buildMentionPreview(args.content);
   const notificationData = mentionRecipients.map((member) => {
     const locale = normalizeAppLocale(member.user.locale);
@@ -371,16 +404,19 @@ export async function createChannelMentionNotifications(args: {
         type: "MENTION" as const,
         userId: member.userId,
       },
-      pushBody: mentionPreview
-        ? translate(locale, "chat.mentions.notifyBodyWithMessage", {
-            channel: args.channelName,
-            name: args.senderName,
-            preview: mentionPreview,
-          })
-        : translate(locale, "chat.mentions.notifyBody", {
-            channel: args.channelName,
-            name: args.senderName,
-          }),
+      ...maskPushText(locale, delivery.get(member.userId), {
+        body: mentionPreview
+          ? translate(locale, "chat.mentions.notifyBodyWithMessage", {
+              channel: args.channelName,
+              name: args.senderName,
+              preview: mentionPreview,
+            })
+          : translate(locale, "chat.mentions.notifyBody", {
+              channel: args.channelName,
+              name: args.senderName,
+            }),
+        title: translate(locale, "chat.mentions.notifyTitle"),
+      }),
     };
   });
 
@@ -434,16 +470,20 @@ export async function createChannelMentionNotifications(args: {
   // The push has a single line, so it carries the combined "who + where + what"
   // form instead of the feed's headline.
   const pushBodyByUserId = new Map(
-    notificationData.map((row) => [row.notification.userId, row.pushBody] as const),
+    notificationData.map((row) => [row.notification.userId, row.body] as const),
+  );
+  const pushTitleByUserId = new Map(
+    notificationData.map((row) => [row.notification.userId, row.title] as const),
   );
   await deliverChannelNotifications({
     channelId: args.channelId,
     channelName: args.channelName,
+    deliveryByUserId: delivery,
     emitServerUnread: true,
     ...(args.io ? { io: args.io } : {}),
     notifications: notifications as NotificationRecord[],
     pushBodyByUserId,
-    quietUserIds: collectQuietUserIds(settings, mentionedUserIds),
+    pushTitleByUserId,
     senderId: args.senderId,
     serverId: args.serverId,
   });
@@ -503,20 +543,21 @@ export async function createChannelEveryoneNotifications(args: {
   const recipients = visibleMembers.filter(
     (member) =>
       isNotMuted(member.userId) &&
-      !readMentionSetting(settings, member.userId).suppressEveryoneMentions,
+      readMentionSetting(settings, member.userId).types.mentionEveryone,
   );
 
   if (recipients.length === 0) {
     return;
   }
 
+  const delivery = collectNotificationDelivery(settings, visibleMemberIds, "mentionEveryone");
   const preview = buildMentionPreview(args.content);
   const pushBodyByUserId = new Map<string, string>();
+  const pushTitleByUserId = new Map<string, string>();
   const notificationData = recipients.map((member) => {
     const locale = normalizeAppLocale(member.user.locale);
-    pushBodyByUserId.set(
-      member.userId,
-      preview
+    const push = maskPushText(locale, delivery.get(member.userId), {
+      body: preview
         ? translate(locale, "chat.mentions.notifyEveryoneBodyWithMessage", {
             channel: args.channelName,
             name: args.senderName,
@@ -526,7 +567,10 @@ export async function createChannelEveryoneNotifications(args: {
             channel: args.channelName,
             name: args.senderName,
           }),
-    );
+      title: translate(locale, "chat.mentions.notifyEveryoneTitle"),
+    });
+    pushBodyByUserId.set(member.userId, push.body);
+    pushTitleByUserId.set(member.userId, push.title);
 
     return {
       actionUrl: `/channels/${args.serverId}/${args.channelId}`,
@@ -561,10 +605,11 @@ export async function createChannelEveryoneNotifications(args: {
   await deliverChannelNotifications({
     channelId: args.channelId,
     channelName: args.channelName,
+    deliveryByUserId: delivery,
     ...(args.io ? { io: args.io } : {}),
     notifications,
     pushBodyByUserId,
-    quietUserIds: collectQuietUserIds(settings, visibleMemberIds),
+    pushTitleByUserId,
     senderId: args.senderId,
     serverId: args.serverId,
   });
@@ -679,7 +724,7 @@ export async function createChannelThreadReplyNotification(args: {
     }
 
     return (
-      readMentionSetting(settings, userId).mentionThreadReplies &&
+      readMentionSetting(settings, userId).types.threadReplies &&
       isNotMuted(userId) &&
       !mentionedUserIds.has(userId)
     );
@@ -689,8 +734,35 @@ export async function createChannelThreadReplyNotification(args: {
     return;
   }
 
+  // Two kinds in one fan-out. A reply to **your** message is `messageReplies` — the row the
+  // design keeps inside `Yalnızca önemli`; a reply somewhere else in a thread you follow is
+  // `threadReplies`, which is not. Collapsing them onto one key would either silence the parent
+  // author at the default level or promote every followed thread to important.
+  const delivery = new Map([
+    ...collectNotificationDelivery(
+      settings,
+      recipientUserIds.filter((userId) => userId === parentAuthorId),
+      "messageReplies",
+    ),
+    ...collectNotificationDelivery(
+      settings,
+      recipientUserIds.filter((userId) => userId !== parentAuthorId),
+      "threadReplies",
+    ),
+  ]);
+  const pushBodyByUserId = new Map<string, string>();
+  const pushTitleByUserId = new Map<string, string>();
   const notificationData = recipientUserIds.map((userId) => {
     const locale = normalizeAppLocale(localeByUserId.get(userId) ?? null);
+    const push = maskPushText(locale, delivery.get(userId), {
+      body: translate(locale, "chat.thread.notifyBody", {
+        channel: args.channelName,
+        name: args.senderName,
+      }),
+      title: translate(locale, "chat.thread.notifyTitle"),
+    });
+    pushBodyByUserId.set(userId, push.body);
+    pushTitleByUserId.set(userId, push.title);
 
     return {
       actionUrl: `/channels/${args.serverId}/${args.channelId}?thread=${args.parentMessageId}`,
@@ -726,9 +798,11 @@ export async function createChannelThreadReplyNotification(args: {
   await deliverChannelNotifications({
     channelId: args.channelId,
     channelName: args.channelName,
+    deliveryByUserId: delivery,
     ...(args.io ? { io: args.io } : {}),
     notifications,
-    quietUserIds: collectQuietUserIds(settings, permittedUserIds),
+    pushBodyByUserId,
+    pushTitleByUserId,
     senderId: args.senderId,
     serverId: args.serverId,
   });

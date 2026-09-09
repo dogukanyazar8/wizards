@@ -5,7 +5,7 @@ import { loginAs } from "../../helpers/auth";
 import { getE2EServerRoute, setE2EUserTheme, withE2EDatabase } from "../../helpers/db";
 import { gotoAppRoute, visibleTestId } from "../../helpers/navigation";
 import { e2eUsers } from "../../helpers/test-data";
-import { EN_MESSAGES } from "@/lib/locale/messages/en";
+import { TR_MESSAGES } from "@/lib/locale/messages/tr";
 
 /**
  * Etkinlikler (4B · Takvim şeridi) — Ş10 §5, dokuz senaryo.
@@ -24,10 +24,10 @@ const RUN = `${Date.now().toString(36)}-${process.pid}`;
 const EVENTS_READY = { readyTestId: "events-feed-header" } as const;
 
 /**
- * Tohum hesapların dili `en` (`e2e-database.ts`), o yüzden metin iddiaları sözlükten okunuyor.
- * Sabit Türkçe dize yazmak turu tohumun diline çivilerdi ve i18n'in kendisini test etmezdi.
+ * Ortak Playwright fixture tarayıcı dilini tasarım sözleşmesi için `tr` sabitliyor; metin
+ * iddiaları aynı sözlükten okunur. Sabit dize yazmak i18n anahtarını atlamış olurdu.
  */
-const COPY = EN_MESSAGES as unknown as Record<string, string>;
+const COPY = TR_MESSAGES as unknown as Record<string, string>;
 
 type EventsFixture = {
   liveId: string;

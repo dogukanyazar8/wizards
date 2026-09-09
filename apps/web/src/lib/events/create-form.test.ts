@@ -38,14 +38,16 @@ import { EVENT_KIND_CHANNEL_TYPES } from "@/lib/events/mutations";
  */
 
 const COMMUNITY: EventPlaceServer = {
+  iconColor: null,
   iconUrl: null,
   id: "s1",
   name: "Whispr Topluluğu",
-  shortName: "W",
+  shortName: "WHS",
   type: "COMMUNITY",
 };
 
 const PERSONAL: EventPlaceServer = {
+  iconColor: "info",
   iconUrl: null,
   id: "s2",
   name: "Product Team",
@@ -260,9 +262,30 @@ describe("events create-form — yer seçimi", () => {
 
   it("`selectEventPlaceServers` yalnız yönetebildiğin sunucuları bırakır", () => {
     const servers = selectEventPlaceServers([
-      { accessLevel: "OWNER", iconUrl: null, id: "a", name: "A", shortName: "A" },
-      { accessLevel: "ADMIN", iconUrl: "https://cdn/i.png", id: "b", name: "B", shortName: null },
-      { accessLevel: "MEMBER", iconUrl: null, id: "c", name: "C", shortName: null },
+      {
+        accessLevel: "OWNER",
+        iconColor: null,
+        iconUrl: null,
+        id: "a",
+        name: "A",
+        shortName: "AAA",
+      },
+      {
+        accessLevel: "ADMIN",
+        iconColor: "info",
+        iconUrl: "https://cdn/i.png",
+        id: "b",
+        name: "B",
+        shortName: null,
+      },
+      {
+        accessLevel: "MEMBER",
+        iconColor: null,
+        iconUrl: null,
+        id: "c",
+        name: "C",
+        shortName: null,
+      },
     ]);
 
     assert.deepEqual(
@@ -272,10 +295,10 @@ describe("events create-form — yer seçimi", () => {
     assert.equal(servers[0]?.type, null);
   });
 
-  it("sunucu tile'ı kısa addan, yoksa adın ilk harfinden gelir", () => {
-    assert.equal(eventPlaceServerInitials(COMMUNITY), "W");
-    assert.equal(eventPlaceServerInitials(PERSONAL), "P");
-    assert.equal(eventPlaceServerInitials({ ...PERSONAL, shortName: "tk" }), "TK");
+  it("sunucu tile'ı tam üç karakterlik kısaltmayı kullanır", () => {
+    assert.equal(eventPlaceServerInitials(COMMUNITY), "WHS");
+    assert.equal(eventPlaceServerInitials(PERSONAL), "PRO");
+    assert.equal(eventPlaceServerInitials({ ...PERSONAL, shortName: "TKM" }), "TKM");
   });
 });
 

@@ -1,9 +1,8 @@
 /**
- * Girişten sonra varsayılan hedef. Mesajlar kendi rotasına taşındı (`/messages`);
- * eskisi (`/channels`) sunucu tarafında oraya yönleniyor ve varsayılan olarak
- * bırakılsaydı her giriş bir yönlendirme turu daha ödeyecekti.
+ * Girişten ve normal masaüstü açılışından sonraki varsayılan hedef. Açıkça
+ * verilmiş güvenli deep linkler korunur; yalnız hedef yoksa Home açılır.
  */
-export const DEFAULT_AUTH_REDIRECT_PATH = "/messages";
+export const DEFAULT_AUTH_REDIRECT_PATH = "/home";
 
 /**
  * Girişten sonra dönülmesine **izin verilen** yol önekleri.
@@ -14,7 +13,13 @@ export const DEFAULT_AUTH_REDIRECT_PATH = "/messages";
  * oraya işaret ediyor ve oradan `/messages`'a yönleniyor; listeden çıkarmak o
  * bağlantıları giriş ekranında varsayılana düşürürdü.
  */
-const SAFE_AUTH_REDIRECT_PREFIXES = ["/messages", "/channels", "/settings", "/invite"] as const;
+const SAFE_AUTH_REDIRECT_PREFIXES = [
+  "/home",
+  "/messages",
+  "/channels",
+  "/settings",
+  "/invite",
+] as const;
 const SAFE_AUTH_REDIRECT_EXACT_PATHS = [
   "/desktop/oauth/complete",
   "/mobile/oauth/complete",

@@ -246,7 +246,7 @@ export function EventAgendaRail({
           }}
         >
           <button
-            className="flex w-full items-center justify-center bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+            className="flex w-full items-center justify-center bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition hover:bg-[var(--surface-hover)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
             data-testid="event-agenda-create"
             onClick={onOpenCreate}
             style={{

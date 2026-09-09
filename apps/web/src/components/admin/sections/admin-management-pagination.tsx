@@ -43,7 +43,7 @@ export function AdminManagementPagination({
       <div className="flex items-center gap-2">
         {page > 1 ? (
           <Link
-            className="rounded-[10px] border border-[hsl(var(--border)/0.7)] px-3 py-2 text-[12px] font-semibold text-app-muted hover:bg-[hsl(var(--surface-soft))]"
+            className="rounded-[10px] border border-[hsl(var(--border)/0.7)] px-3 py-2 text-[12px] font-semibold text-app-muted hover:bg-[var(--surface-hover)]"
             href={pageHref(pathname, search, page - 1)}
           >
             Önceki
@@ -58,7 +58,7 @@ export function AdminManagementPagination({
         </span>
         {page < totalPages ? (
           <Link
-            className="rounded-[10px] border border-[hsl(var(--border)/0.7)] px-3 py-2 text-[12px] font-semibold text-app-muted hover:bg-[hsl(var(--surface-soft))]"
+            className="rounded-[10px] border border-[hsl(var(--border)/0.7)] px-3 py-2 text-[12px] font-semibold text-app-muted hover:bg-[var(--surface-hover)]"
             href={pageHref(pathname, search, page + 1)}
           >
             Sonraki

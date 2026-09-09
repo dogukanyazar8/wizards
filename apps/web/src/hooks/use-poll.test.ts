@@ -55,7 +55,7 @@ describe("usePoll — yarış sözleşmesi", () => {
     // turu doğurur ve kart bir kare boyunca bayat durumu çizerdi.
     assert.match(
       SOURCE,
-      /if \(poll !== serverPoll\) \{\s*setServerPoll\(poll\);\s*setOptimistic\(null\);\s*\}/,
+      /if \(poll !== propPoll\) \{\s*setPropPoll\(poll\);\s*setServerPoll\(poll\);\s*setOptimistic\(null\);\s*\}/,
     );
     assert.doesNotMatch(SOURCE, /useEffect\([^)]*setOptimistic\(null\)/);
   });

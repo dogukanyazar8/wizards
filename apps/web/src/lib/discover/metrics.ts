@@ -2,10 +2,10 @@
  * "Keşfet" ekranının ölçü sözlüğü.
  *
  * Kaynak sırası:
- *   1. `design_handoff/kesfet-paketi/referans/Kesfet-5B.dc.html` — inline `style` değerleri
+ *   1. `design_handoff/app_new/kesfet-paketi/referans/Kesfet-5B.dc.html` — inline `style` değerleri
  *      (**nihai otorite**)
- *   2. `design_handoff/kesfet-paketi/referans/Kesfet-referans.html` — çalışan kopya
- *   3. `design_handoff/kesfet-paketi/SPEC-KESFET.md` §1–§12
+ *   2. `design_handoff/app_new/kesfet-paketi/referans/Kesfet-referans.html` — çalışan kopya
+ *   3. `design_handoff/app_new/kesfet-paketi/SPEC-KESFET.md` §1–§12
  *
  * Değerler ×1 ölçekteki **tasarım pikselidir**; tüketiciler `pxToRem` ile rem'e çevirir. Kabuk
  * yükselirken (SPEC-ANA-SAYFA §8.1) kök font boyutu değişir, sözlük değişmez.

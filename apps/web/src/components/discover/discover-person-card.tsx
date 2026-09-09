@@ -185,7 +185,7 @@ function DiscoverPersonCardComponent({
         </button>
         <button
           aria-label={t("discover.person.openProfile")}
-          className="relative grid shrink-0 place-items-center border-[hsl(var(--border)/0.7)] bg-transparent text-[hsl(var(--text-muted))] before:absolute before:-inset-1.5 before:content-[''] hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="relative grid shrink-0 place-items-center border-[hsl(var(--border)/0.7)] bg-transparent text-[hsl(var(--text-muted))] before:absolute before:-inset-1.5 before:content-[''] hover:bg-[var(--surface-hover)] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           onClick={() => onOpenProfile(person)}
           style={{
             borderRadius: pxToRem(metrics.profileButtonRadius),

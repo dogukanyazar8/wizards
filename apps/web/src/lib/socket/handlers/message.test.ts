@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { ApiError } from "@/lib/api";
+import {
+  MEMBER_TIMEOUT_FORBIDDEN_CODE,
+  MEMBER_TIMEOUT_FORBIDDEN_MESSAGE,
+} from "@/lib/workspace/member-timeout";
 import { PermissionBits } from "@/lib/workspace/permissions";
 
 import type { HandlerContext } from "../context";
@@ -150,6 +155,9 @@ describe("socket message handlers", () => {
     const checks: string[] = [];
 
     registerMessageHandlers(ctx, {
+      // Zaman aşımı kapısı yetki çözümünden hemen sonra duruyor: bu testler yavaş kip
+      // sırasını ölçüyor, veritabanını değil (Ş2 §4).
+      assertMemberNotTimedOut: async () => undefined,
       checkChannelMessageRateLimit: async () => {
         checks.push("global");
         return { status: "allowed" };
@@ -165,7 +173,7 @@ describe("socket message handlers", () => {
           locked: false,
           name: "general",
           rtcRegion: null,
-          server: { features: [], messageCharacterLimit: 2_000 },
+          server: { features: [], messageCharacterLimit: 2_000, slowModeDelay: 0 },
           serverId: "server-1",
           slowModeDelay: 30,
           type: "TEXT",
@@ -194,17 +202,117 @@ describe("socket message handlers", () => {
     ]);
   });
 
+  it("applies the server-wide slow mode when it is longer than the channel's", async () => {
+    const { ctx, handlers } = createHandlerContextRecorder();
+    const checks: string[] = [];
+
+    registerMessageHandlers(ctx, {
+      assertMemberNotTimedOut: async () => undefined,
+      checkChannelMessageRateLimit: async () => ({ status: "allowed" }),
+      checkChannelSlowMode: async ({ delaySeconds }) => {
+        checks.push(`slow:${delaySeconds}`);
+        return { retryAfterSeconds: 1, status: "limited" };
+      },
+      requireChannelPermissionForUser: async () => ({
+        channel: {
+          id: "channel-1",
+          bitrate: 64_000,
+          locked: false,
+          name: "general",
+          rtcRegion: null,
+          // SPEC-SUNUCU §8.3: iki süre birlikte tanımlıysa uzun olan uygulanır.
+          server: { features: [], messageCharacterLimit: 2_000, slowModeDelay: 300 },
+          serverId: "server-1",
+          slowModeDelay: 10,
+          type: "TEXT",
+          userLimit: 0,
+          videoQualityMode: "AUTO",
+        },
+        context: {} as never,
+        permissions: PermissionBits.SEND_MESSAGES,
+      }),
+    });
+
+    const handler = handlers.get("message:send");
+    assert.ok(handler);
+    await handler({ channelId: "channel-1", content: "Hello" });
+
+    assert.deepEqual(checks, ["slow:300"]);
+  });
+
+  it("refuses a timed-out member before slow mode, through the permission error family", async () => {
+    const { ctx, emittedEvents, handlers } = createHandlerContextRecorder();
+    const checks: string[] = [];
+    let acknowledged: unknown;
+
+    registerMessageHandlers(ctx, {
+      assertMemberNotTimedOut: async (serverId, userId) => {
+        checks.push(`timeout:${serverId}:${userId}`);
+        throw new ApiError(MEMBER_TIMEOUT_FORBIDDEN_MESSAGE, 403, MEMBER_TIMEOUT_FORBIDDEN_CODE);
+      },
+      checkChannelMessageRateLimit: async () => {
+        checks.push("global");
+        return { status: "allowed" };
+      },
+      checkChannelSlowMode: async () => {
+        checks.push("slow");
+        return { status: "allowed" };
+      },
+      requireChannelPermissionForUser: async () => ({
+        channel: {
+          id: "channel-1",
+          bitrate: 64_000,
+          locked: false,
+          name: "general",
+          rtcRegion: null,
+          server: { features: [], messageCharacterLimit: 2_000, slowModeDelay: 0 },
+          serverId: "server-1",
+          slowModeDelay: 0,
+          type: "TEXT",
+          userLimit: 0,
+          videoQualityMode: "AUTO",
+        },
+        context: {} as never,
+        permissions: PermissionBits.SEND_MESSAGES,
+      }),
+    });
+
+    const handler = handlers.get("message:send");
+    assert.ok(handler);
+    await handler({ channelId: "channel-1", content: "Hello" }, (result) => {
+      acknowledged = result;
+    });
+
+    // Yavaş kipe hiç sıra gelmiyor: susturulmuş üye beklemiyor, gönderemiyor.
+    assert.deepEqual(checks, ["global", "timeout:server-1:user-1"]);
+    assert.deepEqual(emittedEvents, [
+      {
+        event: "error",
+        payload: {
+          code: MEMBER_TIMEOUT_FORBIDDEN_CODE,
+          message: MEMBER_TIMEOUT_FORBIDDEN_MESSAGE,
+        },
+      },
+    ]);
+    assert.deepEqual(acknowledged, {
+      code: MEMBER_TIMEOUT_FORBIDDEN_CODE,
+      message: MEMBER_TIMEOUT_FORBIDDEN_MESSAGE,
+      ok: false,
+    });
+  });
+
   it("lets message moderators bypass slow mode without bypassing the global limiter", async () => {
     const slowModeCalls: unknown[] = [];
     const result = await messageHandlers.checkChannelSlowModeForSend({
+      channelDelaySeconds: 30,
       channelId: "channel-1",
       check: async (args) => {
         slowModeCalls.push(args);
         return { retryAfterSeconds: 30, status: "limited" };
       },
-      delaySeconds: 30,
       permissions: PermissionBits.MANAGE_MESSAGES,
       redis: {} as never,
+      serverDelaySeconds: 60,
       userId: "moderator-1",
     });
 

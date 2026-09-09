@@ -330,6 +330,64 @@ export async function getE2EUserTwoFactorEnabled(userKey: E2EUserKey): Promise<b
   });
 }
 
+/**
+ * Ayarlar Ş13 — Bildirimler bölümünün **tipli** kolonları (K3).
+ *
+ * `getE2EUserPreferences` eski on iki kolonu okuyor; yeni ağacın satırları o kolonlara değil
+ * bu alanlara yazıyor. İkinci bir okuyucu açmak yerine tek bir küçük seçici: e2e turu
+ * "anahtar çevrildi ve sunucuya gerçekten yazıldı" iddiasını buradan doğruluyor.
+ */
+export async function getE2ENotificationPrefs(userKey: E2EUserKey): Promise<{
+  deliveryEmail: boolean;
+  deliveryPush: boolean;
+  panelShowContent: boolean;
+  systemPreview: boolean;
+  typeBadges: boolean;
+  typeDm: boolean;
+}> {
+  return withE2EDatabase(async (prisma) => {
+    const userId = await findE2EUserId(prisma, userKey);
+    const row = await prisma.userNotificationSettings.findUnique({
+      where: { userId },
+      select: {
+        deliveryEmail: true,
+        deliveryPush: true,
+        panelShowContent: true,
+        systemPreview: true,
+        typeBadges: true,
+        typeDm: true,
+      },
+    });
+
+    if (!row) {
+      throw new Error(`E2E user ${userKey} has no notification settings row.`);
+    }
+
+    return row;
+  });
+}
+
+/** Türler sekmesinin kilitli olmayan satırlarını bilinen bir başlangıca döndürür. */
+export async function resetE2ENotificationPrefs(userKey: E2EUserKey): Promise<void> {
+  await withE2EDatabase(async (prisma) => {
+    const userId = await findE2EUserId(prisma, userKey);
+    const values = {
+      deliveryEmail: false,
+      deliveryPush: true,
+      panelShowContent: false,
+      systemPreview: false,
+      typeBadges: false,
+      typeDm: true,
+    };
+
+    await prisma.userNotificationSettings.upsert({
+      where: { userId },
+      create: { userId, ...values },
+      update: values,
+    });
+  });
+}
+
 export async function resetE2EUserPreferences(userKey: E2EUserKey): Promise<void> {
   await withE2EDatabase(async (prisma) => {
     const userId = await findE2EUserId(prisma, userKey);
@@ -383,6 +441,27 @@ export async function setE2EUserTheme(userKey: E2EUserKey, theme: string): Promi
     await prisma.$transaction([
       prisma.user.update({ where: { id: userId }, data: { theme } }),
       prisma.userSettings.update({ where: { userId }, data: { theme } }),
+    ]);
+  });
+}
+
+/**
+ * Kullanıcının dilini kaynağından ayarlar — `setE2EUserTheme`'in dil karşılığı.
+ *
+ * Taban tohum `en` yazıyor (`e2e/setup/e2e-database.ts`). Türkçe metin bekleyen bir test bunu
+ * söylemek zorunda: aksi hâlde başka bir dosyanın yan etkisiyle (`seedE2EDiscoverData` alice'i
+ * `tr`ye çekiyor) tesadüfen geçen, sıraya bağımlı bir test olur.
+ *
+ * İki satır birden yazılır çünkü oturum `User.locale`den, `Ayarlar` ekranı
+ * `UserSettings.locale`den okuyor; ikisinin ayrışması ekranın kendi tercihini yalanlaması olurdu.
+ */
+export async function setE2EUserLocale(userKey: E2EUserKey, locale: string): Promise<void> {
+  await withE2EDatabase(async (prisma) => {
+    const userId = await findE2EUserId(prisma, userKey);
+
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: userId }, data: { locale } }),
+      prisma.userSettings.update({ where: { userId }, data: { locale } }),
     ]);
   });
 }

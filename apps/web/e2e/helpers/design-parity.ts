@@ -153,6 +153,27 @@ export async function readRootFontSize(page: Page): Promise<number> {
   );
 }
 
+/** Hydration sonrası responsive kök ölçeğinin yerleşmesini bekler ve ölçülen değeri döndürür. */
+export async function waitForRootFontSize(
+  page: Page,
+  expected: number,
+  timeout = 10_000,
+): Promise<number> {
+  let actual = await readRootFontSize(page);
+
+  await expect
+    .poll(
+      async () => {
+        actual = await readRootFontSize(page);
+        return actual;
+      },
+      { timeout },
+    )
+    .toBeCloseTo(expected, 1);
+
+  return actual;
+}
+
 /** Bir tıklama hedefinin ölçülmüş hâli — kimliği `data-testid`, boyu CSS pikseli. */
 export type TapTargetMeasurement = {
   height: number;

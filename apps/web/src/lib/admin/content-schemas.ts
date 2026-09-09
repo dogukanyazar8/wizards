@@ -22,6 +22,45 @@ export const AdminReleaseInputSchema = z
   })
   .strict();
 
+/**
+ * SPEC-INDIRME §B kataloğu. Bağlantı **yalnız** HTTPS: bu değer yönetim
+ * konsolundan yazılıyor ve doğrudan kullanıcının tıkladığı bağlantı oluyor.
+ *
+ * `publishedAt` burada yok: yayınlama ayrı ve açık bir eylemdir (`publish`),
+ * `Release` modelindeki sözleşmenin aynısı.
+ */
+export const AdminDownloadArtifactInputSchema = z
+  .object({
+    buildLabel: nullableTrimmedText(32),
+    channel: z.enum(["STABLE", "UAT"]),
+    delivery: z.enum(["DIRECT", "STORE", "TESTFLIGHT"]),
+    extensionLabelEn: z.string().trim().min(1).max(120),
+    extensionLabelTr: z.string().trim().min(1).max(120),
+    metaLabelEn: z.string().trim().min(1).max(120),
+    metaLabelTr: z.string().trim().min(1).max(120),
+    platform: z.enum(["WINDOWS", "MACOS", "LINUX", "ANDROID", "IOS"]),
+    releasedAt: z.iso.datetime({ offset: true }),
+    sha256: z
+      .string()
+      .trim()
+      .regex(/^[a-f0-9]{64}$/u, "Invalid SHA-256 digest")
+      .nullable()
+      .optional(),
+    sizeBytes: z.number().int().positive().safe().nullable().optional(),
+    url: z
+      .string()
+      .trim()
+      .url()
+      .max(2_048)
+      .refine((value) => value.startsWith("https://"), "Download links must use HTTPS"),
+    versionLabel: z.string().trim().min(1).max(32),
+  })
+  .strict();
+
+export const AdminDownloadArtifactPatchSchema = AdminDownloadArtifactInputSchema.partial()
+  .extend({ published: z.boolean().optional() })
+  .refine((input) => Object.keys(input).length > 0, "At least one field is required");
+
 export const AdminReleasePatchSchema = AdminReleaseInputSchema.partial().refine(
   (input) => Object.keys(input).length > 0,
   "At least one field is required",
@@ -41,6 +80,10 @@ export const AdminReleaseChangesSchema = z
       )
       .max(200),
   })
+  .strict();
+
+export const AdminDownloadArtifactIdParamsSchema = z
+  .object({ artifactId: z.string().trim().min(1).max(128) })
   .strict();
 
 export const AdminReleaseIdParamsSchema = z

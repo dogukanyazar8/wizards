@@ -131,6 +131,7 @@ function createSnapshot(): CachedChannelPermissionSnapshot {
       server: {
         features: ["GIFS_ENABLED"],
         messageCharacterLimit: 2000,
+        slowModeDelay: 0,
       },
       serverId: "server-1",
       type: ChannelType.TEXT,
@@ -177,6 +178,9 @@ describe("workspace permission cache", () => {
       assert.deepEqual(cachedBeforeInvalidation?.channel.server, {
         features: ["GIFS_ENABLED"],
         messageCharacterLimit: 2000,
+        // Ş1 §2: gönderim yolu sunucu geneli yavaş modu da bu anlık görüntüden
+        // okuyor, o yüzden kolon önbelleğin şeklinin parçası.
+        slowModeDelay: 0,
       });
 
       await publishPermissionCacheRevision({ serverId: "server-1", serverVersion: "1" });

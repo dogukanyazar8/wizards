@@ -1,4 +1,5 @@
 import { HOME_METRICS } from "@/lib/home/metrics";
+import { SERVER_METRICS } from "@/lib/servers/metrics";
 
 export type WizardsThemeId =
   | "theme-light"
@@ -34,9 +35,51 @@ export type WizardsThemeCategory = "simple" | "advanced";
 export type WizardsThemePreview =
   { kind: "solid"; color: string } | { kind: "gradient"; stops: [string, string, string] };
 
+/**
+ * K6 — **hiçbir temanın kimliği ve rengi değişmez**; yalnız görünen ad tasarımın listesinden
+ * atanır. Bu yüzden ad bir alan değil bir **anahtar**: `label` İngilizce kalır (sözlük ve eski
+ * yüzeyler onu okuyor), `displayNameKey` Ayarlar penceresinin çizdiği addır.
+ *
+ * ## Eşleme ve gerekçesi
+ *
+ * Tasarım 23 ad veriyor (13 `Koyu` + 10 `Açık`); kodda 23 gelişmiş tema var ama dağılım
+ * **14 koyu + 9 açık** (SPEC_DEVIATIONS #1). Sayım tutmadığı için eşleme moda göre değil
+ * **renk ailesine** göre yapıldı ve `Koyu`/`Açık` etiketi addan değil, kaydın kendi `mode`
+ * alanından okunur. Bir tasarım adı (`Deniz Köpüğü`) bu yüzden koyu bir temaya düşüyor —
+ * teal ailesinin tek karşılığı o ve etiketi yine `Koyu` çıkıyor.
+ *
+ * | Kimlik | Türkçe ad | Neden |
+ * | --- | --- | --- |
+ * | `theme-light` · `theme-ash` · `theme-dark` · `theme-onyx` | Light · Ash · Dark · Onyx | Basit dört tema; tasarım da bu adları kullanıyor, çeviri yok |
+ * | `theme-deep-purple-gradient` | Mor Alacakaranlık | kadife erik gradyanı, morun alacakaranlık tonu |
+ * | `theme-blue-purple-gradient` | Mürekkep | mavi–menekşe geçişi = mürekkep |
+ * | `theme-forest-dark` | Orman | yosun yeşili |
+ * | `theme-crimson-dark` | Kiraz | dumanlı kızıl |
+ * | `theme-midnight-navy` | Gece Yarısı | adın kendisi (`midnight`) |
+ * | `theme-mauve-dark` | Bordo | soluk erik/şarap ailesi |
+ * | `theme-slate-dark` | Grafit | tek renk çelik = grafit |
+ * | `theme-teal-dark` | Deniz Köpüğü | teal ailesinin tek karşılığı; etiketi yine `Koyu` (sapma #1) |
+ * | `theme-ocean-dark` | Okyanus | adın kendisi |
+ * | `theme-purple-teal` | Kobalt | gradyanın orta durağı (`#3f6cc9`) kobalt mavisi |
+ * | `theme-amber-dark` | Bakır | altın köz = bakır |
+ * | `theme-green-rainbow` | Zeytin | yeşil ailesinde kalan tek ad |
+ * | `theme-khaki-dark` | Kömür | toprak koyusu; nötr koyu adların kalanı |
+ * | `theme-royal-blue` | Gece Mavisi | doygun lacivert |
+ * | `theme-mint-green` | Sisli Cam | soluk soğuk yeşil, buzlu cam |
+ * | `theme-peach-orange` | Şafak | şeftali/turuncu = şafak |
+ * | `theme-lavender` | Lavanta | adın kendisi |
+ * | `theme-sage-green` | Adaçayı | adın kendisi (`sage`) |
+ * | `theme-cream-yellow` | Kağıt | krem sarısı = kağıt |
+ * | `theme-dusty-rose` | Gül | adın kendisi |
+ * | `theme-soft-pink` | Kar | listenin en soluk tonu |
+ * | `theme-sky-blue` | Buz | buz mavisi |
+ * | `theme-warm-beige` | Kum | sıcak bej = kum |
+ */
 export type WizardsThemeDefinition = {
   category: WizardsThemeCategory;
   description: string;
+  /** K6 — Ayarlar penceresinin çizdiği ad; kimlik ve renk değişmeden yalnız bu Türkçeleşir. */
+  displayNameKey: string;
   id: WizardsThemeId;
   label: string;
   mode: "light" | "dark";
@@ -59,6 +102,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-light",
     label: "Light",
+    displayNameKey: "settings.block.theme.light",
     description: "Bright neutral canvas",
     category: "simple",
     mode: "light",
@@ -67,6 +111,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-ash",
     label: "Ash",
+    displayNameKey: "settings.block.theme.ash",
     description: "Discord-inspired charcoal",
     category: "simple",
     mode: "dark",
@@ -75,6 +120,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-dark",
     label: "Dark",
+    displayNameKey: "settings.block.theme.dark",
     description: "Classic deep slate",
     category: "simple",
     mode: "dark",
@@ -83,6 +129,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-onyx",
     label: "Onyx",
+    displayNameKey: "settings.block.theme.onyx",
     description: "Rich low-glare black",
     category: "simple",
     mode: "dark",
@@ -91,6 +138,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-mint-green",
     label: "Mint Green",
+    displayNameKey: "settings.block.theme.mistedGlass",
     description: "Airy mint pastel",
     category: "advanced",
     mode: "light",
@@ -99,6 +147,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-peach-orange",
     label: "Peach Orange",
+    displayNameKey: "settings.block.theme.dawn",
     description: "Warm citrus glow",
     category: "advanced",
     mode: "light",
@@ -107,6 +156,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-lavender",
     label: "Lavender",
+    displayNameKey: "settings.block.theme.lavender",
     description: "Soft lilac haze",
     category: "advanced",
     mode: "light",
@@ -115,6 +165,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-sage-green",
     label: "Sage Green",
+    displayNameKey: "settings.block.theme.sage",
     description: "Muted botanical tones",
     category: "advanced",
     mode: "light",
@@ -123,6 +174,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-cream-yellow",
     label: "Cream Yellow",
+    displayNameKey: "settings.block.theme.paper",
     description: "Buttery soft daylight",
     category: "advanced",
     mode: "light",
@@ -131,6 +183,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-dusty-rose",
     label: "Dusty Rose",
+    displayNameKey: "settings.block.theme.rose",
     description: "Powdered rose blush",
     category: "advanced",
     mode: "light",
@@ -139,6 +192,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-soft-pink",
     label: "Soft Pink",
+    displayNameKey: "settings.block.theme.snow",
     description: "Cotton candy shimmer",
     category: "advanced",
     mode: "light",
@@ -147,6 +201,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-sky-blue",
     label: "Sky Blue",
+    displayNameKey: "settings.block.theme.ice",
     description: "Cloud-washed blue",
     category: "advanced",
     mode: "light",
@@ -155,6 +210,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-warm-beige",
     label: "Warm Beige",
+    displayNameKey: "settings.block.theme.sand",
     description: "Neutral cafe tones",
     category: "advanced",
     mode: "light",
@@ -163,6 +219,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-deep-purple-gradient",
     label: "Deep Purple",
+    displayNameKey: "settings.block.theme.purpleTwilight",
     description: "Velvet plum gradient",
     category: "advanced",
     mode: "dark",
@@ -171,6 +228,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-blue-purple-gradient",
     label: "Blue Purple",
+    displayNameKey: "settings.block.theme.ink",
     description: "Electric dusk blend",
     category: "advanced",
     mode: "dark",
@@ -179,6 +237,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-forest-dark",
     label: "Forest Dark",
+    displayNameKey: "settings.block.theme.forest",
     description: "Mossy deep green",
     category: "advanced",
     mode: "dark",
@@ -187,6 +246,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-crimson-dark",
     label: "Crimson Dark",
+    displayNameKey: "settings.block.theme.cherry",
     description: "Smoky scarlet noir",
     category: "advanced",
     mode: "dark",
@@ -195,6 +255,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-midnight-navy",
     label: "Midnight Navy",
+    displayNameKey: "settings.block.theme.midnight",
     description: "Quiet midnight blue",
     category: "advanced",
     mode: "dark",
@@ -203,6 +264,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-mauve-dark",
     label: "Mauve Dark",
+    displayNameKey: "settings.block.theme.bordeaux",
     description: "Muted plum evening",
     category: "advanced",
     mode: "dark",
@@ -211,6 +273,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-slate-dark",
     label: "Slate Dark",
+    displayNameKey: "settings.block.theme.graphite",
     description: "Monochrome steel slate",
     category: "advanced",
     mode: "dark",
@@ -219,6 +282,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-teal-dark",
     label: "Teal Dark",
+    displayNameKey: "settings.block.theme.seafoam",
     description: "Deep sea teal",
     category: "advanced",
     mode: "dark",
@@ -227,6 +291,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-ocean-dark",
     label: "Ocean Dark",
+    displayNameKey: "settings.block.theme.ocean",
     description: "Bluewater twilight",
     category: "advanced",
     mode: "dark",
@@ -235,6 +300,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-purple-teal",
     label: "Purple Teal",
+    displayNameKey: "settings.block.theme.cobalt",
     description: "Bioluminescent blend",
     category: "advanced",
     mode: "dark",
@@ -243,6 +309,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-amber-dark",
     label: "Amber Dark",
+    displayNameKey: "settings.block.theme.copper",
     description: "Golden ember glow",
     category: "advanced",
     mode: "dark",
@@ -251,6 +318,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-green-rainbow",
     label: "Green Rainbow",
+    displayNameKey: "settings.block.theme.olive",
     description: "Prismatic neon green",
     category: "advanced",
     mode: "dark",
@@ -259,6 +327,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-khaki-dark",
     label: "Khaki Dark",
+    displayNameKey: "settings.block.theme.charcoal",
     description: "Earthy olive dusk",
     category: "advanced",
     mode: "dark",
@@ -267,6 +336,7 @@ export const WIZARDS_THEMES: WizardsThemeDefinition[] = [
   {
     id: "theme-royal-blue",
     label: "Royal Blue",
+    displayNameKey: "settings.block.theme.nightBlue",
     description: "Bold saturated royal",
     category: "advanced",
     mode: "dark",
@@ -279,6 +349,64 @@ export const SIMPLE_WIZARDS_THEMES = WIZARDS_THEMES.filter((theme) => theme.cate
 export const ADVANCED_WIZARDS_THEMES = WIZARDS_THEMES.filter(
   (theme) => theme.category === "advanced",
 );
+
+/**
+ * Tema ızgarasının **okuma sırası** — `screens/06-gorunum-tema.png`.
+ *
+ * Referans üç kolonu satır satır dolduruyor ve sırayı adın kendisi belirliyor, kaydın kodda
+ * tanımlanma sırası değil. Sıra bir sunum kararı: kimlik, renk ve mod değişmiyor, yalnız
+ * kartların yeri tasarımdaki kareyle örtüşüyor. Sıralamayı bileşende yapmak, iki tema bloğunun
+ * ileride ayrışması demekti.
+ */
+const ADVANCED_THEME_DISPLAY_ORDER: readonly string[] = [
+  "settings.block.theme.nightBlue",
+  "settings.block.theme.charcoal",
+  "settings.block.theme.ink",
+  "settings.block.theme.forest",
+  "settings.block.theme.bordeaux",
+  "settings.block.theme.purpleTwilight",
+  "settings.block.theme.copper",
+  "settings.block.theme.ocean",
+  "settings.block.theme.olive",
+  "settings.block.theme.midnight",
+  "settings.block.theme.graphite",
+  "settings.block.theme.cobalt",
+  "settings.block.theme.cherry",
+  "settings.block.theme.snow",
+  "settings.block.theme.sand",
+  "settings.block.theme.mistedGlass",
+  "settings.block.theme.sage",
+  "settings.block.theme.dawn",
+  "settings.block.theme.ice",
+  "settings.block.theme.lavender",
+  "settings.block.theme.paper",
+  "settings.block.theme.seafoam",
+  "settings.block.theme.rose",
+];
+
+/** 23 gelişmiş tema, tasarımın ızgara sırasıyla. */
+export const ADVANCED_WIZARDS_THEMES_IN_DESIGN_ORDER: readonly WizardsThemeDefinition[] = [
+  ...ADVANCED_WIZARDS_THEMES,
+].sort(
+  (left, right) =>
+    ADVANCED_THEME_DISPLAY_ORDER.indexOf(left.displayNameKey) -
+    ADVANCED_THEME_DISPLAY_ORDER.indexOf(right.displayNameKey),
+);
+
+/**
+ * SPEC_DEVIATIONS #1 — `Koyu`/`Açık` etiketi **koddan** sayılır, tasarımın 13/10 iddiasından
+ * değil. Sayaç burada duruyor ki tema ızgarası bir sayı yazmak zorunda kalmasın: blok yalnız
+ * etiketler, sayım gerekirse bu fonksiyondan gelir.
+ */
+export function countAdvancedThemesByMode(): { dark: number; light: number } {
+  return ADVANCED_WIZARDS_THEMES.reduce(
+    (counts, theme) => ({
+      dark: counts.dark + (theme.mode === "dark" ? 1 : 0),
+      light: counts.light + (theme.mode === "light" ? 1 : 0),
+    }),
+    { dark: 0, light: 0 },
+  );
+}
 export const THEME_PICKER_TABS: Array<{
   id: WizardsThemeCategory;
   label: string;
@@ -336,9 +464,14 @@ export const SERVER_RAIL_WIDTH = HOME_METRICS.rail.width;
 /** Ray ikonunun kutusu ve tıklama hedefi aynıdır: 44×44 (§2.1, §8.2.5 tabanı). */
 export const SERVER_RAIL_ICON_SIZE = HOME_METRICS.rail.iconSize;
 export const SERVER_RAIL_TOUCH_SIZE = HOME_METRICS.rail.iconSize;
-export const DEFAULT_CHANNEL_SIDEBAR_WIDTH = 244;
-export const MIN_CHANNEL_SIDEBAR_WIDTH = 244;
-export const MAX_CHANNEL_SIDEBAR_WIDTH = 244;
+/**
+ * Kanal kenar cubugu tek genislikte: SPEC-SUNUCU 1 ve 2 icin 252. Uc sabit de sozlukten
+ * okunur; alt/ust sinir esit oldugu icin genislik ayarlanabilir bir alan degil, sabit bir
+ * kolon -- deger iki yerde yazilsaydi biri digerini sessizce kirpardi.
+ */
+export const DEFAULT_CHANNEL_SIDEBAR_WIDTH = SERVER_METRICS.layout.sidebarWidth;
+export const MIN_CHANNEL_SIDEBAR_WIDTH = SERVER_METRICS.layout.sidebarWidth;
+export const MAX_CHANNEL_SIDEBAR_WIDTH = SERVER_METRICS.layout.sidebarWidth;
 export const CHANNEL_SIDEBAR_WIDTH_STEP = 8;
 export const LEGACY_DEFAULT_MAIN_PANEL_WIDTH = 1280;
 export const DEFAULT_MAIN_PANEL_WIDTH = 1400;

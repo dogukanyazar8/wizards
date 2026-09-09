@@ -11,8 +11,14 @@ import { useI18n } from "@/components/providers/locale-provider";
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { ServerRailSkeleton } from "@/components/shell/shell-skeletons";
 import { ServerIcon } from "@/components/shell/server-icon";
+import {
+  ServerRailDownloadButton,
+  ServerRailReportButton,
+} from "@/components/shell/server-rail-support-buttons";
 import { hairline, HOME_METRICS, pxToRem } from "@/lib/home/metrics";
 import { isNewServer, markServerSeen, readSeenServers } from "@/lib/discover/new-server-badge";
+import { resolveServerAbbreviation } from "@/lib/servers/server-icon-presentation";
+import { useAppStore } from "@/lib/store";
 
 const { rail } = HOME_METRICS;
 
@@ -46,14 +52,8 @@ type ServerRailProps = {
   servers: WorkspaceServerSummary[];
 };
 
-function getPreviewLabel(value: string) {
-  const normalized = value.trim().replace(/\s+/g, " ");
-  const preview = Array.from(normalized).slice(0, 4).join("");
-  return preview || "----";
-}
-
 function getServerShortLabel(server: WorkspaceServerSummary) {
-  return server.shortName ?? getPreviewLabel(server.name);
+  return resolveServerAbbreviation(server.name, server.shortName);
 }
 
 function joinTooltipHints(values: string[]) {
@@ -152,6 +152,9 @@ export function ServerRail({
   servers,
 }: ServerRailProps) {
   const { t } = useI18n();
+  // Ray, iki pencereyi kabuğun prop zincirinden geçirmeden açar: pencerelerin
+  // durumu zaten global ve `WorkspaceModals` onu aynı yerden okuyor.
+  const openSupportModal = useAppStore((state) => state.openSupportModal);
   const seenServers = readSeenServers();
   const addBtnRef = useRef<HTMLButtonElement>(null);
   const recentlyDraggedServerIdRef = useRef<string | null>(null);
@@ -333,14 +336,14 @@ export function ServerRail({
                   <ServerIcon
                     active={server.id === activeServerId}
                     badgeCount={server.unreadCount}
-                    className={`${draggingServerId === server.id ? "cursor-grabbing" : "cursor-grab"}${
+                    className={`${draggingServerId === server.id ? "cursor-grabbing" : "cursor-pointer"}${
                       isNew
                         ? " bg-[hsl(var(--warning)/0.2)] ring-[1.5px] ring-[hsl(var(--warning)/0.5)] shadow-[0_0.375rem_1rem_-0.625rem_hsl(var(--warning))] [&>span]:!bg-[hsl(var(--warning)/0.2)] [&>span]:!text-[hsl(var(--warning))]"
                         : ""
                     }`}
                     fallback={server.name}
+                    iconColor={server.iconColor}
                     iconUrl={isNew ? null : server.iconUrl}
-                    serverId={server.id}
                     label={server.name}
                     labelPreview={getServerShortLabel(server)}
                     mentionCount={server.mentionCount}
@@ -401,6 +404,25 @@ export function ServerRail({
         />
       </motion.button>
 
+      {/* SPEC-INDIRME §0 — alt blok rayın dibine yapışır. Liste `flex: 0 1 auto`
+          kaldığı için "sunucu ekle" tasarımdaki yerinde durur; dibe inen yalnız
+          bu blok. */}
+      <div
+        className="flex w-full shrink-0 flex-col items-center"
+        data-testid="server-rail-support"
+        style={{ marginTop: "auto" }}
+      >
+        <ServerRailDownloadButton
+          label={t("shell.serverRail.downloadApp")}
+          onClick={() => openSupportModal("download")}
+        />
+        <RailDivider />
+        <ServerRailReportButton
+          label={t("shell.serverRail.reportProblem")}
+          onClick={() => openSupportModal("report")}
+        />
+      </div>
+
       {addTooltipPos !== null &&
         typeof document !== "undefined" &&
         createPortal(
@@ -408,7 +430,7 @@ export function ServerRail({
             className="app-tooltip pointer-events-none fixed z-[60] -translate-y-1/2 rounded-xl border px-2.5 py-1 text-xs shadow-[0_12px_26px_hsl(var(--shadow-color)/0.12)]"
             style={{ top: addTooltipPos.top, left: addTooltipPos.left }}
           >
-            {t("shell.serverRail.addServer")}
+            {t("shell.serverRail.createServer")}
           </span>,
           document.body,
         )}

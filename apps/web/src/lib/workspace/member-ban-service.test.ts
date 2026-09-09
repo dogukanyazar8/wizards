@@ -127,7 +127,9 @@ describe("workspace member ban service", () => {
       } as never,
     );
 
-    assert.deepEqual(result, { success: true, userId: "target" });
+    // Ş2: `deleteMessageSeconds` verilmedi, o yüzden hiçbir mesaj silinmedi — ama sayı
+    // yanıtta durur, çünkü çağıran "kaç mesaj temizlendi" sorusunu her zaman sorabilmeli.
+    assert.deepEqual(result, { deletedMessageCount: 0, success: true, userId: "target" });
     assert.ok(indexOf(operations, "ban.upsert") < indexOf(operations, "member.delete"));
     assert.ok(indexOf(operations, "member.delete") < indexOf(operations, "revision.increment"));
     assert.ok(indexOf(operations, "outbox.upsert") < indexOf(operations, "transaction.commit"));

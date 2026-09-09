@@ -136,21 +136,30 @@ describe("tek satır bileşeni", () => {
     new URL("../home/home-awaiting-card.tsx", import.meta.url),
     "utf8",
   );
-  const inboxSource = readFileSync(new URL("./inbox-screen.tsx", import.meta.url), "utf8");
 
   it("satır kutusunu yalnız bir dosya çiziyor", () => {
     // Avatar + presence noktası + zaman damgası üçlüsü satırın imzası.
     assert.match(rowSource, /<PresenceDot/);
-    assert.ok(!inboxSource.includes("<PresenceDot"));
     assert.ok(!cardSource.includes("<PresenceDot"));
   });
 
-  it("Ana Sayfa kartı ve Gelen kutusu aynı satırı içeri alıyor", () => {
+  it("Ana Sayfa kartı satırı tek dosyadan içeri alıyor", () => {
     assert.match(cardSource, /from "\.\/home-list-row"/);
-    assert.match(
-      inboxSource,
-      /import \{ AwaitingRow \} from "@\/components\/home\/home-awaiting-card"/,
-    );
+  });
+
+  /**
+   * Ayarlar paketi Ş13 (K10): `/inbox` ve `InboxScreen` **silindi**. Bildirim panelinin
+   * `Tüm bildirimleri gör` bağlantısı Bahsedilmeler ekranına gidiyor, panelin `Sistem`
+   * sekmesi kendi içinde sonsuz kaydırıyor. İddia yine dosyanın yokluğu üzerinden: ölü bir
+   * rotanın geri sızmasını ancak bu yakalar.
+   */
+  it("Gelen kutusu ekranı kaldırıldı ve hiçbir yerden içeri alınmıyor", () => {
+    assert.equal(existsSync(new URL("./inbox-screen.tsx", import.meta.url)), false);
+    assert.equal(existsSync(new URL("../../app/(main)/inbox/page.tsx", import.meta.url)), false);
+
+    const cardSourceHref = cardSource.match(/href="\/(\w+)"/u)?.[1];
+
+    assert.equal(cardSourceHref, "mentions");
   });
 
   /**
@@ -173,7 +182,7 @@ describe("tek satır bileşeni", () => {
     assert.match(routeSource, /from "@\/components\/mentions\/mentions-page"/);
   });
 
-  it("Gelen kutusu satırı geniş varyantla, ama aynı aksiyonla çiziyor", () => {
+  it("Bekleyenler satırı geniş varyantla, ama aynı aksiyonla çiziyor", () => {
     const inbox = renderWithLocale(
       <AwaitingRow
         item={AWAITING}

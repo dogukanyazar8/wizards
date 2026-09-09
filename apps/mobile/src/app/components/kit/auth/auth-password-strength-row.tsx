@@ -1,17 +1,18 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Text, View } from "react-native";
 
+import { meetsPasswordPolicy } from "@wizards/types";
+
 import type { MobileTheme } from "../../../../design/themes";
 import { activeMobileCopy } from "../../../../locale/mobile-locale-preferences";
 import { useTheme, useThemedStyles } from "../../../providers/mobile-theme-provider";
 
+/**
+ * SPEC-GIRIS-KAYIT §4.4 — kural tek kaynaktan gelir. Mobil kendi esigini tutarsa sunucu
+ * politikasiyla ayrisir ve ekran gecen bir parolayi sunucu reddeder.
+ */
 export function isMobileAuthPasswordStrong(password: string) {
-  return (
-    password.length >= 8 &&
-    /[A-Za-z]/.test(password) &&
-    /\d/.test(password) &&
-    /[^A-Za-z0-9]/.test(password)
-  );
+  return meetsPasswordPolicy(password);
 }
 
 export interface AuthPasswordStrengthRowProps {

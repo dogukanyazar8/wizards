@@ -23,6 +23,7 @@ import {
 } from "@/lib/desktop/game-overlay-process";
 import type { VoiceOverlayAnchor, VoiceOverlaySize } from "@wizards/types";
 import { isEnhancedNoiseFilterMode, type EnhancedNoiseFilterMode } from "@/lib/voice/noise-filter";
+import { isApplicationShortcutAccelerator } from "@/lib/shortcuts/reserved";
 
 export const DEFAULT_PARTICIPANT_VOLUME = 100;
 export const MAX_PARTICIPANT_VOLUME = 100;
@@ -245,7 +246,11 @@ function normalizeDesktopShortcutForComparison(value: string) {
 
 export function isReservedDesktopVoiceShortcut(value: string) {
   const normalizedKey = normalizeDesktopShortcutForComparison(value);
-  return RESERVED_DESKTOP_VOICE_SHORTCUTS.has(normalizedKey) || normalizedKey.endsWith("+space");
+  return (
+    RESERVED_DESKTOP_VOICE_SHORTCUTS.has(normalizedKey) ||
+    normalizedKey.endsWith("+space") ||
+    isApplicationShortcutAccelerator(normalizedKey)
+  );
 }
 
 export function sanitizeUniqueDesktopVoiceShortcut(
@@ -337,6 +342,20 @@ type PersistedVoiceStoreState = {
   participantVolumes: Record<string, number>;
   pushToTalkHangoverMs: number;
   pushToTalkShortcut: string;
+  /**
+   * Ayarlar F2 — dört cihaz tercihi. Bunlar bilerek sunucuya gitmez: bir kullanıcının iki
+   * bilgisayarı aynı mikrofonu ya da aynı hoparlör seviyesini paylaşmak zorunda değil. Ama
+   * "cihazda" demek "bellekte" demek değildi: F2'den önce dördü de yalnız Ayarlar penceresinin
+   * kutusunda yaşıyordu ve pencere kapanınca ölüyordu — gösterge yine de `Kaydedildi` diyordu.
+   */
+  /** `i4` — mikrofonu kulaklığa geri ver. */
+  selfMonitorEnabled: boolean;
+  /** `u3` — ana çıkış ses seviyesi, yüzde. */
+  masterOutputVolume: number;
+  /** `e4` — kendi Whispr penceresini paylaşım kaynaklarından çıkar. */
+  screenShareExcludeSelfWindow: boolean;
+  /** `e5` — paylaşım sürerken kaynak değiştirmeye izin ver. */
+  screenShareAllowSourceSwitch: boolean;
   /** Opt-in: capture the shared surface's audio too. Off by default. */
   screenShareAudioEnabled: boolean;
   /** Listener-side ceiling on remote share audio, in percent. */
@@ -422,6 +441,11 @@ interface VoiceStoreState extends PersistedVoiceStoreState {
   setMuted: (isMuted: boolean) => void;
   setParticipantVolume: (userId: string, volume: number) => void;
   setScreenShareError: (error: string | null) => void;
+  /** Ayarlar F2 — dört cihaz tercihinin yazıcıları. */
+  setSelfMonitorEnabled: (enabled: boolean) => void;
+  setMasterOutputVolume: (volume: number) => void;
+  setScreenShareExcludeSelfWindow: (enabled: boolean) => void;
+  setScreenShareAllowSourceSwitch: (enabled: boolean) => void;
   setScreenShareAudioEnabled: (enabled: boolean) => void;
   setScreenShareVolume: (volume: number) => void;
   setScreenShareQuality: (quality: ScreenShareQualityId) => void;
@@ -481,6 +505,11 @@ export const useVoiceStore = create<VoiceStoreState>()(
       screenShareConversationId: null,
       screenShareError: null,
       screenShareMode: null,
+      // F2 — referans varsayılanları: `i4` kapalı, `u3` %78, `e4` ve `e5` açık.
+      selfMonitorEnabled: false,
+      masterOutputVolume: 78,
+      screenShareExcludeSelfWindow: true,
+      screenShareAllowSourceSwitch: true,
       screenShareAudioEnabled: false,
       screenShareVolume: DEFAULT_SCREEN_SHARE_VOLUME,
       screenShareQuality: DEFAULT_SCREEN_SHARE_QUALITY_ID,
@@ -698,6 +727,28 @@ export const useVoiceStore = create<VoiceStoreState>()(
         set({
           screenShareError: error,
         }),
+      setSelfMonitorEnabled: (enabled) =>
+        set((state) =>
+          state.selfMonitorEnabled === enabled ? state : { selfMonitorEnabled: enabled },
+        ),
+      setMasterOutputVolume: (volume) =>
+        set((state) => {
+          const next = sanitizeScreenShareVolume(volume);
+
+          return state.masterOutputVolume === next ? state : { masterOutputVolume: next };
+        }),
+      setScreenShareExcludeSelfWindow: (enabled) =>
+        set((state) =>
+          state.screenShareExcludeSelfWindow === enabled
+            ? state
+            : { screenShareExcludeSelfWindow: enabled },
+        ),
+      setScreenShareAllowSourceSwitch: (enabled) =>
+        set((state) =>
+          state.screenShareAllowSourceSwitch === enabled
+            ? state
+            : { screenShareAllowSourceSwitch: enabled },
+        ),
       setScreenShareAudioEnabled: (enabled) =>
         set((state) => {
           if (state.screenShareAudioEnabled === enabled) {
@@ -789,6 +840,10 @@ export const useVoiceStore = create<VoiceStoreState>()(
           participantVolumes: sanitizeParticipantVolumes(persistedState.participantVolumes),
           pushToTalkHangoverMs: sanitizePushToTalkHangoverMs(persistedState.pushToTalkHangoverMs),
           pushToTalkShortcut: desktopShortcuts.pushToTalkShortcut,
+          selfMonitorEnabled: persistedState.selfMonitorEnabled === true,
+          masterOutputVolume: sanitizeScreenShareVolume(persistedState.masterOutputVolume),
+          screenShareExcludeSelfWindow: persistedState.screenShareExcludeSelfWindow !== false,
+          screenShareAllowSourceSwitch: persistedState.screenShareAllowSourceSwitch !== false,
           screenShareAudioEnabled: persistedState.screenShareAudioEnabled === true,
           screenShareVolume: sanitizeScreenShareVolume(persistedState.screenShareVolume),
           screenShareQuality: sanitizeScreenShareQuality(persistedState.screenShareQuality),
@@ -816,6 +871,10 @@ export const useVoiceStore = create<VoiceStoreState>()(
         participantVolumes: state.participantVolumes,
         pushToTalkHangoverMs: state.pushToTalkHangoverMs,
         pushToTalkShortcut: state.pushToTalkShortcut,
+        selfMonitorEnabled: state.selfMonitorEnabled,
+        masterOutputVolume: state.masterOutputVolume,
+        screenShareExcludeSelfWindow: state.screenShareExcludeSelfWindow,
+        screenShareAllowSourceSwitch: state.screenShareAllowSourceSwitch,
         screenShareAudioEnabled: state.screenShareAudioEnabled,
         screenShareVolume: state.screenShareVolume,
         screenShareQuality: state.screenShareQuality,

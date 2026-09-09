@@ -69,6 +69,11 @@ describe("command palette — yüzey", () => {
     assert.match(PALETTE, /aria-activedescendant=/);
   });
 
+  it("kategori kontrolleri sekme rolü taklidi yerine basılı filtre düğmeleridir", () => {
+    assert.match(PALETTE, /aria-pressed=\{selected\}/);
+    assert.doesNotMatch(PALETTE, /role="tab(list)?"/);
+  });
+
   it("açılışta girdiye odaklanır ve `Esc` kapatır", () => {
     assert.match(PALETTE, /inputRef\.current\?\.focus\(\)/);
     assert.match(PALETTE, /event\.key === "Escape"/);
@@ -76,7 +81,13 @@ describe("command palette — yüzey", () => {
 
   it("Tab paletin içinde kalır — odak tuzağı", () => {
     assert.match(PALETTE, /event\.key === "Tab"/);
-    assert.match(PALETTE, /event\.preventDefault\(\);\s*setActiveRowId\(moveActiveRow/);
+    assert.match(PALETTE, /querySelectorAll<HTMLElement>\(FOCUSABLE_SELECTOR\)/);
+    assert.match(PALETTE, /document\.activeElement === first/);
+    assert.match(PALETTE, /document\.activeElement === last/);
+  });
+
+  it("oklarla seçilen sonuç kaydırma alanında görünür tutulur", () => {
+    assert.match(PALETTE, /scrollIntoView\(\{ block: "nearest" \}\)/);
   });
 
   it("arama sorgusu URL'e yazılmaz (§5.4 gizlilik)", () => {
@@ -95,9 +106,9 @@ describe("command palette — yüzey", () => {
     assert.doesNotMatch(PALETTE, /\[\d+px\]/);
   });
 
-  it("genişlik §5.2'nin 560'ı", async () => {
+  it("genişlik referans arama penceresinin 640'ı", async () => {
     const { HOME_METRICS } = await import("@/lib/home/metrics");
 
-    assert.equal(HOME_METRICS.commandPalette.width, 560);
+    assert.equal(HOME_METRICS.commandPalette.width, 640);
   });
 });

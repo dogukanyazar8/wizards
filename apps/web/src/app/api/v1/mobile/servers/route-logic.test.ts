@@ -39,8 +39,11 @@ describe("mobile server create route logic", () => {
           calls.push("auth");
           return "user-1";
         },
-        createServer: async (userId: string, input: { iconUrl: string | null; name: string }) => {
-          calls.push(`service:${userId}:${input.name}:${String(input.iconUrl)}`);
+        createServer: async (
+          userId: string,
+          input: { iconUrl: string | null; name: string; shortName: string },
+        ) => {
+          calls.push(`service:${userId}:${input.name}:${input.shortName}:${String(input.iconUrl)}`);
           return { channelId: "channel-1", serverId: "server-1" };
         },
         enforceRateLimit: async (userId: string, action: string) => {
@@ -56,7 +59,7 @@ describe("mobile server create route logic", () => {
       "auth",
       "rate:user-1:mobile:server:create",
       "parse",
-      "service:user-1:Guild:null",
+      "service:user-1:Guild:GUI:null",
     ]);
   });
 

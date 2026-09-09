@@ -18,6 +18,13 @@ export interface DesktopVoiceShortcutRegistration {
 
 export interface DesktopVoiceShortcutStatus {
   enabled: boolean;
+  entries?: Array<{
+    action: DesktopVoiceShortcutAction;
+    conflict: boolean;
+    keys: string[];
+    reason?: "duplicate" | "invalid" | "osRefused" | "reserved" | null;
+    registered: boolean;
+  }>;
   registered: DesktopVoiceShortcutRegistration[];
 }
 
@@ -259,7 +266,7 @@ export async function getDesktopVoiceShortcutStatus() {
 }
 
 export type DesktopControlSection =
-  "diagnostics" | "overview" | "permissions" | "recovery" | "shortcuts" | "updates";
+  "app" | "diagnostics" | "overview" | "permissions" | "recovery" | "shortcuts" | "updates";
 
 type DesktopControlInvoker = (command: string, args?: Record<string, unknown>) => Promise<boolean>;
 
@@ -276,6 +283,16 @@ export async function openDesktopControl(section: DesktopControlSection = "overv
   }
 
   return invokeDesktopControlSection(section);
+}
+
+export async function openDesktopPermissionSettings(
+  key: "camera" | "microphone" | "notifications",
+) {
+  if (!isWhisprDesktopRuntime()) {
+    return false;
+  }
+
+  return invokeDesktopCommand<boolean>("open_desktop_permission_settings", { key });
 }
 
 export async function refreshDesktopCompanionSurfaces() {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo, useSyncExternalStore, type ReactNode } from "react";
+import React, { memo, type ReactNode } from "react";
 import { Search } from "lucide-react";
 
 import { useCommandPalette } from "@/components/command/command-palette-provider";
@@ -8,6 +8,7 @@ import { DISPLAY_FONT } from "@/components/home/home-primitives";
 import { useOptionalFocusControls } from "@/components/providers/focus-controls-provider";
 import { useI18n } from "@/components/providers/locale-provider";
 import { NotificationBell } from "@/components/shared/notification-bell";
+import { useAppShortcutLabel } from "@/hooks/use-app-shortcut-label";
 import { HOME_METRICS, HOME_TYPE_SCALE, hairline, pxToEm, pxToRem } from "@/lib/home/metrics";
 import { cn } from "@/lib/utils";
 
@@ -21,27 +22,6 @@ import { cn } from "@/lib/utils";
  */
 
 const { topBar } = HOME_METRICS;
-
-const MAC_SHORTCUT = "⌘K";
-const OTHER_SHORTCUT = "Ctrl K";
-
-/** Platform oturum boyunca değişmez; abone olunacak bir şey yok. */
-const NEVER_CHANGES = () => () => undefined;
-
-function readShortcutChip(): string {
-  return /mac/i.test(window.navigator.platform || window.navigator.userAgent)
-    ? MAC_SHORTCUT
-    : OTHER_SHORTCUT;
-}
-
-/**
- * Kısayol çipi platforma göre değişir. Sunucuda platform bilinmez: sunucu anlık görüntüsü
- * `Ctrl K`, istemcininki gerçek platformdur. `useSyncExternalStore` bu ikisini React'a birlikte
- * verdiği için hidrasyon uyuşmazlığı da, efekt içinde state yazımı da olmuyor.
- */
-function useShortcutChip(): string {
-  return useSyncExternalStore(NEVER_CHANGES, readShortcutChip, () => OTHER_SHORTCUT);
-}
 
 /**
  * Odak pill'i — `06-faz5` §3.3'ün üç yüzeyi artık dört. Sayı **tek kaynaktan**
@@ -97,7 +77,7 @@ function AppScreenTopBarComponent({
   title,
 }: AppScreenTopBarProps) {
   const { t } = useI18n();
-  const shortcut = useShortcutChip();
+  const shortcut = useAppShortcutLabel("commandPalette.toggle");
   const palette = useCommandPalette();
 
   return (

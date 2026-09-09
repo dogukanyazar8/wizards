@@ -1,10 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import type { DMConversationDTO } from "@wizards/types";
+import { useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { DMConversationDTO, MentionCounts } from "@wizards/types";
+import { useSocket } from "@/hooks/use-socket";
 import { sumDMUnreadCount } from "@/lib/dm/unread";
 import { HOME_STALE_TIME_MS, fetchHomeSummary, homeQueryKeys } from "@/lib/home/client";
+import type { AppSummaryResponse } from "@/lib/home/types";
+import type { NotificationSocketPayload } from "@/lib/socket/events";
 
 /**
  * Kabuğun rozet sayaçları — `03-faz2-kabuk-nav-paneli.md` §4.
@@ -32,15 +35,54 @@ export type UseUnreadCountersInput = {
   currentUserId: string;
 };
 
+export function applyMentionCountsToSummary(
+  current: AppSummaryResponse | undefined,
+  counts: MentionCounts,
+): AppSummaryResponse | undefined {
+  return current ? { ...current, unreadMentions: counts.unread } : current;
+}
+
+export function isMentionNotification(payload: Pick<NotificationSocketPayload, "type">): boolean {
+  return payload.type === "MENTION";
+}
+
 export function useUnreadCounters({
   conversations,
   currentUserId,
 }: UseUnreadCountersInput): UnreadCounters {
+  const queryClient = useQueryClient();
+  const socket = useSocket();
   const summary = useQuery({
     queryFn: fetchHomeSummary,
     queryKey: homeQueryKeys.summary,
     staleTime: HOME_STALE_TIME_MS.summary,
   });
+
+  useEffect(() => {
+    const applyCounts = (payload: { counts: MentionCounts }) => {
+      queryClient.setQueryData<AppSummaryResponse | undefined>(homeQueryKeys.summary, (current) =>
+        applyMentionCountsToSummary(current, payload.counts),
+      );
+    };
+    const refreshMentionCount = (payload: NotificationSocketPayload) => {
+      if (isMentionNotification(payload)) {
+        void queryClient.invalidateQueries({ queryKey: homeQueryKeys.summary });
+      }
+    };
+
+    socket.on("mention:new", applyCounts);
+    socket.on("mention:state", applyCounts);
+    socket.on("mention:read-all", applyCounts);
+    socket.on("notification:new", refreshMentionCount);
+
+    return () => {
+      socket.off("mention:new", applyCounts);
+      socket.off("mention:state", applyCounts);
+      socket.off("mention:read-all", applyCounts);
+      socket.off("notification:new", refreshMentionCount);
+    };
+  }, [queryClient, socket]);
+
   const mentions = summary.data?.unreadMentions ?? 0;
 
   return useMemo(

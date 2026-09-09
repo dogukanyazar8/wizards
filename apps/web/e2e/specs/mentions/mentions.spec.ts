@@ -52,6 +52,16 @@ async function openMentions(page: Page, path = "/mentions"): Promise<void> {
   await expect(visibleTestId(page, "mentions-feed-header")).toBeVisible();
 }
 
+async function openMentionsClientSide(page: Page, path: string): Promise<void> {
+  await page.evaluate((nextPath) => window.history.pushState(null, "", nextPath), path);
+  await expect
+    .poll(() => page.evaluate(() => `${window.location.pathname}${window.location.search}`))
+    .toBe(path);
+  await expect(visibleTestId(page, "mentions-feed-header")).toBeVisible();
+  await expect(page.getByTestId("mentions-card-skeleton")).toHaveCount(0);
+  await expect(page.getByTestId("mentions-feed-error")).toHaveCount(0);
+}
+
 function cardWithText(page: Page, text: string) {
   const visibleText = text
     .replace(/(^|\s)@[a-zA-Z0-9_.-]+(?=\s|$)/gu, " ")
@@ -606,7 +616,7 @@ test("parity matrisi · 11 durum × 2 tema × 6 çözünürlük", async ({ page 
     "/mentions?filter=unread",
     "/mentions?filter=role",
     "/mentions?filter=dm",
-    "/mentions?panel=channel%3Amentions-e2e-placeholder",
+    "/mentions",
     "/mentions",
     "/mentions",
     "/mentions?modal=settings",
@@ -617,10 +627,15 @@ test("parity matrisi · 11 durum × 2 tema × 6 çözünürlük", async ({ page 
 
   for (const theme of ["theme-dark", "theme-light"] as const) {
     await setE2EUserTheme("bob", theme);
+    // Tema DB'den bootstrap edilir; tema başına tek tam yükleme yeterli. Matris içindeki
+    // durumlar SPA URL değişimi kullanır. Aksi hâlde 132 tam yükleme gerçek `mentions:list`
+    // 120/dk korumasını tüketip ürün hatası olmayan 429 üretir.
+    await openMentions(page);
     for (const [width, height, rootFont] of viewports) {
       await page.setViewportSize({ width, height });
       for (const [index, path] of states.entries()) {
-        await openMentions(page, path);
+        await page.keyboard.press("Escape");
+        await openMentionsClientSide(page, path);
         if (index === 4) {
           const anchor = cardWithText(page, fixture.anchorContent);
           await anchor.getByTestId("mention-card-context").click();

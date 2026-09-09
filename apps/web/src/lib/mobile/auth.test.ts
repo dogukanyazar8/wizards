@@ -471,6 +471,15 @@ async function getMobileNativeAuthFailure(operation: () => Promise<unknown>) {
   assert.fail("Expected mobile native auth to fail.");
 }
 
+/**
+ * SPEC-GIRIS-KAYIT §4.2 — parola girişi artık iki şeyden birini döndürüyor: oturum ya da
+ * challenge (paket kararı K2). Testler oturum dalını beklediği için daraltma yardımcısı.
+ */
+function expectSession<T extends object>(response: T | null | undefined) {
+  assert.ok(response && "session" in response, "Beklenen oturum yanıtı gelmedi.");
+  return response as Extract<T, { session: unknown }>;
+}
+
 describe("mobile auth handoff", () => {
   it("creates native password mobile sessions only for verified active users", async () => {
     const redis = new MemoryRedis();
@@ -495,9 +504,9 @@ describe("mobile auth handoff", () => {
       },
     );
 
-    assert.equal(response?.session.user.id, "user-1");
-    assert.equal(response?.session.tokens.tokenType, "Bearer");
-    assert.equal(typeof response?.session.tokens.refreshToken, "string");
+    assert.equal(expectSession(response).session.user.id, "user-1");
+    assert.equal(expectSession(response).session.tokens.tokenType, "Bearer");
+    assert.equal(typeof expectSession(response).session.tokens.refreshToken, "string");
   });
 
   it("fails native password mobile sessions closed for wrong passwords and inactive users", async () => {
@@ -690,7 +699,7 @@ describe("mobile auth handoff", () => {
       { email: "ada@example.com", password: "correct-horse-battery" },
       options,
     );
-    assert.equal(response?.session.user.id, user.id);
+    assert.equal(expectSession(response).session.user.id, user.id);
     assert.equal(await loginAttemptStore.get(getMobileLoginAttemptKey(user.email)), null);
 
     passwordIsValid = false;
@@ -875,19 +884,22 @@ describe("mobile auth handoff", () => {
       { env, loadUser, nowMs: 1_800_000_000_000, redis },
     );
 
-    assert.equal(response?.session.user.id, "user-1");
-    assert.equal(response?.session.tokens.tokenType, "Bearer");
-    const accessClaims = verifyMobileAccessToken(response?.session.tokens.accessToken ?? "", {
-      env,
-      nowMs: 1_800_000_000_000,
-    });
+    assert.equal(expectSession(response).session.user.id, "user-1");
+    assert.equal(expectSession(response).session.tokens.tokenType, "Bearer");
+    const accessClaims = verifyMobileAccessToken(
+      expectSession(response).session.tokens.accessToken ?? "",
+      {
+        env,
+        nowMs: 1_800_000_000_000,
+      },
+    );
     assert.ok(accessClaims?.sessionId);
     assert.deepEqual(accessClaims, {
       scopes: ["mobile:bootstrap"],
       sessionId: accessClaims.sessionId,
       userId: "user-1",
     });
-    assert.equal(typeof response?.session.tokens.refreshToken, "string");
+    assert.equal(typeof expectSession(response).session.tokens.refreshToken, "string");
 
     const replay = await exchangeMobileAuthHandoffToken(
       handoff.token,
@@ -978,7 +990,7 @@ describe("mobile auth handoff", () => {
       { expectedCallbackPath: "/channels" },
       { env, loadUser, nowMs: 1_800_000_000_000, redis },
     );
-    const accessToken = response?.session.tokens.accessToken ?? "";
+    const accessToken = expectSession(response).session.tokens.accessToken ?? "";
 
     assert.equal(
       verifyMobileAccessToken(accessToken, {
@@ -999,7 +1011,7 @@ describe("mobile auth handoff", () => {
   it("rotates refresh tokens and returns the identical successor inside the grace window", async () => {
     const redis = new MemoryRedis();
     const response = await createTestMobileSession(redis);
-    const refreshToken = response?.session.tokens.refreshToken;
+    const refreshToken = expectSession(response).session.tokens.refreshToken;
     assert.equal(typeof refreshToken, "string");
 
     const rotatedAtMs = 1_800_000_060_000;
@@ -1519,7 +1531,7 @@ describe("mobile auth handoff", () => {
       { expectedCallbackPath: "/channels" },
       { env, loadUser, nowMs: 1_800_000_000_000, redis },
     );
-    const refreshToken = response?.session.tokens.refreshToken ?? "";
+    const refreshToken = expectSession(response).session.tokens.refreshToken ?? "";
     const rotatedAtMs = 1_800_000_060_000;
 
     const refreshed = await refreshMobileSession(refreshToken, {

@@ -98,12 +98,14 @@ function dependencies(
     loadNotificationParticipants: async () => [
       {
         muted: false,
+        mutedUntil: null,
         notifyLevel: "ALL" as const,
         user: { displayName: "Member", id: "member-1", locale: "tr", username: "member" },
         userId: "member-1",
       },
       {
         muted: false,
+        mutedUntil: null,
         notifyLevel: "ALL" as const,
         user: { displayName: "Owner", id: "owner-1", locale: "tr", username: "owner" },
         userId: "owner-1",

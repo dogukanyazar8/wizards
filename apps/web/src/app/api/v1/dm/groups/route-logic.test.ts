@@ -2,14 +2,20 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { ApiError } from "@/lib/api";
+import { API_RATE_LIMITS } from "@/lib/api-rate-limit";
 
 import {
   groupAddMembersRoute,
   groupCallStateRoute,
+  groupClearHistoryRoute,
   groupCreateRoute,
+  groupDeleteRoute,
   groupMemberRoleRoute,
+  groupMembersReadRoute,
   groupPinDismissRoute,
   groupPinRoute,
+  groupProfileDefaults,
+  groupProfileRoute,
   groupReadRoute,
   groupRemoveMemberRoute,
   groupSettingsRoute,
@@ -768,5 +774,338 @@ describe("group call state route", () => {
 
     assert.equal(response.status, 403);
     assert.deepEqual(calls, ["gate"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// §15 profil paneli — grup kolu
+// ---------------------------------------------------------------------------
+
+const profilePanel = {
+  addPolicy: "ALL" as const,
+  avatarColor: "primary" as const,
+  conversationId: "group-1",
+  createdAt: "2026-03-02T09:00:00.000Z",
+  description: null,
+  historyVisibility: "LAST_30D" as const,
+  initials: "S2",
+  invite: null,
+  memberCount: 3,
+  muted: false,
+  mutedUntil: null,
+  name: "Sürüm 2.4 Ekibi",
+  notifyLevel: "ALL" as const,
+  onlineCount: 2,
+  ownerName: "Doğukan Yazar",
+  pinnedMessages: [],
+  viewerRole: "OWNER" as const,
+};
+
+const memberPage = {
+  items: [
+    {
+      initials: "DY",
+      isSelf: true,
+      lastSeenAt: null,
+      name: "Doğukan Yazar",
+      presence: "online" as const,
+      role: "OWNER" as const,
+      statusText: null,
+      tint: "primary" as const,
+      userId: "user-1",
+    },
+  ],
+  nextCursor: null,
+  total: 3,
+};
+
+function buildSocket() {
+  const emits: Array<{ event: string; payload: unknown; rooms: string | string[] }> = [];
+  const left: Array<{ from: string; room: string }> = [];
+
+  return {
+    emits,
+    io: {
+      in: (room: string) => ({
+        socketsLeave: (target: string) => {
+          left.push({ from: room, room: target });
+        },
+      }),
+      to: (rooms: string | string[]) => ({
+        emit: (event: string, payload: unknown) => {
+          emits.push({ event, payload, rooms });
+        },
+      }),
+    },
+    left,
+  };
+}
+
+function buildProfileDependencies(overrides = {}) {
+  return {
+    ...groupProfileDefaults,
+    authenticate: async () => "user-1",
+    clearHistory: async () => ({
+      clearedAt: "2026-08-27T12:00:00.000Z",
+      memberCount: 3,
+      participantUserIds: ["user-1", "user-2", "user-3"],
+    }),
+    deleteGroup: async () => ({ participantUserIds: ["user-1", "user-2", "user-3"] }),
+    enforceRateLimit: async () => {},
+    getIo: () => null,
+    listMembers: async () => memberPage,
+    loadProfile: async () => profilePanel,
+    ...overrides,
+  };
+}
+
+describe("group profile route", () => {
+  it("answers with the panel and spends the group read budget", async () => {
+    const actions: string[] = [];
+    const response = await groupProfileRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1/profile"),
+      "group-1",
+      buildProfileDependencies({
+        enforceRateLimit: async (_userId: string, action: string) => {
+          actions.push(action);
+        },
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { profile: profilePanel });
+    assert.deepEqual(actions, ["dm:group:read"]);
+  });
+
+  it("reads as the authenticated caller, never as an id from the request", async () => {
+    const seen: Array<{ conversationId: string; viewerId: string }> = [];
+    await groupProfileRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1/profile?userId=user-9"),
+      "group-1",
+      buildProfileDependencies({
+        loadProfile: async (viewerId: string, conversationId: string) => {
+          seen.push({ conversationId, viewerId });
+          return profilePanel;
+        },
+      }),
+    );
+
+    assert.deepEqual(seen, [{ conversationId: "group-1", viewerId: "user-1" }]);
+  });
+
+  it("passes the service 403 through untouched", async () => {
+    const response = await groupProfileRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1/profile"),
+      "group-1",
+      buildProfileDependencies({
+        loadProfile: async () => {
+          throw new ApiError("You are not a participant in this conversation", 403, "FORBIDDEN");
+        },
+      }),
+    );
+
+    assert.equal(response.status, 403);
+  });
+
+  it("rejects an empty conversation id before touching the service", async () => {
+    let called = false;
+    const response = await groupProfileRoute(
+      new Request("https://whispr.test/api/v1/dm/groups//profile"),
+      "   ",
+      buildProfileDependencies({
+        loadProfile: async () => {
+          called = true;
+          return profilePanel;
+        },
+      }),
+    );
+
+    assert.equal(response.status, 400);
+    assert.equal(called, false);
+  });
+});
+
+describe("group members read route", () => {
+  it("forwards the cursor and the limit from the query string", async () => {
+    const seen: unknown[] = [];
+    const response = await groupMembersReadRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1/members?cursor=abc&limit=10"),
+      "group-1",
+      buildProfileDependencies({
+        listMembers: async (_viewerId: string, _conversationId: string, options: unknown) => {
+          seen.push(options);
+          return memberPage;
+        },
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), memberPage);
+    assert.deepEqual(seen, [{ cursor: "abc", limit: 10 }]);
+  });
+
+  it("defaults both to null when the query string is empty", async () => {
+    const seen: unknown[] = [];
+    await groupMembersReadRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1/members"),
+      "group-1",
+      buildProfileDependencies({
+        listMembers: async (_viewerId: string, _conversationId: string, options: unknown) => {
+          seen.push(options);
+          return memberPage;
+        },
+      }),
+    );
+
+    assert.deepEqual(seen, [{ cursor: null, limit: null }]);
+  });
+
+  it("refuses a limit that is not a number", async () => {
+    const response = await groupMembersReadRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1/members?limit=all"),
+      "group-1",
+      buildProfileDependencies(),
+    );
+
+    assert.equal(response.status, 400);
+  });
+});
+
+describe("group clear history route", () => {
+  it("spends its own tighter bucket rather than the update one", async () => {
+    const actions: string[] = [];
+    const response = await groupClearHistoryRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1/history", { method: "DELETE" }),
+      "group-1",
+      buildProfileDependencies({
+        enforceRateLimit: async (_userId: string, action: string) => {
+          actions.push(action);
+        },
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { clearedAt: "2026-08-27T12:00:00.000Z" });
+    assert.deepEqual(actions, [groupProfileDefaults.rateLimits.clearHistory]);
+  });
+
+  it("tells the conversation room and every member own room", async () => {
+    const socket = buildSocket();
+    await groupClearHistoryRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1/history", { method: "DELETE" }),
+      "group-1",
+      buildProfileDependencies({ getIo: () => socket.io }),
+    );
+
+    assert.equal(socket.emits.length, 1);
+    assert.equal(socket.emits[0]?.event, "dm:conversation:history_cleared");
+    assert.deepEqual(socket.emits[0]?.rooms, [
+      "dm:group-1",
+      "user:user-1",
+      "user:user-2",
+      "user:user-3",
+    ]);
+    assert.deepEqual(socket.emits[0]?.payload, {
+      clearedAt: "2026-08-27T12:00:00.000Z",
+      conversationId: "group-1",
+    });
+  });
+
+  it("answers with the service status when the caller is only a member", async () => {
+    const response = await groupClearHistoryRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1/history", { method: "DELETE" }),
+      "group-1",
+      buildProfileDependencies({
+        clearHistory: async () => {
+          throw new ApiError("Only group admins can do this", 403, "NOT_GROUP_ADMIN");
+        },
+      }),
+    );
+
+    assert.equal(response.status, 403);
+  });
+});
+
+describe("group delete route", () => {
+  it("spends the delete bucket and answers 204", async () => {
+    const actions: string[] = [];
+    const response = await groupDeleteRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1", { method: "DELETE" }),
+      "group-1",
+      buildProfileDependencies({
+        enforceRateLimit: async (_userId: string, action: string) => {
+          actions.push(action);
+        },
+      }),
+    );
+
+    assert.equal(response.status, 204);
+    assert.deepEqual(actions, [groupProfileDefaults.rateLimits.delete]);
+  });
+
+  it("removes the conversation from every member and empties the room", async () => {
+    const socket = buildSocket();
+    await groupDeleteRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1", { method: "DELETE" }),
+      "group-1",
+      buildProfileDependencies({ getIo: () => socket.io }),
+    );
+
+    assert.deepEqual(socket.emits, [
+      {
+        event: "dm:conversation:removed",
+        payload: { conversationId: "group-1" },
+        rooms: ["user:user-1", "user:user-2", "user:user-3"],
+      },
+    ]);
+    assert.deepEqual(socket.left, [{ from: "dm:group-1", room: "dm:group-1" }]);
+  });
+
+  it("passes an admin 403 through instead of deleting", async () => {
+    const socket = buildSocket();
+    const response = await groupDeleteRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1", { method: "DELETE" }),
+      "group-1",
+      buildProfileDependencies({
+        deleteGroup: async () => {
+          throw new ApiError("Only the group owner can do this", 403, "NOT_GROUP_OWNER");
+        },
+        getIo: () => socket.io,
+      }),
+    );
+
+    assert.equal(response.status, 403);
+    assert.deepEqual(socket.emits, []);
+  });
+});
+
+describe("group profile rate limit buckets", () => {
+  /**
+   * Each destructive row spends its own budget. Pointing either one back at the
+   * shared group-write bucket would let a loop on "Grubu sil" hide inside ordinary
+   * settings traffic, so the mapping is asserted rather than assumed.
+   */
+  it("keeps a separate bucket for each destructive row", () => {
+    assert.deepEqual(groupProfileDefaults.rateLimits, {
+      clearHistory: "dm:group:clear-history",
+      delete: "dm:group:delete",
+      read: "dm:group:read",
+    });
+  });
+
+  it("registers those buckets tighter than the shared group-write budget", () => {
+    const write = API_RATE_LIMITS["dm:group:update"];
+    const clear = API_RATE_LIMITS["dm:group:clear-history"];
+    const remove = API_RATE_LIMITS["dm:group:delete"];
+
+    for (const bucket of [clear, remove]) {
+      assert.ok(bucket, "destructive bucket is not registered");
+      // Fewer calls over a longer window: strictly tighter on both axes.
+      assert.ok(bucket.limit < write.limit);
+      assert.ok(bucket.windowSeconds > write.windowSeconds);
+    }
+
+    // Deleting is the one that cannot be undone, so it is the stricter of the two.
+    assert.ok(remove.limit < clear.limit);
   });
 });

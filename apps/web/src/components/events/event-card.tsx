@@ -433,7 +433,7 @@ export function EventCard({ event, now, onOpen, onRsvp, selected = false }: Even
             "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
             maybe
               ? undefined
-              : "hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))]",
+              : "hover:bg-[var(--surface-hover)] hover:text-[hsl(var(--foreground))]",
           )}
           data-testid="event-card-maybe"
           onClick={(clickEvent) => {

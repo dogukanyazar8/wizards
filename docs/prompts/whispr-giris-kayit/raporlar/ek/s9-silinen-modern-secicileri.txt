@@ -1,0 +1,108 @@
+.modern-auth-footer
+.modern-auth-footer a
+.modern-auth-footer a:hover
+.modern-auth-footer i
+.modern-auth-footer nav
+.modern-auth-footer.is-mobile
+.modern-auth-status
+.modern-auth-status span
+.modern-language-button
+.modern-language-button svg:last-child
+.modern-language-menu
+.modern-language-menu button
+.modern-language-menu button.is-active
+.modern-language-wrap
+.modern-login-alert
+.modern-login-alert.is-info
+.modern-login-alert.is-inline
+.modern-login-brand
+.modern-login-brand .whispr-logo-icon
+.modern-login-brand .whispr-logo-wordmark
+.modern-login-card
+.modern-login-card-gradient
+.modern-login-card-header
+.modern-login-card-header h1
+.modern-login-card-header p
+.modern-login-card-header span
+.modern-login-card-shell
+.modern-login-card-shell.is-register-card .auth-reference-turnstile-help
+.modern-login-card-shell.is-register-card .modern-login-turnstile
+.modern-login-card-shell.is-register-card .modern-register-helper
+.modern-login-card-shell.is-register-card .modern-role-tabs
+.modern-login-checkbox
+.modern-login-checkbox input
+.modern-login-divider
+.modern-login-divider span
+.modern-login-field
+.modern-login-field label
+.modern-login-field-error
+.modern-login-footer-link
+.modern-login-footer-link a
+.modern-login-form
+.modern-login-input-icon
+.modern-login-input-wrap
+.modern-login-input-wrap input
+.modern-login-input-wrap input::placeholder
+.modern-login-input-wrap input:focus
+.modern-login-label-row
+.modern-login-label-row a
+.modern-login-left-panel
+.modern-login-left-panel::-webkit-scrollbar
+.modern-login-mini-button
+.modern-login-page
+.modern-login-primary
+.modern-login-primary > span
+.modern-login-primary > svg
+.modern-login-primary svg
+.modern-login-primary::before
+.modern-login-primary:disabled
+.modern-login-primary:hover
+.modern-login-primary:hover svg
+.modern-login-right-panel
+.modern-login-right-panel::-webkit-scrollbar
+.modern-login-secondary
+.modern-login-secondary:hover
+.modern-login-social-grid
+.modern-login-status-card
+.modern-login-status-card > span
+.modern-login-status-card h1
+.modern-login-status-card p
+.modern-login-status-card.is-compact
+.modern-login-topbar
+.modern-login-turnstile
+.modern-login-turnstile .auth-reference-turnstile-box
+.modern-login-turnstile .auth-reference-turnstile-help
+.modern-login-turnstile .auth-reference-turnstile-shell
+.modern-password-toggle
+.modern-register-form
+.modern-register-grid
+.modern-register-helper
+.modern-register-helper svg
+.modern-register-terms
+.modern-register-terms a
+.modern-reset-login-cta
+.modern-role-hint
+.modern-role-icon
+.modern-role-preview-badge
+.modern-role-tab
+.modern-role-tab i
+.modern-role-tab.is-active
+.modern-role-tab.is-business .modern-role-icon
+.modern-role-tab.is-gamer .modern-role-icon
+.modern-role-tab.is-gamer i
+.modern-role-tab.is-individual .modern-role-icon
+.modern-role-tab.is-individual i
+.modern-role-tab:hover
+.modern-role-tabs
+.modern-social-button
+.modern-social-button span
+.modern-social-button svg
+.modern-social-button:hover
+.modern-social-grid
+.modern-theme-switch
+.modern-theme-switch button
+.modern-theme-switch button.is-active
+body.modern-login-active
+html[data-theme="light"] .modern-login-page
+html[data-theme="light"] .modern-role-preview-badge
+html[data-theme="light"] body.modern-login-active

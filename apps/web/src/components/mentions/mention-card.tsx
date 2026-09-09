@@ -164,7 +164,7 @@ export function MentionCard({
         time: timeLabel,
       })}
       className={cn(
-        "group/mention relative flex [--hov:0] hover:bg-[hsl(var(--surface-soft)/0.75)] hover:[--hov:1]",
+        "group/mention relative flex bg-[var(--mention-card-bg)] [--hov:0] hover:bg-[hsl(var(--surface-soft)/0.75)] hover:[--hov:1]",
         active &&
           "ring-2 ring-[hsl(var(--ring))] ring-offset-2 ring-offset-[hsl(var(--surface-panel))]",
       )}
@@ -174,7 +174,9 @@ export function MentionCard({
       data-unread={mention.unread || undefined}
       onClick={onOpen}
       style={{
-        background: mention.unread
+        // Dinlenme zemini **değişkenle** iniyor: satır içi bir `background`
+        // `hover:bg-*` kuralını her zaman yener ve vurgu sessizce ölürdü.
+        ["--mention-card-bg" as string]: mention.unread
           ? "hsl(var(--surface-card))"
           : `hsl(var(--surface-card)/${card.readSurfaceAlpha})`,
         border: `${hairline(card.borderWidth)} solid ${
@@ -405,7 +407,7 @@ export function MentionCard({
               "inline-flex items-center transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
               contextOpen
                 ? "bg-[hsl(var(--surface-soft))] text-[hsl(var(--foreground))]"
-                : "text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))]",
+                : "text-[hsl(var(--text-secondary))] hover:bg-[var(--surface-hover)] hover:text-[hsl(var(--foreground))]",
             )}
             data-testid="mention-card-context"
             onClick={(event) => {
@@ -425,7 +427,7 @@ export function MentionCard({
           </button>
 
           <button
-            className="inline-flex items-center text-[hsl(var(--text-secondary))] transition-colors hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+            className="inline-flex items-center text-[hsl(var(--text-secondary))] transition-colors hover:bg-[var(--surface-hover)] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
             data-testid="mention-card-toggle-read"
             onClick={(event) => {
               stopPropagation(event);
@@ -449,7 +451,7 @@ export function MentionCard({
               aria-haspopup="menu"
               aria-label={t("mentions.card.menuLabel")}
               className={cn(
-                "grid place-items-center text-[hsl(var(--text-secondary))] transition hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))]",
+                "grid place-items-center text-[hsl(var(--text-secondary))] transition hover:bg-[var(--surface-hover)] hover:text-[hsl(var(--foreground))]",
                 // `--act` yoğunluk değişkeni; klavyeyle odaklanınca opaklık her hâlükârda 1
                 // olmalı, yoksa `⋯` klavye kullanıcısı için görünmez bir hedef olur.
                 "focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",

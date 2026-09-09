@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { PASSWORD_MIN_LENGTH, meetsPasswordPolicy } from "./auth-password-policy";
 import { VoiceMediaPolicySchema } from "./voice-media-policy";
 import { DMSystemMessageTypeSchema } from "./dm-system-message";
 import { BadgeIdSchema } from "./badges";
@@ -22,6 +23,7 @@ import {
 import { isBcryptPasswordWithinLimit } from "./password";
 import { DMConversationDTOSchema, DMMessagePayloadSchema } from "./socket";
 import {
+  ServerIconToneSchema,
   ServerNotificationLevelSchema,
   ServerPublicProfileSchema,
   WorkspaceChannelSchema,
@@ -129,10 +131,17 @@ const MobileAuthLoginPasswordSchema = z
   .string()
   .min(8, "validation.password.min")
   .max(100, "validation.password.max");
-const MobileAuthNewPasswordSchema = MobileAuthLoginPasswordSchema.refine(
-  isBcryptPasswordWithinLimit,
-  "validation.password.bcryptMax",
-);
+/**
+ * SPEC-GIRIS-KAYIT §10 ve paket kararı K9 — **yeni** parola dört kuralın en az üçünü ve on
+ * karakteri karşılamak zorunda. Yalnız kayıt yolunu bağlar; mevcut hesapların **girişi**
+ * `MobileAuthLoginPasswordSchema` ile eski alt sınırda kalır.
+ */
+const MobileAuthNewPasswordSchema = z
+  .string()
+  .min(PASSWORD_MIN_LENGTH, "validation.password.min")
+  .max(100, "validation.password.max")
+  .refine(isBcryptPasswordWithinLimit, "validation.password.bcryptMax")
+  .refine(meetsPasswordPolicy, "validation.password.rules");
 const MobileAuthConfirmNewPasswordSchema = z
   .string()
   .max(100, "validation.password.max")
@@ -142,10 +151,53 @@ const MobileAuthLocaleSchema = z.enum(["tr", "en"]).optional();
 export const MobileAuthPasswordLoginRequestSchema = z.object({
   email: MobileAuthEmailSchema,
   password: MobileAuthLoginPasswordSchema,
+  /**
+   * SPEC-GIRIS-KAYIT §4.2 — ayrı iki adımlı doğrulama ekranı (paket kararı K2).
+   *
+   * Bayrak **isteğe bağlıdır ve varsayılanı kapalıdır**: bayrağı göndermeyen (sahadaki) sürümler
+   * bugünkü davranışı görür — kod aynı istekte gider ya da 401 `TWO_FACTOR_REQUIRED` döner.
+   * Bayrağı gönderen sürüm kod yerine kısa ömürlü bir challenge alır ve parolayı ikinci kez
+   * taşımaz.
+   */
+  supportsTwoFactorChallenge: z.boolean().optional(),
   twoFactorCode: z.string().trim().min(1).max(64).optional(),
 });
 
-export const MobileAuthPasswordLoginResponseSchema = z.object({
+/** Challenge kimliği opak ve tek kullanımlıktır; içeriği istemciye açık değildir. */
+const MobileAuthTwoFactorChallengeIdSchema = z
+  .string()
+  .min(24)
+  .max(128)
+  .regex(/^[A-Za-z0-9_-]+$/);
+
+export const MobileAuthPasswordLoginResponseSchema = z.union([
+  z.object({ session: MobileSessionSnapshotSchema }),
+  z.object({
+    challengeId: MobileAuthTwoFactorChallengeIdSchema,
+    twoFactorRequired: z.literal(true),
+  }),
+]);
+
+/** SPEC §4.2 — altı haneli kod. */
+export const MobileAuthTwoFactorRequestSchema = z.object({
+  challengeId: MobileAuthTwoFactorChallengeIdSchema,
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "validation.verificationCode.invalid"),
+  rememberDevice: z.boolean().optional(),
+});
+
+/** SPEC §4.3 — tek kullanımlık yedek kod; normalize edilerek taşınır. */
+export const MobileAuthBackupCodeRequestSchema = z.object({
+  backupCode: z.preprocess(
+    (value) => (typeof value === "string" ? value.toUpperCase().replace(/[^A-Z0-9]/g, "") : value),
+    z.string().min(8, "validation.backupCode.invalid").max(24, "validation.backupCode.invalid"),
+  ),
+  challengeId: MobileAuthTwoFactorChallengeIdSchema,
+});
+
+export const MobileAuthTwoFactorResponseSchema = z.object({
   session: MobileSessionSnapshotSchema,
 });
 
@@ -171,6 +223,11 @@ export const MobileAuthGoogleLoginResponseSchema = z.object({
 export const MobileAuthRegisterRequestSchema = z
   .object({
     confirmPassword: MobileAuthConfirmNewPasswordSchema,
+    /**
+     * SPEC-GIRIS-KAYIT §4.4/1 — `Ad Soyad`. **İsteğe bağlı** tutuldu: sahadaki sürümler bu alanı
+     * göndermiyor ve onlarda kullanıcı adı görünen ad olarak kullanılmaya devam ediyor.
+     */
+    displayName: z.string().trim().min(2).max(60).optional(),
     email: MobileAuthEmailSchema,
     locale: MobileAuthLocaleSchema,
     password: MobileAuthNewPasswordSchema,
@@ -967,6 +1024,13 @@ export const MobileWorkspaceServerDetailSchema = z.object({
     allowGifs: z.boolean().default(true),
     defaultChannelId: z.string().min(1).nullable(),
     description: z.string().max(240).nullable(),
+    /**
+     * Sunucu ekranı Ş1 / K10. Mobil ekranlar bu pakette değişmiyor, o yüzden iki
+     * alan da **opsiyonel**: yeni bir istemci eski bir sunucudan gelen yanıtı
+     * ayrıştırabilir, eski bir istemci de yeni sunucudan geleni. `iconColor`
+     * `null` "kısa addan deterministik türet" demektir, "alan yok" değil.
+     */
+    iconColor: ServerIconToneSchema.nullable().optional(),
     iconUrl: z.string().url().nullable(),
     id: z.string().min(1),
     memberCount: z.number().int().nonnegative(),
@@ -980,6 +1044,8 @@ export const MobileWorkspaceServerDetailSchema = z.object({
     // falls back to scanning `members` for the OWNER row.
     ownerUserId: z.string().min(1).nullable().default(null),
     shortName: z.string().min(1).max(8).nullable(),
+    /** Sunucu geneli yavaş mod; kanal ayarıyla `max(...)` (SPEC-SUNUCU §8.3). */
+    slowModeDelay: z.number().int().nonnegative().optional(),
     unreadCount: z.number().int().nonnegative(),
     visibleChannelCount: z.number().int().nonnegative(),
   }),
@@ -1499,6 +1565,9 @@ export type MobileAuthPasswordLoginRequest = z.infer<typeof MobileAuthPasswordLo
 export type MobileAuthPasswordLoginResponse = z.infer<typeof MobileAuthPasswordLoginResponseSchema>;
 export type MobileAuthGoogleLoginRequest = z.infer<typeof MobileAuthGoogleLoginRequestSchema>;
 export type MobileAuthGoogleLoginResponse = z.infer<typeof MobileAuthGoogleLoginResponseSchema>;
+export type MobileAuthTwoFactorRequest = z.infer<typeof MobileAuthTwoFactorRequestSchema>;
+export type MobileAuthBackupCodeRequest = z.infer<typeof MobileAuthBackupCodeRequestSchema>;
+export type MobileAuthTwoFactorResponse = z.infer<typeof MobileAuthTwoFactorResponseSchema>;
 export type MobileAuthRegisterRequest = z.infer<typeof MobileAuthRegisterRequestSchema>;
 export type MobileAuthRegisterResponse = z.infer<typeof MobileAuthRegisterResponseSchema>;
 export type MobileAuthForgotPasswordRequest = z.infer<typeof MobileAuthForgotPasswordRequestSchema>;

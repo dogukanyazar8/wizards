@@ -8,6 +8,14 @@ import { PermissionBits } from "@/lib/workspace/permissions";
 
 const UpdateNotificationSettingsSchema = z.object({
   level: z.enum(["all", "mentions", "muted"]),
+  /**
+   * SPEC-SUNUCU §6.4'ün "Mobil bildirimleri de sustur" anahtarı (Ş9).
+   *
+   * Kolon (`UserChannelSettings.mobilePush`) şemada zaten vardı; eksik olan tek şey onu
+   * okuyan/yazan bir uçtu. Alan **opsiyonel**: bugünkü tek çağıran (`chat-area` bildirim
+   * menüsü) yalnız `level` gönderiyor ve satırın mobil tercihini sıfırlamamalı.
+   */
+  mobilePush: z.boolean().optional(),
 });
 
 type RouteContext = {
@@ -18,6 +26,18 @@ async function assertChannelAccess(userId: string, channelId: string) {
   await requireChannelPermissionForUser(userId, channelId, PermissionBits.VIEW_CHANNEL, {
     requiredType: ChannelType.TEXT,
   });
+}
+
+type ChannelSettingsRow = {
+  messageNotifications: "ALL" | "MENTIONS" | "NOTHING" | "DEFAULT";
+  mobilePush: boolean;
+  muted: boolean;
+  mutedUntil: Date | null;
+} | null;
+
+/** Satır yoksa mobil push açıktır — kolonun varsayılanı `true`. */
+function mapSettingsToResponse(settings: ChannelSettingsRow) {
+  return { level: mapSettingsToLevel(settings), mobilePush: settings?.mobilePush ?? true };
 }
 
 function mapSettingsToLevel(
@@ -57,12 +77,13 @@ export async function GET(_: Request, context: RouteContext) {
       },
       select: {
         messageNotifications: true,
+        mobilePush: true,
         muted: true,
         mutedUntil: true,
       },
     });
 
-    return Response.json({ level: mapSettingsToLevel(settings) });
+    return Response.json(mapSettingsToResponse(settings));
   } catch (error) {
     return jsonError(error);
   }
@@ -76,12 +97,14 @@ export async function PATCH(request: Request, context: RouteContext) {
     const input = await parseJsonBody(request, UpdateNotificationSettingsSchema);
     await assertChannelAccess(userId, channelId);
 
-    const settings =
+    const level =
       input.level === "all"
         ? { messageNotifications: "ALL" as const, muted: false, mutedUntil: null }
         : input.level === "mentions"
           ? { messageNotifications: "MENTIONS" as const, muted: false, mutedUntil: null }
           : { messageNotifications: "NOTHING" as const, muted: true, mutedUntil: null };
+    const settings =
+      input.mobilePush === undefined ? level : { ...level, mobilePush: input.mobilePush };
 
     const updated = await prisma.userChannelSettings.upsert({
       where: {
@@ -98,12 +121,13 @@ export async function PATCH(request: Request, context: RouteContext) {
       update: settings,
       select: {
         messageNotifications: true,
+        mobilePush: true,
         muted: true,
         mutedUntil: true,
       },
     });
 
-    return Response.json({ level: mapSettingsToLevel(updated) });
+    return Response.json(mapSettingsToResponse(updated));
   } catch (error) {
     return jsonError(error);
   }

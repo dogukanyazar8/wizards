@@ -2,10 +2,15 @@ import { MobileMediaUploadPurpose, UserStatus, prisma } from "@wizards/db";
 import {
   MOBILE_USERNAME_CHANGE_COOLDOWN_DAYS as USERNAME_CHANGE_COOLDOWN_DAYS,
   MOBILE_USERNAME_COOLDOWN_ERROR_CODE,
+  type SettingsAccount,
 } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
 import { broadcastPresenceUpdateToFriends, persistUserPresence } from "@/lib/friends/service";
+import {
+  recordSecurityEvent,
+  type RecordSecurityEventInput,
+} from "@/lib/security/security-event-service";
 import type { FriendPresenceStatus, FriendPresenceUpdateDto } from "@/lib/friends/types";
 import type { UserProfileUpdatedPayload } from "@/lib/socket/events";
 import { getSocketServer } from "@/lib/socket/runtime";
@@ -104,6 +109,8 @@ export type AccountServiceDependencies = {
     userId: string,
     status: FriendPresenceStatus,
   ): Promise<FriendPresenceUpdateDto | null>;
+  /** Ayarlar Ş3 §3 — `EMAIL_CHANGED`. Optional so existing callers keep the default writer. */
+  recordSecurityEvent?(input: RecordSecurityEventInput): Promise<void>;
   updateUser(userId: string, input: PersistedAccountProfile): Promise<AccountProfileRecord>;
 };
 
@@ -234,6 +241,7 @@ const defaultDependencies: AccountServiceDependencies = {
     );
   },
   persistPresence: persistUserPresence,
+  recordSecurityEvent,
   updateUser(userId, input) {
     return prisma.user.update({
       where: { id: userId },
@@ -331,6 +339,14 @@ export async function updateAccountProfile(
   }
 
   const updatedUser = await dependencies.updateUser(userId, nextProfile);
+  if (updatedUser.email !== currentUser.email) {
+    // Ş3 §3. The row records that the address moved, never which address it moved to: the
+    // security log is read by support as well as by the owner.
+    await (dependencies.recordSecurityEvent ?? recordSecurityEvent)({
+      kind: "EMAIL_CHANGED",
+      userId,
+    });
+  }
   const visibleStatus = mapVisiblePresenceStatus(updatedUser.status);
   const presence = await dependencies.persistPresence(userId, visibleStatus);
   if (presence) {
@@ -360,4 +376,96 @@ export async function updateAccountPresence(
 
   await dependencies.broadcastPresence(presence);
   return presence;
+}
+
+// ---------------------------------------------------------------------------
+// Ayarlar Ş3 §5 — Hesap sekmesinin satır verisi
+// ---------------------------------------------------------------------------
+
+/**
+ * SPEC §5.1 draws `+90 5•• ••• 42 18`. The raw number never leaves the server: a phone number is
+ * a recovery channel and an identifier, and the row only has to prove *which* number is on file.
+ */
+export function maskPhoneNumber(phoneNumber: string | null): string | null {
+  const trimmed = phoneNumber?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length < 4) {
+    return "•".repeat(digits.length || 1);
+  }
+
+  const prefix = trimmed.startsWith("+") ? "+" : "";
+  const head = digits.slice(0, Math.min(3, digits.length - 4));
+  const tail = digits.slice(-4);
+  return `${prefix}${head}${"•".repeat(Math.max(digits.length - head.length - 4, 0))}${tail}`;
+}
+
+export type AccountRowsDependencies = {
+  findLastPasswordChange(userId: string): Promise<Date | null>;
+  findLastVerificationEmail(userId: string): Promise<Date | null>;
+  findUser(userId: string): Promise<{
+    email: string;
+    emailVerified: boolean;
+    phoneNumber: string | null;
+    phoneVerified: boolean;
+  } | null>;
+};
+
+const defaultAccountRowsDependencies: AccountRowsDependencies = {
+  async findLastPasswordChange(userId) {
+    // There is no `passwordChangedAt` column; the security log is the record of when it moved.
+    const event = await prisma.securityEvent.findFirst({
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+      where: { kind: "PASSWORD_CHANGED", userId },
+    });
+    return event?.createdAt ?? null;
+  },
+  async findLastVerificationEmail(userId) {
+    const token = await prisma.emailVerificationToken.findFirst({
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+      where: { userId },
+    });
+    return token?.createdAt ?? null;
+  },
+  findUser(userId) {
+    return prisma.user.findUnique({
+      select: { email: true, emailVerified: true, phoneNumber: true, phoneVerified: true },
+      where: { id: userId },
+    });
+  },
+};
+
+/**
+ * The four rows of Hesabım › Hesap plus the `Son gönderim …` and `Parola` timestamps.
+ *
+ * Timestamps ship as ISO strings; the `2 gün önce` phrasing is the client's, because only the
+ * client knows the reader's locale and time zone (tuzak #7).
+ */
+export async function getAccountSettingsRows(
+  userId: string,
+  dependencies: AccountRowsDependencies = defaultAccountRowsDependencies,
+): Promise<SettingsAccount> {
+  const user = await dependencies.findUser(userId);
+  if (!user) {
+    throw new ApiError("Account not found", 404, "USER_NOT_FOUND");
+  }
+
+  const [verificationEmailSentAt, passwordChangedAt] = await Promise.all([
+    dependencies.findLastVerificationEmail(userId),
+    dependencies.findLastPasswordChange(userId),
+  ]);
+
+  return {
+    email: user.email,
+    emailVerified: user.emailVerified,
+    passwordChangedAt: passwordChangedAt?.toISOString() ?? null,
+    phone: maskPhoneNumber(user.phoneNumber),
+    phoneVerified: user.phoneVerified,
+    verificationEmailSentAt: verificationEmailSentAt?.toISOString() ?? null,
+  };
 }

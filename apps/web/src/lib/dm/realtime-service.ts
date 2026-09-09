@@ -31,6 +31,8 @@ export type DMMessageNotificationContext = {
   mentionedUserIds: string[];
   participants: Array<{
     muted: boolean;
+    /** Karar K8's deadline, carried so the worker can tell a live mute from a lapsed one. */
+    mutedUntil: Date | null;
     notifyLevel: DMNotifyLevel;
     user: { locale: string | null };
     userId: string;

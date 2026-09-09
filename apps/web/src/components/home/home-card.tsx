@@ -132,11 +132,9 @@ export function HomeCardMessage({
       <span>{message}</span>
       {onRetry ? (
         <button
-          className="inline-flex items-center justify-center bg-[hsl(var(--surface-secondary))] text-[hsl(var(--text-secondary))] outline-hidden transition-colors hover:bg-[hsl(var(--surface-soft))] focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+          className="inline-flex items-center justify-center bg-[hsl(var(--surface-secondary))] text-[hsl(var(--text-secondary))] outline-hidden transition-colors hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
           onClick={onRetry}
-          style={homeButtonStyle({
-            background: "hsl(var(--surface-secondary))",
-          })}
+          style={homeButtonStyle()}
           type="button"
         >
           {t("home.card.retry")}

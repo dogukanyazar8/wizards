@@ -1,11 +1,15 @@
 "use client";
 
 import React from "react";
-import { MoreHorizontal, Phone, Pin, Search, Video } from "lucide-react";
+import { BellOff, MoreHorizontal, Phone, Pin, Search, Video } from "lucide-react";
 import type { DMParticipantRole } from "@wizards/types";
 
 import { Avatar } from "@/components/ui/avatar";
 import { DISPLAY_FONT } from "@/components/home/home-primitives";
+import {
+  MUTE_DURATION_LABEL_KEYS,
+  resolveMutePillDuration,
+} from "@/components/messages/mute-submenu";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
   deriveFriendStatusText,
@@ -30,7 +34,7 @@ import { cn } from "@/lib/utils";
  * gelir. Çağıran bu iki alanı zaten elinde tutuyor.
  */
 
-const { conversation } = MESSAGES_METRICS;
+const { conversation, moreMenu: menuMetrics } = MESSAGES_METRICS;
 
 /** Başlıktaki hangi panelin açık olduğu — ikon vurgusunun tek kaynağı. */
 export type ConversationHeaderPanel = "search" | "thread" | null;
@@ -51,7 +55,20 @@ export type ConversationHeaderProps = {
   customStatus?: string | null | undefined;
   lastSeenAt?: string | null | undefined;
   memberCount?: number | undefined;
+  /**
+   * §17'nin `...` menüsü. Başlık menüyü **çizmez**, ona bir yer açar: menü
+   * `position:absolute; top:41; right:0` ile tetikleyicisine bağlı ve o sarmalayıcı
+   * burada. İçeriğini `ConversationMoreMenu` doldurur, durumunu çağıran tutar.
+   */
+  moreMenu?: React.ReactNode;
+  /** Menü açık mı — `...` butonunun vurgusu ve `aria-expanded` değeri. */
+  moreOpen?: boolean;
+  /** §17 sessiz pill'i. Süresi dolmuşsa pill hiç çizilmez. */
+  muted?: boolean;
+  mutedUntil?: string | null | undefined;
   name: string;
+  /** Test tohumu: pill'in "süresi doldu mu" kararı bu ana göre verilir. */
+  now?: Date | undefined;
   onlineCount?: number | undefined;
   onOpenMore?: (() => void) | undefined;
   onOpenSearch: () => void;
@@ -64,6 +81,8 @@ export type ConversationHeaderProps = {
   onOpenPins: () => void;
   onStartVideoCall: () => void;
   onStartVoiceCall: () => void;
+  /** Pill'in tek eylemi: sessizliği kaldır (`{ muted: false }`). */
+  onUnmute?: (() => void) | undefined;
   openPanel?: ConversationHeaderPanel;
   /** Yığında çizilecek üyeler; en çok 4 kayıt yeter, tamamı istenmez. */
   previewMembers?: readonly ConversationHeaderMember[] | undefined;
@@ -93,6 +112,7 @@ function initialsOf(name: string): string {
 function HeaderAction({
   active,
   disabled,
+  expanded,
   icon: Icon,
   label,
   onClick,
@@ -100,6 +120,8 @@ function HeaderAction({
 }: {
   active?: boolean;
   disabled?: boolean;
+  /** Menü tetikleyicisi: `aria-pressed` yerine `aria-expanded` + `aria-haspopup`. */
+  expanded?: boolean;
   icon: typeof Phone;
   label: string;
   onClick: (() => void) | undefined;
@@ -108,6 +130,8 @@ function HeaderAction({
   return (
     <button
       aria-label={label}
+      aria-expanded={expanded ?? undefined}
+      aria-haspopup={expanded === undefined ? undefined : "menu"}
       // Panel açıkken `aria-pressed`: vurgu yalnız renkle anlatılsaydı ekran
       // okuyucu kullanıcısı hangi panelin açık olduğunu hiç öğrenemezdi.
       aria-pressed={active ?? undefined}
@@ -147,13 +171,19 @@ export function ConversationHeader({
   customStatus,
   lastSeenAt,
   memberCount,
+  moreMenu,
+  moreOpen = false,
+  muted = false,
+  mutedUntil = null,
   name,
+  now,
   onlineCount,
   onOpenMore,
   onOpenSearch,
   onOpenPins,
   onStartVideoCall,
   onStartVoiceCall,
+  onUnmute,
   openPanel = null,
   previewMembers,
   pinned = false,
@@ -169,6 +199,19 @@ export function ConversationHeader({
   // Fazlalık `memberCount`'tan türer, `members.length`'ten değil: çağıran yığın
   // için yalnız birkaç kayıt taşıyor, roster'ın tamamını değil.
   const overflow = Math.max(0, (memberCount ?? members.length) - visible.length);
+
+  /**
+   * Pill'in tek karar noktası. `resolveMutePillDuration` içeride `isMuteActive`
+   * çağırıyor; başlıkta ikinci bir tarih karşılaştırması yok, yoksa süresi dolmuş bir
+   * sessizlik başlıkta duran ama bildirimleri geçiren bir pill'e dönerdi.
+   */
+  const pillDuration = resolveMutePillDuration({ muted, mutedUntil }, now ?? new Date());
+  const pillLabel =
+    pillDuration === null
+      ? null
+      : pillDuration === "forever"
+        ? t("messages.more.mute.pillForever")
+        : t("messages.more.mute.pill", { duration: t(MUTE_DURATION_LABEL_KEYS[pillDuration]) });
 
   const subtitle = isGroup
     ? [
@@ -365,6 +408,42 @@ export function ConversationHeader({
       ) : null}
 
       <div className="flex shrink-0 items-center" style={{ gap: pxToRem(conversation.actionsGap) }}>
+        {pillLabel === null ? null : (
+          <button
+            /*
+             * Etiket iki şeyi birden söyler: sessizliğin **hâli** ve düğmenin ne
+             * yapacağı. Yalnız "8 saat sessiz" deseydi ekran okuyucu kullanıcısı bunun
+             * tıklanabilir olduğunu, yalnız "Sessize almayı kaldır" deseydi ne kadar
+             * süre kaldığını öğrenemezdi.
+             */
+            aria-label={`${pillLabel} · ${t("messages.more.mute.pillAction")}`}
+            className="inline-flex shrink-0 items-center border border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning)/0.14)] text-[hsl(var(--warning))] transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] hover:bg-[hsl(var(--warning)/0.2)]"
+            data-testid="conversation-header-mute-pill"
+            onClick={onUnmute}
+            style={{
+              borderRadius: pxToRem(menuMetrics.mutePillRadius),
+              fontSize: pxToRem(menuMetrics.mutePillFontSize),
+              fontWeight: 600,
+              gap: pxToRem(menuMetrics.mutePillGap),
+              height: pxToRem(menuMetrics.mutePillHeight),
+              lineHeight: 1,
+              marginRight: pxToRem(menuMetrics.mutePillMarginRight),
+              padding: `0 ${pxToRem(menuMetrics.mutePillPaddingX)}`,
+              whiteSpace: "nowrap",
+            }}
+            title={t("messages.more.mute.pillAction")}
+            type="button"
+          >
+            <BellOff
+              aria-hidden="true"
+              style={{
+                height: pxToRem(menuMetrics.mutePillIconSize),
+                width: pxToRem(menuMetrics.mutePillIconSize),
+              }}
+            />
+            {pillLabel}
+          </button>
+        )}
         <HeaderAction
           disabled={callDisabled}
           icon={Phone}
@@ -402,12 +481,30 @@ export function ConversationHeader({
           onClick={onOpenSearch}
           testId="conversation-header-search"
         />
-        <HeaderAction
-          icon={MoreHorizontal}
-          label={t("messages.conversation.action.more")}
-          onClick={onOpenMore}
-          testId="conversation-header-more"
-        />
+        {/*
+          Menü tetikleyicisinin **kendi** sarmalayıcısı: §17 menüyü `top:41; right:0`
+          ile buraya bağlıyor. `pointerdown` menü açıkken burada durur — durmasaydı
+          menünün dışına tıklamayı dinleyen kabuk `...` tıklamasını da "dışarı" sayar,
+          menüyü kapatır ve hemen ardından gelen `click` onu yeniden açardı.
+        */}
+        <div
+          className="relative"
+          onPointerDown={(event) => {
+            if (moreOpen) {
+              event.stopPropagation();
+            }
+          }}
+        >
+          <HeaderAction
+            active={moreOpen}
+            expanded={moreOpen}
+            icon={MoreHorizontal}
+            label={t("messages.conversation.action.more")}
+            onClick={onOpenMore}
+            testId="conversation-header-more"
+          />
+          {moreMenu}
+        </div>
       </div>
     </header>
   );

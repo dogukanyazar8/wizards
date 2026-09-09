@@ -54,45 +54,42 @@ export function MessageEditor({ initialContent, onSave, onCancel }: MessageEdito
 
   return (
     <div
-      className="my-2 overflow-hidden rounded-[1.5rem] border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--surface-card)/0.88)] shadow-[0_18px_42px_hsl(var(--shadow-color)/0.08)] backdrop-blur-xl"
+      className="my-1.5 rounded-[1rem] border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--surface-soft)/0.42)] p-2.5 shadow-[0_12px_30px_hsl(var(--shadow-color)/0.07)]"
       data-testid="message-editor"
     >
-      <div className="border-b border-[hsl(var(--border)/0.5)] px-3 py-2">
-        <p className="text-[0.625rem] font-semibold uppercase tracking-[0.2em] text-app-soft">
+      <div className="mb-2 flex items-center justify-between gap-3 px-1">
+        <p className="text-[0.625rem] font-semibold uppercase tracking-[0.18em] text-app-soft">
           {t("chat.editor.title")}
         </p>
+        <span
+          className={cn(
+            "text-[0.6875rem] font-semibold tabular-nums",
+            content.length > MAX_MESSAGE_LENGTH * 0.9
+              ? "text-[hsl(var(--warning))]"
+              : "text-app-soft",
+          )}
+        >
+          {content.length}/{MAX_MESSAGE_LENGTH}
+        </span>
       </div>
 
-      <div className="p-2.5">
-        <textarea
-          aria-label={t("chat.editor.title")}
-          className="message-font-scope min-h-[5.75rem] w-full resize-none rounded-[1.25rem] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.38)] px-3 py-3 text-sm leading-6 text-app-foreground outline-hidden transition placeholder:text-app-soft focus:border-[hsl(var(--primary)/0.48)] focus:bg-[hsl(var(--surface-card)/0.82)] focus:ring-2 focus:ring-[hsl(var(--primary)/0.16)]"
-          data-testid="message-editor-input"
-          maxLength={MAX_MESSAGE_LENGTH}
-          onChange={(event) => setContent(event.target.value)}
-          onKeyDown={handleKeyDown}
-          ref={textareaRef}
-          rows={3}
-          value={content}
-        />
+      <textarea
+        aria-label={t("chat.editor.title")}
+        className="message-font-scope min-h-[3.5rem] w-full resize-none rounded-[0.875rem] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.88)] px-3 py-2.5 text-sm leading-6 text-app-foreground outline-hidden transition placeholder:text-app-soft focus:border-[hsl(var(--primary)/0.52)] focus:ring-2 focus:ring-[hsl(var(--primary)/0.14)]"
+        data-testid="message-editor-input"
+        maxLength={MAX_MESSAGE_LENGTH}
+        onChange={(event) => setContent(event.target.value)}
+        onKeyDown={handleKeyDown}
+        ref={textareaRef}
+        rows={2}
+        value={content}
+      />
 
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs font-medium text-app-muted">{t("chat.editor.hint")}</p>
-          <span
-            className={cn(
-              "text-xs font-semibold tabular-nums",
-              content.length > MAX_MESSAGE_LENGTH * 0.9
-                ? "text-[hsl(var(--warning))]"
-                : "text-app-soft",
-            )}
-          >
-            {content.length}/{MAX_MESSAGE_LENGTH}
-          </span>
-        </div>
-
-        <div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="min-w-0 text-xs font-medium text-app-muted">{t("chat.editor.hint")}</p>
+        <div className="flex shrink-0 items-center justify-end gap-1.5">
           <button
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.1)] px-4 text-sm font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.34)] sm:min-h-10"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border-0 bg-transparent px-3 text-sm font-semibold text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.86)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
             data-testid="message-editor-cancel"
             onClick={onCancel}
             type="button"
@@ -101,7 +98,7 @@ export function MessageEditor({ initialContent, onSave, onCancel }: MessageEdito
             {t("chat.editor.cancel")}
           </button>
           <button
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.16)] px-4 text-sm font-semibold text-[hsl(var(--success))] shadow-[0_14px_32px_hsl(var(--success)/0.14)] transition hover:bg-[hsl(var(--success)/0.22)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--success)/0.34)] disabled:cursor-not-allowed disabled:border-[hsl(var(--border)/0.55)] disabled:bg-[hsl(var(--surface-soft)/0.42)] disabled:text-app-soft disabled:shadow-none sm:min-h-10"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border-0 bg-[hsl(var(--primary))] px-3.5 text-sm font-semibold text-white shadow-[0_8px_18px_-12px_hsl(var(--primary))] transition hover:brightness-110 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)] disabled:cursor-not-allowed disabled:bg-[hsl(var(--surface-card))] disabled:text-app-soft disabled:shadow-none"
             data-testid="message-editor-save"
             disabled={!canSave}
             onClick={save}

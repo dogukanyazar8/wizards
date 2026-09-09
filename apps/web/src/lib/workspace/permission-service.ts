@@ -306,6 +306,7 @@ export async function getChannelPermissionContext(
         select: {
           features: true,
           messageCharacterLimit: true,
+          slowModeDelay: true,
         },
       },
       serverId: true,
@@ -344,6 +345,7 @@ export async function getChannelPermissionContext(
       server: {
         features: channel.server.features,
         messageCharacterLimit: channel.server.messageCharacterLimit,
+        slowModeDelay: channel.server.slowModeDelay,
       },
       serverId: channel.serverId,
       rtcRegion: channel.rtcRegion,
@@ -492,6 +494,7 @@ async function getChannelPermissionTarget(channelId: string) {
           features: true,
           messageCharacterLimit: true,
           ownerId: true,
+          slowModeDelay: true,
           roles: {
             where: { isDefault: true },
             select: permissionRoleSelect,
@@ -522,6 +525,7 @@ async function getChannelPermissionTarget(channelId: string) {
     server: {
       features: channel.server.features,
       messageCharacterLimit: channel.server.messageCharacterLimit,
+      slowModeDelay: channel.server.slowModeDelay,
     },
     serverId: channel.serverId,
     rtcRegion: channel.rtcRegion,

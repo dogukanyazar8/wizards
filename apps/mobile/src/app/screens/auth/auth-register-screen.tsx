@@ -8,11 +8,10 @@ import {
   AuthEyebrowHeader,
   AuthPasswordStrengthRow,
   AuthPrimaryButton,
-  AuthProfileTypeSelector,
   AuthScreenBackground,
   AuthTextField,
   AuthTopBar,
-  type MobileAuthProfileType,
+  isMobileAuthPasswordStrong,
 } from "../../components/kit/auth";
 import { useMobileLocaleRuntime } from "../../providers/mobile-locale-provider";
 import { useThemedStyles } from "../../providers/mobile-theme-provider";
@@ -25,6 +24,7 @@ export interface AuthRegisterScreenProps {
   readonly onBack: () => void;
   readonly onRegister: (input: {
     confirmPassword: string;
+    displayName: string;
     email: string;
     password: string;
     username: string;
@@ -63,8 +63,7 @@ export function AuthRegisterScreen({ onBack, onRegister, onSignIn }: AuthRegiste
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [profileType, setProfileType] = useState<MobileAuthProfileType>("personal");
+  const [displayName, setDisplayName] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -84,7 +83,7 @@ export function AuthRegisterScreen({ onBack, onRegister, onSignIn }: AuthRegiste
     const normalizedUsername = normalizeUsername(username);
     clearFeedback();
 
-    if (!normalizedUsername || !normalizedEmail || !password || !confirmPassword) {
+    if (!displayName.trim() || !normalizedUsername || !normalizedEmail || !password) {
       setErrorMessage(copy.authNativeMissingFields);
       return;
     }
@@ -99,13 +98,9 @@ export function AuthRegisterScreen({ onBack, onRegister, onSignIn }: AuthRegiste
       return;
     }
 
-    if (password.length < 8) {
+    // SPEC-GIRIS-KAYIT §4.4 — uzunluk + dort kuraldan uc'u; sunucuyla ayni kapi.
+    if (!isMobileAuthPasswordStrong(password)) {
       setErrorMessage(copy.authNativePasswordTooShort);
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setErrorMessage(copy.authNativePasswordMismatch);
       return;
     }
 
@@ -114,7 +109,12 @@ export function AuthRegisterScreen({ onBack, onRegister, onSignIn }: AuthRegiste
 
     try {
       const result = await onRegister({
-        confirmPassword,
+        /*
+         * SPEC-GIRIS-KAYIT §4.4 — ekranda şifre tekrar alanı **yok** (K10). Mobil API sözleşmesi
+         * sahadaki sürümler için alanı hâlâ zorunlu tutuyor; aynı değer gönderilir.
+         */
+        confirmPassword: password,
+        displayName: displayName.trim(),
         email: normalizedEmail,
         password,
         username: normalizedUsername,
@@ -144,20 +144,15 @@ export function AuthRegisterScreen({ onBack, onRegister, onSignIn }: AuthRegiste
       <View style={styles.screen}>
         <View style={styles.topSection}>
           <AuthTopBar
-            backAccessibilityLabel={copy.authNativeBackToSignIn}
+            backAccessibilityLabel={copy.identityCommonBackToLogin}
             onBack={onBack}
             testID="mobile-auth-register-top-bar"
           />
           <AuthEyebrowHeader
-            eyebrow={copy.authRegisterEyebrow}
-            subtitle={copy.authJoinDescription}
+            eyebrow={copy.identityRegisterEyebrow}
+            subtitle={copy.identityRegisterSubtitle}
             testID="mobile-auth-register-header"
-            title={copy.authJoinTitle}
-          />
-          <AuthProfileTypeSelector
-            onChange={setProfileType}
-            testID="mobile-auth-register-profile"
-            value={profileType}
+            title={copy.identityRegisterTitle}
           />
         </View>
 
@@ -182,12 +177,28 @@ export function AuthRegisterScreen({ onBack, onRegister, onSignIn }: AuthRegiste
               {successMessage}
             </Text>
           ) : null}
+          {/* SPEC §6/2 — dört alan alt alta: Ad Soyad · Kullanıcı adı · E-posta · Şifre. */}
+          <AuthTextField
+            autoCapitalize="words"
+            autoComplete="name"
+            iconName="person-circle-outline"
+            label={copy.identityFieldFullName}
+            onChangeText={(value) => {
+              setDisplayName(value);
+              clearFeedback();
+            }}
+            returnKeyType="next"
+            testID="mobile-auth-register-display-name"
+            textContentType="name"
+            value={displayName}
+            variant="register"
+          />
           <AuthTextField
             autoCapitalize="none"
             autoComplete="username"
             autoCorrect={false}
             iconName="person-outline"
-            label={copy.authUsernameFieldLabel}
+            label={copy.identityFieldUsername}
             onChangeText={(value) => {
               setUsername(value);
               clearFeedback();
@@ -241,30 +252,11 @@ export function AuthRegisterScreen({ onBack, onRegister, onSignIn }: AuthRegiste
                 variant="register"
               />
             </View>
-            <View style={styles.passwordColumn}>
-              <AuthTextField
-                autoCapitalize="none"
-                autoComplete="new-password"
-                autoCorrect={false}
-                iconName="lock-closed-outline"
-                iconSize="compact"
-                inputStyle={styles.compactInput}
-                label={copy.authConfirmPasswordFieldLabel}
-                onChangeText={(value) => {
-                  setConfirmPassword(value);
-                  clearFeedback();
-                }}
-                placeholder={copy.authPasswordMinLengthPlaceholder}
-                returnKeyType="done"
-                secureTextEntry
-                testID="mobile-auth-register-confirm-password"
-                textContentType="newPassword"
-                value={confirmPassword}
-                variant="register"
-              />
-            </View>
           </View>
-          <AuthPasswordStrengthRow password={password} testID="mobile-auth-register-password-strength" />
+          <AuthPasswordStrengthRow
+            password={password}
+            testID="mobile-auth-register-password-strength"
+          />
           <AuthCheckbox
             checked={termsAccepted}
             disabled={isSubmitting}

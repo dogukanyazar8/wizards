@@ -8,7 +8,7 @@ import { UTApi, UploadThingError } from "uploadthing/server";
 
 import { ApiError } from "@/lib/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
-import { requireMobileApiUserId } from "@/lib/auth/api";
+import { requireApiUserId, requireMobileApiUserId } from "@/lib/auth/api";
 import { logWarning } from "@/lib/logger";
 import {
   recordVerifiedMobileMediaUpload,
@@ -38,6 +38,7 @@ export type UploadThingMobileFile = {
 
 export type MobileMediaUploadAuthorizationDependencies = {
   authenticate: typeof requireMobileApiUserId;
+  authenticateSession: typeof requireApiUserId;
   enforceRateLimit: (
     userId: string,
     action: typeof MOBILE_MEDIA_UPLOAD_RATE_LIMIT_ACTION,
@@ -50,12 +51,48 @@ export type MobileMediaUploadAuthorizationDependencies = {
 
 const defaultAuthorizationDependencies: MobileMediaUploadAuthorizationDependencies = {
   authenticate: requireMobileApiUserId,
+  authenticateSession: requireApiUserId,
   enforceRateLimit: enforceApiRateLimit,
   ensureServerPermission,
   getAccessContext,
   logWarning,
   runOpportunisticCleanup: runOpportunisticMobileMediaCleanup,
 };
+
+/** Hangi kimlik yolunun kabul edildiği; izin kararı buna bakar. */
+type MobileMediaUploadOwner = {
+  ownerId: string;
+  source: "bearer" | "session";
+};
+
+/**
+ * SPEC-INDIRME §A "Sorun bildir" web ve masaüstünde de çalışıyor, orada taşıyıcı
+ * jeton yok. Yalnız ekran görüntüsü amacı oturum çerezine düşebilir; diğer
+ * amaçlar mobil kalır.
+ *
+ * Buradaki `purpose` okuması istemciden gelen **ham** değerdir ve yalnızca
+ * hangi kimlik yolunun deneneceğini seçer. Yetki kararı, şema doğrulandıktan
+ * sonra `source` üzerinden ikinci kez verilir: uydurma bir amaç, oturumla
+ * yapılamayacak bir yüklemeyi açamaz.
+ */
+function mayFallBackToSession(intent: MobileMediaUploadIntent): boolean {
+  return (intent as { purpose?: unknown } | null)?.purpose === "feedback-attachment";
+}
+
+async function resolveMobileMediaUploadOwner(
+  input: { intent: MobileMediaUploadIntent; request: Request },
+  dependencies: MobileMediaUploadAuthorizationDependencies,
+): Promise<MobileMediaUploadOwner> {
+  try {
+    return { ownerId: await dependencies.authenticate(input.request), source: "bearer" };
+  } catch (error) {
+    if (!mayFallBackToSession(input.intent)) {
+      throw error;
+    }
+
+    return { ownerId: await dependencies.authenticateSession(), source: "session" };
+  }
+}
 
 export type MobileMediaUploadCompletionDependencies = {
   deleteFiles: (
@@ -125,12 +162,14 @@ export async function authorizeMobileMediaUpload(
   input: { intent: MobileMediaUploadIntent; request: Request },
   dependencies: MobileMediaUploadAuthorizationDependencies = defaultAuthorizationDependencies,
 ): Promise<MobileUploadMetadata> {
-  let ownerId: string;
+  let owner: MobileMediaUploadOwner;
   try {
-    ownerId = await dependencies.authenticate(input.request);
+    owner = await resolveMobileMediaUploadOwner(input, dependencies);
   } catch (error) {
     throw authorizationUploadThingError(error);
   }
+
+  const { ownerId } = owner;
 
   try {
     await dependencies.enforceRateLimit(ownerId, MOBILE_MEDIA_UPLOAD_RATE_LIMIT_ACTION);
@@ -144,6 +183,13 @@ export async function authorizeMobileMediaUpload(
     // (undefined = no filter) and authorize against an arbitrary server, then record an
     // upload that can never be claimed.
     const intent = MobileMediaUploadIntentSchema.parse(input.intent);
+
+    // The session path exists for one purpose only. Checking it against the
+    // *parsed* intent is what stops a forged `purpose` from turning a browser
+    // session into a mobile-only upload.
+    if (owner.source === "session" && intent.purpose !== "feedback-attachment") {
+      throw new ApiError("Upload not allowed", 403, "UPLOAD_PURPOSE_NOT_ALLOWED");
+    }
 
     // Avatar, banner and feedback screenshots are owner-scoped, so none of them
     // needs a server permission check.

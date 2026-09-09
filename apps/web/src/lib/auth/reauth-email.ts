@@ -6,7 +6,8 @@ import {
   ACCOUNT_DELETION_REAUTH_PURPOSE,
   createAccountDeletionReauthTokenForVerifiedEmail,
 } from "@/lib/auth/reauth";
-import { type AppLocale, DEFAULT_APP_LOCALE, normalizeAppLocale, translate } from "@/lib/locale";
+import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/locale";
+import { renderAccountDeletionReauthEmail } from "@/lib/email/templates/account-deletion-reauth-email";
 
 const EMAIL_REAUTH_TOKEN_BYTES = 32;
 const EMAIL_REAUTH_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,128}$/u;
@@ -107,15 +108,6 @@ function getAppUrl(env: Record<string, string | undefined> = process.env) {
   }
 }
 
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 export function hashAccountReauthChallengeToken(token: string) {
   return createHash("sha256").update(token, "utf8").digest("hex");
 }
@@ -132,102 +124,6 @@ export function buildAccountDeletionReauthUrl(
   }
   const url = new URL(`/settings/reauth/${encodeURIComponent(token)}`, `${getAppUrl(env)}/`);
   return url.toString();
-}
-
-function renderAccountDeletionReauthEmail(input: {
-  locale: AppLocale;
-  name: string;
-  reauthUrl: string;
-}) {
-  const values = {
-    minutes: ACCOUNT_DELETION_EMAIL_REAUTH_EXPIRY_MINUTES,
-    name: input.name,
-  };
-  const subject = translate(input.locale, "auth.reauthEmail.subject");
-  const title = translate(input.locale, "auth.reauthEmail.title");
-  const greeting = translate(input.locale, "auth.reauthEmail.greeting", values);
-  const body = translate(input.locale, "auth.reauthEmail.body");
-  const cta = translate(input.locale, "auth.reauthEmail.cta");
-  const expires = translate(input.locale, "auth.reauthEmail.expires", values);
-  const fallback = translate(input.locale, "auth.reauthEmail.fallback");
-  const ignore = translate(input.locale, "auth.reauthEmail.ignore");
-  const footer = translate(input.locale, "auth.reauthEmail.footer");
-
-  const safeTitle = escapeHtml(title);
-  const safeGreeting = escapeHtml(greeting);
-  const safeBody = escapeHtml(body);
-  const safeCta = escapeHtml(cta);
-  const safeExpires = escapeHtml(expires);
-  const safeFallback = escapeHtml(fallback);
-  const safeIgnore = escapeHtml(ignore);
-  const safeFooter = escapeHtml(footer);
-  const safeUrl = escapeHtml(input.reauthUrl);
-
-  return {
-    html: `<!doctype html>
-<html lang="${input.locale}">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${safeTitle}</title>
-  </head>
-  <body style="margin:0;background:#f5f7fb;color:#111827;font-family:Inter,Segoe UI,Arial,sans-serif;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f7fb;padding:32px 16px;">
-      <tr>
-        <td align="center">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:28px;overflow:hidden;box-shadow:0 24px 70px rgba(15,23,42,0.10);">
-            <tr>
-              <td style="padding:32px 32px 20px;">
-                <div style="display:inline-block;border-radius:999px;border:1px solid #dfe3ff;background:#eef1ff;color:#4f46e5;font-size:12px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;padding:8px 12px;">Whispr</div>
-                <h1 style="font-size:30px;line-height:1.15;margin:24px 0 12px;color:#111827;">${safeTitle}</h1>
-                <p style="font-size:16px;line-height:1.7;margin:0 0 12px;color:#4b5563;">${safeGreeting}</p>
-                <p style="font-size:16px;line-height:1.7;margin:0;color:#4b5563;">${safeBody}</p>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:8px 32px 28px;">
-                <a href="${safeUrl}" style="display:inline-block;border-radius:18px;background:#6366f1;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 20px;">${safeCta}</a>
-                <p style="font-size:13px;line-height:1.6;margin:18px 0 0;color:#6b7280;">${safeExpires}</p>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:0 32px 30px;">
-                <div style="border-radius:18px;background:#f8fafc;border:1px solid #e5e7eb;padding:16px;">
-                  <p style="font-size:13px;line-height:1.6;margin:0 0 10px;color:#64748b;">${safeFallback}</p>
-                  <a href="${safeUrl}" style="font-size:13px;line-height:1.6;color:#4f46e5;word-break:break-all;">${safeUrl}</a>
-                </div>
-                <p style="font-size:13px;line-height:1.6;margin:18px 0 0;color:#6b7280;">${safeIgnore}</p>
-              </td>
-            </tr>
-            <tr>
-              <td style="background:#f8fafc;border-top:1px solid #e5e7eb;padding:18px 32px;">
-                <p style="font-size:12px;line-height:1.6;margin:0;color:#94a3b8;">${safeFooter}</p>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`,
-    subject,
-    text: [
-      subject,
-      "",
-      greeting,
-      body,
-      "",
-      cta,
-      input.reauthUrl,
-      "",
-      expires,
-      fallback,
-      input.reauthUrl,
-      "",
-      ignore,
-      footer,
-    ].join("\n"),
-  };
 }
 
 async function createAccountReauthChallenge(userId: string) {
@@ -322,6 +218,7 @@ export async function sendAccountDeletionReauthEmail(
   const displayName = user.displayName ?? user.username;
   const reauthUrl = buildAccountDeletionReauthUrl(generatedChallenge.token, process.env, platform);
   const email = renderAccountDeletionReauthEmail({
+    expiryMinutes: ACCOUNT_DELETION_EMAIL_REAUTH_EXPIRY_MINUTES,
     locale: resolvedLocale,
     name: displayName,
     reauthUrl,

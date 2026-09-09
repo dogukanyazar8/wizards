@@ -23,11 +23,11 @@ describe("desktop OAuth start paths", () => {
   it("sanitizes unsafe callback targets before putting them in URLs", () => {
     assert.equal(
       buildDesktopOAuthStartPath("https://evil.example/channels"),
-      "/desktop/oauth/start?callbackUrl=%2Fmessages",
+      "/desktop/oauth/start?callbackUrl=%2Fhome",
     );
     assert.equal(
       buildDesktopOAuthStartUrl("//evil.example/channels", "https://whispr.team"),
-      "https://whispr.team/desktop/oauth/start?callbackUrl=%2Fmessages",
+      "https://whispr.team/desktop/oauth/start?callbackUrl=%2Fhome",
     );
   });
 

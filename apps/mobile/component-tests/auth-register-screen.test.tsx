@@ -21,10 +21,14 @@ const copy = mobileCopy.tr;
 
 type RegisterInput = {
   confirmPassword: string;
+  displayName: string;
   email: string;
   password: string;
   username: string;
 };
+
+/** SPEC-GIRIS-KAYIT §4.4 — uzunluk + dort kuraldan uc'u. */
+const VALID_PASSWORD = "Whispr!2026x";
 
 function setRuntimeConfig() {
   mockedRuntimeConfig.mockReturnValue({
@@ -72,8 +76,13 @@ function renderRegister(props?: Partial<React.ComponentProps<typeof AuthRegister
 
 async function fillRegisterFields(
   view: Awaited<ReturnType<typeof render>>,
-  values: Partial<Pick<RegisterInput, "confirmPassword" | "email" | "password" | "username">> = {},
+  values: Partial<Pick<RegisterInput, "displayName" | "email" | "password" | "username">> = {},
 ) {
+  // SPEC §6/2 — dort alan: Ad Soyad, kullanici adi, e-posta, sifre. Sifre tekrari yok (K10).
+  await fireEvent.changeText(
+    view.getByTestId("mobile-auth-register-display-name-input"),
+    values.displayName ?? "  Wizard User  ",
+  );
   await fireEvent.changeText(
     view.getByTestId("mobile-auth-register-username-input"),
     values.username ?? " wizard_user ",
@@ -84,11 +93,7 @@ async function fillRegisterFields(
   );
   await fireEvent.changeText(
     view.getByTestId("mobile-auth-register-password-input"),
-    values.password ?? "safe-password",
-  );
-  await fireEvent.changeText(
-    view.getByTestId("mobile-auth-register-confirm-password-input"),
-    values.confirmPassword ?? values.password ?? "safe-password",
+    values.password ?? VALID_PASSWORD,
   );
 }
 
@@ -107,7 +112,8 @@ describe("AuthRegisterScreen", () => {
 
     expect(view.getByTestId("mobile-auth-register-screen-canonical-background-light")).toBeTruthy();
     expect(
-      view.getByTestId("mobile-auth-register-top-bar-brand-mark", { includeHiddenElements: true }).props,
+      view.getByTestId("mobile-auth-register-top-bar-brand-mark", { includeHiddenElements: true })
+        .props,
     ).toMatchObject({ height: 32, width: 32 });
   });
 
@@ -127,27 +133,13 @@ describe("AuthRegisterScreen", () => {
     expect(onRegister).not.toHaveBeenCalled();
   });
 
-  it("rejects a password mismatch locally without dispatching registration", async () => {
-    const onRegister = jest
-      .fn<Promise<{ email: string; ok: true }>, [RegisterInput]>()
-      .mockResolvedValue({ email: "user@example.com", ok: true });
-    const view = await renderRegister({ onRegister });
-
-    await fillRegisterFields(view, { confirmPassword: "different-password" });
-    await acceptTerms(view);
-    await fireEvent.press(view.getByTestId("mobile-auth-register-submit"));
-
-    expect(await view.findByText(copy.authNativePasswordMismatch)).toBeTruthy();
-    expect(onRegister).not.toHaveBeenCalled();
-  });
-
   it("rejects a password shorter than the server-compatible minimum without dispatching registration", async () => {
     const onRegister = jest
       .fn<Promise<{ email: string; ok: true }>, [RegisterInput]>()
       .mockResolvedValue({ email: "user@example.com", ok: true });
     const view = await renderRegister({ onRegister });
 
-    await fillRegisterFields(view, { confirmPassword: "short7", password: "short7" });
+    await fillRegisterFields(view, { password: "Short7!a" });
     await acceptTerms(view);
     await fireEvent.press(view.getByTestId("mobile-auth-register-submit"));
 
@@ -169,18 +161,28 @@ describe("AuthRegisterScreen", () => {
     expect(onRegister).not.toHaveBeenCalled();
   });
 
-  it("uses the localized username label without carrying the obsolete name-field copy", async () => {
+  it("uses the localized field labels and keeps every string out of the source", async () => {
     const view = await renderRegister();
     const source = readFileSync(
       join(process.cwd(), "src", "app", "screens", "auth", "auth-register-screen.tsx"),
       "utf8",
     );
 
+    expect(
+      view.getByTestId("mobile-auth-register-display-name-input").props.accessibilityLabel,
+    ).toBe(copy.identityFieldFullName);
     expect(view.getByTestId("mobile-auth-register-username-input").props.accessibilityLabel).toBe(
-      copy.authUsernameFieldLabel,
+      copy.identityFieldUsername,
     );
-    expect(source).not.toContain("Ad Soyad");
-    expect(source).not.toContain("Full Name");
+    /*
+     * Metin sozlugu disinda gomulu kopya kalmamali. Aciklama satirlari sozlesmenin parcasi
+     * degildir, bu yuzden yalnizca kod satirlari taranir.
+     */
+    const codeLines = source.split("\n").filter((line) => !/^\s*(?:\{?\/\*|\*|\/\/)/.test(line));
+
+    for (const phrase of ["Ad Soyad", "Full Name"]) {
+      expect(codeLines.some((line) => line.includes(phrase))).toBe(false);
+    }
   });
 
   it("submits the exact normalized registration payload and renders the returned verification notice", async () => {
@@ -195,20 +197,24 @@ describe("AuthRegisterScreen", () => {
 
     await waitFor(() =>
       expect(onRegister).toHaveBeenCalledWith({
-        confirmPassword: "safe-password",
+        confirmPassword: VALID_PASSWORD,
+        displayName: "Wizard User",
         email: "user@example.com",
-        password: "safe-password",
+        password: VALID_PASSWORD,
         username: "wizard_user",
       }),
     );
     expect(Object.keys(onRegister.mock.calls[0]![0]).sort()).toEqual([
       "confirmPassword",
+      "displayName",
       "email",
       "password",
       "username",
     ]);
     expect(
-      await view.findByText(copy.authNativeVerificationNotice.replace("{email}", "verified@example.com")),
+      await view.findByText(
+        copy.authNativeVerificationNotice.replace("{email}", "verified@example.com"),
+      ),
     ).toBeTruthy();
   });
 
@@ -225,9 +231,10 @@ describe("AuthRegisterScreen", () => {
     expect(view.queryByTestId("mobile-auth-register-human-check")).toBeNull();
     await waitFor(() =>
       expect(onRegister).toHaveBeenCalledWith({
-        confirmPassword: "safe-password",
+        confirmPassword: VALID_PASSWORD,
+        displayName: "Wizard User",
         email: "user@example.com",
-        password: "safe-password",
+        password: VALID_PASSWORD,
         username: "wizard_user",
       }),
     );
@@ -260,9 +267,7 @@ describe("AuthRegisterScreen", () => {
     await fireEvent.press(view.getByTestId("mobile-auth-register-terms-link"));
     await fireEvent.press(view.getByTestId("mobile-auth-register-privacy-link"));
 
-    await waitFor(() =>
-      expect(openUrl).toHaveBeenNthCalledWith(1, "https://whispr.test/terms"),
-    );
+    await waitFor(() => expect(openUrl).toHaveBeenNthCalledWith(1, "https://whispr.test/terms"));
     expect(openUrl).toHaveBeenNthCalledWith(2, "https://whispr.test/privacy");
   });
 
@@ -271,7 +276,9 @@ describe("AuthRegisterScreen", () => {
     const pendingRegister = new Promise<{ email: string; ok: true }>((resolve) => {
       resolveRegister = resolve;
     });
-    const onRegister = jest.fn<Promise<{ email: string; ok: true }>, [RegisterInput]>().mockReturnValue(pendingRegister);
+    const onRegister = jest
+      .fn<Promise<{ email: string; ok: true }>, [RegisterInput]>()
+      .mockReturnValue(pendingRegister);
     const view = await renderRegister({ onRegister });
 
     await fillRegisterFields(view);

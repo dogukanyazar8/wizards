@@ -26,7 +26,17 @@ const SHARED_BY_DESIGN = new Set([
   // translated in either language, so the two dictionaries are identical on
   // purpose rather than by omission.
   "appearanceSettingsMessageFontSizeValue",
+  // SPEC-GIRIS-KAYIT §13 — "Cloudflare Turnstile" ve "Whispr 2026" iki dilde de aynı yazılır:
+  // biri saglayici urun adi, digeri marka + yil. SPEC tablosunda da tek sutunlu geciyorlar.
+  "identityRegisterTurnstileHint",
+  "identityFooterCopyright",
 ]);
+
+/**
+ * Ulke adi olarak "Turkiye" Ingilizce metinde de boyle yazilir; SPEC-GIRIS-KAYIT §13'un
+ * Ingilizce sutunu da oyle veriyor. Ozel ad, cevrilmemis metin degil.
+ */
+const TURKISH_PROPER_NOUNS = new Set(["identityFieldPhoneDetected"]);
 
 /** Placeholder-only templates and lone tokens carry no prose to translate. */
 function hasTranslatableProse(value: string): boolean {
@@ -77,7 +87,9 @@ describe("mobile copy parity", () => {
   });
 
   it("never leaves Turkish text in the English dictionary", () => {
-    const leaked = [...en].filter(([, value]) => TURKISH_LETTERS.test(value)).map(([key]) => key);
+    const leaked = [...en]
+      .filter(([key, value]) => TURKISH_LETTERS.test(value) && !TURKISH_PROPER_NOUNS.has(key))
+      .map(([key]) => key);
 
     assert.deepEqual(leaked, [], "English copy still contains Turkish characters");
   });

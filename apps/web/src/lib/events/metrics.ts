@@ -2,10 +2,10 @@
  * "Etkinlikler" ekranının (4B · Takvim şeridi) ölçü sözlüğü.
  *
  * Kaynak sırası:
- *   1. `design_handoff/etkinlikler-paketi/referans/Etkinlikler-4B.dc.html` — inline `style`
+ *   1. `design_handoff/app_new/etkinlikler-paketi/referans/Etkinlikler-4B.dc.html` — inline `style`
  *      değerleri (**nihai otorite**)
- *   2. `design_handoff/etkinlikler-paketi/referans/Etkinlikler-referans.html` — çalışan kopya
- *   3. `design_handoff/etkinlikler-paketi/SPEC-ETKINLIKLER.md` §1–§11
+ *   2. `design_handoff/app_new/etkinlikler-paketi/referans/Etkinlikler-referans.html` — çalışan kopya
+ *   3. `design_handoff/app_new/etkinlikler-paketi/SPEC-ETKINLIKLER.md` §1–§11
  *
  * Değerler ×1 ölçekteki **tasarım pikselidir**; tüketiciler `pxToRem` ile rem'e çevirir. Kabuk
  * yükselirken (SPEC-ANA-SAYFA §8.1) kök font boyutu değişir, sözlük değişmez. Referans HTML

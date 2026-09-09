@@ -3,6 +3,7 @@ import {
   MobileAuthForgotPasswordResponseSchema,
   MobileAuthGoogleLoginResponseSchema,
   MobileAuthPasswordLoginResponseSchema,
+  MobileAuthTwoFactorResponseSchema,
   MobileAuthRegisterResponseSchema,
   MobileAuthRefreshResponseSchema,
   MobileAuthVerificationEmailResponseSchema,
@@ -22,6 +23,17 @@ export const MOBILE_AUTH_REGISTER_ENDPOINT = "/api/v1/mobile/auth/register";
 export const MOBILE_AUTH_REFRESH_ENDPOINT = "/api/v1/mobile/auth/refresh";
 export const MOBILE_AUTH_REVOKE_ENDPOINT = "/api/v1/mobile/auth/revoke";
 export const MOBILE_AUTH_VERIFICATION_EMAIL_ENDPOINT = "/api/v1/mobile/auth/verification-email";
+export const MOBILE_AUTH_TWO_FACTOR_ENDPOINT = "/api/v1/mobile/auth/two-factor";
+export const MOBILE_AUTH_BACKUP_CODE_ENDPOINT = "/api/v1/mobile/auth/backup-code";
+
+/**
+ * SPEC-GIRIS-KAYIT §4.2 — parola girişi iki sonuçtan birini döndürür (paket kararı K2):
+ * oturum ya da ikinci adım için kısa ömürlü bir challenge. Parola challenge yolunda ikinci kez
+ * taşınmaz; kod ayrı uca, yalnız challenge kimliğiyle gider.
+ */
+export type MobilePasswordSignInOutcome =
+  | { readonly kind: "session"; readonly session: MobileSessionSnapshotPayload }
+  | { readonly challengeId: string; readonly kind: "two-factor-required" };
 
 export async function signInMobileWithPassword(
   client: MobileApiClient,
@@ -30,13 +42,44 @@ export async function signInMobileWithPassword(
     password: string;
     twoFactorCode?: string;
   },
-): Promise<MobileSessionSnapshotPayload> {
+): Promise<MobilePasswordSignInOutcome> {
   const payload = await client.requestJson<unknown>(MOBILE_AUTH_LOGIN_ENDPOINT, {
+    body: { ...input, supportsTwoFactorChallenge: true },
+    method: "POST",
+  });
+  const response = MobileAuthPasswordLoginResponseSchema.parse(payload);
+
+  if ("session" in response) {
+    return { kind: "session", session: response.session };
+  }
+
+  return { challengeId: response.challengeId, kind: "two-factor-required" };
+}
+
+/** SPEC §4.2 — altı haneli kod. */
+export async function completeMobileTwoFactor(
+  client: MobileApiClient,
+  input: { challengeId: string; code: string; rememberDevice?: boolean },
+): Promise<MobileSessionSnapshotPayload> {
+  const payload = await client.requestJson<unknown>(MOBILE_AUTH_TWO_FACTOR_ENDPOINT, {
     body: input,
     method: "POST",
   });
 
-  return MobileAuthPasswordLoginResponseSchema.parse(payload).session;
+  return MobileAuthTwoFactorResponseSchema.parse(payload).session;
+}
+
+/** SPEC §4.3 — tek kullanımlık yedek kod. */
+export async function completeMobileBackupCode(
+  client: MobileApiClient,
+  input: { backupCode: string; challengeId: string },
+): Promise<MobileSessionSnapshotPayload> {
+  const payload = await client.requestJson<unknown>(MOBILE_AUTH_BACKUP_CODE_ENDPOINT, {
+    body: input,
+    method: "POST",
+  });
+
+  return MobileAuthTwoFactorResponseSchema.parse(payload).session;
 }
 
 export async function signInMobileWithGoogleIdToken(
@@ -58,6 +101,8 @@ export async function signInMobileWithGoogleIdToken(
 export async function registerMobileWithPassword(
   client: MobileApiClient,
   input: {
+    /** SPEC §4.4/1 — `Ad Soyad`. Eski sürümler göndermiyor, sunucu kullanıcı adına düşüyor. */
+    displayName?: string;
     confirmPassword: string;
     email: string;
     locale?: "en" | "tr";

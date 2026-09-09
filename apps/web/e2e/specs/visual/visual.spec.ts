@@ -16,6 +16,7 @@ test.describe.configure({ timeout: resolveE2ETimeoutPolicy().screenTestTimeoutMs
 test.describe("visual regression", () => {
   test.beforeEach(async ({ page }) => {
     await resetAndSeedE2EData();
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await page.addInitScript(() => {
       window.localStorage.setItem("wizards.locale", "en");
       window.localStorage.setItem("wizards-theme", "theme-dark");
@@ -49,9 +50,11 @@ test.describe("visual regression", () => {
     await loginAs(page, "alice");
     await gotoAppRoute(page, "/messages", { readyTestId: "user-bar" });
     await openSettingsFromUserQuickMenu(page);
-    await expect(
-      page.locator('[data-testid="settings-panel"][data-client-ready="true"]'),
-    ).toBeVisible({ timeout: 15_000 });
+    // K2 sonrası Ayarlar bir **rota**: kabuk `settings-panel.tsx`'i sildi ve onunla birlikte
+    // `data-client-ready` bayrağını da. Yükleme yarışının bugünkü karşılığı `Suspense`
+    // iskeletidir — tarama iskelet ekrandan **düşene** kadar beklemeli.
+    await expect(page.getByTestId("settings-window")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("settings-skeleton")).toHaveCount(0);
 
     await expect(page).toHaveScreenshot("settings-overlay.png");
   });

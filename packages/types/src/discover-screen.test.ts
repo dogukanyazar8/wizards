@@ -23,9 +23,10 @@ const server = {
   category: "oyun" as const,
   description: "Haftalık oyun geceleri, turnuvalar ve sahne yayınları.",
   featured: false,
+  iconColor: "warning" as const,
   iconUrl: null,
   id: "s1",
-  initials: "OK",
+  initials: "OYU",
   joined: false,
   languages: ["tr", "en"],
   memberCount: 48_200,
@@ -120,6 +121,11 @@ describe("discover — kategori ekseni", () => {
 describe("discover — sunucu kaydı", () => {
   it("SPEC §9 dizininin ilk satırını kabul eder", () => {
     assertAccepts(DiscoverServerSchema, server);
+  });
+
+  it("sunucu ikonu üç harf ve kendi renk tonunu taşır", () => {
+    assertRejects(DiscoverServerSchema, { ...server, initials: "OY" }, ["initials"]);
+    assertRejects(DiscoverServerSchema, { ...server, iconColor: "purple" }, ["iconColor"]);
   });
 
   it("sayıları ham tutar, biçimlendirilmiş etiket kabul etmez", () => {

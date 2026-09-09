@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { prisma } from "@wizards/db";
+
 import { parseDMTypingEntry, registerTypingHandlers } from "./typing";
 
 import type { HandlerContext } from "../context";
@@ -86,6 +88,7 @@ describe("socket typing handlers", () => {
         return false;
       },
       isDMParticipant: async () => true,
+      readMessagePrivacy: async () => ({ readReceipts: true, typingIndicator: true }),
     });
 
     const handler = handlers.get("dm:typing:start");
@@ -107,6 +110,7 @@ describe("socket typing handlers", () => {
         return false;
       },
       isDMParticipant: async () => true,
+      readMessagePrivacy: async () => ({ readReceipts: true, typingIndicator: true }),
     });
 
     const handler = handlers.get("dm:typing:stop");
@@ -127,6 +131,7 @@ describe("socket typing handlers", () => {
 
     registerTypingHandlers(ctx, {
       checkTypingEventAllowed: async () => true,
+      readMessagePrivacy: async () => ({ readReceipts: true, typingIndicator: true }),
       requireChannelPermission: async () => ({}) as never,
     });
 
@@ -137,6 +142,77 @@ describe("socket typing handlers", () => {
         event: "typing:update",
         payload: { channelId: "channel-1", users: ["Ada", "Grace"] },
         room: "channel-1",
+      },
+    ]);
+  });
+
+  // Mesajlar §15.5 madde 2 / karar K9. The switch is enforced where the event is
+  // published: nothing is written to Redis and nothing is emitted, so no reader
+  // is ever asked to filter a dot that should not have travelled.
+  it("publishes no DM typing state when the sender turned the indicator off", async () => {
+    const { ctx, handlers, redisCalls, roomEmits } = createTypingHandlerContext();
+    const checkedScopes: string[] = [];
+
+    registerTypingHandlers(ctx, {
+      checkTypingEventAllowed: async (scope) => {
+        checkedScopes.push(scope);
+        return true;
+      },
+      isDMParticipant: async () => true,
+      readMessagePrivacy: async () => ({ readReceipts: true, typingIndicator: false }),
+    });
+
+    await handlers.get("dm:typing:start")!({ conversationId: "conversation-1" });
+
+    assert.deepEqual(redisCalls, []);
+    assert.deepEqual(roomEmits, []);
+    // The rate limiter is never even consulted: the event does not exist.
+    assert.deepEqual(checkedScopes, []);
+  });
+
+  it("publishes no channel typing state when the sender turned the indicator off", async () => {
+    const { ctx, handlers, redisCalls, roomEmits } = createTypingHandlerContext();
+
+    registerTypingHandlers(ctx, {
+      checkTypingEventAllowed: async () => true,
+      readMessagePrivacy: async () => ({ readReceipts: true, typingIndicator: false }),
+      requireChannelPermission: async () => ({}) as never,
+    });
+
+    await handlers.get("typing:start")!("channel-1");
+
+    assert.deepEqual(redisCalls, []);
+    assert.deepEqual(roomEmits, []);
+  });
+
+  // Turning the switch off mid-sentence must still be able to clear the dot the
+  // reader is already looking at, so `stop` stays ungated.
+  it("still clears leftover DM typing state after the indicator is turned off", async () => {
+    const { ctx, handlers, redisCalls, roomEmits } = createTypingHandlerContext();
+    const participantFindMany = prisma.dMParticipant.findMany;
+    (prisma.dMParticipant as { findMany: unknown }).findMany = async () => [];
+
+    try {
+      registerTypingHandlers(ctx, {
+        checkTypingEventAllowed: async () => true,
+        isDMParticipant: async () => true,
+        readMessagePrivacy: async () => ({ readReceipts: true, typingIndicator: false }),
+      });
+
+      await handlers.get("dm:typing:stop")!({ conversationId: "conversation-1" });
+    } finally {
+      (prisma.dMParticipant as { findMany: unknown }).findMany = participantFindMany;
+    }
+
+    assert.deepEqual(
+      redisCalls.map((call) => call.command),
+      ["hdel", "hgetall"],
+    );
+    assert.deepEqual(roomEmits, [
+      {
+        event: "dm:typing:update",
+        payload: { conversationId: "conversation-1", typingUsers: [] },
+        room: "dm:conversation-1",
       },
     ]);
   });

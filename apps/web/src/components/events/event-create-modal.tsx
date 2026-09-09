@@ -2,7 +2,7 @@
 
 import React, { useId, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarPlus, X } from "lucide-react";
+import { CalendarPlus } from "lucide-react";
 import type { CreateEventInput, WorkspaceServerDetail } from "@wizards/types";
 
 import { EventDateTimeField } from "@/components/events/event-datetime-field";
@@ -12,6 +12,7 @@ import { useI18n } from "@/components/providers/locale-provider";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
+import { WindowCloseButton } from "@/components/ui/window-close-button";
 import { useToast } from "@/hooks/use-toast";
 import { createEvent, eventsQueryKeys } from "@/lib/events/client";
 import {
@@ -180,27 +181,12 @@ export function EventCreateForm({
           </div>
         </div>
 
-        <button
+        <WindowCloseButton
           aria-label={t("events.create.close")}
-          className="ml-auto grid shrink-0 place-items-center focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] motion-safe:transition-colors"
-          data-testid="events-create-close"
+          className="ml-auto"
           onClick={onClose}
-          style={{
-            borderRadius: pxToRem(createModal.closeRadius),
-            color: "hsl(var(--text-muted))",
-            height: pxToRem(createModal.closeSize),
-            width: pxToRem(createModal.closeSize),
-          }}
-          type="button"
-        >
-          <X
-            aria-hidden="true"
-            style={{
-              height: pxToEm(createModal.closeIconSize),
-              width: pxToEm(createModal.closeIconSize),
-            }}
-          />
-        </button>
+          testId="events-create-close"
+        />
       </div>
 
       <div

@@ -1,6 +1,11 @@
 import type { Locator, Page } from "@playwright/test";
+
+import { APP_LOCALE_COOKIE_NAME } from "@/lib/locale/core";
 import { expect } from "../fixtures/test";
 import { visibleTestId } from "./navigation";
+
+/** `playwright.config.ts` ile aynı kaynak; ikinci bir varsayılan iki farklı adres demekti. */
+const E2E_BASE_URL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
 
 export type MobileQualityViewport = {
   height: number;
@@ -57,6 +62,23 @@ export async function seedMobileClientPreferences(
   page: Page,
   scenario: Pick<MobileClientPreferenceScenario, "locale" | "theme">,
 ): Promise<void> {
+  /*
+   * Dil çerezi **tarayıcı bağlamına** yazılır, sayfanın içinden değil.
+   *
+   * `addInitScript` ilk belge isteği yola çıktıktan sonra koşuyor: `document.cookie` ile
+   * yazılan çerezi sunucu o istekte göremiyor ve `<html lang>`i `en` çiziyordu. Betik `lang`i
+   * hemen `tr`ye çekse bile uygulamanın kendi dil köprüsü sunucunun çözdüğü dili geri
+   * yazıyor — ölçüm bu yüzden `en` görüyordu. Tema aynı sorunu yaşamıyor çünkü onun kaynağı
+   * `localStorage`; dilin kaynağı çerez.
+   */
+  await page.context().addCookies([
+    {
+      name: APP_LOCALE_COOKIE_NAME,
+      url: E2E_BASE_URL,
+      value: scenario.locale,
+    },
+  ]);
+
   await page.addInitScript(({ locale, theme }) => {
     window.localStorage.setItem("wizards.locale", locale);
     window.localStorage.setItem("wizards-theme", theme);

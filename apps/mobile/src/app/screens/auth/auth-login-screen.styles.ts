@@ -1,4 +1,5 @@
 import type { MobileTheme } from "../../../design/themes";
+import { mobileAuthMetrics, mobileAuthTypography } from "../../../design/tokens";
 
 export const createAuthLoginScreenStyles = (theme: MobileTheme) => ({
   divider: {
@@ -84,6 +85,21 @@ export const createAuthLoginScreenStyles = (theme: MobileTheme) => ({
     gap: theme.spacing.row,
     justifyContent: "space-between" as const,
     minWidth: 0,
+  },
+  /** SPEC-GIRIS-KAYIT §6/1 ve §3.4 — başlık satırının sağındaki dil tetikleyicisi. */
+  localeTrigger: {
+    alignItems: "center" as const,
+    alignSelf: "flex-end" as const,
+    borderColor: theme.border.subtle,
+    borderRadius: mobileAuthMetrics.selectorRadius,
+    borderWidth: theme.layout.border.hairline,
+    height: mobileAuthMetrics.selectorHeight,
+    justifyContent: "center" as const,
+    paddingHorizontal: theme.spacing.row,
+  },
+  localeTriggerLabel: {
+    ...mobileAuthTypography.hint,
+    color: theme.text.secondary,
   },
   rememberMe: {
     flexShrink: 0,

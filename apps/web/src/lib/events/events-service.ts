@@ -1,6 +1,7 @@
 import { prisma, type PrismaClient } from "@wizards/db";
 import {
   EVENT_REMINDER_DEFAULT_MINUTES,
+  normalizeServerIconTone,
   type EventAttendee,
   type EventCounts,
   type EventDayBucket,
@@ -324,7 +325,10 @@ function toWhisprEvent(
           },
     rsvp: row.rsvp ? (RSVP_BY_ENUM[row.rsvp] ?? null) : null,
     serverId: row.serverId,
+    serverIconColor: normalizeServerIconTone(row.serverIconColor),
+    serverIconUrl: row.serverIconUrl,
     serverName: row.serverName,
+    serverShortName: row.serverShortName,
     startsAt: row.startsAt.toISOString(),
     startsInMinutes: toStartsInMinutes(row.startsAt, input.now),
     title: row.title,

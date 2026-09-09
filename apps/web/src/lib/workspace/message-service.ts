@@ -16,6 +16,7 @@ import {
   normalizeMessageContentForSend,
 } from "@/lib/messages/attachments";
 import { UNKNOWN_ATTRIBUTION, type ClientAttribution } from "@/lib/analytics/client-attribution";
+import { POLL_SELECT, mapPollToDTO } from "@/lib/polls/presentation";
 import { mapAttachmentsForViewer } from "@/lib/messages/attachment-visibility";
 import {
   normalizeMessageClientNonce,
@@ -132,6 +133,7 @@ const messageInclude = {
       },
     },
   },
+  poll: { select: POLL_SELECT },
 } as const;
 
 type RawMessage = Prisma.MessageGetPayload<{ include: typeof messageInclude }>;
@@ -374,6 +376,7 @@ export function mapRawMessage(
     reactions: groupReactions(message.reactions),
     attachments,
     replyTo,
+    poll: message.poll ? mapPollToDTO(message.poll, viewerId) : null,
     createdAt: message.createdAt.toISOString(),
     forwardedAt: message.forwardedAt?.toISOString() ?? null,
     editedAt: message.editedAt?.toISOString() ?? null,
@@ -729,7 +732,16 @@ type CreateMessageOptions = {
    * want.
    */
   notification?: MessageNotificationContext;
+  poll?: ChannelMessagePollInput | null;
   permissions?: bigint;
+};
+
+export type ChannelMessagePollInput = {
+  anonymous: boolean;
+  closesAt: Date;
+  multi: boolean;
+  options: readonly string[];
+  question: string;
 };
 
 function toCreateMessageArgs(
@@ -750,6 +762,7 @@ function toCreateMessageArgs(
     ...(options.clientNonce ? { clientNonce: options.clientNonce } : {}),
     ...(options.forwardOfMessageId ? { forwardOfMessageId: options.forwardOfMessageId } : {}),
     ...(options.notification ? { notification: options.notification } : {}),
+    ...(options.poll ? { poll: options.poll } : {}),
     ...(options.permissions !== undefined ? { permissions: options.permissions } : {}),
     ...(threadParentId ? { threadParentId } : {}),
     type: "DEFAULT" as const,
@@ -830,6 +843,7 @@ async function createTypedMessage(args: {
   content: string;
   forwardOfMessageId?: string | null;
   notification?: MessageNotificationContext;
+  poll?: ChannelMessagePollInput;
   permissions?: bigint;
   replyToId?: string;
   threadParentId?: string;
@@ -919,6 +933,22 @@ async function createTypedMessage(args: {
       await claimUploadedMessageAttachments(tx, args.userId, attachments, {
         messageId: createdMessage.id,
       });
+
+      if (args.poll) {
+        await tx.poll.create({
+          data: {
+            anonymous: args.poll.anonymous,
+            closesAt: args.poll.closesAt,
+            createdById: args.userId,
+            messageId: createdMessage.id,
+            multi: args.poll.multi,
+            options: {
+              create: args.poll.options.map((label, position) => ({ label, position })),
+            },
+            question: args.poll.question,
+          },
+        });
+      }
 
       const message = (await tx.message.findUniqueOrThrow({
         where: { id: createdMessage.id },

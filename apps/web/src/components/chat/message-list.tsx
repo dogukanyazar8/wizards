@@ -608,6 +608,7 @@ function MessageListContent({
         aria-live="off"
         data-testid="message-list"
         role="log"
+        tabIndex={0}
         style={{
           // SPEC §5.3: dikey boşluk listede, yatay boşluk **satırda**. Yatayı
           // buraya koymak sabitlenen şeridi ve tarih ayracını da içeri iter ve
@@ -679,7 +680,15 @@ function MessageListContent({
         >
           {virtualRows.map(({ row: { message, isGrouped, showDateSeparator }, virtualItem }) => (
             <div
-              className="absolute left-0 top-0 w-full"
+              /*
+               * Sanal satırın `transform`ı her satırı ayrı bir **yığın bağlamı**
+               * yapar: satırın içindeki `z-30` menü yalnız kendi satırının içinde
+               * yükselir, sonraki satırlar DOM sırasıyla onun üstüne boyanır ve
+               * `...` menüsünün satırlarına giden tıklama menüye değil altta
+               * kalan mesaja düşerdi. Menüsü açık satır bu yüzden kardeşlerinin
+               * üstüne alınıyor; menü kapanınca sıra yine DOM sırası.
+               */
+              className="absolute left-0 top-0 w-full has-[[data-actions-open]]:z-30"
               data-index={virtualItem.index}
               data-virtual-message-row
               key={virtualItem.key}
@@ -690,10 +699,7 @@ function MessageListContent({
             >
               {showDateSeparator ? (
                 <div
-                  className={cn(
-                    "sticky top-2 z-10 flex items-center uppercase text-app-soft",
-                    DISPLAY_FONT,
-                  )}
+                  className={cn("relative flex items-center uppercase text-app-soft", DISPLAY_FONT)}
                   data-testid="message-date-separator"
                   role="separator"
                   style={{

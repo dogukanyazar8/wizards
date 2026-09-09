@@ -184,7 +184,9 @@ describe("DiscoverPage durum sözleşmesi", () => {
       ]),
       {
         category: "oyun",
-        initials: "OK",
+        // Sunucu kısaltması üç karakterdir ve adın sıkıştırılmış ilk üç harfinden
+        // türer (`deriveServerShortName`) -- kelime baş harflerinden değil.
+        initials: "OYU",
         name: "Oyun Kulübü Türkiye",
       },
     );

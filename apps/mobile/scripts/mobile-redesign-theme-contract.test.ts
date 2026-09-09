@@ -824,6 +824,23 @@ export function Fixture({ cap }: { cap: number }) {
       featureCommunity: "#E0529C",
       featureFileShare: "#4F9CF6",
       featureVoice: "#E5A346",
+      // SPEC-GIRIS-KAYIT §1.1 — auth yuzeyinin kendi token katmani (paket karari K5).
+      specBackground: "#F9FAFB",
+      specForeground: "#1A202D",
+      specSurfaceCard: "#FFFFFF",
+      specSurfaceSoft: "#E3E6EE",
+      specSurfaceInset: "#F3F5F9",
+      specBorder: "#CED3DE",
+      specPrimary: "#5966F3",
+      specPrimaryForeground: "#FFFFFF",
+      specSuccess: "#2BAB74",
+      specSuccessSoft: "#1E523B",
+      specWarning: "#F4AD2A",
+      specWarningSoft: "#573D19",
+      specDanger: "#EF435A",
+      specDangerSoft: "#82172A",
+      specTextSecondary: "#515C70",
+      specTextMuted: "#778092",
     });
     assert.deepEqual(paletteExports.redesignAuthDark, {
       backgroundDot: "#A5A8F5",
@@ -847,6 +864,23 @@ export function Fixture({ cap }: { cap: number }) {
       featureCommunity: "#E0529C",
       featureFileShare: "#4F9CF6",
       featureVoice: "#E5A346",
+      // SPEC-GIRIS-KAYIT §1.2 — koyu tema tokenlari.
+      specBackground: "#11151D",
+      specForeground: "#F3F4F7",
+      specSurfaceCard: "#1A1E28",
+      specSurfaceSoft: "#2F3541",
+      specSurfaceInset: "#212631",
+      specBorder: "#3B414F",
+      specPrimary: "#6773F4",
+      specPrimaryForeground: "#FFFFFF",
+      specSuccess: "#37BE83",
+      specSuccessSoft: "#9EE5C7",
+      specWarning: "#F7B945",
+      specWarningSoft: "#F7D597",
+      specDanger: "#F15F73",
+      specDangerSoft: "#F9A9B3",
+      specTextSecondary: "#B3BAC6",
+      specTextMuted: "#8D95A5",
     });
   });
 

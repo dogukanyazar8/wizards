@@ -1,10 +1,13 @@
 "use client";
 
-import React, { memo } from "react";
+import React, { memo, useState } from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 
 import { useI18n } from "@/components/providers/locale-provider";
-import type { HomeCardState } from "@/hooks/use-home-queries";
+import { Modal } from "@/components/ui/modal";
+import { toHomeCardState, type HomeCardState } from "@/hooks/use-home-queries";
+import { HOME_STALE_TIME_MS, fetchHomeRecent, homeQueryKeys } from "@/lib/home/client";
 import { HOME_METRICS, HOME_TYPE_SCALE, pxToRem } from "@/lib/home/metrics";
 import { formatRelativeTime, getIconSquareAccent, resolveHomeCopy } from "@/lib/home/presentation";
 import type { AppRecentResponse, HomeRecentItem } from "@/lib/home/types";
@@ -27,6 +30,7 @@ import {
  */
 
 const { continueCard } = HOME_METRICS;
+const HOME_RECENT_DIALOG_LIMIT = 10;
 
 /** İskelet satırı gerçek satırla aynı yüksekliktedir: 38px ikon + 2×10 padding. */
 const ROW_HEIGHT = continueCard.channelIconSize + continueCard.rowPadding * 2;
@@ -208,6 +212,75 @@ function ContinueRow({
   );
 }
 
+function ContinueList({
+  items,
+  now,
+  onOpen,
+}: {
+  items: AppRecentResponse["items"];
+  now: Date;
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <div className="flex flex-col">
+      {items.map((item) => (
+        <ContinueRow item={item} key={`${item.kind}:${item.id}`} now={now} onOpen={onOpen} />
+      ))}
+    </div>
+  );
+}
+
+function HomeRecentDialog({
+  now,
+  onClose,
+  onOpen,
+}: {
+  now: Date;
+  onClose: () => void;
+  onOpen: (id: string) => void;
+}) {
+  const { t } = useI18n();
+  const recent = useQuery({
+    queryFn: () => fetchHomeRecent(HOME_RECENT_DIALOG_LIMIT),
+    queryKey: homeQueryKeys.recent(HOME_RECENT_DIALOG_LIMIT),
+    staleTime: HOME_STALE_TIME_MS.recent,
+  });
+  const state = toHomeCardState(recent);
+  const handleOpen = (id: string) => {
+    onOpen(id);
+    onClose();
+  };
+
+  return (
+    <Modal
+      className="max-w-2xl"
+      closeLabel={t("home.continue.dialogClose")}
+      description={t("home.continue.dialogDescription", { count: HOME_RECENT_DIALOG_LIMIT })}
+      onClose={onClose}
+      open
+      title={t("home.continue.title")}
+    >
+      <div className="max-h-[60dvh] overflow-y-auto" data-testid="home-continue-dialog">
+        {state.status === "loading" ? (
+          <HomeSkeletonRows
+            count={4}
+            gap={0}
+            radius={continueCard.rowRadius}
+            rowHeight={ROW_HEIGHT}
+            testId="home-continue-dialog-skeleton"
+          />
+        ) : state.status === "error" ? (
+          <HomeCardError onRetry={state.retry} testId="home-continue-dialog-error" />
+        ) : state.data.items.length === 0 ? (
+          <HomeCardMessage message={t("home.continue.empty")} testId="home-continue-dialog-empty" />
+        ) : (
+          <ContinueList items={state.data.items} now={now} onOpen={handleOpen} />
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 export type HomeContinueCardProps = {
   now: Date;
   onOpen: (id: string) => void;
@@ -217,42 +290,50 @@ export type HomeContinueCardProps = {
 
 function HomeContinueCardComponent({ now, onOpen, rowCount, state }: HomeContinueCardProps) {
   const { t } = useI18n();
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
-    <HomeCard
-      accessory={
-        <HomeHeaderLink fontSize={continueCard.headerLinkFontSize} href="/channels">
-          {t("home.continue.seeAll")}
-        </HomeHeaderLink>
-      }
-      columnSpan={continueCard.columnSpan}
-      cardId="continue"
-      headerMarginBottom={continueCard.headerMarginBottom}
-      headerMarginX={continueCard.headerMarginX}
-      label={t("home.continue.title")}
-      padding={CARD_PADDING}
-      testId="home-continue-card"
-    >
-      {state.status === "loading" ? (
-        <HomeSkeletonRows
-          count={rowCount}
-          gap={0}
-          radius={continueCard.rowRadius}
-          rowHeight={ROW_HEIGHT}
-          testId="home-continue-skeleton"
-        />
-      ) : state.status === "error" ? (
-        <HomeCardError onRetry={state.retry} testId="home-continue-error" />
-      ) : state.data.items.length === 0 ? (
-        <HomeCardMessage message={t("home.continue.empty")} testId="home-continue-empty" />
-      ) : (
-        <div className="flex flex-col">
-          {state.data.items.map((item) => (
-            <ContinueRow item={item} key={item.id} now={now} onOpen={onOpen} />
-          ))}
-        </div>
-      )}
-    </HomeCard>
+    <>
+      <HomeCard
+        accessory={
+          <HomeHeaderLink
+            aria-expanded={dialogOpen}
+            aria-haspopup="dialog"
+            fontSize={continueCard.headerLinkFontSize}
+            onClick={() => setDialogOpen(true)}
+          >
+            {t("home.continue.seeAll")}
+          </HomeHeaderLink>
+        }
+        columnSpan={continueCard.columnSpan}
+        cardId="continue"
+        headerMarginBottom={continueCard.headerMarginBottom}
+        headerMarginX={continueCard.headerMarginX}
+        label={t("home.continue.title")}
+        padding={CARD_PADDING}
+        testId="home-continue-card"
+      >
+        {state.status === "loading" ? (
+          <HomeSkeletonRows
+            count={rowCount}
+            gap={0}
+            radius={continueCard.rowRadius}
+            rowHeight={ROW_HEIGHT}
+            testId="home-continue-skeleton"
+          />
+        ) : state.status === "error" ? (
+          <HomeCardError onRetry={state.retry} testId="home-continue-error" />
+        ) : state.data.items.length === 0 ? (
+          <HomeCardMessage message={t("home.continue.empty")} testId="home-continue-empty" />
+        ) : (
+          <ContinueList items={state.data.items} now={now} onOpen={onOpen} />
+        )}
+      </HomeCard>
+
+      {dialogOpen ? (
+        <HomeRecentDialog now={now} onClose={() => setDialogOpen(false)} onOpen={onOpen} />
+      ) : null}
+    </>
   );
 }
 

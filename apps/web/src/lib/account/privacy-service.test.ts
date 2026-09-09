@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { prisma } from "@wizards/db";
+import { Prisma, prisma } from "@wizards/db";
+
+import { ApiError } from "@/lib/api";
 
 import {
   ACCOUNT_DELETION_CONFIRMATION,
@@ -9,7 +11,10 @@ import {
   createAccountDataExportDocument,
   collectAccountUploadThingFileKeys,
   extractUploadThingFileKey,
+  getMessagingPrivacy,
   serializeAccountDataExport,
+  updateMessagingPrivacy,
+  type MessagingPrivacyStore,
 } from "./privacy-service";
 
 type Restore = () => void;
@@ -397,5 +402,100 @@ describe("account privacy service", { concurrency: false }, () => {
     );
 
     assert.equal(storageDeletes, 0);
+  });
+});
+
+/** Mesajlar §15.5 madde 2 / karar K9. */
+describe("messaging privacy preferences", () => {
+  function store(
+    initial = { showReadReceipts: true, showTypingIndicator: true },
+  ): MessagingPrivacyStore & { writes: unknown[] } {
+    const writes: unknown[] = [];
+
+    return {
+      writes,
+      findSettings: async () => initial,
+      updateSettings: async (_userId, data) => {
+        writes.push(data);
+        return { ...initial, ...data };
+      },
+    };
+  }
+
+  it("reads both switches", async () => {
+    assert.deepEqual(
+      await getMessagingPrivacy(
+        "user-1",
+        store({ showReadReceipts: false, showTypingIndicator: true }),
+      ),
+      { readReceipts: false, typingIndicator: true },
+    );
+  });
+
+  it("treats an account with no settings row as both switches on", async () => {
+    assert.deepEqual(
+      await getMessagingPrivacy("user-1", {
+        findSettings: async () => null,
+        updateSettings: async () => {
+          throw new Error("not reached");
+        },
+      }),
+      { readReceipts: true, typingIndicator: true },
+    );
+  });
+
+  // The card sends the switch that moved, not both. Writing the absent one would
+  // let a stale card silently undo a change made on another device.
+  it("writes only the column the request named", async () => {
+    const dependencies = store();
+
+    const result = await updateMessagingPrivacy("user-1", { readReceipts: false }, dependencies);
+
+    assert.deepEqual(dependencies.writes, [{ showReadReceipts: false }]);
+    assert.deepEqual(result, { readReceipts: false, typingIndicator: true });
+  });
+
+  it("writes both when both moved", async () => {
+    const dependencies = store();
+
+    await updateMessagingPrivacy(
+      "user-1",
+      { readReceipts: false, typingIndicator: false },
+      dependencies,
+    );
+
+    assert.deepEqual(dependencies.writes, [
+      { showReadReceipts: false, showTypingIndicator: false },
+    ]);
+  });
+
+  it("refuses a body that names no preference", async () => {
+    const dependencies = store();
+
+    await assert.rejects(
+      () => updateMessagingPrivacy("user-1", {} as never, dependencies),
+      (error: unknown) => error instanceof ApiError && error.status === 400,
+    );
+    assert.deepEqual(dependencies.writes, []);
+  });
+
+  it("reports a missing settings row as a 404 rather than a Prisma failure", async () => {
+    await assert.rejects(
+      () =>
+        updateMessagingPrivacy(
+          "user-1",
+          { typingIndicator: false },
+          {
+            findSettings: async () => null,
+            updateSettings: async () => {
+              throw new Prisma.PrismaClientKnownRequestError("No record was found", {
+                clientVersion: "test",
+                code: "P2025",
+              });
+            },
+          },
+        ),
+      (error: unknown) => error instanceof ApiError && error.status === 404,
+    );
   });
 });

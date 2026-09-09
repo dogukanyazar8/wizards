@@ -113,7 +113,7 @@ export function MentionsEmptyState({ filtered, routeState }: MentionsEmptyStateP
           </Link>
         )}
         <Link
-          className="grid place-items-center bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition-colors hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="grid place-items-center bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           data-testid="mentions-empty-settings"
           href={buildMentionsHref({ ...routeState, settingsOpen: true })}
           scroll={false}

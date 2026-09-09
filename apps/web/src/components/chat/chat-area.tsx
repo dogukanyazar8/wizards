@@ -2,21 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import {
-  AtSign,
-  Bell,
-  BellOff,
-  ChevronDown,
-  Hash,
-  Lock,
-  Pin,
-  Search,
-  Users,
-  X,
-} from "lucide-react";
+import { ChevronDown, Lock, Pin, Search, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   ChatMessage,
+  ConversationToast,
   DMConversationDTO,
   DMMessagePayload,
   DMParticipantDTO,
@@ -32,11 +22,13 @@ import { Modal } from "@/components/ui/modal";
 import { MESSAGES_METRICS } from "@/lib/messages/metrics";
 import { MessageSearchPanel } from "./message-search-panel";
 import { ConversationHeader } from "@/components/messages/conversation-header";
+import { ConversationToastStrip } from "@/components/messages/conversation-toast";
 import { MessagePoll } from "@/components/messages/message-poll";
 import { MessagesSearchPanel } from "@/components/messages/messages-search-panel";
 import { PinnedListSheet } from "@/components/messages/pinned-list-sheet";
 import { PinnedStrip } from "@/components/messages/pinned-strip";
 import { PollComposer } from "@/components/messages/poll-composer";
+import { ServerChannelHeader } from "@/components/chat/server-channel-header";
 import { PollVotersSheet } from "@/components/messages/poll-voters-sheet";
 import { ForwardMessageSheet } from "@/components/messages/forward-message-sheet";
 import { useConversationRows } from "@/hooks/use-conversation-rows";
@@ -53,7 +45,6 @@ import {
 } from "@/lib/messages/screen-client";
 import { ThreadPanel } from "./thread-panel";
 import { TypingIndicator } from "./typing-indicator";
-import { createRafThrottledCallback } from "@/lib/ui/raf-throttle";
 import { shouldFocusComposer } from "@/lib/home/href";
 import { ServerMemberPanel } from "@/components/shell/server-member-panel";
 import { DmComposer, DmMessageSurface } from "@/components/dm/dm-conversation";
@@ -74,15 +65,29 @@ import { DmCallView } from "@/components/dm/dm-call-view";
 import { useDMCallActions } from "@/components/providers/dm-call-provider";
 import { useDMCallStore } from "@/store/dm-call-store";
 import { useBodyScrollLock, useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { useRightPanelVisibility } from "@/hooks/use-right-panel-visibility";
 import { useTyping } from "@/hooks/use-typing";
+import { useAppShortcutLabel } from "@/hooks/use-app-shortcut-label";
+import { matchesAppShortcut } from "@/lib/shortcuts/catalog";
 import {
   fetchChannelNotificationSettings,
   fetchChannelPinnedMessages,
   fetchWorkspaceServer,
-  updateChannelNotificationSettings,
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
 import { useAppStore } from "@/lib/store";
+import { jumpToMessageInDocument } from "@/lib/messages/jump-to-message";
+import {
+  setServerRightPanelContent,
+  useServerRightPanelContent,
+} from "@/lib/servers/right-panel-store";
+import {
+  findWorkspaceChannel,
+  resolveChannelAccessCount,
+  resolveChannelAccessPreset,
+  resolveChannelCategoryName,
+} from "@/lib/servers/channel-access-count";
+import { toChannelPinnedMessages } from "@/lib/servers/channel-pins";
 import { RESPONSIVE_SHELL_SIZES } from "@/lib/responsive";
 
 interface ChatAreaProps {
@@ -98,6 +103,37 @@ interface ChatAreaProps {
   currentUserDisplayName: string;
   currentUserUsername: string;
   canModerate: boolean;
+  /**
+   * §17'nin toast şeridi. Kayıt ekranın durum makinesinden gelir ve **tek** olur;
+   * şerit başlığın altına, sabitlenen şeridin üstüne çizilir (`Mesajlar.dc.html`).
+   * Zamanlayıcı burada değil, `useConversationToast` içinde.
+   */
+  conversationToast?: ConversationToast | null;
+  onDismissConversationToast?: (() => void) | undefined;
+  /**
+   * §17'nin `...` menüsü. `ChatArea` menüyü **kurmaz**, yalnız başlığın yuvasına
+   * iletir: menünün her satırı ekranın durum makinesine bağlı ve o makine bir üstteki
+   * sayfada yaşıyor (K14). Burada kurulsaydı `ChatArea` hem kanal hem DM için ikinci
+   * bir durum sahibi olurdu.
+   */
+  /**
+   * §2 / K5 — sağ yuvanın **tek** olduğunu iki sahip arasında tutan sözleşme.
+   *
+   * Thread ve arama bu bileşenin kendi durumunda, profil paneli ekranın durum
+   * makinesinde yaşıyor. İkisi de yuvayı elinde sanırsa ikisi de çizer ve 1360'ta
+   * 340 + 330 ana alana 60px bırakır — sözlük 390 istiyor.
+   *
+   * `onSidePanelOpen`: burası yuvayı aldığında ekranın profili kapatması için.
+   * `sidePanelCloseRequestId`: ekran profili açtığında buranın kendi panelini
+   * bırakması için (sayaç, çünkü profili iki kez açmak iki kez görülmeli).
+   */
+  onSidePanelOpen?: (() => void) | undefined;
+  sidePanelCloseRequestId?: number;
+  conversationMoreMenu?: React.ReactNode;
+  conversationMoreOpen?: boolean;
+  conversationMuted?: boolean;
+  conversationMutedUntil?: string | null;
+  onUnmuteConversation?: (() => void) | undefined;
   directMessageSearchRequestId?: number;
   directMessageParticipant?: DMParticipantDTO | null;
   /**
@@ -246,28 +282,6 @@ type PendingMessagePayload = {
   tempId: string;
 };
 
-type FloatingPanelPosition = {
-  left: number;
-  top: number;
-  width: number;
-};
-
-function getFloatingPanelPosition(anchor: HTMLElement | null): FloatingPanelPosition | null {
-  if (!anchor || typeof window === "undefined") {
-    return null;
-  }
-
-  const rect = anchor.getBoundingClientRect();
-  const margin = 12;
-  const gap = 8;
-  const width = Math.min(320, window.innerWidth - margin * 2);
-  const left = Math.min(Math.max(rect.right - width, margin), window.innerWidth - width - margin);
-  const top = Math.min(rect.bottom + gap, window.innerHeight - margin);
-
-  return { left, top, width };
-}
-
-/** `useSyncExternalStore` aboneliği — konum değişimi `popstate` ile duyurulur. */
 function subscribeToLocation(listener: () => void) {
   window.addEventListener("popstate", listener);
 
@@ -299,16 +313,26 @@ function ChatAreaContent({
   currentUserDisplayName,
   currentUserUsername,
   canModerate,
+  conversationMoreMenu = null,
+  conversationMoreOpen = false,
+  conversationMuted = false,
+  conversationMutedUntil = null,
+  conversationToast = null,
   directMessageSearchRequestId = 0,
   directMessageParticipant = null,
   directMessageConversation = null,
   initialUnreadMessageId = null,
   messageCharacterLimit = 2000,
+  onDismissConversationToast,
   onOpenDirectMessageDetails,
+  onSidePanelOpen,
+  onUnmuteConversation,
+  sidePanelCloseRequestId = 0,
   serverId,
   uploadthingEnabled,
 }: ChatAreaProps) {
   const { locale, t } = useI18n();
+  const chatSearchShortcut = useAppShortcutLabel("chat.search");
   const isGroupConversation = Boolean(
     directMessageConversation && isGroupDm(directMessageConversation),
   );
@@ -333,6 +357,14 @@ function ChatAreaContent({
     responsiveLayout.viewportWidth > 0 &&
     responsiveLayout.viewportWidth < MESSAGES_METRICS.layout.sidePanelOverlayBelow;
   const setMobileSidebarOpen = useAppStore((state) => state.setMobileSidebarOpen);
+  const rightPanel = useRightPanelVisibility();
+  /**
+   * Ş6 · Ş9 §5.2'nin devri. Başlıktaki zil artık `chat-area`in kendi açılırını değil,
+   * SPEC §6.4'ün 460 px'lik penceresini açıyor (`ChannelNotificationsModal`). Eski açılır,
+   * konumlandırıcısı ve mutasyonu birlikte silindi: iki yerde iki ayrı bildirim yüzeyi,
+   * ikisinin ilk düzenlemede ayrışması demekti.
+   */
+  const openChannelNotificationsModal = useAppStore((state) => state.openChannelNotificationsModal);
   const serverMembersQuery = useQuery({
     enabled: mode === "channel" && Boolean(serverId),
     queryFn: () => fetchWorkspaceServer(serverId!),
@@ -399,17 +431,6 @@ function ChatAreaContent({
       setPollComposerOpen(false);
     },
   });
-  const notificationSettingsMutation = useMutation({
-    mutationFn: (level: "all" | "mentions" | "muted") =>
-      updateChannelNotificationSettings(conversationId, level),
-    onSuccess: (settings) => {
-      queryClient.setQueryData(
-        ["workspace", "channel", conversationId, "notification-settings"],
-        settings,
-      );
-      setShowNotificationMenu(false);
-    },
-  });
   const { typingUsers } = useTyping(conversationId, mode);
   const { endCall, startCall } = useDMCallActions();
   const callSession = useDMCallStore((state) => state.session);
@@ -434,7 +455,6 @@ function ChatAreaContent({
   };
   const pendingMessagesRef = useRef<Map<string, PendingMessagePayload>>(new Map());
   const pendingOrderRef = useRef<string[]>([]);
-  const notificationButtonRef = useRef<HTMLButtonElement | null>(null);
   const searchButtonRef = useRef<HTMLButtonElement | null>(null);
   const [replyTo, setReplyTo] = useState<{
     id: string;
@@ -460,21 +480,29 @@ function ChatAreaContent({
   const [isSearchManuallyOpen, setIsSearchManuallyOpen] = useState(false);
   const [dismissedSearchRequestId, setDismissedSearchRequestId] = useState(0);
   const [isMembersDrawerRequested, setIsMembersDrawerRequested] = useState(false);
-  const [showNotificationMenu, setShowNotificationMenu] = useState(false);
   const [pollComposerOpen, setPollComposerOpen] = useState(false);
   const [pinnedSheetOpen, setPinnedSheetOpen] = useState(false);
   /** Görüntüleyenin kapattığı sabit; yeni bir sabit gelince şerit geri döner. */
   const [dismissedPinId, setDismissedPinId] = useState<string | null>(null);
   /** İletilecek mesajın kimliği; `null` iken seçici kapalı. */
   const [forwardMessageId, setForwardMessageId] = useState<string | null>(null);
-  const [notificationMenuPosition, setNotificationMenuPosition] =
-    useState<FloatingPanelPosition | null>(null);
-  const visibleNotificationMenuPosition = showNotificationMenu ? notificationMenuPosition : null;
   const channelTitle = channelName?.trim() || conversationId;
   const channelDescription = channelTopic?.trim() || null;
+  /**
+   * Ş5 · SPEC-SUNUCU §4.3: sunucu kanalında arama sağ panelin **içeriği**, ayrı bir açılır
+   * pencere değil. Panel monte edilemeyecek kadar dar bir ekranda (`<1280px`) eski açılır
+   * pencere davranışı korunur; DM'in arama yüzeyi hiç değişmez.
+   */
+  const canUseRightPanelSearch =
+    mode === "channel" && responsiveLayout.shouldMountDesktopSupportPanel;
+  const rightPanelContent = useServerRightPanelContent();
+  const isRightPanelSearchOpen = canUseRightPanelSearch && rightPanelContent === "search";
+  const isMembersPanelOpen =
+    canUseRightPanelSearch && rightPanel.isOpen && rightPanelContent === "members";
   const showSearch =
     isSearchManuallyOpen ||
     (mode === "dm" && directMessageSearchRequestId > dismissedSearchRequestId);
+  const isSearchOpen = showSearch || isRightPanelSearchOpen;
   const showMembersDrawer = isMembersDrawerRequested && responsiveLayout.shouldMountInfoDrawer;
   const shouldShowInfoDrawer =
     showMembersDrawer &&
@@ -494,15 +522,25 @@ function ChatAreaContent({
   );
 
   const openSearch = () => {
+    if (canUseRightPanelSearch) {
+      // Panel kullanıcı tarafından kapatılmış olabilir; arama düğmesi onu geri açar, yoksa
+      // düğme hiçbir şey yapmamış gibi görünürdü. Katman kipinde (§11) açılan bayrak
+      // farklıdır — hangisi olduğunu kanca bilir.
+      rightPanel.setOpen(true);
+      setServerRightPanelContent("search");
+      return;
+    }
+
     setIsSearchManuallyOpen(true);
   };
 
-  const closeSearch = () => {
+  const closeSearch = useCallback(() => {
+    setServerRightPanelContent("members");
     setIsSearchManuallyOpen(false);
     if (mode === "dm") {
       setDismissedSearchRequestId((current) => Math.max(current, directMessageSearchRequestId));
     }
-  };
+  }, [directMessageSearchRequestId, mode, setDismissedSearchRequestId, setIsSearchManuallyOpen]);
 
   /**
    * SPEC §6.3: thread ve arama **aynı anda açılmaz**. İkisi de 340px'lik aynı
@@ -510,65 +548,39 @@ function ChatAreaContent({
    * birinin diğerinin altında görünmez kalması demektir.
    */
   const toggleSearchPanel = () => {
-    if (showSearch) {
+    if (isSearchOpen) {
       closeSearch();
       return;
     }
 
     setSelectedThread(null);
     openSearch();
+    // Yuvanın öteki sahibi de bırakmalı; kapatma sırası ikisinde de aynı yönde.
+    onSidePanelOpen?.();
   };
 
   const openThreadPanel = (message: ChatMessage) => {
     closeSearch();
     setSelectedThread(message);
+    onSidePanelOpen?.();
   };
 
-  const updateNotificationMenuPosition = useCallback(() => {
-    const nextPosition = getFloatingPanelPosition(notificationButtonRef.current);
-    setNotificationMenuPosition((currentPosition) =>
-      currentPosition?.left === nextPosition?.left &&
-      currentPosition?.top === nextPosition?.top &&
-      currentPosition?.width === nextPosition?.width
-        ? currentPosition
-        : nextPosition,
-    );
-  }, []);
-
+  /**
+   * Ekran profili açtığında bu bileşen yuvayı bırakır.
+   *
+   * İlk render'da koşmaz: sayaç sıfırdan başlar ve profil paneli geniş görünümde
+   * zaten açık gelir; koşsaydı açılışta hiçbir şey kapatmadan bir render harcardı.
+   */
+  const sidePanelCloseSeenRef = useRef(sidePanelCloseRequestId);
   useEffect(() => {
-    if (!showNotificationMenu) {
+    if (sidePanelCloseSeenRef.current === sidePanelCloseRequestId) {
       return;
     }
 
-    updateNotificationMenuPosition();
-    // Capture-phase scroll fires for every descendant scroller. Coalesce those
-    // events before reading layout so the chat tree does not rerender per event.
-    const throttledScroll = createRafThrottledCallback(updateNotificationMenuPosition);
-
-    window.addEventListener("resize", updateNotificationMenuPosition);
-    window.addEventListener("scroll", throttledScroll.run, true);
-    return () => {
-      throttledScroll.cancel();
-      window.removeEventListener("resize", updateNotificationMenuPosition);
-      window.removeEventListener("scroll", throttledScroll.run, true);
-    };
-  }, [showNotificationMenu, updateNotificationMenuPosition]);
-
-  useEffect(() => {
-    if (!showNotificationMenu) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setShowNotificationMenu(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showNotificationMenu]);
+    sidePanelCloseSeenRef.current = sidePanelCloseRequestId;
+    setSelectedThread(null);
+    closeSearch();
+  }, [closeSearch, sidePanelCloseRequestId]);
 
   useEffect(() => {
     if (!shouldShowInfoDrawer) {
@@ -588,18 +600,7 @@ function ChatAreaContent({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      const isShortcut =
-        (event.ctrlKey || event.metaKey) && (event.key === "k" || event.key === "f");
-      if (!isShortcut) {
-        return;
-      }
-
-      const target = event.target;
-      const isTypingTarget =
-        target instanceof HTMLElement &&
-        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
-
-      if (event.key === "f" && isTypingTarget) {
+      if (!matchesAppShortcut("chat.search", event)) {
         return;
       }
 
@@ -918,23 +919,40 @@ function ChatAreaContent({
   const hasPinnedMessages = mode === "channel" && pinnedMessages.length > 0;
   const showPinnedMessages = isPinnedMessagesRequested && hasPinnedMessages;
   const notificationLevel = notificationSettingsQuery.data?.level ?? "all";
-  const NotificationIcon =
-    notificationLevel === "muted" ? BellOff : notificationLevel === "mentions" ? AtSign : Bell;
+  /**
+   * Ş6 · SPEC-SUNUCU §3.2 — kanal sabitleri çubuğun okuduğu şekle çevrilir. Sıralama ve
+   * "ek-only" etiketi `lib/servers/channel-pins.ts`te; bileşen iki farklı şekil bilmez.
+   */
+  const channelPins = useMemo(
+    () =>
+      mode === "channel"
+        ? toChannelPinnedMessages(pinnedMessages, {
+            attachmentOnlyLabel: t("chat.pins.attachmentOnly"),
+            canModerate,
+          })
+        : [],
+    [canModerate, mode, pinnedMessages, t],
+  );
+  /** §3.1 alt satırı — kategori çipi ve `N üye erişebilir`. */
+  const activeChannelRecord = findWorkspaceChannel(serverMembersQuery.data ?? null, conversationId);
+  const channelCategoryName = resolveChannelCategoryName(
+    serverMembersQuery.data ?? null,
+    conversationId,
+  );
+  const channelAccessCount =
+    mode === "channel" && serverMembersQuery.data
+      ? resolveChannelAccessCount({
+          memberCount: serverMembersQuery.data.server.memberCount,
+          preset: resolveChannelAccessPreset(
+            activeChannelRecord ?? { locked: channelLocked, permissionPreset: undefined },
+          ),
+        })
+      : null;
 
+  // Ş5: davranış `lib/messages/jump-to-message.ts`e taşındı — sağ panelin arama içeriği de
+  // aynı atlamayı kullanıyor ve buradaki yerel kopyaya erişemiyordu.
   const jumpToMessage = useCallback((messageId: string) => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("message", messageId);
-    window.history.pushState(null, "", url);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-
-    const target = document.querySelector(`[data-message-id="${messageId}"]`);
-    if (target instanceof HTMLElement) {
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
-      target.dataset.jumpHighlight = "true";
-      window.setTimeout(() => {
-        delete target.dataset.jumpHighlight;
-      }, 1400);
-    }
+    jumpToMessageInDocument(messageId);
   }, []);
 
   const closeThreadPanel = () => {
@@ -952,8 +970,22 @@ function ChatAreaContent({
     setMobileSidebarOpen(false);
     setIsPinnedMessagesRequested(false);
     closeSearch();
-    setShowNotificationMenu(false);
     setIsMembersDrawerRequested(true);
+  };
+
+  /**
+   * Ş5 · SPEC-SUNUCU §3.1'in `Üyeler` düğmesi. Masaüstünde sağ panel bir çekmece değil bir
+   * kolon: düğme onu açıp kapatır. Panelin kendi kapatma düğmesi (§4) onu gizleyebildiği için
+   * geri açan bir kontrol **şart** — yoksa kapatma tek yönlü bir kapı olurdu.
+   */
+  const toggleMembersPanel = () => {
+    if (!canUseRightPanelSearch) {
+      openInfoDrawer();
+      return;
+    }
+
+    setServerRightPanelContent("members");
+    rightPanel.setOpen(!rightPanel.isOpen);
   };
 
   /**
@@ -1099,6 +1131,19 @@ function ChatAreaContent({
           pins={dmPinsQuery.data ?? EMPTY_PINS}
         />
       ) : null}
+      {/*
+        Ş6 · SPEC-SUNUCU §3.2 — sabitlenen yoksa çubuk **çizilmez** (`selectVisiblePin`
+        `null` döner). Aynı bileşen, kendi ölçüleriyle; kapatma düğmesi DM'e ait.
+      */}
+      {mode === "channel" ? (
+        <PinnedStrip
+          dismissedId={null}
+          onDismiss={setDismissedPinId}
+          onSeeAll={() => setPinnedSheetOpen(true)}
+          pins={channelPins}
+          variant="server"
+        />
+      ) : null}
       <MessageList
         conversationId={conversationId}
         mode={mode}
@@ -1109,9 +1154,8 @@ function ChatAreaContent({
         {...(groupSenderColors ? { senderColors: groupSenderColors } : {})}
         {...(mode === "dm" ? { currentUsername: currentUserUsername } : {})}
         {...(groupParticipantRoles ? { participantRoles: groupParticipantRoles } : {})}
-        {...(mode === "dm"
-          ? { renderPollSlot, onTogglePin: handleTogglePin, onForward: setForwardMessageId }
-          : {})}
+        renderPollSlot={renderPollSlot}
+        {...(mode === "dm" ? { onTogglePin: handleTogglePin, onForward: setForwardMessageId } : {})}
         /*
          * `onOpenThread` **verilmiyor**: satır kök mesajın kendisini taşıyor ve
          * panel onu istiyor. Kimlikle gelen bir geri çağrı, mesajı listede
@@ -1123,7 +1167,7 @@ function ChatAreaContent({
         onRetry={retryOptimisticMessage}
         onThread={openThreadPanel}
       />
-      <TypingIndicator typingUsers={typingUsers} />
+      <TypingIndicator mode={mode === "channel" ? "channel" : "dm"} typingUsers={typingUsers} />
       {mode === "dm" ? (
         <DmComposer>
           <MessageInput
@@ -1164,9 +1208,14 @@ function ChatAreaContent({
           onCancelReply={() => setReplyTo(null)}
           allowFileUploads={allowFileUploads}
           allowGifs={allowGifs}
+          // Ş6 · SPEC-SUNUCU §3.4 — placeholder `#<kanal> kanalına yaz`. Bestekâr kanalı
+          // bilmiyor; adı buradan alıyor (Mesajlar §5.6 ile aynı sözleşme).
+          conversationName={channelName?.trim() ?? ""}
           maxLength={messageCharacterLimit}
           mentionMembers={serverMembersQuery.data?.members ?? []}
           mentionRoles={mentionableRoles}
+          onOpenPoll={() => setPollComposerOpen(true)}
+          pollEnabled
           uploadthingEnabled={uploadthingEnabled}
         />
       )}
@@ -1175,53 +1224,6 @@ function ChatAreaContent({
 
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-transparent">
-      {showNotificationMenu && visibleNotificationMenuPosition && typeof document !== "undefined"
-        ? createPortal(
-            <div
-              className="fixed inset-0 z-[1000]"
-              onPointerDown={() => setShowNotificationMenu(false)}
-              role="presentation"
-            >
-              <div
-                className="app-panel fixed rounded-[1.375rem] border bg-[hsl(var(--surface-card))] p-2 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.2)] backdrop-blur-xl"
-                data-testid="channel-notification-settings-menu"
-                onPointerDown={(event) => event.stopPropagation()}
-                role="menu"
-                style={{
-                  left: visibleNotificationMenuPosition.left,
-                  top: visibleNotificationMenuPosition.top,
-                  width: visibleNotificationMenuPosition.width,
-                }}
-              >
-                {(["all", "mentions", "muted"] as const).map((level) => {
-                  const Icon = level === "muted" ? BellOff : level === "mentions" ? AtSign : Bell;
-
-                  return (
-                    <button
-                      className="flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-sm font-semibold text-app-foreground transition hover:bg-app-surface-soft focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
-                      disabled={notificationSettingsMutation.isPending}
-                      key={level}
-                      onClick={() => {
-                        notificationSettingsMutation.mutate(level);
-                      }}
-                      role="menuitem"
-                      type="button"
-                    >
-                      <Icon className="h-4 w-4 text-app-muted" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block">{t(`chat.notifications.${level}`)}</span>
-                        <span className="block text-[0.6875rem] font-medium text-app-muted">
-                          {t(`chat.notifications.${level}Hint`)}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
       {mode === "channel" &&
       shouldShowInfoDrawer &&
       serverMembersQuery.data &&
@@ -1286,8 +1288,13 @@ function ChatAreaContent({
                 variant: "dm" as const,
               })}
           callDisabled={Boolean(callSession)}
+          moreMenu={conversationMoreMenu}
+          moreOpen={conversationMoreOpen}
+          muted={conversationMuted}
+          mutedUntil={conversationMutedUntil}
           onOpenMore={onOpenDirectMessageDetails}
           onOpenSearch={toggleSearchPanel}
+          onUnmute={onUnmuteConversation}
           onOpenPins={() => setPinnedSheetOpen(true)}
           onStartVideoCall={() => startDirectCall(true)}
           onStartVoiceCall={() => startDirectCall(false)}
@@ -1295,144 +1302,47 @@ function ChatAreaContent({
         />
       ) : null}
 
+      {/*
+        §17 · Ş0.1 sapma #2. `Mesajlar.dc.html` şeridi başlığın hemen **altına**,
+        sabitlenen şeridin **üstüne** koyuyor; SPEC'in "sabitlenen şeridin altında"
+        cümlesi otorite sırasında kaybetti. Sabitlenen şerit `messageConversationContent`
+        içinde, yani bu satır tam olarak ikisinin arasında duruyor.
+      */}
+      {mode === "dm" ? (
+        <ConversationToastStrip
+          onDismiss={onDismissConversationToast ?? (() => undefined)}
+          toast={conversationToast}
+        />
+      ) : null}
+
       {mode === "channel" ? (
         <div
-          className="sticky top-0 z-30 min-w-0 px-2 py-1 backdrop-blur-xl md:px-4 md:py-2"
+          className="sticky top-0 z-30 min-w-0 bg-[hsl(var(--background))]"
           data-testid="chat-channel-header"
         >
-          <div className="flex min-h-11 min-w-0 items-center gap-2 p-1 md:min-h-12 md:gap-3 md:p-1.5">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.875rem] bg-[hsl(var(--primary)/0.1)] text-[var(--primary-readable)] md:h-10 md:w-10 md:rounded-[1rem]">
-              <Hash className="h-4 w-4 md:h-5 md:w-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex min-w-0 items-center gap-2">
-                <h1 className="truncate text-sm font-bold text-app-foreground sm:text-base md:text-lg">
-                  {channelTitle}
-                </h1>
-                {channelLocked ? (
-                  <Lock className="h-3.5 w-3.5 shrink-0 text-app-muted" aria-hidden="true" />
-                ) : null}
-              </div>
-              {channelDescription ? (
-                <p className="mt-0.5 hidden truncate text-[0.6875rem] font-medium text-app-muted min-[420px]:block sm:text-xs">
-                  {channelDescription}
-                </p>
-              ) : null}
-            </div>
-
-            <div className="flex max-w-[calc(100vw-12rem)] shrink-0 items-center gap-0.5 overflow-x-auto rounded-[1rem] bg-[hsl(var(--surface-soft)/0.34)] p-0.5 backdrop-blur-md [-ms-overflow-style:none] [scrollbar-width:none] sm:max-w-none sm:gap-1 sm:p-1 [&::-webkit-scrollbar]:hidden">
-              {hasPinnedMessages ? (
-                <div className="relative">
-                  <button
-                    aria-expanded={showPinnedMessages}
-                    aria-label={t("chat.pins.title", { count: pinnedMessages.length })}
-                    className="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-2xl px-2 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] sm:px-3"
-                    data-testid="channel-pins-toggle"
-                    onClick={() => setIsPinnedMessagesRequested((current) => !current)}
-                    type="button"
-                  >
-                    <Pin className="h-3.5 w-3.5" />
-                    <span className="hidden lg:inline">
-                      {t("chat.pins.title", { count: pinnedMessages.length })}
-                    </span>
-                    <ChevronDown className="hidden h-3 w-3 lg:block" />
-                  </button>
-
-                  {showPinnedMessages ? (
-                    <div
-                      className="absolute right-0 top-[calc(100%+0.55rem)] z-[90] max-h-[min(48dvh,26rem)] w-[min(30rem,calc(100vw-2rem))] overflow-y-auto rounded-[1.625rem] border border-[hsl(var(--border)/0.82)] bg-[hsl(var(--background))] p-3 shadow-[0_32px_80px_hsl(var(--shadow-color)/0.3)] ring-1 ring-[hsl(var(--background)/0.9)]"
-                      data-testid="channel-pins-list"
-                    >
-                      <div className="mb-2 flex items-center justify-between gap-3 px-2 py-1.5">
-                        <p className="text-[0.6875rem] font-bold uppercase tracking-[0.16em] text-app-soft">
-                          {t("chat.pins.pinnedMessages")}
-                        </p>
-                        <button
-                          aria-label={t("common.close")}
-                          className="rounded-full p-1 text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                          onClick={() => setIsPinnedMessagesRequested(false)}
-                          type="button"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                      <div className="space-y-2">
-                        {pinnedMessages.map((message) => (
-                          <button
-                            className="grid w-full min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-[1.25rem] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card))] px-3 py-2.5 text-left shadow-[0_12px_28px_hsl(var(--shadow-color)/0.07)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
-                            key={message.id}
-                            onClick={() => {
-                              setIsPinnedMessagesRequested(false);
-                              jumpToMessage(message.id);
-                            }}
-                            type="button"
-                          >
-                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.1)] text-[var(--primary-readable)] shadow-[0_10px_24px_hsl(var(--primary)/0.1)]">
-                              <Pin className="h-3.5 w-3.5" />
-                            </span>
-                            <span className="min-w-0">
-                              <span className="flex min-w-0 items-center gap-2">
-                                <span className="truncate text-sm font-bold text-app-foreground">
-                                  {message.author.displayName}
-                                </span>
-                                <span className="shrink-0 rounded-full border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] px-2 py-0.5 text-[0.625rem] font-black uppercase tracking-[0.13em] text-[hsl(var(--primary))]">
-                                  {t("chat.pins.badge")}
-                                </span>
-                              </span>
-                              <span className="mt-1 block line-clamp-3 whitespace-pre-wrap break-words text-sm leading-5 text-app-muted">
-                                {message.content || t("chat.pins.attachmentOnly")}
-                              </span>
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-
-              <div className="relative">
-                <button
-                  aria-expanded={showNotificationMenu}
-                  aria-haspopup="menu"
-                  aria-label={t("chat.notifications.openSettings")}
-                  className="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-2xl px-2 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] sm:px-3"
-                  data-testid="channel-notification-settings-open"
-                  onClick={() => setShowNotificationMenu((current) => !current)}
-                  ref={notificationButtonRef}
-                  type="button"
-                >
-                  <NotificationIcon className="h-3.5 w-3.5" />
-                  <span className="hidden xl:inline">
-                    {t(`chat.notifications.${notificationLevel}`)}
-                  </span>
-                </button>
-              </div>
-              <button
-                aria-expanded={showMembersDrawer}
-                aria-label={t("shell.channelSidebar.memberView")}
-                className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-2xl px-2 py-1.5 text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-60 sm:px-3 xl:hidden"
-                data-testid="members-drawer-open"
-                disabled={!serverMembersQuery.data}
-                onClick={openInfoDrawer}
-                type="button"
-              >
-                <Users className="h-3.5 w-3.5" />
-              </button>
-              <button
-                aria-expanded={showSearch}
-                aria-label={t("chat.search.open")}
-                className="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-2xl px-2 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] sm:px-3"
-                data-testid="message-search-open"
-                onClick={openSearch}
-                ref={searchButtonRef}
-                type="button"
-              >
-                <Search className="h-3.5 w-3.5" />
-                <span className="hidden lg:inline">{t("chat.search.open")}</span>
-              </button>
-            </div>
-          </div>
+          {/*
+            Ş6 · SPEC-SUNUCU §3.1. Başlık artık `ServerChannelHeader`in işi: ölçüler
+            `SERVER_METRICS.textHeader`ten, çipler ve zil rengi bildirim tercihinden geliyor.
+            Buradaki blok yalnız veriyi topluyor.
+          */}
+          <ServerChannelHeader
+            accessCount={channelAccessCount}
+            categoryName={channelCategoryName}
+            channelName={channelTitle}
+            locked={channelLocked}
+            membersActive={showMembersDrawer || isMembersPanelOpen}
+            membersDisabled={!serverMembersQuery.data}
+            notificationLevel={notificationLevel}
+            onOpenMembers={toggleMembersPanel}
+            onOpenNotifications={() => openChannelNotificationsModal(conversationId, channelTitle)}
+            onOpenPins={() => setPinnedSheetOpen(true)}
+            onOpenSearch={openSearch}
+            pinnedCount={pinnedMessages.length}
+            pinsActive={pinnedSheetOpen}
+            searchActive={isSearchOpen}
+            searchButtonRef={searchButtonRef}
+            topic={channelDescription}
+          />
 
           {showSearch ? (
             <MessageSearchPanel
@@ -1520,7 +1430,7 @@ function ChatAreaContent({
 
             <div className="inline-flex w-fit max-w-full shrink-0 items-center gap-1 rounded-[1.25rem] border border-[hsl(var(--border)/0.22)] bg-[hsl(var(--surface-card)/0.20)] p-1 shadow-[0_12px_28px_hsl(var(--shadow-color)/0.04)] backdrop-blur-md">
               <button
-                aria-expanded={showSearch}
+                aria-expanded={isSearchOpen}
                 aria-label={t("chat.search.open")}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.55)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] md:min-h-9"
                 data-testid="message-search-open"
@@ -1531,7 +1441,7 @@ function ChatAreaContent({
                 <Search className="h-3.5 w-3.5" />
                 {t("chat.search.open")}
                 <span className="hidden rounded-full border border-[hsl(var(--border)/0.58)] px-1.5 py-0.5 text-[0.625rem] text-app-soft sm:inline">
-                  Ctrl K
+                  {chatSearchShortcut}
                 </span>
               </button>
             </div>
@@ -1668,35 +1578,42 @@ function ChatAreaContent({
         />
       ) : null}
 
-      {mode === "dm" ? (
-        <Modal
-          className="max-w-xl"
-          onClose={() => setPollComposerOpen(false)}
-          open={pollComposerOpen}
-          title={t("messages.pollModal.title")}
-        >
-          <PollComposer
-            conversationName={
-              isGroupConversation
+      <Modal
+        className="max-w-xl"
+        onClose={() => setPollComposerOpen(false)}
+        open={pollComposerOpen}
+        title={t("messages.pollModal.title")}
+      >
+        <PollComposer
+          conversationName={
+            mode === "channel"
+              ? (channelName?.trim() ?? conversationId)
+              : isGroupConversation
                 ? groupTitle
                 : (directMessageParticipant?.displayName ??
                   directMessageParticipant?.username ??
                   conversationId)
-            }
-            // karar #12: 1:1 sohbette iki kişi oy verebilir.
-            eligibleVoterCount={
-              isGroupConversation
+          }
+          eligibleVoterCount={
+            mode === "channel"
+              ? (serverMembersQuery.data?.server.memberCount ?? 0)
+              : isGroupConversation
                 ? (directMessageConversation?.memberCount ??
                   directMessageConversation?.participants.length ??
                   0)
                 : 2
-            }
-            isSubmitting={createPollMutation.isPending}
-            onCancel={() => setPollComposerOpen(false)}
-            onSubmit={(request) => createPollMutation.mutate({ ...request, conversationId })}
-          />
-        </Modal>
-      ) : null}
+          }
+          isSubmitting={createPollMutation.isPending}
+          onCancel={() => setPollComposerOpen(false)}
+          onSubmit={(request) =>
+            createPollMutation.mutate(
+              mode === "channel"
+                ? { ...request, channelId: conversationId }
+                : { ...request, conversationId },
+            )
+          }
+        />
+      </Modal>
     </div>
   );
 }

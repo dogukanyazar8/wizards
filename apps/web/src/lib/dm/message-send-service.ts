@@ -182,6 +182,8 @@ export type SendDirectMessageDependencies = {
   loadNotificationParticipants(conversationId: string): Promise<
     Array<{
       muted: boolean;
+      /** Karar K8's deadline. Without it a timed mute would never end. */
+      mutedUntil: Date | null;
       /** 2f §2's tier. `muted` rides along as its mirror for older readers. */
       notifyLevel: DMNotifyLevel;
       user: { displayName: string | null; id: string; locale: string; username: string };
@@ -219,6 +221,7 @@ const sendDefaults: SendDirectMessageDependencies = {
       where: { conversationId },
       select: {
         muted: true,
+        mutedUntil: true,
         notifyLevel: true,
         userId: true,
         user: {

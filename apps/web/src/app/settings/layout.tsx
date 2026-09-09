@@ -1,10 +1,17 @@
 import { AppStartupSessionMarker } from "@/components/app/app-startup-session-marker";
 import { LocaleSessionSync } from "@/components/locale/locale-session-sync";
 import { AuthenticatedAppProviders } from "@/components/providers/authenticated-app-providers";
-import { SettingsSidebar } from "@/components/settings/settings-sidebar";
 import { ThemeSessionSync } from "@/components/theme/theme-session-sync";
 import { requireAuth } from "@/lib/auth/utils";
 
+/**
+ * `/settings` ağacının kabuğu — Ş5 §1.
+ *
+ * Artık **hiçbir düzen çizmez**: pencere kendi çerçevesini taşıyor ve tam ekran kipinde
+ * arkasında uygulama kabuğu yok. Eski `SettingsSidebar` + ızgara düzeni buradan kalktı (K1);
+ * layout yalnız oturum, dil ve tema bağlamını kuruyor — `/settings/reauth/[token]` de aynı
+ * bağlama ihtiyaç duyduğu için bu iş layout'ta kalır.
+ */
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
   const session = await requireAuth();
   const displayName =
@@ -19,29 +26,11 @@ export default async function SettingsLayout({ children }: { children: React.Rea
         displayName,
         username,
       }}
-      voiceFeatures="active"
     >
-      <main
-        className="app-shell h-dvh min-h-0 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-[radial-gradient(circle_at_16%_8%,hsl(var(--primary)/0.08),transparent_28%),radial-gradient(circle_at_86%_18%,hsl(var(--surface-highlight)/0.54),transparent_26%),linear-gradient(180deg,hsl(var(--background)),hsl(var(--surface-base)))] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4 md:px-5 lg:px-4 xl:px-5"
-        data-settings-scroll-root
-      >
-        <AppStartupSessionMarker />
-        <LocaleSessionSync preferredLocale={session.user.locale} />
-        <ThemeSessionSync preferredTheme={session.user.theme} />
-
-        <div className="mx-auto grid w-full max-w-[1640px] min-w-0 gap-3 overflow-x-hidden lg:grid-cols-[292px_minmax(0,1fr)] xl:grid-cols-[308px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]">
-          <SettingsSidebar
-            currentUser={{
-              avatarUrl: session.user.avatarUrl ?? session.user.image ?? null,
-              displayName,
-              username,
-            }}
-          />
-          <section className="min-w-0 max-w-full overflow-x-hidden pb-6 lg:pt-1">
-            {children}
-          </section>
-        </div>
-      </main>
+      <AppStartupSessionMarker />
+      <LocaleSessionSync preferredLocale={session.user.locale} />
+      <ThemeSessionSync preferredTheme={session.user.theme} />
+      {children}
     </AuthenticatedAppProviders>
   );
 }

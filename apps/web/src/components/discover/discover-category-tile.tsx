@@ -1,10 +1,11 @@
 "use client";
 
 import React, { memo, type CSSProperties } from "react";
-import type { DiscoverServerCategoryKey } from "@wizards/types";
+import type { DiscoverServerCategoryKey, ServerIconTone } from "@wizards/types";
 
 import { DISCOVER_CATEGORIES, type DiscoverTone } from "@/lib/discover/contracts";
 import { pxToRem } from "@/lib/discover/metrics";
+import { getServerIconToneColor, resolveServerIconTone } from "@/lib/servers/server-icon-tone";
 import { cn } from "@/lib/utils";
 
 export function getDiscoverCategoryTone(category: DiscoverServerCategoryKey | null): DiscoverTone {
@@ -27,6 +28,8 @@ export type DiscoverCategoryTileProps = {
   readonly category: DiscoverServerCategoryKey | null;
   readonly className?: string;
   readonly fontSize: number;
+  readonly iconColor?: ServerIconTone | null;
+  readonly iconUrl?: string | null;
   readonly initials: string;
   readonly radius: number;
   readonly ringToken?: "surface-card";
@@ -39,6 +42,8 @@ function DiscoverCategoryTileComponent({
   category,
   className,
   fontSize,
+  iconColor,
+  iconUrl,
   initials,
   radius,
   ringToken,
@@ -46,7 +51,10 @@ function DiscoverCategoryTileComponent({
   size,
   style,
 }: DiscoverCategoryTileProps) {
-  const tone = getDiscoverCategoryTone(category);
+  const tone =
+    iconColor === undefined
+      ? getDiscoverCategoryTone(category)
+      : resolveServerIconTone(iconColor, initials);
   const ring =
     ringToken && ringWidth > 0 ? `0 0 0 ${pxToRem(ringWidth)} hsl(var(--${ringToken}))` : undefined;
 
@@ -56,10 +64,14 @@ function DiscoverCategoryTileComponent({
       className={cn("grid shrink-0 place-items-center", className)}
       data-tone={tone}
       style={{
-        background: `hsl(var(--${tone})/0.14)`,
+        background: iconUrl
+          ? `center / cover no-repeat url(${JSON.stringify(iconUrl)})`
+          : getServerIconToneColor(tone, 0.14),
         borderRadius: pxToRem(radius),
         boxShadow: ring,
-        color: `color-mix(in srgb, hsl(var(--${tone})) 45%, hsl(var(--foreground)))`,
+        color: iconUrl
+          ? "transparent"
+          : `color-mix(in srgb, ${getServerIconToneColor(tone)} 45%, hsl(var(--foreground)))`,
         fontFamily: "var(--font-display)",
         fontSize: pxToRem(fontSize),
         fontWeight: 600,
@@ -69,7 +81,7 @@ function DiscoverCategoryTileComponent({
         ...style,
       }}
     >
-      {initials}
+      {iconUrl ? "" : initials}
     </span>
   );
 }

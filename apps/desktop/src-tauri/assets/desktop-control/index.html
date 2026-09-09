@@ -6,20 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Whispr Desktop Control</title>
     <link rel="stylesheet" href="/app.css" />
-    <script src="/app.js" defer></script>
+    <script src="/app.js" type="module"></script>
   </head>
   <body>
     <header class="shell-header">
       <div>
         <p class="eyebrow">Trusted local surface</p>
         <h1>Desktop Control</h1>
-        <p class="subtitle">Shortcuts, support, updates, permissions, recovery.</p>
+        <p class="subtitle">App behavior, shortcuts, support, updates, permissions, recovery.</p>
       </div>
       <span class="trust-badge">Local only</span>
     </header>
 
     <nav aria-label="Desktop Control sections" class="section-nav">
       <button data-section-target="overview" type="button">Overview</button>
+      <button data-section-target="app" type="button">App</button>
       <button data-section-target="shortcuts" type="button">Shortcuts</button>
       <button data-section-target="diagnostics" type="button">Diagnostics</button>
       <button data-section-target="updates" type="button">Updates</button>
@@ -68,6 +69,32 @@
         </dl>
       </section>
 
+      <section aria-labelledby="app-title" id="app">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">This device</p>
+            <h2 id="app-title">Application</h2>
+          </div>
+        </div>
+        <form id="app-settings-form">
+          <label class="toggle-row">
+            <input id="launch-on-startup" name="launchOnStartup" type="checkbox" />
+            Open Whispr when the system starts
+          </label>
+          <label>
+            When the main window closes
+            <select id="close-action" name="closeAction">
+              <option value="tray">Hide Whispr in the system tray</option>
+              <option value="quit">Quit Whispr</option>
+            </select>
+          </label>
+          <p class="hint">Startup launches stay hidden in the system tray until you open Whispr.</p>
+          <div class="actions">
+            <button data-action="save-app-settings" type="submit">Save application settings</button>
+          </div>
+        </form>
+      </section>
+
       <section aria-labelledby="shortcuts-title" id="shortcuts">
         <div class="section-heading">
           <div>
@@ -85,19 +112,47 @@
             Enable global shortcuts
           </label>
           <div class="form-grid">
-            <label>Toggle mute<input autocomplete="off" id="toggle-mute" type="text" /></label>
-            <label>Toggle deafen<input autocomplete="off" id="toggle-deafen" type="text" /></label>
-            <label>Push to talk<input autocomplete="off" id="push-to-talk" type="text" /></label>
             <label
-              >Hide overlay<input autocomplete="off" id="hide-game-overlay" type="text"
-            /></label>
+              >Toggle mute<input autocomplete="off" id="toggle-mute" readonly type="text" /><output
+                class="shortcut-status"
+                id="toggle-mute-status"
+              ></output
+            ></label>
             <label
-              >Moderation console<input autocomplete="off" id="toggle-admin-console" type="text"
-            /></label>
+              >Toggle deafen<input
+                autocomplete="off"
+                id="toggle-deafen"
+                readonly
+                type="text" /><output class="shortcut-status" id="toggle-deafen-status"></output
+            ></label>
+            <label
+              >Push to talk<input
+                autocomplete="off"
+                id="push-to-talk"
+                readonly
+                type="text" /><output class="shortcut-status" id="push-to-talk-status"></output
+            ></label>
+            <label
+              >Hide overlay<input
+                autocomplete="off"
+                id="hide-game-overlay"
+                readonly
+                type="text" /><output class="shortcut-status" id="hide-game-overlay-status"></output
+            ></label>
+            <label
+              >Moderation console<input
+                autocomplete="off"
+                id="toggle-admin-console"
+                readonly
+                type="text" /><output
+                class="shortcut-status"
+                id="toggle-admin-console-status"
+              ></output
+            ></label>
           </div>
           <p class="hint">
-            Examples: <code>Alt+M</code>, <code>CmdOrCtrl+Shift+D</code>. Invalid changes preserve
-            working shortcuts.
+            Focus a field, then press the combination. <code>Escape</code> cancels;
+            <code>Delete</code> clears. Invalid changes never replace working shortcuts.
           </p>
           <div class="actions">
             <button data-action="save-shortcuts" type="submit">Save shortcuts</button>
@@ -153,13 +208,11 @@
         </div>
         <div id="permission-list"></div>
         <div class="actions">
-          <button data-action="request-notification" type="button">
-            Request notification permission
-          </button>
+          <button data-action="request-notification" type="button">Send test notification</button>
         </div>
         <p class="hint">
-          OS status may remain unverified. This panel never reports permission as granted without
-          reliable OS proof.
+          Desktop notification APIs do not expose whether Windows Focus Assist or per-app settings
+          hid a notification. The visible test is the final verification.
         </p>
       </section>
 
@@ -185,5 +238,25 @@
         <output aria-live="polite" class="result" id="recovery-result"></output>
       </section>
     </main>
+
+    <dialog
+      aria-describedby="media-permission-description media-permission-trust"
+      aria-labelledby="media-permission-title"
+      id="media-permission-dialog"
+    >
+      <div class="media-permission-icon" id="media-permission-icon" aria-hidden="true"></div>
+      <p class="eyebrow">Whispr privacy</p>
+      <h2 id="media-permission-title">Device access requested</h2>
+      <p id="media-permission-description"></p>
+      <p class="media-permission-trust" id="media-permission-trust">
+        This trusted local window is the only place that can approve access. Windows privacy
+        controls remain authoritative.
+      </p>
+      <output aria-live="polite" class="result" id="media-permission-result"></output>
+      <div class="actions media-permission-actions">
+        <button class="secondary" id="media-permission-deny" type="button">Not now</button>
+        <button id="media-permission-allow" type="button">Allow</button>
+      </div>
+    </dialog>
   </body>
 </html>

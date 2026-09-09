@@ -141,12 +141,11 @@ export function EventsErrorState({
 
         {href ? (
           <a
-            className="grid place-items-center text-[hsl(var(--text-secondary))] transition-colors hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+            className="grid place-items-center bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
             data-testid="events-error-status"
             href={href}
             rel="noreferrer"
             style={{
-              background: "hsl(var(--surface-card))",
               border: `${hairline()} solid hsl(var(--border))`,
               borderRadius: pxToRem(errorState.buttonRadius),
               fontSize: pxToRem(errorState.buttonFontSize),

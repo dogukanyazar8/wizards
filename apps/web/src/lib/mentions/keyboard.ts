@@ -10,7 +10,31 @@
  * kombinasyonu bir nesnedir, bir tarayıcı değil.
  */
 
+import {
+  isAppShortcutTypingTarget,
+  resolveAppShortcut,
+  type AppShortcutId,
+} from "@/lib/shortcuts/catalog";
+
 export type MentionShortcut = "next" | "previous" | "reply" | "toggleRead" | "close";
+
+const MENTION_SHORTCUT_IDS = [
+  "mentions.next",
+  "mentions.previous",
+  "mentions.reply",
+  "mentions.toggleRead",
+  "mentions.close",
+] as const satisfies readonly AppShortcutId[];
+
+const MENTION_SHORTCUT_BY_ID: Readonly<
+  Record<(typeof MENTION_SHORTCUT_IDS)[number], MentionShortcut>
+> = {
+  "mentions.close": "close",
+  "mentions.next": "next",
+  "mentions.previous": "previous",
+  "mentions.reply": "reply",
+  "mentions.toggleRead": "toggleRead",
+};
 
 /** `KeyboardEvent`in bu modülün ihtiyacı olan yüzeyi. */
 export type MentionKeyInput = {
@@ -27,33 +51,8 @@ export type MentionKeyInput = {
  * kendi kısayoludur; onları çalmak ekranın dışındaki bir sözleşmeyi bozar.
  */
 export function resolveMentionShortcut(input: MentionKeyInput): MentionShortcut | null {
-  if (input.ctrlKey || input.metaKey || input.altKey) {
-    return null;
-  }
-
-  switch (input.key) {
-    case "ArrowDown":
-      return "next";
-    case "ArrowUp":
-      return "previous";
-    case "Escape":
-      return "close";
-    default:
-      break;
-  }
-
-  switch (input.key.toLowerCase()) {
-    case "j":
-      return "next";
-    case "k":
-      return "previous";
-    case "r":
-      return "reply";
-    case "e":
-      return "toggleRead";
-    default:
-      return null;
-  }
+  const id = resolveAppShortcut(MENTION_SHORTCUT_IDS, input);
+  return id ? MENTION_SHORTCUT_BY_ID[id] : null;
 }
 
 /** `EventTarget`in bu modülün ihtiyacı olan yüzeyi. */
@@ -62,22 +61,12 @@ export type MentionKeyTarget = {
   readonly tagName?: string;
 } | null;
 
-const TYPING_TAG_NAMES = new Set(["INPUT", "SELECT", "TEXTAREA"]);
-
 /**
  * Odak bir metin yüzeyindeyse akış kısayolları susar (PROMPT §5). Ayrım eleman türünden
  * yapılır, bileşen adından değil: yanıt kutusunu Ş7 yazıyor ve akış onun iç yapısını bilmez.
  */
 export function isTypingTarget(target: MentionKeyTarget): boolean {
-  if (!target) {
-    return false;
-  }
-
-  if (target.isContentEditable === true) {
-    return true;
-  }
-
-  return typeof target.tagName === "string" && TYPING_TAG_NAMES.has(target.tagName.toUpperCase());
+  return isAppShortcutTypingTarget(target);
 }
 
 /**

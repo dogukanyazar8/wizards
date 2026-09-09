@@ -29,7 +29,7 @@ describe("desktop start session resolution", () => {
       }),
       {
         authenticated: true,
-        destination: "/messages",
+        destination: "/home",
       },
     );
   });

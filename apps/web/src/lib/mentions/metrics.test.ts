@@ -137,15 +137,15 @@ describe("mentions metrics — sözlük sözleşmesi", () => {
 });
 
 describe("mentions metrics — SPEC §1 kabuk ve kolonlar", () => {
-  it("sol üç kolon 578'dir ve akışa 782 kalır", () => {
+  it("sol üç kolon 630'dur ve akışa 730 kalır", () => {
     const { shell } = MENTIONS_METRICS;
     const leftColumns = HOME_METRICS.rail.width + HOME_METRICS.panel.width + shell.railWidth;
 
-    assert.equal(leftColumns, 578);
+    assert.equal(leftColumns, 630);
     assert.equal(HOME_METRICS.shell.minWidth - leftColumns, shell.feedMinWidth);
   });
 
-  it("bağlam paneli açıkken akış 456'ya iner", () => {
+  it("bağlam paneli açıkken akış 404'e iner", () => {
     const { shell } = MENTIONS_METRICS;
 
     assert.equal(shell.feedMinWidth - shell.contextPanelWidth, shell.feedMinWidthWithPanel);

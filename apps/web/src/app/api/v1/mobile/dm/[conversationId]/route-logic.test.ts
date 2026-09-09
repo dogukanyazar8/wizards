@@ -10,7 +10,7 @@ import {
 type Recorded = {
   hidden: Array<{ conversationId: string; userId: string }>;
   limits: string[];
-  muted: Array<{ conversationId: string; muted: boolean; userId: string }>;
+  muted: Array<{ conversationId: string; input: unknown; userId: string }>;
 };
 
 function createDependencies(overrides: Partial<MobileDMConversationRouteDependencies> = {}): {
@@ -28,8 +28,8 @@ function createDependencies(overrides: Partial<MobileDMConversationRouteDependen
       hideConversation: async (userId, conversationId) => {
         recorded.hidden.push({ conversationId, userId });
       },
-      setMuted: async (userId, conversationId, muted) => {
-        recorded.muted.push({ conversationId, muted, userId });
+      setMuted: async (userId, conversationId, input) => {
+        recorded.muted.push({ conversationId, input, userId });
       },
       ...overrides,
     },
@@ -59,9 +59,39 @@ describe("mobile DM conversation switches", () => {
 
     assert.equal(response.status, 200);
     assert.deepEqual(recorded.muted, [
-      { conversationId: "dm-group-1", muted: true, userId: "user-1" },
+      { conversationId: "dm-group-1", input: { muted: true }, userId: "user-1" },
     ]);
     assert.deepEqual(recorded.limits, ["mobile:dm:mute"]);
+  });
+
+  // Karar K1. §17's duration ladder is the shared contract, so the phone reaches
+  // the same service through the same schema rather than a mobile-only shape.
+  it("forwards the mute duration the shared submenu contract carries", async () => {
+    const { dependencies, recorded } = createDependencies();
+
+    const response = await mobileDMSetMutedRoute(
+      request({ duration: "8h", muted: true }),
+      context,
+      dependencies,
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(recorded.muted, [
+      { conversationId: "dm-group-1", input: { duration: "8h", muted: true }, userId: "user-1" },
+    ]);
+  });
+
+  it("rejects a duration outside the submenu ladder", async () => {
+    const { dependencies, recorded } = createDependencies();
+
+    const response = await mobileDMSetMutedRoute(
+      request({ duration: "3h", muted: true }),
+      context,
+      dependencies,
+    );
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(recorded.muted, []);
   });
 
   it("rejects a mute body that is not a boolean", async () => {

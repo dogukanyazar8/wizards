@@ -14,6 +14,7 @@ const retiredRemoteMutationPermissions = [
 ];
 
 const desktopControlMutationPermissions = [
+  "allow-desktop-control-set-app-settings",
   "allow-configure-desktop-voice-shortcuts",
   "allow-export-desktop-diagnostics-bundle",
 ];
@@ -32,12 +33,18 @@ const desktopControlPermissions = [
   "allow-desktop-control-install-update",
   "allow-desktop-control-recover",
   "allow-desktop-control-request-notification-permission",
+  "allow-desktop-control-set-app-settings",
   "allow-export-desktop-diagnostics-bundle",
   "allow-get-desktop-control-state",
+  "allow-resolve-desktop-media-permission",
 ];
 
+const requestDesktopMediaPermission = "allow-request-desktop-media-permission";
+const resolveDesktopMediaPermission = "allow-resolve-desktop-media-permission";
+const openDesktopPermissionSettings = "allow-open-desktop-permission-settings";
+
 describe("desktop trusted native control boundary", () => {
-  it("keeps startup and close-behavior mutation behind native tray controls", async () => {
+  it("keeps startup and close-behavior mutation behind trusted local controls", async () => {
     const staticCapability = JSON.parse(
       await readFile(path.join(desktopRoot, "src-tauri", "capabilities", "main.json"), "utf8"),
     );
@@ -77,9 +84,12 @@ describe("desktop trusted native control boundary", () => {
     );
     assert.match(
       rustSource,
-      /save_desktop_native_settings\([\s\S]*quit_on_close/,
-      "Native close behavior must persist without a remote renderer write.",
+      /DESKTOP_DEVICE_SETTINGS_FILENAME:\s*&str\s*=\s*"device-settings\.json"/,
+      "Device settings must use a dedicated local-data file.",
     );
+    assert.match(rustSource, /\.arg\(DESKTOP_AUTOSTART_ARG\)/);
+    assert.match(rustSource, /fn desktop_control_set_app_settings\(/);
+    assert.match(rustSource, /write_desktop_device_settings_atomic\(/);
     assert.doesNotMatch(rustSource, /fn set_desktop_autostart_enabled\(/);
     assert.doesNotMatch(rustSource, /fn set_desktop_quit_on_close_enabled\(/);
     assert.match(
@@ -122,6 +132,12 @@ describe("desktop trusted native control boundary", () => {
       desktopControlPermissions,
       "Desktop Control must expose only its guarded Rust commands, never raw plugin commands.",
     );
+    assert.ok(mainCapability.permissions.includes(requestDesktopMediaPermission));
+    assert.ok(mainCapability.permissions.includes(openDesktopPermissionSettings));
+    assert.ok(!mainCapability.permissions.includes(resolveDesktopMediaPermission));
+    assert.ok(!controlCapability.permissions.includes(requestDesktopMediaPermission));
+    assert.ok(controlCapability.permissions.includes(resolveDesktopMediaPermission));
+    assert.ok(!controlCapability.permissions.includes(openDesktopPermissionSettings));
 
     for (const permission of desktopControlMutationPermissions) {
       assert.ok(
@@ -151,12 +167,12 @@ describe("desktop trusted native control boundary", () => {
 
   it("ships a network-free accessible Desktop Control surface", async () => {
     const assetRoot = path.join(desktopRoot, "src-tauri", "assets", "desktop-control");
-    const [html, css, script] = await Promise.all(
-      ["index.html", "app.css", "app.js"].map((asset) =>
+    const [html, css, script, shortcutEditor] = await Promise.all(
+      ["index.html", "app.css", "app.js", "shortcut-editor.mjs"].map((asset) =>
         readFile(path.join(assetRoot, asset), "utf8"),
       ),
     );
-    const combined = `${html}\n${css}\n${script}`;
+    const combined = `${html}\n${css}\n${script}\n${shortcutEditor}`;
 
     assert.match(html, /<main[\s>]/);
     assert.match(html, /aria-live="polite"/);
@@ -164,18 +180,28 @@ describe("desktop trusted native control boundary", () => {
     assert.match(css, /:focus-visible/);
     assert.match(css, /prefers-color-scheme:\s*light/);
     assert.doesNotMatch(combined, /https?:\/\//);
-    assert.doesNotMatch(script, /\bfetch\s*\(|\beval\s*\(/);
+    assert.doesNotMatch(`${script}\n${shortcutEditor}`, /\bfetch\s*\(|\beval\s*\(/);
     assert.match(script, /window\.confirm\(/);
     assert.match(script, /desktop_control_install_update/);
     assert.match(script, /export_desktop_diagnostics_bundle/);
     assert.match(script, /configure_desktop_voice_shortcuts/);
     assert.match(script, /desktop_control_recover/);
+    assert.match(script, /desktop_control_set_app_settings/);
+    assert.match(script, /resolve_desktop_media_permission/);
+    assert.match(script, /whisprDesktopControlCancelMediaPermission/);
+    assert.match(html, />\s*Send test notification\s*</);
+    assert.match(
+      await readFile(path.join(desktopRoot, "src-tauri", "src", "lib.rs"), "utf8"),
+      /fn desktop_control_request_notification_permission\([\s\S]*?\.builder\(\)[\s\S]*?\.show\(\)/,
+    );
+    assert.match(html, /id="app-settings-form"/);
+    assert.match(html, /<dialog[^>]+id="media-permission-dialog"/);
   });
 
   it("routes remote web settings and updater actions to Desktop Control", async () => {
     const webRoot = path.resolve(desktopRoot, "..", "web", "src");
-    const [controls, experience, diagnostics, updaterNotifier, voicePreferences] =
-      await Promise.all([
+    const [controls, experience, diagnostics, updaterNotifier, desktopSettings] = await Promise.all(
+      [
         readFile(path.join(webRoot, "lib", "desktop", "controls.ts"), "utf8"),
         readFile(path.join(webRoot, "components", "desktop", "desktop-experience.tsx"), "utf8"),
         readFile(
@@ -186,8 +212,19 @@ describe("desktop trusted native control boundary", () => {
           path.join(webRoot, "components", "desktop", "desktop-native-update-notifier.tsx"),
           "utf8",
         ),
-        readFile(path.join(webRoot, "components", "voice", "voice-preferences-panel.tsx"), "utf8"),
-      ]);
+        readFile(
+          path.join(
+            webRoot,
+            "components",
+            "settings",
+            "sections",
+            "desktop",
+            "desktop-section.tsx",
+          ),
+          "utf8",
+        ),
+      ],
+    );
 
     assert.match(controls, /show_desktop_control/);
     assert.doesNotMatch(controls, /"configure_desktop_voice_shortcuts"/);
@@ -204,7 +241,9 @@ describe("desktop trusted native control boundary", () => {
     assert.match(updaterNotifier, /launchDesktopControlSection\("updates"/);
     assert.doesNotMatch(updaterNotifier, /downloadInstallAndRelaunchDesktopUpdate/);
     assert.doesNotMatch(updaterNotifier, /@tauri-apps\/plugin-updater/);
-    assert.match(voicePreferences, /launchDesktopControlSection\([\s\S]{0,80}"shortcuts"/);
-    assert.doesNotMatch(voicePreferences, /<DesktopShortcutInputRow/);
+    assert.match(desktopSettings, /openDesktopControl\("shortcuts"\)/);
+    assert.match(desktopSettings, /openDesktopControl\("app"\)/);
+    assert.doesNotMatch(desktopSettings, /writeDesktopShortcutStatus/);
+    assert.doesNotMatch(desktopSettings, /configure_desktop_shortcuts/);
   });
 });

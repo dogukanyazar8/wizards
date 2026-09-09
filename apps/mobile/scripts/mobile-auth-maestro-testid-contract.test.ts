@@ -33,10 +33,6 @@ const authTestIdSources: Record<string, { file: string; needle: string }> = {
     file: "src/app/screens/auth/auth-login-screen.tsx",
     needle: 'testID="mobile-auth-login-screen"',
   },
-  "mobile-auth-login-top-bar-back": {
-    file: "src/app/screens/auth/auth-login-screen.tsx",
-    needle: 'testID="mobile-auth-login-top-bar"',
-  },
   "mobile-auth-register-screen": {
     file: "src/app/screens/auth/auth-register-screen.tsx",
     needle: 'testID="mobile-auth-register-screen"',
@@ -44,18 +40,6 @@ const authTestIdSources: Record<string, { file: string; needle: string }> = {
   "mobile-auth-register-top-bar-back": {
     file: "src/app/screens/auth/auth-register-screen.tsx",
     needle: 'testID="mobile-auth-register-top-bar"',
-  },
-  "mobile-auth-welcome-screen": {
-    file: "src/app/screens/auth/auth-welcome-screen.tsx",
-    needle: 'testID="mobile-auth-welcome-screen"',
-  },
-  "mobile-auth-welcome-sign-in": {
-    file: "src/app/screens/auth/auth-welcome-screen.tsx",
-    needle: 'testID="mobile-auth-welcome-sign-in"',
-  },
-  "mobile-auth-welcome-sign-up": {
-    file: "src/app/screens/auth/auth-welcome-screen.tsx",
-    needle: 'testID="mobile-auth-welcome-sign-up"',
   },
 };
 
@@ -84,7 +68,7 @@ describe("signed-out auth navigation Maestro contract", () => {
 
     assert.match(
       authFlowSource,
-      /^appId:\s*team\.whispr\.mobile\r?\n---\r?\n- launchApp:\r?\n\s+clearState:\s*true\r?\n- openLink:\s*"whispr:\/\/settings"\r?\n- extendedWaitUntil:\r?\n\s+visible:\r?\n\s+id:\s*"mobile-settings-screen"[\s\S]*?- tapOn:\r?\n\s+id:\s*"mobile-bottom-tab-overview"/,
+      /^appId:\s*team\.whispr\.mobile\r?\n---\r?\n- launchApp:\r?\n\s+clearState:\s*true\r?\n- openLink:\s*"whispr:\/\/settings"\r?\n- extendedWaitUntil:\r?\n\s+visible:\r?\n\s+id:\s*"mobile-settings-screen"[\s\S]*?- tapOn:\r?\n\s+id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-login-screen"/,
     );
 
     const flowIds = [...new Set(getAuthFlowIds(authFlowSource))].sort();
@@ -96,20 +80,38 @@ describe("signed-out auth navigation Maestro contract", () => {
       assert.ok(source.includes(contract.needle), `${testId} is missing from ${contract.file}`);
     }
 
+    /*
+     * SPEC-GIRIS-KAYIT §4.2 — iki adimli dogrulama ve yedek kod ekranlari yalnizca gecerli
+     * kimlik bilgisiyle uretilen bir challenge sonrasi acilir. Bu akis form doldurmadigi icin
+     * o iki koke ulasamaz; akis onlari icermemeli, aksi halde ya kimlik bilgisi girilir ya da
+     * hic acilmayacak bir ekran beklenirdi.
+     */
+    const challengeOnlyRootIds = new Set<string>([
+      "mobile-auth-two-factor-screen",
+      "mobile-auth-backup-code-screen",
+    ]);
     for (const rootId of MOBILE_AUTH_SCREEN_TEST_IDS) {
-      assert.match(authFlowSource, new RegExp(`id:\\s*"${rootId}"`));
+      const idPattern = new RegExp(`id:\\s*"${rootId}"`);
+
+      if (challengeOnlyRootIds.has(rootId)) {
+        assert.doesNotMatch(authFlowSource, idPattern);
+        continue;
+      }
+
+      assert.match(authFlowSource, idPattern);
     }
     const authTopBarSource = readFileSync(
       path.join(process.cwd(), "src/app/components/kit/auth/auth-top-bar.tsx"),
       "utf8",
     );
-    assert.ok(authTopBarSource.includes('testID={testID ? `${testID}-back` : undefined}'));
+    assert.ok(authTopBarSource.includes("testID={testID ? `${testID}-back` : undefined}"));
 
     assert.match(
       authFlowSource,
-      /mobile-auth-welcome-screen[\s\S]*?mobile-auth-welcome-sign-in[\s\S]*?mobile-auth-login-screen[\s\S]*?mobile-auth-login-forgot-password[\s\S]*?mobile-auth-forgot-password-screen[\s\S]*?mobile-auth-forgot-back-to-sign-in[\s\S]*?mobile-auth-login-screen[\s\S]*?mobile-auth-login-register[\s\S]*?mobile-auth-register-screen[\s\S]*?mobile-auth-register-top-bar-back[\s\S]*?mobile-auth-login-screen[\s\S]*?mobile-auth-login-top-bar-back[\s\S]*?mobile-auth-welcome-screen[\s\S]*?mobile-auth-welcome-sign-up[\s\S]*?mobile-auth-register-screen[\s\S]*?mobile-auth-register-top-bar-back[\s\S]*?mobile-auth-welcome-screen/,
+      /mobile-auth-login-screen[\s\S]*?mobile-auth-login-forgot-password[\s\S]*?mobile-auth-forgot-password-screen[\s\S]*?mobile-auth-forgot-back-to-sign-in[\s\S]*?mobile-auth-login-screen[\s\S]*?mobile-auth-login-register[\s\S]*?mobile-auth-register-screen[\s\S]*?mobile-auth-register-top-bar-back[\s\S]*?mobile-auth-login-screen/,
     );
     assert.doesNotMatch(authFlowSource, /turnstile|cloudflare/i);
+    assert.doesNotMatch(authFlowSource, /mobile-auth-welcome/);
     for (const pattern of forbiddenFlowPatterns) {
       assert.doesNotMatch(authFlowSource, pattern);
     }
@@ -122,22 +124,31 @@ describe("signed-out auth navigation Maestro contract", () => {
     );
     assert.match(
       loginHelperSource,
-      /id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-welcome-screen"[\s\S]*?id:\s*"mobile-auth-welcome-sign-in"[\s\S]*?id:\s*"mobile-auth-login-screen"/,
+      /id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-login-screen"/,
     );
     assert.doesNotMatch(loginHelperSource, /mobile-auth-screen/);
-    assert.doesNotMatch(loginHelperSource, /(?:development|fill-dev|inputText|turnstileToken|retry)/i);
+    assert.doesNotMatch(
+      loginHelperSource,
+      /(?:development|fill-dev|inputText|turnstileToken|retry)/i,
+    );
     assert.doesNotMatch(loginHelperSource, /mobile-auth-(?:login|register|forgot)-submit/);
   });
 
   it("covers both signed-out helper call contexts before it proves the native login surface", () => {
+    // Ayarlar baglami: sekme yigin kokune, yani dogrudan Login ekranina dusmeli.
     assert.match(
       loginHelperSource,
-      /when:\s*\r?\n\s+visible:\s*\r?\n\s+id:\s*"mobile-settings-web-sign-in-action"[\s\S]*?id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-welcome-screen"/,
+      /when:\s*\r?\n\s+visible:\s*\r?\n\s+id:\s*"mobile-settings-web-sign-in-action"[\s\S]*?id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-login-screen"/,
     );
+    /*
+     * Auth baglami: kok ekran kimligi tek basina yeterli degil — kabuk dogru kimlik
+     * yuzeyini ciziyor mu, ancak Login ekranina ozel bir denetimle kanitlanir.
+     */
     assert.match(
       loginHelperSource,
-      /when:\s*\r?\n\s+visible:\s*\r?\n\s+id:\s*"mobile-auth-welcome-screen"[\s\S]*?id:\s*"mobile-auth-welcome-sign-in"[\s\S]*?id:\s*"mobile-auth-login-screen"/,
+      /when:\s*\r?\n\s+visible:\s*\r?\n\s+id:\s*"mobile-auth-login-screen"[\s\S]*?assertVisible:\s*\r?\n\s+id:\s*"mobile-auth-login-register"/,
     );
+    assert.doesNotMatch(loginHelperSource, /mobile-auth-welcome/);
   });
 
   it("registers signed-out native auth navigation as an Android Maestro gate", () => {

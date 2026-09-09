@@ -4,6 +4,10 @@ import QRCode from "qrcode";
 import { prisma } from "@wizards/db";
 import { getRedisRate } from "@/lib/redis";
 import {
+  recordSecurityEvent,
+  type RecordSecurityEventInput,
+} from "@/lib/security/security-event-service";
+import {
   createTotpSetup,
   generateRecoveryCodes,
   verifyRecoveryCode,
@@ -59,6 +63,8 @@ export type TwoFactorSecretWrite = EncryptedTotpSecret;
 
 export type TwoFactorRepository = {
   consumeRecoveryCode: (codeId: string) => Promise<boolean>;
+  /** Ayarlar Ş3 §2 — the `10 kod · 8 tanesi kullanılmadı` line reads exactly these two numbers. */
+  countRecoveryCodes: (userId: string) => Promise<TwoFactorRecoveryCodeCounts>;
   disableTwoFactor: (userId: string) => Promise<void>;
   enableTwoFactor: (
     userId: string,
@@ -67,7 +73,14 @@ export type TwoFactorRepository = {
   ) => Promise<void>;
   findUserForTwoFactor: (userId: string) => Promise<TwoFactorUserRecord | null>;
   listUnusedRecoveryCodes: (userId: string) => Promise<TwoFactorRecoveryCodeRecord[]>;
+  /** `Yenile`: the old set stops working the moment the new one is minted. */
+  replaceRecoveryCodes: (userId: string, recoveryCodeHashes: string[]) => Promise<void>;
   savePendingSecret: (userId: string, secret: TwoFactorSecretWrite) => Promise<void>;
+};
+
+export type TwoFactorRecoveryCodeCounts = {
+  total: number;
+  unused: number;
 };
 
 export type TwoFactorAttemptStore = AttemptStore;
@@ -79,6 +92,8 @@ export type TwoFactorServiceDependencies = {
   keyring?: TotpSecretKeyring;
   nowMs?: () => number;
   randomBytes?: (size: number) => Buffer;
+  /** Ayarlar Ş3 §3 — injected so the security log can be asserted without a database. */
+  recordEvent?: (input: RecordSecurityEventInput) => Promise<void>;
   replayStore?: TotpReplayStore;
   repository?: TwoFactorRepository;
 };
@@ -180,6 +195,14 @@ const defaultTwoFactorRepository: TwoFactorRepository = {
 
     return result.count === 1;
   },
+  async countRecoveryCodes(userId) {
+    const [total, unused] = await Promise.all([
+      prisma.twoFactorRecoveryCode.count({ where: { userId } }),
+      prisma.twoFactorRecoveryCode.count({ where: { usedAt: null, userId } }),
+    ]);
+
+    return { total, unused };
+  },
   async disableTwoFactor(userId) {
     await prisma.$transaction(async (tx) => {
       await tx.twoFactorRecoveryCode.deleteMany({ where: { userId } });
@@ -241,6 +264,14 @@ const defaultTwoFactorRepository: TwoFactorRepository = {
       },
     });
   },
+  async replaceRecoveryCodes(userId, recoveryCodeHashes) {
+    await prisma.$transaction(async (tx) => {
+      await tx.twoFactorRecoveryCode.deleteMany({ where: { userId } });
+      await tx.twoFactorRecoveryCode.createMany({
+        data: recoveryCodeHashes.map((codeHash) => ({ codeHash, userId })),
+      });
+    });
+  },
   async savePendingSecret(userId, secret) {
     await prisma.user.update({
       data: {
@@ -274,9 +305,19 @@ function resolveDependencies(dependencies: TwoFactorServiceDependencies = {}) {
     keyring: dependencies.keyring ?? parseTotpSecretKeyring(),
     nowMs: dependencies.nowMs ?? Date.now,
     randomBytes: dependencies.randomBytes ?? cryptoRandomBytes,
+    recordEvent: dependencies.recordEvent ?? recordSecurityEvent,
     replayStore: dependencies.replayStore ?? createRedisTotpReplayStore(getRedisRate()),
     repository: dependencies.repository ?? defaultTwoFactorRepository,
   };
+}
+
+/**
+ * SPEC §5.1 shows the manual key as `K4XP 9QF2 7MRT 1DVB`. The grouping is presentation, but it
+ * belongs next to the secret it formats: a person copying twenty unbroken base32 characters off
+ * a screen is how a support ticket starts.
+ */
+export function formatManualEntryKey(secret: string) {
+  return (secret.match(/.{1,4}/g) ?? []).join(" ");
 }
 
 function hasUsableCode(code: string) {
@@ -571,4 +612,104 @@ export async function disableTwoFactor(
   await resetAttemptFailures(deps.attemptStore, input.userId);
 
   return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// Ayarlar Ş3 §2 — kurtarma kodları
+// ---------------------------------------------------------------------------
+
+export type RecoveryCodeStatusResult =
+  (TwoFactorSuccessResult & TwoFactorRecoveryCodeCounts) | TwoFactorFailureResult;
+
+export type RegenerateRecoveryCodesResult =
+  (TwoFactorSuccessResult & { recoveryCodes: string[] }) | TwoFactorFailureResult;
+
+/**
+ * The two numbers behind `10 kod · 8 tanesi kullanılmadı`.
+ *
+ * There is no "show me my codes" counterpart on purpose: the stored value is a one-way sha256
+ * hash (`hashRecoveryCode`), so the plaintext exists exactly once — at the moment it is minted.
+ * `Görüntüle` can only re-open the sheet from that moment; recovering an old set means `Yenile`.
+ */
+export async function getRecoveryCodeStatus(
+  userId: string,
+  dependencies?: TwoFactorServiceDependencies,
+): Promise<RecoveryCodeStatusResult> {
+  const deps = resolveDependencies(dependencies);
+  const user = await deps.repository.findUserForTwoFactor(userId);
+
+  if (!user) {
+    return { error: "not_found", success: false };
+  }
+
+  if (!user.twoFactorEnabled) {
+    return { error: "not_enabled", success: false };
+  }
+
+  const counts = await deps.repository.countRecoveryCodes(userId);
+  return { ...counts, success: true };
+}
+
+/**
+ * `Yenile`. Re-authentication is the same pair `disableTwoFactor` asks for — the account password
+ * plus a live second factor — because a fresh code set is a permanent takeover if it lands in the
+ * wrong hands. The two failures share one tracker and one public result so this cannot be used as
+ * a password oracle.
+ */
+export async function regenerateRecoveryCodes(
+  input: { code: string; password: string; userId: string },
+  dependencies?: TwoFactorServiceDependencies,
+): Promise<RegenerateRecoveryCodesResult> {
+  const deps = resolveDependencies(dependencies);
+  const user = await deps.repository.findUserForTwoFactor(input.userId);
+
+  if (!user) {
+    return { error: "not_found", success: false };
+  }
+
+  if (!user.twoFactorEnabled) {
+    return { error: "not_enabled", success: false };
+  }
+
+  const secret = resolveTotpSecret(user, input.userId, deps.keyring);
+  if (!secret) {
+    return { error: "not_enabled", success: false };
+  }
+
+  if (!user.passwordHash || !(await deps.comparePassword(input.password, user.passwordHash))) {
+    return recordAttemptFailure({
+      nowMs: deps.nowMs(),
+      store: deps.attemptStore,
+      userId: input.userId,
+    });
+  }
+
+  const secondFactor = await verifyTwoFactorCredential(
+    { code: input.code, secret, userId: input.userId },
+    deps,
+  );
+
+  if (!secondFactor.success) {
+    return secondFactor.error === "rate_limited" ||
+      secondFactor.error === "verification_unavailable"
+      ? secondFactor
+      : { error: "invalid_code", success: false };
+  }
+
+  const recoveryCodes = generateRecoveryCodes({
+    count: TWO_FACTOR_RECOVERY_CODE_COUNT,
+    randomBytes: deps.randomBytes,
+  });
+  await deps.repository.replaceRecoveryCodes(input.userId, mapRecoveryCodeHashes(recoveryCodes));
+  await resetAttemptFailures(deps.attemptStore, input.userId);
+  await deps.recordEvent({
+    kind: "RECOVERY_CODES_REGENERATED",
+    metadata: { count: recoveryCodes.length },
+    userId: input.userId,
+  });
+
+  return {
+    recoveryCodes: recoveryCodes.map((entry) => entry.plaintext),
+    success: true,
+  };
 }

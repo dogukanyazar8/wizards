@@ -1,5 +1,7 @@
 import type { Page } from "@playwright/test";
 
+import { HOME_METRICS } from "@/lib/home/metrics";
+import { MESSAGES_METRICS } from "@/lib/messages/metrics";
 import { expect, test } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
 import { getE2EDMConversationId, setE2EUserTheme } from "../../helpers/db";
@@ -8,10 +10,11 @@ import {
   collectUndersizedTapTargets,
   expectNoClippedText,
   expectNoOverflow,
-  readRootFontSize,
+  waitForRootFontSize,
   type ParityTheme,
 } from "../../helpers/design-parity";
 import { gotoAppRoute } from "../../helpers/navigation";
+import { resetAndSeedE2EData } from "../../setup/e2e-database";
 
 /**
  * Mesajlar parity matrisi — SPEC-MESAJLAR §1, Dalga 3 §1.
@@ -38,15 +41,23 @@ const VIEWPORTS = [
 const THEMES: readonly ParityTheme[] = ["theme-light", "theme-dark"];
 
 /**
- * SPEC §1.2'nin sabit sütunları. Sunucu rayı ve gezinme paneli Mesajlar
- * paketinde **değişmedi**; matris onların da yerinde durduğunu doğruluyor,
- * çünkü bu paketin en kolay kıracağı şey kendi ekranı değil, kabuktu.
+ * Kabuğun sabit sütunları. Sayılar **sözlükten** okunur, buraya kopyalanmaz: sunucu rayı ve
+ * gezinme paneli Mesajlar'ın değil kabuğun malıdır ve kabuk onları paket dışında da değiştirir.
+ * Gezinme paneli 228'den 280'e genişledi (`NAV_PANEL_ADJUSTMENTS`, Bahsedilmeler kabuğu); bu
+ * dosya sayıyı elinde tutsaydı matrisin 132 kombinasyonu tek bir bayat sabitten kırılırdı —
+ * nitekim kırıldı. Matrisin işi ölçüyü ezberlemek değil, sözlüğün **ekrandaki** karşılığını
+ * doğrulamak.
  */
-const COLUMN_WIDTHS = { navPanel: 228, rail: 276, serverRail: 74, sidePanel: 340 } as const;
+const COLUMN_WIDTHS = {
+  navPanel: HOME_METRICS.panel.width,
+  rail: MESSAGES_METRICS.layout.railWidth,
+  serverRail: HOME_METRICS.rail.width,
+  sidePanel: MESSAGES_METRICS.layout.sidePanelWidth,
+} as const;
 
-/** SPEC §1.2: ana alan asgari genişliği; sağ panel açıkken 442. */
-const MAIN_MIN_WIDTH = 782;
-const MAIN_MIN_WIDTH_WITH_PANEL = 442;
+/** Ana alanın asgari genişliği; sağ panel açıkken ikincisi. İkisi de aynı sözlükten. */
+const MAIN_MIN_WIDTH = MESSAGES_METRICS.layout.mainMinWidth;
+const MAIN_MIN_WIDTH_WITH_PANEL = MESSAGES_METRICS.layout.mainMinWidthWithPanel;
 
 const TAP_TARGET_SELECTOR =
   '[data-testid="messages-screen-root"] button, [data-testid="messages-screen-root"] a[href]';
@@ -73,12 +84,15 @@ const DESIGN_TAP_TARGET_EXCEPTIONS = new Set([
   // Bestekâr (SPEC §5.6): araç şeridi 31 yüksek, eylem düğmeleri 34×34.
   "emoji-picker-button",
   "gif-picker-button",
+  "message-file-button",
   "message-action-more",
   "message-action-pin",
   "message-action-react",
   "message-action-reply",
   "message-action-thread",
   "message-formatting-toggle",
+  "message-poll-button",
+  "message-send-button",
   // Arama süzgeç çipi (SPEC §6.2): çip yüksekliği 26, iki düğmesi de çipin içinde.
   "message-search-chip-remove-date",
   "message-search-chip-remove-person",
@@ -234,9 +248,7 @@ async function runParityChecks(
 
   await expectAppliedTheme(page, theme);
 
-  const rootFontSize = await readRootFontSize(page);
-
-  expect(rootFontSize).toBeCloseTo(viewport.expectedRootFontSize, 1);
+  const rootFontSize = await waitForRootFontSize(page, viewport.expectedRootFontSize);
   await expectNoOverflow(page);
   await expectNoClippedText(page);
   await expectColumnWidths(page, rootFontSize);
@@ -288,6 +300,12 @@ async function runParityChecks(
 }
 
 test.describe("Mesajlar parity matrisi", () => {
+  test.beforeAll(async () => {
+    // Attachment E2E aynı tohum konuşmalarını bilinçli olarak mutasyona uğratır. Parity
+    // matrisi yalnız tasarımın sabit fixture'ını ölçmeli; önceki spec'in artığını değil.
+    await resetAndSeedE2EData();
+  });
+
   test.afterAll(async () => {
     // Matris `User.theme`'i yazıyor; sonraki spec'ler tohumun varsayılanını beklesin.
     await setE2EUserTheme("alice", "theme-dark");

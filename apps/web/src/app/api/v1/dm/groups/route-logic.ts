@@ -27,7 +27,9 @@ import { setGroupInviteEnabled } from "@/lib/dm/group-invite-service";
 import { readGroupCallState, toGroupCallStateDTO } from "@/lib/dm/group-call-state";
 import {
   addGroupMembers,
+  clearGroupHistory,
   createGroupConversation,
+  deleteGroupConversation,
   dismissPinnedStrip,
   removeGroupMember,
   setPinnedMessage,
@@ -35,6 +37,7 @@ import {
   updateGroupSettings,
   updateMemberRole,
 } from "@/lib/dm/group-service";
+import { getGroupProfilePanel, listGroupMembers } from "@/lib/dm/group-profile-service";
 import { getDirectMessageConversationForUser, requireDMParticipant } from "@/lib/dm/service";
 import { getSocketServer } from "@/lib/socket/runtime";
 
@@ -428,6 +431,238 @@ async function respondWithPin(
   }
 
   return Response.json({ conversation });
+}
+
+// ---------------------------------------------------------------------------
+// §15 profil paneli — grup kolu
+// ---------------------------------------------------------------------------
+
+/**
+ * Path and query validation for the four §15 endpoints. `conversationId` arrives
+ * from the route segment, which is caller-controlled text like any body field
+ * (kural 8), and `limit` arrives as a string because query strings have no
+ * numbers.
+ */
+export const GroupProfileParamsSchema = z
+  .object({ conversationId: z.string().trim().min(1).max(128) })
+  .strict();
+
+export const GroupMembersQuerySchema = z
+  .object({
+    cursor: z.string().trim().min(1).max(512).nullable().default(null),
+    limit: z.coerce.number().int().positive().max(250).nullable().default(null),
+  })
+  .strict();
+
+/**
+ * §15's group panel and its roster travel on their own dependency set.
+ * `GroupRouteDependencies` above is satisfied by four call sites and a test
+ * builder; widening it for four endpoints none of them serve would make every
+ * one of those declare stubs it never calls.
+ */
+export type GroupProfileRouteDependencies = {
+  authenticate(request: Request): Promise<string>;
+  clearHistory: typeof clearGroupHistory;
+  deleteGroup: typeof deleteGroupConversation;
+  emitDeleted(
+    io: GroupRealtimeServer,
+    input: { conversationId: string; participantUserIds: readonly string[] },
+  ): void;
+  emitHistoryCleared(
+    io: GroupRealtimeServer,
+    input: {
+      clearedAt: string;
+      conversationId: string;
+      participantUserIds: readonly string[];
+    },
+  ): void;
+  enforceRateLimit(userId: string, action: ApiRateLimitAction): Promise<void>;
+  getIo(): GroupRealtimeServer | null;
+  listMembers: typeof listGroupMembers;
+  loadProfile: typeof getGroupProfilePanel;
+  /**
+   * Which buckets this deployment of the endpoints spends. Carried as data so
+   * the mobile twin swaps its own without a second copy of every handler — and
+   * so the two destructive rows keep their deliberately tighter ceilings
+   * wherever they are mounted.
+   */
+  rateLimits: {
+    clearHistory: ApiRateLimitAction;
+    delete: ApiRateLimitAction;
+    read: ApiRateLimitAction;
+  };
+};
+
+/**
+ * §15.5.3. The history is gone for every open client, not only the admin who
+ * pressed the button — the conversation room covers whoever has the chat open,
+ * the personal rooms cover the rail preview of everybody who does not.
+ */
+function emitConversationHistoryCleared(
+  io: GroupRealtimeServer,
+  input: { clearedAt: string; conversationId: string; participantUserIds: readonly string[] },
+): void {
+  io.to([
+    `dm:${input.conversationId}`,
+    ...input.participantUserIds.map((userId) => `user:${userId}`),
+  ]).emit("dm:conversation:history_cleared", {
+    clearedAt: input.clearedAt,
+    conversationId: input.conversationId,
+  });
+}
+
+/**
+ * §15.5.3. Reuses `dm:conversation:removed` rather than minting a
+ * `dm:group:deleted`: for the reader the two are the same fact — this
+ * conversation is gone — and the handler that already drops it from the cache
+ * and the rail is the one that should run.
+ */
+function emitGroupConversationDeleted(
+  io: GroupRealtimeServer,
+  input: { conversationId: string; participantUserIds: readonly string[] },
+): void {
+  io.to(input.participantUserIds.map((userId) => `user:${userId}`)).emit(
+    "dm:conversation:removed",
+    { conversationId: input.conversationId },
+  );
+
+  // `dm:join` gates entry but never removes a socket that is already inside, and
+  // the room now belongs to a conversation that does not exist.
+  io.in(`dm:${input.conversationId}`).socketsLeave(`dm:${input.conversationId}`);
+}
+
+export const groupProfileDefaults: GroupProfileRouteDependencies = {
+  authenticate: () => requireApiUserId(),
+  clearHistory: clearGroupHistory,
+  deleteGroup: deleteGroupConversation,
+  emitDeleted: emitGroupConversationDeleted,
+  emitHistoryCleared: emitConversationHistoryCleared,
+  enforceRateLimit: enforceApiRateLimit,
+  getIo: () => getSocketServer(),
+  listMembers: listGroupMembers,
+  loadProfile: getGroupProfilePanel,
+  /**
+   * The two destructive rows spend their own, far tighter budgets rather than the
+   * shared group-write one: clearing history and deleting a group are each done
+   * once, so a loop on either is an attack or a bug, never use.
+   */
+  rateLimits: {
+    clearHistory: "dm:group:clear-history",
+    delete: "dm:group:delete",
+    read: "dm:group:read",
+  },
+};
+
+/** §15's group arm in one read: identity, counters, invite, pins, viewer state. */
+export async function groupProfileRoute(
+  request: Request,
+  conversationId: string,
+  dependencies: GroupProfileRouteDependencies = groupProfileDefaults,
+): Promise<Response> {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, dependencies.rateLimits.read);
+    const params = GroupProfileParamsSchema.parse({ conversationId });
+    const profile = await dependencies.loadProfile(userId, params.conversationId);
+
+    return Response.json({ profile });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+/**
+ * §15.4's roster. A flat list with a role on every row — the `YÖNETİCİ` / `ÜYE`
+ * headings are a rendering decision, not a second query.
+ */
+export async function groupMembersReadRoute(
+  request: Request,
+  conversationId: string,
+  dependencies: GroupProfileRouteDependencies = groupProfileDefaults,
+): Promise<Response> {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, dependencies.rateLimits.read);
+    const params = GroupProfileParamsSchema.parse({ conversationId });
+    const url = new URL(request.url);
+    const query = GroupMembersQuerySchema.parse({
+      cursor: url.searchParams.get("cursor"),
+      limit: url.searchParams.get("limit"),
+    });
+    const page = await dependencies.listMembers(userId, params.conversationId, {
+      cursor: query.cursor,
+      limit: query.limit,
+    });
+
+    return Response.json(page);
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+/**
+ * §15.5.3's `Geçmişi temizle`. OWNER/ADMIN, re-checked in the service; the role
+ * the client believes it holds never reaches the decision.
+ */
+export async function groupClearHistoryRoute(
+  request: Request,
+  conversationId: string,
+  dependencies: GroupProfileRouteDependencies = groupProfileDefaults,
+): Promise<Response> {
+  try {
+    const userId = await dependencies.authenticate(request);
+    // Its own slot in `rateLimits` rather than a literal, so the tighter bucket
+    // this deserves is a one-line change when it is registered.
+    await dependencies.enforceRateLimit(userId, dependencies.rateLimits.clearHistory);
+    const params = GroupProfileParamsSchema.parse({ conversationId });
+    const result = await dependencies.clearHistory(userId, params.conversationId, undefined, {
+      headers: request.headers,
+    });
+    const io = dependencies.getIo();
+
+    if (io) {
+      dependencies.emitHistoryCleared(io, {
+        clearedAt: result.clearedAt,
+        conversationId: params.conversationId,
+        participantUserIds: result.participantUserIds,
+      });
+    }
+
+    return Response.json({ clearedAt: result.clearedAt });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+/** §15.5.3's `Grubu sil`. OWNER only — see `deleteGroupConversation`. */
+export async function groupDeleteRoute(
+  request: Request,
+  conversationId: string,
+  dependencies: GroupProfileRouteDependencies = groupProfileDefaults,
+): Promise<Response> {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, dependencies.rateLimits.delete);
+    const params = GroupProfileParamsSchema.parse({ conversationId });
+    const { participantUserIds } = await dependencies.deleteGroup(
+      userId,
+      params.conversationId,
+      undefined,
+      { headers: request.headers },
+    );
+    const io = dependencies.getIo();
+
+    if (io) {
+      dependencies.emitDeleted(io, {
+        conversationId: params.conversationId,
+        participantUserIds,
+      });
+    }
+
+    return new Response(null, { status: 204 });
+  } catch (error) {
+    return jsonError(error);
+  }
 }
 
 /**

@@ -1,75 +1,29 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { Socket } from "socket.io-client";
 import type { ClientToServerEvents, ServerToClientEvents } from "@/lib/socket/events";
+import { usePresenceIdleTimeoutPreference } from "@/hooks/use-presence-idle-timeout-preference";
 
 export type PresenceStatus = "ONLINE" | "IDLE" | "DND" | "OFFLINE";
 
-export const PRESENCE_IDLE_TIMEOUT_OPTIONS = [5, 10, 15, 30, 60] as const;
-export const DEFAULT_PRESENCE_IDLE_TIMEOUT_MINUTES = 15;
+/**
+ * Ş12 / K9 — tercihin kendisi `use-presence-idle-timeout-preference.ts` dosyasına taşındı ve
+ * `UserSettings.idleTimeoutMinutes` kolonundan okunur oldu. Buradan yeniden dışa verilmesinin
+ * tek nedeni mevcut çağrı yerlerinin (Gizlilik sekmesi) tek bir içe aktarma yolunu sürdürmesi.
+ */
+export {
+  DEFAULT_PRESENCE_IDLE_TIMEOUT_MINUTES,
+  PRESENCE_IDLE_TIMEOUT_OPTIONS,
+  usePresenceIdleTimeoutPreference,
+} from "@/hooks/use-presence-idle-timeout-preference";
 
-const PRESENCE_IDLE_TIMEOUT_STORAGE_KEY = "wizards.presence.idleTimeoutMinutes";
-const PRESENCE_IDLE_TIMEOUT_EVENT = "wizards:presence-idle-timeout-change";
 const ACTIVITY_THROTTLE_MS = 1_000;
 
 type PresenceSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
-function normalizeIdleTimeoutMinutes(value: unknown) {
-  const numericValue = typeof value === "number" ? value : Number(value);
-
-  return PRESENCE_IDLE_TIMEOUT_OPTIONS.includes(
-    numericValue as (typeof PRESENCE_IDLE_TIMEOUT_OPTIONS)[number],
-  )
-    ? numericValue
-    : DEFAULT_PRESENCE_IDLE_TIMEOUT_MINUTES;
-}
-
-function readStoredIdleTimeoutMinutes() {
-  if (typeof window === "undefined") {
-    return DEFAULT_PRESENCE_IDLE_TIMEOUT_MINUTES;
-  }
-
-  return normalizeIdleTimeoutMinutes(
-    window.localStorage.getItem(PRESENCE_IDLE_TIMEOUT_STORAGE_KEY),
-  );
-}
-
 function canAutoManagePresence(status: PresenceStatus) {
   return status === "ONLINE" || status === "IDLE";
-}
-
-export function usePresenceIdleTimeoutPreference() {
-  const [idleTimeoutMinutes, setIdleTimeoutMinutesState] = useState(
-    DEFAULT_PRESENCE_IDLE_TIMEOUT_MINUTES,
-  );
-
-  useEffect(() => {
-    const syncPreference = () => {
-      setIdleTimeoutMinutesState(readStoredIdleTimeoutMinutes());
-    };
-
-    syncPreference();
-    window.addEventListener("storage", syncPreference);
-    window.addEventListener(PRESENCE_IDLE_TIMEOUT_EVENT, syncPreference);
-
-    return () => {
-      window.removeEventListener("storage", syncPreference);
-      window.removeEventListener(PRESENCE_IDLE_TIMEOUT_EVENT, syncPreference);
-    };
-  }, []);
-
-  const setIdleTimeoutMinutes = useCallback((value: number) => {
-    const normalizedValue = normalizeIdleTimeoutMinutes(value);
-    setIdleTimeoutMinutesState(normalizedValue);
-    window.localStorage.setItem(PRESENCE_IDLE_TIMEOUT_STORAGE_KEY, String(normalizedValue));
-    window.dispatchEvent(new Event(PRESENCE_IDLE_TIMEOUT_EVENT));
-  }, []);
-
-  return {
-    idleTimeoutMinutes,
-    setIdleTimeoutMinutes,
-  };
 }
 
 export function usePresenceActivity({

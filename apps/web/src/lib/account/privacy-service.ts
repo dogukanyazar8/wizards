@@ -1,6 +1,11 @@
-import { MobileMediaUploadPurpose, UserStatus, prisma, type Prisma } from "@wizards/db";
-import { ACCOUNT_DELETION_CONFIRMATION_PHRASE } from "@wizards/types";
+import { MobileMediaUploadPurpose, Prisma, UserStatus, prisma } from "@wizards/db";
+import {
+  ACCOUNT_DELETION_CONFIRMATION_PHRASE,
+  type ConversationPrivacy,
+  type UpdatePrivacyRequest,
+} from "@wizards/types";
 import { ApiError } from "@/lib/api";
+import { resolveMessagePrivacy } from "@/lib/messages/typing-visibility";
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
 import { revokeUserSessions } from "@/lib/auth/session-revocation";
 import { logError } from "@/lib/logger";
@@ -34,6 +39,85 @@ const defaultAccountAnonymizationDependencies: AccountAnonymizationDependencies 
   now: () => new Date(),
   revokeSessions: revokeUserSessions,
 };
+
+/**
+ * Mesajlar §15.5 madde 2 / karar K9 — the two switches on the profile panel's
+ * `GİZLİLİK VE GÜVENLİK` card.
+ *
+ * The card draws a third row (`Aktarımda şifreli`), and that row has no
+ * preference behind it on purpose: it reports a transport fact, so it is read
+ * only and no third column was opened for it.
+ *
+ * Reads and writes live here rather than in the DM layer because the columns are
+ * account-wide: the panel is only where the switch happens to be drawn.
+ */
+export type MessagingPrivacyStore = {
+  findSettings(userId: string): Promise<{
+    showReadReceipts: boolean;
+    showTypingIndicator: boolean;
+  } | null>;
+  updateSettings(
+    userId: string,
+    data: { showReadReceipts?: boolean; showTypingIndicator?: boolean },
+  ): Promise<{ showReadReceipts: boolean; showTypingIndicator: boolean }>;
+};
+
+const messagingPrivacyStore: MessagingPrivacyStore = {
+  findSettings: (userId) =>
+    prisma.userSettings.findUnique({
+      where: { userId },
+      select: { showReadReceipts: true, showTypingIndicator: true },
+    }),
+  updateSettings: (userId, data) =>
+    prisma.userSettings.update({
+      where: { userId },
+      data,
+      select: { showReadReceipts: true, showTypingIndicator: true },
+    }),
+};
+
+export async function getMessagingPrivacy(
+  userId: string,
+  store: MessagingPrivacyStore = messagingPrivacyStore,
+): Promise<ConversationPrivacy> {
+  return resolveMessagePrivacy(await store.findSettings(userId));
+}
+
+/**
+ * A partial write: the panel sends the switch that moved, not both. Sending both
+ * would let a stale card silently undo the other switch on a second device.
+ */
+export async function updateMessagingPrivacy(
+  userId: string,
+  input: UpdatePrivacyRequest,
+  store: MessagingPrivacyStore = messagingPrivacyStore,
+): Promise<ConversationPrivacy> {
+  const data: { showReadReceipts?: boolean; showTypingIndicator?: boolean } = {};
+
+  if (input.readReceipts !== undefined) {
+    data.showReadReceipts = input.readReceipts;
+  }
+
+  if (input.typingIndicator !== undefined) {
+    data.showTypingIndicator = input.typingIndicator;
+  }
+
+  if (Object.keys(data).length === 0) {
+    // The request schema already refuses an empty body; this keeps a caller that
+    // bypasses it from issuing an update with no columns.
+    throw new ApiError("At least one preference is required", 400, "VALIDATION_ERROR");
+  }
+
+  try {
+    return resolveMessagePrivacy(await store.updateSettings(userId, data));
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      throw new ApiError("Account settings not found", 404, "NOT_FOUND");
+    }
+
+    throw error;
+  }
+}
 
 export function buildDeletedAccountIdentity(userId: string) {
   const stableId = userId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 24) || "unknown";

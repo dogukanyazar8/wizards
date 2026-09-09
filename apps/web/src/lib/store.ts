@@ -68,8 +68,12 @@ function scheduleSyncToDb(patch: UserSettingsSyncPatch) {
 type ChannelType = "TEXT" | "VOICE";
 export type ActiveWorkspaceArea = "friends" | "dm" | "server";
 
+/**
+ * Ş14: `edit` kipi silindi. Sunucu **düzenleme** artık Sunucu ayarları › Genel'in işi
+ * (SPEC-SUNUCU §8.1); pencerenin geriye kalan tek işi `create`. Kip alanı bir zamanlar
+ * `workspace-modals.tsx`'in iki dalını ayırıyordu, ikinci dalın çağıranı kalmadı.
+ */
 type ServerModalState = {
-  mode: "create" | "edit";
   open: boolean;
   serverId: string | null;
 };
@@ -91,6 +95,34 @@ type CategoryModalState = {
 };
 
 type InviteModalState = {
+  channelId: string | null;
+  open: boolean;
+  serverId: string | null;
+  /**
+   * Ş13: `Sunucu ayarları › Davetler` bölümündeki `Arkadaş seçerek davet` düğmesi pencereyi
+   * doğrudan arkadaş sekmesinde açar. `null` = pencerenin kendi varsayılanı (`link`).
+   */
+  tab: "link" | "friends" | null;
+};
+
+/**
+ * SPEC-SUNUCU §6.4 (Ş9) — kanal bildirimleri penceresi. Kanal adı da durumda taşınır:
+ * pencere başlığı `#kanal` yazıyor ve tetikleyici (başlıktaki zil, kenar çubuğu satırı)
+ * adı zaten elinde tutuyor; ikinci bir sorgu açmak aynı gerçeği iki yerden okumak olurdu.
+ */
+type ChannelNotificationsModalState = {
+  channelId: string | null;
+  channelName: string | null;
+  open: boolean;
+};
+
+/** SPEC-SUNUCU §6.5 (Ş9) — etkinlik oluştur penceresi; ayarların üstünde açılır (K11). */
+type ServerEventModalState = {
+  /**
+   * Ş13: `Sunucu ayarları › Etkinlikler`in `Düzenle` düğmesi **aynı** pencereyi dolu açar
+   * (`UpdateServerScheduledEventSchema`). `null` = yeni etkinlik.
+   */
+  eventId: string | null;
   open: boolean;
   serverId: string | null;
 };
@@ -130,6 +162,7 @@ interface AppState extends PersistedRouteState {
   appearanceHydrated: boolean;
   appIconId: AppIconId;
   categoryModal: CategoryModalState;
+  channelNotificationsModal: ChannelNotificationsModalState;
   channelSidebarWidth: number;
   channelModal: ChannelModalState;
   collapsedCategories: Record<string, boolean>;
@@ -137,7 +170,20 @@ interface AppState extends PersistedRouteState {
   deleteServerDialog: DeleteServerDialogState;
   inviteModal: InviteModalState;
   mainPanelWidth: number;
+  serverEventModal: ServerEventModalState;
   memberPanelCollapsed: boolean;
+  /**
+   * Sağ panelin **katman kipindeki** açıklığı — SPEC-SUNUCU §11.
+   *
+   * `memberPanelCollapsed` geniş ekranın kalıcı tercihidir. `<rightPanelOverlayBelow`'da panel
+   * akıştan çıkıp içeriğin üstüne bindiği için aynı tercihi orada da uygulamak, besteciyi ve
+   * mesaj metnini kalıcı olarak örtüyordu. Katman kipi bu yüzden **kendi** bayrağını taşır ve
+   * varsayılanı kapalıdır: dar ekranda panel yalnız `Üyeler` düğmesiyle açılır.
+   *
+   * Bayrak **kalıcı değildir**: kip her terk edildiğinde sıfırlanır, geniş ekranın tercihi ise
+   * hiç bozulmaz.
+   */
+  memberPanelOverlayOpen: boolean;
   desktopNotificationPreviews: boolean;
   desktopRichPresenceAudience: DesktopRichPresenceAudience;
   desktopRichPresenceEnabled: boolean;
@@ -157,7 +203,7 @@ interface AppState extends PersistedRouteState {
   serverContextMenu: ServerContextMenuState;
   serverModal: ServerModalState;
   serverSettingsServerId: string | null;
-  showCategoryMoveControls: boolean;
+  supportModal: SupportModalKind;
   applyPersistedSettings: (settings: {
     serverRailWidth: number;
     channelSidebarWidth: number;
@@ -169,8 +215,10 @@ interface AppState extends PersistedRouteState {
   closeChannelModal: () => void;
   closeDeleteChannelDialog: () => void;
   closeDeleteServerDialog: () => void;
+  closeChannelNotificationsModal: () => void;
   closeInviteModal: () => void;
   closeServerContextMenu: () => void;
+  closeServerEventModal: () => void;
   closeServerModal: () => void;
   closeServerSettings: () => void;
   forgetServerState: (serverId: string) => void;
@@ -187,10 +235,17 @@ interface AppState extends PersistedRouteState {
   }) => void;
   openDeleteChannelDialog: (channelId: string, channelName: string) => void;
   openDeleteServerDialog: (serverId: string, serverName: string) => void;
-  openInviteModal: (serverId: string) => void;
+  openChannelNotificationsModal: (channelId: string, channelName: string) => void;
+  openInviteModal: (
+    serverId: string,
+    options?: { channelId?: string | null; tab?: "link" | "friends" },
+  ) => void;
   openServerContextMenu: (serverId: string, position: { x: number; y: number }) => void;
-  openServerModal: (options: { mode: "create" | "edit"; serverId?: string | null }) => void;
+  openServerEventModal: (serverId: string, options?: { eventId?: string | null }) => void;
+  openServerModal: (options?: { serverId?: string | null }) => void;
   openServerSettings: (serverId: string) => void;
+  openSupportModal: (kind: Exclude<SupportModalKind, "none">) => void;
+  closeSupportModal: () => void;
   resetChannelSidebarWidth: () => void;
   resetMainPanelWidth: () => void;
   resetServerRailWidth: () => void;
@@ -207,6 +262,7 @@ interface AppState extends PersistedRouteState {
   setDesktopStreamerModeProcessDetectionEnabled: (enabled: boolean) => void;
   setMainPanelWidth: (width: number) => void;
   setMemberPanelCollapsed: (collapsed: boolean) => void;
+  setMemberPanelOverlayOpen: (open: boolean) => void;
   setMessageFont: (fontId: MessageFontId) => void;
   setMobileSidebarOpen: (open: boolean) => void;
   setNotificationAutoClose: (autoClose: boolean) => void;
@@ -217,7 +273,6 @@ interface AppState extends PersistedRouteState {
   setServerRailCollapsed: (collapsed: boolean) => void;
   setServerRailIconSize: (size: number) => void;
   setServerRailWidth: (width: number) => void;
-  setShowCategoryMoveControls: (visible: boolean) => void;
   toggleCategoryCollapse: (serverId: string, categoryId: string) => void;
 }
 
@@ -245,8 +300,14 @@ type PersistedAppState = Pick<
   | "serverRailCollapsed"
   | "serverRailIconSize"
   | "serverRailWidth"
-  | "showCategoryMoveControls"
 >;
+
+/**
+ * SPEC-INDIRME §C — rayın iki penceresi **aynı anda açılmaz**. Tek bir alan,
+ * iki ayrı boolean'ın kaçınılmaz olarak düşeceği "ikisi de açık" durumunu
+ * kurulum gereği imkânsız kılar.
+ */
+export type SupportModalKind = "download" | "none" | "report";
 
 const initialChannelModalState: ChannelModalState = {
   categoryId: null,
@@ -264,19 +325,25 @@ function createInitialState(): Omit<
   | "closeChannelModal"
   | "closeDeleteChannelDialog"
   | "closeDeleteServerDialog"
+  | "closeChannelNotificationsModal"
   | "closeInviteModal"
   | "closeServerContextMenu"
+  | "closeServerEventModal"
   | "closeServerModal"
   | "closeServerSettings"
+  | "closeSupportModal"
   | "forgetServerState"
   | "openCategoryModal"
   | "openChannelModal"
   | "openDeleteChannelDialog"
   | "openDeleteServerDialog"
+  | "openChannelNotificationsModal"
   | "openInviteModal"
   | "openServerContextMenu"
+  | "openServerEventModal"
   | "openServerModal"
   | "openServerSettings"
+  | "openSupportModal"
   | "resetChannelSidebarWidth"
   | "resetMainPanelWidth"
   | "resetServerRailWidth"
@@ -293,6 +360,7 @@ function createInitialState(): Omit<
   | "setDesktopStreamerModeProcessDetectionEnabled"
   | "setMainPanelWidth"
   | "setMemberPanelCollapsed"
+  | "setMemberPanelOverlayOpen"
   | "setMessageFont"
   | "setMobileSidebarOpen"
   | "setNotificationAutoClose"
@@ -303,7 +371,6 @@ function createInitialState(): Omit<
   | "setServerRailCollapsed"
   | "setServerRailIconSize"
   | "setServerRailWidth"
-  | "setShowCategoryMoveControls"
   | "toggleCategoryCollapse"
 > {
   return {
@@ -331,13 +398,26 @@ function createInitialState(): Omit<
       serverId: null,
       serverName: null,
     },
+    channelNotificationsModal: {
+      channelId: null,
+      channelName: null,
+      open: false,
+    },
     inviteModal: {
+      channelId: null,
+      open: false,
+      serverId: null,
+      tab: null,
+    },
+    serverEventModal: {
+      eventId: null,
       open: false,
       serverId: null,
     },
     lastChannelByServerId: {},
     mainPanelWidth: DEFAULT_MAIN_PANEL_WIDTH,
     memberPanelCollapsed: false,
+    memberPanelOverlayOpen: false,
     desktopNotificationPreviews: false,
     desktopRichPresenceAudience: DEFAULT_DESKTOP_RICH_PRESENCE_AUDIENCE,
     desktopRichPresenceEnabled: false,
@@ -360,13 +440,12 @@ function createInitialState(): Omit<
       y: 0,
     },
     serverModal: {
-      mode: "create",
       open: false,
       serverId: null,
     },
     serverRailWidth: DEFAULT_SERVER_RAIL_WIDTH,
     serverSettingsServerId: null,
-    showCategoryMoveControls: true,
+    supportModal: "none",
   };
 }
 
@@ -482,8 +561,6 @@ function sanitizePersistedState(value: unknown): Partial<PersistedAppState> {
     serverRailWidth: clampExpandedServerRailWidth(
       typeof value.serverRailWidth === "number" ? value.serverRailWidth : DEFAULT_SERVER_RAIL_WIDTH,
     ),
-    showCategoryMoveControls:
-      typeof value.showCategoryMoveControls === "boolean" ? value.showCategoryMoveControls : true,
   };
 }
 
@@ -529,9 +606,27 @@ export const useAppStore = create<AppState>()(
             serverName: null,
           },
         }),
+      closeChannelNotificationsModal: () =>
+        set({
+          channelNotificationsModal: {
+            channelId: null,
+            channelName: null,
+            open: false,
+          },
+        }),
       closeInviteModal: () =>
         set({
           inviteModal: {
+            channelId: null,
+            open: false,
+            serverId: null,
+            tab: null,
+          },
+        }),
+      closeServerEventModal: () =>
+        set({
+          serverEventModal: {
+            eventId: null,
             open: false,
             serverId: null,
           },
@@ -548,7 +643,6 @@ export const useAppStore = create<AppState>()(
       closeServerModal: () =>
         set({
           serverModal: {
-            mode: "create",
             open: false,
             serverId: null,
           },
@@ -557,6 +651,7 @@ export const useAppStore = create<AppState>()(
         set({
           serverSettingsServerId: null,
         }),
+      closeSupportModal: () => set({ supportModal: "none" }),
       forgetServerState: (serverId) =>
         set((state) => {
           if (!(serverId in state.lastChannelByServerId) && state.activeServerId !== serverId) {
@@ -618,9 +713,32 @@ export const useAppStore = create<AppState>()(
             serverName,
           },
         }),
-      openInviteModal: (serverId) =>
+      openChannelNotificationsModal: (channelId, channelName) =>
         set({
+          channelNotificationsModal: {
+            channelId,
+            channelName,
+            open: true,
+          },
+          serverEventModal: { eventId: null, open: false, serverId: null },
+        }),
+      openInviteModal: (serverId, options = {}) =>
+        set({
+          channelNotificationsModal: { channelId: null, channelName: null, open: false },
           inviteModal: {
+            channelId: options.channelId ?? null,
+            open: true,
+            serverId,
+            tab: options.tab ?? null,
+          },
+          serverEventModal: { eventId: null, open: false, serverId: null },
+        }),
+      openServerEventModal: (serverId, options = {}) =>
+        set({
+          channelNotificationsModal: { channelId: null, channelName: null, open: false },
+          inviteModal: { channelId: null, open: false, serverId: null, tab: null },
+          serverEventModal: {
+            eventId: options.eventId ?? null,
             open: true,
             serverId,
           },
@@ -634,10 +752,9 @@ export const useAppStore = create<AppState>()(
             y: position.y,
           },
         }),
-      openServerModal: ({ mode, serverId = null }) =>
+      openServerModal: ({ serverId = null } = {}) =>
         set({
           serverModal: {
-            mode,
             open: true,
             serverId,
           },
@@ -646,6 +763,7 @@ export const useAppStore = create<AppState>()(
         set({
           serverSettingsServerId: serverId,
         }),
+      openSupportModal: (kind) => set({ supportModal: kind }),
       resetChannelSidebarWidth: () =>
         set((state) => {
           if (state.channelSidebarWidth === DEFAULT_CHANNEL_SIDEBAR_WIDTH) {
@@ -784,6 +902,16 @@ export const useAppStore = create<AppState>()(
             memberPanelCollapsed: collapsed,
           };
         }),
+      setMemberPanelOverlayOpen: (open) =>
+        set((state) => {
+          if (state.memberPanelOverlayOpen === open) {
+            return state;
+          }
+
+          return {
+            memberPanelOverlayOpen: open,
+          };
+        }),
       setMessageFont: (fontId) =>
         set((state) => {
           const nextFont = normalizeMessageFontId(fontId);
@@ -882,16 +1010,6 @@ export const useAppStore = create<AppState>()(
           return {
             serverRailCollapsed: false,
             serverRailWidth: nextWidth,
-          };
-        }),
-      setShowCategoryMoveControls: (visible) =>
-        set((state) => {
-          if (state.showCategoryMoveControls === visible) {
-            return state;
-          }
-
-          return {
-            showCategoryMoveControls: visible,
           };
         }),
       toggleCategoryCollapse: (serverId, categoryId) =>
@@ -1064,7 +1182,6 @@ export const useAppStore = create<AppState>()(
         serverRailCollapsed: state.serverRailCollapsed,
         serverRailIconSize: state.serverRailIconSize,
         serverRailWidth: state.serverRailWidth,
-        showCategoryMoveControls: state.showCategoryMoveControls,
       }),
       storage: createJSONStorage(() => localStorage),
       version: 13,

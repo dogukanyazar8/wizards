@@ -47,12 +47,29 @@ const whisprReleaseChannel =
     process.env.VERCEL_ENV,
     process.env.NODE_ENV,
   ) ?? "development";
+/**
+ * Açılış ekranının sürüm satırı (SPEC-SPLASH §3.4): `Whispr 2.4.1 (1187) · Resonance`.
+ *
+ * `WHISPR_BUILD_ID` bu satıra giremez — o commit/deploy kimliğinden türeyen bir dize
+ * (`a1b2c3d-4e5f6a7`) ve güncelleme bildiricisinin sözleşmesi. Parantezdeki sayı ayrı
+ * bir yayın numarasıdır; verilmezse satır kısalır (`Whispr 2.4.1 · Resonance`), boş
+ * parantez yazılmaz.
+ */
+const whisprBuildNumber = firstNonEmpty(process.env.WHISPR_BUILD_NUMBER) ?? "";
+const whisprReleaseCodename =
+  firstNonEmpty(
+    process.env.WHISPR_RELEASE_CODENAME,
+    process.env.NEXT_PUBLIC_WHISPR_RELEASE_CODENAME,
+  ) ?? "Echo";
 const isProductionDeployment =
   isProductionValue(whisprReleaseChannel) ||
   isProductionValue(process.env.RAILWAY_ENVIRONMENT_NAME);
+// pnpm can resolve the analyzer's `next` type import through another peer-dependency
+// instance. Both instances are the same Next version, so normalize the wrapper at
+// this boundary instead of leaking incompatible nominal types into this config.
 const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
-});
+}) as unknown as (config: NextConfig) => NextConfig;
 const turbopackRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 const securityHeaders = [
@@ -65,12 +82,25 @@ const securityHeaders = [
   },
 ];
 
+/**
+ * Next'in geliştirme göstergesi (`<nextjs-portal>`) görünüm alanının sol alt köşesinde durur.
+ * Sunucu rayının alt bloğu (`indirme` ve `sorun bildir` düğmeleri) tam olarak orada bitiyor;
+ * gösterge ikisinin üstüne oturunca Playwright'in tıklaması
+ * "`<nextjs-portal>` subtree intercepts pointer events" ile düşüyor — dokuz e2e kırığının
+ * tamamı buydu. Gösterge yalnız geliştirme sunucusunda vardır (CI production build koşar),
+ * bu yüzden kapatma da yalnız e2e kipinde: normal `pnpm dev` göstergeyi görmeye devam eder.
+ */
+const isE2ETestMode = process.env.E2E_TEST_MODE === "true";
+
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["localhost", "127.0.0.1"],
+  ...(isE2ETestMode ? { devIndicators: false as const } : {}),
   env: {
     NEXT_PUBLIC_WHISPR_BUILD_ID: whisprBuildId,
+    NEXT_PUBLIC_WHISPR_BUILD_NUMBER: whisprBuildNumber,
     NEXT_PUBLIC_WHISPR_BUILD_TIME: whisprBuildTime,
     NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL: whisprReleaseChannel,
+    NEXT_PUBLIC_WHISPR_RELEASE_CODENAME: whisprReleaseCodename,
     NEXT_PUBLIC_WHISPR_VERSION: whisprVersion,
   },
   experimental: {

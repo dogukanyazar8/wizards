@@ -26,8 +26,8 @@ function renderLogin(props?: Partial<React.ComponentProps<typeof AuthLoginScreen
       <MobileLocaleProvider>
         <AuthLoginScreen
           developmentCredentials={props?.developmentCredentials}
-          onBack={props?.onBack ?? jest.fn()}
           onForgotPassword={props?.onForgotPassword ?? jest.fn()}
+          onOpenLanguagePicker={props?.onOpenLanguagePicker ?? jest.fn()}
           onRegister={props?.onRegister ?? jest.fn()}
           onSignIn={
             props?.onSignIn ??
@@ -78,10 +78,12 @@ describe("AuthLoginScreen", () => {
     const view = await renderLogin();
 
     expect(view.getByTestId("mobile-auth-login-screen-canonical-background-light")).toBeTruthy();
-    expect(
-      view.getByTestId("mobile-auth-login-top-bar-brand-mark", { includeHiddenElements: true })
-        .props,
-    ).toMatchObject({ height: 32, width: 32 });
+    /*
+     * SPEC-GIRIS-KAYIT §6/1 — karsilama ekrani kalktigi icin giris yigin koku (K4): geri
+     * satiri yok, basligin ustunde dil secici durur.
+     */
+    expect(view.queryByTestId("mobile-auth-login-top-bar")).toBeNull();
+    expect(view.getByTestId("mobile-auth-login-language")).toBeTruthy();
     expect(
       resolvePressableStyle(view.getByTestId("mobile-auth-social-google").props.style),
     ).toEqual(expect.objectContaining({ flexBasis: 0, flexGrow: 1, height: 48, maxWidth: 78 }));
@@ -149,39 +151,30 @@ describe("AuthLoginScreen", () => {
     );
   });
 
-  it("reveals two-factor recovery after a required response and includes a trimmed code only then", async () => {
+  it("leaves the second step to its own route instead of an inline code field", async () => {
     const onSignIn = jest
       .fn<
         Promise<{ message: string; ok: false; requiresTwoFactor: true } | { ok: true }>,
         [SignInInput]
       >()
-      .mockResolvedValueOnce({
+      .mockResolvedValue({
         message: "2FA is required for this account.",
         ok: false,
         requiresTwoFactor: true,
-      })
-      .mockResolvedValueOnce({ ok: true });
+      });
     const view = await renderLogin({ onSignIn });
 
     await fillValidCredentials(view);
     await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
 
-    expect(await view.findByText("2FA is required for this account.")).toBeTruthy();
-    expect(view.getByTestId("mobile-auth-login-two-factor-code-input")).toBeTruthy();
-
-    await fireEvent.changeText(
-      view.getByTestId("mobile-auth-login-two-factor-code-input"),
-      "  123456  ",
-    );
-    await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
-
-    await waitFor(() =>
-      expect(onSignIn).toHaveBeenLastCalledWith({
-        email: "user@example.com",
-        password: "safe-password",
-        twoFactorCode: "123456",
-      }),
-    );
+    await waitFor(() => expect(onSignIn).toHaveBeenCalledTimes(1));
+    /*
+     * SPEC-GIRIS-KAYIT §4.2 ve K2 — konteyner ikinci adim rotasina gecer. Ekran ne kod alani
+     * acar ne de hata gosterir; yoksa kullanici hem yonlendirilir hem kirmizi bant gorurdu.
+     */
+    expect(view.queryByTestId("mobile-auth-login-two-factor-code-input")).toBeNull();
+    expect(view.queryByText("2FA is required for this account.")).toBeNull();
+    expect(view.queryByTestId("mobile-auth-login-error")).toBeNull();
   });
 
   it("disables repeated sign-in presses while the current request is pending", async () => {
@@ -219,33 +212,6 @@ describe("AuthLoginScreen", () => {
     expect(onSocialSignIn).toHaveBeenCalledWith("google");
     await waitFor(() => expect(view.queryByTestId("mobile-auth-login-notice")).toBeNull());
     expect(view.queryByTestId("mobile-auth-login-error")).toBeNull();
-  });
-
-  it("reveals two-factor input and sends its code on the next Google attempt", async () => {
-    const onSocialSignIn = jest
-      .fn<Promise<SocialSignInResult>, ["google", { twoFactorCode?: string }?]>()
-      .mockResolvedValueOnce({
-        message: copy.authTwoFactorRequiredNotice,
-        ok: false,
-        reason: "failed",
-        requiresTwoFactor: true,
-      })
-      .mockResolvedValueOnce({ ok: true, via: "native" });
-    const view = await renderLogin({ onSocialSignIn });
-
-    await fireEvent.press(view.getByTestId("mobile-auth-social-google"));
-    await waitFor(() =>
-      expect(view.getByTestId("mobile-auth-login-two-factor-code-input")).toBeTruthy(),
-    );
-
-    await fireEvent.changeText(
-      view.getByTestId("mobile-auth-login-two-factor-code-input"),
-      " 123456 ",
-    );
-    await fireEvent.press(view.getByTestId("mobile-auth-social-google"));
-
-    expect(onSocialSignIn).toHaveBeenNthCalledWith(1, "google");
-    expect(onSocialSignIn).toHaveBeenNthCalledWith(2, "google", { twoFactorCode: "123456" });
   });
 
   it("hints at the browser hand-off only when the in-app session is unavailable", async () => {
@@ -319,28 +285,22 @@ describe("AuthLoginScreen", () => {
     );
   });
 
-  it("groups the 2FA backup control and local remember checkbox together", async () => {
+  it("keeps the remember-me checkbox as the only control under the password row", async () => {
     const view = await renderLogin();
 
-    expect(view.getByTestId("mobile-auth-login-two-factor-link").parent).toBe(
-      view.getByTestId("mobile-auth-login-remember-me").parent,
+    // K2: satir ici 2FA baglantisi kaldirildi; kutu tek basina kaldi.
+    expect(view.queryByTestId("mobile-auth-login-two-factor-link")).toBeNull();
+    const rememberMe = view.getByTestId("mobile-auth-login-remember-me");
+
+    expect(rememberMe.props.accessibilityRole).toBe("checkbox");
+    expect(rememberMe.props.accessibilityState).toEqual(
+      expect.objectContaining({ checked: false }),
     );
-    expect(
-      view.getByTestId("mobile-auth-login-two-factor-icon", {
-        includeHiddenElements: true,
-      }).props.children,
-    ).toBe("shield-checkmark-outline");
-  });
 
-  it("keeps the 2FA and remember-me controls on one measured row", async () => {
-    const view = await renderLogin();
-
-    expect(
-      resolvePressableStyle(view.getByTestId("mobile-auth-login-two-factor-link").props.style),
-    ).toEqual(expect.objectContaining({ flex: 1 }));
-    expect(
-      resolvePressableStyle(view.getByTestId("mobile-auth-login-remember-me").props.style),
-    ).toEqual(expect.objectContaining({ width: 112 }));
+    await fireEvent.press(rememberMe);
+    expect(view.getByTestId("mobile-auth-login-remember-me").props.accessibilityState).toEqual(
+      expect.objectContaining({ checked: true }),
+    );
   });
 
   it("uses the supplied multicolor Google mark instead of recoloring it with a Whispr token", async () => {
@@ -351,22 +311,32 @@ describe("AuthLoginScreen", () => {
     ).toMatchObject({ height: 20, width: 20 });
   });
 
-  it("keeps profile selection presentation-only and excludes it from the sign-in payload", async () => {
+  it("sends exactly the normalized credential pair and nothing else", async () => {
     const onSignIn = jest
       .fn<Promise<{ ok: true }>, [SignInInput]>()
       .mockResolvedValue({ ok: true });
     const view = await renderLogin({ onSignIn });
 
-    await fireEvent.press(view.getByTestId("mobile-auth-login-profile-option-gamer"));
-    expect(
-      view.getByTestId("mobile-auth-login-profile-option-gamer").props.accessibilityState,
-    ).toEqual(expect.objectContaining({ selected: true }));
-
+    // K1: telefon alani yok, K4: profil secici yok — yuk iki alandan ibaret.
+    expect(view.queryByTestId("mobile-auth-login-profile")).toBeNull();
     await fillValidCredentials(view);
     await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
 
     await waitFor(() => expect(onSignIn).toHaveBeenCalledTimes(1));
     expect(Object.keys(onSignIn.mock.calls[0]![0])).toEqual(["email", "password"]);
+    expect(onSignIn).toHaveBeenCalledWith({
+      email: "user@example.com",
+      password: "safe-password",
+    });
+  });
+
+  it("opens the language picker from the header trigger", async () => {
+    const onOpenLanguagePicker = jest.fn();
+    const view = await renderLogin({ onOpenLanguagePicker });
+
+    await fireEvent.press(view.getByTestId("mobile-auth-login-language"));
+
+    expect(onOpenLanguagePicker).toHaveBeenCalledTimes(1);
   });
 
   it("pre-fills development credentials on mount so UAT testing skips manual entry", async () => {

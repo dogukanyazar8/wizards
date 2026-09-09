@@ -1,35 +1,90 @@
 {
-  "source": {
-    "package": "@expo-google-fonts/plus-jakarta-sans",
-    "version": "0.4.2",
-    "license": "OFL-1.1",
-    "licenseFile": "OFL.txt"
+  "sources": {
+    "plus-jakarta-sans": {
+      "package": "@expo-google-fonts/plus-jakarta-sans",
+      "version": "0.4.2",
+      "license": "OFL-1.1",
+      "licenseFile": "OFL.txt"
+    },
+    "outfit": {
+      "package": "apps/web/src/app/fonts/outfit-latin.woff2",
+      "version": "static instance wght=600,700",
+      "license": "OFL-1.1",
+      "licenseFile": "OFL.txt"
+    },
+    "figtree": {
+      "package": "apps/web/src/app/fonts/figtree-latin.woff2",
+      "version": "static instance wght=400,500,600,700",
+      "license": "OFL-1.1",
+      "licenseFile": "OFL.txt"
+    }
   },
   "files": {
+    "Figtree-Bold.ttf": {
+      "family": "WhisprFigtree_700Bold",
+      "weight": 700,
+      "sha256": "199917a85396a827b3f74e8004d572359bf02ef0f61dc42379650ad2b4caefdc",
+      "source": "figtree"
+    },
+    "Figtree-Medium.ttf": {
+      "family": "WhisprFigtree_500Medium",
+      "weight": 500,
+      "sha256": "49ad052957bb93b6eb4fb9bb810a694a31929709bbb460b403ba8787f499e479",
+      "source": "figtree"
+    },
+    "Figtree-Regular.ttf": {
+      "family": "WhisprFigtree_400Regular",
+      "weight": 400,
+      "sha256": "c4f80d395bad2e8eff742bbcc602ed787a34c00980ac811f597e7abcf07d0adc",
+      "source": "figtree"
+    },
+    "Figtree-SemiBold.ttf": {
+      "family": "WhisprFigtree_600SemiBold",
+      "weight": 600,
+      "sha256": "a1958558f31524814a81bd77448408b42c5db1086d39d9c1cc432edb6c91a190",
+      "source": "figtree"
+    },
+    "Outfit-Bold.ttf": {
+      "family": "WhisprOutfit_700Bold",
+      "weight": 700,
+      "sha256": "8f451b13ba7b04bb830339b872e9e6bd8777a746ab20c2589f596fe9b64f4f37",
+      "source": "outfit"
+    },
+    "Outfit-SemiBold.ttf": {
+      "family": "WhisprOutfit_600SemiBold",
+      "weight": 600,
+      "sha256": "bdec81d53377859e9f06600485ecb457fe7fab8aec7cb7b3340b544acff06508",
+      "source": "outfit"
+    },
     "PlusJakartaSans-Bold.ttf": {
       "family": "WhisprJakarta_700Bold",
       "weight": 700,
-      "sha256": "71af7a0aac7db1b7e30cd389d7aabdabb44b5b5553d470ddd5aa25c0537c8108"
+      "sha256": "71af7a0aac7db1b7e30cd389d7aabdabb44b5b5553d470ddd5aa25c0537c8108",
+      "source": "plus-jakarta-sans"
     },
     "PlusJakartaSans-ExtraBold.ttf": {
       "family": "WhisprJakarta_800ExtraBold",
       "weight": 800,
-      "sha256": "f95af252acb2a09e79452366d05346975e7fda7e0a5831ff671effcb2568504c"
+      "sha256": "f95af252acb2a09e79452366d05346975e7fda7e0a5831ff671effcb2568504c",
+      "source": "plus-jakarta-sans"
     },
     "PlusJakartaSans-Medium.ttf": {
       "family": "WhisprJakarta_500Medium",
       "weight": 500,
-      "sha256": "00ec347136c7f6d904fa8c54decba898cc2c74c17388e62fa4388433de8be226"
+      "sha256": "00ec347136c7f6d904fa8c54decba898cc2c74c17388e62fa4388433de8be226",
+      "source": "plus-jakarta-sans"
     },
     "PlusJakartaSans-Regular.ttf": {
       "family": "WhisprJakarta_400Regular",
       "weight": 400,
-      "sha256": "ca6ef907028d1d1808870967d7b7ddcf68c0f33552d15d7f0c6c7d6ae97e7571"
+      "sha256": "ca6ef907028d1d1808870967d7b7ddcf68c0f33552d15d7f0c6c7d6ae97e7571",
+      "source": "plus-jakarta-sans"
     },
     "PlusJakartaSans-SemiBold.ttf": {
       "family": "WhisprJakarta_600SemiBold",
       "weight": 600,
-      "sha256": "bbaa1d21ce4839070547b1cc06d5db2a56f520abe90278d971665b3f6dca6851"
+      "sha256": "bbaa1d21ce4839070547b1cc06d5db2a56f520abe90278d971665b3f6dca6851",
+      "source": "plus-jakarta-sans"
     }
   }
 }

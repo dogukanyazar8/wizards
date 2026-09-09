@@ -7,6 +7,7 @@ import { formatServerProfileCount } from "@wizards/types";
 
 import { useI18n } from "@/components/providers/locale-provider";
 import { DISCOVER_METRICS, hairline, pxToRem } from "@/lib/discover/metrics";
+import { getServerIconToneColor } from "@/lib/servers/server-icon-tone";
 import type { DiscoverRouteState } from "@/lib/discover/routes";
 
 export type DiscoverFeaturedProps = {
@@ -79,8 +80,11 @@ export function DiscoverFeatured({
         aria-hidden
         className="grid flex-none place-items-center bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
         style={{
+          background: server.iconUrl
+            ? `center / cover no-repeat url(${JSON.stringify(server.iconUrl)})`
+            : getServerIconToneColor(server.iconColor ?? "primary"),
           borderRadius: pxToRem(metrics.tileRadius),
-          boxShadow: `${pxToRem(metrics.tileShadow.x)} ${pxToRem(metrics.tileShadow.y)} ${pxToRem(metrics.tileShadow.blur)} ${pxToRem(metrics.tileShadow.spread)} hsl(var(--primary))`,
+          boxShadow: `${pxToRem(metrics.tileShadow.x)} ${pxToRem(metrics.tileShadow.y)} ${pxToRem(metrics.tileShadow.blur)} ${pxToRem(metrics.tileShadow.spread)} ${getServerIconToneColor(server.iconColor ?? "primary")}`,
           fontFamily: "var(--font-display)",
           fontSize: pxToRem(metrics.tileFontSize),
           fontWeight: metrics.tileWeight,
@@ -88,7 +92,7 @@ export function DiscoverFeatured({
           width: pxToRem(metrics.tileSize),
         }}
       >
-        {server.initials}
+        {server.iconUrl ? "" : server.initials}
       </div>
 
       <div style={{ flex: `1 1 ${pxToRem(metrics.textColFlexBasis)}`, minWidth: 0 }}>
@@ -209,7 +213,7 @@ export function DiscoverFeatured({
           {server.joined ? t("discover.featured.member") : t("discover.card.join")}
         </button>
         <Link
-          className="grid place-items-center bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition-colors hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="grid place-items-center bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           href={previewHref}
           id={discoverFeaturedPreviewId(server.id)}
           {...(onPreview ? { onClick: onPreview } : {})}

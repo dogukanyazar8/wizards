@@ -305,6 +305,20 @@ describe("Faz 1 group state events", () => {
       },
     ]);
   });
+
+  it("broadcasts a channel poll invalidation to the authorized channel room", () => {
+    const { emitted, io } = buildIo();
+
+    emitPollUpdated(io, { channelId: "channel-1", pollId: "poll-1" });
+
+    assert.deepEqual(emitted, [
+      {
+        args: [{ channelId: "channel-1", pollId: "poll-1" }],
+        event: "poll:updated",
+        rooms: ["channel-1"],
+      },
+    ]);
+  });
 });
 
 /** Faz 2 §B. The two events the invite link adds. */

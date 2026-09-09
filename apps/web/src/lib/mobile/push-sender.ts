@@ -1,6 +1,11 @@
 import { prisma } from "@wizards/db";
 
 import { logError as defaultLogError } from "@/lib/logger";
+import { filterPushEligibleUserIds } from "@/lib/mobile/push-notifications";
+import {
+  notificationKindFromType,
+  type NotificationKindKey,
+} from "@/lib/notifications/prefs-policy";
 
 const EXPO_PUSH_ENDPOINT = "https://exp.host/--/api/v2/push/send";
 const EXPO_PUSH_BATCH_SIZE = 100;
@@ -47,6 +52,11 @@ export interface MobilePushSenderDeps {
   fetchFn?: typeof fetch;
   logError?: (scope: string, error: unknown) => void;
   sleep?: (ms: number) => Promise<void>;
+  /**
+   * Ayarlar Ş13 (borç B1) — `delivery.push` kapısı. Varsayılan üretim süzgeci;
+   * testler kendi listesini verebilir.
+   */
+  filterEligible?: (userIds: readonly string[], kind: NotificationKindKey) => Promise<Set<string>>;
 }
 
 export interface MobilePushMessageInput {
@@ -96,6 +106,7 @@ type ResolvedMobilePushSenderDeps = {
   fetchFn: typeof fetch;
   logError: (scope: string, error: unknown) => void;
   sleep: (ms: number) => Promise<void>;
+  filterEligible: (userIds: readonly string[], kind: NotificationKindKey) => Promise<Set<string>>;
 };
 
 function defaultSleep(ms: number) {
@@ -106,9 +117,48 @@ function resolveDeps(deps: MobilePushSenderDeps): ResolvedMobilePushSenderDeps {
   return {
     db: deps.db ?? (prisma as unknown as MobilePushTokenReadStore),
     fetchFn: deps.fetchFn ?? fetch,
+    filterEligible:
+      deps.filterEligible ?? ((userIds, kind) => filterPushEligibleUserIds(userIds, kind)),
     logError: deps.logError ?? defaultLogError,
     sleep: deps.sleep ?? defaultSleep,
   };
+}
+
+/**
+ * Satırları alıcı tercihine göre süzer.
+ *
+ * Süzgeç **tür başına** çalışıyor: `NotificationType` kolonu dokuz değerli, Türler sekmesi on
+ * altı satır; `notificationKindFromType` ikisini eşliyor. Aynı yamada iki farklı tür varsa
+ * (rozet + davet gibi) her biri kendi anahtarıyla soruluyor, yoksa biri diğerinin kapısından
+ * geçerdi.
+ *
+ * Süzgeç düşerse push **gönderilmez**: bir tercih okunamadığında "herkese gönder" varsayımı,
+ * kapalı diyen kullanıcıya bildirim atmak demektir.
+ */
+async function resolveEligibleRows(
+  notifications: MobilePushNotificationRow[],
+  resolved: ResolvedMobilePushSenderDeps,
+): Promise<MobilePushNotificationRow[]> {
+  const byKind = new Map<NotificationKindKey, string[]>();
+
+  for (const notification of notifications) {
+    const kind = notificationKindFromType(notification.type);
+    const list = byKind.get(kind) ?? [];
+
+    list.push(notification.userId);
+    byKind.set(kind, list);
+  }
+
+  const allowed = new Map<NotificationKindKey, Set<string>>();
+
+  for (const [kind, userIds] of byKind) {
+    allowed.set(kind, await resolved.filterEligible(userIds, kind));
+  }
+
+  return notifications.filter(
+    (notification) =>
+      allowed.get(notificationKindFromType(notification.type))?.has(notification.userId) ?? false,
+  );
 }
 
 function chunk<T>(items: T[], size: number): T[][] {
@@ -286,6 +336,17 @@ export async function sendMobilePushToUsers(
  * Fan-out helper for feed notifications: each Notification row already carries
  * the recipient's localized title/body, so each row becomes exactly one push
  * message targeted at that row's user (all of their devices).
+ *
+ * Ayarlar Ş13 (borç B1) — the `delivery.push` gate runs **here**, not at the call sites.
+ *
+ * Ş1 wired it into `message-notification-service` and left the other eight callers ungated
+ * (badges, DM, events, feedback, friends, moderation, invites, members): "mobil push kapalı"
+ * silenced messages and nothing else. Gating each caller would have meant eight copies of the
+ * same three lines and a ninth caller shipping without them. One gate, at the only place every
+ * push actually passes through.
+ *
+ * It sits **before** the token read, so a recipient with push off still costs zero device-row
+ * lookups — the acceptance criterion Ş1 wrote for the message path holds for all of them.
  */
 export async function sendMobilePushForNotifications(
   notifications: MobilePushNotificationRow[],
@@ -298,9 +359,15 @@ export async function sendMobilePushForNotifications(
       return { prunedTokens: 0, sentMessages: 0 };
     }
 
+    const eligible = await resolveEligibleRows(notifications, resolved);
+
+    if (eligible.length === 0) {
+      return { prunedTokens: 0, sentMessages: 0 };
+    }
+
     const tokens = await findTokensByUserIds(
       resolved.db,
-      notifications.map((notification) => notification.userId),
+      eligible.map((notification) => notification.userId),
     );
     if (tokens.length === 0) {
       return { prunedTokens: 0, sentMessages: 0 };
@@ -316,7 +383,7 @@ export async function sendMobilePushForNotifications(
       tokensByUserId.set(userId, list);
     }
 
-    const messages: ExpoPushMessage[] = notifications.flatMap((notification) =>
+    const messages: ExpoPushMessage[] = eligible.flatMap((notification) =>
       (tokensByUserId.get(notification.userId) ?? []).map((token) => ({
         body: notification.body,
         channelId: MOBILE_PUSH_ANDROID_CHANNELS.default,

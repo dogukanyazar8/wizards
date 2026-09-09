@@ -3,7 +3,7 @@ use std::{
     fs::{self, OpenOptions},
     io::Write,
     panic,
-    path::PathBuf,
+    path::{Path, PathBuf},
     str::FromStr,
     sync::{Arc, Mutex},
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -20,10 +20,17 @@ use tauri::{
 };
 use url::Url;
 
+use media_permissions::{
+    DesktopMediaPermissionBroker, DesktopMediaPermissionKind, DesktopMediaPermissionPrompt,
+};
+
 mod ipc;
+mod media_permissions;
+#[cfg(windows)]
+mod windows_media_permissions;
 
 #[cfg(windows)]
-use std::path::Path;
+use std::os::windows::ffi::OsStrExt;
 
 #[cfg(windows)]
 use windows_sys::Win32::{
@@ -32,6 +39,7 @@ use windows_sys::Win32::{
         DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_COLOR_NONE,
         DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
     },
+    Storage::FileSystem::{MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH},
     System::Threading::{
         OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION,
     },
@@ -50,6 +58,7 @@ const DESKTOP_INIT_SCRIPT_TEMPLATE: &str = r#"
 Object.defineProperty(window, "__WHISPR_DESKTOP__", {
   value: Object.freeze({
     platform: "tauri",
+    launchMode: __WHISPR_DESKTOP_LAUNCH_MODE__,
     releaseRing: __WHISPR_DESKTOP_RELEASE_RING__,
     shell: "desktop",
     features: Object.freeze({
@@ -92,6 +101,10 @@ const DESKTOP_CONTROL_CSP: &str = "default-src 'none'; base-uri 'none'; connect-
 const DESKTOP_CONTROL_INDEX: &[u8] = include_bytes!("../assets/desktop-control/index.html");
 const DESKTOP_CONTROL_CSS: &[u8] = include_bytes!("../assets/desktop-control/app.css");
 const DESKTOP_CONTROL_SCRIPT: &[u8] = include_bytes!("../assets/desktop-control/app.js");
+const DESKTOP_CONTROL_SHORTCUT_EDITOR_SCRIPT: &[u8] =
+    include_bytes!("../assets/desktop-control/shortcut-editor.mjs");
+const DESKTOP_MEDIA_PERMISSION_BRIDGE_SCRIPT: &str =
+    include_str!("../assets/desktop-media-permission-bridge.js");
 const DESKTOP_START_PATH: &str = "/desktop/start";
 const DESKTOP_GAME_OVERLAY_PATH: &str = "/desktop/game-overlay";
 const DESKTOP_GAME_OVERLAY_WINDOW_LABEL: &str = "game-overlay";
@@ -114,15 +127,28 @@ const DESKTOP_MAIN_WINDOW_WIDTH: f64 = 1920.0;
 const DESKTOP_MAIN_WINDOW_HEIGHT: f64 = 1080.0;
 const DESKTOP_MIN_WINDOW_WIDTH: f64 = 960.0;
 const DESKTOP_MIN_WINDOW_HEIGHT: f64 = 640.0;
-const DESKTOP_SPLASH_WINDOW_WIDTH: f64 = 432.0;
-const DESKTOP_SPLASH_WINDOW_HEIGHT: f64 = 292.0;
+/// Açılış penceresi — SPEC-SPLASH §4 tasarımı 420 × 280 yazar ve inceleme ölçeği
+/// 1,5×'tir. Üretim ölçeği olarak 1,5× seçildi (K3): kabuk 630 × 420, web tarafı
+/// kökte `zoom: 1.5` uygular ve düzen yine 420 × 280 CSS px olarak çizilir.
+///
+/// Pencere kabuktan **büyüktür**: `0 26px 58px -26px` gölgesi kabuğun dışına taşar ve
+/// pencere kutusuyla tam örtüşen bir kabukta kırpılırdı. Saydam kenar payı CSS px
+/// cinsinden 6 yan / 4 üst / 32 alt; 1,5× ile 9 / 6 / 48 cihaz px eder.
+/// Görünen kabuk yine tam 630 × 420'dir, payın içi saydamdır.
+const DESKTOP_SPLASH_WINDOW_WIDTH: f64 = 648.0;
+const DESKTOP_SPLASH_WINDOW_HEIGHT: f64 = 474.0;
 const DESKTOP_BEFORE_CLOSE_TIMEOUT_MS: u64 = 3_000;
+const DESKTOP_AUTOSTART_ARG: &str = "--autostart";
 const DESKTOP_MAIN_WINDOW_STATE_FILENAME: &str = ".window-state.json";
-const DESKTOP_NATIVE_SETTINGS_FILENAME: &str = ".native-settings.json";
+const DESKTOP_DEVICE_SETTINGS_FILENAME: &str = "device-settings.json";
+const DESKTOP_LEGACY_NATIVE_SETTINGS_FILENAME: &str = ".native-settings.json";
+const DESKTOP_DEVICE_SETTINGS_SCHEMA_VERSION: u8 = 1;
+const DESKTOP_DEVICE_SETTINGS_MAX_BYTES: u64 = 64 * 1024;
 const DESKTOP_PLUGIN_WINDOW_STATE_FILENAME: &str = ".tauri-window-state.json";
 const DESKTOP_TRAY_ID: &str = "whispr-main";
 const MAX_DESKTOP_SHORTCUTS: usize = 5;
 const MAX_DESKTOP_SHORTCUT_LENGTH: usize = 64;
+const MAX_DESKTOP_INTERNAL_PATH_LENGTH: usize = 768;
 const MAX_DESKTOP_GAME_OVERLAY_SNAPSHOT_BYTES: usize = 16_384;
 const MAX_DESKTOP_VOICE_MINI_SNAPSHOT_BYTES: usize = 16_384;
 const DESKTOP_NATIVE_LOG_FILENAME: &str = "desktop-diagnostics.log";
@@ -138,7 +164,11 @@ const DESKTOP_CONTROL_HEIGHT: f64 = 780.0;
 const DESKTOP_CONTROL_MIN_WIDTH: f64 = 560.0;
 const DESKTOP_CONTROL_MIN_HEIGHT: f64 = 520.0;
 
-fn desktop_init_script(updater_enabled: bool, release_ring: &str) -> String {
+fn desktop_init_script(
+    updater_enabled: bool,
+    release_ring: &str,
+    launched_from_autostart: bool,
+) -> String {
     let release_ring_json =
         serde_json::to_string(release_ring).unwrap_or_else(|_| "\"uat\"".into());
 
@@ -151,6 +181,19 @@ fn desktop_init_script(updater_enabled: bool, release_ring: &str) -> String {
             "__WHISPR_DESKTOP_RELEASE_RING__",
             release_ring_json.as_str(),
         )
+        .replace(
+            "__WHISPR_DESKTOP_LAUNCH_MODE__",
+            if launched_from_autostart {
+                "\"autostart\""
+            } else {
+                "\"interactive\""
+            },
+        )
+}
+
+fn desktop_launched_from_autostart(args: impl IntoIterator<Item = String>) -> bool {
+    args.into_iter()
+        .any(|argument| argument == DESKTOP_AUTOSTART_ARG)
 }
 
 fn desktop_release_ring() -> String {
@@ -222,11 +265,93 @@ struct DesktopCloseBehaviorState {
     quit_on_close: Arc<Mutex<bool>>,
 }
 
+#[derive(Clone, Default)]
+struct DesktopTraySettingsItems {
+    autostart: Arc<Mutex<Option<CheckMenuItem<tauri::Wry>>>>,
+    quit_on_close: Arc<Mutex<Option<CheckMenuItem<tauri::Wry>>>>,
+}
+
+impl DesktopTraySettingsItems {
+    fn install(
+        &self,
+        autostart: CheckMenuItem<tauri::Wry>,
+        quit_on_close: CheckMenuItem<tauri::Wry>,
+    ) {
+        if let Ok(mut item) = self.autostart.lock() {
+            *item = Some(autostart);
+        }
+        if let Ok(mut item) = self.quit_on_close.lock() {
+            *item = Some(quit_on_close);
+        }
+    }
+
+    fn sync(&self, autostart: bool, quit_on_close: bool) {
+        if let Ok(item) = self.autostart.lock() {
+            if let Some(item) = item.as_ref() {
+                let _ = item.set_checked(autostart);
+            }
+        }
+        if let Ok(item) = self.quit_on_close.lock() {
+            if let Some(item) = item.as_ref() {
+                let _ = item.set_checked(quit_on_close);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+enum DesktopWindowCloseAction {
+    #[default]
+    Tray,
+    Quit,
+}
+
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(default, rename_all = "camelCase")]
+struct DesktopWindowSettings {
+    close_action: DesktopWindowCloseAction,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default, rename_all = "camelCase")]
+struct DesktopDeviceSettings {
+    schema_version: u8,
+    window: DesktopWindowSettings,
+    voice_shortcuts: DesktopShortcutConfig,
+}
+
+impl Default for DesktopDeviceSettings {
+    fn default() -> Self {
+        Self {
+            schema_version: DESKTOP_DEVICE_SETTINGS_SCHEMA_VERSION,
+            window: DesktopWindowSettings::default(),
+            voice_shortcuts: DesktopShortcutConfig::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
-struct DesktopNativeSettings {
+struct LegacyDesktopNativeSettings {
     quit_on_close: bool,
-    voice_shortcuts: DesktopVoiceShortcutConfig,
+    voice_shortcuts: DesktopShortcutConfig,
+}
+
+impl From<LegacyDesktopNativeSettings> for DesktopDeviceSettings {
+    fn from(legacy: LegacyDesktopNativeSettings) -> Self {
+        Self {
+            window: DesktopWindowSettings {
+                close_action: if legacy.quit_on_close {
+                    DesktopWindowCloseAction::Quit
+                } else {
+                    DesktopWindowCloseAction::Tray
+                },
+            },
+            voice_shortcuts: legacy.voice_shortcuts,
+            ..Self::default()
+        }
+    }
 }
 
 /// F9 tray badge. Both halves of the tooltip live here so the activity status
@@ -371,7 +496,7 @@ struct DesktopSupportBundle {
     generated_at_ms: u64,
     native_logs: Vec<DesktopNativeLogRecord>,
     platform: DesktopSupportPlatformInfo,
-    shortcuts: DesktopVoiceShortcutStatus,
+    shortcuts: DesktopShortcutStatus,
     updater: DesktopControlUpdaterState,
 }
 
@@ -402,15 +527,40 @@ struct DesktopControlUpdaterState {
     message: String,
 }
 
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct DesktopControlAppSettings {
+    close_action: DesktopWindowCloseAction,
+    launch_on_startup: bool,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct DesktopControlState {
     app: DesktopSupportAppInfo,
+    application: DesktopControlAppSettings,
     companion_surfaces: DesktopCompanionSurfacesStatus,
+    media_permission_prompt: Option<DesktopMediaPermissionPromptPayload>,
     permissions: Vec<DesktopControlPermissionInfo>,
     platform: DesktopSupportPlatformInfo,
-    shortcuts: DesktopVoiceShortcutStatus,
+    shortcuts: DesktopShortcutStatus,
     updater: DesktopControlUpdaterState,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopMediaPermissionPromptPayload {
+    kind: &'static str,
+    request_id: String,
+}
+
+impl From<DesktopMediaPermissionPrompt> for DesktopMediaPermissionPromptPayload {
+    fn from(prompt: DesktopMediaPermissionPrompt) -> Self {
+        Self {
+            kind: prompt.kind.as_str(),
+            request_id: prompt.request_id,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -562,7 +712,7 @@ impl DesktopGameOverlayLayout {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum DesktopVoiceShortcutAction {
+enum DesktopShortcutAction {
     HideGameOverlay,
     PushToTalk,
     ToggleAdminConsole,
@@ -570,7 +720,7 @@ enum DesktopVoiceShortcutAction {
     ToggleMute,
 }
 
-impl DesktopVoiceShortcutAction {
+impl DesktopShortcutAction {
     fn command(self, is_pressed: bool) -> Option<&'static str> {
         match (self, is_pressed) {
             (Self::HideGameOverlay, true) => Some("hide-game-overlay"),
@@ -600,22 +750,61 @@ impl DesktopVoiceShortcutAction {
     }
 }
 
+/// K7 — one requested assignment plus the **result** of asking the OS for it.
+///
+/// `shortcut` is `None` when the combination could not be parsed or is reserved, and
+/// `registered` is false when the OS refused it. Both cases are reported to the screen as a
+/// conflict; neither aborts the batch, so a single taken combination can no longer cost the
+/// user their four working shortcuts.
+///
+/// Nothing here is written to disk: `DesktopDeviceSettings` keeps the requested combinations
+/// and this outcome is recomputed from a real registration attempt on every launch.
 #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
-#[derive(Debug, Clone, Copy)]
-struct DesktopVoiceShortcutEntry {
-    action: DesktopVoiceShortcutAction,
-    shortcut: tauri_plugin_global_shortcut::Shortcut,
+#[derive(Debug, Clone)]
+struct DesktopShortcutEntry {
+    action: DesktopShortcutAction,
+    accelerator: String,
+    reason: Option<DesktopShortcutFailureReason>,
+    registered: bool,
+    shortcut: Option<tauri_plugin_global_shortcut::Shortcut>,
+}
+
+#[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+impl DesktopShortcutEntry {
+    fn conflict(&self) -> bool {
+        self.reason.is_some()
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+enum DesktopShortcutFailureReason {
+    Duplicate,
+    Invalid,
+    OsRefused,
+    Reserved,
+}
+
+impl DesktopShortcutFailureReason {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Duplicate => "duplicate",
+            Self::Invalid => "invalid",
+            Self::OsRefused => "refused by the operating system",
+            Self::Reserved => "reserved by the operating system",
+        }
+    }
 }
 
 #[derive(Clone, Default)]
-struct DesktopVoiceShortcutRegistry {
+struct DesktopShortcutRegistry {
     #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
-    entries: Arc<Mutex<Vec<DesktopVoiceShortcutEntry>>>,
+    entries: Arc<Mutex<Vec<DesktopShortcutEntry>>>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct DesktopVoiceShortcutConfig {
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default, rename_all = "camelCase")]
+struct DesktopShortcutConfig {
     hide_game_overlay: Option<String>,
     shortcuts_enabled: bool,
     push_to_talk: Option<String>,
@@ -626,18 +815,49 @@ struct DesktopVoiceShortcutConfig {
     toggle_mute: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct DesktopVoiceShortcutRegistration {
-    action: &'static str,
-    shortcut: String,
+impl Default for DesktopShortcutConfig {
+    fn default() -> Self {
+        Self {
+            hide_game_overlay: Some("Alt+H".to_string()),
+            push_to_talk: Some("Alt+V".to_string()),
+            shortcuts_enabled: false,
+            toggle_admin_console: Some("Alt+Shift+K".to_string()),
+            toggle_deafen: Some("Alt+D".to_string()),
+            toggle_mute: Some("Alt+M".to_string()),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct DesktopVoiceShortcutStatus {
+struct DesktopShortcutRegistration {
+    action: &'static str,
+    shortcut: String,
+}
+
+/// The old command's compatibility fields remain stable: older bundles read only `enabled` and
+/// `registered`. `entries` is additive and gives the bundled Desktop Control one row per action.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopShortcutStatus {
     enabled: bool,
-    registered: Vec<DesktopVoiceShortcutRegistration>,
+    entries: Vec<DesktopShortcutStatusEntry>,
+    registered: Vec<DesktopShortcutRegistration>,
+}
+
+/// K7 — the new command's answer, one row per requested assignment.
+///
+/// `keys` is the accelerator split on `+` (`Alt+Shift+K` → `["Alt", "Shift", "K"]`). The
+/// screen turns those into `⌥⇧K` capsules; the shell has no business knowing which glyph a
+/// platform draws for a modifier.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopShortcutStatusEntry {
+    action: &'static str,
+    conflict: bool,
+    keys: Vec<String>,
+    reason: Option<DesktopShortcutFailureReason>,
+    registered: bool,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -660,6 +880,7 @@ pub fn run() {
     let desktop_app_name =
         std::env::var("WHISPR_DESKTOP_APP_NAME").unwrap_or_else(|_| "Whispr".into());
     let desktop_release_ring = desktop_release_ring();
+    let launched_from_autostart = desktop_launched_from_autostart(std::env::args());
 
     // Sentry: derleme zamanında gömülen DSN yoksa tamamen kapalı (no-op).
     // Guard, run() bloğu boyunca (uygulama ömrü) canlı tutulur; panic
@@ -669,26 +890,30 @@ pub fn run() {
         .map(|dsn| sentry::init((dsn, desktop_sentry_options(desktop_release_ring.clone()))));
 
     let desktop_updater_enabled = desktop_updater_enabled();
-    let voice_shortcut_registry = DesktopVoiceShortcutRegistry::default();
+    let desktop_media_permission_broker = DesktopMediaPermissionBroker::default();
+    let desktop_shortcut_registry = DesktopShortcutRegistry::default();
     let mut builder = tauri::Builder::default();
 
     #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
     {
-        let shortcut_events = voice_shortcut_registry.clone();
+        let shortcut_events = desktop_shortcut_registry.clone();
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            show_main_window(app);
+            if !desktop_launched_from_autostart(argv.iter().cloned()) {
+                show_main_window(app);
+            }
             handle_desktop_deep_links(app, argv.iter().map(String::as_str));
         }));
         builder = builder.plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(move |app, _shortcut, event| {
-                    dispatch_voice_shortcut_event(app, &shortcut_events, event);
+                    dispatch_desktop_shortcut_event(app, &shortcut_events, event);
                 })
                 .build(),
         );
         builder = builder.plugin(
             tauri_plugin_autostart::Builder::new()
                 .app_name(desktop_app_name.clone())
+                .arg(DESKTOP_AUTOSTART_ARG)
                 .build(),
         );
         builder = builder.plugin(
@@ -714,16 +939,21 @@ pub fn run() {
         .manage(DesktopCloseBehaviorState::default())
         .manage(DesktopCompanionSurfaceState::default())
         .manage(DesktopNativeLogState::default())
+        .manage(desktop_media_permission_broker.clone())
         .manage(DesktopTrayBadgeState::default())
+        .manage(DesktopTraySettingsItems::default())
         .manage(DesktopWindowPromotionState::default())
-        .manage(voice_shortcut_registry)
+        .manage(desktop_shortcut_registry)
         .invoke_handler(tauri::generate_handler![
             complete_desktop_before_close,
+            configure_desktop_shortcuts,
             configure_desktop_voice_shortcuts,
             desktop_control_check_for_updates,
             desktop_control_install_update,
             desktop_control_recover,
             desktop_control_request_notification_permission,
+            resolve_desktop_media_permission,
+            desktop_control_set_app_settings,
             export_desktop_diagnostics_bundle,
             get_desktop_app_info,
             get_desktop_control_state,
@@ -732,10 +962,13 @@ pub fn run() {
             get_desktop_admin_console_open,
             get_desktop_companion_surfaces_status,
             get_desktop_platform_capabilities,
+            get_desktop_shortcut_status,
             get_desktop_voice_shortcut_status,
+            open_desktop_permission_settings,
             publish_desktop_game_overlay_snapshot,
             publish_desktop_voice_mini_snapshot,
             record_desktop_update_failure,
+            request_desktop_media_permission,
             refresh_desktop_companion_surfaces,
             set_desktop_activity_status,
             set_desktop_admin_console_visible,
@@ -748,15 +981,21 @@ pub fn run() {
         .setup(move |app| {
             let app_url = configured_app_url();
             let app_name = desktop_app_name.clone();
-            let init_script =
-                desktop_init_script(desktop_updater_enabled, desktop_release_ring.as_str());
+            let init_script = format!(
+                "{}\n{}",
+                desktop_init_script(
+                    desktop_updater_enabled,
+                    desktop_release_ring.as_str(),
+                    launched_from_autostart,
+                ),
+                DESKTOP_MEDIA_PERMISSION_BRIDGE_SCRIPT,
+            );
             let oauth_navigation_active = Arc::new(Mutex::new(false));
             let close_coordinator = app.state::<DesktopCloseCoordinator>().inner().clone();
             let close_behavior_state = app.state::<DesktopCloseBehaviorState>().inner().clone();
             let promotion_state = app.state::<DesktopWindowPromotionState>().inner().clone();
             let native_log_state = app.state::<DesktopNativeLogState>().inner().clone();
             let webview_data_directory = resolve_webview_data_directory(app)?;
-            let native_settings = read_desktop_native_settings(app.handle());
             install_desktop_panic_hook(app.handle().clone(), native_log_state);
             record_desktop_native_log(
                 app.handle(),
@@ -764,8 +1003,23 @@ pub fn run() {
                 "desktop_setup",
                 "Desktop shell setup started.",
             );
+            let device_settings = match load_desktop_device_settings(app.handle()) {
+                Ok(settings) => settings,
+                Err(error) => {
+                    record_desktop_native_log(
+                        app.handle(),
+                        "error",
+                        "device_settings",
+                        format!("Desktop device settings could not be loaded: {error}").as_str(),
+                    );
+                    DesktopDeviceSettings::default()
+                }
+            };
             set_desktop_window_promoted(&promotion_state, app_url.path() != DESKTOP_START_PATH);
-            set_desktop_quit_on_close(&close_behavior_state, native_settings.quit_on_close);
+            set_desktop_quit_on_close(
+                &close_behavior_state,
+                device_settings.window.close_action == DesktopWindowCloseAction::Quit,
+            );
 
             setup_tray(
                 app,
@@ -776,12 +1030,12 @@ pub fn run() {
                 desktop_updater_enabled,
             )?;
 
-            if native_settings.voice_shortcuts.shortcuts_enabled {
-                let registry = app.state::<DesktopVoiceShortcutRegistry>();
-                if configure_desktop_voice_shortcuts_impl(
+            if device_settings.voice_shortcuts.shortcuts_enabled {
+                let registry = app.state::<DesktopShortcutRegistry>();
+                if configure_desktop_shortcuts_impl(
                     app.handle(),
                     registry.inner(),
-                    native_settings.voice_shortcuts.clone(),
+                    device_settings.voice_shortcuts.clone(),
                 )
                 .is_err()
                 {
@@ -798,6 +1052,7 @@ pub fn run() {
                 WebviewWindowBuilder::new(app, "main", WebviewUrl::External(app_url.clone()))
                     .title(app_name)
                     .decorations(false)
+                    .transparent(true)
                     .center()
                     .data_directory(webview_data_directory)
                     .initialization_script(init_script)
@@ -821,7 +1076,6 @@ pub fn run() {
                     })
                     .on_page_load({
                         let allowed_origin = app_url.clone();
-                        let promotion_state = promotion_state.clone();
 
                         move |window, payload| {
                             let url = payload.url();
@@ -830,12 +1084,17 @@ pub fn run() {
                             }
 
                             match payload.event() {
-                                PageLoadEvent::Started if url.path() != DESKTOP_START_PATH => {
-                                    promote_desktop_window(&window, &promotion_state);
-                                }
+                                // Terfi burada **yapılmaz**. Açılış ekranı bitene kadar
+                                // pencere açılış ölçüsünde kalmalı; büyütme kararını
+                                // kabuk verir (`promote_desktop_main_window` komutu).
+                                // Eskiden buradaki erken terfi, kullanıcıya önce boş bir
+                                // dev çerçeve, sonra baştan başlayan ikinci bir açılış
+                                // ekranı gösteriyordu.
                                 PageLoadEvent::Finished if url.path() == DESKTOP_START_PATH => {
                                     prepare_desktop_start_window(&window);
-                                    let _ = window.show();
+                                    if !launched_from_autostart {
+                                        let _ = window.show();
+                                    }
                                 }
                                 _ => {}
                             }
@@ -859,7 +1118,23 @@ pub fn run() {
                     .resizable(true);
             }
 
+            if launched_from_autostart {
+                main_window_builder = main_window_builder.visible(false);
+            }
+
             let main_window = main_window_builder.build()?;
+
+            #[cfg(windows)]
+            windows_media_permissions::install_webview2_media_permission_handler(
+                &main_window,
+                desktop_media_permission_broker.clone(),
+                configured_app_origin_url(),
+            )
+            .map_err(std::io::Error::other)?;
+
+            if app_url.path() == DESKTOP_START_PATH {
+                spawn_desktop_startup_promotion_guard(main_window.clone(), promotion_state.clone());
+            }
             let close_request_app = app.handle().clone();
             let close_request_behavior_state = close_behavior_state.clone();
             let close_request_coordinator = close_coordinator.clone();
@@ -895,6 +1170,26 @@ fn assert_desktop_main_command_window(window: &WebviewWindow) -> Result<(), Stri
     }
 
     Err("Desktop command is only available to the main Whispr window.".to_string())
+}
+
+/// K7 — the main window **on the app's own origin**.
+///
+/// `assert_desktop_main_command_window` checks the label alone, which is enough for the
+/// read-only commands it guards. Registering a global hotkey is not read-only, and the main
+/// window is deliberately allowed to navigate to Google's and GitHub's sign-in pages during
+/// OAuth; that page carries the `main` label too.
+fn assert_desktop_main_app_origin_window(window: &WebviewWindow) -> Result<(), String> {
+    assert_desktop_main_command_window(window)?;
+
+    let url = window
+        .url()
+        .map_err(|_| "Desktop command origin could not be verified.".to_string())?;
+
+    if is_same_origin(&url, &configured_app_url()) {
+        return Ok(());
+    }
+
+    Err("Desktop command is only available to the Whispr application origin.".to_string())
 }
 
 fn is_authorized_desktop_control_command_window(label: &str, url: &Url) -> bool {
@@ -947,6 +1242,11 @@ fn desktop_control_protocol_response(path: &str) -> tauri::http::Response<Vec<u8
             StatusCode::OK,
             "text/javascript; charset=utf-8",
             DESKTOP_CONTROL_SCRIPT,
+        ),
+        "/shortcut-editor.mjs" => (
+            StatusCode::OK,
+            "text/javascript; charset=utf-8",
+            DESKTOP_CONTROL_SHORTCUT_EDITOR_SCRIPT,
         ),
         _ => (
             StatusCode::NOT_FOUND,
@@ -1006,29 +1306,22 @@ fn promote_desktop_main_window(
     Ok(true)
 }
 
-#[tauri::command]
-fn configure_desktop_voice_shortcuts(
-    window: WebviewWindow,
-    app: AppHandle,
-    registry: tauri::State<'_, DesktopVoiceShortcutRegistry>,
-    config: DesktopVoiceShortcutConfig,
-) -> Result<DesktopVoiceShortcutStatus, String> {
-    assert_desktop_control_command_window(&window)?;
-
+/// The write half, shared by the old Desktop Control command and the new Settings one.
+fn apply_desktop_shortcut_config(
+    app: &AppHandle,
+    registry: &DesktopShortcutRegistry,
+    config: DesktopShortcutConfig,
+) -> Result<DesktopShortcutStatus, String> {
     #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
     {
-        let previous_settings = read_desktop_native_settings(&app);
-        let status =
-            configure_desktop_voice_shortcuts_impl(&app, registry.inner(), config.clone())?;
+        let previous_settings = load_desktop_device_settings(app)?;
+        let status = configure_desktop_shortcuts_impl(app, registry, config.clone())?;
         let mut next_settings = previous_settings.clone();
         next_settings.voice_shortcuts = config;
 
-        if let Err(error) = save_desktop_native_settings(&app, &next_settings) {
-            let restore_result = configure_desktop_voice_shortcuts_impl(
-                &app,
-                registry.inner(),
-                previous_settings.voice_shortcuts,
-            );
+        if let Err(error) = save_desktop_device_settings(app, &next_settings) {
+            let restore_result =
+                configure_desktop_shortcuts_impl(app, registry, previous_settings.voice_shortcuts);
             return if restore_result.is_ok() {
                 Err(error)
             } else {
@@ -1042,18 +1335,64 @@ fn configure_desktop_voice_shortcuts(
     #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
     {
         let _ = (app, registry, config);
-        Err("Desktop voice shortcuts are not supported on this platform.".to_string())
+        Err("Desktop shortcuts are not supported on this platform.".to_string())
     }
+}
+
+/// K7 — kept under its old name and compatible answer fields. A desktop shell can be handed a
+/// web bundle older than itself; that bundle calls this command and reads `registered`.
+#[tauri::command]
+fn configure_desktop_voice_shortcuts(
+    window: WebviewWindow,
+    app: AppHandle,
+    registry: tauri::State<'_, DesktopShortcutRegistry>,
+    config: DesktopShortcutConfig,
+) -> Result<DesktopShortcutStatus, String> {
+    assert_desktop_control_command_window(&window)?;
+
+    apply_desktop_shortcut_config(&app, registry.inner(), config)
+}
+
+/// K7 — the Settings window's write path.
+///
+/// Guarded harder than `assert_desktop_main_command_window` on purpose: the main window is
+/// allowed to navigate to `accounts.google.com` and `github.com` during OAuth, and registering
+/// a global hotkey is not something a page on those origins may ask for. Label **and** origin
+/// both have to match the configured app URL.
+#[tauri::command]
+fn configure_desktop_shortcuts(
+    window: WebviewWindow,
+    app: AppHandle,
+    registry: tauri::State<'_, DesktopShortcutRegistry>,
+    config: DesktopShortcutConfig,
+) -> Result<Vec<DesktopShortcutStatusEntry>, String> {
+    assert_desktop_main_app_origin_window(&window)?;
+
+    apply_desktop_shortcut_config(&app, registry.inner(), config)?;
+
+    Ok(desktop_shortcut_registry_entries(registry.inner()))
+}
+
+/// K7 — `{ action, keys, registered, conflict }[]`, read from the live registry.
+#[tauri::command]
+fn get_desktop_shortcut_status(
+    window: WebviewWindow,
+    registry: tauri::State<'_, DesktopShortcutRegistry>,
+) -> Result<Vec<DesktopShortcutStatusEntry>, String> {
+    assert_desktop_main_command_window(&window)?;
+
+    Ok(desktop_shortcut_registry_entries(registry.inner()))
 }
 
 #[tauri::command]
 fn get_desktop_voice_shortcut_status(
     window: WebviewWindow,
-    registry: tauri::State<'_, DesktopVoiceShortcutRegistry>,
-) -> Result<DesktopVoiceShortcutStatus, String> {
+    app: AppHandle,
+    registry: tauri::State<'_, DesktopShortcutRegistry>,
+) -> Result<DesktopShortcutStatus, String> {
     assert_desktop_main_command_window(&window)?;
 
-    Ok(desktop_voice_shortcut_registry_status(registry.inner()))
+    desktop_shortcut_status_for_app(&app, registry.inner())
 }
 
 #[tauri::command]
@@ -1061,7 +1400,7 @@ fn export_desktop_diagnostics_bundle(
     window: WebviewWindow,
     app: AppHandle,
     surface_state: tauri::State<'_, DesktopCompanionSurfaceState>,
-    registry: tauri::State<'_, DesktopVoiceShortcutRegistry>,
+    registry: tauri::State<'_, DesktopShortcutRegistry>,
 ) -> Result<DesktopSupportBundleFileResult, String> {
     assert_desktop_control_command_window(&window)?;
 
@@ -1084,7 +1423,7 @@ fn export_desktop_diagnostics_bundle(
             family: std::env::consts::FAMILY,
             os: std::env::consts::OS,
         },
-        shortcuts: desktop_voice_shortcut_registry_status(registry.inner()),
+        shortcuts: desktop_shortcut_status_for_app(&app, registry.inner())?,
         updater: desktop_control_updater_state(desktop_updater_enabled(), false, None),
     };
     let serialized = serde_json::to_vec_pretty(&bundle)
@@ -1111,22 +1450,93 @@ fn export_desktop_diagnostics_bundle(
 fn get_desktop_control_state(
     window: WebviewWindow,
     app: AppHandle,
+    close_behavior: tauri::State<'_, DesktopCloseBehaviorState>,
+    media_permissions: tauri::State<'_, DesktopMediaPermissionBroker>,
     surface_state: tauri::State<'_, DesktopCompanionSurfaceState>,
-    registry: tauri::State<'_, DesktopVoiceShortcutRegistry>,
+    registry: tauri::State<'_, DesktopShortcutRegistry>,
 ) -> Result<DesktopControlState, String> {
     assert_desktop_control_command_window(&window)?;
 
     Ok(DesktopControlState {
         app: desktop_support_app_info(),
+        application: desktop_control_app_settings(&app, close_behavior.inner())?,
         companion_surfaces: desktop_companion_surfaces_status(&app, surface_state.inner()),
+        media_permission_prompt: media_permissions
+            .pending_prompt(current_unix_ms())
+            .map(DesktopMediaPermissionPromptPayload::from),
         permissions: desktop_control_permission_info(),
         platform: DesktopSupportPlatformInfo {
             arch: std::env::consts::ARCH,
             family: std::env::consts::FAMILY,
             os: std::env::consts::OS,
         },
-        shortcuts: desktop_voice_shortcut_registry_status(registry.inner()),
+        shortcuts: desktop_shortcut_status_for_app(&app, registry.inner())?,
         updater: desktop_control_updater_state(desktop_updater_enabled(), false, None),
+    })
+}
+
+fn desktop_control_app_settings(
+    app: &AppHandle,
+    close_behavior: &DesktopCloseBehaviorState,
+) -> Result<DesktopControlAppSettings, String> {
+    Ok(DesktopControlAppSettings {
+        close_action: if is_desktop_quit_on_close_enabled(close_behavior) {
+            DesktopWindowCloseAction::Quit
+        } else {
+            DesktopWindowCloseAction::Tray
+        },
+        launch_on_startup: is_desktop_autostart_enabled(app)?,
+    })
+}
+
+#[tauri::command]
+fn desktop_control_set_app_settings(
+    window: WebviewWindow,
+    app: AppHandle,
+    close_behavior: tauri::State<'_, DesktopCloseBehaviorState>,
+    tray_items: tauri::State<'_, DesktopTraySettingsItems>,
+    settings: DesktopControlAppSettings,
+) -> Result<DesktopControlAppSettings, String> {
+    assert_desktop_control_command_window(&window)?;
+
+    let previous_autostart = is_desktop_autostart_enabled(&app)?;
+    let previous_device_settings = load_desktop_device_settings(&app)?;
+    let applied_autostart = if previous_autostart == settings.launch_on_startup {
+        previous_autostart
+    } else {
+        set_desktop_autostart_from_native_menu(&app, settings.launch_on_startup)?
+    };
+    if applied_autostart != settings.launch_on_startup {
+        return Err("Desktop startup setting was not applied by the operating system.".to_string());
+    }
+
+    let mut next_device_settings = previous_device_settings;
+    next_device_settings.window.close_action = settings.close_action;
+    if let Err(save_error) = save_desktop_device_settings(&app, &next_device_settings) {
+        if previous_autostart != applied_autostart
+            && set_desktop_autostart_from_native_menu(&app, previous_autostart).is_err()
+        {
+            return Err(
+                "Desktop settings could not be saved and the startup setting could not be restored."
+                    .to_string(),
+            );
+        }
+        return Err(save_error);
+    }
+
+    let quit_on_close = settings.close_action == DesktopWindowCloseAction::Quit;
+    set_desktop_quit_on_close(close_behavior.inner(), quit_on_close);
+    tray_items.sync(applied_autostart, quit_on_close);
+    record_desktop_native_log(
+        &app,
+        "info",
+        "device_settings",
+        "Desktop application settings updated from trusted local control.",
+    );
+
+    Ok(DesktopControlAppSettings {
+        close_action: settings.close_action,
+        launch_on_startup: applied_autostart,
     })
 }
 
@@ -1211,13 +1621,19 @@ fn desktop_control_request_notification_permission(
     use tauri_plugin_notification::NotificationExt;
 
     assert_desktop_control_command_window(&window)?;
+    // The desktop plugin has no Windows runtime prompt: `request_permission()` returns Granted
+    // unconditionally. A visible notification is the only useful local verification.
     app.notification()
-        .request_permission()
-        .map_err(|_| "Notification permission request failed.".to_string())?;
+        .builder()
+        .title("Whispr")
+        .body("Whispr desktop notifications are working.")
+        .show()
+        .map_err(|_| "Test notification could not be sent.".to_string())?;
 
     Ok(DesktopControlOperationResult {
-        message: "Notification permission was requested; verify its status in OS settings."
-            .to_string(),
+        message:
+            "Test notification sent. If it is not visible, check Windows notification settings."
+                .to_string(),
     })
 }
 
@@ -1282,6 +1698,86 @@ fn show_desktop_control(
     assert_desktop_main_command_window(&window)?;
     show_or_create_desktop_control_window(&app, section.as_deref())?;
     Ok(true)
+}
+
+fn desktop_permission_settings_uri(key: &str) -> Option<&'static str> {
+    match key {
+        "notifications" => Some("ms-settings:notifications"),
+        "microphone" => Some("ms-settings:privacy-microphone"),
+        "camera" => Some("ms-settings:privacy-webcam"),
+        _ => None,
+    }
+}
+
+#[tauri::command]
+fn open_desktop_permission_settings(window: WebviewWindow, key: String) -> Result<bool, String> {
+    assert_desktop_main_app_origin_window(&window)?;
+
+    if !cfg!(windows) {
+        return Ok(false);
+    }
+
+    let uri = desktop_permission_settings_uri(&key)
+        .ok_or_else(|| "Desktop permission settings kind is not allowed.".to_string())?;
+    open::that(uri).map_err(|_| "Windows permission settings could not be opened.".to_string())?;
+    Ok(true)
+}
+
+#[tauri::command]
+fn request_desktop_media_permission(
+    window: WebviewWindow,
+    app: AppHandle,
+    media_permissions: tauri::State<'_, DesktopMediaPermissionBroker>,
+    kind: String,
+) -> Result<DesktopMediaPermissionPromptPayload, String> {
+    assert_desktop_main_app_origin_window(&window)?;
+    let kind = DesktopMediaPermissionKind::parse(&kind)
+        .ok_or_else(|| "Desktop media permission kind is not allowed.".to_string())?;
+    let origin = configured_app_origin_url().origin().ascii_serialization();
+    let prompt = media_permissions.prepare(kind, &origin, current_unix_ms())?;
+
+    if let Err(error) = show_or_create_desktop_control_window(&app, Some("permissions")) {
+        let _ = media_permissions.resolve(&prompt.request_id, false, current_unix_ms());
+        return Err(error);
+    }
+
+    if let Some(control_window) = app.get_webview_window(DESKTOP_CONTROL_WINDOW_LABEL) {
+        let _ = control_window.eval("window.whisprDesktopControlRefreshState?.();");
+    }
+
+    Ok(prompt.into())
+}
+
+#[tauri::command]
+fn resolve_desktop_media_permission(
+    window: WebviewWindow,
+    app: AppHandle,
+    media_permissions: tauri::State<'_, DesktopMediaPermissionBroker>,
+    request_id: String,
+    allowed: bool,
+) -> Result<DesktopControlOperationResult, String> {
+    assert_desktop_control_command_window(&window)?;
+    let resolution = media_permissions.resolve(&request_id, allowed, current_unix_ms())?;
+    let request_id_json = serde_json::to_string(&resolution.request_id)
+        .map_err(|_| "Desktop media permission result could not be encoded.".to_string())?;
+    let main_window = app
+        .get_webview_window(DESKTOP_MAIN_WINDOW_LABEL)
+        .ok_or_else(|| "Whispr main window is unavailable.".to_string())?;
+
+    main_window
+        .eval(format!(
+            "window.__WHISPR_DESKTOP_MEDIA_PERMISSION_RESOLVE__?.({request_id_json}, {});",
+            if resolution.allowed { "true" } else { "false" },
+        ))
+        .map_err(|_| "Desktop media permission result could not be delivered.".to_string())?;
+
+    Ok(DesktopControlOperationResult {
+        message: if resolution.allowed {
+            format!("{} access approved for Whispr.", resolution.kind.as_str())
+        } else {
+            format!("{} access was not approved.", resolution.kind.as_str())
+        },
+    })
 }
 
 #[tauri::command]
@@ -1811,9 +2307,9 @@ fn desktop_control_permission_info() -> Vec<DesktopControlPermissionInfo> {
         DesktopControlPermissionInfo {
             can_request: true,
             id: "notifications",
-            instructions: "Request here, then verify Whispr in OS notification settings.",
+            instructions: "Send a visible test, then verify Whispr in Windows notification settings if it does not appear.",
             label: "Notifications",
-            status: "OS status unverified",
+            status: "Desktop API available; OS delivery unverified",
         },
         DesktopControlPermissionInfo {
             can_request: false,
@@ -2295,140 +2791,216 @@ fn system_audio_capture_permission_strategy() -> &'static str {
 }
 
 #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
-fn configure_desktop_voice_shortcuts_impl(
+fn configure_desktop_shortcuts_impl(
     app: &AppHandle,
-    registry: &DesktopVoiceShortcutRegistry,
-    config: DesktopVoiceShortcutConfig,
-) -> Result<DesktopVoiceShortcutStatus, String> {
+    registry: &DesktopShortcutRegistry,
+    config: DesktopShortcutConfig,
+) -> Result<DesktopShortcutStatus, String> {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
-    let next_entries = prepare_desktop_voice_shortcut_entries(&config)?;
+    let mut next_entries = prepare_desktop_shortcut_entries(&config)?;
     let previous_entries = registry
         .entries
         .lock()
         .map(|entries| entries.clone())
         .unwrap_or_default();
 
+    unregister_desktop_shortcuts(app, registered_desktop_shortcuts(&previous_entries))?;
+
     if !config.shortcuts_enabled {
-        unregister_desktop_voice_shortcuts(
-            app,
-            previous_entries.iter().map(|entry| entry.shortcut),
-        )?;
-        replace_desktop_voice_shortcut_entries(registry, Vec::new());
-        return Ok(desktop_voice_shortcut_status(false, &[]));
+        replace_desktop_shortcut_entries(registry, Vec::new());
+        return Ok(desktop_shortcut_status(
+            false,
+            &inspect_desktop_shortcut_entries(&config),
+        ));
     }
 
-    unregister_desktop_voice_shortcuts(app, previous_entries.iter().map(|entry| entry.shortcut))?;
+    // First activation may keep four accepted rows when one is owned by another application.
+    // Reconfiguration is stricter: any refusal restores the previous working set atomically.
+    for entry in &mut next_entries {
+        let Some(shortcut) = entry.shortcut else {
+            continue;
+        };
 
-    let mut registered_entries = Vec::new();
-    for entry in &next_entries {
-        if let Err(error) = app.global_shortcut().register(entry.shortcut) {
-            unregister_desktop_voice_shortcuts(
-                app,
-                registered_entries
-                    .iter()
-                    .map(|registered: &DesktopVoiceShortcutEntry| registered.shortcut),
-            )?;
-            let _ = restore_desktop_voice_shortcuts(app, registry, previous_entries);
-            return Err(format!(
-                "Unable to register {} desktop voice shortcut: {error}",
-                entry.action.label()
-            ));
+        match app.global_shortcut().register(shortcut) {
+            Ok(()) => entry.registered = true,
+            Err(_) => entry.reason = Some(DesktopShortcutFailureReason::OsRefused),
         }
-        registered_entries.push(*entry);
     }
 
-    replace_desktop_voice_shortcut_entries(registry, next_entries);
+    let refused_action = next_entries
+        .iter()
+        .find(|entry| entry.reason == Some(DesktopShortcutFailureReason::OsRefused))
+        .map(|entry| entry.action);
+    let had_previous_registration = previous_entries.iter().any(|entry| entry.registered);
+
+    if let Some(action) = refused_action.filter(|_| had_previous_registration) {
+        unregister_desktop_shortcuts(app, registered_desktop_shortcuts(&next_entries))?;
+        let mut restored_entries = previous_entries;
+        let mut restore_failed = false;
+
+        for entry in &mut restored_entries {
+            if !entry.registered {
+                continue;
+            }
+            let Some(shortcut) = entry.shortcut else {
+                continue;
+            };
+            if app.global_shortcut().register(shortcut).is_err() {
+                entry.registered = false;
+                entry.reason = Some(DesktopShortcutFailureReason::OsRefused);
+                restore_failed = true;
+            }
+        }
+
+        replace_desktop_shortcut_entries(registry, restored_entries);
+        return if restore_failed {
+            Err("Desktop shortcuts could not be registered or restored.".to_string())
+        } else {
+            Err(format!(
+                "Desktop shortcut {} was refused by the operating system; previous shortcuts were restored.",
+                action.label()
+            ))
+        };
+    }
+
+    replace_desktop_shortcut_entries(registry, next_entries);
     let entries = registry
         .entries
         .lock()
         .map(|entries| entries.clone())
         .unwrap_or_default();
-    Ok(desktop_voice_shortcut_status(true, &entries))
+    Ok(desktop_shortcut_status(true, &entries))
 }
 
 #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
-fn prepare_desktop_voice_shortcut_entries(
-    config: &DesktopVoiceShortcutConfig,
-) -> Result<Vec<DesktopVoiceShortcutEntry>, String> {
+fn registered_desktop_shortcuts(
+    entries: &[DesktopShortcutEntry],
+) -> Vec<tauri_plugin_global_shortcut::Shortcut> {
+    entries
+        .iter()
+        .filter(|entry| entry.registered)
+        .filter_map(|entry| entry.shortcut)
+        .collect()
+}
+
+#[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+fn prepare_desktop_shortcut_entries(
+    config: &DesktopShortcutConfig,
+) -> Result<Vec<DesktopShortcutEntry>, String> {
     if !config.shortcuts_enabled {
         return Ok(Vec::new());
     }
 
-    let mut next_entries = Vec::new();
-    push_desktop_voice_shortcut_entry(
-        &mut next_entries,
-        DesktopVoiceShortcutAction::ToggleMute,
-        config.toggle_mute.as_deref(),
-    )?;
-    push_desktop_voice_shortcut_entry(
-        &mut next_entries,
-        DesktopVoiceShortcutAction::ToggleDeafen,
-        config.toggle_deafen.as_deref(),
-    )?;
-    push_desktop_voice_shortcut_entry(
-        &mut next_entries,
-        DesktopVoiceShortcutAction::PushToTalk,
-        config.push_to_talk.as_deref(),
-    )?;
-    push_desktop_voice_shortcut_entry(
-        &mut next_entries,
-        DesktopVoiceShortcutAction::HideGameOverlay,
-        config.hide_game_overlay.as_deref(),
-    )?;
-    push_desktop_voice_shortcut_entry(
-        &mut next_entries,
-        DesktopVoiceShortcutAction::ToggleAdminConsole,
-        config.toggle_admin_console.as_deref(),
-    )?;
+    let mut next_entries = inspect_desktop_shortcut_entries(config);
 
-    if next_entries.is_empty() {
-        return Err("Enable at least one desktop voice shortcut.".to_string());
-    }
-
-    if next_entries.len() > MAX_DESKTOP_SHORTCUTS {
-        return Err("Too many desktop voice shortcuts were requested.".to_string());
+    if next_entries
+        .iter()
+        .all(|entry| entry.accelerator.is_empty())
+    {
+        return Err("Enable at least one desktop shortcut.".to_string());
     }
 
     let mut seen_ids = HashSet::new();
-    for entry in &next_entries {
-        if !seen_ids.insert(entry.shortcut.id()) {
-            return Err("Desktop voice shortcuts must be unique.".to_string());
+    for entry in &mut next_entries {
+        let Some(shortcut) = entry.shortcut else {
+            continue;
+        };
+
+        if !seen_ids.insert(shortcut.id()) {
+            entry.shortcut = None;
+            entry.reason = Some(DesktopShortcutFailureReason::Duplicate);
         }
     }
 
+    validate_desktop_shortcut_entries(&next_entries)?;
     Ok(next_entries)
 }
 
 #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
-fn push_desktop_voice_shortcut_entry(
-    entries: &mut Vec<DesktopVoiceShortcutEntry>,
-    action: DesktopVoiceShortcutAction,
-    value: Option<&str>,
-) -> Result<(), String> {
-    let Some(raw_shortcut) = value.map(str::trim).filter(|shortcut| !shortcut.is_empty()) else {
-        return Ok(());
-    };
+fn inspect_desktop_shortcut_entries(config: &DesktopShortcutConfig) -> Vec<DesktopShortcutEntry> {
+    let mut next_entries = Vec::with_capacity(MAX_DESKTOP_SHORTCUTS);
+    push_desktop_shortcut_entry(
+        &mut next_entries,
+        DesktopShortcutAction::ToggleMute,
+        config.toggle_mute.as_deref(),
+    );
+    push_desktop_shortcut_entry(
+        &mut next_entries,
+        DesktopShortcutAction::ToggleDeafen,
+        config.toggle_deafen.as_deref(),
+    );
+    push_desktop_shortcut_entry(
+        &mut next_entries,
+        DesktopShortcutAction::PushToTalk,
+        config.push_to_talk.as_deref(),
+    );
+    push_desktop_shortcut_entry(
+        &mut next_entries,
+        DesktopShortcutAction::HideGameOverlay,
+        config.hide_game_overlay.as_deref(),
+    );
+    push_desktop_shortcut_entry(
+        &mut next_entries,
+        DesktopShortcutAction::ToggleAdminConsole,
+        config.toggle_admin_console.as_deref(),
+    );
 
-    entries.push(DesktopVoiceShortcutEntry {
-        action,
-        shortcut: parse_desktop_voice_shortcut(raw_shortcut)?,
-    });
+    next_entries
+}
+
+#[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+fn validate_desktop_shortcut_entries(entries: &[DesktopShortcutEntry]) -> Result<(), String> {
+    if let Some(entry) = entries.iter().find(|entry| entry.reason.is_some()) {
+        let reason = entry.reason.expect("failure reason checked");
+        return Err(format!(
+            "Desktop shortcut {} is {}.",
+            entry.action.label(),
+            reason.label()
+        ));
+    }
 
     Ok(())
 }
 
+/// An unparseable or reserved combination is kept as a **row** with no shortcut rather than
+/// dropped: the screen still has to draw `Bas-konuş` and say why it is not working.
 #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
-fn parse_desktop_voice_shortcut(
-    value: &str,
-) -> Result<tauri_plugin_global_shortcut::Shortcut, String> {
+fn push_desktop_shortcut_entry(
+    entries: &mut Vec<DesktopShortcutEntry>,
+    action: DesktopShortcutAction,
+    value: Option<&str>,
+) {
+    let raw_shortcut = value.map(str::trim).unwrap_or_default();
+    let (shortcut, reason) = if raw_shortcut.is_empty() {
+        (None, None)
+    } else if is_reserved_desktop_shortcut(raw_shortcut) {
+        (None, Some(DesktopShortcutFailureReason::Reserved))
+    } else {
+        match parse_desktop_shortcut(raw_shortcut) {
+            Ok(shortcut) => (Some(shortcut), None),
+            Err(_) => (None, Some(DesktopShortcutFailureReason::Invalid)),
+        }
+    };
+
+    entries.push(DesktopShortcutEntry {
+        accelerator: raw_shortcut.to_string(),
+        action,
+        reason,
+        registered: false,
+        shortcut,
+    });
+}
+
+#[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+fn parse_desktop_shortcut(value: &str) -> Result<tauri_plugin_global_shortcut::Shortcut, String> {
     use tauri_plugin_global_shortcut::{Modifiers, Shortcut};
 
     if value.len() > MAX_DESKTOP_SHORTCUT_LENGTH
         || value
             .chars()
             .any(|character| matches!(character, '\0' | '\n' | '\r'))
-        || is_reserved_desktop_voice_shortcut(value)
+        || is_reserved_desktop_shortcut(value)
     {
         return Err("Desktop voice shortcut is invalid.".to_string());
     }
@@ -2444,7 +3016,7 @@ fn parse_desktop_voice_shortcut(
 }
 
 #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
-fn normalize_desktop_voice_shortcut(value: &str) -> String {
+fn normalize_desktop_shortcut(value: &str) -> String {
     value
         .chars()
         .filter(|character| !character.is_whitespace())
@@ -2453,8 +3025,8 @@ fn normalize_desktop_voice_shortcut(value: &str) -> String {
 }
 
 #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
-fn is_reserved_desktop_voice_shortcut(value: &str) -> bool {
-    let normalized = normalize_desktop_voice_shortcut(value);
+fn is_reserved_desktop_shortcut(value: &str) -> bool {
+    let normalized = normalize_desktop_shortcut(value);
     matches!(
         normalized.as_str(),
         "alt+escape"
@@ -2468,6 +3040,46 @@ fn is_reserved_desktop_voice_shortcut(value: &str) -> bool {
             | "meta+space"
             | "super+space"
     ) || normalized.ends_with("+space")
+        || is_application_shortcut_accelerator(&normalized)
+}
+
+#[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+fn is_application_shortcut_accelerator(value: &str) -> bool {
+    let mut parts = value.split('+').collect::<Vec<_>>();
+    let Some(key) = parts.pop() else {
+        return false;
+    };
+    let is_command = |part: &&str| {
+        matches!(
+            *part,
+            "cmd"
+                | "cmdorctrl"
+                | "command"
+                | "commandorcontrol"
+                | "control"
+                | "ctrl"
+                | "meta"
+                | "super"
+        )
+    };
+    let command = parts.iter().any(is_command);
+    let alt = parts.iter().any(|part| matches!(*part, "alt" | "option"));
+    let shift = parts.contains(&"shift");
+    let known = parts
+        .iter()
+        .all(|part| is_command(part) || matches!(*part, "alt" | "option" | "shift"));
+    if !known {
+        return false;
+    }
+
+    (command && !alt && !shift && matches!(key, "," | "/" | "b" | "f" | "i" | "k" | "u"))
+        || (command
+            && !alt
+            && shift
+            && matches!(key, "b" | "d" | "h" | "i" | "m" | "o" | "s" | "u" | "v"))
+        || (!command && alt && !shift && matches!(key, "arrowdown" | "arrowleft" | "arrowup"))
+        || (!command && alt && shift && matches!(key, "arrowdown" | "arrowup"))
+        || (!command && !alt && shift && key == "f6")
 }
 
 #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
@@ -2492,7 +3104,7 @@ fn is_dedicated_function_key(key: tauri_plugin_global_shortcut::Code) -> bool {
 }
 
 #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
-fn unregister_desktop_voice_shortcuts<I>(app: &AppHandle, shortcuts: I) -> Result<(), String>
+fn unregister_desktop_shortcuts<I>(app: &AppHandle, shortcuts: I) -> Result<(), String>
 where
     I: IntoIterator<Item = tauri_plugin_global_shortcut::Shortcut>,
 {
@@ -2509,27 +3121,9 @@ where
 }
 
 #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
-fn restore_desktop_voice_shortcuts(
-    app: &AppHandle,
-    registry: &DesktopVoiceShortcutRegistry,
-    previous_entries: Vec<DesktopVoiceShortcutEntry>,
-) -> Result<(), String> {
-    use tauri_plugin_global_shortcut::GlobalShortcutExt;
-
-    for entry in &previous_entries {
-        app.global_shortcut()
-            .register(entry.shortcut)
-            .map_err(|error| format!("Unable to restore desktop voice shortcuts: {error}"))?;
-    }
-
-    replace_desktop_voice_shortcut_entries(registry, previous_entries);
-    Ok(())
-}
-
-#[cfg(any(target_os = "macos", windows, target_os = "linux"))]
-fn replace_desktop_voice_shortcut_entries(
-    registry: &DesktopVoiceShortcutRegistry,
-    entries: Vec<DesktopVoiceShortcutEntry>,
+fn replace_desktop_shortcut_entries(
+    registry: &DesktopShortcutRegistry,
+    entries: Vec<DesktopShortcutEntry>,
 ) {
     if let Ok(mut current_entries) = registry.entries.lock() {
         *current_entries = entries;
@@ -2537,25 +3131,56 @@ fn replace_desktop_voice_shortcut_entries(
 }
 
 #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
-fn desktop_voice_shortcut_status(
+fn desktop_shortcut_status(
     enabled: bool,
-    entries: &[DesktopVoiceShortcutEntry],
-) -> DesktopVoiceShortcutStatus {
-    DesktopVoiceShortcutStatus {
+    entries: &[DesktopShortcutEntry],
+) -> DesktopShortcutStatus {
+    DesktopShortcutStatus {
         enabled,
+        entries: desktop_shortcut_status_entries(entries),
+        // Only what the OS actually accepted. The old bundle reads this list to decide which
+        // keys it may advertise, and a refused combination advertised as working is worse than
+        // one that is absent.
         registered: entries
             .iter()
-            .map(|entry| DesktopVoiceShortcutRegistration {
-                action: entry.action.label(),
-                shortcut: entry.shortcut.into_string(),
+            .filter(|entry| entry.registered)
+            .filter_map(|entry| {
+                entry.shortcut.map(|shortcut| DesktopShortcutRegistration {
+                    action: entry.action.label(),
+                    shortcut: shortcut.into_string(),
+                })
             })
             .collect(),
     }
 }
 
-fn desktop_voice_shortcut_registry_status(
-    registry: &DesktopVoiceShortcutRegistry,
-) -> DesktopVoiceShortcutStatus {
+/// K7 — the row-per-assignment answer. Read from the live registry every time; nothing about a
+/// conflict survives a restart, because the next launch asks the OS again.
+#[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+fn desktop_shortcut_status_entries(
+    entries: &[DesktopShortcutEntry],
+) -> Vec<DesktopShortcutStatusEntry> {
+    entries
+        .iter()
+        .map(|entry| DesktopShortcutStatusEntry {
+            action: entry.action.label(),
+            conflict: entry.conflict(),
+            keys: entry
+                .accelerator
+                .split('+')
+                .map(str::trim)
+                .filter(|part| !part.is_empty())
+                .map(str::to_string)
+                .collect(),
+            reason: entry.reason,
+            registered: entry.registered,
+        })
+        .collect()
+}
+
+fn desktop_shortcut_registry_entries(
+    registry: &DesktopShortcutRegistry,
+) -> Vec<DesktopShortcutStatusEntry> {
     #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
     {
         let entries = registry
@@ -2564,31 +3189,76 @@ fn desktop_voice_shortcut_registry_status(
             .map(|entries| entries.clone())
             .unwrap_or_default();
 
-        desktop_voice_shortcut_status(!entries.is_empty(), &entries)
+        desktop_shortcut_status_entries(&entries)
     }
 
     #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
     {
         let _ = registry;
-        DesktopVoiceShortcutStatus {
-            enabled: false,
-            registered: Vec::new(),
+        Vec::new()
+    }
+}
+
+fn desktop_shortcut_status_for_app(
+    app: &AppHandle,
+    registry: &DesktopShortcutRegistry,
+) -> Result<DesktopShortcutStatus, String> {
+    let settings = load_desktop_device_settings(app)?;
+
+    #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+    {
+        let entries = registry
+            .entries
+            .lock()
+            .map(|entries| entries.clone())
+            .unwrap_or_default();
+
+        if settings.voice_shortcuts.shortcuts_enabled && !entries.is_empty() {
+            return Ok(desktop_shortcut_status(true, &entries));
         }
+
+        Ok(desktop_shortcut_status(
+            settings.voice_shortcuts.shortcuts_enabled,
+            &inspect_desktop_shortcut_entries(&settings.voice_shortcuts),
+        ))
+    }
+
+    #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
+    {
+        let _ = (settings, registry);
+        Ok(DesktopShortcutStatus {
+            enabled: false,
+            entries: Vec::new(),
+            registered: Vec::new(),
+        })
     }
 }
 
 #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
-fn dispatch_voice_shortcut_event(
+fn dispatch_desktop_shortcut_event(
     app: &AppHandle,
-    registry: &DesktopVoiceShortcutRegistry,
+    registry: &DesktopShortcutRegistry,
     event: tauri_plugin_global_shortcut::ShortcutEvent,
 ) {
     use tauri_plugin_global_shortcut::ShortcutState;
 
+    if app
+        .get_webview_window("desktop-control")
+        .and_then(|window| window.is_focused().ok())
+        .unwrap_or(false)
+    {
+        return;
+    }
+
     let action = registry.entries.lock().ok().and_then(|entries| {
         entries
             .iter()
-            .find(|entry| entry.shortcut.id() == event.id)
+            .find(|entry| {
+                entry.registered
+                    && entry
+                        .shortcut
+                        .is_some_and(|shortcut| shortcut.id() == event.id)
+            })
             .map(|entry| entry.action)
     });
     let Some(action) = action else {
@@ -2624,6 +3294,8 @@ fn promote_desktop_window<R: tauri::Runtime>(
 
     let _ = window.set_min_size(None::<LogicalSize<f64>>);
     let _ = window.set_resizable(true);
+    // Açılış penceresinde kapatılan native gölge geri gelir (bkz. `prepare_desktop_start_window`).
+    let _ = window.set_shadow(true);
 
     #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
     {
@@ -2651,6 +3323,32 @@ fn promote_desktop_window<R: tauri::Runtime>(
     )));
 }
 
+/// Açılış penceresi hiçbir koşulda kilitli kalmasın diye son çare.
+///
+/// Terfi artık web tarafındaki açılış ekranına bağlı: kabuk hazır olduğunda
+/// `promote_desktop_main_window` çağrılır. Webview çökerse ya da bir hata o çağrıyı
+/// hiç yaptırmazsa pencere 648 × 474'te ve **yeniden boyutlandırılamaz** kalırdı.
+/// Bu bekçi o durumda pencereyi ana ölçüye çıkarır; normal açılışta hiç iş yapmaz.
+const DESKTOP_STARTUP_PROMOTION_GUARD_MS: u64 = 30_000;
+
+fn spawn_desktop_startup_promotion_guard(
+    window: WebviewWindow,
+    promotion_state: DesktopWindowPromotionState,
+) {
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(DESKTOP_STARTUP_PROMOTION_GUARD_MS));
+
+        if is_desktop_window_promoted(&promotion_state) {
+            return;
+        }
+
+        let guarded_window = window.clone();
+        let _ = window.run_on_main_thread(move || {
+            promote_desktop_window(&guarded_window, &promotion_state);
+        });
+    });
+}
+
 fn prepare_desktop_start_window<R: tauri::Runtime>(window: &tauri::WebviewWindow<R>) {
     let _ = window.set_min_size(None::<LogicalSize<f64>>);
     let _ = window.set_resizable(false);
@@ -2662,6 +3360,11 @@ fn prepare_desktop_start_window<R: tauri::Runtime>(window: &tauri::WebviewWindow
         DESKTOP_SPLASH_WINDOW_WIDTH,
         DESKTOP_SPLASH_WINDOW_HEIGHT,
     )));
+    // Kabuğun köşesi (SPEC §4: 16px) CSS'ten çizilir ve pencere saydamdır. Native
+    // gölge dikdörtgen pencere kutusunu takip ettiği için yuvarlatılmış köşelerin
+    // dışında görünür kalırdı; açılışta kapatılır, pencere ana ölçüye terfi edince
+    // (o zaman kabuk yeniden dikdörtgendir) geri açılır.
+    let _ = window.set_shadow(false);
     let _ = window.center();
 }
 
@@ -2693,36 +3396,144 @@ fn is_desktop_quit_on_close_enabled(close_behavior: &DesktopCloseBehaviorState) 
         .unwrap_or(false)
 }
 
-fn read_desktop_native_settings<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
-) -> DesktopNativeSettings {
-    std::fs::read(desktop_native_settings_path(app))
-        .ok()
-        .and_then(|raw| serde_json::from_slice(&raw).ok())
-        .unwrap_or_default()
-}
-
-fn save_desktop_native_settings<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
-    settings: &DesktopNativeSettings,
-) -> Result<(), String> {
-    let settings_path = desktop_native_settings_path(app);
-    if let Some(parent) = settings_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|error| format!("Unable to save desktop settings: {error}"))?;
+fn parse_desktop_device_settings(raw: &[u8]) -> Result<DesktopDeviceSettings, String> {
+    let settings = serde_json::from_slice::<DesktopDeviceSettings>(raw)
+        .map_err(|_| "Desktop device settings are invalid.".to_string())?;
+    if settings.schema_version != DESKTOP_DEVICE_SETTINGS_SCHEMA_VERSION {
+        return Err("Desktop device settings use an unsupported schema version.".to_string());
     }
 
-    let serialized = serde_json::to_vec_pretty(settings)
-        .map_err(|error| format!("Unable to serialize desktop settings: {error}"))?;
-    std::fs::write(settings_path, serialized)
-        .map_err(|error| format!("Unable to save desktop settings: {error}"))
+    Ok(settings)
 }
 
-fn desktop_native_settings_path<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> PathBuf {
+fn read_bounded_desktop_settings_file(path: &Path) -> Result<Option<Vec<u8>>, String> {
+    let metadata = match std::fs::metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(format!("Unable to read desktop settings: {error}")),
+    };
+    if metadata.len() > DESKTOP_DEVICE_SETTINGS_MAX_BYTES {
+        return Err("Desktop device settings exceed the size limit.".to_string());
+    }
+
+    std::fs::read(path)
+        .map(Some)
+        .map_err(|error| format!("Unable to read desktop settings: {error}"))
+}
+
+fn load_desktop_device_settings<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<DesktopDeviceSettings, String> {
+    let settings_path = desktop_device_settings_path(app)?;
+    if let Some(raw) = read_bounded_desktop_settings_file(&settings_path)? {
+        return parse_desktop_device_settings(&raw);
+    }
+
+    let settings = legacy_desktop_native_settings_path(app)
+        .and_then(|legacy_path| {
+            read_bounded_desktop_settings_file(&legacy_path)
+                .ok()
+                .flatten()
+        })
+        .and_then(|raw| serde_json::from_slice::<LegacyDesktopNativeSettings>(&raw).ok())
+        .map(DesktopDeviceSettings::from)
+        .unwrap_or_default();
+    save_desktop_device_settings(app, &settings)?;
+    Ok(settings)
+}
+
+fn save_desktop_device_settings<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    settings: &DesktopDeviceSettings,
+) -> Result<(), String> {
+    let serialized = serde_json::to_vec_pretty(settings)
+        .map_err(|error| format!("Unable to serialize desktop settings: {error}"))?;
+    write_desktop_device_settings_atomic(&desktop_device_settings_path(app)?, &serialized)
+}
+
+fn write_desktop_device_settings_atomic(path: &Path, serialized: &[u8]) -> Result<(), String> {
+    if serialized.len() as u64 > DESKTOP_DEVICE_SETTINGS_MAX_BYTES {
+        return Err("Desktop device settings exceed the size limit.".to_string());
+    }
+    let Some(parent) = path.parent() else {
+        return Err("Desktop device settings directory is unavailable.".to_string());
+    };
+    std::fs::create_dir_all(parent)
+        .map_err(|error| format!("Unable to save desktop settings: {error}"))?;
+
+    let suffix = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let temporary_path = parent.join(format!(
+        ".device-settings.{}.{}.tmp",
+        std::process::id(),
+        suffix
+    ));
+    let write_result = (|| -> Result<(), String> {
+        let mut file = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(&temporary_path)
+            .map_err(|error| format!("Unable to save desktop settings: {error}"))?;
+        file.write_all(serialized)
+            .and_then(|_| file.sync_all())
+            .map_err(|error| format!("Unable to save desktop settings: {error}"))?;
+        replace_desktop_settings_file(&temporary_path, path)
+    })();
+
+    if write_result.is_err() {
+        let _ = std::fs::remove_file(&temporary_path);
+    }
+    write_result
+}
+
+#[cfg(windows)]
+fn replace_desktop_settings_file(source: &Path, destination: &Path) -> Result<(), String> {
+    let source_wide: Vec<u16> = source.as_os_str().encode_wide().chain(Some(0)).collect();
+    let destination_wide: Vec<u16> = destination
+        .as_os_str()
+        .encode_wide()
+        .chain(Some(0))
+        .collect();
+    let replaced = unsafe {
+        MoveFileExW(
+            source_wide.as_ptr(),
+            destination_wide.as_ptr(),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+        )
+    };
+    if replaced == 0 {
+        return Err(format!(
+            "Unable to replace desktop settings: {}",
+            std::io::Error::last_os_error()
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn replace_desktop_settings_file(source: &Path, destination: &Path) -> Result<(), String> {
+    std::fs::rename(source, destination)
+        .map_err(|error| format!("Unable to replace desktop settings: {error}"))
+}
+
+fn desktop_device_settings_path<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<PathBuf, String> {
+    app.path()
+        .app_local_data_dir()
+        .map(|directory| directory.join(DESKTOP_DEVICE_SETTINGS_FILENAME))
+        .map_err(|_| "Desktop device settings directory is unavailable.".to_string())
+}
+
+fn legacy_desktop_native_settings_path<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Option<PathBuf> {
     app.path()
         .app_config_dir()
-        .unwrap_or_else(|_| std::env::temp_dir())
-        .join(DESKTOP_NATIVE_SETTINGS_FILENAME)
+        .ok()
+        .map(|directory| directory.join(DESKTOP_LEGACY_NATIVE_SETTINGS_FILENAME))
 }
 
 fn set_desktop_quit_on_close_from_native_menu(
@@ -2730,9 +3541,13 @@ fn set_desktop_quit_on_close_from_native_menu(
     close_behavior: &DesktopCloseBehaviorState,
     enabled: bool,
 ) -> Result<bool, String> {
-    let mut settings = read_desktop_native_settings(app);
-    settings.quit_on_close = enabled;
-    save_desktop_native_settings(app, &settings)?;
+    let mut settings = load_desktop_device_settings(app)?;
+    settings.window.close_action = if enabled {
+        DesktopWindowCloseAction::Quit
+    } else {
+        DesktopWindowCloseAction::Tray
+    };
+    save_desktop_device_settings(app, &settings)?;
     set_desktop_quit_on_close(close_behavior, enabled);
     Ok(enabled)
 }
@@ -3030,6 +3845,8 @@ fn setup_tray(
         is_desktop_quit_on_close_enabled(&close_behavior),
         None::<&str>,
     )?;
+    app.state::<DesktopTraySettingsItems>()
+        .install(autostart_item.clone(), quit_on_close_item.clone());
     let hide_overlay_item = MenuItem::with_id(
         app,
         "hide_game_overlay",
@@ -3766,6 +4583,7 @@ fn reset_desktop_main_window(
 fn desktop_control_section(section: Option<&str>) -> Result<&'static str, String> {
     match section.unwrap_or("overview") {
         "overview" => Ok("overview"),
+        "app" => Ok("app"),
         "shortcuts" => Ok("shortcuts"),
         "diagnostics" => Ok("diagnostics"),
         "updates" => Ok("updates"),
@@ -3829,6 +4647,7 @@ fn show_or_create_desktop_control_window(
     window.on_window_event(move |event| {
         if let WindowEvent::CloseRequested { api, .. } = event {
             api.prevent_close();
+            let _ = window_for_close.eval("window.whisprDesktopControlCancelMediaPermission?.();");
             let _ = window_for_close.hide();
         }
     });
@@ -4012,7 +4831,11 @@ fn show_or_create_desktop_game_overlay_window(
     .inner_size(overlay_width, overlay_height)
     .min_inner_size(overlay_width, overlay_height)
     .data_directory(webview_data_directory)
-    .initialization_script(desktop_init_script(false, desktop_release_ring().as_str()))
+    .initialization_script(desktop_init_script(
+        false,
+        desktop_release_ring().as_str(),
+        false,
+    ))
     .on_navigation(move |url| {
         if is_same_origin(url, &allowed_origin) {
             return true;
@@ -4141,7 +4964,11 @@ fn show_or_create_desktop_voice_mini_window(app: &tauri::AppHandle) -> Result<()
     .inner_size(DESKTOP_VOICE_MINI_WIDTH, DESKTOP_VOICE_MINI_HEIGHT)
     .min_inner_size(DESKTOP_VOICE_MINI_WIDTH, DESKTOP_VOICE_MINI_HEIGHT)
     .data_directory(webview_data_directory)
-    .initialization_script(desktop_init_script(false, desktop_release_ring().as_str()))
+    .initialization_script(desktop_init_script(
+        false,
+        desktop_release_ring().as_str(),
+        false,
+    ))
     .on_navigation(move |url| {
         if is_same_origin(url, &allowed_origin) {
             return true;
@@ -4223,7 +5050,11 @@ fn show_or_create_desktop_admin_console_window(app: &tauri::AppHandle) -> Result
     .resizable(true)
     .center()
     .data_directory(webview_data_directory)
-    .initialization_script(desktop_init_script(false, desktop_release_ring().as_str()))
+    .initialization_script(desktop_init_script(
+        false,
+        desktop_release_ring().as_str(),
+        false,
+    ))
     .on_navigation(move |url| {
         if is_same_origin(url, &allowed_origin) {
             return true;
@@ -4457,6 +5288,10 @@ fn safe_desktop_deep_link_path(raw_url: &str) -> Option<String> {
         route.push_str(query);
     }
 
+    if route.len() > MAX_DESKTOP_INTERNAL_PATH_LENGTH {
+        return None;
+    }
+
     Some(route)
 }
 
@@ -4505,6 +5340,19 @@ fn dispatch_desktop_surface_ready(app: &AppHandle, surface: &str) {
     let _ = window.eval(&script);
 }
 
+fn desktop_navigation_dispatch_script(
+    path: &str,
+    target_url: &Url,
+    issued_at_ms: u64,
+) -> Option<String> {
+    let path_json = serde_json::to_string(path).ok()?;
+    let target_json = serde_json::to_string(target_url.as_str()).ok()?;
+
+    Some(format!(
+        "if (window.__WHISPR_DESKTOP_CLIENT_NAVIGATION_READY__ === true) {{ window.dispatchEvent(new CustomEvent('whispr:desktop-command', {{ detail: {{ command: 'navigate', path: {path_json}, issuedAtMs: {issued_at_ms} }} }})); }} else {{ window.location.assign({target_json}); }}"
+    ))
+}
+
 fn dispatch_desktop_command_with_focus(
     app: &AppHandle,
     command: &str,
@@ -4522,10 +5370,11 @@ fn dispatch_desktop_command_with_focus(
     if command == "navigate" {
         if let Some(value) = path {
             let target_url = desktop_app_url_with_path(value);
-            let Ok(target_json) = serde_json::to_string(target_url.as_str()) else {
+            let Some(script) =
+                desktop_navigation_dispatch_script(value, &target_url, current_unix_ms())
+            else {
                 return;
             };
-            let script = format!("window.location.assign({target_json});");
             let _ = window.eval(&script);
             return;
         }
@@ -4742,12 +5591,14 @@ mod tests {
         let index = desktop_control_protocol_response("/index.html");
         let css = desktop_control_protocol_response("/app.css");
         let script = desktop_control_protocol_response("/app.js");
+        let shortcut_editor = desktop_control_protocol_response("/shortcut-editor.mjs");
         let traversal = desktop_control_protocol_response("/../Cargo.toml");
         let unknown = desktop_control_protocol_response("/missing.js");
 
         assert_eq!(index.status(), tauri::http::StatusCode::OK);
         assert_eq!(css.status(), tauri::http::StatusCode::OK);
         assert_eq!(script.status(), tauri::http::StatusCode::OK);
+        assert_eq!(shortcut_editor.status(), tauri::http::StatusCode::OK);
         assert_eq!(traversal.status(), tauri::http::StatusCode::NOT_FOUND);
         assert_eq!(unknown.status(), tauri::http::StatusCode::NOT_FOUND);
         assert_eq!(
@@ -4758,6 +5609,14 @@ mod tests {
         );
         assert_eq!(
             script.headers().get(tauri::http::header::CONTENT_TYPE),
+            Some(&tauri::http::HeaderValue::from_static(
+                "text/javascript; charset=utf-8",
+            )),
+        );
+        assert_eq!(
+            shortcut_editor
+                .headers()
+                .get(tauri::http::header::CONTENT_TYPE),
             Some(&tauri::http::HeaderValue::from_static(
                 "text/javascript; charset=utf-8",
             )),
@@ -4882,29 +5741,139 @@ mod tests {
         assert!(sanitized.contains("[redacted-user-path]"));
     }
 
+    /// Invalid input is rejected before the current OS registrations are touched.
     #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
     #[test]
-    fn invalid_shortcut_config_fails_before_the_working_config_changes() {
-        let working = DesktopVoiceShortcutConfig {
+    fn a_reserved_shortcut_is_identified_before_registration() {
+        let mixed = DesktopShortcutConfig {
+            hide_game_overlay: None,
+            // Reserved (`+space`): parsing refuses it, so the row survives without a shortcut.
+            push_to_talk: Some("Alt+Space".to_string()),
+            shortcuts_enabled: true,
+            toggle_admin_console: None,
+            toggle_deafen: Some("Alt+D".to_string()),
+            toggle_mute: Some("Alt+M".to_string()),
+        };
+
+        let entries = inspect_desktop_shortcut_entries(&mixed);
+        assert_eq!(entries.len(), 5);
+
+        let push_to_talk = entries
+            .iter()
+            .find(|entry| entry.action == DesktopShortcutAction::PushToTalk)
+            .expect("push-to-talk row is kept");
+        assert!(push_to_talk.shortcut.is_none());
+        assert!(push_to_talk.conflict());
+        assert_eq!(
+            push_to_talk.reason,
+            Some(DesktopShortcutFailureReason::Reserved)
+        );
+        assert!(validate_desktop_shortcut_entries(&entries).is_err());
+
+        assert!(entries
+            .iter()
+            .find(|entry| entry.action == DesktopShortcutAction::ToggleMute)
+            .is_some_and(|entry| entry.shortcut.is_some()));
+        assert!(entries
+            .iter()
+            .find(|entry| entry.action == DesktopShortcutAction::ToggleDeafen)
+            .is_some_and(|entry| entry.shortcut.is_some()));
+
+        assert!(entries.iter().all(|entry| !entry.registered));
+    }
+
+    /// Duplicate input is also rejected before native mutation.
+    #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+    #[test]
+    fn a_duplicate_shortcut_is_rejected_before_registration() {
+        let duplicated = DesktopShortcutConfig {
+            hide_game_overlay: None,
+            push_to_talk: None,
+            shortcuts_enabled: true,
+            toggle_admin_console: None,
+            toggle_deafen: Some("Alt+M".to_string()),
+            toggle_mute: Some("Alt+M".to_string()),
+        };
+
+        let entries = prepare_desktop_shortcut_entries(&duplicated)
+            .expect_err("duplicates must fail before current shortcuts are unregistered");
+
+        assert!(entries.contains("duplicate"));
+    }
+
+    #[test]
+    fn desktop_shortcut_defaults_are_valid_but_disabled() {
+        let defaults = DesktopShortcutConfig::default();
+
+        assert!(!defaults.shortcuts_enabled);
+        assert_eq!(defaults.toggle_mute.as_deref(), Some("Alt+M"));
+        assert_eq!(defaults.toggle_deafen.as_deref(), Some("Alt+D"));
+        assert_eq!(defaults.push_to_talk.as_deref(), Some("Alt+V"));
+        assert_eq!(defaults.hide_game_overlay.as_deref(), Some("Alt+H"));
+        assert_eq!(
+            defaults.toggle_admin_console.as_deref(),
+            Some("Alt+Shift+K")
+        );
+    }
+
+    #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+    #[test]
+    fn desktop_shortcut_status_reports_every_requested_row_and_reason() {
+        let config = DesktopShortcutConfig {
+            push_to_talk: Some("Alt+Space".to_string()),
+            shortcuts_enabled: true,
+            ..DesktopShortcutConfig::default()
+        };
+        let entries = inspect_desktop_shortcut_entries(&config);
+        let serialized = serde_json::to_value(desktop_shortcut_status(true, &entries)).unwrap();
+        let rows = serialized["entries"].as_array().expect("status entries");
+        let push_to_talk = rows
+            .iter()
+            .find(|entry| entry["action"] == "pushToTalk")
+            .expect("push-to-talk status");
+
+        assert_eq!(rows.len(), 5);
+        assert_eq!(push_to_talk["reason"], "reserved");
+        assert_eq!(push_to_talk["registered"], false);
+    }
+
+    #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+    #[test]
+    fn enabling_shortcuts_without_any_assignment_still_fails() {
+        let enabled_without_shortcuts = DesktopShortcutConfig {
             hide_game_overlay: None,
             push_to_talk: None,
             shortcuts_enabled: true,
             toggle_admin_console: None,
             toggle_deafen: None,
-            toggle_mute: Some("Alt+M".to_string()),
-        };
-        let invalid = DesktopVoiceShortcutConfig {
-            toggle_mute: Some("Alt+Space".to_string()),
-            ..working.clone()
-        };
-        let enabled_without_shortcuts = DesktopVoiceShortcutConfig {
-            shortcuts_enabled: true,
-            ..DesktopVoiceShortcutConfig::default()
+            toggle_mute: None,
         };
 
-        assert!(prepare_desktop_voice_shortcut_entries(&invalid).is_err());
-        assert!(prepare_desktop_voice_shortcut_entries(&enabled_without_shortcuts).is_err());
-        assert_eq!(working.toggle_mute.as_deref(), Some("Alt+M"));
+        assert!(prepare_desktop_shortcut_entries(&enabled_without_shortcuts).is_err());
+    }
+
+    /// K7 — the five actions the shell registers. The web contract names two of them
+    /// differently (`hideOverlay`, `moderationConsole`); these labels are the wire values the
+    /// old bundle already reads and must not move.
+    #[test]
+    fn five_shortcut_actions_keep_their_wire_labels() {
+        assert_eq!(
+            [
+                DesktopShortcutAction::ToggleMute.label(),
+                DesktopShortcutAction::ToggleDeafen.label(),
+                DesktopShortcutAction::PushToTalk.label(),
+                DesktopShortcutAction::HideGameOverlay.label(),
+                DesktopShortcutAction::ToggleAdminConsole.label(),
+            ],
+            [
+                "toggleMute",
+                "toggleDeafen",
+                "pushToTalk",
+                "hideGameOverlay",
+                "toggleAdminConsole",
+            ]
+        );
+        assert_eq!(MAX_DESKTOP_SHORTCUTS, 5);
     }
 
     /// F test 8: the tray renders the number it is handed. There is no counting
@@ -4944,15 +5913,15 @@ mod tests {
     #[test]
     fn desktop_console_shortcut_dispatches_only_on_key_press() {
         assert_eq!(
-            DesktopVoiceShortcutAction::ToggleAdminConsole.command(true),
+            DesktopShortcutAction::ToggleAdminConsole.command(true),
             Some("toggle-admin-console")
         );
         assert_eq!(
-            DesktopVoiceShortcutAction::ToggleAdminConsole.command(false),
+            DesktopShortcutAction::ToggleAdminConsole.command(false),
             None
         );
         assert_eq!(
-            DesktopVoiceShortcutAction::ToggleAdminConsole.label(),
+            DesktopShortcutAction::ToggleAdminConsole.label(),
             "toggleAdminConsole"
         );
     }
@@ -4986,14 +5955,79 @@ mod tests {
     }
 
     #[test]
-    fn desktop_native_settings_keep_close_behavior_local_and_typed() {
-        let settings = serde_json::from_str::<DesktopNativeSettings>(
-            r#"{"quit_on_close":true,"unexpected_remote_field":"ignored"}"#,
+    fn desktop_device_settings_are_versioned_local_and_typed() {
+        let settings = parse_desktop_device_settings(
+            br#"{"schemaVersion":1,"window":{"closeAction":"quit"},"unexpectedFutureField":"ignored"}"#,
         )
         .unwrap();
 
-        assert!(settings.quit_on_close);
-        assert!(!DesktopNativeSettings::default().quit_on_close);
+        assert_eq!(
+            settings.schema_version,
+            DESKTOP_DEVICE_SETTINGS_SCHEMA_VERSION
+        );
+        assert_eq!(settings.window.close_action, DesktopWindowCloseAction::Quit);
+        assert_eq!(
+            DesktopDeviceSettings::default().window.close_action,
+            DesktopWindowCloseAction::Tray
+        );
+        assert!(parse_desktop_device_settings(br#"{"schemaVersion":2}"#).is_err());
+    }
+
+    #[test]
+    fn legacy_native_settings_migrate_into_the_bounded_device_schema() {
+        let legacy = serde_json::from_slice::<LegacyDesktopNativeSettings>(
+            br#"{"quit_on_close":true,"voice_shortcuts":{"shortcutsEnabled":false}}"#,
+        )
+        .unwrap();
+        let settings = DesktopDeviceSettings::from(legacy);
+        let json = serde_json::to_value(&settings).unwrap();
+
+        assert_eq!(settings.window.close_action, DesktopWindowCloseAction::Quit);
+        let keys = json
+            .as_object()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect::<HashSet<_>>();
+        assert_eq!(
+            keys,
+            HashSet::from([
+                "schemaVersion".to_string(),
+                "voiceShortcuts".to_string(),
+                "window".to_string(),
+            ])
+        );
+    }
+
+    #[test]
+    fn autostart_argument_is_exact_and_enters_hidden_launch_mode() {
+        assert!(desktop_launched_from_autostart([
+            "whispr.exe".to_string(),
+            DESKTOP_AUTOSTART_ARG.to_string(),
+        ]));
+        assert!(!desktop_launched_from_autostart([
+            "whispr.exe".to_string(),
+            "--autostart-debug".to_string(),
+        ]));
+        assert!(desktop_init_script(false, "uat", true).contains("launchMode: \"autostart\""));
+        assert!(desktop_init_script(false, "uat", false).contains("launchMode: \"interactive\""));
+    }
+
+    #[test]
+    fn device_settings_replace_is_atomic_for_existing_files() {
+        let directory = std::env::temp_dir().join(format!(
+            "whispr-device-settings-test-{}-{}",
+            std::process::id(),
+            current_unix_ms()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let path = directory.join(DESKTOP_DEVICE_SETTINGS_FILENAME);
+        std::fs::write(&path, b"old").unwrap();
+
+        write_desktop_device_settings_atomic(&path, b"new").unwrap();
+
+        assert_eq!(std::fs::read(&path).unwrap(), b"new");
+        std::fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]
@@ -5073,6 +6107,25 @@ mod tests {
     }
 
     #[test]
+    fn desktop_permission_settings_uri_allowlist_is_exact() {
+        assert_eq!(
+            desktop_permission_settings_uri("notifications"),
+            Some("ms-settings:notifications")
+        );
+        assert_eq!(
+            desktop_permission_settings_uri("microphone"),
+            Some("ms-settings:privacy-microphone")
+        );
+        assert_eq!(
+            desktop_permission_settings_uri("camera"),
+            Some("ms-settings:privacy-webcam")
+        );
+        assert_eq!(desktop_permission_settings_uri("screenShare"), None);
+        assert_eq!(desktop_permission_settings_uri("globalShortcuts"), None);
+        assert_eq!(desktop_permission_settings_uri("javascript:alert(1)"), None);
+    }
+
+    #[test]
     fn desktop_diagnostic_text_is_redacted_and_bounded() {
         assert_eq!(
             sanitize_diagnostic_text("authorization bearer abc"),
@@ -5147,6 +6200,20 @@ mod tests {
             safe_desktop_deep_link_path("whispr://invite/..\\settings"),
             None
         );
+
+        let path_segment = "a".repeat(500);
+        let allowed_query_value = "b".repeat(255);
+        let oversized_query_value = "b".repeat(256);
+        let allowed = format!("whispr://channels/{path_segment}?q={allowed_query_value}");
+        let oversized = format!("whispr://channels/{path_segment}?q={oversized_query_value}");
+
+        assert_eq!(
+            safe_desktop_deep_link_path(&allowed)
+                .expect("768-byte internal path should remain valid")
+                .len(),
+            768
+        );
+        assert_eq!(safe_desktop_deep_link_path(&oversized), None);
     }
 
     #[test]
@@ -5167,6 +6234,24 @@ mod tests {
         assert_eq!(safe_desktop_deep_link_path("whispr://oauth"), None);
     }
 
+    #[test]
+    fn desktop_navigation_uses_spa_bridge_with_a_cold_start_fallback() {
+        let target = Url::parse("https://whispr.team/channels/server-1?from=deeplink")
+            .expect("valid app URL");
+        let script =
+            desktop_navigation_dispatch_script("/channels/server-1?from=deeplink", &target, 42)
+                .expect("serializable navigation script");
+
+        assert!(script.contains("__WHISPR_DESKTOP_CLIENT_NAVIGATION_READY__ === true"));
+        assert!(script.contains("new CustomEvent('whispr:desktop-command'"));
+        assert!(script.contains("command: 'navigate'"));
+        assert!(script.contains("path: \"/channels/server-1?from=deeplink\""));
+        assert!(script.contains("issuedAtMs: 42"));
+        assert!(script.contains(
+            "window.location.assign(\"https://whispr.team/channels/server-1?from=deeplink\")"
+        ));
+    }
+
     #[cfg(windows)]
     #[test]
     fn desktop_foreground_process_name_is_pathless() {
@@ -5181,13 +6266,16 @@ mod tests {
     #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
     #[test]
     fn desktop_voice_shortcuts_reject_reserved_combinations() {
-        assert!(is_reserved_desktop_voice_shortcut("Alt+Space"));
-        assert!(is_reserved_desktop_voice_shortcut("Ctrl+Space"));
-        assert!(is_reserved_desktop_voice_shortcut("CmdOrCtrl+Shift+Space"));
-        assert!(is_reserved_desktop_voice_shortcut("Alt+Tab"));
-        assert!(is_reserved_desktop_voice_shortcut("Alt+F4"));
-        assert!(!is_reserved_desktop_voice_shortcut("Alt+V"));
-        assert!(parse_desktop_voice_shortcut("Alt+V").is_ok());
-        assert!(parse_desktop_voice_shortcut("Alt+Space").is_err());
+        assert!(is_reserved_desktop_shortcut("Alt+Space"));
+        assert!(is_reserved_desktop_shortcut("Ctrl+Space"));
+        assert!(is_reserved_desktop_shortcut("CmdOrCtrl+Shift+Space"));
+        assert!(is_reserved_desktop_shortcut("Alt+Tab"));
+        assert!(is_reserved_desktop_shortcut("Alt+F4"));
+        assert!(is_reserved_desktop_shortcut("CmdOrCtrl+Shift+H"));
+        assert!(is_reserved_desktop_shortcut("CmdOrCtrl+Shift+V"));
+        assert!(is_reserved_desktop_shortcut("CmdOrCtrl+Shift+S"));
+        assert!(!is_reserved_desktop_shortcut("Alt+V"));
+        assert!(parse_desktop_shortcut("Alt+V").is_ok());
+        assert!(parse_desktop_shortcut("Alt+Space").is_err());
     }
 }

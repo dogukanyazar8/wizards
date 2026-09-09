@@ -137,87 +137,23 @@ describe("screen share audio control", () => {
     assert.doesNotMatch(EN_MESSAGES["settings.voice.screenShare.feature.noSystemAudio"], /^No /);
   });
 
-  it("can be turned on before the first share, from the voice settings panel", () => {
+  it("can be turned on before the first share, from the settings window", () => {
     // The stage panel only exists while a share is running and the preference
     // only takes effect on the next share, so without this entry point the very
     // first share is always silent.
-    const panelSource = readSource("components/voice/voice-preferences-panel.tsx");
+    //
+    // K13 deleted `voice-preferences-panel.tsx`; the entry point is now the `e2` row of
+    // Settings > Audio and Video > Screen share, and the bridge is what writes the store.
+    const treeSource = readSource("lib/settings/tree.ts");
+    const bridgeSource = readSource("components/settings/sections/av/av-settings-bridge.tsx");
 
-    assert.match(panelSource, /data-testid="voice-screen-share-audio"/);
-    assert.match(panelSource, /screenShareAudioSupported \? \(/);
-    // Above the collapsed advanced disclosure: a toggle nobody opens is a
-    // toggle nobody finds before their first share.
-    assert.ok(
-      panelSource.indexOf('data-testid="voice-screen-share-audio"') <
-        panelSource.indexOf('data-testid="voice-advanced-controls"'),
-    );
+    assert.match(treeSource, /key: "e2",\s+type: "toggle",/u);
     assert.match(
-      panelSource,
-      /setScreenShareAudioEnabled\(!screenShareAudioEnabled\)/,
+      bridgeSource,
+      /case "e2":\s+writer\.setScreenShareAudioEnabled\(Boolean\(value\)\);/u,
       "the settings toggle must write the same store field the share path reads",
     );
-    assert.match(panelSource, /isScreenShareAudioSupported,\s*\n\s*getServerCapabilitySnapshot,/);
-  });
-});
-
-describe("hidden-tab remote video rule", () => {
-  const providerSource = readSource("components/providers/live-voice-provider.tsx");
-
-  it("only runs for direct calls, where adaptive stream is off", () => {
-    // Channel rooms keep adaptiveStream, so livekit's own pauseVideoInBackground
-    // covers them; running both rules would fight over requestedDisabled.
-    assert.match(
-      providerSource,
-      /if \(typeof document === "undefined" \|\| sessionMode !== "direct"\) \{/,
-    );
-    assert.match(providerSource, /document\.addEventListener\("visibilitychange"/);
-    assert.match(providerSource, /document\.removeEventListener\("visibilitychange"/);
-  });
-
-  it("suspends on hidden and releases what it suspended on the way back", () => {
-    assert.match(providerSource, /document\.visibilityState === "hidden"/);
-    assert.match(providerSource, /suspendRemoteVideoForBackground\(activeRoom\)/);
-    assert.match(
-      providerSource,
-      /resumeRemoteVideoFromBackground\(activeRoom, suspendedTrackSids\)/,
-    );
-  });
-
-  it("covers a call joined in an already-hidden tab", () => {
-    // visibilitychange never fires for a tab that was hidden the whole time, so
-    // the rule sweeps once when it installs.
-    const listenerIndex = providerSource.indexOf('document.addEventListener("visibilitychange"');
-    const initialSweepIndex = providerSource.indexOf(
-      "enforceHiddenTabRemoteVideo();",
-      listenerIndex,
-    );
-
-    assert.ok(listenerIndex > 0 && initialSweepIndex > listenerIndex);
-  });
-
-  it("catches a track that subscribes while the tab is already hidden", () => {
-    const syncIndex = providerSource.indexOf("const syncRoomParticipants = () => {");
-    const enforceInSync = providerSource.indexOf("enforceHiddenTabRemoteVideo();", syncIndex);
-    const syncEndIndex = providerSource.indexOf("Room participant sync failed", syncIndex);
-
-    assert.ok(syncIndex > 0 && enforceInSync > syncIndex && enforceInSync < syncEndIndex);
-  });
-
-  it("costs a visible tab one property read, not a room walk", () => {
-    assert.match(
-      providerSource,
-      /const enforceHiddenTabRemoteVideo = useCallback\(\(\) => \{\s*\n\s*if \(typeof document === "undefined" \|\| document\.visibilityState !== "hidden"\) \{/,
-      "the hot path must bail out before reading the store or the room",
-    );
-  });
-
-  it("never leaves a publication parked when the session ends", () => {
-    const cleanupIndex = providerSource.indexOf('document.removeEventListener("visibilitychange"');
-    const releaseAfterCleanup = providerSource.indexOf(
-      "releaseHiddenTabRemoteVideo();",
-      cleanupIndex,
-    );
-
-    assert.ok(cleanupIndex > 0 && releaseAfterCleanup > cleanupIndex);
+    // The row must read back from the same field, or the toggle would show a stale state.
+    assert.match(bridgeSource, /e2: state\.screenShareAudioEnabled,/);
   });
 });

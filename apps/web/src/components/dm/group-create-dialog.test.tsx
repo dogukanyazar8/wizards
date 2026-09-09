@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
@@ -38,6 +40,11 @@ const FRIENDS = [
     username: "mert",
   },
 ];
+
+const SOURCE = readFileSync(
+  fileURLToPath(new URL("./group-create-dialog.tsx", import.meta.url)),
+  "utf8",
+);
 
 function renderDialog() {
   return renderToStaticMarkup(
@@ -83,6 +90,13 @@ function renderIdentityDialog() {
 }
 
 describe("group create dialog", () => {
+  it("ilerleme varsa tüm kapanış yollarını vazgeçme onayına yönlendirir", () => {
+    assert.match(SOURCE, /hasGroupCreateProgress/u);
+    assert.match(SOURCE, /<BugReportDiscardDialog/u);
+    assert.match(SOURCE, /onClose=\{requestClose\}/u);
+    assert.match(SOURCE, /onProgressChange/u);
+  });
+
   it("renders the canonical member-step chrome and copy", () => {
     const markup = renderDialog();
 

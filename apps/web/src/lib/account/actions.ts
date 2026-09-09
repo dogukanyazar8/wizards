@@ -1,16 +1,24 @@
 "use server";
 
+import { headers } from "next/headers";
 import { z } from "zod";
 import { UserStatus, prisma } from "@wizards/db";
 import { auth, normalizeAuthEmail, unstable_update } from "@/auth";
 import {
   confirmTwoFactorSetup,
   disableTwoFactor,
+  formatManualEntryKey,
+  getRecoveryCodeStatus,
+  regenerateRecoveryCodes,
   startTwoFactorSetup,
   type ConfirmTwoFactorSetupResult,
   type StartTwoFactorSetupResult,
   type TwoFactorFailureResult,
 } from "@/lib/auth/two-factor";
+import {
+  recordSecurityEventFromHeaders,
+  type SecurityEventKind,
+} from "@/lib/security/security-event-service";
 import {
   broadcastUserProfileUpdate,
   mapVisiblePresenceStatus,
@@ -19,7 +27,11 @@ import {
 } from "@/lib/account/service";
 import { ApiError } from "@/lib/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
+import { isExplicitE2ETestMode } from "@/lib/e2e/mode";
+import { toVisiblePresence } from "@/lib/home/focus";
+import { broadcastHomePresence } from "@/lib/home/presence-service";
 import { logError } from "@/lib/logger";
+import { isDndDuration, planDndWrite, type DndDuration } from "@/lib/presence/dnd";
 import type { FriendPresenceStatus } from "@/lib/friends/types";
 
 const UpdateAccountSettingsSchema = z.object({
@@ -96,6 +108,36 @@ export type DisableTwoFactorActionResult =
       success: false;
     };
 
+export type TwoFactorActionFailure = {
+  error: string;
+  retryAfterSeconds?: number;
+  success: false;
+};
+
+/** Ş3 §2 — URI plus manual key. No image: the QR is rendered client-side from `otpauthUri`. */
+export type BeginTwoFactorSetupActionResult =
+  | {
+      manualEntryKey: string;
+      otpauthUri: string;
+      success: true;
+    }
+  | TwoFactorActionFailure;
+
+export type RecoveryCodeStatusActionResult =
+  | {
+      success: true;
+      total: number;
+      unused: number;
+    }
+  | TwoFactorActionFailure;
+
+export type RegenerateRecoveryCodesActionResult =
+  | {
+      recoveryCodes: string[];
+      success: true;
+    }
+  | TwoFactorActionFailure;
+
 function mapUserToAccountState(user: {
   avatarUrl: string | null;
   displayName: string | null;
@@ -137,6 +179,15 @@ function mapTwoFactorError(error: TwoFactorFailureResult["error"]) {
   }
 }
 
+/**
+ * Ayarlar Ş3 §3. Request-scoped so the row can carry the same country guess and device string the
+ * session list shows. Never awaited for a result the caller acts on: `recordSecurityEvent`
+ * swallows its own failures, and turning off 2FA must not fail because the log is unavailable.
+ */
+async function recordAccountSecurityEvent(kind: SecurityEventKind, userId: string) {
+  await recordSecurityEventFromHeaders(await headers().catch(() => null), { kind, userId });
+}
+
 function mapTwoFactorActionFailure(result: TwoFactorFailureResult) {
   return {
     error: mapTwoFactorError(result.error),
@@ -153,8 +204,11 @@ function isTrustedAvatarUrl(value: string | null) {
   }
 
   if (
-    process.env.E2E_TEST_MODE === "true" &&
-    process.env.NODE_ENV !== "production" &&
+    isExplicitE2ETestMode({
+      allowProductionBuild: process.env.E2E_ALLOW_PRODUCTION_BUILD,
+      nodeEnv: process.env.NODE_ENV,
+      testMode: process.env.E2E_TEST_MODE,
+    }) &&
     /^data:image\/(?:jpeg|png|webp);base64,/i.test(value)
   ) {
     return true;
@@ -344,7 +398,11 @@ export async function confirmTwoFactorSetupAction(
       code,
       userId: session.user.id,
     });
-    return result.success ? result : mapTwoFactorActionFailure(result);
+    if (result.success) {
+      await recordAccountSecurityEvent("TWO_FACTOR_ENABLED", session.user.id);
+      return result;
+    }
+    return mapTwoFactorActionFailure(result);
   } catch (error) {
     logError("[account] Two-factor confirmation failed", error);
     return {
@@ -369,7 +427,115 @@ export async function disableTwoFactorAction(input: {
 
   try {
     await enforceApiRateLimit(session.user.id, "auth:two-factor-disable");
+    // Ş3 §2: turning 2FA off re-authenticates with the account password **and** a live second
+    // factor. `disableTwoFactor` rejects either failure through one shared tracker and one shared
+    // result, so this endpoint cannot be read as a password oracle.
     const result = await disableTwoFactor({
+      code: input.code,
+      password: input.password,
+      userId: session.user.id,
+    });
+    if (result.success) {
+      await recordAccountSecurityEvent("TWO_FACTOR_DISABLED", session.user.id);
+      return result;
+    }
+    return mapTwoFactorActionFailure(result);
+  } catch (error) {
+    if (error instanceof ApiError && error.code === "RATE_LIMITED") {
+      return {
+        error: "settings.account.twoFactor.errors.rateLimited",
+        success: false,
+      };
+    }
+    logError("[account] Two-factor disable failed", error);
+    return {
+      error: "settings.account.twoFactor.errors.unavailable",
+      success: false,
+    };
+  }
+}
+
+/**
+ * Ayarlar Ş3 §2 — the setup material the Güvenlik satırı needs.
+ *
+ * The `otpauth://` URI and the grouped manual key, and nothing else: the QR image is drawn on the
+ * client from this URI. `startTwoFactorSetupAction` above still returns a data-URL image for the
+ * old settings panel, which Ş13 deletes along with it.
+ */
+export async function beginTwoFactorSetupAction(): Promise<BeginTwoFactorSetupActionResult> {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return {
+      error: "auth.login.signInUnavailable",
+      success: false,
+    };
+  }
+
+  try {
+    const result = await startTwoFactorSetup(session.user.id);
+    if (!result.success) {
+      return mapTwoFactorActionFailure(result);
+    }
+
+    return {
+      manualEntryKey: formatManualEntryKey(result.manualEntryKey),
+      otpauthUri: result.otpauthUri,
+      success: true,
+    };
+  } catch (error) {
+    logError("[account] Two-factor setup failed", error);
+    return {
+      error: "settings.account.twoFactor.errors.unavailable",
+      success: false,
+    };
+  }
+}
+
+/** `10 kod · 8 tanesi kullanılmadı`. Two numbers, no code material. */
+export async function getRecoveryCodeStatusAction(): Promise<RecoveryCodeStatusActionResult> {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return {
+      error: "auth.login.signInUnavailable",
+      success: false,
+    };
+  }
+
+  try {
+    const result = await getRecoveryCodeStatus(session.user.id);
+    return result.success ? result : mapTwoFactorActionFailure(result);
+  } catch (error) {
+    logError("[account] Recovery code status failed", error);
+    return {
+      error: "settings.account.twoFactor.errors.unavailable",
+      success: false,
+    };
+  }
+}
+
+/**
+ * `Yenile`. Same re-authentication pair as disabling 2FA, because a fresh set of ten codes is a
+ * permanent bypass of the second factor if it reaches the wrong person. The plaintext is returned
+ * exactly once — the store keeps only sha256 hashes, so `Görüntüle` cannot bring it back later.
+ */
+export async function regenerateRecoveryCodesAction(input: {
+  code: string;
+  password: string;
+}): Promise<RegenerateRecoveryCodesActionResult> {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return {
+      error: "auth.login.signInUnavailable",
+      success: false,
+    };
+  }
+
+  try {
+    await enforceApiRateLimit(session.user.id, "account:recovery-codes");
+    const result = await regenerateRecoveryCodes({
       code: input.code,
       password: input.password,
       userId: session.user.id,
@@ -382,7 +548,7 @@ export async function disableTwoFactorAction(input: {
         success: false,
       };
     }
-    logError("[account] Two-factor disable failed", error);
+    logError("[account] Recovery code regeneration failed", error);
     return {
       error: "settings.account.twoFactor.errors.unavailable",
       success: false,
@@ -418,6 +584,86 @@ export async function updatePresenceStatusAction(
       success: true,
     };
   } catch {
+    return {
+      error: "settings.account.errors.save",
+      success: false,
+    };
+  }
+}
+
+/**
+ * Ayarlar Ş12 §2 / K8 — kullanıcı barı menüsündeki "Rahatsız Etmeyin" anahtarı ve süre çipleri.
+ *
+ * `updatePresenceStatusAction`'ın yanında ve ondan **ayrı** duruyor, çünkü durum listesi tek
+ * kolon yazar; bu dört kolon yazar (`status`, `statusExpiresAt`, `statusFocusMinutes`,
+ * `statusRestoreTo`). İkisini tek imzada birleştirmek, durum listesinin yolunu da
+ * değiştirirdi — tasarımın "durum satırı aynen kalır" kuralı tam olarak bunu yasaklıyor.
+ *
+ * Karar `planDndWrite` içinde, saf. Buradaki iş oturumu doğrulamak, satırı okumak, planı
+ * yazmak ve yayını tetiklemek. Süreyi bu eylem **saymaz**: `statusExpiresAt` mutlak bir andır
+ * ve pencereyi zaten `sweepExpiredFocus` ile okuma anındaki `resolveFocusState` kapatıyor.
+ */
+export async function updatePresenceDndAction(
+  duration: DndDuration | null,
+): Promise<UpdatePresenceStatusResult> {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return {
+      error: "auth.login.signInUnavailable",
+      success: false,
+    };
+  }
+
+  if (duration !== null && !isDndDuration(duration)) {
+    return {
+      error: "settings.account.errors.save",
+      success: false,
+    };
+  }
+
+  try {
+    const userId = session.user.id;
+    const row = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        status: true,
+        statusExpiresAt: true,
+        statusFocusMinutes: true,
+        statusRestoreTo: true,
+      },
+    });
+
+    if (!row) {
+      return {
+        error: "settings.account.errors.save",
+        success: false,
+      };
+    }
+
+    const plan = planDndWrite({ duration, now: new Date(), row });
+
+    // Yazacak bir şey yoksa yayın da yok: aynı çipe ikinci kez basmak her arkadaşın soketini
+    // boşuna uyandırmamalı.
+    if (plan.changed) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          status: plan.data.status as UserStatus,
+          statusExpiresAt: plan.data.statusExpiresAt,
+          statusFocusMinutes: plan.data.statusFocusMinutes,
+          statusRestoreTo: plan.data.statusRestoreTo as UserStatus | null,
+        },
+      });
+      await broadcastHomePresence({ status: plan.data.status, userId });
+    }
+
+    return {
+      status: toVisiblePresence(plan.data.status) as FriendPresenceStatus,
+      success: true,
+    };
+  } catch (error) {
+    logError("[account] DND presence write failed", error);
     return {
       error: "settings.account.errors.save",
       success: false,

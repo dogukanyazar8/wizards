@@ -16,6 +16,7 @@ const invite = {
   expiresAt: "2026-07-14T10:00:00.000Z",
   id: "invite-1",
   maxUses: 10,
+  targetUserId: null,
   uses: 2,
 } satisfies WorkspaceInvite;
 
@@ -137,6 +138,8 @@ describe("mobile server invite route logic", () => {
           id: "invite-1",
           maxUses: 10,
           shareUrl: "https://app.whispr.test/invite/INVITE_1",
+          // Ş3 · K10: hedefli davet mobil sözleşmede de görünür oldu.
+          targetUserId: null,
           uses: 2,
         },
         {
@@ -147,6 +150,7 @@ describe("mobile server invite route logic", () => {
           id: "invite-2",
           maxUses: null,
           shareUrl: "https://app.whispr.test/invite/INVITE_2",
+          targetUserId: null,
           uses: 0,
         },
       ],
@@ -221,6 +225,7 @@ describe("mobile server invite route logic", () => {
         id: "invite-1",
         maxUses: 10,
         shareUrl: "https://app.whispr.test/invite/INVITE_1",
+        targetUserId: null,
         uses: 2,
       },
     });
@@ -531,6 +536,7 @@ describe("mobile invite sheet route logic", () => {
         id: invite.id,
         maxUses: invite.maxUses,
         shareUrl: "https://whispr.test/invite/INVITE_1",
+        targetUserId: invite.targetUserId,
         uses: invite.uses,
       },
     });

@@ -35,7 +35,7 @@ export function AdminCampaignDetailView({ campaign }: { campaign: AdminCampaignD
       <AdminPageHeader
         actions={
           <Link
-            className="text-app-muted rounded-[12px] border border-[hsl(var(--border)/0.7)] px-3 py-[7px] text-[12.5px] font-semibold hover:bg-[hsl(var(--surface-soft))]"
+            className="text-app-muted rounded-[12px] border border-[hsl(var(--border)/0.7)] px-3 py-[7px] text-[12.5px] font-semibold hover:bg-[var(--surface-hover)]"
             href="/admin/notifications"
           >
             Kampanyalara dön

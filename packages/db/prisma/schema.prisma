@@ -360,6 +360,49 @@ enum DesktopMentionMode {
   OFF
 }
 
+/// Ayarlar paketi K3 — "Hangi bildirimleri al" ekseni (560 px pencerenin üç radyo kartı ve
+/// Ayarlar › Bildirimler › Genel'deki `b1` satırı **aynı** kolonu yazar).
+///
+/// `UserSettings.defaultNotifications` (`ALL_MESSAGES` / `ONLY_MENTIONS`) bu eksenin iki
+/// basamaklı atasıdır ve kanal varsayılanı olarak yaşamaya devam eder; bu kolon kullanıcının
+/// **kendi** bildirim düzeyidir ve üçüncü basamağı (`OFF`) taşır.
+enum NotificationLevelPreference {
+  ALL
+  IMPORTANT
+  OFF
+}
+
+/// Sistem (tarayıcı / işletim sistemi) bildirimi kipi — referans `nd2`.
+///
+/// `DesktopMentionMode` ile aynı üç üyeyi taşır ama ayrı bir tiptir: o alan bahsetme hattının
+/// masaüstü kipidir, bu alan bildirim merkezinin teslim kanalıdır. Geri doldurma ikisini bir
+/// kez eşler (§1.5), sonrasında ayrı yaşarlar.
+enum SystemNotificationMode {
+  ALL
+  MENTIONS
+  OFF
+}
+
+/// Ses paleti — `public/sounds/` altındaki iki takım. `WHISPR` `*-whispr.mp3`, `CLASSIC`
+/// eki olmayan klasik dosyadır.
+enum SoundProfile {
+  WHISPR
+  CLASSIC
+}
+
+/// K5 — "Son güvenlik etkinlikleri" satırının sekiz kaynağı. Liste kapalıdır: karşılığı olan
+/// bir yazıcı olmadan üye eklenmez, yoksa ekran hiç dolmayacak bir tür gösterir.
+enum SecurityEventKind {
+  LOGIN_NEW_DEVICE
+  PASSWORD_CHANGED
+  FAILED_LOGIN
+  TWO_FACTOR_ENABLED
+  TWO_FACTOR_DISABLED
+  SESSION_REVOKED
+  RECOVERY_CODES_REGENERATED
+  EMAIL_CHANGED
+}
+
 /// Bir thread takibinin **neden** doğduğu (karar K3).
 ///
 /// Örtük üç yol otomatiktir; `EXPLICIT` kullanıcının kendi açtığı takiptir. `mutedAt` dolu bir
@@ -583,6 +626,7 @@ model User {
   ownedServers            Server[]                  @relation("ServerOwner")
   serverMembers           ServerMember[]
   bannedFromServers       ServerBan[]               @relation("BanUser")
+  emailVerificationCodes  EmailVerificationCode[]
   serverBans              ServerBan[]               @relation("BanModerator")
   serverAuthorizationSubjectRevisions ServerAuthorizationSubjectRevision[]
   serverInvites           ServerInvite[]
@@ -640,6 +684,7 @@ model User {
   badgeGrants             UserBadge[]               @relation("UserBadgeGranter")
   badgeProgress           UserBadgeProgress[]
   contributorEntries      Contributor[]             @relation("ContributorUser")
+  securityEvents          SecurityEvent[]
 
   /// `friends/service.ts:670` searches both fields with case-insensitive
   /// `contains`. The audit migration owns direct-column pg_trgm indexes because
@@ -836,6 +881,9 @@ model UserSettings {
   renderEmbeds          Boolean                   @default(true)
   renderReactions       Boolean                   @default(true)
   messageFont           String                    @default("outfit")
+  /// Ayarlar F2 — web'in `Mesaj boyutu` kaydırıcısı (12–22 px). Mobilin dört adımlı
+  /// `messageBodySize` tercihinden ayrıdır; ikisi aynı kolona sığmaz.
+  messageSizePx         Int                       @default(15)
   // Messaging redesign §3: the message body carries its own four-step size
   // preference so it can be synced across devices. Deliberately separate from
   // `messageDisplayCompact`, which is the web's compact message layout — these
@@ -855,6 +903,11 @@ model UserSettings {
   // FRIENDS / NONE ladder has no third rung to offer here.
   allowGroupInvites     Boolean                   @default(true)
   showReadReceipts      Boolean                   @default(true)
+  /// Mesajlar §15.5 — profil panelindeki gizlilik kartının ikinci anahtarı.
+  /// `showReadReceipts` ile ikizdir: ikisi de **yayınlayan** tarafta uygulanır (kapalı tercih
+  /// ağ üzerinden hiç çıkmaz), alan tarafta filtrelenmez. Kart üçüncü satır olarak şifreleme
+  /// durumunu gösterir ama o satırın tercih karşılığı yoktur — salt okunurdur.
+  showTypingIndicator   Boolean                   @default(true)
   profileVisibility     ProfileVisibility         @default(EVERYONE)
   presenceVisibility    PresenceVisibility        @default(EVERYONE)
   timeZone              String?
@@ -867,6 +920,51 @@ model UserSettings {
   channelSidebarWidth   Int                       @default(288)
   notificationLimit     Int                       @default(5)
   notificationAutoClose Boolean                   @default(true)
+
+  /// K9 — "Boşta sayılma süresi". Tasarımın kullanıcı barı menüsünde yeri yok (menü beş
+  /// satıra sabit), ama tercihin kendisi ölmez: Gizlilik › Görünürlük grubuna satır olur.
+  idleTimeoutMinutes       Int     @default(10)
+
+  /// Görünüm › Erişilebilirlik — referans `x2`, `x3`, `x4`, `x6`, `x7`.
+  highContrast             Boolean @default(false)
+  strongFocusRings         Boolean @default(true)
+  /// `x4` kaydırıcısı, %85–130. Kök font ölçek adımından (SPEC-ANA-SAYFA §8.1) **ayrıdır**:
+  /// o adım ekran boyutundan türer, bu kullanıcının kendi tercihidir.
+  uiTextScale              Int     @default(100)
+  screenReaderDescriptions Boolean @default(true)
+  followSystemA11y         Boolean @default(true)
+
+  /// `SPEC_DEVIATIONS` #4 — referans `Hareketi azalt` için Medya (`v7`) ve Erişilebilirlik
+  /// (`x1`) sekmelerinde **ayrı** anahtar tutuyor. Aynı adlı iki kontrolün bağımsız durumu
+  /// PROMPT §8 ile çelişir; iki satır bu tek kolonu yazar. Aynısı `Text-to-speech` için
+  /// geçerli, orada zaten var olan `enableTTS` (`v8` = `x5`) kullanılır.
+  reduceMotion             Boolean @default(false)
+
+  /// Görünüm › Düzen — `n1` uygulama simgesi ve `y2`/`y4`/`y5`. `serverRailWidth` (`y1`) ve
+  /// `channelSidebarWidth` (`y3`) zaten var.
+  appIcon                  String  @default("whispr") @db.VarChar(24)
+  mainContentWidth         Int     @default(100)
+  serverIconSize           Int     @default(44)
+  showMemberPanelByDefault Boolean @default(true)
+
+  /// Görünüm › Medya `v2`. `v1`/`v3`/`v4` karşılıkları `inlineAttachmentMedia`,
+  /// `renderEmbeds`, `renderReactions` olarak zaten duruyor.
+  linkPreviews             Boolean @default(true)
+
+  /// Ses ve Video › Ses `i6`, 0–500 ms. Cihaz tercihleri (`i1`, `u1`, `k1`) yerelde kalır;
+  /// bu değer hesaba bağlıdır çünkü bas-konuş alışkanlığı cihazdan bağımsızdır.
+  pttReleaseMs             Int     @default(120)
+
+  /// K7 · `SPEC_DEVIATIONS` #11 — K3'ün ("bildirim tercihleri tipli kolon, JSON değil") **tek**
+  /// istisnası. Kısayol listesi sorgulanabilir bir alan değil: "⌥H atamış kullanıcılar" diye
+  /// bir filtre yok, cihaz başına bir kez okunan bir tercih paketi var. Beş eylemin her biri
+  /// için bir hızlandırıcı dizesi tutar (`{"toggleMute":"Alt+M",…}`); okuma
+  /// `lib/desktop/shortcuts.ts` `sanitizeDesktopShortcutAssignments` üzerinden geçer.
+  ///
+  /// **Çakışma durumu burada saklanmaz.** O, her açılışta kabuğun gerçek kayıt denemesinden
+  /// okunur; saklanan bir çakışma, kullanıcı çakışan uygulamayı kaldırdıktan sonra da
+  /// kırmızı satır göstermeye devam ederdi.
+  desktopShortcuts         Json?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -913,7 +1011,110 @@ model UserNotificationSettings {
   /// but not honoured would make that sentence a lie.
   eventNotifications       Boolean   @default(true)
 
+  // -------------------------------------------------------------------------
+  // Ayarlar paketi Ş0 — Bildirimler bölümünün yedi sekmesi (K3: tipli kolon, JSON değil).
+  //
+  // Yukarıdaki on iki kolon **korunur**. `suppressEveryoneMentions` ve `suppressRoleMentions`
+  // ters mantığını sürdürür ve yalnız `mention-settings-service.ts` içinde çevrilir; aşağıdaki
+  // hiçbir alan ters değildir.
+  //
+  // `typeSecurity` / `typeModeration` kolonu **yoktur**: kilitli iki tür sunucu tarafında
+  // sabit `true` döner ve PATCH içinde gelirse 400 verir. Kolon eklemek "kilitli" iddiasını
+  // yalan yapardı — kapatılamayan bir tercihin saklanacak bir değeri yok.
+  // -------------------------------------------------------------------------
+
+  /// 560 px pencerenin üç radyo kartı + Genel `b1`. `IMPORTANT` tasarımın `Önerilen` pilini
+  /// taşıyan seçenektir.
+  level                    NotificationLevelPreference @default(IMPORTANT)
+
+  /// `nd2` — Genel ve Yüzeyler sekmelerinde **aynı** anahtar (tuzak #4).
+  systemMode               SystemNotificationMode      @default(MENTIONS)
+  /// `na6` — sistem bildiriminde gönderen ve içerik. Varsayılan kapalı: omuz üstünden okunan
+  /// bir bildirim mesajın kendisini göstermemeli. `panelShowContent` (`np4`) bundan **ayrıdır**.
+  systemPreview            Boolean                     @default(false)
+
+  /// Yüzeyler › uygulama içi uyarılar — `na1`, `na2`, `na3`.
+  inAppToast               Boolean                     @default(true)
+  systemWhileOpen          Boolean                     @default(false)
+  appBadge                 Boolean                     @default(true)
+
+  /// Yüzeyler › teslim kanalları — `nd1`, `nd3`, `nd4`. `mobileNotifications` ve
+  /// `emailNotifications` bunlara **eşlenir**; çift kaynak olmasın diye gönderim yolu bir
+  /// sürüm sonra yalnız bu ikisini okur.
+  deliveryInApp            Boolean                     @default(true)
+  deliveryPush             Boolean                     @default(true)
+  deliveryEmail            Boolean                     @default(false)
+
+  /// Türler sekmesi — 16 satırın kolonu olan 14'ü. Varsayılanlar referans `SET` dizisinden.
+  typeDm                   Boolean                     @default(true)
+  typeMentionSelf          Boolean                     @default(true)
+  typeMentionRole          Boolean                     @default(true)
+  typeMentionEveryone      Boolean                     @default(false)
+  typeThreadReplies        Boolean                     @default(true)
+  typeMessageReplies       Boolean                     @default(true)
+  typeIncomingCall         Boolean                     @default(true)
+  typeVoiceInvite          Boolean                     @default(true)
+  typeFriendRequest        Boolean                     @default(true)
+  typeServerInvite         Boolean                     @default(true)
+  typeEvents               Boolean                     @default(true)
+  typeBadges               Boolean                     @default(false)
+  typeAnnouncements        Boolean                     @default(true)
+  typeProductUpdates       Boolean                     @default(false)
+
+  /// `nq5` — sessiz saatte çağrı yine zil çalar.
+  quietHoursAllowCalls     Boolean                     @default(true)
+
+  /// Sesler sekmesi — dört satırın üçer kolonu (`ns1`–`ns4`).
+  soundNotificationEnabled Boolean                     @default(true)
+  soundNotificationProfile SoundProfile                @default(WHISPR)
+  soundNotificationVolume  Int                         @default(60)
+  soundCallEnabled         Boolean                     @default(true)
+  soundCallProfile         SoundProfile                @default(CLASSIC)
+  soundCallVolume          Int                         @default(80)
+  soundJoinEnabled         Boolean                     @default(true)
+  soundJoinProfile         SoundProfile                @default(WHISPR)
+  soundJoinVolume          Int                         @default(50)
+  soundLeaveEnabled        Boolean                     @default(true)
+  soundLeaveProfile        SoundProfile                @default(WHISPR)
+  soundLeaveVolume         Int                         @default(50)
+
+  /// Panel sekmesi — `np1`–`np5`. `UserSettings.notificationLimit` ve
+  /// `notificationAutoClose` bir sürüm daha yazılmaya devam eder.
+  panelCount               Int                         @default(5)
+  panelAutoClose           Boolean                     @default(true)
+  panelDurationSec         Int                         @default(10)
+  /// `np4` — uygulama içi açılır kartın metni. `systemPreview` sistem bildiriminin metnidir;
+  /// ikisi ayrı yüzey, ayrı tercih (tuzak #4).
+  panelShowContent         Boolean                     @default(false)
+  panelShowSource          Boolean                     @default(true)
+
+  /// `ne1` — yeni istisnalar için varsayılan sessize alma süresi (`1h`, `8h`, `24h`,
+  /// `forever`). Segment metinleri i18n'de; kolon anahtarı taşır.
+  defaultMuteDuration      String                      @default("8h") @db.VarChar(16)
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// K5 — Hesabım › Güvenlik'teki "Son güvenlik etkinlikleri" bloğunun kaynağı.
+///
+/// Ham IP saklanmaz: `AdminAuditLog.ipHash` ile aynı tuzlu hash şeması kullanılır. Bir güvenlik
+/// günlüğünün kendisi bir gizlilik yükümlülüğüdür; "hangi IP'den girdin" sorusunun cevabı
+/// kullanıcıya `location` ile verilir, diske ham adres olarak değil.
+model SecurityEvent {
+  id        String            @id @default(uuid())
+  userId    String
+  kind      SecurityEventKind
+  ipHash    String?           @db.VarChar(64)
+  userAgent String?
+  location  String?
+  metadata  Json?
+  createdAt DateTime          @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Blok tek soru sorar: bu kullanıcının son kayıtları. Zaman olmadan indeks, sayfanın
+  /// kendisi kadar satır okur.
+  @@index([userId, createdAt])
 }
 
 model Session {
@@ -945,6 +1146,25 @@ model EmailVerificationToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([expiresAt])
+}
+
+/// SPEC-GIRIS-KAYIT §4.5 — alti haneli e-posta dogrulama kodu (paket karari K3).
+/// Link tabanli EmailVerificationToken **kaldirilmadi**: gonderilmis baglantilar calismaya
+/// devam ediyor, iki yol da ayni dogrulama servisine baglaniyor.
+model EmailVerificationCode {
+  id         String    @id @default(cuid())
+  userId     String
+  email      String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
   @@index([expiresAt])
 }
 
@@ -1222,6 +1442,14 @@ model Server {
   languages                   String[]
   messageCharacterLimit       Int                   @default(2000)
   deletedMessageNoticeMinutes Int                   @default(60)
+  /// Sunucu ikonunun renk tonu. `null` = eski deterministik türetme (kısa adın harf
+  /// kodları toplamı % palet uzunluğu). Geri doldurma yapılmaz; mevcut sunucuların
+  /// görünümü değişmez. Değer kümesi `SERVER_ICON_TONES` ile sınırlıdır ve
+  /// `@wizards/types` tarafında zorlanır; kolon düz metin taşır.
+  iconColor                   String?
+  /// Sunucu geneli yavaş mod, saniye. `Channel.slowModeDelay` ile aynı değer kümesini
+  /// paylaşır; uygulama kuralı max(server, channel) ve tek yerde yaşar.
+  slowModeDelay               Int                   @default(0)
   authorizationRevision       BigInt                @default(0)
   createdAt                   DateTime              @default(now())
   updatedAt                   DateTime              @updatedAt
@@ -1845,6 +2073,15 @@ model DMParticipant {
   lastDeliveredAt DateTime?
   mentionCount   Int       @default(0)
   muted          Boolean   @default(false)
+  /// Mesajlar §17 — "Sessize al" alt menüsünün 15 dk / 1 saat / 8 saat seçenekleri.
+  /// `muted` ölmedi: "Süresiz" seçimi `muted = true, mutedUntil = null` olarak yazılır, süreli
+  /// seçim ikisini birlikte yazar. Okuma tarafı süresi geçmiş bir kaydı **sessiz saymaz** ve
+  /// tembel temizler; ayrı bir zamanlanmış sweep yok, çünkü sessizliğin sona ermesi yalnız o
+  /// konuşma okunurken anlam taşır.
+  ///
+  /// Index yok — üzerinde filtre çalışmaz; değer her zaman zaten okunmuş bir satırda
+  /// değerlendirilir. Emsal: `UserChannelSettings.mutedUntil`, `UserServerSettings.mutedUntil`.
+  mutedUntil     DateTime?
   hiddenAt       DateTime?
   unreadCount    Int       @default(0)
   /// 2e §6. OWNER duplicates `DMConversation.ownerId` on purpose: the roster
@@ -2573,6 +2810,58 @@ enum ReleaseArtifactKind {
   APK
   AAB
   IPA
+}
+
+enum DownloadPlatform {
+  WINDOWS
+  MACOS
+  LINUX
+  ANDROID
+  IOS
+}
+
+/// Kartin dugme ikonunu belirler: STORE dis baglanti oku, digerleri indirme oku.
+enum DownloadDelivery {
+  DIRECT
+  STORE
+  TESTFLIGHT
+}
+
+/// "Whispr'i indir" penceresinin katalogu (SPEC-INDIRME §B).
+///
+/// `ReleaseArtifact`ten bilerek ayri durur: o tablo mobil OTA zincirine bagli
+/// (`MobileUpdatePlatform`, `OtaBundle`, `@@unique([platform, kind, channel,
+/// versionCode])`) ve oraya masaustu satiri sokmak guncelleme yolunu riske
+/// atardi. Bu tablo yalniz "indir" penceresini besler.
+///
+/// `publishedAt = NULL` taslaktir ve hicbir kullanici ucu dondurmez -- `Release`
+/// modelindeki sozlesmenin aynisi.
+model DownloadArtifact {
+  id               String           @id @default(uuid())
+  /// STABLE = pencerenin PROD karti, UAT = UAT karti. BETA katalogda gosterilmez.
+  channel          ReleaseChannel
+  platform         DownloadPlatform
+  delivery         DownloadDelivery
+  url              String           @db.VarChar(2048)
+  /// `.exe`, `.AppImage · .deb`, `Play Store`. Iki dil: her yayinda kod degismesin diye
+  /// i18n sozlugune degil, yonetim konsoluna ait bir metin.
+  extensionLabelTr String           @db.VarChar(120)
+  extensionLabelEn String           @db.VarChar(120)
+  /// Kartin tek satirlik meta metni: isletim sistemi, mimari, boyut.
+  metaLabelTr      String           @db.VarChar(120)
+  metaLabelEn      String           @db.VarChar(120)
+  versionLabel     String           @db.VarChar(32)
+  buildLabel       String?          @db.VarChar(32)
+  sizeBytes        BigInt?
+  sha256           String?          @db.VarChar(64)
+  releasedAt       DateTime
+  publishedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  /// Bir ortamda bir platformun tek guncel satiri olur; pencere ayni karti iki kez cizemez.
+  @@unique([channel, platform])
+  @@index([channel, publishedAt])
 }
 
 enum HelpCategory {

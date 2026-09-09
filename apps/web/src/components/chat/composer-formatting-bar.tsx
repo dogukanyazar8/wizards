@@ -38,7 +38,7 @@ import { cn } from "@/lib/utils";
  * ayrışırdı.
  */
 const TOOL_BUTTON_CLASS =
-  "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[0.8125rem] border border-transparent bg-[hsl(var(--surface-soft)/0.3)] px-2.5 py-1.5 text-[0.78125rem] font-bold text-app-muted transition hover:bg-[hsl(var(--primary)/0.07)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.4)] disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[0.8125rem] border-0 bg-[hsl(var(--surface-soft)/0.3)] px-2.5 py-1.5 text-[0.78125rem] font-bold text-app-muted transition hover:bg-[hsl(var(--primary)/0.07)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.4)] disabled:cursor-not-allowed disabled:opacity-50";
 
 export type ComposerFormattingBarProps = {
   isThreadComposer?: boolean;
@@ -199,7 +199,7 @@ export function ComposerFormattingBar({
           aria-label={t("messages.composer.pollBar")}
           className={cn(
             formattingActionButtonClass,
-            "border-[hsl(var(--primary)/0.26)] bg-[hsl(var(--primary)/0.08)] text-[var(--primary-readable)]",
+            "bg-[hsl(var(--primary)/0.08)] text-[var(--primary-readable)]",
             referenceComposer && "w-auto px-2.5",
           )}
           data-testid="message-formatting-poll-button"

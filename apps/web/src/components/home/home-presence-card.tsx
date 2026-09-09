@@ -80,7 +80,7 @@ function PresenceChipButton({
       disabled={disabled}
       className={cn(
         "flex items-center outline-hidden transition-colors focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
-        active ? "" : "bg-[hsl(var(--surface-secondary))] hover:bg-[hsl(var(--surface-soft))]",
+        active ? "" : "bg-[hsl(var(--surface-secondary))] hover:bg-[var(--surface-hover)]",
       )}
       data-testid={`home-presence-chip-${chip.id.toLowerCase()}`}
       onClick={onSelect}

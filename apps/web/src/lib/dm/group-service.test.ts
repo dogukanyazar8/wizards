@@ -7,7 +7,9 @@ import { GROUP_DM_MAX_PARTICIPANTS } from "@wizards/types";
 import {
   addGroupMembers,
   toGroupEligibilityMap,
+  clearGroupHistory,
   createGroupConversation,
+  deleteGroupConversation,
   dismissPinnedStrip,
   leaveGroupConversation,
   removeGroupMember,
@@ -1695,7 +1697,7 @@ describe("setNotifyLevel", () => {
     assert.equal(writes.length, 1);
     assert.deepEqual(writes[0], {
       conversationId: "group-1",
-      data: { muted: true, notifyLevel: "NONE" },
+      data: { muted: true, mutedUntil: null, notifyLevel: "NONE" },
       userId: "user-1",
     });
   });
@@ -1706,7 +1708,28 @@ describe("setNotifyLevel", () => {
 
       await setNotifyLevel("user-1", "group-1", level, dependencies);
 
-      assert.deepEqual(writes[0]?.data, { muted: false, notifyLevel: level });
+      assert.deepEqual(writes[0]?.data, { muted: false, mutedUntil: null, notifyLevel: level });
+    }
+  });
+
+  /**
+   * Mesajlar §17. Picking a level is a standing decision; a timed mute is a temporary
+   * one. Leaving `mutedUntil` behind made a deliberate `Kapalı` expire back into `ALL`
+   * when the old timer ran out, because `isMuteActive` reads the expiry and not the
+   * radio — the setting looked applied and then silently undid itself hours later.
+   */
+  it("drops a leftover mute expiry so the level does not time out", async () => {
+    for (const level of ["ALL", "MENTIONS", "NONE"] as const) {
+      const { dependencies, writes } = participantDependencies();
+
+      await setNotifyLevel("user-1", "group-1", level, dependencies);
+
+      assert.equal(writes.length, 1, "expiry must ride the same statement, not a second write");
+      assert.equal(
+        (writes[0]?.data as { mutedUntil?: Date | null }).mutedUntil,
+        null,
+        `${level} left a mute expiry behind`,
+      );
     }
   });
 
@@ -1776,5 +1799,214 @@ describe("dismissPinnedStrip", () => {
         return true;
       },
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// §15.5.3's two destructive rows
+// ---------------------------------------------------------------------------
+
+type AdminDeps = Parameters<typeof clearGroupHistory>[2];
+
+const ADMIN_ACTION_NOW = new Date("2026-08-27T12:00:00.000Z");
+
+function buildAdminDependencies(
+  overrides: Partial<NonNullable<AdminDeps>> = {},
+): NonNullable<AdminDeps> {
+  return {
+    loadConversation: async () => buildGroup(),
+    now: () => ADMIN_ACTION_NOW,
+    writeClearedHistory: async () => {
+      throw new Error("writeClearedHistory should not be called in this test");
+    },
+    writeDeletedGroup: async () => {
+      throw new Error("writeDeletedGroup should not be called in this test");
+    },
+    ...overrides,
+  } as NonNullable<AdminDeps>;
+}
+
+async function rejectsWithStatus(run: () => Promise<unknown>, status: number) {
+  await assert.rejects(run, (error: { status?: number }) => {
+    assert.equal(error.status, status);
+    return true;
+  });
+}
+
+describe("clearGroupHistory", () => {
+  it("refuses a plain member", async () => {
+    await rejectsWithStatus(
+      () => clearGroupHistory("user-3", "group-1", buildAdminDependencies()),
+      403,
+    );
+  });
+
+  it("lets an admin raise every member's history floor to now", async () => {
+    let written: { historyFromAt: Date; memberCount: number } | null = null;
+    const result = await clearGroupHistory(
+      "user-2",
+      "group-1",
+      buildAdminDependencies({
+        loadConversation: async () =>
+          buildGroup({
+            participants: [
+              member("user-1", 1, { role: "OWNER" }),
+              member("user-2", 2, { role: "ADMIN" }),
+              member("user-3", 3),
+            ],
+          }),
+        writeClearedHistory: async (input) => {
+          written = { historyFromAt: input.historyFromAt, memberCount: input.memberCount };
+          return 3;
+        },
+      }),
+    );
+
+    assert.deepEqual(written, { historyFromAt: ADMIN_ACTION_NOW, memberCount: 3 });
+    assert.equal(result.clearedAt, ADMIN_ACTION_NOW.toISOString());
+    assert.equal(result.memberCount, 3);
+    assert.deepEqual([...result.participantUserIds], ["user-1", "user-2", "user-3"]);
+  });
+
+  it("lets the owner do it too", async () => {
+    let called = false;
+    await clearGroupHistory(
+      "user-1",
+      "group-1",
+      buildAdminDependencies({
+        writeClearedHistory: async () => {
+          called = true;
+          return 3;
+        },
+      }),
+    );
+
+    assert.equal(called, true);
+  });
+
+  it("refuses a 1:1 DM with 400 rather than clearing it", async () => {
+    await rejectsWithStatus(
+      () =>
+        clearGroupHistory(
+          "user-1",
+          "dm-1",
+          buildAdminDependencies({ loadConversation: async () => buildGroup({ type: "DM" }) }),
+        ),
+      400,
+    );
+  });
+
+  it("passes the caller's headers through so the audit row carries a fingerprint", async () => {
+    let seen: string | null = null;
+    await clearGroupHistory(
+      "user-1",
+      "group-1",
+      buildAdminDependencies({
+        writeClearedHistory: async (input) => {
+          seen = input.headers?.get("x-forwarded-for") ?? null;
+          return 3;
+        },
+      }),
+      { headers: new Headers({ "x-forwarded-for": "203.0.113.7" }) },
+    );
+
+    assert.equal(seen, "203.0.113.7");
+  });
+
+  it("moves the floor and writes the audit in one transaction, deleting nothing", async () => {
+    const source = await readFile(new URL("./group-service.ts", import.meta.url), "utf8");
+    const block = source.slice(
+      source.indexOf("writeClearedHistory: async (input) =>"),
+      source.indexOf("writeDeletedGroup: async (input) =>"),
+    );
+
+    assert.notEqual(block.length, 0);
+    assert.match(block, /prisma\.\$transaction/);
+    assert.match(block, /tx\.dMParticipant\.updateMany/);
+    assert.match(block, /historyFromAt: input\.historyFromAt/);
+    assert.match(block, /writeAdminAuditLog\(/);
+    assert.match(block, /DM_GROUP_HISTORY_CLEARED/);
+    // The whole point of the column: the messages survive, so replies, threads,
+    // reactions, attachments and the disappearing worker keep their parents.
+    assert.doesNotMatch(block, /delete/i);
+  });
+});
+
+describe("deleteGroupConversation", () => {
+  it("refuses an admin who is not the owner", async () => {
+    await rejectsWithStatus(
+      () =>
+        deleteGroupConversation(
+          "user-2",
+          "group-1",
+          buildAdminDependencies({
+            loadConversation: async () =>
+              buildGroup({
+                participants: [
+                  member("user-1", 1, { role: "OWNER" }),
+                  member("user-2", 2, { role: "ADMIN" }),
+                  member("user-3", 3),
+                ],
+              }),
+          }),
+        ),
+      403,
+    );
+  });
+
+  it("refuses a plain member", async () => {
+    await rejectsWithStatus(
+      () => deleteGroupConversation("user-3", "group-1", buildAdminDependencies()),
+      403,
+    );
+  });
+
+  it("lets the owner delete it and answers with everybody who has to be told", async () => {
+    let written: { actorId: string; conversationId: string; memberCount: number } | null = null;
+    const result = await deleteGroupConversation(
+      "user-1",
+      "group-1",
+      buildAdminDependencies({
+        writeDeletedGroup: async (input) => {
+          written = {
+            actorId: input.actorId,
+            conversationId: input.conversationId,
+            memberCount: input.memberCount,
+          };
+        },
+      }),
+    );
+
+    assert.deepEqual(written, { actorId: "user-1", conversationId: "group-1", memberCount: 3 });
+    assert.deepEqual([...result.participantUserIds], ["user-1", "user-2", "user-3"]);
+  });
+
+  it("refuses a 1:1 DM with 400", async () => {
+    await rejectsWithStatus(
+      () =>
+        deleteGroupConversation(
+          "user-1",
+          "dm-1",
+          buildAdminDependencies({ loadConversation: async () => buildGroup({ type: "DM" }) }),
+        ),
+      400,
+    );
+  });
+
+  it("leans on the cascade and writes the audit in the same transaction", async () => {
+    const source = await readFile(new URL("./group-service.ts", import.meta.url), "utf8");
+    const block = source.slice(
+      source.indexOf("writeDeletedGroup: async (input) =>"),
+      source.indexOf("export type ClearGroupHistoryResult"),
+    );
+
+    assert.notEqual(block.length, 0);
+    assert.match(block, /prisma\.\$transaction/);
+    assert.match(block, /tx\.dMConversation\.delete/);
+    assert.match(block, /writeAdminAuditLog\(/);
+    assert.match(block, /DM_GROUP_DELETED/);
+    // No hand-written teardown loop: the participants, messages, pins and the
+    // invite row are `onDelete: Cascade` already.
+    assert.doesNotMatch(block, /dMParticipant|dMPinnedMessage|groupInvite/);
   });
 });

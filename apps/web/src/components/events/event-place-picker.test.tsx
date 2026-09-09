@@ -28,14 +28,16 @@ const MESSAGES = getMessagesForLocale("tr");
 const copy = (key: string): string => MESSAGES[key] ?? "";
 
 const COMMUNITY: EventPlaceServer = {
+  iconColor: null,
   iconUrl: null,
   id: "s1",
   name: "Whispr Topluluğu",
-  shortName: "W",
+  shortName: "WHS",
   type: "COMMUNITY",
 };
 
 const OTHER: EventPlaceServer = {
+  iconColor: "warning",
   iconUrl: null,
   id: "s2",
   name: "Oyun Kulübü",
@@ -168,13 +170,14 @@ describe("events place picker — alan", () => {
     assert.equal(render().includes(copy("events.create.channelCleared")), false);
   });
 
-  it("sunucu listesi verilen sunucuları ve tile harflerini taşır", () => {
+  it("sunucu listesi üç harfli kısaltma ve tanımlı tonu taşır", () => {
     const markup = render();
 
     assert.ok(markup.includes('data-testid="events-place-server-s1"'));
     assert.ok(markup.includes('data-testid="events-place-server-s2"'));
-    assert.ok(markup.includes(">W<"));
-    assert.ok(markup.includes(">O<"));
+    assert.ok(markup.includes(">WHS<"));
+    assert.ok(markup.includes(">OYU<"));
+    assert.match(markup, /background:hsl\(var\(--warning\)\)/u);
   });
 
   it("açılır kapanır bir alan: `aria-expanded` durumu söyler", () => {

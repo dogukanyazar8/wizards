@@ -13,6 +13,12 @@ export const API_RATE_LIMITS = {
   "app:recent": { limit: 120, windowSeconds: 60 },
   "app:summary": { limit: 120, windowSeconds: 60 },
   "app:updates:manifest": { limit: 120, windowSeconds: 60 },
+  /**
+   * SPEC-INDIRME §B. The window reads the whole catalog once per open and
+   * switches environments without a second request, so this is sized for a
+   * person opening it repeatedly, not for a poll.
+   */
+  "app:downloads": { limit: 60, windowSeconds: 60 },
   "attachment:download": { limit: 60, windowSeconds: 60 },
   "admin:badge:read": { limit: 120, windowSeconds: 60 },
   "admin:badge:write": { limit: 20, windowSeconds: 60 },
@@ -21,6 +27,10 @@ export const API_RATE_LIMITS = {
   "admin:campaign:preview": { limit: 60, windowSeconds: 60 },
   "admin:campaign:send": { limit: 6, windowSeconds: 60 },
   "admin:dashboard": { limit: 120, windowSeconds: 60 },
+  // SPEC-INDIRME §B kataloğu: birkaç satırlık bir tablo, konsol tarafında da
+  // öyle davranır.
+  "admin:downloads:list": { limit: 120, windowSeconds: 60 },
+  "admin:downloads:write": { limit: 30, windowSeconds: 60 },
   "admin:feedback:list": { limit: 120, windowSeconds: 60 },
   "admin:feedback:read": { limit: 120, windowSeconds: 60 },
   "admin:feedback:cluster-decision": { limit: 40, windowSeconds: 60 },
@@ -62,6 +72,16 @@ export const API_RATE_LIMITS = {
   "auth:reauth-email-confirm": { limit: 10, windowSeconds: 10 * 60 },
   "auth:oauth-two-factor": { limit: 10, windowSeconds: 10 * 60 },
   "auth:two-factor-disable": { limit: 10, windowSeconds: 10 * 60 },
+  /**
+   * Ayarlar Ş3. The Güvenlik tab reads the log when the section opens and after every write it
+   * makes (password, 2FA, session revocation), so it is a read budget rather than a poll one.
+   */
+  "account:security-events": { limit: 60, windowSeconds: 60 },
+  /**
+   * Ayarlar Ş3 §2. Regenerating invalidates ten codes and mints ten more behind a password plus
+   * a TOTP code; nobody does that twice in a minute except a script.
+   */
+  "account:recovery-codes": { limit: 5, windowSeconds: 10 * 60 },
   "category:create": { limit: 30, windowSeconds: 60 },
   "category:delete": { limit: 30, windowSeconds: 60 },
   "category:reorder": { limit: 20, windowSeconds: 60 },
@@ -76,6 +96,12 @@ export const API_RATE_LIMITS = {
   "channel:permissions:update": { limit: 30, windowSeconds: 60 },
   "channel:reorder": { limit: 20, windowSeconds: 60 },
   "channel:update": { limit: 30, windowSeconds: 60 },
+  /**
+   * SPEC-MESAJLAR §15.5. The profile panel's Medya tab pages three lists behind
+   * one endpoint and is re-opened far more often than it is scrolled, so this
+   * matches the other DM read buckets rather than the narrower list budget.
+   */
+  "dm:attachments": { limit: 120, windowSeconds: 60 },
   "dm:conversation:read": { limit: 120, windowSeconds: 60 },
   "dm:conversations:list": { limit: 120, windowSeconds: 60 },
   "dm:create": { limit: 30, windowSeconds: 60 },
@@ -87,13 +113,27 @@ export const API_RATE_LIMITS = {
    */
   "group-invite:preview": { limit: 20, windowSeconds: 60 },
   "group-invite:join": { limit: 5, windowSeconds: 60 },
+  /**
+   * SPEC-MESAJLAR §15.5.3. The two destructive group rows get their own, far
+   * tighter budgets than `dm:group:update`: clearing history and deleting a group
+   * are things a person does once, and a loop hitting either one is an attack or a
+   * bug, never use. Sized like the channel and server equivalents.
+   */
+  "dm:group:clear-history": { limit: 10, windowSeconds: 60 * 60 },
   "dm:group:create": { limit: 10, windowSeconds: 10 * 60 },
+  "dm:group:delete": { limit: 5, windowSeconds: 60 * 60 },
   "dm:group:members": { limit: 30, windowSeconds: 60 },
   /**
    * Faz 5 §C/§B5. 2e, 2f and the call banner all read on open, and the group
    * screens are re-entered far more often than they are written to, so the read
    * bucket is wider than `update`'s.
    */
+  /**
+   * SPEC-MESAJLAR §16. The add-members search types into it, so it needs more headroom
+   * than a write bucket and less than a plain read: the list is debounced per keystroke
+   * but only opens while the modal is up.
+   */
+  "dm:group:candidates": { limit: 60, windowSeconds: 60 },
   "dm:group:read": { limit: 120, windowSeconds: 60 },
   "dm:group:update": { limit: 30, windowSeconds: 60 },
   "dm:hide": { limit: 60, windowSeconds: 60 },
@@ -124,12 +164,16 @@ export const API_RATE_LIMITS = {
   "friend:sort": { limit: 60, windowSeconds: 60 },
   "giphy:attachment": { limit: 60, windowSeconds: 60 },
   "invite:create": { limit: 20, windowSeconds: 10 * 60 },
+  /** Ş3. Read bucket, so it matches `mobile:server:invites:list`, not the create ceiling. */
+  "invite:list": { limit: 60, windowSeconds: 60 },
   "invite:revoke": { limit: 60, windowSeconds: 10 * 60 },
   "link-preview": { limit: 30, windowSeconds: 60 },
   "member:add": { limit: 30, windowSeconds: 10 * 60 },
   "member:kick": { limit: 30, windowSeconds: 10 * 60 },
   "member:ban": { limit: 30, windowSeconds: 10 * 60 },
+  "member:timeout": { limit: 30, windowSeconds: 10 * 60 },
   "member:unban": { limit: 30, windowSeconds: 10 * 60 },
+  "server:bans:list": { limit: 120, windowSeconds: 60 },
   "member:leave": { limit: 20, windowSeconds: 10 * 60 },
   "member:roles:update": { limit: 40, windowSeconds: 10 * 60 },
   // One appeal per decision; the service refuses a second one anyway.
@@ -165,6 +209,12 @@ export const API_RATE_LIMITS = {
   // A report stores logs, a screenshot and device details under a 90-day
   // retention promise. A stuck retry loop must not become a flood of them.
   "mobile:support:report": { limit: 5, windowSeconds: 10 * 60 },
+  /**
+   * The web and desktop twin of `mobile:support:report`, deliberately on the
+   * same budget: the row it writes, its 90-day retention promise and its cost
+   * are identical, so the surface it came from must not change the ceiling.
+   */
+  "support:report": { limit: 5, windowSeconds: 10 * 60 },
   "mobile:admin:case-claim": { limit: 40, windowSeconds: 60 },
   "mobile:admin:case-detail": { limit: 120, windowSeconds: 60 },
   "mobile:admin:case-dismiss": { limit: 20, windowSeconds: 60 },
@@ -333,7 +383,20 @@ export const API_RATE_LIMITS = {
   "server:profile": { limit: 240, windowSeconds: 60 },
   "server:update": { limit: 30, windowSeconds: 60 },
   "settings:update": { limit: 60, windowSeconds: 60 },
+  /**
+   * Ayarlar Ş1 — the Bildirimler tabs save on every toggle, and one row of the Türler tab is
+   * one PATCH. A user walking sixteen switches in a minute is normal use, not abuse, so this
+   * sits above `settings:update` rather than sharing its budget.
+   */
+  "settings:notification-prefs": { limit: 120, windowSeconds: 60 },
   "settings:bootstrap": { limit: 60, windowSeconds: 60 },
+  /**
+   * Ayarlar Ş10 · K7 — beş kısayol atamasının okunması ve yazılması. Yeniden atama akışı
+   * satır başına bir PATCH atıyor ve kullanıcı beş satırı arka arkaya değiştirebiliyor;
+   * `settings:update` bütçesini paylaşmak, kısayol düzenlemenin diğer ayarları kilitlemesi
+   * demekti.
+   */
+  "settings:desktop-shortcuts": { limit: 60, windowSeconds: 60 },
   /**
    * Higher than the profile budget on purpose: opening a card fires the profile
    * read and the badge read in parallel, and a member list walks several cards
@@ -348,6 +411,20 @@ export const API_RATE_LIMITS = {
    */
   "user:badges:rarity": { limit: 60, windowSeconds: 60 },
   "user:profile": { limit: 60, windowSeconds: 60 },
+  /**
+   * Mesajlar §15.5 madde 2. Two switches on one card, read when the Ayarlar tab
+   * opens and written one flip at a time — a budget for a person poking at a
+   * toggle, not for a client that mirrors state on a timer.
+   */
+  "user:privacy:read": { limit: 120, windowSeconds: 60 },
+  "user:privacy:update": { limit: 30, windowSeconds: 60 },
+  /**
+   * Karar K12's web half. Deliberately the same shape as `mobile:users:report`:
+   * reporting is a deliberate act taken about one person, and a wide bucket here
+   * is a queue full of noise for the moderators who read it. Kept as its own
+   * key so the mobile route's recorded behaviour does not move.
+   */
+  "users:report": { limit: 5, windowSeconds: 10 * 60 },
   "user:data-export": { limit: 3, windowSeconds: 60 * 60 },
   "user:delete": { limit: 3, windowSeconds: 60 * 60 },
   "roles:create": { limit: 30, windowSeconds: 60 },

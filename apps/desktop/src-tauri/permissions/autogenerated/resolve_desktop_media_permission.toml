@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-resolve-desktop-media-permission"
+description = "Enables the resolve_desktop_media_permission command without any pre-configured scope."
+commands.allow = ["resolve_desktop_media_permission"]
+
+[[permission]]
+identifier = "deny-resolve-desktop-media-permission"
+description = "Denies the resolve_desktop_media_permission command without any pre-configured scope."
+commands.deny = ["resolve_desktop_media_permission"]

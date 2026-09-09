@@ -5,6 +5,8 @@ import type {
   DeleteServerInput,
   UpdateServerInput,
   WorkspaceMember,
+  WorkspaceMemberCounts,
+  WorkspaceMemberFilter,
   WorkspaceMemberPage,
   WorkspaceServerDetail,
 } from "@wizards/types";
@@ -41,11 +43,20 @@ import {
 } from "@/lib/workspace/permissions";
 import { deriveAccessLevel, mergeRoleRecords, toWorkspaceRole } from "@/lib/workspace/role-helpers";
 import {
+  buildMemberFilterWhere,
+  buildMemberSearchWhere,
+  classifyServerRoles,
+  memberFilterNeedsPresence,
+  memberFilterNeedsRoles,
+} from "@/lib/workspace/member-filters";
+import {
   mapCategories,
   mapInvites,
   mapMembers,
   mapServerSummary,
+  parseServerIconTone,
   pickDefaultChannelId,
+  readVisibleOnlineMemberUserIds,
   toWorkspaceChannel,
   withVisibleChannelAccess,
 } from "@/lib/workspace/server-query-helpers";
@@ -75,12 +86,14 @@ export type MobileWorkspaceServerDetailProjection = {
     | "allowGifs"
     | "defaultChannelId"
     | "description"
+    | "iconColor"
     | "iconUrl"
     | "id"
     | "memberCount"
     | "mentionCount"
     | "name"
     | "shortName"
+    | "slowModeDelay"
     | "unreadCount"
   > & { onlineMemberCount: number; ownerUserId: string };
   ungroupedChannels: WorkspaceServerDetail["ungroupedChannels"];
@@ -198,12 +211,14 @@ export async function listWorkspaceServers(userId: string) {
           },
           iconUrl: true,
           features: true,
+          iconColor: true,
           id: true,
           inviteCode: true,
           messageCharacterLimit: true,
           deletedMessageNoticeMinutes: true,
           name: true,
           ownerId: true,
+          slowModeDelay: true,
           roles: {
             where: { isDefault: true },
             select: {
@@ -259,6 +274,7 @@ export async function listWorkspaceServers(userId: string) {
       allowGifs: mediaSettings.allowGifs,
       allowMemberAdds: mediaSettings.allowMemberAdds,
       defaultChannelId,
+      iconColor: parseServerIconTone(membership.server.iconColor),
       iconUrl: membership.server.iconUrl,
       id: membership.server.id,
       inviteCode: membership.server.inviteCode,
@@ -268,6 +284,7 @@ export async function listWorkspaceServers(userId: string) {
       mentionCount: mentionCounts.get(membership.server.id) ?? 0,
       name: membership.server.name,
       shortName: membership.server.shortName,
+      slowModeDelay: membership.server.slowModeDelay,
       starred: membership.server.userServerSettings[0]?.starred ?? false,
       unreadCount: unreadCounts.get(membership.server.id) ?? 0,
     });
@@ -388,6 +405,7 @@ async function loadWorkspaceServerDetail(access: AccessContext): Promise<Workspa
         description: true,
         discoverable: true,
         features: true,
+        iconColor: true,
         iconUrl: true,
         id: true,
         inviteCode: true,
@@ -404,6 +422,7 @@ async function loadWorkspaceServerDetail(access: AccessContext): Promise<Workspa
             },
           ],
           select: {
+            communicationDisabledUntil: true,
             id: true,
             nickname: true,
             roles: {
@@ -454,6 +473,7 @@ async function loadWorkspaceServerDetail(access: AccessContext): Promise<Workspa
           },
         },
         shortName: true,
+        slowModeDelay: true,
         tags: true,
         type: true,
         userServerSettings: {
@@ -481,6 +501,7 @@ async function loadWorkspaceServerDetail(access: AccessContext): Promise<Workspa
             expiresAt: true,
             id: true,
             maxUses: true,
+            targetUserId: true,
             uses: true,
           },
           where: {
@@ -539,6 +560,7 @@ async function loadWorkspaceServerDetail(access: AccessContext): Promise<Workspa
       defaultChannelId,
       description: server.description,
       discoverable: server.discoverable,
+      iconColor: parseServerIconTone(server.iconColor),
       iconUrl: server.iconUrl,
       id: server.id,
       inviteCode: server.inviteCode,
@@ -551,6 +573,7 @@ async function loadWorkspaceServerDetail(access: AccessContext): Promise<Workspa
       mentionCount,
       name: server.name,
       shortName: server.shortName,
+      slowModeDelay: server.slowModeDelay,
       starred: server.userServerSettings[0]?.starred ?? false,
       tags: server.tags,
       type: server.type,
@@ -651,11 +674,13 @@ async function loadMobileWorkspaceServerDetail(access: AccessContext): Promise<{
       },
       description: true,
       features: true,
+      iconColor: true,
       iconUrl: true,
       id: true,
       name: true,
       ownerId: true,
       shortName: true,
+      slowModeDelay: true,
     },
   });
 
@@ -742,6 +767,10 @@ async function loadMobileWorkspaceServerDetail(access: AccessContext): Promise<{
         allowGifs: mediaSettings.allowGifs,
         defaultChannelId: pickDefaultChannelId({ categories, ungroupedChannels }),
         description: server.description,
+        // K10: mobil ekranlar bu pakette değişmiyor; iki alan yalnızca
+        // **opsiyonel** olarak yanıta biniyor, böylece eski istemci sürümü de
+        // yeni yanıtı ayrıştırmaya devam ediyor.
+        iconColor: parseServerIconTone(server.iconColor),
         iconUrl: server.iconUrl,
         id: server.id,
         memberCount: server._count.members,
@@ -750,6 +779,7 @@ async function loadMobileWorkspaceServerDetail(access: AccessContext): Promise<{
         onlineMemberCount,
         ownerUserId: server.ownerId,
         shortName: server.shortName,
+        slowModeDelay: server.slowModeDelay,
         unreadCount: unreadSummary.unreadCount,
       },
       ungroupedChannels,
@@ -799,18 +829,76 @@ type WorkspaceMemberWithAuthorizationRoles = {
   member: WorkspaceMember;
 };
 
+export type WorkspaceServerMemberListOptions = {
+  cursor?: string;
+  filter?: WorkspaceMemberFilter;
+  limit?: number;
+  q?: string;
+};
+
+/**
+ * Çip seçimini bir Prisma `where` parçasına indirger (Ş2, SPEC-SUNUCU §8.6).
+ *
+ * Rol ve presence çözümü **yalnız** o çip istendiğinde yapılıyor: `all` çipi ne rol tablosunu
+ * okur ne Redis'e gider, ki bugünkü filtresiz liste bir satır bile yavaşlamasın.
+ */
+async function buildServerMemberFilterWhere(
+  access: AccessContext,
+  filter: WorkspaceMemberFilter,
+): Promise<Prisma.ServerMemberWhereInput> {
+  if (filter === "all") {
+    return {};
+  }
+  if (filter === "owner") {
+    return { userId: access.ownerId };
+  }
+
+  const { serverId, userId } = access;
+  const classification = memberFilterNeedsRoles(filter)
+    ? classifyServerRoles(
+        await prisma.role.findMany({
+          select: { id: true, permissions: true },
+          where: { serverId },
+        }),
+      )
+    : { adminRoleIds: [], moderatorRoleIds: [] };
+  const onlineUserIds = memberFilterNeedsPresence(filter)
+    ? await readVisibleOnlineMemberUserIds(
+        userId,
+        (
+          await prisma.serverMember.findMany({
+            select: { user: { select: { customStatus: true, id: true } } },
+            where: { serverId },
+          })
+        ).map((row) => ({ customStatus: row.user.customStatus, userId: row.user.id })),
+      )
+    : [];
+
+  return buildMemberFilterWhere(filter, {
+    ...classification,
+    onlineUserIds,
+    ownerId: access.ownerId,
+  });
+}
+
 async function loadWorkspaceServerMembers(
   access: AccessContext,
-  options: {
-    cursor?: string;
-    limit?: number;
-  } = {},
+  options: WorkspaceServerMemberListOptions = {},
   projection: { boundMobileRoles?: boolean } = {},
 ): Promise<{
+  memberCounts: WorkspaceMemberCounts;
   memberPage: WorkspaceMemberPage;
   members: WorkspaceMemberWithAuthorizationRoles[];
 }> {
   const { serverId, userId } = access;
+  const filter = options.filter ?? "all";
+  const searchWhere = buildMemberSearchWhere(options.q);
+  const filterWhere = await buildServerMemberFilterWhere(access, filter);
+  const scopeWhere: Prisma.ServerMemberWhereInput = {
+    AND: [searchWhere, filterWhere],
+    serverId,
+  };
+  const isUnscoped = filter === "all" && Object.keys(searchWhere).length === 0;
   const limit = Math.min(
     Math.max(options.limit ?? SERVER_MEMBERS_PAGE_LIMIT, 1),
     SERVER_MEMBERS_PAGE_LIMIT,
@@ -860,6 +948,7 @@ async function loadWorkspaceServerMembers(
       },
     ],
     select: {
+      communicationDisabledUntil: true,
       id: true,
       nickname: true,
       roles: {
@@ -894,18 +983,23 @@ async function loadWorkspaceServerMembers(
       },
     },
     take: limit + 1,
-    where: {
-      serverId,
-      ...cursorFilter,
-    },
+    // `AND` şart: imleç, arama ve `moderator` çipinin üçü de kendi `OR`/`roles` parçasını
+    // taşıyor. Tek nesneye yaymak son yazanın öncekini sessizce ezmesi demekti.
+    where: { AND: [cursorFilter, searchWhere, filterWhere], serverId },
   });
   if (projection.boundMobileRoles) {
     ensureMobileMemberRoleBounds(rows);
   }
   const pageRows = rows.slice(0, limit);
-  const members = await mapMembers(access.ownerId, userId, pageRows);
+  const [members, total, filtered] = await Promise.all([
+    mapMembers(access.ownerId, userId, pageRows),
+    prisma.serverMember.count({ where: { serverId } }),
+    // Filtresiz çağrıda ikinci sayım aynı sayıyı iki kez sorardı.
+    isUnscoped ? Promise.resolve(null) : prisma.serverMember.count({ where: scopeWhere }),
+  ]);
 
   return {
+    memberCounts: { filtered: filtered ?? total, total },
     memberPage: {
       limit,
       nextCursor: rows.length > limit ? (pageRows.at(-1)?.id ?? null) : null,
@@ -925,12 +1019,10 @@ async function loadWorkspaceServerMembers(
 export async function listWorkspaceServerMembersWithAccess(
   userId: string,
   serverId: string,
-  options: {
-    cursor?: string;
-    limit?: number;
-  } = {},
+  options: WorkspaceServerMemberListOptions = {},
 ): Promise<{
   access: AccessContext;
+  memberCounts: WorkspaceMemberCounts;
   memberPage: WorkspaceMemberPage;
   members: WorkspaceMemberWithAuthorizationRoles[];
 }> {
@@ -953,7 +1045,13 @@ export async function listMobileWorkspaceServerMembersWithAccess(
   members: WorkspaceMemberWithAuthorizationRoles[];
 }> {
   const access = await getAccessContext(userId, serverId);
-  const result = await loadWorkspaceServerMembers(access, options, { boundMobileRoles: true });
+  // K10: mobil yanıtı `strict` bir şemadan geçiyor ve `q`/filtre çipleri mobil ekranlarda
+  // yok. Sayaç web dalında kalır; mobil dal bugünkü şeklini korur.
+  const { memberCounts: _webOnlyCounts, ...result } = await loadWorkspaceServerMembers(
+    access,
+    options,
+    { boundMobileRoles: true },
+  );
 
   return { access, ...result };
 }
@@ -961,14 +1059,12 @@ export async function listMobileWorkspaceServerMembersWithAccess(
 export async function listWorkspaceServerMembers(
   userId: string,
   serverId: string,
-  options: {
-    cursor?: string;
-    limit?: number;
-  } = {},
+  options: WorkspaceServerMemberListOptions = {},
 ) {
   const result = await listWorkspaceServerMembersWithAccess(userId, serverId, options);
 
   return {
+    memberCounts: result.memberCounts,
     memberPage: result.memberPage,
     members: result.members.map(({ member }) => member),
   };
@@ -982,9 +1078,28 @@ export type CreateWorkspaceServerOptions = {
 };
 
 /**
+ * `discoverable` yalnız `isPublic` açıkken bir anlam taşır — `resolveVisibilityUpdateData`'nın
+ * `PATCH` tarafında zorladığı değişmezin oluşturma tarafındaki eşi (Ş10 §1.4).
+ *
+ * Ayrı bir fonksiyon, çünkü admin yolu iki alanı `options` üzerinden, tüketici yolu ise
+ * gövdeden verir; kural ikisinde de aynı olmak zorunda. Saf, çünkü "`discoverable:true` +
+ * `isPublic:false` gövdesi ne yazar" sorusunun cevabı veritabanı olmadan okunabilmeli.
+ */
+export function resolveVisibilityCreateData(
+  input: ServerVisibilityFields,
+  options: ServerVisibilityFields = {},
+): { discoverable: boolean; isPublic: boolean } {
+  const isPublic = options.isPublic ?? input.isPublic ?? false;
+  const discoverable = options.discoverable ?? input.discoverable ?? false;
+
+  return { discoverable: isPublic ? discoverable : false, isPublic };
+}
+
+/**
  * Split out of the transaction so the privileged defaults can be asserted
- * without a database. The consumer route never passes `options`, which is why
- * `POST /api/v1/servers` can only ever produce a private personal server.
+ * without a database. The consumer route passes no `options`; `type` and
+ * `verificationLevel` therefore stay admin-only, while görünürlük ve Ş10'un dört
+ * yeni alanı gövdeden okunur.
  */
 export function buildServerCreateData(
   userId: string,
@@ -992,17 +1107,25 @@ export function buildServerCreateData(
   inviteCode: string,
   options: CreateWorkspaceServerOptions = {},
 ): Prisma.ServerUncheckedCreateInput {
+  const visibility = resolveVisibilityCreateData(input, options);
+
   return {
     description: input.description ?? null,
-    discoverable: options.discoverable ?? false,
+    discoverable: visibility.discoverable,
     features: applyServerMediaSettings([], {
       allowFileUploads: input.allowFileUploads,
       allowGifs: input.allowGifs,
       allowMemberAdds: input.allowMemberAdds,
     }),
+    /**
+     * K2/Ş10 §1.1: swatch seçimi kolona yazılır. Alan yoksa kolon `null` kalır ve ikon
+     * rengi kısa addan deterministik türetilir — "renk seçilmedi" ile "renk kaldırıldı"
+     * oluşturma anında aynı şeydir, ayrımı `PATCH` tarafı taşır.
+     */
+    iconColor: input.iconColor ?? null,
     iconUrl: input.iconUrl ?? null,
     inviteCode,
-    isPublic: options.isPublic ?? false,
+    isPublic: visibility.isPublic,
     // The founding member row is created inside the same transaction, so the
     // counter starts at one instead of zero plus a follow-up increment.
     memberCount: 1,
@@ -1011,6 +1134,16 @@ export function buildServerCreateData(
     shortName: input.shortName ?? null,
     type: options.type ?? "PERSONAL",
     verificationLevel: options.verificationLevel ?? "NONE",
+    // `undefined` bırakmak Prisma'da "kolonun varsayılanını kullan" demektir; `null`
+    // yazmak `NOT NULL` kolonu kırardı. Ş10'un `Gelişmiş` bloğu bir seçim yapmadıysa
+    // 2000 / 60 dakika varsayılanları geçerli kalır (K7).
+    ...(input.deletedMessageNoticeMinutes === undefined
+      ? {}
+      : { deletedMessageNoticeMinutes: input.deletedMessageNoticeMinutes }),
+    ...(input.messageCharacterLimit === undefined
+      ? {}
+      : { messageCharacterLimit: input.messageCharacterLimit }),
+    ...(input.tags === undefined ? {} : { tags: input.tags }),
   };
 }
 
@@ -1224,14 +1357,16 @@ export function assertServerUpdateAllowed(access: AccessContext, input: UpdateSe
   assertVisibilityFieldsWritable(access.type, input);
 }
 
-export async function updateWorkspaceServer(
-  userId: string,
-  serverId: string,
+/**
+ * Everything `updateWorkspaceServer` writes except `features`, which needs the
+ * row's current feature array. Pure so the two Ş1 columns can be asserted
+ * without a database -- `iconColor: null` in particular is a value, not an
+ * absence, and only a test that reads the built payload can tell the two apart.
+ */
+export function buildServerUpdateData(
+  currentIsPublic: boolean,
   input: UpdateServerInput,
-) {
-  const access = await getAccessContext(userId, serverId);
-  assertServerUpdateAllowed(access, input);
-
+): Prisma.ServerUpdateInput {
   const data: Prisma.ServerUpdateInput = {};
 
   if (input.name !== undefined) {
@@ -1250,6 +1385,21 @@ export async function updateWorkspaceServer(
     data.iconUrl = input.iconUrl;
   }
 
+  /**
+   * Ş1 §1, K2. `null` is "clear the choice", not "leave the column alone": the
+   * swatch row's `Kaldır` returns the icon to the deterministic derivation from
+   * the short name. `undefined` (field absent) is the one that means untouched,
+   * so the guard has to be `!== undefined` rather than a truthiness check.
+   */
+  if (input.iconColor !== undefined) {
+    data.iconColor = input.iconColor;
+  }
+
+  /** Ş1 §1 — SPEC-SUNUCU §8.3'ün `Kapalı` seçeneği 0'dır, alanın yokluğu değil. */
+  if (input.slowModeDelay !== undefined) {
+    data.slowModeDelay = input.slowModeDelay;
+  }
+
   if (input.messageCharacterLimit !== undefined) {
     data.messageCharacterLimit = input.messageCharacterLimit;
   }
@@ -1261,11 +1411,42 @@ export async function updateWorkspaceServer(
     data.tags = { set: input.tags };
   }
 
-  Object.assign(data, resolveVisibilityUpdateData(access.isPublic, input));
+  Object.assign(data, resolveVisibilityUpdateData(currentIsPublic, input));
 
   if (input.deletedMessageNoticeMinutes !== undefined) {
     data.deletedMessageNoticeMinutes = input.deletedMessageNoticeMinutes;
   }
+
+  return data;
+}
+
+/**
+ * The channel permission snapshot caches the server columns the message send
+ * path reads (`features`, `messageCharacterLimit` and, since Ş1,
+ * `slowModeDelay`). Bumping the server authorization revision is what expires
+ * those snapshots, so every cached column has to appear here -- a new server
+ * slow mode that only took effect after the cache aged out would be a setting
+ * that silently lies for its first fifteen seconds.
+ */
+export function requiresChannelPermissionMetadataInvalidation(input: UpdateServerInput): boolean {
+  return (
+    input.messageCharacterLimit !== undefined ||
+    input.slowModeDelay !== undefined ||
+    input.allowGifs !== undefined ||
+    input.allowFileUploads !== undefined ||
+    input.allowMemberAdds !== undefined
+  );
+}
+
+export async function updateWorkspaceServer(
+  userId: string,
+  serverId: string,
+  input: UpdateServerInput,
+) {
+  const access = await getAccessContext(userId, serverId);
+  assertServerUpdateAllowed(access, input);
+
+  const data = buildServerUpdateData(access.isPublic, input);
 
   if (
     input.allowGifs !== undefined ||
@@ -1285,10 +1466,7 @@ export async function updateWorkspaceServer(
   }
 
   const shouldInvalidateChannelPermissionMetadata =
-    input.messageCharacterLimit !== undefined ||
-    input.allowGifs !== undefined ||
-    input.allowFileUploads !== undefined ||
-    input.allowMemberAdds !== undefined;
+    requiresChannelPermissionMetadataInvalidation(input);
 
   const authorizationRevision = await prisma.$transaction(async (tx) => {
     await tx.server.update({

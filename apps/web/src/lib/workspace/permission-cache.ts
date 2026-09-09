@@ -142,6 +142,8 @@ type PermissionCacheChannelSnapshot = {
     server: {
       features: string[];
       messageCharacterLimit: number;
+      /** Ş1 §2 — gönderim yolu etkin gecikmeyi `max(server, channel)` ile çözer. */
+      slowModeDelay: number;
     };
     serverId: string;
     type: ChannelType;
@@ -173,6 +175,8 @@ export type CachedChannelPermissionSnapshot = {
     server: {
       features: string[];
       messageCharacterLimit: number;
+      /** Ş1 §2 — gönderim yolu etkin gecikmeyi `max(server, channel)` ile çözer. */
+      slowModeDelay: number;
     };
     serverId: string;
     type: ChannelType;
@@ -412,6 +416,7 @@ function parseSnapshot(raw: string): PermissionCacheChannelSnapshot | null {
       !Array.isArray(parsed.channel.server.features) ||
       parsed.channel.server.features.some((feature) => typeof feature !== "string") ||
       typeof parsed.channel.server.messageCharacterLimit !== "number" ||
+      typeof parsed.channel.server.slowModeDelay !== "number" ||
       typeof parsed.channel.serverId !== "string" ||
       typeof parsed.channel.type !== "string" ||
       typeof parsed.channel.userLimit !== "number" ||

@@ -65,7 +65,7 @@ export function EventGoingRow({ event, locale, onOpen, timeZone }: EventGoingRow
   return (
     <button
       aria-label={t("events.a11y.agendaRow", { source: place, time: when, title: event.title })}
-      className="flex w-full items-center bg-[hsl(var(--surface-card))] text-left transition hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+      className="flex w-full items-center bg-[hsl(var(--surface-card))] text-left transition hover:bg-[var(--surface-hover)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
       data-testid="event-agenda-going-row"
       onClick={() => onOpen(event.id)}
       style={{

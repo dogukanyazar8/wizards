@@ -2,10 +2,19 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { prisma } from "@wizards/db";
 import { Resend } from "resend";
 import bcrypt from "bcryptjs";
-import { type AppLocale, DEFAULT_APP_LOCALE, normalizeAppLocale, translate } from "@/lib/locale";
+import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/locale";
 import { revokeUserSessions } from "@/lib/auth/session-revocation";
+import { logError } from "@/lib/logger";
+import type { HeaderSource } from "@/lib/analytics/client-info";
+import { buildResetPasswordUrl, EmailConfigurationError } from "@/lib/email/email-links";
+import { resolveEmailRequestContext } from "@/lib/email/email-request-context";
+import { renderPasswordResetEmail } from "@/lib/email/templates/password-reset-email";
 
-export const PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = 60;
+/**
+ * SPEC-GIRIS-KAYIT §4.7 ve §7/8 — "Bağlantı 30 dakika geçerli, yalnızca bir kez kullanılabilir."
+ * Ürün 60 dakika tutuyordu; tasarım metni ekranda 30 dakika yazdığı için süre kısaltıldı.
+ */
+export const PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = 30;
 const PASSWORD_RESET_TOKEN_EXPIRY_MS = PASSWORD_RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000;
 
 type PasswordResetPayload = {
@@ -93,30 +102,6 @@ function isResendDevSenderRestriction(error: ResendErrorLike, from: string) {
   );
 }
 
-function getAppUrl() {
-  const rawAppUrl = getFirstRequiredEnv(["APP_URL", "AUTH_URL", "NEXTAUTH_URL"]);
-
-  try {
-    const appUrl = new URL(rawAppUrl);
-    if (appUrl.protocol !== "https:" && appUrl.protocol !== "http:") {
-      throw new Error("Unsupported protocol");
-    }
-
-    return appUrl.origin;
-  } catch {
-    throw new PasswordResetError("CONFIGURATION_ERROR", "APP_URL must be a valid http(s) URL.");
-  }
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 function base64UrlEncode(value: string) {
   return Buffer.from(value, "utf8").toString("base64url");
 }
@@ -182,112 +167,64 @@ function parsePasswordResetToken(token: string): PasswordResetPayload | null {
   }
 }
 
+/**
+ * Adres kurulumu `lib/email/email-links` içinde; hata tipi burada çevriliyor ki dışarıdaki
+ * `CONFIGURATION_ERROR` eşlemesi ve mesaj metni aynen kalsın.
+ */
 function buildPasswordResetUrl(token: string) {
-  const url = new URL("/reset-password", `${getAppUrl()}/`);
-  url.searchParams.set("token", token);
-  return url.toString();
+  try {
+    return buildResetPasswordUrl(token, "password reset");
+  } catch (error) {
+    if (error instanceof EmailConfigurationError) {
+      throw new PasswordResetError("CONFIGURATION_ERROR", error.message);
+    }
+
+    throw error;
+  }
 }
 
-function renderPasswordResetEmail(input: { locale: AppLocale; name: string; resetUrl: string }) {
-  const values = {
-    minutes: PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
-    name: input.name,
-  };
-  const subject = translate(input.locale, "auth.passwordReset.emailSubject");
-  const title = translate(input.locale, "auth.passwordReset.emailTitle");
-  const greeting = translate(input.locale, "auth.passwordReset.emailGreeting", values);
-  const body = translate(input.locale, "auth.passwordReset.emailBody");
-  const cta = translate(input.locale, "auth.passwordReset.emailCta");
-  const expires = translate(input.locale, "auth.passwordReset.emailExpires", values);
-  const fallback = translate(input.locale, "auth.passwordReset.emailFallback");
-  const ignore = translate(input.locale, "auth.passwordReset.emailIgnore");
-  const footer = translate(input.locale, "auth.passwordReset.emailFooter");
+/**
+ * İstek özetindeki saat, kullanıcının kendi saat dilimine göre yazılır (K6). Ayar okunamazsa
+ * mektup gitmeye devam eder: eksik bir saat dilimi yüzünden şifre sıfırlama akışı durmaz.
+ */
+async function loadUserTimeZone(userId: string) {
+  try {
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId },
+      select: { timeZone: true },
+    });
 
-  const safeTitle = escapeHtml(title);
-  const safeGreeting = escapeHtml(greeting);
-  const safeBody = escapeHtml(body);
-  const safeCta = escapeHtml(cta);
-  const safeExpires = escapeHtml(expires);
-  const safeFallback = escapeHtml(fallback);
-  const safeIgnore = escapeHtml(ignore);
-  const safeFooter = escapeHtml(footer);
-  const safeUrl = escapeHtml(input.resetUrl);
-
-  return {
-    html: `<!doctype html>
-<html lang="${input.locale}">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${safeTitle}</title>
-  </head>
-  <body style="margin:0;background:#f5f7fb;color:#111827;font-family:Inter,Segoe UI,Arial,sans-serif;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f7fb;padding:32px 16px;">
-      <tr>
-        <td align="center">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:28px;overflow:hidden;box-shadow:0 24px 70px rgba(15,23,42,0.10);">
-            <tr>
-              <td style="padding:32px 32px 20px;">
-                <div style="display:inline-block;border-radius:999px;border:1px solid #dfe3ff;background:#eef1ff;color:#4f46e5;font-size:12px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;padding:8px 12px;">Whispr</div>
-                <h1 style="font-size:30px;line-height:1.15;margin:24px 0 12px;color:#111827;">${safeTitle}</h1>
-                <p style="font-size:16px;line-height:1.7;margin:0 0 12px;color:#4b5563;">${safeGreeting}</p>
-                <p style="font-size:16px;line-height:1.7;margin:0;color:#4b5563;">${safeBody}</p>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:8px 32px 28px;">
-                <a href="${safeUrl}" style="display:inline-block;border-radius:18px;background:#6366f1;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 20px;">${safeCta}</a>
-                <p style="font-size:13px;line-height:1.6;margin:18px 0 0;color:#6b7280;">${safeExpires}</p>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:0 32px 30px;">
-                <div style="border-radius:18px;background:#f8fafc;border:1px solid #e5e7eb;padding:16px;">
-                  <p style="font-size:13px;line-height:1.6;margin:0 0 10px;color:#64748b;">${safeFallback}</p>
-                  <a href="${safeUrl}" style="font-size:13px;line-height:1.6;color:#4f46e5;word-break:break-all;">${safeUrl}</a>
-                </div>
-                <p style="font-size:13px;line-height:1.6;margin:18px 0 0;color:#6b7280;">${safeIgnore}</p>
-              </td>
-            </tr>
-            <tr>
-              <td style="background:#f8fafc;border-top:1px solid #e5e7eb;padding:18px 32px;">
-                <p style="font-size:12px;line-height:1.6;margin:0;color:#94a3b8;">${safeFooter}</p>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`,
-    subject,
-    text: [
-      subject,
-      "",
-      greeting,
-      body,
-      "",
-      cta,
-      input.resetUrl,
-      "",
-      expires,
-      fallback,
-      input.resetUrl,
-      "",
-      ignore,
-      footer,
-    ].join("\n"),
-  };
+    return settings?.timeZone ?? null;
+  } catch (error) {
+    logError("[auth] Password reset time zone unavailable", error);
+    return null;
+  }
 }
 
-export async function sendPasswordResetEmail(user: PasswordResetUser, locale?: string | null) {
+/**
+ * `context` isteğe bağlıdır: verilmezse cihaz satırı çizilmez (SPEC §5'in eksik parça kuralı).
+ * Böylece bağlam taşımayan eski çağrılar kırılmadan çalışmaya devam eder.
+ */
+export async function sendPasswordResetEmail(
+  user: PasswordResetUser,
+  locale?: string | null,
+  context?: { headers?: HeaderSource | null | undefined; now?: Date | undefined },
+) {
   const resolvedLocale = normalizeAppLocale(locale ?? user.locale ?? DEFAULT_APP_LOCALE);
   const displayName = user.displayName ?? user.username;
   const resetUrl = buildPasswordResetUrl(buildPasswordResetToken(user));
   const email = renderPasswordResetEmail({
+    accountEmail: user.email,
     locale: resolvedLocale,
     name: displayName,
+    requestContext: resolveEmailRequestContext({
+      headers: context?.headers,
+      locale: resolvedLocale,
+      now: context?.now ?? new Date(),
+      timeZone: await loadUserTimeZone(user.id),
+    }),
     resetUrl,
+    ttlMinutes: PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
   });
 
   const from = getFirstRequiredEnv(["RESEND_FROM_EMAIL", "RESEND_FROM"]);
@@ -349,6 +286,26 @@ export async function verifyPasswordResetToken(
   };
 }
 
+/**
+ * SPEC §4.7 "Şifre güncellendi" ekranındaki bilgi bandı gerçek bir sayı istiyor:
+ * `3 cihazda oturum kapatıldı · 27.08.2026 · 11:24`. Sayı, kapatma **anında** açık olan
+ * dayanıklı oturumlardan gelir; sayı sıfırsa ekran bandı hiç göstermez (uydurma sayı yazmaz).
+ */
+async function countActiveSessions(userId: string, now: Date) {
+  try {
+    return await prisma.authSession.count({
+      where: {
+        expiresAt: { gt: now },
+        revokedAt: null,
+        userId,
+      },
+    });
+  } catch (error) {
+    logError("[auth] Active session count unavailable", error);
+    return 0;
+  }
+}
+
 export async function resetPasswordWithToken(input: { password: string; token: string }) {
   const verification = await verifyPasswordResetToken(input.token);
   if (verification.status !== "valid") {
@@ -357,6 +314,8 @@ export async function resetPasswordWithToken(input: { password: string; token: s
 
   const passwordHash = await bcrypt.hash(input.password, 12);
   const now = new Date();
+  const signedOutDeviceCount = await countActiveSessions(verification.userId, now);
+
   await prisma.user.update({
     where: { id: verification.userId },
     data: {
@@ -366,5 +325,5 @@ export async function resetPasswordWithToken(input: { password: string; token: s
   });
   await revokeUserSessions(verification.userId, { now });
 
-  return { status: "reset" as const };
+  return { signedOutAt: now, signedOutDeviceCount, status: "reset" as const };
 }

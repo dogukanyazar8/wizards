@@ -70,6 +70,9 @@ export function toMobileServerInvite(
     id: invite.id,
     maxUses: invite.maxUses,
     shareUrl: buildShareUrl(invite.code),
+    // K10: hedefli davet artık mobil sözleşmede de görünür. Kimlik değil, yalnız
+    // "bu bağlantı tek kişiye ait mi" bilgisi geçiyor.
+    targetUserId: invite.targetUserId,
     uses: invite.uses,
   };
 }

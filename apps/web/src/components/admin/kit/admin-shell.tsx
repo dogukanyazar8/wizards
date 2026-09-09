@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   BarChart3,
   BookOpen,
+  Download as DownloadIcon,
   Flag,
   Gauge,
   HeartPulse,
@@ -37,6 +38,7 @@ const NAV_ICONS: Record<AdminNavItem["icon"], LucideIcon> = {
   activity: Activity,
   book: BookOpen,
   chart: BarChart3,
+  download: DownloadIcon,
   flag: Flag,
   gauge: Gauge,
   "life-buoy": LifeBuoy,
@@ -148,7 +150,7 @@ export function AdminShell({
               </div>
             </div>
             <Link
-              className="text-app-muted mt-2 flex items-center justify-center gap-1.5 rounded-[10px] border border-[hsl(var(--border)/0.7)] px-2 py-1.5 text-[12px] font-semibold hover:bg-[hsl(var(--surface-soft))]"
+              className="text-app-muted mt-2 flex items-center justify-center gap-1.5 rounded-[10px] border border-[hsl(var(--border)/0.7)] px-2 py-1.5 text-[12px] font-semibold hover:bg-[var(--surface-hover)]"
               href="/channels"
             >
               <ArrowLeft size={14} strokeWidth={2} />

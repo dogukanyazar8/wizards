@@ -1,6 +1,13 @@
-export type AppStartupStatus = "session" | "workspace" | "realtime" | "ready";
+import type { SplashUpdateProgress } from "@wizards/types";
 
-export type ShellReadinessPhase = "showing" | "hiding" | "dismissed";
+import type { SplashRuntimeInput } from "@/lib/splash/splash-machine";
+
+/**
+ * Kabuğun açılış sinyalleri.
+ *
+ * Karar verilmez, yalnız toplanır: hangi rotanın hangi veriyi beklediği burada,
+ * "hangi adımdayız / hangi durumdayız" sorusu `splash-machine`de yanıtlanır.
+ */
 
 export type ShellReadinessRoute =
   "dm-conversation" | "dm-list" | "other" | "server-channel" | "server-root" | "settings";
@@ -15,10 +22,6 @@ export type ShellReadinessInput = {
   serversLoading: boolean;
 };
 
-export const SHELL_SPLASH_MIN_VISIBLE_MS = 400;
-export const SHELL_SPLASH_MAX_VISIBLE_MS = 5000;
-export const SHELL_SPLASH_FADE_OUT_MS = 260;
-
 function routeNeedsServerDetail(route: ShellReadinessRoute): boolean {
   return route === "server-channel" || route === "server-root";
 }
@@ -27,7 +30,8 @@ function routeNeedsDMConversations(route: ShellReadinessRoute): boolean {
   return route === "dm-conversation" || route === "dm-list";
 }
 
-function isRouteDataLoading(input: ShellReadinessInput): boolean {
+/** Açılan rotanın kendi verisi hâlâ yolda mı — sunucu listesinden ayrı bir soru. */
+export function isRouteDataLoading(input: ShellReadinessInput): boolean {
   if (routeNeedsServerDetail(input.route) && input.activeServerDetailLoading) {
     return true;
   }
@@ -39,49 +43,35 @@ function isRouteDataLoading(input: ShellReadinessInput): boolean {
   return false;
 }
 
-export function isShellReady(input: ShellReadinessInput): boolean {
-  return (
-    input.appearanceHydrated &&
-    input.layoutSettingsLoaded &&
-    !input.serversLoading &&
-    !isRouteDataLoading(input)
-  );
-}
+/**
+ * Kabuğun bildiği sinyalleri açılış ekranının dört aşamasına çevirir (K7).
+ *
+ * Kabuk sinyalleri (`appearanceHydrated`, `serversLoading`, …) üç aşamayı zaten
+ * anlatıyor; ilk aşama (`Bağlanıyor`) ve durum girdileri (ağ, 401, indirme) kabuğun
+ * dışından gelir, o yüzden ayrı bir `extras` olarak verilir. Eşleme burada, tek
+ * yerde durur: aynı türetmeyi iki yüzeyde ayrı yazmak, iki farklı "hazır" tanımı
+ * demekti.
+ */
+export type SplashRuntimeExtras = {
+  bootstrapRequestSettled: boolean;
+  elapsedMs: number;
+  online: boolean;
+  sessionExpired: boolean;
+  update: SplashUpdateProgress | null;
+};
 
-export function getShellReadinessStatus(
-  input: ShellReadinessInput & { isReady?: boolean },
-): AppStartupStatus {
-  const isReady = input.isReady ?? isShellReady(input);
-
-  if (!input.appearanceHydrated || !input.layoutSettingsLoaded) {
-    return "session";
-  }
-
-  if (input.serversLoading || isRouteDataLoading(input)) {
-    return "workspace";
-  }
-
-  if (isReady && !input.realtimeConnected) {
-    return "realtime";
-  }
-
-  return "ready";
-}
-
-export function shouldMountShellSplash(phase: ShellReadinessPhase): boolean {
-  return phase === "showing" || phase === "hiding";
-}
-
-export function shouldShowShellSplash(phase: ShellReadinessPhase): boolean {
-  return phase === "showing";
-}
-
-export function getShellSplashPhaseAfterMaxTimeout(
-  phase: ShellReadinessPhase,
-): ShellReadinessPhase {
-  if (phase === "showing") {
-    return "hiding";
-  }
-
-  return phase;
+export function toSplashRuntimeInput(
+  input: ShellReadinessInput,
+  extras: SplashRuntimeExtras,
+): SplashRuntimeInput {
+  return {
+    bootstrapRequestSettled: extras.bootstrapRequestSettled,
+    elapsedMs: extras.elapsedMs,
+    online: extras.online,
+    realtimeConnected: input.realtimeConnected,
+    sessionExpired: extras.sessionExpired,
+    sessionHydrated: input.appearanceHydrated && input.layoutSettingsLoaded,
+    update: extras.update,
+    workspaceLoaded: !input.serversLoading && !isRouteDataLoading(input),
+  };
 }

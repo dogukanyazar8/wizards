@@ -101,21 +101,21 @@ function BadgeRow({
           <span className="text-xs font-bold text-app-foreground">{copy.name}</span>
           {tierLabel === null ? null : (
             <span
-              className="text-[11px] font-bold text-[hsl(var(--primary))]"
+              className="text-[0.6875rem] font-bold text-[var(--primary-readable)]"
               data-testid={`${ACCOUNT_BADGES_TEST_ID}-tier-${entry.id}`}
             >
               {tierLabel}
             </span>
           )}
         </span>
-        <span className="mt-0.5 block text-[11.5px] leading-4 text-app-muted">
+        <span className="mt-0.5 block text-[0.71875rem] leading-4 text-app-muted">
           {copy.description}
         </span>
       </span>
       {entry.earned ? (
         earnedMonth === "" ? null : (
           <span
-            className="shrink-0 text-[11px] font-semibold text-app-muted"
+            className="shrink-0 text-[0.6875rem] font-semibold text-app-muted"
             data-testid={`${ACCOUNT_BADGES_TEST_ID}-date-${entry.id}`}
           >
             {earnedMonth}
@@ -125,7 +125,7 @@ function BadgeRow({
         // A locked row shows how far along it is and nothing else — no tier
         // label, because a threshold that has not been crossed is not a tier.
         <span
-          className="shrink-0 text-[11px] font-semibold text-app-muted"
+          className="shrink-0 text-[0.6875rem] font-semibold text-app-muted"
           data-testid={`${ACCOUNT_BADGES_TEST_ID}-progress-${entry.id}`}
         >
           {formatBadgeProgressText({
@@ -159,18 +159,18 @@ function BadgeGroups({
 
   return (
     <div className="mt-3" data-testid={`${ACCOUNT_BADGES_TEST_ID}-${section}`}>
-      <h4 className="text-[11.5px] font-bold uppercase tracking-[0.1em] text-app-soft">
+      <h4 className="text-[0.71875rem] font-bold uppercase tracking-[0.1em] text-app-soft">
         {t(`settings.account.badges.${section}`)}
       </h4>
       {groups.map((group) => (
         <section className="mt-2" key={group.family}>
           <h5
-            className="px-3 text-[11px] font-bold text-app-soft"
+            className="px-3 text-[0.6875rem] font-bold text-app-soft"
             data-testid={`${ACCOUNT_BADGES_TEST_ID}-${section}-${group.family}`}
           >
             {t(FAMILY_LABEL_KEY[group.family])}
           </h5>
-          <ul className="mt-1 divide-y divide-[hsl(var(--border)/0.42)] rounded-[16px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface)/0.72)]">
+          <ul className="mt-1 divide-y divide-[hsl(var(--border)/0.42)] rounded-[1rem] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface)/0.72)]">
             {group.badges.map((entry) => (
               <BadgeRow entry={entry} key={entry.id} locale={locale} t={t} />
             ))}

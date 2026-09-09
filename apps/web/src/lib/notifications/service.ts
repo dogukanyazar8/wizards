@@ -2,14 +2,31 @@ import { prisma } from "@wizards/db";
 import type { NotificationType, Prisma } from "@wizards/db";
 import {
   BadgeIdSchema,
+  type AppNotification,
   type MobileNotificationsQuery,
   type MobileNotificationsResponse,
+  type NotifUnreadCounts,
 } from "@wizards/types";
 import { ApiError } from "@/lib/api";
 import { logError } from "@/lib/logger";
+import type { NotificationSocketPayload } from "@/lib/socket/events";
+import { getSocketServer } from "@/lib/socket/runtime";
 import { isLiveInvite } from "@/lib/workspace/invite-selection";
 import { emitServerUnreadUpdatesToUser } from "@/lib/workspace/unread-service";
-import type { NotificationDTO } from "./types";
+import { groupNotificationsByDay } from "./panel-grouping";
+import {
+  buildNotifPanelPageQuery,
+  buildNotifUnreadCountsQuery,
+  decodeNotifPanelCursor,
+  encodeNotifPanelCursor,
+  EMPTY_NOTIF_UNREAD_COUNTS,
+  resolveNotifPanelBucket,
+  toNotifKind,
+  type NotifPanelRow,
+  type NotifUnreadCountsRow,
+} from "./panel-query";
+import { resolveQuietHoursTimeZone } from "./quiet-hours";
+import type { NotificationDTO, NotificationPageDTO, NotificationPanelQuery } from "./types";
 
 type NotificationRow = Prisma.NotificationGetPayload<{
   select: {
@@ -354,6 +371,163 @@ export async function getUnreadCount(userId: string): Promise<number> {
   return count;
 }
 
+// ---------------------------------------------------------------------------
+// Bildirim merkezi — Dalga 1 / Ş2
+// ---------------------------------------------------------------------------
+
+/**
+ * Panelin ve zilin **tek** sayaç kaynağı (§5). Yalnız okunmamış satırları sayar; okunmuş bir
+ * kayıt hiçbir sayaca girmez.
+ *
+ * `counts.all > 0` ⇒ zil noktası. İkinci bir sorgu yok: nokta için ayrı bir `count(*)` atmak,
+ * iki sorgu arasındaki pencerede noktayı sayaçtan farklı bir gerçeğe bağlamak olurdu.
+ */
+export async function getNotificationCounts(userId: string): Promise<NotifUnreadCounts> {
+  const rows = await prisma.$queryRaw<NotifUnreadCountsRow[]>(buildNotifUnreadCountsQuery(userId));
+  const row = rows[0] ?? EMPTY_NOTIF_UNREAD_COUNTS;
+
+  return {
+    all: Number(row.all),
+    mentions: Number(row.mentions),
+    replies: Number(row.replies),
+    system: Number(row.system),
+  };
+}
+
+/**
+ * Izleyicinin saat dilimi — gün kovası bunda hesaplanır (tuzak #7).
+ *
+ * Sessiz saat bölgesi, sonra hesap bölgesi, sonra Istanbul: `resolveQuietHoursTimeZone`in
+ * zaten yazılı merdiveni. Bildirim listesinin ve sessiz saat aralığının aynı bölgeyi okuması
+ * kasıtlı — kullanıcı için "bugün" tek bir kavram.
+ */
+async function resolveViewerTimeZone(userId: string): Promise<string> {
+  const [notificationSettings, settings] = await Promise.all([
+    prisma.userNotificationSettings.findUnique({
+      select: { quietHoursTimeZone: true },
+      where: { userId },
+    }),
+    prisma.userSettings.findUnique({ select: { timeZone: true }, where: { userId } }),
+  ]);
+
+  return resolveQuietHoursTimeZone(
+    notificationSettings?.quietHoursTimeZone ?? null,
+    settings?.timeZone ?? null,
+  );
+}
+
+function toPanelMetadata(metadata: unknown): Record<string, unknown> | null {
+  return metadata && typeof metadata === "object" && !Array.isArray(metadata)
+    ? (metadata as Record<string, unknown>)
+    : null;
+}
+
+function toAppNotification(row: NotifPanelRow, channelNames: Map<string, string>): AppNotification {
+  const metadata = toPanelMetadata(row.metadata);
+  const serverId = typeof metadata?.serverId === "string" ? metadata.serverId : undefined;
+  const channelId = typeof metadata?.channelId === "string" ? metadata.channelId : undefined;
+  const actorId = typeof metadata?.senderId === "string" ? metadata.senderId : undefined;
+  const channel = channelId ? channelNames.get(channelId) : undefined;
+
+  // `source` alanları tek tek konur, `undefined` ile değil: eksik anahtar ile `undefined` değer
+  // JSON'a aynı çıkıyor ama zod `.optional()` ikincisini de kabul etmek zorunda kalırdı.
+  const source: NonNullable<AppNotification["source"]> = {
+    ...(actorId ? { actorId } : {}),
+    ...(channel ? { channel } : {}),
+    ...(serverId ? { serverId } : {}),
+  };
+
+  return {
+    createdAt: row.createdAt.toISOString(),
+    id: row.id,
+    kind: toNotifKind(resolveNotifPanelBucket(row.type, metadata)),
+    read: row.read,
+    title: row.title,
+    body: row.body,
+    ...(Object.keys(source).length > 0 ? { source } : {}),
+  };
+}
+
+/**
+ * §1–§3 — panelin sayfası: sekme süzgeci, gün grupları, keyset imleç ve dörtlü sayaç.
+ *
+ * Sayaç sayfayla **aynı** yanıtta dönüyor. Ayrı bir istek olsaydı, satıra tıklayan kullanıcı
+ * listenin güncellendiğini görür ama sekme pilini bir tur eski görürdü.
+ */
+export async function listNotificationPanel(
+  userId: string,
+  query: NotificationPanelQuery,
+  options: { now?: Date } = {},
+): Promise<NotificationPageDTO> {
+  const cursor = decodeNotifPanelCursor(query.cursor);
+  const [rows, counts, timeZone] = await Promise.all([
+    prisma.$queryRaw<NotifPanelRow[]>(
+      buildNotifPanelPageQuery({ cursor, limit: query.limit, tab: query.tab, userId }),
+    ),
+    getNotificationCounts(userId),
+    resolveViewerTimeZone(userId),
+  ]);
+
+  // Sorgu bir fazlasını çekiyor; fazlalık yanıta girmez, yalnız "sonraki sayfa var" der.
+  const hasNextPage = rows.length > query.limit;
+  const pageRows = hasNextPage ? rows.slice(0, query.limit) : rows;
+
+  const channelIds = [
+    ...new Set(
+      pageRows
+        .map((row) => toPanelMetadata(row.metadata)?.channelId)
+        .filter((channelId): channelId is string => typeof channelId === "string"),
+    ),
+  ];
+  const channels =
+    channelIds.length === 0
+      ? []
+      : await prisma.channel.findMany({
+          select: { id: true, name: true },
+          where: { id: { in: channelIds } },
+        });
+  const channelNames = new Map(channels.map((channel) => [channel.id, channel.name]));
+
+  const items = pageRows.map((row) => toAppNotification(row, channelNames));
+  const lastRow = pageRows[pageRows.length - 1];
+
+  return {
+    counts,
+    groups: groupNotificationsByDay(items, { now: options.now ?? new Date(), timeZone }),
+    nextCursor:
+      hasNextPage && lastRow
+        ? encodeNotifPanelCursor({ createdAt: lastRow.createdAt, id: lastRow.id })
+        : null,
+    tab: query.tab,
+  };
+}
+
+export type NotificationReadDependencies = {
+  emitRead: (
+    userId: string,
+    payload: { counts: NotifUnreadCounts; id: string | null; read: boolean },
+  ) => void;
+};
+
+const defaultReadDependencies: NotificationReadDependencies = {
+  emitRead(userId, payload) {
+    getSocketServer()?.to(`user:${userId}`).emit("notification:read", payload);
+  },
+};
+
+/**
+ * §6 — `notification:new` yükünü sayaçla besleyen yardımcı.
+ *
+ * Bugün on sekiz yerden bildirim yaratılıyor ve çoğu başka şeritlerin dosyası; bu şerit onları
+ * düzenlemiyor. Yayımcı bu yardımcıdan geçtiğinde olay sayacı taşır, geçmediğinde istemci
+ * `/unread-count`a düşer — hiçbir durumda istemci sayacı kendisi artırmaz.
+ */
+export async function withNotificationCounts(
+  payload: NotificationSocketPayload,
+): Promise<NotificationSocketPayload> {
+  return { ...payload, counts: await getNotificationCounts(payload.userId) };
+}
+
 function getNotificationChannelScope(
   metadata: Prisma.JsonValue | null,
 ): { channelId: string; serverId: string | null } | null {
@@ -512,7 +686,25 @@ async function releaseAllDirectMessageUnread(
   });
 }
 
-export async function markRead(userId: string, notificationId: string): Promise<void> {
+/**
+ * §4 — okundu durumunun **çevrilmesi**. Satıra tıklamak okunmuşu okunmamışa da döndürür
+ * (SPEC §1, §6), bu yüzden yön bir parametre.
+ *
+ * Yanıt güncel dörtlü sayacı taşır ki istemci ikinci istek atmasın, ve aynı sayaç
+ * `notification:read` ile de yayılır ki ikinci bir sekme ayrışmasın.
+ *
+ * **Geri alma rozetleri geri getirmez.** `read: true` bir bahsetmenin kanal rozetini ve bir
+ * DM'in okunmamış sayacını düşürüyor; `read: false` onları **artırmaz**. Aradan geçen sürede
+ * kullanıcı kanalı gerçekten okumuş olabilir ve o rozet zaten sıfırlanmıştır; geri artırmak
+ * kullanıcıya görmediği bir borç yazardı. Bildirim satırının okunmamışlığı geri gelir, kanalın
+ * rozeti gelmez.
+ */
+export async function setRead(
+  userId: string,
+  notificationId: string,
+  read: boolean,
+  dependencies: NotificationReadDependencies = defaultReadDependencies,
+): Promise<NotifUnreadCounts> {
   const notification = await prisma.notification.findFirst({
     where: { id: notificationId, userId },
     select: { metadata: true, type: true },
@@ -527,37 +719,45 @@ export async function markRead(userId: string, notificationId: string): Promise<
       id: notificationId,
       // The guard belongs to the write. Two callers may both observe the row,
       // but only the winner may retire its badge counters.
-      read: false,
+      read: !read,
       userId,
     },
     data: {
-      read: true,
-      readAt: new Date(),
+      read,
+      readAt: read ? new Date() : null,
     },
   });
 
-  if (count !== 1) {
-    return;
-  }
-
-  if (notification.type === "MENTION") {
-    const scope = getNotificationChannelScope(notification.metadata);
-    if (scope) {
-      await releaseChannelMention(userId, scope);
-    }
-    return;
-  }
-
-  if (notification.type === "DM") {
-    const conversationId = getNotificationConversationId(notification.metadata);
-    if (conversationId) {
-      await releaseDirectMessageUnread(
-        userId,
-        conversationId,
-        isDirectMessageMention(notification.metadata),
-      );
+  if (count === 1 && read) {
+    if (notification.type === "MENTION") {
+      const scope = getNotificationChannelScope(notification.metadata);
+      if (scope) {
+        await releaseChannelMention(userId, scope);
+      }
+    } else if (notification.type === "DM") {
+      const conversationId = getNotificationConversationId(notification.metadata);
+      if (conversationId) {
+        await releaseDirectMessageUnread(
+          userId,
+          conversationId,
+          isDirectMessageMention(notification.metadata),
+        );
+      }
     }
   }
+
+  const counts = await getNotificationCounts(userId);
+  dependencies.emitRead(userId, { counts, id: notificationId, read });
+
+  return counts;
+}
+
+/**
+ * Ş2 öncesinden kalan imza. Mobil uç (`mobile/notifications/route-logic.ts`) ve zil menüsü
+ * bunu çağırıyor; sayacı okumadıkları için dönüş `void` kalır.
+ */
+export async function markRead(userId: string, notificationId: string): Promise<void> {
+  await setRead(userId, notificationId, true);
 }
 
 /** Mirrors the web "clear all" action: drops the user's whole notification feed. */
@@ -568,7 +768,15 @@ export async function clearNotifications(userId: string): Promise<void> {
   await releaseAllDirectMessageUnread(userId, conversationIds);
 }
 
-export async function markAllRead(userId: string): Promise<void> {
+/**
+ * §6 — toplu okuma, sayacıyla birlikte. Tek tek satır başına olay yaymak yerine tek
+ * `{ id: null, read: true, counts }` yayılır: panelin sayaç ile listesi arasını on kez
+ * tutarsız bırakmanın anlamı yok.
+ */
+export async function markAllReadWithCounts(
+  userId: string,
+  dependencies: NotificationReadDependencies = defaultReadDependencies,
+): Promise<NotifUnreadCounts> {
   const conversationIds = await listUnreadDirectMessageConversationIds(userId);
   await prisma.notification.updateMany({
     where: {
@@ -582,6 +790,16 @@ export async function markAllRead(userId: string): Promise<void> {
   });
   await releaseAllChannelMentions(userId);
   await releaseAllDirectMessageUnread(userId, conversationIds);
+
+  const counts = await getNotificationCounts(userId);
+  dependencies.emitRead(userId, { counts, id: null, read: true });
+
+  return counts;
+}
+
+/** Ş2 öncesinden kalan imza — mobil uç sayacı okumuyor. */
+export async function markAllRead(userId: string): Promise<void> {
+  await markAllReadWithCounts(userId);
 }
 
 export async function serializeNotificationToDTO(

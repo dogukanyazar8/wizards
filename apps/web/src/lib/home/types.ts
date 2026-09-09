@@ -250,7 +250,7 @@ export type EventsUpcomingQuery = z.infer<typeof EventsUpcomingQuerySchema>;
 
 /* ----------------------------------------------------------- search/command */
 
-export const HomeCommandGroupKindSchema = z.enum(["server", "channel", "dm", "user", "command"]);
+export const HomeCommandGroupKindSchema = z.enum(["channel", "dm", "user", "command"]);
 export type HomeCommandGroupKind = z.infer<typeof HomeCommandGroupKindSchema>;
 
 export const HomeCommandItemSchema = z.object({

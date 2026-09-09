@@ -17,9 +17,13 @@ export async function PATCH(request: Request, context: RouteContext) {
       parseJsonBody(request, SetDMMutedBodySchema),
     ]);
 
-    await setDirectMessageMuted(userId, conversationId, input.muted);
+    // §17's toast needs the deadline it just created, and the header pill needs
+    // it on the next render — so the state travels back in the response as well
+    // as over `dm:conversation:mute`, and a client that missed the socket is
+    // never left guessing when the mute runs out.
+    const state = await setDirectMessageMuted(userId, conversationId, input);
 
-    return Response.json({ success: true });
+    return Response.json({ ...state, success: true });
   } catch (error) {
     return jsonError(error);
   }

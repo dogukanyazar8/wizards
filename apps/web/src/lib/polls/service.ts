@@ -1,4 +1,4 @@
-import { prisma } from "@wizards/db";
+import { ChannelType, prisma } from "@wizards/db";
 import {
   POLL_DURATION_MINUTES,
   type PollCreateRequest,
@@ -10,6 +10,9 @@ import { sendDirectMessage } from "@/lib/dm/message-send-service";
 import { toUnexpiredFilter } from "@/lib/dm/service";
 import { POLL_SELECT, mapPollToDTO, type RawPoll } from "@/lib/polls/presentation";
 import type { AppSocketServer } from "@/lib/socket/runtime";
+import { sendChannelMessage } from "@/lib/workspace/channel-message-send-service";
+import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
+import { PermissionBits } from "@/lib/workspace/permissions";
 
 /**
  * Mesajlar karar #1 / #11 / #12 — anket.
@@ -36,9 +39,16 @@ type PollAuthRow = RawPoll & {
     readonly expiresAt: Date | null;
     readonly placeholderRemovedAt: Date | null;
   } | null;
+  readonly message: {
+    readonly channelId: string;
+    readonly createdAt: Date;
+    readonly deletedAt: Date | null;
+    readonly placeholderRemovedAt: Date | null;
+  } | null;
 };
 
 export type PollServiceDependencies = {
+  authorizeChannelViewer(input: { channelId: string; viewerId: string }): Promise<boolean>;
   loadPollForViewer(input: {
     now: Date;
     pollId: string;
@@ -52,22 +62,43 @@ export type PollServiceDependencies = {
     pollId: string;
     userId: string;
   }): Promise<void>;
+  sendChannelMessage: typeof sendChannelMessage;
   sendMessage: typeof sendDirectMessage;
 };
 
 const defaults: PollServiceDependencies = {
+  authorizeChannelViewer: async ({ channelId, viewerId }) => {
+    try {
+      await requireChannelPermissionForUser(viewerId, channelId, PermissionBits.VIEW_CHANNEL, {
+        requiredType: ChannelType.TEXT,
+      });
+      return true;
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 403 || error.status === 404)) {
+        return false;
+      }
+
+      throw error;
+    }
+  },
   loadPollForViewer: ({ now, pollId, viewerId }) =>
     prisma.poll.findFirst({
       where: {
         id: pollId,
-        // Membership is the `where` clause, so a non-participant finds nothing
-        // and the 403 falls out of the same statement that reads the poll.
-        dmMessage: {
-          deletedAt: null,
-          placeholderRemovedAt: null,
-          ...toUnexpiredFilter(now),
-          conversation: { participants: { some: { userId: viewerId } } },
-        },
+        OR: [
+          // DM membership remains in the read query. Channel role overwrites
+          // need the shared permission service and are verified below before a
+          // DTO leaves this module.
+          {
+            dmMessage: {
+              deletedAt: null,
+              placeholderRemovedAt: null,
+              ...toUnexpiredFilter(now),
+              conversation: { participants: { some: { userId: viewerId } } },
+            },
+          },
+          { message: { deletedAt: null, placeholderRemovedAt: null } },
+        ],
       },
       select: {
         ...POLL_SELECT,
@@ -86,6 +117,14 @@ const defaults: PollServiceDependencies = {
             createdAt: true,
             deletedAt: true,
             expiresAt: true,
+            placeholderRemovedAt: true,
+          },
+        },
+        message: {
+          select: {
+            channelId: true,
+            createdAt: true,
+            deletedAt: true,
             placeholderRemovedAt: true,
           },
         },
@@ -146,6 +185,7 @@ const defaults: PollServiceDependencies = {
     });
   },
 
+  sendChannelMessage,
   sendMessage: sendDirectMessage,
 };
 
@@ -156,6 +196,10 @@ async function requirePoll(
   now = dependencies.now(),
 ): Promise<PollAuthRow> {
   const poll = await dependencies.loadPollForViewer({ now, pollId, viewerId });
+  if (!poll) {
+    throw new ApiError("Poll not found", 404, "NOT_FOUND");
+  }
+
   const message = poll?.dmMessage;
   const historyFromAt = message?.conversation.participants[0]?.historyFromAt ?? null;
   const messageVisible =
@@ -166,13 +210,29 @@ async function requirePoll(
     (message.expiresAt === null || message.expiresAt.getTime() > now.getTime()) &&
     (!historyFromAt || message.createdAt >= historyFromAt);
 
-  if (!poll || !messageVisible) {
-    // Deliberately 404 and not 403: telling a stranger that a poll exists but is
-    // not theirs is still telling them it exists.
-    throw new ApiError("Poll not found", 404, "NOT_FOUND");
+  if (messageVisible) {
+    return poll;
   }
 
-  return poll;
+  const channelMessage = poll.message;
+  const channelMessageVisible =
+    channelMessage !== null &&
+    channelMessage.deletedAt === null &&
+    channelMessage.placeholderRemovedAt === null;
+
+  if (
+    channelMessageVisible &&
+    (await dependencies.authorizeChannelViewer({
+      channelId: channelMessage.channelId,
+      viewerId,
+    }))
+  ) {
+    return poll;
+  }
+
+  // Deliberately 404 and not 403: telling a stranger that a poll exists but is
+  // not theirs is still telling them it exists.
+  throw new ApiError("Poll not found", 404, "NOT_FOUND");
 }
 
 export function resolvePollClosesAt(duration: PollCreateRequest["duration"], now: Date): Date {
@@ -194,27 +254,44 @@ export function resolvePollClosesAt(duration: PollCreateRequest["duration"], now
 export async function createPollMessage(
   input: {
     content?: string | null;
-    conversationId: string;
     io?: AppSocketServer | null;
     poll: PollCreateRequest;
     userId: string;
-  },
+  } & (
+    { channelId: string; conversationId?: never } | { channelId?: never; conversationId: string }
+  ),
   dependencies: PollServiceDependencies = defaults,
 ) {
   const closesAt = resolvePollClosesAt(input.poll.duration, dependencies.now());
   const content = input.content?.trim() || input.poll.question;
 
+  const poll = {
+    anonymous: input.poll.anonymous,
+    closesAt,
+    multi: input.poll.multi,
+    options: input.poll.options,
+    question: input.poll.question,
+  };
+
+  if (typeof input.channelId === "string") {
+    return await dependencies.sendChannelMessage({
+      channelId: input.channelId,
+      content,
+      io: input.io ?? null,
+      poll,
+      userId: input.userId,
+    });
+  }
+
+  if (typeof input.conversationId !== "string") {
+    throw new ApiError("A poll target is required", 400, "POLL_TARGET_REQUIRED");
+  }
+
   return await dependencies.sendMessage({
     content,
     conversationId: input.conversationId,
     io: input.io ?? null,
-    poll: {
-      anonymous: input.poll.anonymous,
-      closesAt,
-      multi: input.poll.multi,
-      options: input.poll.options,
-      question: input.poll.question,
-    },
+    poll,
     userId: input.userId,
   });
 }
@@ -223,11 +300,12 @@ export async function getPollForViewer(
   pollId: string,
   viewerId: string,
   dependencies: PollServiceDependencies = defaults,
-): Promise<{ conversationId: string; poll: PollDTO }> {
+): Promise<{ channelId: string | null; conversationId: string | null; poll: PollDTO }> {
   const row = await requirePoll(pollId, viewerId, dependencies);
 
   return {
-    conversationId: row.dmMessage?.conversationId ?? "",
+    channelId: row.message?.channelId ?? null,
+    conversationId: row.dmMessage?.conversationId ?? null,
     poll: mapPollToDTO(row, viewerId),
   };
 }
@@ -242,7 +320,7 @@ export async function getPollForViewer(
 export async function castPollVote(
   input: { optionIds: readonly string[]; pollId: string; viewerId: string },
   dependencies: PollServiceDependencies = defaults,
-): Promise<{ conversationId: string; poll: PollDTO }> {
+): Promise<{ channelId: string | null; conversationId: string | null; poll: PollDTO }> {
   const now = dependencies.now();
   const row = await requirePoll(input.pollId, input.viewerId, dependencies, now);
 
@@ -275,7 +353,8 @@ export async function castPollVote(
   const updated = await requirePoll(input.pollId, input.viewerId, dependencies);
 
   return {
-    conversationId: updated.dmMessage?.conversationId ?? "",
+    channelId: updated.message?.channelId ?? null,
+    conversationId: updated.dmMessage?.conversationId ?? null,
     poll: mapPollToDTO(updated, input.viewerId),
   };
 }

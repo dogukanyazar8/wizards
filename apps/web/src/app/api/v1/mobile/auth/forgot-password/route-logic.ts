@@ -30,7 +30,10 @@ export async function mobileForgotPasswordRoute(
       namespace: "email",
       value: body.email.trim().toLowerCase(),
     });
-    const response = await dependencies.requestPasswordReset(body);
+    /* İstek başlıkları mektubun "İstek özeti" bloğuna gider (cihaz · işletim sistemi · konum). */
+    const response = await dependencies.requestPasswordReset(body, {
+      requestHeaders: request.headers,
+    });
 
     return Response.json(response, {
       headers: {

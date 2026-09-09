@@ -2,15 +2,17 @@
 
 import React, { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { UserPlus, X } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import type { DiscoverServer } from "@wizards/types";
 
 import type { ServerJoinModalSlotProps } from "@/components/discover/discover-page";
 import { useI18n } from "@/components/providers/locale-provider";
 import { Modal } from "@/components/ui/modal";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
+import { WindowCloseButton } from "@/components/ui/window-close-button";
 import { DISCOVER_CATEGORIES } from "@/lib/discover/contracts";
 import { hairline, pxToEm, pxToRem } from "@/lib/discover/metrics";
+import { getServerIconToneColor } from "@/lib/servers/server-icon-tone";
 import {
   applyDiscoverMembershipSuccess,
   joinDiscoverServer,
@@ -258,15 +260,11 @@ export function ServerJoinModal({
               {t("discover.join.subtitle")}
             </span>
           </span>
-          <button
+          <WindowCloseButton
             aria-label={t("discover.join.close")}
-            className="relative ml-auto grid shrink-0 place-items-center text-[hsl(var(--text-muted))] transition-colors before:absolute before:-inset-1.5 before:content-[''] hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+            className="relative ml-auto before:absolute before:-inset-1.5 before:content-['']"
             onClick={onRequestClose}
-            style={{ borderRadius: pxToRem(11), height: pxToRem(32), width: pxToRem(32) }}
-            type="button"
-          >
-            <X aria-hidden="true" size={pxToEm(17)} strokeWidth={2} />
-          </button>
+          />
         </header>
 
         <div
@@ -383,13 +381,14 @@ export function ServerJoinModal({
                 {serverOptions.map((server, index) => {
                   const selected = selection.selectedServerId === server.id;
                   const tone = categoryTone(server);
+                  const iconTone = server.iconColor ?? tone;
                   const category = server.category
                     ? t(`discover.category.${server.category}`)
                     : null;
                   return (
                     <button
                       aria-checked={selected}
-                      className="flex items-center text-left transition-colors hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+                      className="flex items-center text-left transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
                       id={`discover-join-option-${server.id}`}
                       key={server.id}
                       onClick={() => chooseServer(server.id)}
@@ -417,9 +416,13 @@ export function ServerJoinModal({
                         aria-hidden="true"
                         className="grid shrink-0 place-items-center"
                         style={{
-                          background: `hsl(var(--${tone})/0.14)`,
+                          background: server.iconUrl
+                            ? `center / cover no-repeat url(${JSON.stringify(server.iconUrl)})`
+                            : getServerIconToneColor(iconTone, 0.14),
                           borderRadius: pxToRem(11),
-                          color: `color-mix(in srgb, hsl(var(--${tone})) 30%, hsl(var(--foreground)))`,
+                          color: server.iconUrl
+                            ? "transparent"
+                            : `color-mix(in srgb, ${getServerIconToneColor(iconTone)} 30%, hsl(var(--foreground)))`,
                           fontFamily: "var(--font-display)",
                           fontSize: pxToRem(13),
                           fontWeight: 600,
@@ -427,7 +430,7 @@ export function ServerJoinModal({
                           width: pxToRem(34),
                         }}
                       >
-                        {server.initials}
+                        {server.iconUrl ? "" : server.initials}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span
@@ -544,7 +547,7 @@ export function ServerJoinModal({
             {t("discover.join.terms")}
           </span>
           <button
-            className="shrink-0 border border-[hsl(var(--border))] bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition-colors hover:bg-[hsl(var(--surface-soft))]"
+            className="shrink-0 border border-[hsl(var(--border))] bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition-colors hover:bg-[var(--surface-hover)]"
             onClick={onRequestClose}
             style={{
               borderRadius: pxToRem(12),

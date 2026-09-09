@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import type { checkRateLimit } from "@/lib/rate-limit";
+import type { checkRateLimit, peekRateLimitRetryAfterMs } from "@/lib/rate-limit";
 import type { getRedisRate } from "@/lib/redis";
 import {
   checkLoginRequestRateLimit,
@@ -27,6 +27,8 @@ function createDependencies(calls: RateCall[]): AuthRequestRateLimitDependencies
     }) as typeof checkRateLimit,
     getRedisRate: (() => ({}) as ReturnType<typeof getRedisRate>) as typeof getRedisRate,
     logError: () => undefined,
+    // SPEC-GIRIS-KAYIT §4.5/§4.7 geri sayımı; bu testler kalan süreyi ölçmüyor.
+    peekRateLimitRetryAfterMs: (async () => 0) as typeof peekRateLimitRetryAfterMs,
   };
 }
 

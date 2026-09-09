@@ -2,6 +2,13 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 
 import { resolveE2ETimeoutPolicy } from "@/lib/e2e/timeout-policy";
+import {
+  WCAG_TAGS,
+  formatViolation,
+  partitionAxeViolations,
+  reportNonBlockingViolations,
+  type AxeViolation,
+} from "../../helpers/a11y-gate";
 import { test, expect } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
 import { getE2EServerRoute } from "../../helpers/db";
@@ -13,20 +20,7 @@ import {
   visibleTestId,
 } from "../../helpers/navigation";
 
-// WCAG AAA is intentionally out of scope: it is not a realistic bar for a
-// chat/voice product (several AAA criteria conflict with real-time UI
-// patterns), so this scan enforces WCAG 2.0/2.1 A+AA only.
-const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
-const BLOCKING_IMPACTS = new Set(["critical", "serious"]);
-
 test.describe.configure({ timeout: resolveE2ETimeoutPolicy().screenTestTimeoutMs });
-
-type AxeViolation = Awaited<ReturnType<AxeBuilder["analyze"]>>["violations"][number];
-
-function formatViolation(violation: AxeViolation): string {
-  const targets = violation.nodes.map((node) => node.target.join(" ")).join(", ");
-  return `[${violation.impact ?? "unknown"}] ${violation.id}: ${violation.help} (${targets})`;
-}
 
 /**
  * Etkinlikler Ş10 — tarama **duran** bir ekranda yapılır.
@@ -58,21 +52,13 @@ async function settleAnimations(page: Page): Promise<void> {
   });
 }
 
-function assertNoBlockingViolations(violations: AxeViolation[]): void {
-  const blocking = violations.filter(
-    (violation) => violation.impact && BLOCKING_IMPACTS.has(violation.impact),
-  );
-  const nonBlocking = violations.filter(
-    (violation) => !violation.impact || !BLOCKING_IMPACTS.has(violation.impact),
-  );
+function assertNoBlockingViolations(violations: readonly AxeViolation[]): void {
+  const partition = partitionAxeViolations(violations);
 
-  for (const violation of nonBlocking) {
-    // eslint-disable-next-line no-console
-    console.log(`a11y (non-blocking): ${formatViolation(violation)}`);
-  }
+  reportNonBlockingViolations(partition, "app");
 
   expect(
-    blocking.map(formatViolation),
+    partition.blocking.map(formatViolation),
     "critical/serious WCAG A+AA violations must be fixed, not suppressed",
   ).toEqual([]);
 }
@@ -116,9 +102,11 @@ test.describe("accessibility smoke", () => {
     // Wait for the loaded settings content, not the transient bootstrap
     // loading skeleton, so the scan is deterministic instead of racing
     // whichever state happens to be on screen when axe runs.
-    await expect(
-      page.locator('[data-testid="settings-panel"][data-client-ready="true"]'),
-    ).toBeVisible({ timeout: 15_000 });
+    // K2 sonrası Ayarlar bir **rota**: kabuk `settings-panel.tsx`'i sildi ve onunla birlikte
+    // `data-client-ready` bayrağını da. Yükleme yarışının bugünkü karşılığı `Suspense`
+    // iskeletidir — tarama iskelet ekrandan **düşene** kadar beklemeli.
+    await expect(page.getByTestId("settings-window")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("settings-skeleton")).toHaveCount(0);
     await expect(page.getByTestId("in-app-settings-overlay")).toHaveCSS("opacity", "1");
 
     const results = await new AxeBuilder({ page })
@@ -160,7 +148,6 @@ test.describe("accessibility smoke", () => {
     ["events", "/events", "events-feed-header"],
     ["events create modal", "/events?modal=create", "events-feed-header"],
     ["events live tab", "/events?tab=live", "events-feed-header"],
-    ["inbox", "/inbox", "inbox-screen"],
   ] as const) {
     test(`${label} screen has no critical or serious WCAG A/AA violations`, async ({ page }) => {
       await loginAs(page, "alice");

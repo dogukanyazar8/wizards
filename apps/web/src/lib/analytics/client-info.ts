@@ -20,7 +20,7 @@ const APP_VERSION_PATTERN = /^[0-9A-Za-z.\-+]{1,32}$/;
 
 type HeaderRecord = Record<string, string | string[] | undefined>;
 
-type HeaderSource =
+export type HeaderSource =
   | Headers
   | HeaderRecord
   | {

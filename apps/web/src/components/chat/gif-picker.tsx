@@ -3,9 +3,10 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useId, useRef, useState } from "react";
-import { Loader2, Search, Sparkles, X } from "lucide-react";
+import { Loader2, Search, Sparkles } from "lucide-react";
 import type { MessageAttachment, UploadedAttachmentInput } from "@wizards/types";
 import { useI18n } from "@/components/providers/locale-provider";
+import { WindowCloseButton } from "@/components/ui/window-close-button";
 import {
   announceOverlayOpen,
   getOverlayOpenDetail,
@@ -173,14 +174,7 @@ export function GifPicker({ onClose, onSelect }: GifPickerProps) {
           <p className="text-sm font-semibold text-app-foreground">{t("chat.gifs.title")}</p>
           <p className="text-xs text-app-soft">{t("chat.gifs.poweredBy")}</p>
         </div>
-        <button
-          aria-label={t("common.close")}
-          className="rounded-full border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.55)] p-2 text-app-muted transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-          onClick={onClose}
-          type="button"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        <WindowCloseButton aria-label={t("common.close")} onClick={onClose} />
       </div>
 
       <label className="mb-2.5 flex items-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.42)] px-3 py-2">

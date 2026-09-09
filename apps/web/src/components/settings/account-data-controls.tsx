@@ -113,7 +113,7 @@ export function AccountDataControls({ t }: { t: Translate }) {
   return (
     <div className="space-y-3" data-testid="account-data-controls">
       <section
-        className="rounded-[20px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface)/0.9)] p-3 sm:p-4"
+        className="rounded-[1.25rem] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface)/0.9)] p-3 sm:p-4"
         data-testid="account-data-export-card"
       >
         <div className="flex items-start gap-3">
@@ -155,7 +155,7 @@ export function AccountDataControls({ t }: { t: Translate }) {
         </div>
       </section>
       <section
-        className="rounded-[20px] border border-rose-500/30 bg-rose-500/5 p-3 sm:p-4"
+        className="rounded-[1.25rem] border border-rose-500/30 bg-rose-500/5 p-3 sm:p-4"
         data-testid="account-delete-card"
       >
         <div className="flex items-start gap-3">

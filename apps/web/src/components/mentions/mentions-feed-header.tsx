@@ -191,7 +191,7 @@ export function MentionsFeedHeader({
                 // gelmeli, yoksa satır içi bir `background` `hover:` kuralını her zaman yener.
                 selected
                   ? "bg-[hsl(var(--primary))] text-white"
-                  : "text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--surface-soft))]",
+                  : "text-[hsl(var(--text-secondary))] hover:bg-[var(--surface-hover)]",
               )}
               data-testid={`mentions-feed-tab-${tab.id}`}
               href={tabHref(tab.filter)}
@@ -247,7 +247,7 @@ export function MentionsFeedHeader({
         >
           <Link
             aria-label={t("mentions.header.grouping")}
-            className="grid place-items-center transition-colors hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+            className="grid place-items-center transition-colors hover:bg-[var(--surface-hover)] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
             data-testid="mentions-feed-grouping"
             href={buildMentionsHref({
               ...routeState,
@@ -276,7 +276,7 @@ export function MentionsFeedHeader({
               "grid place-items-center transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
               routeState.settingsOpen
                 ? undefined
-                : "hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))]",
+                : "hover:bg-[var(--surface-hover)] hover:text-[hsl(var(--foreground))]",
             )}
             data-testid="mentions-feed-settings"
             href={buildMentionsHref({ ...routeState, settingsOpen: !routeState.settingsOpen })}

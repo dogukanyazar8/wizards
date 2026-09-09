@@ -6,9 +6,10 @@ import type { AppSocketServer } from "@/lib/socket/runtime";
 import {
   buildMentionPreview,
   chunkForFanOut,
-  collectQuietUserIds,
+  collectNotificationDelivery,
   createChannelMuteFilter,
   deliverChannelNotifications,
+  maskPushText,
   readMentionNotificationSettings,
   readMentionSetting,
 } from "@/lib/workspace/message-notification-service";
@@ -237,8 +238,7 @@ export async function createRoleMentionNotifications(args: {
   ]);
   const recipients = [...candidates.entries()]
     .filter(
-      ([userId]) =>
-        isNotMuted(userId) && !readMentionSetting(settings, userId).suppressRoleMentions,
+      ([userId]) => isNotMuted(userId) && readMentionSetting(settings, userId).types.mentionRole,
     )
     .map(([userId, entry]) => ({ userId, ...entry }));
 
@@ -246,8 +246,15 @@ export async function createRoleMentionNotifications(args: {
     return;
   }
 
+  const delivery = collectNotificationDelivery(
+    settings,
+    recipients.map((recipient) => recipient.userId),
+    "mentionRole",
+  );
+
   const preview = buildMentionPreview(args.content);
   const pushBodyByUserId = new Map<string, string>();
+  const pushTitleByUserId = new Map<string, string>();
   const notifications: NotificationRecord[] = [];
 
   // 500'lük partiler: 2.000 üyeli bir rol tek `createMany` ile yazılmaz (kabul maddesi).
@@ -300,9 +307,11 @@ export async function createRoleMentionNotifications(args: {
       return tx.notification.createManyAndReturn({
         data: batch.map((recipient) => {
           const locale = normalizeAppLocale(recipient.locale);
-          pushBodyByUserId.set(
-            recipient.userId,
-            preview
+          // Ayarlar Ş1 §5 — `systemPreview` kapalıysa gönderen, rol ve mesaj sistem
+          // bildiriminden çıkar. Diğer iki bahsetme dalıyla aynı maske; biri maskeleyip
+          // diğeri maskelemeseydi tercih üç daldan ikisinde tutardı.
+          const push = maskPushText(locale, delivery.get(recipient.userId), {
+            body: preview
               ? translate(locale, "chat.mentions.notifyRoleBodyWithMessage", {
                   channel: args.channelName,
                   name: args.senderName,
@@ -314,7 +323,10 @@ export async function createRoleMentionNotifications(args: {
                   name: args.senderName,
                   role: recipient.roleName,
                 }),
-          );
+            title: translate(locale, "chat.mentions.notifyRoleTitle"),
+          });
+          pushBodyByUserId.set(recipient.userId, push.body);
+          pushTitleByUserId.set(recipient.userId, push.title);
 
           return {
             actionUrl: `/channels/${args.serverId}/${args.channelId}`,
@@ -352,12 +364,10 @@ export async function createRoleMentionNotifications(args: {
     channelName: args.channelName,
     emitServerUnread: true,
     ...(args.io ? { io: args.io } : {}),
+    deliveryByUserId: delivery,
     notifications,
     pushBodyByUserId,
-    quietUserIds: collectQuietUserIds(
-      settings,
-      recipients.map((recipient) => recipient.userId),
-    ),
+    pushTitleByUserId,
     senderId: args.senderId,
     serverId: args.serverId,
   });

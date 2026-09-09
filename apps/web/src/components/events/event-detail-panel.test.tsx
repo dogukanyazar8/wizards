@@ -17,6 +17,7 @@ import { LocaleProvider } from "@/components/providers/locale-provider";
 import { eventsQueryKeys } from "@/lib/events/client";
 import type { EventDetailResponse } from "@/lib/events/detail-contract";
 import { EVENTS_METRICS, hairline, pxToRem } from "@/lib/events/metrics";
+import { SETTINGS_METRICS } from "@/lib/settings/metrics";
 import { getMessagesForLocale } from "@/lib/locale";
 
 /**
@@ -157,7 +158,11 @@ describe("EventDetailPanel — kolon", () => {
     assert.ok(markup.includes("Sesli buluşma"));
     assert.ok(markup.includes("45 dk"));
     assert.ok(markup.includes("Tasarım Kritiği"));
-    assert.ok(markup.includes(`width:${pxToRem(detailPanel.closeSize)}`));
+    // Kapatma kontrolü uygulamanın tek `WindowCloseButton`'ıdır (Ayarlar başlığı ölçüsü):
+    // her pencere aynı hedefi aynı yerde çizsin diye SPEC'in panele özel 30 px kenarsız
+    // karesinden bilerek sapılır. `detailPanel.closeSize` tasarım kaydı olarak
+    // `lib/events/parity.test.ts` içinde durmaya devam eder.
+    assert.ok(markup.includes(`width:${pxToRem(SETTINGS_METRICS.header.closeSize)}`));
     assert.match(markup, /data-testid="event-detail-close"/u);
   });
 

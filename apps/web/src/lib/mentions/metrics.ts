@@ -2,10 +2,10 @@
  * "Bahsedilmeler" ekranının ölçü sözlüğü.
  *
  * Kaynak sırası:
- *   1. `design_handoff/bahsedilmeler-paketi/referans/Bahsedilmeler.dc.html` — inline `style`
+ *   1. `design_handoff/app_new/bahsedilmeler-paketi/referans/Bahsedilmeler.dc.html` — inline `style`
  *      değerleri (**nihai otorite**)
- *   2. `design_handoff/bahsedilmeler-paketi/referans/Bahsedilmeler-referans.html` — çalışan kopya
- *   3. `design_handoff/bahsedilmeler-paketi/SPEC-BAHSEDILMELER.md` §1–§8
+ *   2. `design_handoff/app_new/bahsedilmeler-paketi/referans/Bahsedilmeler-referans.html` — çalışan kopya
+ *   3. `design_handoff/app_new/bahsedilmeler-paketi/SPEC-BAHSEDILMELER.md` §1–§8
  *
  * Değerler ×1 ölçekteki **tasarım pikselidir**; tüketiciler `pxToRem` ile rem'e çevirir. Kabuk
  * yükselirken (SPEC-ANA-SAYFA §8.1) kök font boyutu değişir, sözlük değişmez.
@@ -54,7 +54,7 @@ export const MENTIONS_DENSITY = {
 } as const;
 
 export const MENTIONS_METRICS = {
-  /** SPEC §1 — kabuk ve kolonlar. Sol üç kolon 74 + 228 + 276 = 578 sabittir. */
+  /** SPEC §1 kabuğu + kullanıcı ayağı genişletmesi. Sol üç kolon 74 + 280 + 276 = 630. */
   shell: {
     borderWidth: 1,
     radius: 26,
@@ -62,9 +62,9 @@ export const MENTIONS_METRICS = {
     railWidth: 276,
     /** Bağlam paneli. `flex:none`. */
     contextPanelWidth: 326,
-    /** Akışın asgari genişliği; bağlam paneli açıkken 456'ya iner. */
-    feedMinWidth: 782,
-    feedMinWidthWithPanel: 456,
+    /** Akışın asgari genişliği; bağlam paneli açıkken 404'e iner. */
+    feedMinWidth: 730,
+    feedMinWidthWithPanel: 404,
     /** Bağlam paneli bu genişliğin altında overlay olur (SPEC §1.1). */
     contextPanelOverlayBelow: 1100,
     /** Bahsetme rayı bu genişliğin altında drawer'a taşınır (SPEC §1.1). */

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { DiscoverServerSchema } from "@wizards/types";
+import { DiscoverPersonSchema } from "@wizards/types";
 
 import { toCategoryKey, toDiscoverInitials, toServerCategory } from "./identity";
 
@@ -109,7 +109,7 @@ describe("toDiscoverInitials — türetme kuralı", () => {
 
     const invalid = names.filter(
       (name) =>
-        !DiscoverServerSchema.shape.initials.safeParse(toDiscoverInitials(name, null)).success,
+        !DiscoverPersonSchema.shape.initials.safeParse(toDiscoverInitials(name, null)).success,
     );
 
     assert.deepEqual(invalid, []);

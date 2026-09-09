@@ -18,7 +18,18 @@ function getVisibleStatus(status: string | null | undefined) {
   return "ONLINE";
 }
 
-export default async function MainLayout({ children }: { children: ReactNode }) {
+/**
+ * `modal` yuvası Ayarlar penceresinin yakalayıcı rotasını taşır (K2): uygulama içinden
+ * `/settings/...`'e gezinildiğinde kabuk yerinde kalır ve pencere onun üstüne biner. Yakalama
+ * olmayan her adreste yuva `@modal/default.tsx` ile boş çözülür.
+ */
+export default async function MainLayout({
+  children,
+  modal,
+}: {
+  children: ReactNode;
+  modal: ReactNode;
+}) {
   const session = await requireAuth();
   const user = await getCurrentUserForSession(session);
 
@@ -61,6 +72,7 @@ export default async function MainLayout({ children }: { children: ReactNode }) 
       >
         {children}
       </WizardsShell>
+      {modal}
     </AuthenticatedAppProviders>
   );
 }

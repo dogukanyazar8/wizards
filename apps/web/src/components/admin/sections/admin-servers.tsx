@@ -78,6 +78,7 @@ function AdminServerCreateForm() {
   const { error, pending, run } = useServerAction();
   const [type, setType] = useState<"COMMUNITY" | "PERSONAL">("COMMUNITY");
   const [name, setName] = useState("");
+  const [shortName, setShortName] = useState("");
   const [description, setDescription] = useState("");
   const [discoverable, setDiscoverable] = useState(true);
   const [isPublic, setIsPublic] = useState(true);
@@ -98,13 +99,14 @@ function AdminServerCreateForm() {
               discoverable: communitySelected ? discoverable : false,
               isPublic: communitySelected ? true : isPublic,
               name: name.trim(),
+              shortName: shortName.trim().toLocaleUpperCase("tr-TR"),
               type,
               ...(description.trim() ? { description: description.trim() } : {}),
             }),
           );
         }}
       >
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <label className="block">
             <span className="text-app-muted text-[12px]">Sunucu adı</span>
             <input
@@ -115,6 +117,18 @@ function AdminServerCreateForm() {
               placeholder="Whispr Topluluk"
               required
               value={name}
+            />
+          </label>
+          <label className="block">
+            <span className="text-app-muted text-[12px]">Kısaltma</span>
+            <input
+              className="app-input mt-1 h-11 w-full rounded-[12px] border px-3 text-sm uppercase outline-hidden"
+              maxLength={3}
+              minLength={3}
+              onChange={(event) => setShortName(event.target.value)}
+              placeholder="WHS"
+              required
+              value={shortName}
             />
           </label>
           <label className="block">

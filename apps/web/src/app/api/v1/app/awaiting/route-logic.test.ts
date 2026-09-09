@@ -172,7 +172,7 @@ describe("GET /api/v1/app/awaiting", () => {
     const payload = await listHomeAwaiting("u1", { limit: 6 }, serviceDependencies(database));
     const invite = payload.items.find((item) => item.source === "server_invite");
 
-    assert.equal(invite?.href, "/inbox");
+    assert.equal(invite?.href, "/mentions");
     for (const item of payload.items) {
       assert.equal(toRelativeAppHref(item.href), item.href);
     }

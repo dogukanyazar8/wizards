@@ -90,8 +90,8 @@ describe("home metrics — sözlük bütünlüğü", () => {
   it("referans HTML'in taşıyıcı ölçülerini korur", () => {
     assert.equal(HOME_METRICS.shell.radius, 26);
     assert.equal(HOME_METRICS.rail.width, 74);
-    // Mesajlar paketi karar #2: panel 272 → 228, üç sol kolon 74 + 228 + 276 = 578.
-    assert.equal(HOME_METRICS.panel.width, 228);
+    // Kullanıcı ayağı: 16 normal karakter + avatar + üç kontrol için panel 280.
+    assert.equal(HOME_METRICS.panel.width, 280);
     assert.equal(HOME_METRICS.grid.columns, 4);
     assert.equal(HOME_METRICS.grid.gap, 13);
     assert.equal(HOME_METRICS.card.radius, 20);
@@ -104,6 +104,23 @@ describe("home metrics — sözlük bütünlüğü", () => {
       paddingX: 6,
       radius: 7,
     });
+  });
+
+  it("kullanıcı ayağında en az 16 normal isim karakterine yer bırakır", () => {
+    const { panel } = HOME_METRICS;
+    const fixedWidth =
+      panel.footerPaddingX * 2 +
+      panel.footerAvatarSize +
+      panel.footerGap * 2 +
+      panel.footerActionSize * 3 +
+      panel.footerActionGap * 2;
+    const availableNameWidth = panel.width - fixedWidth;
+
+    // 14px Figtree'de sıradan ad karakteri için elde ölçülen güvenli taban: 7px.
+    assert.ok(
+      availableNameWidth >= 16 * 7,
+      `kullanıcı adı alanı en az 112px olmalı; mevcut ${availableNameWidth}px`,
+    );
   });
 
   it("gölgeler dışında sıfır ya da negatif ölçü taşımaz", () => {

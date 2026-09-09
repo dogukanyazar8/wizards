@@ -9,6 +9,7 @@ import { ContextMenu, ContextMenuItem } from "@/components/ui/context-menu";
 import type { HomeCardState } from "@/hooks/use-home-queries";
 import type { FriendDto } from "@/lib/friends/types";
 import { HOME_METRICS, HOME_TYPE_SCALE, pxToEm, pxToRem } from "@/lib/home/metrics";
+import { MESSAGES_FRIENDS_ROUTE } from "@/lib/messages/routes";
 import {
   deriveFriendStatusText,
   resolveHomeCopy,
@@ -110,7 +111,7 @@ function FriendCard({
         aria-haspopup="menu"
         aria-label={t("home.friends.cardLabel", { name: displayName, status: statusText })}
         // `home-hover-lift`: yükselme `prefers-reduced-motion` altında globals.css'te kapanır (§2.5).
-        className="home-hover-lift flex min-w-0 flex-1 shrink-0 snap-start items-center bg-[hsl(var(--surface-secondary))] text-left outline-hidden transition-[transform,background-color] hover:-translate-y-0.5 hover:bg-[hsl(var(--surface-soft))] focus-visible:bg-[hsl(var(--surface-soft))] focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+        className="home-hover-lift flex min-w-0 flex-1 shrink-0 snap-start items-center bg-[hsl(var(--surface-secondary))] text-left outline-hidden transition-[transform,background-color] hover:-translate-y-0.5 hover:bg-[var(--surface-hover)] focus-visible:bg-[hsl(var(--surface-soft))] focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
         data-testid="home-friend-card"
         // §9 — sol tık DM açar, sağ tık menüyü açar; sağ tık DM'i tetiklemez.
         onClick={() => onMessage(friend)}
@@ -235,7 +236,7 @@ function HomeFriendsStripComponent({
         <HomeHeaderLink
           fontSize={friendsStrip.headerLinkFontSize}
           gap={friendsStrip.headerLinkGap}
-          href="/messages"
+          href={MESSAGES_FRIENDS_ROUTE}
         >
           {t("home.friends.all")}
           <ChevronRight

@@ -1,4 +1,4 @@
-import { AddServerMemberSchema } from "@wizards/types";
+import { AddServerMemberSchema, WorkspaceMemberFilterSchema } from "@wizards/types";
 import { requireApiUserId } from "@/lib/auth/api";
 import { jsonError, parseJsonBody } from "@/lib/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
@@ -18,9 +18,17 @@ export async function GET(request: Request, context: RouteContext) {
     const { searchParams } = new URL(request.url);
     const cursor = searchParams.get("cursor") ?? undefined;
     const requestedLimit = Number.parseInt(searchParams.get("limit") || "100", 10);
+    // Ş2 / SPEC-SUNUCU §8.6: arama ve yedi çip sunucu tarafında süzer. Tanınmayan bir çip
+    // 400 değil `all`: sayfa bir sorgu dizesi yüzünden boş kalmaz, filtre yalnız etkisiz olur.
+    const q = searchParams.get("q")?.trim() || undefined;
+    const filter = WorkspaceMemberFilterSchema.catch("all").parse(
+      searchParams.get("filter") ?? "all",
+    );
     const result = await listWorkspaceServerMembers(userId, serverId, {
       ...(cursor ? { cursor } : {}),
+      filter,
       ...(Number.isFinite(requestedLimit) ? { limit: requestedLimit } : {}),
+      ...(q ? { q } : {}),
     });
 
     return Response.json(result);

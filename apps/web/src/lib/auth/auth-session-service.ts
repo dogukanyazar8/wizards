@@ -2,6 +2,10 @@ import { prisma } from "@wizards/db";
 import type { AuthSessionsResponse } from "@wizards/types";
 import { logError } from "@/lib/logger";
 import { isDurableAuthSessionActive } from "@/lib/auth/session-revocation";
+import {
+  recordSecurityEvent,
+  type RecordSecurityEventInput,
+} from "@/lib/security/security-event-service";
 import { disconnectAuthSessionSockets } from "@/lib/socket/runtime";
 
 export type AuthSessionClientType = "WEB" | "DESKTOP" | "MOBILE" | "UNKNOWN";
@@ -27,7 +31,23 @@ export type AuthSessionMetadata = Pick<
   "appVersion" | "browser" | "clientType" | "countryCode" | "deviceType" | "os"
 >;
 
+/** The columns that decide whether a sign-in came from a machine this account has used before. */
+export type AuthSessionDeviceFingerprint = Pick<
+  AuthSessionRecord,
+  "browser" | "clientType" | "deviceType" | "os"
+>;
+
 export interface AuthSessionStore {
+  /**
+   * Ayarlar Ş3 §3. How many *other* sessions this account has ever opened from the same
+   * browser/OS/client combination. Optional so an in-memory store can opt out of the
+   * `LOGIN_NEW_DEVICE` path entirely rather than fake a device history it does not keep.
+   */
+  countKnownDevices?(
+    userId: string,
+    fingerprint: AuthSessionDeviceFingerprint,
+    excludeSessionId: string,
+  ): Promise<number>;
   find(id: string): Promise<AuthSessionRecord | null>;
   listActive(userId: string, now: Date, limit: number): Promise<AuthSessionRecord[]>;
   revoke(id: string, userId: string, revokedAt: Date): Promise<AuthSessionRecord | null>;
@@ -55,6 +75,17 @@ const authSessionSelect = {
 } as const;
 
 export const prismaAuthSessionStore: AuthSessionStore = {
+  countKnownDevices: (userId, fingerprint, excludeSessionId) =>
+    prisma.authSession.count({
+      where: {
+        browser: fingerprint.browser,
+        clientType: fingerprint.clientType,
+        deviceType: fingerprint.deviceType,
+        id: { not: excludeSessionId },
+        os: fingerprint.os,
+        userId,
+      },
+    }),
   find: (id) => prisma.authSession.findUnique({ select: authSessionSelect, where: { id } }),
   listActive: (userId, now, limit) =>
     prisma.authSession.findMany({
@@ -124,18 +155,61 @@ function normalizeMetadata(metadata: AuthSessionMetadata | null): AuthSessionMet
   };
 }
 
+export type SecurityEventRecorder = (input: RecordSecurityEventInput) => Promise<void>;
+
+/**
+ * Ayarlar Ş3 §3. `Yeni cihazdan giriş` fires when a *created* session is the first this account
+ * has ever opened from that browser/OS/client combination — not on every sign-in, which would
+ * make the row meaningless, and not on the touch path, which runs every minute.
+ *
+ * The write is fire-and-forget by contract: `recordSecurityEvent` swallows its own failures, so
+ * a full security-log outage cannot stop anyone from signing in.
+ */
+async function recordNewDeviceLogin(
+  record: AuthSessionRecord,
+  store: AuthSessionStore,
+  recordEvent: SecurityEventRecorder,
+) {
+  if (!store.countKnownDevices) {
+    return;
+  }
+
+  const knownDevices = await store.countKnownDevices(
+    record.userId,
+    {
+      browser: record.browser,
+      clientType: record.clientType,
+      deviceType: record.deviceType,
+      os: record.os,
+    },
+    record.id,
+  );
+
+  if (knownDevices > 0) {
+    return;
+  }
+
+  await recordEvent({
+    kind: "LOGIN_NEW_DEVICE",
+    location: record.countryCode,
+    userAgent: record.browser,
+    userId: record.userId,
+  });
+}
+
 export async function ensureAuthSession(
   input: {
     expiresAt: Date;
     id: string;
     metadata: AuthSessionMetadata | null;
     now?: Date;
+    recordEvent?: SecurityEventRecorder;
     userId: string;
   },
   store: AuthSessionStore = prismaAuthSessionStore,
 ) {
   const now = input.now ?? new Date();
-  return store.upsert({
+  const record = await store.upsert({
     ...normalizeMetadata(input.metadata),
     createdAt: now,
     expiresAt: input.expiresAt,
@@ -144,6 +218,19 @@ export async function ensureAuthSession(
     revokedAt: null,
     userId: input.userId,
   });
+
+  // `upsert` cannot report which branch it took, but `createdAt` can: an update keeps the
+  // original instant, a create echoes back the one passed in. Cheaper than a read before write
+  // on a path the JWT callback runs on every request.
+  if (record.createdAt.getTime() === now.getTime()) {
+    try {
+      await recordNewDeviceLogin(record, store, input.recordEvent ?? recordSecurityEvent);
+    } catch (error) {
+      logError("[auth] Failed to evaluate new-device login", error);
+    }
+  }
+
+  return record;
 }
 
 export async function listAuthSessions(
@@ -186,6 +273,12 @@ export async function isAuthSessionActive(
 type AuthSessionRevocationOptions = {
   disconnectSockets?: (sessionId: string) => Promise<void> | void;
   now?: Date;
+  /**
+   * Ayarlar Ş3 §4. Pass a no-op when the caller already logs a more specific event for the same
+   * action — a password change writes `PASSWORD_CHANGED`, and a second `SESSION_REVOKED` row for
+   * the same click would pad the log without adding a fact.
+   */
+  recordEvent?: SecurityEventRecorder;
   store?: AuthSessionStore;
 };
 
@@ -219,10 +312,22 @@ export async function revokeAuthSession(
       [revokedSession],
       options.disconnectSockets ?? disconnectAuthSessionSockets,
     );
+    await (options.recordEvent ?? recordSecurityEvent)({
+      kind: "SESSION_REVOKED",
+      location: revokedSession.countryCode,
+      metadata: { revokedCount: 1, scope: "single" },
+      userAgent: revokedSession.browser,
+      userId,
+    });
   }
   return revokedSession;
 }
 
+/**
+ * Tuzak #13. The current session is excluded by construction — the store filters on
+ * `id != currentSessionId` and no account-wide revocation marker is advanced here — so
+ * "Diğerlerini kapat" can never sign the caller out of the window they clicked it in.
+ */
 export async function revokeOtherAuthSessions(
   userId: string,
   currentSessionId: string,
@@ -237,5 +342,12 @@ export async function revokeOtherAuthSessions(
     revokedSessions,
     options.disconnectSockets ?? disconnectAuthSessionSockets,
   );
+  if (revokedSessions.length > 0) {
+    await (options.recordEvent ?? recordSecurityEvent)({
+      kind: "SESSION_REVOKED",
+      metadata: { revokedCount: revokedSessions.length, scope: "others" },
+      userId,
+    });
+  }
   return revokedSessions;
 }

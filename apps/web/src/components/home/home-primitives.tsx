@@ -1,6 +1,7 @@
 "use client";
 
 import React, { type CSSProperties, type ReactNode } from "react";
+import Link from "next/link";
 
 import { useI18n } from "@/components/providers/locale-provider";
 import { Avatar } from "@/components/ui/avatar";
@@ -254,32 +255,35 @@ export function HomeSectionLabel({
 }
 
 /** Başlık satırının sağındaki bağlantı — `Tümünü gör`, `Gelen kutusu`, `Tümü`. */
-export function HomeHeaderLink({
-  children,
-  fontSize,
-  href,
-  gap,
-}: {
+type HomeHeaderLinkProps = {
+  "aria-expanded"?: boolean;
+  "aria-haspopup"?: React.AriaAttributes["aria-haspopup"];
   children: ReactNode;
   fontSize: number;
   gap?: number;
-  href: string;
-}) {
-  return (
-    <a
-      className="inline-flex items-center rounded-full text-[var(--primary-readable)] outline-hidden transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-      data-testid="home-header-link"
-      href={href}
-      style={{
-        fontSize: pxToRem(fontSize),
-        fontWeight: 600,
-        lineHeight: 1,
-        ...(gap === undefined ? {} : { gap: pxToRem(gap) }),
-      }}
-    >
-      {children}
-    </a>
-  );
+} & ({ href: string; onClick?: never } | { href?: never; onClick: () => void });
+
+export function HomeHeaderLink(props: HomeHeaderLinkProps) {
+  const sharedProps = {
+    "aria-expanded": props["aria-expanded"],
+    "aria-haspopup": props["aria-haspopup"],
+    children: props.children,
+    className:
+      "inline-flex items-center rounded-full border-0 bg-transparent p-0 text-[var(--primary-readable)] outline-hidden transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+    "data-testid": "home-header-link",
+    style: {
+      fontSize: pxToRem(props.fontSize),
+      fontWeight: 600,
+      lineHeight: 1,
+      ...(props.gap === undefined ? {} : { gap: pxToRem(props.gap) }),
+    },
+  };
+
+  if (props.href !== undefined) {
+    return <Link {...sharedProps} href={props.href} />;
+  }
+
+  return <button {...sharedProps} onClick={props.onClick} type="button" />;
 }
 
 /**

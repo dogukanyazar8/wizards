@@ -2,11 +2,13 @@
 
 declare global {
   interface Window {
+    __WHISPR_DESKTOP_CLIENT_NAVIGATION_READY__?: true;
     __WHISPR_DESKTOP__?: {
       features?: {
         updater?: boolean;
       };
       platform: "tauri";
+      launchMode?: "autostart" | "interactive";
       releaseRing?: "production" | "production-small" | "uat";
       shell: "desktop";
     };
@@ -25,6 +27,7 @@ const DESKTOP_MIN_WINDOW_HEIGHT = 640;
 const DESKTOP_MAIN_VIEWPORT_READY_WIDTH = 900;
 const DESKTOP_PROMOTION_VERIFY_INTERVAL_MS = 50;
 const DESKTOP_PROMOTION_VERIFY_ATTEMPTS = 12;
+const MAX_DESKTOP_INTERNAL_PATH_LENGTH = 768;
 
 export type WhisprDesktopCommand =
   | "desktop-surface-ready"
@@ -53,6 +56,25 @@ export interface WhisprDesktopBeforeCloseDetail {
 
 export function isWhisprDesktopRuntime() {
   return typeof window !== "undefined" && window.__WHISPR_DESKTOP__?.shell === "desktop";
+}
+
+export function isWhisprDesktopAutostartLaunch() {
+  return isWhisprDesktopRuntime() && window.__WHISPR_DESKTOP__?.launchMode === "autostart";
+}
+
+export function setWhisprDesktopClientNavigationReady(ready: boolean) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (!ready) {
+    delete window.__WHISPR_DESKTOP_CLIENT_NAVIGATION_READY__;
+    return;
+  }
+
+  if (isWhisprDesktopRuntime()) {
+    window.__WHISPR_DESKTOP_CLIENT_NAVIGATION_READY__ = true;
+  }
 }
 
 export function isWhisprDesktopUpdaterEnabled() {
@@ -102,6 +124,28 @@ export async function showWhisprDesktopWindow() {
   }
 }
 
+/**
+ * Pencereyi gizler.
+ *
+ * Açılış biterken pencere **büyütülürken** gizli tutulur: yeniden boyutlanma, kökteki
+ * `zoom` kalkması ve kabuğun ilk tam ölçü çizimi kullanıcıya boş bir çerçeve olarak
+ * görünüyordu. Tasarımın "splash kapanınca ana pencere gösterilir" kuralının tek
+ * pencereli karşılığı budur (SPEC-SPLASH §8).
+ */
+export async function hideWhisprDesktopWindow() {
+  if (!isWhisprDesktopRuntime()) {
+    return false;
+  }
+
+  try {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().hide();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function promoteWhisprDesktopWindow() {
   if (!isWhisprDesktopRuntime()) {
     return false;
@@ -136,7 +180,9 @@ export async function promoteWhisprDesktopWindow() {
       ),
     );
     await runDesktopWindowStep(() => currentWindow.center());
-    await runDesktopWindowStep(() => currentWindow.show());
+    if (!isWhisprDesktopAutostartLaunch()) {
+      await runDesktopWindowStep(() => currentWindow.show());
+    }
 
     return resized;
   } catch {
@@ -168,10 +214,28 @@ export async function completeWhisprDesktopBeforeClose(requestId: number) {
   }
 }
 
+/**
+ * Kabuğun `navigate` komutundan güvenli iç yolu çıkarır — Ş13.
+ *
+ * `runtime.test.ts` bu yardımcıyı bir güvenlik iddiası olarak çağırıyordu ama karşılığı hiç
+ * yazılmamıştı (tip kontrolü kırıktı). Kural iki parçalı ve ikisi de burada duruyor: komut
+ * gerçekten `navigate` olmalı **ve** yol iç bir yol olmalı. Çağrı yerinde iki `if` yazmak,
+ * birinin bir gün unutulması demekti — dış bir adres `router.push`'a düşerdi.
+ */
+export function getWhisprDesktopNavigationPath(event: Event): string | null {
+  const detail = (event as CustomEvent<WhisprDesktopCommandDetail>).detail;
+
+  if (detail?.command !== "navigate") {
+    return null;
+  }
+
+  return isSafeDesktopInternalPath(detail.path) ? detail.path : null;
+}
+
 export function isSafeDesktopInternalPath(value: string | null | undefined): value is string {
   return Boolean(
     value &&
-    value.length <= 768 &&
+    value.length <= MAX_DESKTOP_INTERNAL_PATH_LENGTH &&
     value.startsWith("/") &&
     !value.startsWith("//") &&
     !value.includes("\\"),

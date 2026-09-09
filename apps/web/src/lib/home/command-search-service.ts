@@ -1,6 +1,6 @@
 import { ChannelType, type PrismaClient } from "@wizards/db";
 
-import { buildChannelHref, buildDMHref, buildServerHref, HOME_FRIENDS_HREF } from "@/lib/home/href";
+import { buildChannelHref, buildDMHref, HOME_FRIENDS_HREF } from "@/lib/home/href";
 import {
   HOME_ACTOR_SELECT,
   defaultVisibleChannelResolver,
@@ -22,12 +22,11 @@ import { profileVisibilityWhereForViewer } from "@/lib/privacy/visibility-policy
  *
  * The command list itself is **not** here: commands are static on the client and
  * gated by the same permission checks their target route enforces (§5.1.8). What
- * the server answers is the searchable surface — servers, channels the viewer
- * can actually read, conversations they are in, and people they are allowed to
- * see.
+ * the server answers is the searchable surface — channels the viewer can
+ * actually read, conversations they are in, and people they are allowed to see.
  *
- * An empty `q` means "recent surfaces", not "everything": it returns the rail
- * and the newest conversations, nothing that would amount to a directory dump.
+ * An empty `q` means "recent surfaces", not "everything": it returns only the
+ * newest conversations, nothing that would amount to a directory dump.
  */
 
 export type HomeCommandSearchDependencies = {
@@ -47,27 +46,21 @@ export async function searchHomeCommandSurfaces(
 ): Promise<SearchCommandResponse> {
   const { database, readPresence } = dependencies;
   const term = query.q.trim();
-  const serverIds = await listViewerServerIds(database, userId);
-  const visible = await listVisibleChannelIds(
-    userId,
-    serverIds,
-    ChannelType.TEXT,
-    dependencies.listVisibleChannels ?? defaultVisibleChannelResolver,
-  );
+  let visibleChannelIds: readonly string[] = [];
 
-  const [servers, channels, conversations, users] = await Promise.all([
-    serverIds.length > 0
-      ? database.server.findMany({
-          orderBy: { name: "asc" },
-          select: { iconUrl: true, id: true, name: true },
-          take: HOME_COMMAND_GROUP_LIMIT,
-          where: {
-            id: { in: serverIds },
-            ...(term ? { name: { contains: term, mode: "insensitive" as const } } : {}),
-          },
-        })
-      : Promise.resolve([]),
-    term && visible.all.length > 0
+  if (term) {
+    const serverIds = await listViewerServerIds(database, userId);
+    const visible = await listVisibleChannelIds(
+      userId,
+      serverIds,
+      ChannelType.TEXT,
+      dependencies.listVisibleChannels ?? defaultVisibleChannelResolver,
+    );
+    visibleChannelIds = visible.all;
+  }
+
+  const [channels, conversations, users] = await Promise.all([
+    visibleChannelIds.length > 0
       ? database.channel.findMany({
           orderBy: { name: "asc" },
           select: {
@@ -78,7 +71,7 @@ export async function searchHomeCommandSurfaces(
           },
           take: HOME_COMMAND_GROUP_LIMIT,
           where: {
-            id: { in: [...visible.all] },
+            id: { in: [...visibleChannelIds] },
             name: { contains: term, mode: "insensitive" as const },
           },
         })
@@ -154,17 +147,6 @@ export async function searchHomeCommandSurfaces(
 
   return {
     groups: [
-      ...toGroup(
-        "server",
-        servers.map((server) => ({
-          avatarUrl: server.iconUrl,
-          href: buildServerHref(server.id),
-          id: server.id,
-          label: server.name,
-          presence: null,
-          sublabel: null,
-        })),
-      ),
       ...toGroup(
         "channel",
         channels.map((channel) => ({

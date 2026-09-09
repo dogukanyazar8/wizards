@@ -451,6 +451,317 @@ export const mobileMessagingMetrics = {
   },
 } as const;
 
+/**
+ * Açılış ekranının tipografisi — SPEC-SPLASH §1 ve §6.
+ *
+ * Ürünün geri kalanı Plus Jakarta Sans yazar; splash başlıkları Outfit, gövdesi
+ * Figtree ister. Ayrı bir blok olması bilerek: `mobileTypography`ye karışsaydı
+ * iki yüz bir arada dolaşır ve her ekran hangisini aldığını tesadüfen seçerdi.
+ *
+ * Ölçüler devir paketindeki mobil kareden (390 × 844) birebir alındı ve
+ * `mobile-splash-typography.test.ts` bunları SPEC değerlerine karşı doğrular.
+ */
+export const mobileSplashTypography = {
+  fontFamilyDisplay: "WhisprOutfit_700Bold",
+  fontFamilyDisplaySemiBold: "WhisprOutfit_600SemiBold",
+  fontFamilyBody: "WhisprFigtree_400Regular",
+  fontFamilyBodyMedium: "WhisprFigtree_500Medium",
+  fontFamilyBodySemiBold: "WhisprFigtree_600SemiBold",
+  fontFamilyBodyBold: "WhisprFigtree_700Bold",
+  /** `Whispr` — SPEC §6: 34px, 700 Outfit, harf aralığı -.02em. */
+  wordmark: {
+    fontFamily: "WhisprOutfit_700Bold",
+    fontSize: 34,
+    letterSpacing: -0.68,
+    lineHeight: 34,
+  },
+  /** `Sesli sohbet ve topluluk` — SPEC §6: 13px, üst boşluk 10px. */
+  tagline: {
+    fontFamily: "WhisprFigtree_400Regular",
+    fontSize: 13,
+    letterSpacing: 0,
+    lineHeight: 18,
+  },
+  /** `<adım>…` tek satırı — SPEC §6: 500 13px, ikincil metin rengi. */
+  stepLine: {
+    fontFamily: "WhisprFigtree_500Medium",
+    fontSize: 13,
+    letterSpacing: 0,
+    lineHeight: 13,
+  },
+  /** İpucu — SPEC §3.6 mobil ölçüsü 11.5px, ortalı. */
+  tip: {
+    fontFamily: "WhisprFigtree_400Regular",
+    fontSize: 11.5,
+    letterSpacing: 0,
+    lineHeight: 16.7,
+  },
+  /** Ortam rozeti — SPEC §3.3 mobil: 20px yükseklik, 700 9.5px, aralık .12em. */
+  pill: {
+    fontFamily: "WhisprFigtree_700Bold",
+    fontSize: 9.5,
+    letterSpacing: 1.14,
+    lineHeight: 9.5,
+  },
+  /** Sürüm satırı — SPEC §3.4 mobil: 500 11px. */
+  version: {
+    fontFamily: "WhisprFigtree_500Medium",
+    fontSize: 11,
+    letterSpacing: 0,
+    lineHeight: 11,
+  },
+  /** Durum başlığı — SPEC §7 masaüstünde 15.5px; mobilde 17px (Dalga 3 sapması). */
+  stateTitle: {
+    fontFamily: "WhisprOutfit_600SemiBold",
+    fontSize: 17,
+    letterSpacing: -0.34,
+    lineHeight: 21.25,
+  },
+  /** Durum açıklaması — SPEC §7 masaüstünde 11.5px; mobilde 13px. */
+  stateDescription: {
+    fontFamily: "WhisprFigtree_400Regular",
+    fontSize: 13,
+    letterSpacing: 0,
+    lineHeight: 19.5,
+  },
+  /** Durum etiketi — SPEC §7: 10px, uppercase, aralık .14em. */
+  stateKicker: {
+    fontFamily: "WhisprOutfit_600SemiBold",
+    fontSize: 10,
+    letterSpacing: 1.4,
+    lineHeight: 10,
+  },
+  /** Durum düğmesi — SPEC §7: 600 12.5px Figtree. */
+  stateAction: {
+    fontFamily: "WhisprFigtree_600SemiBold",
+    fontSize: 12.5,
+    letterSpacing: 0,
+    lineHeight: 12.5,
+  },
+} as const;
+
+/** SPEC §6 ölçüleri — yazı dışındaki kutular. */
+export const mobileSplashMetrics = {
+  /** Halka 150px, içindeki 52px işaret `scale(1.75)` ile büyür. */
+  ringSize: 150,
+  markSize: 52,
+  markScale: 1.75,
+  markRadius: 13,
+  markBarWidth: 3,
+  markBarGap: 3,
+  markBarHeights: [17, 25, 34, 24, 18],
+  wordmarkMarginTop: 16,
+  taglineMarginTop: 10,
+  /** Alt blok: `left/right:0; bottom:0; padding: 0 32px 42px`, 14px aralık. */
+  footerPaddingHorizontal: 32,
+  footerPaddingBottom: 42,
+  footerGap: 14,
+  dotSize: 6,
+  dotGap: 5,
+  versionRowGap: 8,
+  pillHeight: 20,
+  pillPaddingHorizontal: 8,
+  pillRadius: 6,
+  /** Durum karosu — SPEC §7: 24px kutu, 8px köşe. */
+  stateTileSize: 24,
+  stateTileRadius: 8,
+  /** Düğme SPEC'te 32px; mobilde dokunma hedefi alt sınırı 44px'e çıkarır. */
+  stateActionHeight: 44,
+  stateActionPaddingHorizontal: 15,
+  stateActionRadius: 10,
+  stateProgressHeight: 4,
+  stateProgressRadius: 3,
+} as const;
+
+/**
+ * SPEC-GIRIS-KAYIT §6 — mobil giriş, hesap oluşturma ve 2FA ekranlarının ölçüleri.
+ *
+ * Kaynak `design_handoff/giris-kayit-paketi/SPEC.md` §6 ve §1.4. Web tarafındaki `AUTH_METRICS`
+ * ile aynı tabloyu okur; ayrı bir sözlük tutulmasının nedeni mobilin kendi ölçek kademesi
+ * (alan 48-50, düğme 52, kod hücresi esnek genişlikli) ve dokunma hedefi alt sınırı.
+ *
+ * Cihaz çerçevesi ölçüleri (44px köşe, 52px durum çubuğu, 134x5 home indicator) referansın
+ * sunum kabuğudur; üretimde karşılıkları güvenli alan iç kenar boşluklarıdır. Yine de burada
+ * durur, çünkü tasarım denetimi bu değerlerle yapılır.
+ */
+export const mobileAuthMetrics = {
+  /** SPEC §6 — dokunma hedefi bunun altına düşmez (kabul kriteri 7). */
+  minTapTarget: 44,
+
+  contentPaddingHorizontal: 28,
+  deviceRadius: 44,
+  statusBarHeight: 52,
+  statusBarPaddingHorizontal: 30,
+  homeIndicatorWidth: 134,
+  homeIndicatorHeight: 5,
+  homeIndicatorRadius: 999,
+
+  /** Alan: h48-50, köşe 14. */
+  fieldHeight: 49,
+  fieldRadius: 14,
+  fieldPaddingHorizontal: 14,
+  fieldBorderWidth: 1,
+  fieldFocusBorderWidth: 1.5,
+  fieldRevealHeight: 30,
+  fieldRevealRadius: 8,
+  fieldRevealInset: 7,
+  fieldRevealPaddingRight: 66,
+
+  /** Birincil düğme: h52, köşe 14. */
+  primaryButtonHeight: 52,
+  primaryButtonRadius: 14,
+
+  /** Sağlayıcı düğmesi: h48, köşe 14; karo 22px. */
+  providerButtonHeight: 48,
+  providerButtonRadius: 14,
+  providerTileSize: 22,
+  providerTileRadius: 6,
+  providerBadgeHeight: 20,
+  providerBadgeRadius: 6,
+
+  /** Kod hücresi: `flex:1` x 62, köşe 14. */
+  codeCellCount: 6,
+  codeCellHeight: 62,
+  codeCellRadius: 14,
+  codeCellGap: 10,
+  codeCaretWidth: 2,
+  codeCaretHeight: 24,
+
+  checkboxSize: 20,
+  checkboxRadius: 6,
+  checkboxTickSize: 12,
+
+  pillHeight: 34,
+  pillRadius: 999,
+  pillDotSize: 6,
+
+  selectorHeight: 34,
+  selectorSegmentWidth: 30,
+  selectorRadius: 999,
+
+  /** SPEC §6/1 ve §6/2 — logo ölçekleri ve ışıma halkası. */
+  ringSize: 74,
+  markSize: 52,
+  markRadius: 13,
+  markBarWidth: 3,
+  markBarGap: 3,
+  markBarHeights: [17, 25, 34, 24, 18],
+  markScaleHeading: 0.95,
+  markScaleInline: 0.72,
+  inlineWordmarkSize: 19,
+
+  /** SPEC §6/3 ve §6/4 — geri satırı ve ikon karosu. */
+  backRowSquare: 36,
+  backRowMinHeight: 44,
+  iconTileSize: 56,
+  iconTileRadius: 16,
+
+  /** SPEC §4.4/4-5 — güç göstergesi ve kural listesi. */
+  strengthBarHeight: 5,
+  strengthBarRadius: 999,
+  strengthRuleDotSize: 14,
+  strengthRuleTickSize: 8.5,
+  strengthRuleRowGap: 5,
+  strengthRuleColumnGap: 14,
+
+  /** SPEC §4.4/6 — Turnstile satırı. */
+  turnstileHeight: 52,
+  turnstileRadius: 12,
+  turnstileTileSize: 20,
+
+  /** SPEC §8 — bant ve blok. */
+  bannerPaddingVertical: 14,
+  bannerPaddingHorizontal: 15,
+  bannerRadius: 12,
+  bannerTileSize: 22,
+  bannerTileRadius: 7,
+  blockingIconTile: 56,
+  blockingBandHeight: 48,
+
+  footerGap: 16,
+} as const;
+
+/**
+ * SPEC-GIRIS-KAYIT §1.3 — mobil tipografi.
+ *
+ * Başlıklar ve rakamlar **Outfit**, gövde ve form **Figtree**. Her iki aile de
+ * `design/mobile-fonts.ts` içinde zaten yüklü; yeni font eklenmez.
+ */
+export const mobileAuthTypography = {
+  eyebrow: {
+    fontFamily: "WhisprOutfit_600SemiBold",
+    fontSize: 10,
+    lineHeight: 10,
+    letterSpacing: 1.8,
+  },
+  title: {
+    fontFamily: "WhisprOutfit_600SemiBold",
+    fontSize: 27,
+    lineHeight: 32.4,
+    letterSpacing: -0.54,
+  },
+  description: {
+    fontFamily: "WhisprFigtree_400Regular",
+    fontSize: 13.5,
+    lineHeight: 21.6,
+    letterSpacing: 0,
+  },
+  label: {
+    fontFamily: "WhisprFigtree_600SemiBold",
+    fontSize: 12.5,
+    lineHeight: 16,
+    letterSpacing: 0,
+  },
+  field: {
+    fontFamily: "WhisprFigtree_400Regular",
+    fontSize: 14.75,
+    lineHeight: 20,
+    letterSpacing: 0,
+  },
+  primaryButton: {
+    fontFamily: "WhisprFigtree_600SemiBold",
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: 0,
+  },
+  providerLabel: {
+    fontFamily: "WhisprFigtree_500Medium",
+    fontSize: 13.5,
+    lineHeight: 18,
+    letterSpacing: 0,
+  },
+  providerBadge: {
+    fontFamily: "WhisprFigtree_700Bold",
+    fontSize: 9.5,
+    lineHeight: 12,
+    letterSpacing: 0.95,
+  },
+  codeDigit: {
+    fontFamily: "WhisprOutfit_600SemiBold",
+    fontSize: 24,
+    lineHeight: 28,
+    letterSpacing: 0,
+  },
+  wordmark: {
+    fontFamily: "WhisprOutfit_700Bold",
+    fontSize: 19,
+    lineHeight: 19,
+    letterSpacing: -0.48,
+  },
+  hint: {
+    fontFamily: "WhisprFigtree_400Regular",
+    fontSize: 11.5,
+    lineHeight: 16,
+    letterSpacing: 0,
+  },
+  footer: {
+    fontFamily: "WhisprFigtree_400Regular",
+    fontSize: 10.5,
+    lineHeight: 14,
+    letterSpacing: 0,
+  },
+} as const;
+
 export const mobileTypography = {
   fontFamily: "WhisprJakarta_400Regular",
   fontFamilyBold: "WhisprJakarta_700Bold",

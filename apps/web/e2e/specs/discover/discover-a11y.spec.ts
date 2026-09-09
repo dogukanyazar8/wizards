@@ -12,14 +12,11 @@ import {
   type E2EDiscoverFixture,
 } from "../../helpers/db";
 import { applyParityTheme, type ParityTheme } from "../../helpers/design-parity";
+import { WCAG_TAGS, partitionAxeViolations, type AxeViolation } from "../../helpers/a11y-gate";
 import { gotoAppRoute, visibleTestId } from "../../helpers/navigation";
 
-const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
-const BLOCKING_IMPACTS = new Set(["critical", "serious"]);
 const THEMES = ["theme-light", "theme-dark"] as const satisfies readonly ParityTheme[];
 const { screenTestTimeoutMs } = resolveE2ETimeoutPolicy();
-
-type AxeViolation = Awaited<ReturnType<AxeBuilder["analyze"]>>["violations"][number];
 
 function formatViolation(violation: AxeViolation): string {
   const nodes = violation.nodes
@@ -33,17 +30,18 @@ function formatViolation(violation: AxeViolation): string {
 
 async function scan(page: Page, label: string, selector: string): Promise<void> {
   const results = await new AxeBuilder({ page }).include(selector).withTags(WCAG_TAGS).analyze();
-  const blocking = results.violations.filter(
-    (violation) => violation.impact && BLOCKING_IMPACTS.has(violation.impact),
-  );
+  const partition = partitionAxeViolations(results.violations);
 
-  for (const violation of results.violations) {
-    if (!violation.impact || !BLOCKING_IMPACTS.has(violation.impact)) {
-      // eslint-disable-next-line no-console
-      console.log(`a11y (non-blocking) ${label}: ${formatViolation(violation)}`);
-    }
+  // Yerel biçimlendirici `failureSummary`yi de yazıyor; bölümleme ortak kapıdan geliyor ki
+  // "bilinen sapma" tanımı bütün taramalarda tek olsun.
+  for (const violation of [...partition.knownDeviations, ...partition.informational]) {
+    // eslint-disable-next-line no-console
+    console.log(`a11y (engellemeyen) ${label}: ${formatViolation(violation)}`);
   }
-  expect(blocking.map(formatViolation), `${label}: kritik/ciddi ihlal olamaz`).toEqual([]);
+
+  expect(partition.blocking.map(formatViolation), `${label}: kritik/ciddi ihlal olamaz`).toEqual(
+    [],
+  );
 }
 
 async function openDiscover(page: Page, path = "/discover", readyTestId = "discover-grid") {

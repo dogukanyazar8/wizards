@@ -100,6 +100,7 @@ describe("mobile invite projection", () => {
     expiresAt: null,
     id: "invite-1",
     maxUses: null,
+    targetUserId: null,
     uses: 0,
   };
 

@@ -57,6 +57,7 @@ function profile(overrides: Partial<ServerPublicProfile> = {}): ServerPublicProf
     description: "Turnuvalar ve sahne yayınları için topluluk.",
     discoverable: true,
     hasMoreChannels: true,
+    iconColor: null,
     iconUrl: null,
     inviteAddress: "https://whispr.app/invite/oyun",
     isPublic: true,

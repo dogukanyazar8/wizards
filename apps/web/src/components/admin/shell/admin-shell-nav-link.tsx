@@ -22,7 +22,7 @@ export function AdminShellNavLink({ children, href }: { children: ReactNode; hre
         "flex items-center gap-2.5 rounded-[12px] px-3 py-[9px] text-[13.5px] font-semibold transition-colors",
         isActive
           ? "bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]"
-          : "text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--surface-soft))]",
+          : "text-[hsl(var(--text-secondary))] hover:bg-[var(--surface-hover)]",
       )}
       href={href}
     >

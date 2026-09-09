@@ -12,13 +12,10 @@ import {
   AuthCheckbox,
   AuthEyebrowHeader,
   AuthPrimaryButton,
-  AuthProfileTypeSelector,
   AuthScreenBackground,
   AuthSecondaryButton,
   AuthSocialProviderIcon,
   AuthTextField,
-  AuthTopBar,
-  type MobileAuthProfileType,
 } from "../../components/kit/auth";
 import { Icon } from "../../components/kit/icon";
 import { useMobileLocaleRuntime } from "../../providers/mobile-locale-provider";
@@ -32,8 +29,8 @@ export interface AuthLoginScreenProps {
     readonly email: string;
     readonly password: string;
   } | null;
-  readonly onBack: () => void;
   readonly onForgotPassword: () => void;
+  readonly onOpenLanguagePicker: () => void;
   readonly onRegister: () => void;
   readonly onSignIn: (input: {
     email: string;
@@ -56,8 +53,8 @@ function getSafeResultMessage(message: string, fallback: string) {
 
 export function AuthLoginScreen({
   developmentCredentials = null,
-  onBack,
   onForgotPassword,
+  onOpenLanguagePicker,
   onRegister,
   onSignIn,
   onSocialSignIn,
@@ -70,10 +67,7 @@ export function AuthLoginScreen({
   const autoLoginDoneRef = useRef(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [profileType, setProfileType] = useState<MobileAuthProfileType>("personal");
   const [rememberMe, setRememberMe] = useState(false);
-  const [twoFactorCode, setTwoFactorCode] = useState("");
-  const [twoFactorVisible, setTwoFactorVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -83,12 +77,6 @@ export function AuthLoginScreen({
   const clearFeedback = () => {
     setErrorMessage(null);
     setNoticeMessage(null);
-  };
-
-  const handleTwoFactorToggle = () => {
-    setTwoFactorVisible((visible) => !visible);
-    setTwoFactorCode("");
-    clearFeedback();
   };
 
   const handleSocialPress = async (provider: (typeof MOBILE_AUTH_SOCIAL_PROVIDERS)[number]) => {
@@ -108,10 +96,7 @@ export function AuthLoginScreen({
     setSocialProviderInFlight(provider.id);
 
     try {
-      const normalizedTwoFactorCode = twoFactorVisible ? twoFactorCode.trim() : "";
-      const result = normalizedTwoFactorCode
-        ? await onSocialSignIn(provider.id, { twoFactorCode: normalizedTwoFactorCode })
-        : await onSocialSignIn(provider.id);
+      const result = await onSocialSignIn(provider.id);
 
       if (result.ok) {
         // The in-app session already signed the user in and this screen is about
@@ -124,9 +109,6 @@ export function AuthLoginScreen({
 
       // A cancelled consent sheet is a normal user action, not an error.
       if (result.reason === "failed") {
-        if (result.requiresTwoFactor) {
-          setTwoFactorVisible(true);
-        }
         setErrorMessage(getSafeResultMessage(result.message ?? "", copy.authSocialSignInFailed));
       }
     } catch {
@@ -143,8 +125,6 @@ export function AuthLoginScreen({
 
     setEmail(developmentCredentials.email);
     setPassword(developmentCredentials.password);
-    setTwoFactorCode("");
-    setTwoFactorVisible(false);
     setErrorMessage(null);
     setNoticeMessage(copy.authNativeDevCredentialsFilled);
   };
@@ -155,7 +135,6 @@ export function AuthLoginScreen({
     }
 
     const normalizedEmail = normalizeEmail(email);
-    const normalizedTwoFactorCode = twoFactorVisible ? twoFactorCode.trim() : "";
     clearFeedback();
 
     if (!normalizedEmail || !password) {
@@ -172,30 +151,19 @@ export function AuthLoginScreen({
     setIsSubmitting(true);
 
     try {
-      const input: {
-        email: string;
-        password: string;
-        twoFactorCode?: string;
-      } = {
-        email: normalizedEmail,
-        password,
-      };
+      const result = await onSignIn({ email: normalizedEmail, password });
 
-      if (normalizedTwoFactorCode) {
-        input.twoFactorCode = normalizedTwoFactorCode;
-      }
-
-      const result = await onSignIn(input);
       if (!result.ok) {
+        /*
+         * SPEC-GIRIS-KAYIT §4.2 ve paket kararı K2 — ikinci adım ayrı ekran. Konteyner
+         * challenge kimliğiyle yönlendirir; bu ekran hata göstermez, yoksa kullanıcı hem
+         * yönlendirilir hem kırmızı bir bant görürdü.
+         */
         if (result.requiresTwoFactor) {
-          setTwoFactorVisible(true);
+          return;
         }
-        setErrorMessage(
-          getSafeResultMessage(
-            result.message,
-            result.requiresTwoFactor ? copy.authTwoFactorInvalidCode : copy.authNativeGenericError,
-          ),
-        );
+
+        setErrorMessage(getSafeResultMessage(result.message, copy.authNativeGenericError));
       }
     } catch {
       setErrorMessage(copy.authNativeGenericError);
@@ -236,21 +204,26 @@ export function AuthLoginScreen({
         >
           <View style={styles.mainContent} testID="mobile-auth-login-main-content">
             <View style={styles.topSection}>
-              <AuthTopBar
-                backAccessibilityLabel={copy.authNativeBackToSignIn}
-                onBack={onBack}
-                testID="mobile-auth-login-top-bar"
-              />
+              {/*
+               * SPEC-GIRIS-KAYIT §6/1 — başlık satırının sağında dil ve tema seçici durur;
+               * karşılama ekranı kalktığı için geri satırı yok (K4).
+               */}
+              <Pressable
+                accessibilityLabel={copy.identityStatesGroupLanguageSelector}
+                accessibilityRole="button"
+                onPress={onOpenLanguagePicker}
+                style={styles.localeTrigger}
+                testID="mobile-auth-login-language"
+              >
+                <Text maxFontSizeMultiplier={2} style={styles.localeTriggerLabel}>
+                  {locale.toUpperCase()}
+                </Text>
+              </Pressable>
               <AuthEyebrowHeader
-                eyebrow={copy.authLoginEyebrow}
-                subtitle={copy.authWelcomeBackDescription}
+                eyebrow={copy.identityLoginEyebrow}
+                subtitle={copy.identityLoginSubtitle}
                 testID="mobile-auth-login-header"
-                title={copy.authWelcomeBackTitle}
-              />
-              <AuthProfileTypeSelector
-                onChange={setProfileType}
-                testID="mobile-auth-login-profile"
-                value={profileType}
+                title={copy.identityLoginTitle}
               />
             </View>
 
@@ -314,62 +287,14 @@ export function AuthLoginScreen({
                 textContentType="password"
                 value={password}
               />
-              <View style={styles.inlineRow}>
-                <Pressable
-                  accessibilityLabel={copy.authTwoFactorLinkAction}
-                  accessibilityRole="button"
-                  disabled={isSubmitting}
-                  onPress={handleTwoFactorToggle}
-                  style={[styles.inlineActionTarget, styles.twoFactorAction]}
-                  testID="mobile-auth-login-two-factor-link"
-                >
-                  <Icon
-                    accessibilityElementsHidden
-                    name="shield-checkmark-outline"
-                    size={theme.layout.auth.passwordHintShieldIcon}
-                    testID="mobile-auth-login-two-factor-icon"
-                    tone="accent"
-                  />
-                  <Text maxFontSizeMultiplier={2} style={styles.twoFactorActionLabel}>
-                    {copy.authTwoFactorLinkAction}
-                  </Text>
-                </Pressable>
-                <AuthCheckbox
-                  checked={rememberMe}
-                  disabled={isSubmitting}
-                  label={copy.authRememberMe}
-                  onPress={() => setRememberMe((current) => !current)}
-                  style={styles.rememberMe}
-                  testID="mobile-auth-login-remember-me"
-                />
-              </View>
-              {twoFactorVisible ? (
-                <AuthTextField
-                  autoCapitalize="none"
-                  autoComplete="one-time-code"
-                  autoCorrect={false}
-                  iconName="key-outline"
-                  label={copy.authTwoFactorFieldLabel}
-                  onChangeText={(value) => {
-                    setTwoFactorCode(value);
-                    clearFeedback();
-                  }}
-                  placeholder={copy.authTwoFactorFieldPlaceholder}
-                  returnKeyType="done"
-                  testID="mobile-auth-login-two-factor-code"
-                  textContentType="oneTimeCode"
-                  value={twoFactorCode}
-                />
-              ) : null}
-              {twoFactorVisible ? (
-                <Text
-                  maxFontSizeMultiplier={2}
-                  style={styles.dividerLabel}
-                  testID="mobile-auth-login-two-factor-notice"
-                >
-                  {copy.authTwoFactorRequiredNotice}
-                </Text>
-              ) : null}
+              <AuthCheckbox
+                checked={rememberMe}
+                disabled={isSubmitting}
+                label={copy.identityLoginRemember}
+                onPress={() => setRememberMe((current) => !current)}
+                style={styles.rememberMe}
+                testID="mobile-auth-login-remember-me"
+              />
               {noticeMessage ? (
                 <Text
                   accessibilityLiveRegion="polite"

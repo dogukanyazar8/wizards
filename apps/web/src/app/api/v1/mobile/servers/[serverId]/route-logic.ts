@@ -203,6 +203,8 @@ function toMobileWorkspaceServerDetail(
       allowGifs: detail.server.allowGifs,
       defaultChannelId,
       description: detail.server.description,
+      // K10: iki alan da opsiyonel; yeni yanıtı eski istemci de ayrıştırır.
+      iconColor: detail.server.iconColor,
       iconUrl: normalizeMobileImageUrl(detail.server.iconUrl),
       id: detail.server.id,
       memberCount: detail.server.memberCount,
@@ -211,6 +213,7 @@ function toMobileWorkspaceServerDetail(
       onlineMemberCount: detail.server.onlineMemberCount ?? 0,
       ownerUserId: detail.server.ownerUserId ?? null,
       shortName: detail.server.shortName,
+      slowModeDelay: detail.server.slowModeDelay,
       unreadCount: detail.server.unreadCount,
       visibleChannelCount: returnedChannelCount,
     },

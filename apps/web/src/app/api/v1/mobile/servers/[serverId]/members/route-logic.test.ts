@@ -26,6 +26,7 @@ const actorAccess = {
 const publicMember = {
   accessLevel: "MEMBER" as const,
   avatarUrl: "https://cdn.whispr.test/target.png",
+  communicationDisabledUntil: null,
   customStatus: "Available",
   displayName: "Target",
   id: "member-target",

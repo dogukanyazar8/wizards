@@ -9,7 +9,7 @@ describe("selectThirdColumn", () => {
    * değişen şey onun **sağındaki** sütundur. Bu rotalarda o sütun yoktur.
    */
   it("komuta merkezi rotalarında üçüncü sütun yok", () => {
-    for (const pathname of ["/home", "/events", "/inbox"]) {
+    for (const pathname of ["/home", "/events"]) {
       assert.equal(selectThirdColumn(pathname), null, pathname);
     }
   });

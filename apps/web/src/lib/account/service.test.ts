@@ -297,4 +297,84 @@ describe("account service", () => {
         error instanceof ApiError && error.status === 503 && error.code === "PRESENCE_UNAVAILABLE",
     );
   });
+  it("logs EMAIL_CHANGED only when the address actually moved", async () => {
+    const { updateAccountProfile } = await service;
+    const events: Array<Record<string, unknown>> = [];
+    const recorder = {
+      recordSecurityEvent: async (input: Record<string, unknown>) => {
+        events.push(input);
+      },
+    };
+
+    await updateAccountProfile("user-1", { displayName: "Ada" }, dependencies(recorder));
+    assert.deepEqual(events, []);
+
+    await updateAccountProfile("user-1", { email: "ada@example.com" }, dependencies(recorder));
+
+    assert.deepEqual(events, [{ kind: "EMAIL_CHANGED", userId: "user-1" }]);
+    // The row says the address moved; it does not carry the address itself.
+    assert.equal(JSON.stringify(events).includes("ada@example.com"), false);
+  });
+
+  it("masks a stored phone number and never returns the raw digits", async () => {
+    const { getAccountSettingsRows, maskPhoneNumber } = await service;
+
+    assert.equal(maskPhoneNumber("+905321234218"), "+905•••••4218");
+    assert.equal(maskPhoneNumber(null), null);
+    assert.equal(maskPhoneNumber("   "), null);
+
+    const rows = await getAccountSettingsRows("user-1", {
+      findLastPasswordChange: async () => new Date("2026-08-20T09:00:00.000Z"),
+      findLastVerificationEmail: async () => new Date("2026-08-22T09:00:00.000Z"),
+      findUser: async () => ({
+        email: "dogukan@example.com",
+        emailVerified: true,
+        phoneNumber: "+905321234218",
+        phoneVerified: false,
+      }),
+    });
+
+    assert.deepEqual(rows, {
+      email: "dogukan@example.com",
+      emailVerified: true,
+      passwordChangedAt: "2026-08-20T09:00:00.000Z",
+      phone: "+905•••••4218",
+      phoneVerified: false,
+      verificationEmailSentAt: "2026-08-22T09:00:00.000Z",
+    });
+    assert.equal(JSON.stringify(rows).includes("5321234218"), false);
+  });
+
+  it("reports a never-verified, never-changed account with nulls rather than zeros", async () => {
+    const { getAccountSettingsRows } = await service;
+
+    const rows = await getAccountSettingsRows("user-1", {
+      findLastPasswordChange: async () => null,
+      findLastVerificationEmail: async () => null,
+      findUser: async () => ({
+        email: "dogukan@example.com",
+        emailVerified: false,
+        phoneNumber: null,
+        phoneVerified: false,
+      }),
+    });
+
+    assert.equal(rows.passwordChangedAt, null);
+    assert.equal(rows.verificationEmailSentAt, null);
+    assert.equal(rows.phone, null);
+  });
+
+  it("refuses account rows for a missing user", async () => {
+    const { getAccountSettingsRows } = await service;
+
+    await assert.rejects(
+      () =>
+        getAccountSettingsRows("ghost", {
+          findLastPasswordChange: async () => null,
+          findLastVerificationEmail: async () => null,
+          findUser: async () => null,
+        }),
+      (error: unknown) => error instanceof ApiError && error.status === 404,
+    );
+  });
 });

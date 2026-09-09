@@ -17,6 +17,7 @@ import { mentionsUser } from "@/lib/messages/message-blocks";
  */
 
 const SOURCE = readFileSync(fileURLToPath(new URL("./message-item.tsx", import.meta.url)), "utf8");
+const LIST = readFileSync(fileURLToPath(new URL("./message-list.tsx", import.meta.url)), "utf8");
 const TOOLBAR = readFileSync(
   fileURLToPath(new URL("./message-toolbar.tsx", import.meta.url)),
   "utf8",
@@ -44,6 +45,28 @@ describe("satır eylem şeridi (SPEC §5.3)", () => {
     }
   });
 
+  it("ortak satır çift tıklamayı güvenli yanıt denetimine bağlar", () => {
+    assert.match(SOURCE, /onDoubleClick=\{handleMessageDoubleClick\}/u);
+    assert.match(SOURCE, /shouldReplyFromMessageDoubleClick\(/u);
+  });
+
+  it("odaktaki satır R ile yanıt, + ile tepki açar", () => {
+    assert.match(
+      SOURCE,
+      /resolveAppShortcut\(\["message\.reply", "message\.addReaction"\], event\)/u,
+    );
+    assert.match(SOURCE, /onKeyDown=\{handleMessageKeyDown\}/u);
+    assert.ok(SOURCE.includes("tabIndex={0}"));
+    assert.ok(TOOLBAR.includes('data-message-shortcut-action="react"'));
+  });
+
+  it("bestekârın yukarı kısayolu için yalnız sahibinde gizli düzenleme hedefi taşır", () => {
+    assert.match(
+      SOURCE,
+      /\{isOwner && !isOptimistic && !isFailed \? \(\s*<button\s*aria-hidden="true"\s*data-message-shortcut-action="edit"\s*hidden/u,
+    );
+  });
+
   it("sabitle ile daha fazla arasında dikey ayraç taşır", () => {
     assert.ok(TOOLBAR.includes('data-testid="message-action-separator"'));
   });
@@ -51,6 +74,13 @@ describe("satır eylem şeridi (SPEC §5.3)", () => {
   it("açılan menüyü dikey eksende kırpmaz", () => {
     assert.match(SOURCE, /overflow-x-clip/);
     assert.doesNotMatch(SOURCE, /overflow-x-hidden/);
+  });
+});
+
+describe("tarih ayracı sanal satır akışı", () => {
+  it("mesajın üzerine yapışmaz; ölçülen satırın normal akışında kalır", () => {
+    assert.match(LIST, /relative flex items-center uppercase text-app-soft/u);
+    assert.doesNotMatch(LIST, /sticky top-2 z-10 flex items-center uppercase text-app-soft/u);
   });
 });
 
@@ -195,5 +225,36 @@ describe("memo karşılaştırması", () => {
     const props = makeProps();
 
     assert.equal(areMessageItemPropsEqual(props, { ...props }), true);
+  });
+});
+
+/**
+ * Sanal satırın `transform`ı her satırı ayrı bir yığın bağlamı yapar. Menü
+ * satırın içinde `z-30` olsa bile yalnız o bağlamda yükselir; sonraki satırlar
+ * DOM sırasıyla üstüne boyanır ve `Metni kopyala`/`Düzenle` tıklaması menüye
+ * değil altta kalan mesaja düşerdi — odak arkadaki satıra kayardı.
+ */
+describe("açık menünün yığın sırası (SPEC §5.3)", () => {
+  it("satır menü açıkken kendini imliyor", () => {
+    assert.ok(SOURCE.includes('data-actions-open={actionsOpen ? "true" : undefined}'));
+  });
+
+  it("sanal satır sarmalayıcısı imli satırı kardeşlerinin üstüne alıyor", () => {
+    assert.ok(LIST.includes("has-[[data-actions-open]]:z-30"));
+  });
+});
+
+/**
+ * Alt eylem çubuğu `fixed`; transform'lu sanal satırın içinde kalsaydı ekranın
+ * altına değil **satırın** altına otururdu — transform'lu ata `fixed` için
+ * içeren blok olur.
+ */
+describe("mobil eylem çubuğunun çıpası (SPEC §5.3)", () => {
+  it("çubuk gövdeye portallanıyor", () => {
+    assert.ok(SOURCE.includes('import { createPortal } from "react-dom";'));
+    assert.match(
+      SOURCE,
+      /\? createPortal\(\s*<div\s*className="fixed inset-x-3 bottom-\[max\(0\.75rem,env\(safe-area-inset-bottom\)\)\] z-\[90\]/u,
+    );
   });
 });

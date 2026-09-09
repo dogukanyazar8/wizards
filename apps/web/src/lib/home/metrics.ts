@@ -2,8 +2,8 @@
  * Ana Sayfa "1a Komuta Merkezi" ölçü sözlüğü.
  *
  * Kaynak sırası:
- *   1. `design_handoff/app/design/1a-komuta-merkezi.html` — inline `style` değerleri (nihai otorite)
- *   2. `design_handoff/app/SPEC-ANA-SAYFA.md` §1–§3
+ *   1. `design_handoff/app_new/app/design/1a-komuta-merkezi.html` — inline `style` değerleri (nihai otorite)
+ *   2. `design_handoff/app_new/app/SPEC-ANA-SAYFA.md` §1–§3
  *
  * Değerler ×1 ölçekteki **tasarım pikselidir**; tüketiciler `pxToRem` ile rem'e çevirir. Kabuk
  * yükselirken (SPEC §8.1) kök font boyutu değişir, sözlük değişmez.
@@ -94,13 +94,12 @@ export const HOME_METRICS = {
   },
 
   /**
-   * Navigasyon paneli — SPEC-ANA-SAYFA §2.2, Mesajlar paketi SPEC §1.1 ile **228'e daraltıldı**
-   * (karar #2). Panel artık her rotada görünür; Mesajlar'da sağına 276'lık sohbet rayı gelir ve
-   * üç sol kolon 74 + 228 + 276 = 578 eder. Daralmanın tam farkı
-   * `lib/messages/metrics.ts` içindeki `NAV_PANEL_NARROWING` tablosundadır.
+   * Navigasyon paneli — kullanıcı ayağında avatar, ad ve üç kontrolü sıkıştırmadan taşımak için
+   * 280px. Panel her rotada görünür; iç padding ve tipografi Mesajlar karar #2'deki sıkı ölçüleri
+   * korur. Değişimin kaydı `lib/messages/metrics.ts` içindeki `NAV_PANEL_ADJUSTMENTS` tablosudur.
    */
   panel: {
-    width: 228,
+    width: 280,
     headerPaddingTop: 16,
     headerPaddingX: 14,
     headerPaddingBottom: 14,
@@ -222,31 +221,72 @@ export const HOME_METRICS = {
     fontSize: 11,
   },
 
-  /**
-   * Komut paleti — `06-faz5` §5.2. Genişlik oradan (560); kalan ölçüler mevcut modal
-   * dilinden (radius 28, satır yüksekliği kart satırlarıyla aynı ailede) türer.
-   */
+  /** Komut paleti — Ayarlar referansındaki arama penceresinin birebir ölçüleri. */
   commandPalette: {
-    width: 560,
-    radius: 28,
-    topOffset: 96,
-    padding: 10,
-    inputHeight: 46,
-    inputPaddingX: 14,
-    inputFontSize: 14.5,
-    inputIconSize: 17,
-    inputGap: 10,
-    listMaxHeight: 380,
-    groupLabelMarginTop: 12,
-    groupLabelMarginBottom: 6,
-    groupLabelPaddingX: 10,
-    rowHeight: 40,
-    rowRadius: 12,
-    rowPaddingX: 10,
-    rowGap: 10,
-    rowAvatarSize: 24,
-    rowAvatarFontSize: 10,
+    width: 640,
+    radius: 22,
+    topOffset: 104,
+    viewportPaddingX: 40,
+    viewportPaddingBottom: 40,
+    shadowY: 44,
+    shadowBlur: 96,
+    shadowSpread: 38,
+    headerPaddingY: 16,
+    headerPaddingX: 18,
+    headerGap: 12,
+    inputFontSize: 16,
+    inputIconSize: 19,
+    inputIconStrokeWidth: 1.9,
+    escapePaddingY: 4,
+    escapePaddingX: 8,
+    escapeRadius: 8,
+    escapeFontSize: 10.5,
+    closeSize: 30,
+    closeRadius: 10,
+    closeIconSize: 16,
+    tabsPaddingY: 12,
+    tabsPaddingX: 16,
+    tabsGap: 5,
+    tabHeight: 30,
+    tabPaddingX: 12,
+    tabRadius: 10,
+    tabFontSize: 12,
+    tabCountFontSize: 10,
+    listPaddingTop: 8,
+    listPaddingX: 10,
+    listPaddingBottom: 12,
+    listMaxHeight: 430,
+    groupLabelGap: 9,
+    groupLabelPaddingTop: 9,
+    groupLabelPaddingX: 8,
+    groupLabelPaddingBottom: 7,
+    groupRowsGap: 2,
+    groupLabelFontSize: 10,
+    groupLabelTracking: 0.15,
+    rowRadius: 13,
+    rowPaddingY: 9,
+    rowPaddingX: 11,
+    rowGap: 12,
+    rowAvatarSize: 32,
+    rowAvatarRadius: 11,
+    rowAvatarFontSize: 13,
+    rowTitleFontSize: 13.5,
+    rowTitleLineHeight: 1.3,
+    rowTitleGap: 8,
     rowSublabelFontSize: 11.5,
+    rowSublabelMarginTop: 4,
+    rowSublabelLineHeight: 1.4,
+    rowHintPaddingY: 3,
+    rowHintPaddingX: 7,
+    rowHintRadius: 7,
+    rowHintFontSize: 10,
+    rowTagPaddingY: 2,
+    rowTagPaddingX: 7,
+    rowTagFontSize: 9.5,
+    footerPaddingY: 12,
+    footerPaddingX: 16,
+    footerGap: 14,
+    footerFontSize: 11,
     emptyPaddingY: 26,
   },
 
@@ -486,7 +526,7 @@ export const HOME_METRICS = {
     /** Bugünün hücresi — §3.3 birebir. */
     calendarTodayAlpha: 0.13,
     /** Gün paneli navigasyon panelinin genişliğinde; ikinci bir genişlik uydurulmadı. */
-    dayPanelWidth: 228,
+    dayPanelWidth: 280,
     dayPanelGap: 13,
   },
 

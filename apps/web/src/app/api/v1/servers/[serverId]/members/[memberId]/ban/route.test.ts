@@ -21,7 +21,7 @@ describe("server member ban API", () => {
       {
         banWorkspaceMember: async (actorId, serverId, memberId, input) => {
           calls.push(`ban:${actorId}:${serverId}:${memberId}:${input.reason}`);
-          return { success: true, userId: "user-1" };
+          return { deletedMessageCount: 0, success: true, userId: "user-1" };
         },
         enforceApiRateLimit: async (userId, action) => {
           calls.push(`rate:${userId}:${action}`);
@@ -43,15 +43,57 @@ describe("server member ban API", () => {
     ]);
   });
 
-  it("rejects oversized reasons before mutation", async () => {
+  it("carries the delete window into the service and the count back to the caller", async () => {
+    let received: number | undefined;
+    const response = await postBanMemberRoute(
+      request({ deleteMessageSeconds: 604_800, reason: "spam" }),
+      { params: Promise.resolve({ memberId: "member-1", serverId: "server-1" }) },
+      {
+        banWorkspaceMember: async (_actorId, _serverId, _memberId, input) => {
+          received = input.deleteMessageSeconds;
+          return { deletedMessageCount: 12, success: true, userId: "user-1" };
+        },
+        enforceApiRateLimit: async () => undefined,
+        jsonError,
+        parseJsonBody,
+        requireApiUserId: async () => "moderator-1",
+      },
+    );
+
+    assert.equal(received, 604_800);
+    assert.deepEqual(await response.json(), { deletedMessageCount: 12, success: true });
+  });
+
+  it("refuses a delete window wider than seven days before mutation", async () => {
     let mutated = false;
     const response = await postBanMemberRoute(
-      request({ reason: "x".repeat(513) }),
+      request({ deleteMessageSeconds: 604_801 }),
       { params: Promise.resolve({ memberId: "member-1", serverId: "server-1" }) },
       {
         banWorkspaceMember: async () => {
           mutated = true;
-          return { success: true, userId: "user-1" };
+          return { deletedMessageCount: 0, success: true, userId: "user-1" };
+        },
+        enforceApiRateLimit: async () => undefined,
+        jsonError,
+        parseJsonBody,
+        requireApiUserId: async () => "moderator-1",
+      },
+    );
+
+    assert.equal(response.status, 400);
+    assert.equal(mutated, false);
+  });
+
+  it("rejects oversized reasons before mutation", async () => {
+    let mutated = false;
+    const response = await postBanMemberRoute(
+      request({ reason: "x".repeat(201) }),
+      { params: Promise.resolve({ memberId: "member-1", serverId: "server-1" }) },
+      {
+        banWorkspaceMember: async () => {
+          mutated = true;
+          return { deletedMessageCount: 0, success: true, userId: "user-1" };
         },
         enforceApiRateLimit: async () => undefined,
         jsonError,

@@ -200,7 +200,12 @@ export const MobileManagedWorkspaceServerDetailResponseSchema = z
   })
   .strict();
 
-export const MobileServerCreateRequestSchema = CreateServerSchema.omit({ iconUrl: true }).strict();
+// Eski mobil sürümler yalnız adı gönderir. API sınırı bundan üç karakterlik kısa ad türetir;
+// Web/Desktop sözleşmesindeki zorunlu kullanıcı alanını geriye dönük uyumluluk için taşımayız.
+export const MobileServerCreateRequestSchema = CreateServerSchema.omit({
+  iconUrl: true,
+  shortName: true,
+}).strict();
 const MobileServerReferenceSchema = z.object({ id: MobileResourceIdSchema }).strict();
 export const MobileServerCreateResponseSchema = z
   .object({ server: MobileServerReferenceSchema })
@@ -283,6 +288,13 @@ export const MobileServerInviteSchema = z
     id: MobileResourceIdSchema,
     maxUses: z.number().int().positive().nullable(),
     shareUrl: MobileHttpsUrlSchema,
+    /**
+     * K10 — hedefli davet (Ş3) mobil sözleşmeye **opsiyonel** girer. Mobil davet listesi
+     * zaten hedefli satırları da döndürüyordu ama onları etiketleyemiyordu; alan olmadan
+     * cihaz tek kişilik bir daveti paylaşılabilir bağlantı sanardı. Opsiyonel, çünkü alanı
+     * hiç göndermeyen eski bir yanıt da ayrıştırılabilir kalmalı.
+     */
+    targetUserId: MobileResourceIdSchema.nullable().optional(),
     uses: z.number().int().nonnegative(),
   })
   .strict();

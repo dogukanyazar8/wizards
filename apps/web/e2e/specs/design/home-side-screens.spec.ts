@@ -1,7 +1,8 @@
 import { expect, test } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
-import { ensureE2EUpcomingEvent } from "../../helpers/db";
+import { ensureE2EUpcomingEvent, setE2EUserLocale } from "../../helpers/db";
 import { gotoAppRoute } from "../../helpers/navigation";
+import { MESSAGES_FRIENDS_ROUTE } from "../../../src/lib/messages/routes";
 
 /**
  * Ana Sayfa 1a Faz 6 §8 — yan ekranlar ve **ölü link kalmadı** turu.
@@ -13,17 +14,41 @@ import { gotoAppRoute } from "../../helpers/navigation";
 
 const HOME_READY = { readyTestId: "home-command-center" };
 
-/** §5'in tablosu — kaynak yüzey, tıklanacak öğe, varılması gereken yol. */
+/**
+ * §5'in tablosu — kaynak yüzey, tıklanacak öğe, varılması gereken yol.
+ *
+ * `KALDIĞIN YER` kartının `Tümünü gör`ü listede **yok**: o hedef bir ekran değil, kartın kendi
+ * penceresi. Kontrol bilerek `<button aria-haspopup="dialog">`, `<a href>` değil ve bunu
+ * `home-cards.test.tsx` (`assert.doesNotMatch(control, /href=/)`) kilitliyor. Buradaki tur
+ * "ölü link kalmadı" turudur; bir pencereyi rota sanmak listeyi yalancı yapardı.
+ */
 const HOME_LINKS = [
   { expected: "/mentions", label: "nav Bahsedilmeler", testId: "app-nav-mentions" },
   { expected: "/events", label: "nav Etkinlikler", testId: "app-nav-events" },
-  { expected: "/inbox", label: "kart Gelen kutusu", testId: "home-awaiting-card" },
+  { expected: "/mentions", label: "kart Bekleyenler", testId: "home-awaiting-card" },
   { expected: "/events", label: "kart Takvim", testId: "home-up-next-calendar" },
-  { expected: "/messages", label: "kart Tümünü gör", testId: "home-continue-card" },
-  { expected: "/messages", label: "kart Tümü (Arkadaşlar)", testId: "home-friends-strip" },
+  {
+    expected: MESSAGES_FRIENDS_ROUTE,
+    label: "kart Tümü (Arkadaşlar)",
+    testId: "home-friends-strip",
+  },
 ] as const;
 
 test.describe("Faz 6 — yan ekranlar", () => {
+  /*
+   * Palet komutları Türkçe yazılıyor; taban tohum kullanıcıyı `en` ile kuruyor
+   * (`e2e/setup/e2e-database.ts`). Dili söylemeyen bir test, başka bir dosyanın yan etkisiyle
+   * (`seedE2EDiscoverData` alice'i `tr`ye çekiyor) tesadüfen geçen, **sıraya bağımlı** bir
+   * testtir. Ön koşul burada açıkça kuruluyor.
+   */
+  test.beforeEach(async () => {
+    await setE2EUserLocale("alice", "tr");
+  });
+
+  test.afterAll(async () => {
+    await setE2EUserLocale("alice", "en");
+  });
+
   test("Ana Sayfa'daki yedi hedefin hepsi gerçek bir ekrana varıyor", async ({ page }) => {
     // `Takvim` butonu yalnız gerçek bir yaklaşan etkinlik varken çizilir; tur
     // atlamak yerine koşulu kuruyor, yoksa "ölü link yok" maddesi altı hedefle
@@ -50,16 +75,18 @@ test.describe("Faz 6 — yan ekranlar", () => {
     }
   });
 
-  test("palet komutları Bahsedilmeler, Gelen kutusu ve Etkinlikler'e gidiyor", async ({ page }) => {
+  test("palet komutları Bahsedilmeler ve Etkinlikler'e gidiyor", async ({ page }) => {
     await loginAs(page, "alice");
 
+    // Ayarlar Ş13 (K10): `/inbox` rotası ve `nav:inbox` komutu silindi. Bekleyen listesinin
+    // tam hâli Bahsedilmeler ekranıdır ve `nav:mentions` zaten oraya gidiyor.
     for (const [query, expected] of [
       ["Bahsedilmelere", "/mentions"],
-      ["Gelen kutusuna", "/inbox"],
       ["Etkinliklere", "/events"],
     ] as const) {
       await gotoAppRoute(page, "/home", HOME_READY);
-      await page.keyboard.press("Control+k");
+      // Bu tur komut hedefini ölçer; kısayolun ayrı E2E sözleşmesi var.
+      await page.getByTestId("home-command-search").click();
       await expect(page.getByTestId("command-palette")).toBeVisible();
       await page.keyboard.type(query);
 
@@ -107,51 +134,11 @@ test.describe("Faz 6 — yan ekranlar", () => {
     );
   });
 
-  test("/inbox kaynak çipleri sunucuya yeni istek atıyor", async ({ page }) => {
-    await loginAs(page, "alice");
-
-    const requests: string[] = [];
-    page.on("request", (request) => {
-      if (request.url().includes("/api/v1/app/awaiting")) {
-        requests.push(new URL(request.url()).search);
-      }
-    });
-
-    await gotoAppRoute(page, "/inbox", { readyTestId: "inbox-screen" });
-    await expect(page.getByTestId("inbox-card")).toBeVisible();
-    await expect.poll(() => requests.length).toBeGreaterThan(0);
-
-    const before = requests.length;
-    await page.getByTestId("inbox-filter-friend_request").click();
-
-    await expect.poll(() => requests.length).toBeGreaterThan(before);
-    expect(requests.some((search) => search.includes("source=friend_request"))).toBe(true);
-    // Ana Sayfa kartı altı satır ister; gelen kutusu listenin tamamını.
-    expect(requests.some((search) => search.includes("limit=100"))).toBe(true);
-  });
-
   /*
    * Ş10 — `?view=calendar` / `?view=gantt` ve ay ızgarasının klavye turu, ölçtükleri ekranla
    * birlikte silindi. `/events` artık 4B takvim şeridi ekranı; kendi turu
    * `e2e/specs/events/events.spec.ts` dosyasında.
    */
-
-  test("yan ekranlar nav paneliyle ve aynı üst çubukla geliyor", async ({ page }) => {
-    await loginAs(page, "alice");
-
-    // Bahsedilmeler bu döngüden çıktı: Ş5 sonrası ekranın `AppScreen` başlığı ve
-    // `-subtitle` / `-content` kutuları yok, kendi akış başlığı ve rayı var (aşağıda).
-    // Etkinlikler de Ş10 sonrası çıktı: aynı gerekçe, kendi akış başlığı ve ajanda rayı var.
-    for (const [path, testId] of [["/inbox", "inbox-screen"]] as const) {
-      await gotoAppRoute(page, path, { readyTestId: testId });
-      await expect(page.getByTestId("app-nav-panel")).toBeVisible();
-      await expect(page.getByTestId("home-command-search")).toBeVisible();
-      // Alt satır her ekranda var; Etkinlikler'de metni yok, kutusu duruyor.
-      await expect(page.getByTestId(`${testId}-subtitle`)).toHaveCount(1);
-      // §1 — bu iki ekranda kaydırma serbest.
-      await expect(page.getByTestId(`${testId}-content`)).toBeVisible();
-    }
-  });
 
   /**
    * SPEC-BAHSEDILMELER §0/§1 — Bahsedilmeler kabuğun **dört** kolonunu kullanır: sunucu rayı,

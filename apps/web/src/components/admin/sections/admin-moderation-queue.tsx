@@ -137,7 +137,7 @@ export function AdminModerationQueue({
               className={
                 selected
                   ? "rounded-[12px] bg-[hsl(var(--primary))] px-3 py-[7px] text-[12.5px] font-semibold text-[hsl(var(--primary-foreground))]"
-                  : "text-app-muted rounded-[12px] border border-[hsl(var(--border)/0.7)] px-3 py-[7px] text-[12.5px] font-semibold hover:bg-[hsl(var(--surface-soft))]"
+                  : "text-app-muted rounded-[12px] border border-[hsl(var(--border)/0.7)] px-3 py-[7px] text-[12.5px] font-semibold hover:bg-[var(--surface-hover)]"
               }
               href={
                 filter.id === "active"
@@ -209,7 +209,7 @@ export function AdminModerationQueue({
                       <AdminCaseClaimButton caseId={moderationCase.id} />
                     ) : null}
                     <Link
-                      className="text-app-foreground rounded-[12px] border border-[hsl(var(--border)/0.7)] px-3 py-[7px] text-[12.5px] font-semibold hover:bg-[hsl(var(--surface-soft))]"
+                      className="text-app-foreground rounded-[12px] border border-[hsl(var(--border)/0.7)] px-3 py-[7px] text-[12.5px] font-semibold hover:bg-[var(--surface-hover)]"
                       href={`/admin/moderation/${moderationCase.id}`}
                     >
                       İncele

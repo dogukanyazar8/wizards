@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ServerIconToneSchema } from "./server-icon";
 
 /**
  * Keşfet paketi — Dalga 0 / Ş0.3. Ekranın veri ve durum sözleşmesi.
@@ -80,6 +81,7 @@ export type DiscoverPresence = z.infer<typeof DiscoverPresenceSchema>;
  * (`apps/web/src/lib/discover/identity.ts`) ve sonucu bu şema doğrular.
  */
 const InitialsSchema = z.string().length(2);
+const ServerAbbreviationSchema = z.string().length(3);
 
 /**
  * `Server.languages` şekil doğrulaması. Kolon düz bir dizidir; kural burada durur:
@@ -115,9 +117,10 @@ export const DiscoverServerSchema = z.object({
   description: z.string(),
   /** K11: `features[] ∋ FEATURED`. Bayraklı sunucu yoksa blok hiç çizilmez. */
   featured: z.boolean(),
+  iconColor: ServerIconToneSchema.nullable(),
   iconUrl: z.string().nullable(),
   id: z.string().min(1),
-  initials: InitialsSchema,
+  initials: ServerAbbreviationSchema,
   joined: z.boolean(),
   languages: DiscoverLanguagesSchema,
   memberCount: z.number().int().nonnegative(),

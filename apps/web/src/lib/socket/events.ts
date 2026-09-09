@@ -2,11 +2,14 @@ import type {
   ChatMessage,
   DMConversationDTO,
   DMMessagePayload,
+  DMNotifyLevel,
   GroupCallStateDTO,
   Mention,
   MentionCounts,
   MessageReaction,
+  NotifUnreadCounts,
   PresenceVisibility,
+  SettingsUpdatedEvent,
   UploadedAttachmentInput,
 } from "@wizards/types";
 import type { ClientAttribution } from "@/lib/analytics/client-attribution";
@@ -33,6 +36,17 @@ export interface NotificationSocketContext {
 }
 
 export interface NotificationSocketPayload extends NotificationSocketContext {
+  /**
+   * Ayarlar Ş2 §6 — panelin dörtlü sayacı, olayın içinde.
+   *
+   * İstemci sayacı **artırmaz**, sunucudan okur; iki sekme açıkken artırma kaçınılmaz olarak
+   * ayrışır. Alan **opsiyonel**, çünkü `notification:new` on sekiz ayrı yerden yayılıyor ve
+   * onların çoğu başka şeritlerin dosyası (`message-notification-service.ts` Ş1'in). Sayacı
+   * taşımayan bir yayımcıdan gelen olay, istemciyi `/unread-count` okumaya düşürür — yanlış
+   * sayı göstermeye değil. Yayımcıların tamamı `withNotificationCounts` ile beslendiğinde
+   * (Ş11 / Ş13) alan zorunluya çevrilir.
+   */
+  counts?: NotifUnreadCounts;
   id: string;
   userId: string;
   type:
@@ -53,6 +67,13 @@ export interface NotificationSocketPayload extends NotificationSocketContext {
   actionUrl: string | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
+}
+
+/** Ayarlar Ş2 §6. `id: null` = toplu okuma. */
+export interface NotificationReadSocketPayload {
+  counts: NotifUnreadCounts;
+  id: string | null;
+  read: boolean;
 }
 
 export interface UserProfileUpdatedPayload {
@@ -289,17 +310,46 @@ export interface ServerToClientEvents {
   "dm:conversation:members_changed": (data: { conversationId: string }) => void;
   /** The viewer is no longer a participant. Drop the row, close the chat. */
   "dm:conversation:removed": (data: { conversationId: string }) => void;
+  /**
+   * Mesajlar §15.5.3 `Geçmişi temizle`. Nothing was deleted: every participant's
+   * `historyFromAt` moved to `clearedAt`, so an open client has to drop what it
+   * already holds rather than trust its cache.
+   *
+   * Sent to the conversation room *and* to each personal room, because the rail
+   * preview of a member who does not have the chat open is stale in exactly the
+   * same way the message list is.
+   */
+  "dm:conversation:history_cleared": (data: { clearedAt: string; conversationId: string }) => void;
   /** Mesajlar karar #7. Opaque invalidation; recipients re-read their authorized list. */
   "dm:conversation:pins": (data: { conversationId: string }) => void;
   /**
    * Mesajlar karar #1. One event for casting, moving and withdrawing a vote.
    * Opaque invalidation only; viewer-specific poll DTO comes from authorized GET.
    */
-  "poll:updated": (data: { conversationId: string; pollId: string }) => void;
+  "poll:updated": (
+    data:
+      | { channelId: string; conversationId?: never; pollId: string }
+      | { channelId?: never; conversationId: string; pollId: string },
+  ) => void;
   "dm:conversation:read": (data: {
     conversationId: string;
     lastReadAt: string | null;
     userId: string;
+  }) => void;
+  /**
+   * Mesajlar §17 / karar K8. Personal state, so it goes to the one person it is
+   * about — the same room `dm:conversation:notify` uses, because nobody else may
+   * learn that this conversation was silenced.
+   *
+   * `notifyLevel` rides along rather than arriving as a second event: the two
+   * columns are written in one statement, and splitting the news would let one
+   * tab draw the header pill and the notification radio out of step.
+   */
+  "dm:conversation:mute": (data: {
+    conversationId: string;
+    muted: boolean;
+    mutedUntil: string | null;
+    notifyLevel: DMNotifyLevel;
   }) => void;
   /** Second tick: `userId`'s client received everything up to `lastDeliveredAt`. */
   "dm:conversation:delivered": (data: {
@@ -345,6 +395,15 @@ export interface ServerToClientEvents {
   "typing:update": (data: { channelId: string; users: string[] }) => void;
   "notification:new": (notification: NotificationSocketPayload) => void;
   /**
+   * Ayarlar Ş2 §6 — bir satırın okundu durumu **çevrildi**.
+   *
+   * `id: null` toplu okumadır (`markAllRead`): tek tek on satır yaymak, panelin sayaç ile
+   * liste arasını on kez tutarsız bırakırdı. `counts` her zaman dolu — olayı alıp sayacı ayrıca
+   * sorgulamak, iki istek arasındaki pencerede yanlış sayı göstermektir (`mention:state` ile
+   * aynı gerekçe).
+   */
+  "notification:read": (payload: NotificationReadSocketPayload) => void;
+  /**
    * Bahsedilmeler Ş3. Üç olay, hepsi `user:<id>` odasına — bir bahsetme kartı yalnız
    * bahsedilenin ekranında var.
    *
@@ -362,6 +421,15 @@ export interface ServerToClientEvents {
     unread: boolean;
   }) => void;
   "mention:read-all": (payload: { counts: MentionCounts }) => void;
+  /**
+   * Ayarlar Ş1 §7. Sent to `user:{userId}` and nowhere else: a preference is one account's
+   * business, and the payload carries the patch so the second tab and the desktop client can
+   * apply it instead of re-reading the whole settings window.
+   *
+   * The shape is `SettingsUpdatedEventSchema` from `packages/types` — Ş0 fixed it there, so the
+   * event has one definition rather than one per lane that emits it.
+   */
+  "settings:updated": (payload: SettingsUpdatedEvent) => void;
   /**
    * Etkinlikler Ş4. Beş olay, `server:<serverId>` odasına; herkese açık etkinlikte ayrıca
    * `events:public` odasına.
@@ -480,6 +548,8 @@ export interface SocketData {
   presenceCustomStatus: string | null;
   presenceStatus: FriendPresenceUpdateDto["status"];
   presenceVisibility?: PresenceVisibility;
+  /** Channel viewer Redis memberships owned by this socket; drained on disconnect. */
+  channelViewerIds?: Set<string>;
   /**
    * Server rooms this socket added itself to in the online-presence set (Task
    * 8). Disconnect and presence transitions read this back to know which

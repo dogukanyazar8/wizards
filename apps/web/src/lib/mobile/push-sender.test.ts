@@ -10,7 +10,15 @@ import {
 
 type SentRequest = { body: string; url: string };
 
+/**
+ * Ş13 — `filterEligible` varsayılan olarak **geçirir**.
+ *
+ * Gönderici artık `delivery.push` kapısını kendi içinde uyguluyor (borç B1) ve varsayılan
+ * süzgeç veritabanına gider; bu dosyanın konusu kapı değil, gönderim yolu. Kapının kendi
+ * davranışı aşağıda ayrı bir bloktta ölçülüyor.
+ */
 function createDeps(options: {
+  blockedUserIds?: readonly string[];
   responses?: Array<{ body?: unknown; status?: number }>;
   tokens: Array<{ platform?: string; token: string; userId: string }>;
 }) {
@@ -51,6 +59,8 @@ function createDeps(options: {
         status,
       };
     }) as unknown as typeof fetch,
+    filterEligible: async (userIds) =>
+      new Set(userIds.filter((userId) => !(options.blockedUserIds ?? []).includes(userId))),
     logError: (scope, error) => {
       loggedErrors.push({ error, scope });
     },
@@ -217,6 +227,59 @@ describe("sendMobilePushForNotifications", () => {
       notificationId: "n1",
       type: "DM",
     });
+  });
+
+  /**
+   * Borç B1'in kabulü: kapı **her** çağıranda çalışır, çünkü göndericinin kendisinde.
+   * Kapalı diyen alıcı için token bile okunmaz.
+   */
+  it("delivery.push kapalı olan alıcıya hiç istek çıkmıyor ve token okunmuyor", async () => {
+    const { deps, requests } = createDeps({
+      blockedUserIds: ["u2"],
+      tokens: [
+        { token: "ExpoPushToken[u1]", userId: "u1" },
+        { token: "ExpoPushToken[u2]", userId: "u2" },
+      ],
+    });
+
+    await sendMobilePushForNotifications(
+      [
+        { actionUrl: null, body: "a", id: "n1", title: "t", type: "DM", userId: "u1" },
+        { actionUrl: null, body: "b", id: "n2", title: "t", type: "DM", userId: "u2" },
+      ],
+      deps,
+    );
+
+    const messages = JSON.parse(requests[0]!.body) as Array<Record<string, unknown>>;
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0]!.to, "ExpoPushToken[u1]");
+  });
+
+  it("herkes kapalıysa token hiç okunmuyor", async () => {
+    let tokenReads = 0;
+    const { deps, requests } = createDeps({
+      blockedUserIds: ["u1"],
+      tokens: [{ token: "ExpoPushToken[u1]", userId: "u1" }],
+    });
+    const db = deps.db as unknown as {
+      mobilePushToken: { findMany: () => Promise<unknown[]> };
+    };
+    const original = db.mobilePushToken.findMany;
+
+    db.mobilePushToken.findMany = async () => {
+      tokenReads += 1;
+      return original();
+    };
+
+    const result = await sendMobilePushForNotifications(
+      [{ actionUrl: null, body: "a", id: "n1", title: "t", type: "DM", userId: "u1" }],
+      deps,
+    );
+
+    assert.equal(tokenReads, 0);
+    assert.equal(requests.length, 0);
+    assert.deepEqual(result, { prunedTokens: 0, sentMessages: 0 });
   });
 
   it("no-ops without notifications or tokens", async () => {

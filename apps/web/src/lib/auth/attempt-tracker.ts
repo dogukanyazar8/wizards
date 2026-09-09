@@ -257,6 +257,16 @@ export function createAttemptTracker(config: AttemptTrackerConfig) {
       return { allowed: true as const };
     },
     getKey,
+    /**
+     * Kilidi tetiklemeden mevcut durumu okur.
+     *
+     * `assertAllowed` yalnız "izinli mi" sorusunu yanıtlıyor; giriş ekranı SPEC-GIRIS-KAYIT §8/1
+     * gereği **kalan deneme sayısını** da göstermek zorunda (`3 deneme kaldı`). Sayaç biçimi
+     * modülün kendi iç ayrıntısı, bu yüzden okuma da burada durur.
+     */
+    async readState(args: { identifier: string; store: AttemptStore }): Promise<AttemptState> {
+      return readAttemptState(args.store, getKey(args.identifier));
+    },
     async recordFailure(args: { identifier: string; nowMs: number; store: AttemptStore }) {
       const input = {
         ...normalizedConfig,

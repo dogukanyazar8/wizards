@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ConversationHeader } from "@/components/messages/conversation-header";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { getMessagesForLocale } from "@/lib/locale";
+import { MESSAGES_METRICS, pxToRem } from "@/lib/messages/metrics";
 
 function render(overrides: Partial<React.ComponentProps<typeof ConversationHeader>> = {}) {
   return renderToStaticMarkup(
@@ -143,5 +144,87 @@ describe("sohbet başlığı — ikon şeridi", () => {
 
     assert.match(markup, /data-testid="conversation-header-voice-call"/);
     assert.match(markup, /disabled=""/);
+  });
+});
+
+describe("sohbet başlığı — sessiz pill'i (SPEC §17)", () => {
+  const NOW = new Date("2026-08-27T12:00:00.000Z");
+
+  function until(minutes: number): string {
+    return new Date(NOW.getTime() + minutes * 60_000).toISOString();
+  }
+
+  it("sessiz değilken pill yok", () => {
+    assert.ok(!render({ now: NOW }).includes('data-testid="conversation-header-mute-pill"'));
+  });
+
+  it("süreli sessizlikte `{süre} sessiz` yazar", () => {
+    const markup = render({ muted: true, mutedUntil: until(480), now: NOW });
+
+    assert.ok(markup.includes('data-testid="conversation-header-mute-pill"'));
+    assert.ok(markup.includes("8 saat sessiz"));
+  });
+
+  it("`Süresiz` sessizlikte yalnız `Sessiz` yazar", () => {
+    const markup = render({ muted: true, mutedUntil: null, now: NOW });
+
+    assert.ok(markup.includes('data-testid="conversation-header-mute-pill"'));
+    assert.ok(!markup.includes("sessiz"));
+    assert.ok(markup.includes(">Sessiz<"));
+  });
+
+  /**
+   * Süresi dolmuş bir sessizlik bildirimleri artık tutmuyor; pill dursaydı başlık
+   * bildirim yolunun tersini söylerdi. Karar `isMuteActive`in, başlığın değil.
+   */
+  it("süresi dolmuşta pill görünmez", () => {
+    const markup = render({ muted: true, mutedUntil: until(-1), now: NOW });
+
+    assert.ok(!markup.includes('data-testid="conversation-header-mute-pill"'));
+  });
+
+  /** Etiket hem hâli hem eylemi söyler; ikisinden biri eksikse pill yarım anlatır. */
+  it("gerçek buton ve etiketi hem süreyi hem eylemi söyler", () => {
+    const markup = render({ muted: true, mutedUntil: until(60), now: NOW });
+
+    assert.ok(markup.includes('aria-label="1 saat sessiz · Sessize almayı kaldır"'));
+    assert.ok(markup.includes('type="button"'));
+  });
+
+  it("warning tonunu ve §17 ölçüsünü taşır", () => {
+    const markup = render({ muted: true, mutedUntil: null, now: NOW });
+
+    assert.ok(markup.includes("hsl(var(--warning)/0.14)"));
+    assert.ok(markup.includes(`height:${pxToRem(MESSAGES_METRICS.moreMenu.mutePillHeight)}`));
+  });
+});
+
+describe("sohbet başlığı — menü yuvası (SPEC §17)", () => {
+  it("menü verilmezse yalnız tetikleyici çizilir", () => {
+    const markup = render();
+
+    assert.ok(markup.includes('data-testid="conversation-header-more"'));
+    assert.ok(!markup.includes("menü gövdesi"));
+  });
+
+  /** Menü tetikleyicisinin **yanında** doğar: §17 onu `top:41; right:0` ile bağlıyor. */
+  it("menü yuvası tetikleyiciyle aynı sarmalayıcıda", () => {
+    const markup = render({
+      moreMenu: <div data-testid="more-menu-body">menü gövdesi</div>,
+      moreOpen: true,
+    });
+
+    const trigger = markup.indexOf('data-testid="conversation-header-more"');
+    const body = markup.indexOf('data-testid="more-menu-body"');
+
+    assert.notEqual(trigger, -1);
+    assert.notEqual(body, -1);
+    assert.ok(trigger < body);
+    assert.ok(markup.includes('aria-expanded="true"'));
+    assert.ok(markup.includes('aria-haspopup="menu"'));
+  });
+
+  it('menü kapalıyken tetikleyici `aria-expanded="false"` taşır', () => {
+    assert.ok(render().includes('aria-expanded="false"'));
   });
 });

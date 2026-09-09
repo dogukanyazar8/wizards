@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
+import { isExplicitE2ETestMode } from "@/lib/e2e/mode";
 import { getRedisRate } from "@/lib/redis";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logError } from "@/lib/logger";
@@ -205,9 +206,11 @@ export async function enforceGiphySearchRateLimit(userId: string) {
 
 function isE2EGiphyMockEnabled() {
   return (
-    process.env.E2E_TEST_MODE === "true" &&
-    process.env.E2E_MOCK_GIPHY === "true" &&
-    process.env.NODE_ENV !== "production"
+    isExplicitE2ETestMode({
+      allowProductionBuild: process.env.E2E_ALLOW_PRODUCTION_BUILD,
+      nodeEnv: process.env.NODE_ENV,
+      testMode: process.env.E2E_TEST_MODE,
+    }) && process.env.E2E_MOCK_GIPHY === "true"
   );
 }
 

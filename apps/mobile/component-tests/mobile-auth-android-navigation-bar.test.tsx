@@ -4,10 +4,11 @@ import { SafeAreaProvider, type EdgeInsets } from "react-native-safe-area-contex
 import { describe, expect, it, jest } from "@jest/globals";
 import { render } from "@testing-library/react-native";
 
+import { AuthBackupCodeScreen } from "../src/app/screens/auth/auth-backup-code-screen";
 import { AuthForgotPasswordScreen } from "../src/app/screens/auth/auth-forgot-password-screen";
 import { AuthLoginScreen } from "../src/app/screens/auth/auth-login-screen";
 import { AuthRegisterScreen } from "../src/app/screens/auth/auth-register-screen";
-import { AuthWelcomeScreen } from "../src/app/screens/auth/auth-welcome-screen";
+import { AuthTwoFactorScreen } from "../src/app/screens/auth/auth-two-factor-screen";
 import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provider";
 import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
 import { mobileSpacing } from "../src/design/tokens";
@@ -38,8 +39,8 @@ function bodyPaddingBottom(view: ReturnType<typeof render>, testID: string) {
 
 const loginScreen = (
   <AuthLoginScreen
-    onBack={jest.fn()}
     onForgotPassword={jest.fn()}
+    onOpenLanguagePicker={jest.fn()}
     onRegister={jest.fn()}
     onSignIn={jest.fn<never, never>().mockResolvedValue({ ok: true } as never) as never}
     onSocialSignIn={
@@ -67,8 +68,19 @@ const forgotPasswordScreen = (
   />
 );
 
-const welcomeScreen = (
-  <AuthWelcomeScreen onOpenLanguagePicker={jest.fn()} onSignIn={jest.fn()} onSignUp={jest.fn()} />
+const twoFactorScreen = (
+  <AuthTwoFactorScreen
+    onBackToSignIn={jest.fn()}
+    onSubmit={jest.fn<never, never>().mockResolvedValue({ ok: true } as never) as never}
+    onUseBackupCode={jest.fn()}
+  />
+);
+
+const backupCodeScreen = (
+  <AuthBackupCodeScreen
+    onBackToSignIn={jest.fn()}
+    onSubmit={jest.fn<never, never>().mockResolvedValue({ ok: true } as never) as never}
+  />
 );
 
 describe("auth screens on Android three-button navigation", () => {
@@ -76,6 +88,8 @@ describe("auth screens on Android three-button navigation", () => {
     ["mobile-auth-login-screen", loginScreen],
     ["mobile-auth-register-screen", registerScreen],
     ["mobile-auth-forgot-password-screen", forgotPasswordScreen],
+    ["mobile-auth-two-factor-screen", twoFactorScreen],
+    ["mobile-auth-backup-code-screen", backupCodeScreen],
   ])("lifts %s above the navigation bar", async (testID, screen) => {
     const view = await renderAuthScreen(screen, threeButtonInsets);
 
@@ -88,26 +102,11 @@ describe("auth screens on Android three-button navigation", () => {
     ["mobile-auth-login-screen", loginScreen],
     ["mobile-auth-register-screen", registerScreen],
     ["mobile-auth-forgot-password-screen", forgotPasswordScreen],
+    ["mobile-auth-two-factor-screen", twoFactorScreen],
+    ["mobile-auth-backup-code-screen", backupCodeScreen],
   ])("leaves %s untouched on gesture navigation", async (testID, screen) => {
     const view = await renderAuthScreen(screen, gestureInsets);
 
     expect(bodyPaddingBottom(view, testID)).toBe(0);
-  });
-
-  it("keeps the welcome screen's pinned CTA block as the single owner of its bottom edge", async () => {
-    const view = await renderAuthScreen(welcomeScreen, threeButtonInsets);
-
-    expect(bodyPaddingBottom(view, "mobile-auth-welcome-screen")).toBeUndefined();
-    expect(
-      StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-layout").props.style as never),
-    ).toMatchObject({ paddingBottom: threeButtonInsets.bottom });
-  });
-
-  it("keeps the welcome screen on its design spacing in gesture navigation", async () => {
-    const view = await renderAuthScreen(welcomeScreen, gestureInsets);
-
-    expect(
-      StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-layout").props.style as never),
-    ).toMatchObject({ paddingBottom: lightTheme.layout.auth.welcomeCtaBottomPadding });
   });
 });

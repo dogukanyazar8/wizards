@@ -42,7 +42,7 @@ function chipStyle(active: boolean): CSSProperties {
 
 const CHIP_CLASS =
   "inline-flex items-center whitespace-nowrap outline-hidden transition-colors focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]";
-const INACTIVE_CLASS = "bg-[hsl(var(--surface-secondary))] hover:bg-[hsl(var(--surface-soft))]";
+const INACTIVE_CLASS = "bg-[hsl(var(--surface-secondary))] hover:bg-[var(--surface-hover)]";
 
 export type ScreenChoice<TValue extends string> = {
   readonly label: string;

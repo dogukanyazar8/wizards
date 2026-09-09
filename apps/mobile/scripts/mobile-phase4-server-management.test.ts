@@ -76,6 +76,7 @@ const onlineMember = {
   accessLevel: "MEMBER" as const,
   actions: { canKick: true, canManageRoles: true },
   avatarUrl: null,
+  communicationDisabledUntil: null,
   customStatus: null,
   displayName: "Ada Lovelace",
   id: "member-online",

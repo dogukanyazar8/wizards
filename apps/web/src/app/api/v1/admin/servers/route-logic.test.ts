@@ -126,6 +126,7 @@ describe("createAdminServer", () => {
       discoverable: true,
       isPublic: true,
       name: "Whispr Topluluk",
+      shortName: "WHS",
       type: "COMMUNITY",
     });
 
@@ -146,6 +147,7 @@ describe("createAdminServer", () => {
     const input = AdminCreateServerSchema.parse({
       isPublic: true,
       name: "Whispr Topluluk",
+      shortName: "WHS",
       type: "COMMUNITY",
     });
 

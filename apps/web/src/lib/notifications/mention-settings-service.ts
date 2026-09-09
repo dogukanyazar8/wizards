@@ -1,4 +1,3 @@
-import { prisma, type PrismaClient } from "@wizards/db";
 import {
   MENTION_SETTINGS_DEFAULTS,
   MentionSettingsPatchSchema,
@@ -9,6 +8,18 @@ import {
 } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
+import {
+  NOTIFICATION_MODE_TO_WIRE,
+  WIRE_TO_NOTIFICATION_MODE,
+  defaultNotificationSettingsDependencies,
+  listNotificationSettingsRows,
+  readNotificationSettingsRow,
+  toMentionSwitch,
+  toSuppressColumn,
+  writeNotificationSettingsRow,
+  type NotificationModeColumn,
+  type NotificationSettingsDependencies,
+} from "@/lib/notifications/prefs-service";
 import { parseQuietHourMinutes, resolveQuietHoursTimeZone } from "@/lib/notifications/quiet-hours";
 
 /**
@@ -24,21 +35,25 @@ import { parseQuietHourMinutes, resolveQuietHoursTimeZone } from "@/lib/notifica
  * (Ş0.2 backfilled the enum from the boolean), but the boolean stays for one version and the older
  * settings endpoint still writes it. This service therefore reads the boolean as a gate over the
  * enum and writes both whenever the mode changes, so neither surface can show a stale answer.
+ *
+ * Ayarlar Ş1 — this service no longer holds its own Prisma calls. `notification-prefs` writes the
+ * same row, and two independent upserts mean the second one wins and resets the first surface's
+ * switches (tuzak #3). Both now go through the door in `prefs-service.ts`; the inversion above is
+ * still resolved on this side of it, through the two helpers that module defines so the sign is
+ * written down exactly once. The endpoint's behaviour and its payload are unchanged.
  */
 
-type DesktopMentionModeColumn = "ALL" | "MENTIONS" | "OFF";
+type DesktopMentionModeColumn = NotificationModeColumn;
 
-const DESKTOP_MODE_TO_COLUMN = {
-  all: "ALL",
-  mentions: "MENTIONS",
-  off: "OFF",
-} as const satisfies Record<MentionDesktopMode, DesktopMentionModeColumn>;
+const DESKTOP_MODE_TO_COLUMN = WIRE_TO_NOTIFICATION_MODE satisfies Record<
+  MentionDesktopMode,
+  DesktopMentionModeColumn
+>;
 
-const DESKTOP_COLUMN_TO_MODE = {
-  ALL: "all",
-  MENTIONS: "mentions",
-  OFF: "off",
-} as const satisfies Record<DesktopMentionModeColumn, MentionDesktopMode>;
+const DESKTOP_COLUMN_TO_MODE = NOTIFICATION_MODE_TO_WIRE satisfies Record<
+  DesktopMentionModeColumn,
+  MentionDesktopMode
+>;
 
 /** The columns §7 needs. Deliberately narrow: nothing else on the row belongs to this screen. */
 export interface MentionSettingsRow {
@@ -68,13 +83,11 @@ export interface MentionSettingsWriteData {
   suppressRoleMentions?: boolean;
 }
 
-export interface MentionSettingsDependencies {
-  readonly database: PrismaClient;
-}
+/** The same dependency bag `prefs-service` takes: one row, one door, one fake in the tests. */
+export type MentionSettingsDependencies = NotificationSettingsDependencies;
 
-export const defaultMentionSettingsDependencies: MentionSettingsDependencies = {
-  database: prisma,
-};
+export const defaultMentionSettingsDependencies: MentionSettingsDependencies =
+  defaultNotificationSettingsDependencies;
 
 const MENTION_SETTINGS_SELECT = {
   desktopMentionMode: true,
@@ -122,7 +135,7 @@ export function toMentionSettings(
 
   return MentionSettingsSchema.parse({
     desktop,
-    everyone: !row.suppressEveryoneMentions,
+    everyone: toMentionSwitch(row.suppressEveryoneMentions),
     me: row.mentionSelf,
     quietHours: {
       enabled: row.quietHoursEnabled,
@@ -130,7 +143,7 @@ export function toMentionSettings(
       timeZone: resolveQuietHoursTimeZone(row.quietHoursTimeZone, accountTimeZone),
       to: readQuietHourTime(row.quietHoursTo),
     },
-    role: !row.suppressRoleMentions,
+    role: toMentionSwitch(row.suppressRoleMentions),
     threadReplies: row.mentionThreadReplies,
   });
 }
@@ -150,11 +163,11 @@ export function buildMentionSettingsWriteData(
   }
 
   if (patch.role !== undefined) {
-    data.suppressRoleMentions = !patch.role;
+    data.suppressRoleMentions = toSuppressColumn(patch.role);
   }
 
   if (patch.everyone !== undefined) {
-    data.suppressEveryoneMentions = !patch.everyone;
+    data.suppressEveryoneMentions = toSuppressColumn(patch.everyone);
   }
 
   if (patch.threadReplies !== undefined) {
@@ -205,19 +218,12 @@ function assertQuietHoursRange(current: MentionSettings, patch: MentionSettingsP
   }
 }
 
-async function loadMentionSettingsRow(userId: string, dependencies: MentionSettingsDependencies) {
-  const user = await dependencies.database.user.findUnique({
-    select: {
-      notificationSettings: { select: MENTION_SETTINGS_SELECT },
-      settings: { select: { timeZone: true } },
-    },
-    where: { id: userId },
-  });
-
-  return {
-    accountTimeZone: user?.settings?.timeZone ?? null,
-    row: user?.notificationSettings ?? null,
-  };
+function loadMentionSettingsRow(userId: string, dependencies: MentionSettingsDependencies) {
+  return readNotificationSettingsRow<MentionSettingsRow>(
+    userId,
+    MENTION_SETTINGS_SELECT,
+    dependencies,
+  );
 }
 
 /**
@@ -252,24 +258,18 @@ export async function listMentionSettings(
     return settings;
   }
 
-  const users = await dependencies.database.user.findMany({
-    select: {
-      id: true,
-      notificationSettings: { select: MENTION_SETTINGS_SELECT },
-      settings: { select: { timeZone: true } },
-    },
-    where: { id: { in: uniqueIds } },
-  });
+  const rows = await listNotificationSettingsRows<MentionSettingsRow>(
+    uniqueIds,
+    MENTION_SETTINGS_SELECT,
+    dependencies,
+  );
 
-  for (const user of users) {
-    if (!user.notificationSettings) {
+  for (const entry of rows) {
+    if (!entry.row) {
       continue;
     }
 
-    settings.set(
-      user.id,
-      toMentionSettings(user.notificationSettings, user.settings?.timeZone ?? null),
-    );
+    settings.set(entry.id, toMentionSettings(entry.row, entry.accountTimeZone));
   }
 
   return settings;
@@ -311,11 +311,12 @@ export async function updateMentionSettings(
     quietHours: { ...MENTION_SETTINGS_DEFAULTS.quietHours, ...parsedPatch.quietHours },
   });
 
-  const saved = await dependencies.database.userNotificationSettings.upsert({
-    create: { ...create, userId },
+  const saved = await writeNotificationSettingsRow<MentionSettingsRow>({
+    create,
+    dependencies,
     select: MENTION_SETTINGS_SELECT,
     update,
-    where: { userId },
+    userId,
   });
 
   return toMentionSettings(saved, accountTimeZone);

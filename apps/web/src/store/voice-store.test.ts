@@ -83,6 +83,8 @@ describe("voice desktop preference sanitizers", () => {
   it("rejects reserved shortcuts and prevents duplicate desktop shortcut assignments", () => {
     assert.equal(isReservedDesktopVoiceShortcut("Ctrl+Space"), true);
     assert.equal(isReservedDesktopVoiceShortcut("CmdOrCtrl+Shift+Space"), true);
+    assert.equal(isReservedDesktopVoiceShortcut("Control+Shift+H"), true);
+    assert.equal(isReservedDesktopVoiceShortcut("Meta+Shift+V"), true);
     assert.equal(isReservedDesktopVoiceShortcut("Alt+V"), false);
     assert.equal(
       sanitizeUniqueDesktopVoiceShortcut(

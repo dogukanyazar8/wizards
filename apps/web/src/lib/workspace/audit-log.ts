@@ -1,7 +1,15 @@
 import type { Prisma } from "@wizards/db";
 
 export type WorkspaceAuditAction =
-  "MEMBER_BANNED" | "MEMBER_KICKED" | "MEMBER_ROLES_UPDATED" | "MEMBER_UNBANNED";
+  | "MEMBER_BANNED"
+  | "MEMBER_KICKED"
+  | "MEMBER_ROLES_UPDATED"
+  /** Ş2 / K3: zaman aşımı koyma ve kaldırma ayrı satırlar — biri diğerinin geri alınması. */
+  | "MEMBER_TIMED_OUT"
+  | "MEMBER_TIMEOUT_REMOVED"
+  | "MEMBER_UNBANNED"
+  /** Ş1 §3 — sahiplik devri. `AuditLog.action` serbest metin, yeni enum değeri gerekmiyor. */
+  | "SERVER_OWNERSHIP_TRANSFERRED";
 
 export type WorkspaceAuditLogInput = {
   action: WorkspaceAuditAction;

@@ -20,7 +20,7 @@ import { createSocketErrorEmitter } from "@/lib/socket/errors";
 import {
   checkChannelMessageEditRateLimit,
   checkChannelMessageRateLimit,
-  checkChannelSlowMode,
+  type checkChannelSlowMode,
   type ChannelSlowModeResult,
   shouldLogRateLimitUnavailable,
 } from "@/lib/socket/rate-limits";
@@ -37,6 +37,8 @@ import {
   editMessage,
   setReaction,
 } from "@/lib/workspace/message-service";
+import { assertMemberNotTimedOut } from "@/lib/workspace/member-timeout";
+import { checkEffectiveChannelSlowMode } from "@/lib/workspace/channel-slow-mode";
 import { toMobileChannelMessagePreview } from "@/lib/workspace/mobile-channel-message-preview";
 import {
   PRIVILEGED_PERMISSION_CACHE_MAX_AGE_SECONDS,
@@ -72,22 +74,29 @@ function createMessageSendAcknowledger(acknowledge?: (result: MessageSendAck) =>
   };
 }
 
+/**
+ * Ş1 §2. Gövde `@/lib/workspace/channel-slow-mode`'a taşındı: mobil REST yolu
+ * aynı kapıdan geçmek zorunda ve bir soket işleyicisinden içe aktarmak katman
+ * sınırını ters yöne geçerdi. İmza artık ham `delaySeconds` değil iki süreyi
+ * alıyor — etkin süreyi çağıranın hesaplaması, bir yolun sunucu ayarını
+ * unutabilmesi demekti.
+ */
 export async function checkChannelSlowModeForSend(args: {
+  channelDelaySeconds: number;
   channelId: string;
   check?: CheckChannelSlowMode;
-  delaySeconds: number;
   permissions: bigint;
   redis: HandlerContext["rateRedis"];
+  serverDelaySeconds: number;
   userId: string;
 }): Promise<ChannelSlowModeResult> {
-  if (hasPermission(args.permissions, PermissionBits.MANAGE_MESSAGES)) {
-    return { status: "allowed" };
-  }
-
-  return (args.check ?? checkChannelSlowMode)({
+  return checkEffectiveChannelSlowMode({
+    channelDelaySeconds: args.channelDelaySeconds,
     channelId: args.channelId,
-    delaySeconds: args.delaySeconds,
+    ...(args.check ? { check: args.check } : {}),
+    permissions: args.permissions,
     redis: args.redis,
+    serverDelaySeconds: args.serverDelaySeconds,
     userId: args.userId,
   });
 }
@@ -132,6 +141,7 @@ export function deriveMessageSendFanoutTargets(args: {
 export function registerMessageHandlers(
   ctx: HandlerContext,
   options: {
+    assertMemberNotTimedOut?: typeof assertMemberNotTimedOut;
     checkChannelMessageEditRateLimit?: CheckChannelMessageEditRateLimit;
     checkChannelMessageRateLimit?: CheckChannelMessageRateLimit;
     checkChannelSlowMode?: CheckChannelSlowMode;
@@ -146,6 +156,7 @@ export function registerMessageHandlers(
     options.checkChannelMessageEditRateLimit ?? checkChannelMessageEditRateLimit;
   const requireMessageChannelPermission =
     options.requireChannelPermissionForUser ?? requireChannelPermissionForUser;
+  const requireMemberNotTimedOut = options.assertMemberNotTimedOut ?? assertMemberNotTimedOut;
 
   socket.on("message:send", async (rawData, rawAcknowledge) => {
     const acknowledge = createMessageSendAcknowledger(rawAcknowledge);
@@ -201,13 +212,18 @@ export function registerMessageHandlers(
         },
       );
 
+      // Web gönderimi soketten geçiyor: kapı yalnız HTTP yolunda dursaydı zaman aşımı
+      // tarayıcıda hiç uygulanmazdı (Ş2 §4).
+      await requireMemberNotTimedOut(channel.serverId, userId);
+
       const canBypassMessageLimit = hasPermission(permissions, PermissionBits.MANAGE_MESSAGES);
       const slowModeResult = await checkChannelSlowModeForSend({
+        channelDelaySeconds: channel.slowModeDelay,
         channelId: data.channelId,
         ...(options.checkChannelSlowMode ? { check: options.checkChannelSlowMode } : {}),
-        delaySeconds: channel.slowModeDelay,
         permissions,
         redis: rateRedis,
+        serverDelaySeconds: channel.server.slowModeDelay,
         userId,
       });
       if (slowModeResult.status === "limited") {

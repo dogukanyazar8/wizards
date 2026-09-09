@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from "@wizards/db";
 import {
   isValidIanaTimeZone,
+  normalizeServerIconTone,
   type EventDayBucket,
   type EventKind,
   type EventRsvp,
@@ -220,6 +221,8 @@ function eventSelectForViewer(viewerId: string) {
     server: {
       select: {
         id: true,
+        iconColor: true,
+        iconUrl: true,
         members: {
           select: { id: true, roles: { select: { role: { select: ROLE_SELECT } } } },
           take: 1,
@@ -227,6 +230,7 @@ function eventSelectForViewer(viewerId: string) {
         },
         name: true,
         ownerId: true,
+        shortName: true,
         roles: { select: ROLE_SELECT, where: { isDefault: true } },
       },
     },
@@ -453,7 +457,10 @@ export async function getEventDetail(
     reminderSuppressed: viewer?.notificationSettings?.eventNotifications === false,
     rsvp,
     serverId: row.serverId,
+    serverIconColor: normalizeServerIconTone(row.server?.iconColor),
+    serverIconUrl: row.server?.iconUrl ?? null,
     serverName: row.server?.name ?? "",
+    serverShortName: row.server?.shortName ?? null,
     startsAt: row.scheduledStartAt.toISOString(),
     startsInMinutes: resolveStartsInMinutes(row.scheduledStartAt, now),
     title: row.name,

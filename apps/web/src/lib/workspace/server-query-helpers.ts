@@ -1,6 +1,8 @@
 import { ChannelType } from "@wizards/db";
 import type Redis from "ioredis";
+import { SERVER_ICON_TONES } from "@wizards/types";
 import type {
+  ServerIconTone,
   WorkspaceAccessLevel,
   WorkspaceCategory,
   WorkspaceChannel,
@@ -93,12 +95,25 @@ function getDisplayName(
   return nickname ?? user.displayName ?? user.username;
 }
 
+/**
+ * `Server.iconColor` düz metin bir kolondur; sözleşme ise altı tonluk bir enum (Ş0, K2).
+ *
+ * Tanınmayan bir değeri `null`'a düşürmek, tonu geri alan bir sürüm sonrası satırın hâlâ
+ * okunabilmesini sağlar: `null` zaten "kısa addan türet" demek, yani en kötü ihtimalle
+ * ikon migration öncesindeki görünümüne döner — yanıtın tamamı ayrıştırılamaz hâle gelmez.
+ */
+export function parseServerIconTone(value: string | null): ServerIconTone | null {
+  return SERVER_ICON_TONES.includes(value as ServerIconTone) ? (value as ServerIconTone) : null;
+}
+
 export function mapServerSummary(args: {
   accessLevel: WorkspaceAccessLevel;
   allowFileUploads: boolean;
   allowGifs: boolean;
   allowMemberAdds: boolean;
   defaultChannelId: string | null;
+  /** `null` = kısa addan deterministik türetme (Ş0, K2). Geri doldurma yok. */
+  iconColor: ServerIconTone | null;
   iconUrl: string | null;
   id: string;
   inviteCode: string | null;
@@ -108,6 +123,8 @@ export function mapServerSummary(args: {
   mentionCount: number;
   name: string;
   shortName: string | null;
+  /** Sunucu geneli yavaş mod, saniye; kanal ayarıyla `max(...)` (Ş0, K2). */
+  slowModeDelay: number;
   /** 6c "Yıldızla"; absent when the lazy `UserServerSettings` row does not exist. */
   starred?: boolean;
   unreadCount: number;
@@ -118,6 +135,7 @@ export function mapServerSummary(args: {
     allowGifs: args.allowGifs,
     allowMemberAdds: args.allowMemberAdds,
     defaultChannelId: args.defaultChannelId,
+    iconColor: args.iconColor,
     iconUrl: args.iconUrl,
     id: args.id,
     inviteCode: args.inviteCode,
@@ -127,15 +145,58 @@ export function mapServerSummary(args: {
     mentionCount: args.mentionCount,
     name: args.name,
     shortName: args.shortName,
+    slowModeDelay: args.slowModeDelay,
     starred: args.starred ?? false,
     unreadCount: args.unreadCount,
   };
+}
+
+/**
+ * `online`/`offline` çipinin geçireceği kullanıcı kümesi (Ş2, SPEC-SUNUCU §8.6).
+ *
+ * Presence Redis'te yaşar ve **izleyiciye göre gizlenir**: görünmez moddaki bir üye herkese
+ * `OFFLINE` görünür. Bu yüzden çevrimiçi kümesi ham Redis setinden değil, üye satırıyla aynı
+ * gizlilik kararından üretiliyor — aksi hâlde `online` çipi, listede `Çevrimdışı` yazan bir
+ * satırı geçirirdi.
+ */
+export async function readVisibleOnlineMemberUserIds(
+  viewerId: string,
+  members: ReadonlyArray<{ customStatus: string | null; userId: string }>,
+): Promise<string[]> {
+  if (members.length === 0) {
+    return [];
+  }
+
+  const userIds = members.map((member) => member.userId);
+  const [presenceState, visibilityDecisions] = await Promise.all([
+    readPresenceState(
+      serverMemberPresenceRedisForTest ?? getRedis(),
+      members.map((member) => ({
+        customStatus: member.customStatus,
+        status: "OFFLINE",
+        userId: member.userId,
+      })),
+    ),
+    (serverMemberVisibilityResolverForTest ?? resolveVisibilityDecisions)(viewerId, userIds),
+  ]);
+  const { presenceByUserId } = redactPresenceCollectionForViewer({
+    decisions: visibilityDecisions,
+    invisibleUserIds: presenceState.hiddenUserIds,
+    lastSeenByUserId: new Map(),
+    presenceByUserId: presenceState.presenceByUserId,
+    subjectIds: userIds,
+  });
+
+  return userIds.filter(
+    (userId) => (presenceByUserId.get(userId)?.status ?? "OFFLINE") !== "OFFLINE",
+  );
 }
 
 export async function mapMembers(
   ownerId: string,
   viewerId: string,
   members: Array<{
+    communicationDisabledUntil: Date | null;
     id: string;
     nickname: string | null;
     roles: Array<{
@@ -189,6 +250,7 @@ export async function mapMembers(
         member.roles.map((entry) => entry.role),
       ),
       avatarUrl: member.user.avatarUrl,
+      communicationDisabledUntil: serializeDate(member.communicationDisabledUntil),
       customStatus: presence.customStatus,
       displayName: getDisplayName(member.user, member.nickname),
       id: member.id,
@@ -212,6 +274,7 @@ export function mapInvites(
     expiresAt: Date | null;
     id: string;
     maxUses: number | null;
+    targetUserId: string | null;
     uses: number;
   }>,
 ): WorkspaceInvite[] {
@@ -223,6 +286,7 @@ export function mapInvites(
     expiresAt: serializeDate(invite.expiresAt),
     id: invite.id,
     maxUses: invite.maxUses,
+    targetUserId: invite.targetUserId,
     uses: invite.uses,
   }));
 }

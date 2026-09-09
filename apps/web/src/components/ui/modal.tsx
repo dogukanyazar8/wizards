@@ -1,10 +1,10 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
-import { X } from "lucide-react";
+import { AnimatePresence, motion, type MotionStyle } from "framer-motion";
 import { useEffect, useId, useRef, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
+import { WindowCloseButton } from "@/components/ui/window-close-button";
 
 type ModalProps = {
   children: React.ReactNode;
@@ -13,10 +13,18 @@ type ModalProps = {
   description?: string;
   headerIcon?: React.ReactNode;
   hideHeader?: boolean;
-  initialFocusRef?: React.RefObject<HTMLElement | null>;
+  initialFocusRef?: React.RefObject<HTMLElement | null> | undefined;
   onClose: () => void;
   open: boolean;
   overlayClassName?: string;
+  /**
+   * SPEC-SUNUCU §6 — sunucu pencereleri kart ölçüsünü, yarıçapını ve gölgesini
+   * `SERVER_METRICS`'ten okur; bunlar rem cinsinden hesaplanan değerlerdir ve bir Tailwind
+   * sınıfına sığmaz. Satır içi olmaları aynı zamanda `app-overlay`in zemin rengini de kesin
+   * olarak ezer.
+   */
+  overlayStyle?: React.CSSProperties | undefined;
+  style?: React.CSSProperties | undefined;
   title: string;
 };
 
@@ -35,6 +43,8 @@ export function Modal({
   onClose,
   open,
   overlayClassName,
+  overlayStyle,
+  style,
   title,
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -123,6 +133,7 @@ export function Modal({
           exit={{ opacity: 0 }}
           initial={{ opacity: 0 }}
           onClick={onClose}
+          {...(overlayStyle ? { style: overlayStyle as MotionStyle } : {})}
         >
           <motion.div
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -139,6 +150,7 @@ export function Modal({
             role="dialog"
             ref={dialogRef}
             tabIndex={-1}
+            {...(style ? { style: style as MotionStyle } : {})}
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
           >
             {hideHeader ? (
@@ -161,18 +173,11 @@ export function Modal({
                   </div>
                 </div>
 
-                <button
-                  aria-label={closeLabel}
-                  className="app-panel-soft text-app-muted flex min-h-11 min-w-11 items-center justify-center rounded-full border p-2 transition hover:opacity-90 hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:min-h-0 sm:min-w-0"
-                  onClick={onClose}
-                  type="button"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                <WindowCloseButton aria-label={closeLabel} onClick={onClose} />
               </div>
             )}
 
-            <div className={hideHeader ? undefined : "mt-6"}>{children}</div>
+            {hideHeader ? children : <div className="mt-6">{children}</div>}
           </motion.div>
         </motion.div>
       ) : null}

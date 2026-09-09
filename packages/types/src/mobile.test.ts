@@ -13,7 +13,10 @@ import {
   MobileAuthGoogleLoginRequestSchema,
   MobileAuthGoogleLoginResponseSchema,
   MobileAuthPasswordLoginRequestSchema,
+  MobileAuthBackupCodeRequestSchema,
   MobileAuthPasswordLoginResponseSchema,
+  MobileAuthTwoFactorRequestSchema,
+  MobileAuthTwoFactorResponseSchema,
   MobileAuthRefreshRequestSchema,
   MobileAuthRefreshResponseSchema,
   MobileAuthRegisterRequestSchema,
@@ -178,6 +181,7 @@ const invitePreviewProfile = {
   createdAt: "2026-01-02T03:04:05.000Z",
   description: "Yol haritasını burada tartışıyoruz.",
   discoverable: true,
+  iconColor: null,
   iconUrl: null,
   inviteAddress: "whispr.gg/whispr-community",
   isPublic: true,
@@ -203,6 +207,9 @@ const invitePreviewProfile = {
   weeklyMessageCount: null,
 };
 const uuid = "550e8400-e29b-41d4-a716-446655440000";
+
+/** SPEC-GIRIS-KAYIT §4.2 — opak challenge kimliği; 24-128 karakter, base64url. */
+const MOBILE_CHALLENGE_ID = "aGVsbG8td29ybGQtY2hhbGxlbmdlLWlk";
 
 describe("mobile update delivery contract", () => {
   it("accepts the build identity needed to choose an update path", () => {
@@ -665,6 +672,21 @@ describe("mobile schemas", () => {
         valid: { session },
         invalid: { session: undefined },
       },
+      MobileAuthTwoFactorRequestSchema: {
+        schema: MobileAuthTwoFactorRequestSchema,
+        valid: { challengeId: MOBILE_CHALLENGE_ID, code: "481029" },
+        invalid: { challengeId: MOBILE_CHALLENGE_ID, code: "48102" },
+      },
+      MobileAuthBackupCodeRequestSchema: {
+        schema: MobileAuthBackupCodeRequestSchema,
+        valid: { backupCode: "7QF4-2KDX-9M", challengeId: MOBILE_CHALLENGE_ID },
+        invalid: { backupCode: "7QF4", challengeId: MOBILE_CHALLENGE_ID },
+      },
+      MobileAuthTwoFactorResponseSchema: {
+        schema: MobileAuthTwoFactorResponseSchema,
+        valid: { session },
+        invalid: { session: undefined },
+      },
       MobileAuthRefreshRequestSchema: {
         schema: MobileAuthRefreshRequestSchema,
         valid: { refreshToken: "r".repeat(16) },
@@ -678,16 +700,16 @@ describe("mobile schemas", () => {
       MobileAuthRegisterRequestSchema: {
         schema: MobileAuthRegisterRequestSchema,
         valid: {
-          confirmPassword: "correct-horse",
+          confirmPassword: "Whispr!2026x",
           email: "ada@example.com",
           locale: "en",
-          password: "correct-horse",
+          password: "Whispr!2026x",
           username: "ada_lovelace",
         },
         invalid: {
           confirmPassword: "different",
           email: "ada@example.com",
-          password: "correct-horse",
+          password: "Whispr!2026x",
           username: "ada_lovelace",
         },
       },
@@ -1708,24 +1730,28 @@ describe("mobile schemas", () => {
       ["twoFactorCode"],
     );
 
+    /*
+     * SPEC-GIRIS-KAYIT §10 / paket kararı K9 — yeni parola on karakter ve dört kuralın en az
+     * üçünü karşılamak zorunda; eski `"password"` fixture'ı artık politikayı geçmiyor.
+     */
     const registration = {
-      confirmPassword: "password",
+      confirmPassword: "Whispr!2026x",
       email: "ada@example.com",
-      password: "password",
+      password: "Whispr!2026x",
       username: "ada_1",
     };
     assertAccepts(MobileAuthRegisterRequestSchema, registration);
     assertAccepts(MobileAuthRegisterRequestSchema, {
       ...registration,
-      confirmPassword: "🙂".repeat(18),
-      password: "🙂".repeat(18),
+      confirmPassword: `Aa1${"🙂".repeat(17)}`,
+      password: `Aa1${"🙂".repeat(17)}`,
     });
     assertRejects(
       MobileAuthRegisterRequestSchema,
       {
         ...registration,
-        confirmPassword: "p".repeat(73),
-        password: "p".repeat(73),
+        confirmPassword: `Aa1!${"p".repeat(69)}`,
+        password: `Aa1!${"p".repeat(69)}`,
       },
       ["password"],
     );
@@ -1733,8 +1759,8 @@ describe("mobile schemas", () => {
       MobileAuthRegisterRequestSchema,
       {
         ...registration,
-        confirmPassword: "🙂".repeat(19),
-        password: "🙂".repeat(19),
+        confirmPassword: `Aa1${"🙂".repeat(18)}`,
+        password: `Aa1${"🙂".repeat(18)}`,
       },
       ["password"],
     );
@@ -2071,6 +2097,10 @@ describe("mobile invite preview exposure boundary", () => {
       // truncation, not what was truncated, so an invite holder learns nothing
       // the visible list did not already tell them.
       "hasMoreChannels",
+      // Reviewed exposure: the server icon tone. It is branding, not member
+      // data, and this payload already carries `iconUrl` and `shortName` --
+      // the two inputs the same badge falls back to when no tone is set.
+      "iconColor",
       "iconUrl",
       "inviteAddress",
       "isPublic",

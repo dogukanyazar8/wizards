@@ -2,10 +2,14 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { parseTotpSecretKeyring, resolveTotpSecret } from "./totp-secret-encryption";
 import { generateTotpCode, hashRecoveryCode } from "./totp";
+import type { RecordSecurityEventInput } from "@/lib/security/security-event-service";
 import {
   confirmTwoFactorSetup,
   createMemoryTwoFactorAttemptStore,
   disableTwoFactor,
+  formatManualEntryKey,
+  getRecoveryCodeStatus,
+  regenerateRecoveryCodes,
   startTwoFactorSetup,
   verifyTwoFactorCredential,
   type TwoFactorRepository,
@@ -50,6 +54,13 @@ function createHarness() {
       code.usedAt = new Date("2026-07-09T00:00:00.000Z");
       return true;
     },
+    async countRecoveryCodes(targetUserId) {
+      const owned = recoveryCodes.filter((entry) => entry.userId === targetUserId);
+      return {
+        total: owned.length,
+        unused: owned.filter((entry) => !entry.usedAt).length,
+      };
+    },
     async disableTwoFactor(targetUserId) {
       assert.equal(targetUserId, userId);
       user.twoFactorEnabled = false;
@@ -86,6 +97,18 @@ function createHarness() {
           usedAt: entry.usedAt,
         }));
     },
+    async replaceRecoveryCodes(targetUserId, recoveryCodeHashes) {
+      assert.equal(targetUserId, userId);
+      recoveryCodes.length = 0;
+      recoveryCodes.push(
+        ...recoveryCodeHashes.map((codeHash, index) => ({
+          codeHash,
+          id: `recovery-fresh-${index}`,
+          usedAt: null,
+          userId,
+        })),
+      );
+    },
     async savePendingSecret(targetUserId, secret) {
       assert.equal(targetUserId, userId);
       user.twoFactorEnabled = false;
@@ -95,6 +118,8 @@ function createHarness() {
     },
   };
 
+  const securityEvents: RecordSecurityEventInput[] = [];
+
   const dependencies: TwoFactorServiceDependencies = {
     attemptStore: createMemoryTwoFactorAttemptStore(),
     comparePassword: async (password, passwordHash) => password === passwordHash,
@@ -102,6 +127,9 @@ function createHarness() {
     keyring,
     nowMs: () => 90_000,
     randomBytes: () => Buffer.from("12345678901234567890"),
+    recordEvent: async (input) => {
+      securityEvents.push(input);
+    },
     replayStore: {
       async consume(input) {
         if (replayUnavailable) {
@@ -122,6 +150,7 @@ function createHarness() {
     dependencies,
     recoveryCodes,
     replayKeys,
+    securityEvents,
     setReplayUnavailable(value: boolean) {
       replayUnavailable = value;
     },
@@ -429,5 +458,108 @@ describe("two-factor service", () => {
     assert.equal(harness.user.twoFactorSecret, null);
     assert.equal(harness.user.twoFactorSecretCiphertext, null);
     assert.equal(harness.user.twoFactorSecretKeyVersion, null);
+  });
+  it("formats the manual entry key in groups of four", () => {
+    assert.equal(formatManualEntryKey("K4XP9QF27MRT1DVB"), "K4XP 9QF2 7MRT 1DVB");
+    assert.equal(formatManualEntryKey(rfc6238Secret), "GEZD GNBV GY3T QOJQ GEZD GNBV GY3T QOJQ");
+    assert.equal(formatManualEntryKey(""), "");
+  });
+
+  it("counts recovery codes as total and unused", async () => {
+    const harness = createHarness();
+    harness.user.twoFactorEnabled = true;
+    harness.user.twoFactorSecret = rfc6238Secret;
+    harness.recoveryCodes.push(
+      { codeHash: "a", id: "r0", usedAt: null, userId },
+      { codeHash: "b", id: "r1", usedAt: new Date("2026-08-01T00:00:00.000Z"), userId },
+      { codeHash: "c", id: "r2", usedAt: null, userId },
+    );
+
+    assert.deepEqual(await getRecoveryCodeStatus(userId, harness.dependencies), {
+      success: true,
+      total: 3,
+      unused: 2,
+    });
+  });
+
+  it("refuses to count recovery codes while two-factor is off", async () => {
+    const harness = createHarness();
+
+    assert.deepEqual(await getRecoveryCodeStatus(userId, harness.dependencies), {
+      error: "not_enabled",
+      success: false,
+    });
+  });
+
+  it("regenerates recovery codes behind password plus TOTP and logs the event", async () => {
+    const harness = createHarness();
+    harness.user.twoFactorEnabled = true;
+    harness.user.twoFactorSecret = rfc6238Secret;
+    harness.recoveryCodes.push({
+      codeHash: hashRecoveryCode("OLD-CODE"),
+      id: "r0",
+      usedAt: null,
+      userId,
+    });
+
+    const result = await regenerateRecoveryCodes(
+      {
+        code: generateTotpCode(rfc6238Secret, { nowMs: 90_000 }),
+        password: "correct-password",
+        userId,
+      },
+      harness.dependencies,
+    );
+
+    assert.equal(result.success, true);
+    assert.equal(result.recoveryCodes.length, 10);
+    assert.equal(harness.recoveryCodes.length, 10);
+    // The old code is gone, not merely superseded.
+    assert.equal(
+      harness.recoveryCodes.some((entry) => entry.codeHash === hashRecoveryCode("OLD-CODE")),
+      false,
+    );
+    assert.deepEqual(harness.securityEvents, [
+      { kind: "RECOVERY_CODES_REGENERATED", metadata: { count: 10 }, userId },
+    ]);
+  });
+
+  it("does not regenerate on a wrong password and logs nothing", async () => {
+    const harness = createHarness();
+    harness.user.twoFactorEnabled = true;
+    harness.user.twoFactorSecret = rfc6238Secret;
+    harness.recoveryCodes.push({
+      codeHash: hashRecoveryCode("OLD-CODE"),
+      id: "r0",
+      usedAt: null,
+      userId,
+    });
+
+    const result = await regenerateRecoveryCodes(
+      {
+        code: generateTotpCode(rfc6238Secret, { nowMs: 90_000 }),
+        password: "wrong-password",
+        userId,
+      },
+      harness.dependencies,
+    );
+
+    assert.equal(result.success, false);
+    assert.equal(harness.recoveryCodes.length, 1);
+    assert.deepEqual(harness.securityEvents, []);
+  });
+
+  it("does not regenerate on a wrong second factor", async () => {
+    const harness = createHarness();
+    harness.user.twoFactorEnabled = true;
+    harness.user.twoFactorSecret = rfc6238Secret;
+
+    const result = await regenerateRecoveryCodes(
+      { code: "000000", password: "correct-password", userId },
+      harness.dependencies,
+    );
+
+    assert.deepEqual(result, { error: "invalid_code", success: false });
+    assert.deepEqual(harness.securityEvents, []);
   });
 });

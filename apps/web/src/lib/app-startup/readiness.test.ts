@@ -1,16 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import {
-  getShellReadinessStatus,
-  getShellSplashPhaseAfterMaxTimeout,
-  isShellReady,
-  SHELL_SPLASH_FADE_OUT_MS,
-  SHELL_SPLASH_MAX_VISIBLE_MS,
-  SHELL_SPLASH_MIN_VISIBLE_MS,
-  shouldMountShellSplash,
-  shouldShowShellSplash,
-  type ShellReadinessInput,
-} from "./readiness";
+
+import { isRouteDataLoading, toSplashRuntimeInput, type ShellReadinessInput } from "./readiness";
 
 const readyInput: ShellReadinessInput = {
   activeServerDetailLoading: false,
@@ -22,132 +13,92 @@ const readyInput: ShellReadinessInput = {
   serversLoading: false,
 };
 
-describe("app startup readiness", () => {
-  it("requires appearance, layout settings, and workspace servers before marking the shell ready", () => {
-    assert.equal(isShellReady({ ...readyInput, appearanceHydrated: false }), false);
-    assert.equal(isShellReady({ ...readyInput, layoutSettingsLoaded: false }), false);
-    assert.equal(isShellReady({ ...readyInput, serversLoading: true }), false);
-    assert.equal(isShellReady(readyInput), true);
-  });
+const extras = {
+  bootstrapRequestSettled: true,
+  elapsedMs: 0,
+  online: true,
+  sessionExpired: false,
+  update: null,
+};
 
-  it("blocks server routes on active server detail only when the current route needs it", () => {
+describe("isRouteDataLoading", () => {
+  it("only waits for the data the open route actually needs", () => {
     assert.equal(
-      isShellReady({
+      isRouteDataLoading({
         ...readyInput,
         activeServerDetailLoading: true,
         route: "server-channel",
       }),
+      true,
+    );
+    assert.equal(
+      isRouteDataLoading({ ...readyInput, activeServerDetailLoading: true, route: "dm-list" }),
       false,
     );
     assert.equal(
-      isShellReady({
-        ...readyInput,
-        activeServerDetailLoading: true,
-        route: "server-root",
-      }),
+      isRouteDataLoading({ ...readyInput, dmConversationsLoading: true, route: "dm-conversation" }),
+      true,
+    );
+    assert.equal(
+      isRouteDataLoading({ ...readyInput, dmConversationsLoading: true, route: "settings" }),
+      false,
+    );
+  });
+});
+
+describe("toSplashRuntimeInput", () => {
+  it("folds appearance and layout into one session signal", () => {
+    assert.equal(
+      toSplashRuntimeInput({ ...readyInput, appearanceHydrated: false }, extras).sessionHydrated,
       false,
     );
     assert.equal(
-      isShellReady({
-        ...readyInput,
-        activeServerDetailLoading: true,
-        route: "other",
-      }),
+      toSplashRuntimeInput({ ...readyInput, layoutSettingsLoaded: false }, extras).sessionHydrated,
+      false,
+    );
+    assert.equal(toSplashRuntimeInput(readyInput, extras).sessionHydrated, true);
+  });
+
+  it("counts route data as part of the workspace phase", () => {
+    assert.equal(
+      toSplashRuntimeInput(
+        { ...readyInput, activeServerDetailLoading: true, route: "server-channel" },
+        extras,
+      ).workspaceLoaded,
+      false,
+    );
+    assert.equal(
+      toSplashRuntimeInput(
+        { ...readyInput, dmConversationsLoading: true, route: "dm-list" },
+        extras,
+      ).workspaceLoaded,
+      false,
+    );
+    // Aynı yükleme, o veriyi istemeyen bir rotada aşamayı tutmaz.
+    assert.equal(
+      toSplashRuntimeInput(
+        { ...readyInput, dmConversationsLoading: true, route: "settings" },
+        extras,
+      ).workspaceLoaded,
       true,
     );
   });
 
-  it("blocks DM routes on the conversation list without blocking unrelated routes", () => {
-    assert.equal(
-      isShellReady({
-        ...readyInput,
-        dmConversationsLoading: true,
-        route: "dm-list",
-      }),
-      false,
-    );
-    assert.equal(
-      isShellReady({
-        ...readyInput,
-        dmConversationsLoading: true,
-        route: "dm-conversation",
-      }),
-      false,
-    );
-    assert.equal(
-      isShellReady({
-        ...readyInput,
-        dmConversationsLoading: true,
-        route: "server-channel",
-      }),
-      true,
-    );
-  });
+  it("passes the shell-external signals through untouched", () => {
+    const update = { downloadedBytes: 4, totalBytes: 8, version: "2.5.0" };
+    const mapped = toSplashRuntimeInput(readyInput, {
+      bootstrapRequestSettled: false,
+      elapsedMs: 12_000,
+      online: false,
+      sessionExpired: true,
+      update,
+    });
 
-  it("does not use the global startup splash as a settings loading gate", () => {
-    assert.equal(
-      isShellReady({
-        ...readyInput,
-        activeServerDetailLoading: true,
-        dmConversationsLoading: true,
-        route: "settings",
-      }),
-      true,
-    );
-  });
-
-  it("treats realtime as non-blocking readiness while still exposing a realtime status", () => {
-    const input = { ...readyInput, realtimeConnected: false };
-
-    assert.equal(isShellReady(input), true);
-    assert.equal(getShellReadinessStatus(input), "realtime");
-  });
-
-  it("maps readiness states to safe startup status labels", () => {
-    assert.equal(getShellReadinessStatus({ ...readyInput, appearanceHydrated: false }), "session");
-    assert.equal(
-      getShellReadinessStatus({ ...readyInput, layoutSettingsLoaded: false }),
-      "session",
-    );
-    assert.equal(getShellReadinessStatus({ ...readyInput, serversLoading: true }), "workspace");
-    assert.equal(
-      getShellReadinessStatus({
-        ...readyInput,
-        activeServerDetailLoading: true,
-        route: "server-channel",
-      }),
-      "workspace",
-    );
-    assert.equal(
-      getShellReadinessStatus({
-        ...readyInput,
-        dmConversationsLoading: true,
-        route: "dm-list",
-      }),
-      "workspace",
-    );
-    assert.equal(getShellReadinessStatus(readyInput), "ready");
-  });
-
-  it("keeps splash timing constants aligned with the first-paint startup policy", () => {
-    assert.equal(SHELL_SPLASH_MIN_VISIBLE_MS, 400);
-    assert.equal(SHELL_SPLASH_MAX_VISIBLE_MS, 5000);
-    assert.equal(SHELL_SPLASH_FADE_OUT_MS, 260);
-  });
-
-  it("mounts and shows only active startup splash phases", () => {
-    assert.equal(shouldMountShellSplash("showing"), true);
-    assert.equal(shouldMountShellSplash("hiding"), true);
-    assert.equal(shouldMountShellSplash("dismissed"), false);
-
-    assert.equal(shouldShowShellSplash("showing"), true);
-    assert.equal(shouldShowShellSplash("hiding"), false);
-    assert.equal(shouldShowShellSplash("dismissed"), false);
-  });
-
-  it("falls back to the shell instead of keeping the splash forever after max timeout", () => {
-    assert.equal(getShellSplashPhaseAfterMaxTimeout("showing"), "hiding");
-    assert.equal(getShellSplashPhaseAfterMaxTimeout("hiding"), "hiding");
-    assert.equal(getShellSplashPhaseAfterMaxTimeout("dismissed"), "dismissed");
+    assert.equal(mapped.bootstrapRequestSettled, false);
+    assert.equal(mapped.elapsedMs, 12_000);
+    assert.equal(mapped.online, false);
+    assert.equal(mapped.sessionExpired, true);
+    assert.equal(mapped.update, update);
+    assert.equal(mapped.realtimeConnected, readyInput.realtimeConnected);
   });
 });

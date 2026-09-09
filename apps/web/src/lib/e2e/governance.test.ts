@@ -55,7 +55,8 @@ describe("Playwright E2E governance", () => {
       "e2e/specs/message-interactions/message-interactions.spec.ts",
       "e2e/specs/mobile/mobile-responsive.spec.ts",
       "e2e/specs/realtime/realtime.spec.ts",
-      "e2e/specs/settings/settings.spec.ts",
+      "e2e/specs/settings/settings-window.spec.ts",
+      "e2e/specs/settings/notification-panel.spec.ts",
       "e2e/specs/smoke/app-shell.spec.ts",
       "e2e/specs/smoke/auth.spec.ts",
       "e2e/specs/smoke/dm.spec.ts",
@@ -513,13 +514,20 @@ describe("Playwright E2E governance", () => {
     assert.match(visualJob, /@wizards\/web e2e:visual/);
   });
 
+  /**
+   * Ayarlar Ş13 — eski `settings-panel.tsx` silindi; 2FA kurulum gövdesi artık satır içinde
+   * açılan riskli blok (`risky/two-factor-block.tsx`) ve testid `settings-two-factor-qr`.
+   * İddia aynı: seçici dile bağlı olmasın.
+   */
   it("keeps the two-factor QR test selector locale-independent", () => {
-    const settingsSpec = readWorkspaceFile(join(e2eSpecsRoot, "settings", "settings.spec.ts"));
-    const settingsPanel = readWorkspaceFile(
-      join(webRoot, "src", "components", "settings", "settings-panel.tsx"),
+    const settingsSpec = readWorkspaceFile(
+      join(e2eSpecsRoot, "settings", "settings-window.spec.ts"),
+    );
+    const twoFactorBlock = readWorkspaceFile(
+      join(webRoot, "src", "components", "settings", "risky", "two-factor-block.tsx"),
     );
 
-    assert.match(settingsSpec, /getByTestId\("two-factor-setup-qr-code"\)/);
-    assert.match(settingsPanel, /data-testid="two-factor-setup-qr-code"/);
+    assert.match(settingsSpec, /getByTestId\("settings-two-factor-qr"\)/);
+    assert.match(twoFactorBlock, /data-testid="settings-two-factor-qr"/);
   });
 });

@@ -1,12 +1,5 @@
 import assert from "node:assert/strict";
-import {
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 
@@ -18,11 +11,16 @@ const authKitRoot = path.join(mobileRoot, "src", "app", "components", "kit", "au
 const authScreenContractSource = path.join(authScreensRoot, "mobile-auth-screen-contract.ts");
 const protectedProductionRoots = [authScreensRoot, authKitRoot] as const;
 
+/**
+ * SPEC-GIRIS-KAYIT §6 — üç ekran + yedek kod. Karşılama ekranı paket kararı K4 ile kaldırıldı;
+ * sıra `MOBILE_AUTH_SCREEN_TEST_IDS` ile birebir aynı olmak zorunda.
+ */
 const rootScreenSources = [
-  "auth-welcome-screen.tsx",
   "auth-login-screen.tsx",
   "auth-register-screen.tsx",
   "auth-forgot-password-screen.tsx",
+  "auth-two-factor-screen.tsx",
+  "auth-backup-code-screen.tsx",
 ] as const;
 
 const containerSource = path.join(authScreensRoot, "mobile-auth-screen-containers.tsx");
@@ -95,7 +93,7 @@ function getImportedModuleSpecifiers(source: string) {
 function assertRootTestIdOwnership(protectedProductionSources: readonly string[]) {
   assert.match(
     readSource(authScreenContractSource),
-    /export const MOBILE_AUTH_SCREEN_TEST_IDS = \[\s*"mobile-auth-welcome-screen",\s*"mobile-auth-login-screen",\s*"mobile-auth-register-screen",\s*"mobile-auth-forgot-password-screen",\s*\] as const;/,
+    /export const MOBILE_AUTH_SCREEN_TEST_IDS = \[\s*"mobile-auth-login-screen",\s*"mobile-auth-register-screen",\s*"mobile-auth-forgot-password-screen",\s*"mobile-auth-two-factor-screen",\s*"mobile-auth-backup-code-screen",\s*\] as const;/,
     "The production contract must remain an exact readonly tuple declaration.",
   );
   assert.equal(
@@ -120,7 +118,11 @@ function assertRootTestIdOwnership(protectedProductionSources: readonly string[]
       1,
       `${testId} must occur exactly once across all live auth presentation and kit sources.`,
     );
-    assert.equal(occurrences[0], owningSource, `${testId} must stay in its declared presentation source.`);
+    assert.equal(
+      occurrences[0],
+      owningSource,
+      `${testId} must stay in its declared presentation source.`,
+    );
   }
 }
 
@@ -172,11 +174,11 @@ describe("mobile auth screen contract", () => {
 
   it("rejects a duplicate root ID from a nested live auth source", () => {
     withTemporaryNestedAuthFixture(
-      'export const nestedAuthRoot = <View testID="mobile-auth-welcome-screen" />;\n',
+      'export const nestedAuthRoot = <View testID="mobile-auth-login-screen" />;\n',
       () => {
         assert.throws(
           () => assertRootTestIdOwnership(discoverProtectedProductionSources()),
-          /mobile-auth-welcome-screen must occur exactly once across all live auth presentation and kit sources/,
+          /mobile-auth-login-screen must occur exactly once across all live auth presentation and kit sources/,
         );
       },
     );

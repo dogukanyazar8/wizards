@@ -363,8 +363,9 @@ export async function listHomeAwaiting(
       action: "accept" as const,
       context: "",
       // `actionUrl` is stored text. It is only ever a link after the guard says
-      // it is an in-app path (§5.1.7); the inbox is the safe landing otherwise.
-      href: toRelativeAppHref(invite.actionUrl) ?? "/inbox",
+      // it is an in-app path (§5.1.7). Ş13 — `/inbox` silindi (K10); güvenli iniş alanı
+      // artık Bahsedilmeler ekranı.
+      href: toRelativeAppHref(invite.actionUrl) ?? "/mentions",
       id: `server_invite:${invite.id}`,
       occurredAt: invite.createdAt.toISOString(),
       reason: invite.body,

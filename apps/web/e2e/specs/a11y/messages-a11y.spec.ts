@@ -6,6 +6,12 @@ import { expect, test } from "../../fixtures/test";
 import { loginAs } from "../../helpers/auth";
 import { getE2EDMConversationId } from "../../helpers/db";
 import { applyParityTheme } from "../../helpers/design-parity";
+import {
+  WCAG_TAGS,
+  formatViolation,
+  partitionAxeViolations,
+  reportNonBlockingViolations,
+} from "../../helpers/a11y-gate";
 import { gotoAppRoute } from "../../helpers/navigation";
 
 /**
@@ -19,33 +25,17 @@ import { gotoAppRoute } from "../../helpers/navigation";
  * demek olurdu.
  */
 
-const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
-const BLOCKING_IMPACTS = new Set(["critical", "serious"]);
-
 test.describe.configure({ timeout: resolveE2ETimeoutPolicy().screenTestTimeoutMs });
-
-type AxeViolation = Awaited<ReturnType<AxeBuilder["analyze"]>>["violations"][number];
-
-function formatViolation(violation: AxeViolation): string {
-  const targets = violation.nodes.map((node) => node.target.join(" ")).join(", ");
-
-  return `[${violation.impact ?? "unknown"}] ${violation.id}: ${violation.help} (${targets})`;
-}
 
 async function scan(page: Page, label: string): Promise<void> {
   const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
-  const blocking = results.violations.filter(
-    (violation) => violation.impact && BLOCKING_IMPACTS.has(violation.impact),
+  const partition = partitionAxeViolations(results.violations);
+
+  reportNonBlockingViolations(partition, label);
+
+  expect(partition.blocking.map(formatViolation), `${label}: kritik/ciddi ihlal olamaz`).toEqual(
+    [],
   );
-
-  for (const violation of results.violations) {
-    if (!violation.impact || !BLOCKING_IMPACTS.has(violation.impact)) {
-      // eslint-disable-next-line no-console
-      console.log(`a11y (non-blocking) ${label}: ${formatViolation(violation)}`);
-    }
-  }
-
-  expect(blocking.map(formatViolation), `${label}: kritik/ciddi ihlal olamaz`).toEqual([]);
 }
 
 async function openConversation(page: Page): Promise<string> {
@@ -79,7 +69,82 @@ test.describe("Mesajlar erişilebilirliği", () => {
       await expect(page.getByTestId("messages-search-panel")).toBeVisible();
       await scan(page, `search-panel/${theme}`);
     });
+
+    /**
+     * §15–§17'nin üç yeni yüzeyi. Panel 1360'ta yerleşik açılıyor, menü `...`
+     * düğmesinden, alt menü `Sessize al` satırından. Üçü ayrı ayrı taranıyor:
+     * bir menü açıkken yapılan tarama panelin kendi ihlallerini örtebilir.
+     */
+    test(`profil paneli, menü ve alt menü taraması · ${theme}`, async ({ page }) => {
+      await applyParityTheme(page, theme);
+      await loginAs(page, "alice");
+      await openConversation(page);
+
+      await expect(page.getByTestId("conversation-profile-panel")).toBeVisible();
+      await scan(page, `profile-panel-genel/${theme}`);
+
+      await page.getByTestId("profile-panel-tab-ayarlar").click();
+      await expect(page.getByTestId("profile-tab-settings")).toBeVisible();
+      await scan(page, `profile-panel-ayarlar/${theme}`);
+
+      await page.getByTestId("conversation-header-more").click();
+      await expect(page.getByTestId("conversation-more-menu")).toBeVisible();
+      await scan(page, `more-menu/${theme}`);
+
+      await page.getByTestId("conversation-more-menu-mute").click();
+      await expect(page.getByTestId("mute-submenu")).toBeVisible();
+      await scan(page, `mute-submenu/${theme}`);
+    });
   }
+
+  /**
+   * §15.5 ve §17: bilgi renkte değil, rolde. Anahtarlar gerçek `switch`,
+   * bildirim kartları gerçek `radiogroup`, menü gerçek `menu`, süre satırları
+   * `menuitemradio`. Hepsi bir gün "aynı görünen" bir `div`e düşebilir ve
+   * görsel bir test bunu asla fark etmez.
+   */
+  test("yeni yüzeyler gerçek ARIA rolleri taşır", async ({ page }) => {
+    await loginAs(page, "alice");
+    await openConversation(page);
+
+    await page.getByTestId("profile-panel-tab-ayarlar").click();
+
+    const readReceipts = page.getByTestId("profile-privacy-toggle-readReceipts");
+
+    await expect(readReceipts).toHaveAttribute("role", "switch");
+    await expect(readReceipts).toHaveAttribute("aria-checked", /true|false/);
+
+    await expect(page.getByTestId("profile-notify-group")).toHaveAttribute("role", "radiogroup");
+    await expect(page.getByTestId("profile-notify-ALL")).toHaveAttribute("role", "radio");
+
+    await page.getByTestId("conversation-header-more").click();
+    await expect(page.getByTestId("conversation-more-menu")).toHaveAttribute("role", "menu");
+
+    await page.getByTestId("conversation-more-menu-mute").click();
+    await expect(page.getByTestId("mute-submenu-forever")).toHaveAttribute("role", "menuitemradio");
+    await expect(page.getByTestId("mute-submenu-forever")).toHaveAttribute(
+      "aria-checked",
+      /true|false/,
+    );
+  });
+
+  /**
+   * §3 klavye turu. Menü kapanınca odak **tetikleyiciye** dönmeli; dönmezse
+   * klavye kullanıcısı menüyü kapattığı anda sayfanın başına düşer.
+   */
+  test("menü kapanınca odak tetikleyiciye döner", async ({ page }) => {
+    await loginAs(page, "alice");
+    await openConversation(page);
+
+    const trigger = page.getByTestId("conversation-header-more");
+
+    await trigger.click();
+    await expect(page.getByTestId("conversation-more-menu")).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("conversation-more-menu")).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+  });
 
   /**
    * Rozet, presence ve anket seçeneği: üçü de bilgiyi **yalnız** renk ya da

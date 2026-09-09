@@ -8,7 +8,15 @@ import {
   type MobilePushProvider,
   type MobilePushRegistrationRevokeResponse,
   type MobilePushRegistrationResponse,
+  type NotificationPrefs,
 } from "@wizards/types";
+
+import { isNotificationAllowed, type NotificationKindKey } from "@/lib/notifications/prefs-policy";
+import {
+  listNotificationPrefs,
+  readPrefs,
+  type NotificationSettingsDependencies,
+} from "@/lib/notifications/prefs-service";
 
 /**
  * Structural slice of PrismaClient so tests can substitute an in-memory store
@@ -54,6 +62,56 @@ interface RevokeMobilePushTokenInput {
   db?: MobilePushTokenStore;
   now?: Date;
   sessionId: string;
+}
+
+/**
+ * Ayarlar Ş1 §5 — the `delivery.push` gate.
+ *
+ * K12's promise in one function: "mobil push kapalı" has to actually silence the phone, not just
+ * be stored. It sits **before** the token read on purpose — the acceptance criterion is that a
+ * recipient with push off costs zero token lookups, and a filter applied after the read would
+ * still walk every device row of every recipient.
+ *
+ * Quiet hours, level and the per-type switches are all consulted here too, through the one
+ * policy module, so the push channel cannot drift from the toast channel about what "important"
+ * means.
+ */
+export interface PushRecipientGateOptions {
+  /** Injected in tests; production reads the row through `prefs-service`. */
+  loadPrefs?: (userIds: readonly string[]) => Promise<Map<string, NotificationPrefs>>;
+  now?: Date;
+  prefsDependencies?: NotificationSettingsDependencies;
+}
+
+export async function filterPushEligibleUserIds(
+  userIds: readonly string[],
+  kind: NotificationKindKey,
+  options: PushRecipientGateOptions = {},
+): Promise<Set<string>> {
+  const uniqueIds = [...new Set(userIds)];
+  if (uniqueIds.length === 0) {
+    return new Set();
+  }
+
+  const load =
+    options.loadPrefs ??
+    ((ids: readonly string[]) => listNotificationPrefs(ids, options.prefsDependencies));
+  const prefs = await load(uniqueIds);
+  const at = options.now ?? new Date();
+  const eligible = new Set<string>();
+
+  for (const userId of uniqueIds) {
+    const recipient = readPrefs(prefs, userId);
+    if (!recipient.delivery.push) {
+      continue;
+    }
+
+    if (isNotificationAllowed(recipient, kind, at).allowed) {
+      eligible.add(userId);
+    }
+  }
+
+  return eligible;
 }
 
 export function hashMobilePushSessionId(sessionId: string) {

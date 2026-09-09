@@ -359,11 +359,13 @@ describe("EventCard — RSVP durumunun çizimi", () => {
 // ---------------------------------------------------------------------------
 
 describe("EventCard — kaynak tile dili (K3)", () => {
-  it("üye olunan sunucuda köşeli tile ve sunucunun baş harfi", () => {
+  it("üye olunan sunucuda köşeli tile ve sunucunun üç harfli kısaltması", () => {
     const markup = render();
 
     assert.match(markup, new RegExp(`border-radius:${pxToRem(card.sourceTileRadius)}`, "u"));
-    assert.match(markup, />W<\/span>/u);
+    // Sunucu kimliği üç harftir (`deriveServerShortName`); tek harf `TK` işaretiyle
+    // karışırdı, o yüzden kare tam kısaltmayı taşır.
+    assert.match(markup, />WHI<\/span>/u);
     assert.doesNotMatch(markup, /data-public="true"/u);
   });
 

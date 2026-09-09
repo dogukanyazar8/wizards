@@ -18,6 +18,7 @@ describe("mobile DM mark-read route", () => {
           calls.push("authenticate");
           return "user-1";
         },
+        canPublishReadReceipt: async () => true,
         enforceRateLimit: async (userId, action) => {
           calls.push(`rate-limit:${userId}:${action}`);
         },
@@ -67,6 +68,49 @@ describe("mobile DM mark-read route", () => {
     ]);
   });
 
+  // §15.5 madde 2. The switch is enforced on the publishing side: the reader
+  // still gets its own authoritative states back, but nothing leaves the server.
+  it("marks read without emitting when the reader turned read receipts off", async () => {
+    let emitted = false;
+    const response = await mobileDMMarkReadRoute(
+      new Request("https://example.test/api/v1/mobile/dm/conversation-1/read", {
+        method: "PATCH",
+      }),
+      { params: Promise.resolve({ conversationId: "conversation-1" }) },
+      {
+        authenticate: async () => "user-1",
+        canPublishReadReceipt: async () => false,
+        enforceRateLimit: async () => undefined,
+        getParticipantReadStates: async () => [
+          {
+            lastDeliveredAt: new Date("2026-07-17T08:04:00.000Z"),
+            lastReadAt: new Date("2026-07-17T08:05:00.000Z"),
+            userId: "user-1",
+          },
+          { lastDeliveredAt: null, lastReadAt: null, userId: "user-2" },
+        ],
+        markRead: async () => undefined,
+        emitReadUpdate: () => {
+          emitted = true;
+        },
+      },
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(emitted, false);
+    assert.deepEqual(await response.json(), {
+      conversationId: "conversation-1",
+      participantReadStates: [
+        {
+          lastDeliveredAt: "2026-07-17T08:04:00.000Z",
+          lastReadAt: "2026-07-17T08:05:00.000Z",
+          userId: "user-1",
+        },
+        { lastDeliveredAt: null, lastReadAt: null, userId: "user-2" },
+      ],
+    });
+  });
+
   it("does not mutate or emit when authentication fails", async () => {
     let mutated = false;
     const response = await mobileDMMarkReadRoute(
@@ -78,6 +122,7 @@ describe("mobile DM mark-read route", () => {
         authenticate: async () => {
           throw new ApiError("Unauthorized", 401, "UNAUTHORIZED");
         },
+        canPublishReadReceipt: async () => true,
         enforceRateLimit: async () => undefined,
         getParticipantReadStates: async () => [],
         markRead: async () => {

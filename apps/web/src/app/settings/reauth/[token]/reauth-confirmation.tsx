@@ -23,7 +23,9 @@ export function AccountDeletionReauthConfirmation({ token }: { token: string }) 
         const body = (await response.json()) as { reauthToken?: unknown };
         if (typeof body.reauthToken !== "string") throw new Error("reauth token missing");
         storeAccountDeletionReauthToken(window.sessionStorage, body.reauthToken);
-        window.location.replace("/settings#account-delete");
+        // Ş5/K2 — adres yol segmenti oldu; `/settings` artık yalnız göç kapısıdır ve `#`
+        // parçasını taşımadan yönlendirir. Silme akışı kendi sekmesine döner.
+        window.location.replace("/settings/account/data#account-delete");
       })
       .catch((error: unknown) => {
         if (!(error instanceof Error && error.name === "AbortError")) setFailed(true);

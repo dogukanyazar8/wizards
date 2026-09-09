@@ -11,16 +11,12 @@ appId: team.whispr.mobile
     id: "mobile-bottom-tab-overview"
 - extendedWaitUntil:
     visible:
-      id: "mobile-auth-welcome-screen"
-    timeout: 15000
-
-# Signed-out native navigation only. Do not enter credentials or submit a form.
-- tapOn:
-    id: "mobile-auth-welcome-sign-in"
-- extendedWaitUntil:
-    visible:
       id: "mobile-auth-login-screen"
     timeout: 15000
+
+# SPEC-GIRIS-KAYIT §6 — karsilama ekrani paket karari K4 ile kaldirildi; yigin
+# dogrudan giris ekraniyla aciliyor.
+# Signed-out native navigation only. Do not enter credentials or submit a form.
 - tapOn:
     id: "mobile-auth-login-forgot-password"
 - extendedWaitUntil:
@@ -44,22 +40,4 @@ appId: team.whispr.mobile
 - extendedWaitUntil:
     visible:
       id: "mobile-auth-login-screen"
-    timeout: 15000
-- tapOn:
-    id: "mobile-auth-login-top-bar-back"
-- extendedWaitUntil:
-    visible:
-      id: "mobile-auth-welcome-screen"
-    timeout: 15000
-- tapOn:
-    id: "mobile-auth-welcome-sign-up"
-- extendedWaitUntil:
-    visible:
-      id: "mobile-auth-register-screen"
-    timeout: 15000
-- tapOn:
-    id: "mobile-auth-register-top-bar-back"
-- extendedWaitUntil:
-    visible:
-      id: "mobile-auth-welcome-screen"
     timeout: 15000

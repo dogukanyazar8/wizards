@@ -2,13 +2,11 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
+import { readDesignReference } from "@/lib/design-reference";
+
 import { MENTIONS_METRICS, SPEC_DEVIATIONS } from "./metrics";
 
-const referencePath = new URL(
-  "../../../../../design_handoff/bahsedilmeler-paketi/referans/Bahsedilmeler.dc.html",
-  import.meta.url,
-);
-const reference = readFileSync(referencePath, "utf8");
+const reference = readDesignReference("bahsedilmeler-paketi/referans/Bahsedilmeler.dc.html");
 
 function assertReferenceContains(fragment: string): void {
   assert.ok(reference.includes(fragment), `Referans HTML parçası bulunamadı: ${fragment}`);

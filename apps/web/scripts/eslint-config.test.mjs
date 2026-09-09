@@ -30,7 +30,7 @@ test("React Compiler diagnostics are loaded as errors by the flat config", async
 
   assert.match(packageJson.devDependencies.eslint, /^\^?10\.8\.0$/u);
   assert.equal(packageJson.devDependencies["@eslint/js"], undefined);
-  assert.equal(packageJson.devDependencies["@next/eslint-plugin-next"], "16.3.0");
+  assert.equal(packageJson.devDependencies["@next/eslint-plugin-next"], "16.3.4");
   assert.match(packageJson.devDependencies["eslint-plugin-react-hooks"], /^\^?7\.1\.1$/u);
   assert.equal(packageJson.devDependencies["typescript-eslint"], "8.66.0");
   assert.equal(packageJson.devDependencies["babel-plugin-react-compiler"], "1.0.0");

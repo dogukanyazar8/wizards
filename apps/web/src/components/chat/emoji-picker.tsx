@@ -2,8 +2,9 @@
 
 import { useEffect, useId, useRef } from "react";
 import dynamic from "next/dynamic";
-import { Smile, X } from "lucide-react";
+import { Smile } from "lucide-react";
 import { useI18n } from "@/components/providers/locale-provider";
+import { WindowCloseButton } from "@/components/ui/window-close-button";
 import {
   announceOverlayOpen,
   getOverlayOpenDetail,
@@ -81,15 +82,11 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
             <p className="truncate text-xs text-app-soft">{t("chat.emoji.hint")}</p>
           </div>
         </div>
-        <button
+        <WindowCloseButton
           aria-label={t("common.close")}
-          className="rounded-full border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.55)] p-2 text-app-muted transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-          data-testid="emoji-picker-close"
           onClick={onClose}
-          type="button"
-        >
-          <X className="h-4 w-4" />
-        </button>
+          testId="emoji-picker-close"
+        />
       </div>
       <div className="max-h-[50dvh] overflow-hidden rounded-[1.25rem] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.86)] md:max-h-none">
         <Picker

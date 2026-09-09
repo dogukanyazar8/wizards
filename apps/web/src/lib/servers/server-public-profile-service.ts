@@ -1,4 +1,5 @@
 import type { ChannelType, MessageNotification, Prisma, PrismaClient } from "@wizards/db";
+import { normalizeServerIconTone } from "@wizards/types";
 import type {
   ServerNotificationLevel,
   ServerProfileAccessLevel,
@@ -110,6 +111,7 @@ export const SERVER_PUBLIC_PROFILE_SELECT = {
   description: true,
   discoverable: true,
   features: true,
+  iconColor: true,
   iconUrl: true,
   id: true,
   inviteCode: true,
@@ -382,6 +384,7 @@ export function buildServerPublicProfile(
     description: server.description ?? "",
     discoverable: server.discoverable,
     hasMoreChannels,
+    iconColor: normalizeServerIconTone(server.iconColor),
     iconUrl: server.iconUrl,
     inviteAddress: buildServerInviteAddress(server, env),
     isPublic: server.isPublic,

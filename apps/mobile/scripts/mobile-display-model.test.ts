@@ -125,6 +125,7 @@ const workspaceDetail: MobileWorkspaceServerDetailResponse["detail"] = {
     {
       accessLevel: "MEMBER",
       avatarUrl: null,
+      communicationDisabledUntil: null,
       customStatus: null,
       displayName: "Alice",
       id: "member-1",

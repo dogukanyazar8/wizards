@@ -3,7 +3,7 @@
 import Link from "next/link";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AtSign, Bell, CheckCheck, Search } from "lucide-react";
-import type { MentionCounts } from "@wizards/types";
+import type { MentionCounts, ServerIconTone } from "@wizards/types";
 
 import { DISPLAY_FONT } from "@/components/home/home-primitives";
 import {
@@ -12,7 +12,8 @@ import {
 } from "@/components/mentions/mentions-sidebar-row";
 import { useI18n } from "@/components/providers/locale-provider";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getServerAccentStyle, getServerInitial } from "@/lib/home/server-identity";
+import { getServerIconToneColor } from "@/lib/servers/server-icon-tone";
+import { resolveServerIconPresentation } from "@/lib/servers/server-icon-presentation";
 import {
   MENTION_KIND_GLYPH,
   MENTION_KIND_TONE,
@@ -59,6 +60,8 @@ const KIND_ROW_TONE: Readonly<Record<MentionSidebarKindRowId, string>> = {
 const MAX_VISIBLE_ROLE_NAMES = 3;
 
 export type MentionSourceInput = {
+  iconColor?: ServerIconTone | null;
+  iconUrl?: string | null;
   id: string;
   name: string;
   shortName: string | null;
@@ -105,13 +108,29 @@ export function buildMentionSourceRows(
       continue;
     }
 
+    const presentation = resolveServerIconPresentation({
+      iconColor: server.iconColor,
+      iconUrl: server.iconUrl,
+      name: server.name,
+      shortName: server.shortName,
+    });
+
     rows.push({
       count,
       id,
-      initial: getServerInitial(server),
+      initial: presentation.kind === "fallback" ? presentation.label : "",
       kind: "server",
       name: server.name,
-      tile: getServerAccentStyle(id, "rail"),
+      tile:
+        presentation.kind === "image"
+          ? {
+              background: `center / cover no-repeat url(${JSON.stringify(presentation.imageUrl)})`,
+              color: "transparent",
+            }
+          : {
+              background: getServerIconToneColor(presentation.tone, 0.16),
+              color: getServerIconToneColor(presentation.tone),
+            },
     });
   }
 
@@ -398,7 +417,7 @@ export function MentionsSidebar({
             // `hover:` kuralını her zaman yener ve butonun hover'ı sessizce ölürdü.
             routeState.settingsOpen
               ? undefined
-              : "text-[hsl(var(--text-muted))] hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))]",
+              : "text-[hsl(var(--text-muted))] hover:bg-[var(--surface-hover)] hover:text-[hsl(var(--foreground))]",
           )}
           data-testid="mentions-sidebar-settings"
           href={settingsHref}

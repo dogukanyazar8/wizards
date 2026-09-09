@@ -299,7 +299,7 @@ function DiscoverEventCardComponent({
           {t("discover.event.interested")}
         </button>
         <button
-          className="shrink-0 border-[hsl(var(--border)/0.7)] bg-transparent text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="shrink-0 border-[hsl(var(--border)/0.7)] bg-transparent text-[hsl(var(--text-secondary))] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           onClick={() => onViewDetails(event)}
           style={{
             borderRadius: pxToRem(metrics.detailButtonRadius),

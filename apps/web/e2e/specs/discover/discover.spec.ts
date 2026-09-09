@@ -1,6 +1,4 @@
 import type { Page } from "@playwright/test";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { resolveE2ETimeoutPolicy } from "@/lib/e2e/timeout-policy";
 import { expect, test } from "../../fixtures/test";
@@ -16,17 +14,12 @@ import {
   applyParityTheme,
   expectNoClippedText,
   expectNoHorizontalOverflow,
-  readRootFontSize,
+  waitForRootFontSize,
   type ParityTheme,
 } from "../../helpers/design-parity";
 import { gotoAppRoute, visibleTestId } from "../../helpers/navigation";
 
 const { screenTestTimeoutMs } = resolveE2ETimeoutPolicy();
-const REPORT_SCREEN_DIR = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../../../../docs/prompts/whispr-kesfet/raporlar/ekranlar",
-);
-
 const THEMES = ["theme-light", "theme-dark"] as const satisfies readonly ParityTheme[];
 const VIEWPORTS = [
   { expectedRootFontSize: 16, height: 920, label: "1360x920", width: 1360 },
@@ -438,7 +431,7 @@ test.describe("Keşfet Ş10 davranış ve parity kapısı", () => {
   });
 
   for (const theme of THEMES) {
-    test(`12 durum ekran kanıtı · ${theme}`, async ({ page }) => {
+    test(`12 durum ekran kanıtı · ${theme}`, async ({ page }, testInfo) => {
       test.setTimeout(600_000);
       await page.setViewportSize({ height: 920, width: 1360 });
       await prepareTheme(page, theme);
@@ -469,10 +462,7 @@ test.describe("Keşfet Ş10 davranış ve parity kapısı", () => {
         await page.screenshot({
           animations: "disabled",
           fullPage: false,
-          path: resolve(
-            REPORT_SCREEN_DIR,
-            `${state.id}-${state.fileStem}-${themeLabel(theme)}.png`,
-          ),
+          path: testInfo.outputPath(`${state.id}-${state.fileStem}-${themeLabel(theme)}.png`),
         });
         expect(pageErrors, `${theme}/${state.id} tarayıcı hatası`).toEqual([]);
         page.off("pageerror", capturePageError);
@@ -494,7 +484,7 @@ test.describe("Keşfet Ş10 davranış ve parity kapısı", () => {
         await page.setViewportSize({ height: viewport.height, width: viewport.width });
         await openDiscover(page);
         await expectTheme(page, theme);
-        expect(await readRootFontSize(page)).toBeCloseTo(viewport.expectedRootFontSize, 1);
+        await waitForRootFontSize(page, viewport.expectedRootFontSize);
         await expectNoHorizontalOverflow(page);
         await expectNoClippedText(page);
         await expect(page.getByTestId("discover-feed-header").getByRole("heading")).toHaveCSS(
@@ -522,7 +512,7 @@ test.describe("Keşfet Ş10 davranış ve parity kapısı", () => {
         await page.screenshot({
           animations: "disabled",
           fullPage: false,
-          path: resolve(REPORT_SCREEN_DIR, `cozunurluk-${viewport.label}-${themeLabel(theme)}.png`),
+          path: testInfo.outputPath(`cozunurluk-${viewport.label}-${themeLabel(theme)}.png`),
         });
       }
 

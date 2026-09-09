@@ -45,6 +45,7 @@ function profileFixture(): ServerPublicProfile {
     createdAt: "2026-01-02T03:04:05.000Z",
     description: "Yol haritasını burada tartışıyoruz.",
     discoverable: true,
+    iconColor: null,
     iconUrl: null,
     inviteAddress: "whispr.gg/whispr-community",
     isPublic: true,

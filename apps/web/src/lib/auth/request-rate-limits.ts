@@ -1,5 +1,5 @@
 import { logError } from "@/lib/logger";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, peekRateLimitRetryAfterMs } from "@/lib/rate-limit";
 import { getRedisRate } from "@/lib/redis";
 import {
   createNetworkRateLimitIdentity,
@@ -9,12 +9,14 @@ import {
 
 export type AuthRequestRateLimitDependencies = {
   checkRateLimit: typeof checkRateLimit;
+  peekRateLimitRetryAfterMs: typeof peekRateLimitRetryAfterMs;
   getRedisRate: typeof getRedisRate;
   logError: typeof logError;
 };
 
 const defaultDependencies: AuthRequestRateLimitDependencies = {
   checkRateLimit,
+  peekRateLimitRetryAfterMs,
   getRedisRate,
   logError,
 };
@@ -256,6 +258,66 @@ export function checkVerificationSendRequestRateLimit(
       scope: "verification-send",
       subject: { namespace: "user", value: input.userId },
       windowSeconds: 60 * 60,
+    }),
+    dependencies,
+  );
+}
+
+/** SPEC §4.5 ve §4.7 — yeniden gönderme kilidinin kalan süresi (60 saniyelik pencere). */
+const RESEND_COOLDOWN_SECONDS = 60;
+
+async function peekCooldownRetryAfterMs(
+  scope: string,
+  key: string,
+  dependencies: AuthRequestRateLimitDependencies,
+) {
+  try {
+    return await dependencies.peekRateLimitRetryAfterMs(
+      dependencies.getRedisRate(),
+      key,
+      1,
+      RESEND_COOLDOWN_SECONDS,
+    );
+  } catch (error) {
+    dependencies.logError(`[auth-rate-limit] ${scope} retry-after unavailable`, error);
+    return 0;
+  }
+}
+
+/**
+ * `Kodu tekrar gönder` bağlantısının yerine geçen geri sayım pill'inin değeri (SPEC §4.7).
+ * Sıfır dönerse kilit yok, bağlantı açıktır.
+ */
+export function getPasswordResetResendRetryAfterMs(
+  input: { email: string; headers: ClientIpHeaderSource },
+  dependencies: AuthRequestRateLimitDependencies = defaultDependencies,
+) {
+  const scope = "password-reset-request";
+
+  return peekCooldownRetryAfterMs(
+    scope,
+    createCooldownKey({
+      headers: input.headers,
+      scope,
+      subject: { namespace: "email", value: input.email.trim().toLowerCase() },
+    }),
+    dependencies,
+  );
+}
+
+/** SPEC §4.5 — `Tekrar gönder · 00:42` sayacının değeri. */
+export function getVerificationResendRetryAfterMs(
+  input: { email: string; headers: ClientIpHeaderSource },
+  dependencies: AuthRequestRateLimitDependencies = defaultDependencies,
+) {
+  const scope = "verification-resend";
+
+  return peekCooldownRetryAfterMs(
+    scope,
+    createCooldownKey({
+      headers: input.headers,
+      scope,
+      subject: { namespace: "email", value: input.email.trim().toLowerCase() },
     }),
     dependencies,
   );

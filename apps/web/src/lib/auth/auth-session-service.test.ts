@@ -1,18 +1,37 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import type { RecordSecurityEventInput } from "@/lib/security/security-event-service";
+
 import {
   ensureAuthSession,
   isAuthSessionActive,
   listAuthSessions,
   revokeAuthSession,
   revokeOtherAuthSessions,
+  type AuthSessionDeviceFingerprint,
   type AuthSessionRecord,
   type AuthSessionStore,
 } from "./auth-session-service";
 
 class MemoryAuthSessionStore implements AuthSessionStore {
   readonly records = new Map<string, AuthSessionRecord>();
+
+  async countKnownDevices(
+    userId: string,
+    fingerprint: AuthSessionDeviceFingerprint,
+    excludeSessionId: string,
+  ) {
+    return [...this.records.values()].filter(
+      (row) =>
+        row.userId === userId &&
+        row.id !== excludeSessionId &&
+        row.browser === fingerprint.browser &&
+        row.clientType === fingerprint.clientType &&
+        row.deviceType === fingerprint.deviceType &&
+        row.os === fingerprint.os,
+    ).length;
+  }
 
   async find(id: string) {
     return this.records.get(id) ?? null;
@@ -60,6 +79,18 @@ class MemoryAuthSessionStore implements AuthSessionStore {
   }
 }
 
+/**
+ * Ayarlar Ş3. The default recorder writes to the database; every call in this file injects a
+ * collector instead, so the unit tests stay offline and can assert what would have been logged.
+ */
+function createEventRecorder() {
+  const events: RecordSecurityEventInput[] = [];
+  const recordEvent = async (input: RecordSecurityEventInput) => {
+    events.push(input);
+  };
+  return { events, recordEvent };
+}
+
 const now = new Date("2026-08-13T09:00:00.000Z");
 
 function record(overrides: Partial<AuthSessionRecord> = {}): AuthSessionRecord {
@@ -83,6 +114,7 @@ function record(overrides: Partial<AuthSessionRecord> = {}): AuthSessionRecord {
 describe("auth session service", () => {
   it("creates a safe session record and preserves a prior revocation", async () => {
     const store = new MemoryAuthSessionStore();
+    const { recordEvent } = createEventRecorder();
     await ensureAuthSession(
       {
         expiresAt: new Date("2026-09-12T08:00:00.000Z"),
@@ -96,6 +128,7 @@ describe("auth session service", () => {
           os: "W".repeat(200),
         },
         now,
+        recordEvent,
         userId: "user-1",
       },
       store,
@@ -113,6 +146,7 @@ describe("auth session service", () => {
         id: "session-1",
         metadata: null,
         now: new Date("2026-08-13T09:05:00.000Z"),
+        recordEvent,
         userId: "user-1",
       },
       store,
@@ -161,15 +195,23 @@ describe("auth session service", () => {
 
   it("revokes only owned targets and preserves the current session in bulk", async () => {
     const store = new MemoryAuthSessionStore();
+    const { recordEvent } = createEventRecorder();
     store.records.set("current", record({ id: "current" }));
     store.records.set("other", record({ clientType: "MOBILE", id: "other" }));
     store.records.set("foreign", record({ id: "foreign", userId: "user-2" }));
 
-    assert.equal(await revokeAuthSession("user-1", "foreign", { now, store }), null);
-    assert.equal((await revokeAuthSession("user-1", "other", { now, store }))?.id, "other");
+    assert.equal(await revokeAuthSession("user-1", "foreign", { now, recordEvent, store }), null);
+    assert.equal(
+      (await revokeAuthSession("user-1", "other", { now, recordEvent, store }))?.id,
+      "other",
+    );
 
     store.records.set("other-2", record({ clientType: "MOBILE", id: "other-2" }));
-    const revoked = await revokeOtherAuthSessions("user-1", "current", { now, store });
+    const revoked = await revokeOtherAuthSessions("user-1", "current", {
+      now,
+      recordEvent,
+      store,
+    });
     assert.deepEqual(
       revoked.map((row) => row.id),
       ["other-2"],
@@ -178,8 +220,120 @@ describe("auth session service", () => {
     assert.equal(store.records.get("foreign")?.revokedAt, null);
   });
 
+  it("keeps the caller signed in after revoke-others and logs one SESSION_REVOKED row", async () => {
+    // Ayarlar Ş3 §4 / tuzak #13 regression. "Diğerlerini kapat" must never end the session that
+    // pressed it: the row stays unrevoked and still passes the durable-session check.
+    const store = new MemoryAuthSessionStore();
+    const { events, recordEvent } = createEventRecorder();
+    store.records.set("current", record({ id: "current" }));
+    store.records.set("other-1", record({ id: "other-1" }));
+    store.records.set("other-2", record({ clientType: "MOBILE", id: "other-2" }));
+
+    await revokeOtherAuthSessions("user-1", "current", { now, recordEvent, store });
+
+    assert.equal(store.records.get("current")?.revokedAt, null);
+    assert.equal(await isAuthSessionActive("user-1", "current", { now, store }), true);
+    assert.equal(await isAuthSessionActive("user-1", "other-1", { now, store }), false);
+    assert.equal(await isAuthSessionActive("user-1", "other-2", { now, store }), false);
+    assert.deepEqual(events, [
+      {
+        kind: "SESSION_REVOKED",
+        metadata: { revokedCount: 2, scope: "others" },
+        userId: "user-1",
+      },
+    ]);
+  });
+
+  it("writes no SESSION_REVOKED row when there was nothing to revoke", async () => {
+    const store = new MemoryAuthSessionStore();
+    const { events, recordEvent } = createEventRecorder();
+    store.records.set("current", record({ id: "current" }));
+
+    await revokeOtherAuthSessions("user-1", "current", { now, recordEvent, store });
+    await revokeAuthSession("user-1", "missing", { now, recordEvent, store });
+
+    assert.deepEqual(events, []);
+  });
+
+  it("logs LOGIN_NEW_DEVICE only for the first session from a device", async () => {
+    const store = new MemoryAuthSessionStore();
+    const { events, recordEvent } = createEventRecorder();
+    const metadata = {
+      appVersion: null,
+      browser: "Chrome",
+      clientType: "WEB",
+      countryCode: "TR",
+      deviceType: "DESKTOP",
+      os: "Windows",
+    } as const;
+
+    await ensureAuthSession(
+      { expiresAt: record().expiresAt, id: "session-1", metadata, now, recordEvent, userId: "u1" },
+      store,
+    );
+    await ensureAuthSession(
+      {
+        expiresAt: record().expiresAt,
+        id: "session-2",
+        metadata,
+        now: new Date("2026-08-13T10:00:00.000Z"),
+        recordEvent,
+        userId: "u1",
+      },
+      store,
+    );
+    await ensureAuthSession(
+      {
+        expiresAt: record().expiresAt,
+        id: "session-3",
+        metadata: { ...metadata, browser: "Firefox" },
+        now: new Date("2026-08-13T11:00:00.000Z"),
+        recordEvent,
+        userId: "u1",
+      },
+      store,
+    );
+
+    assert.deepEqual(events, [
+      { kind: "LOGIN_NEW_DEVICE", location: "TR", userAgent: "Chrome", userId: "u1" },
+      { kind: "LOGIN_NEW_DEVICE", location: "TR", userAgent: "Firefox", userId: "u1" },
+    ]);
+  });
+
+  it("does not log a new device when an existing session is only touched", async () => {
+    const store = new MemoryAuthSessionStore();
+    const { events, recordEvent } = createEventRecorder();
+    const metadata = {
+      appVersion: null,
+      browser: "Chrome",
+      clientType: "WEB",
+      countryCode: "TR",
+      deviceType: "DESKTOP",
+      os: "Windows",
+    } as const;
+
+    await ensureAuthSession(
+      { expiresAt: record().expiresAt, id: "session-1", metadata, now, recordEvent, userId: "u1" },
+      store,
+    );
+    await ensureAuthSession(
+      {
+        expiresAt: record().expiresAt,
+        id: "session-1",
+        metadata,
+        now: new Date("2026-08-13T09:30:00.000Z"),
+        recordEvent,
+        userId: "u1",
+      },
+      store,
+    );
+
+    assert.equal(events.length, 1);
+  });
+
   it("disconnects only durable sessions that were actually revoked", async () => {
     const store = new MemoryAuthSessionStore();
+    const { recordEvent } = createEventRecorder();
     const disconnectedSessions: string[] = [];
     const disconnectSockets = (sessionId: string) => {
       disconnectedSessions.push(sessionId);
@@ -193,6 +347,7 @@ describe("auth session service", () => {
       await revokeAuthSession("user-1", "foreign", {
         disconnectSockets,
         now,
+        recordEvent,
         store,
       }),
       null,
@@ -202,6 +357,7 @@ describe("auth session service", () => {
         await revokeAuthSession("user-1", "other-1", {
           disconnectSockets,
           now,
+          recordEvent,
           store,
         })
       )?.id,
@@ -210,6 +366,7 @@ describe("auth session service", () => {
     await revokeOtherAuthSessions("user-1", "current", {
       disconnectSockets,
       now,
+      recordEvent,
       store,
     });
 

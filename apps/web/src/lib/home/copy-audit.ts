@@ -55,7 +55,6 @@ function maskAllowlisted(source: string): string {
 export const HOME_COPY_AUDIT_SCOPE = [
   "app/(main)/events",
   "app/(main)/home",
-  "app/(main)/inbox",
   "app/(main)/mentions",
   "components/command",
   "components/home",

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LoginSchema } from "@wizards/types";
+import { LoginSchema, TwoFactorChallengeSchema } from "@wizards/types";
 
 const resolverOptions = {
   criteriaMode: "firstError",
@@ -18,7 +18,6 @@ describe("zodResolver login contract", () => {
         password: "correct-horse",
         rememberMe: "on",
         turnstileToken: "turnstile-token",
-        twoFactorCode: " 123456 ",
       },
       undefined,
       resolverOptions,
@@ -30,7 +29,6 @@ describe("zodResolver login contract", () => {
       password: "correct-horse",
       rememberMe: true,
       turnstileToken: "turnstile-token",
-      twoFactorCode: "123456",
     });
   });
 
@@ -41,7 +39,6 @@ describe("zodResolver login contract", () => {
         password: "short",
         rememberMe: false,
         turnstileToken: "",
-        twoFactorCode: "x".repeat(65),
       },
       undefined,
       resolverOptions,
@@ -51,6 +48,21 @@ describe("zodResolver login contract", () => {
     assert.equal(result.errors.email?.message, "validation.email.invalid");
     assert.equal(result.errors.password?.message, "validation.password.min");
     assert.equal(result.errors.turnstileToken?.message, "validation.turnstile.required");
-    assert.equal(result.errors.twoFactorCode?.message, "validation.twoFactor.invalid");
+  });
+
+  it("keeps custom validation keys on the two-factor challenge contract", async () => {
+    const result = await zodResolver(TwoFactorChallengeSchema)(
+      {
+        challengeId: "short",
+        code: "12345",
+        rememberDevice: false,
+      },
+      undefined,
+      resolverOptions,
+    );
+
+    assert.deepEqual(result.values, {});
+    assert.equal(result.errors.challengeId?.message, "validation.twoFactor.challenge");
+    assert.equal(result.errors.code?.message, "validation.verificationCode.invalid");
   });
 });

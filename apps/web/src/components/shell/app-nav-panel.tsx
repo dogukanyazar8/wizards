@@ -7,7 +7,8 @@ import type { WorkspaceServerSummary } from "@wizards/types";
 import { FOOTER_WRAPPER_STYLE, UserProfileFooter } from "@/components/shell/channel-sidebar";
 import { useI18n } from "@/components/providers/locale-provider";
 import { HomeCountBadge } from "@/components/home/home-primitives";
-import { getServerAccentStyle, getServerInitial } from "@/lib/home/server-identity";
+import { getServerIconToneColor } from "@/lib/servers/server-icon-tone";
+import { resolveServerIconPresentation } from "@/lib/servers/server-icon-presentation";
 import { EVENTS_METRICS } from "@/lib/events/metrics";
 import { hairline, HOME_METRICS, HOME_TYPE_SCALE, pxToEm, pxToRem } from "@/lib/home/metrics";
 import { isNewServer, markServerSeen, readSeenServers } from "@/lib/discover/new-server-badge";
@@ -89,17 +90,28 @@ export function selectServerRowTrailing(server: {
   return null;
 }
 
-function ServerInitial({ isNew, server }: { isNew: boolean; server: WorkspaceServerSummary }) {
-  const accent = getServerAccentStyle(server.id, "panel");
+function ServerInitial({ server }: { server: WorkspaceServerSummary }) {
+  const presentation = resolveServerIconPresentation({
+    iconColor: server.iconColor,
+    iconUrl: server.iconUrl,
+    name: server.name,
+    shortName: server.shortName,
+  });
 
   return (
     <span
       aria-hidden="true"
       className={cn(DISPLAY_FONT, "grid shrink-0 place-items-center uppercase")}
       style={{
-        background: isNew ? "hsl(var(--warning)/0.2)" : accent.background,
+        background:
+          presentation.kind === "image"
+            ? `center / cover no-repeat url(${JSON.stringify(presentation.imageUrl)})`
+            : getServerIconToneColor(presentation.tone, 0.18),
         borderRadius: pxToRem(panel.serverIconRadius),
-        color: isNew ? "hsl(var(--warning))" : accent.color,
+        color:
+          presentation.kind === "fallback"
+            ? getServerIconToneColor(presentation.tone)
+            : "transparent",
         fontSize: pxToRem(panel.serverIconFontSize),
         fontWeight: 600,
         height: pxToRem(panel.serverIconSize),
@@ -107,7 +119,7 @@ function ServerInitial({ isNew, server }: { isNew: boolean; server: WorkspaceSer
         width: pxToRem(panel.serverIconSize),
       }}
     >
-      {getServerInitial(server)}
+      {presentation.kind === "fallback" ? presentation.label : ""}
     </span>
   );
 }
@@ -176,8 +188,10 @@ function AppNavPanelComponent({
     <nav
       aria-label={t("shell.appNav.label")}
       className="flex h-full w-full min-w-0 flex-col bg-[hsl(var(--surface-panel))]"
+      data-shortcut-region="navigation"
       data-testid="app-nav-panel"
       style={{ borderRight: `${hairline()} solid hsl(var(--border) / 0.4)` }}
+      tabIndex={-1}
     >
       <div
         className="flex items-center justify-between"
@@ -232,7 +246,7 @@ function AppNavPanelComponent({
                     "flex items-center outline-hidden transition-colors focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                     active
                       ? "bg-[hsl(var(--primary)/0.13)] text-[var(--primary-readable)]"
-                      : "text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))]",
+                      : "text-[hsl(var(--text-secondary))] hover:bg-[var(--surface-hover)] hover:text-[hsl(var(--foreground))]",
                   )}
                   data-testid={`app-nav-${row.id}`}
                   href={row.href}
@@ -408,7 +422,7 @@ function AppNavPanelComponent({
                     )}`,
                   }}
                 >
-                  <ServerInitial isNew={isNew} server={server} />
+                  <ServerInitial server={server} />
                   <span className="min-w-0 flex-1 truncate">{server.name}</span>
                   {isNew ? (
                     <span

@@ -180,6 +180,17 @@ const RECENT: AppRecentResponse = {
 };
 
 describe("KALDIĞIN YER — dört hâl", () => {
+  it("Tümünü gör yerel pencereyi duyuran gerçek bir düğmedir", () => {
+    const html = renderWithLocale(
+      <HomeContinueCard now={NOW} rowCount={4} state={ready(RECENT)} />,
+    );
+    const control = html.match(/<button[^>]*data-testid="home-header-link"[^>]*>/)?.[0] ?? "";
+
+    assert.match(control, /aria-haspopup="dialog"/);
+    assert.match(control, /aria-expanded="false"/);
+    assert.doesNotMatch(control, /href=/);
+  });
+
   it("dolu: satırlar, zaman ve rozet çizilir", () => {
     const html = renderWithLocale(
       <HomeContinueCard now={NOW} rowCount={4} state={ready(RECENT)} />,
@@ -412,6 +423,7 @@ describe("YANIT BEKLİYOR — dört hâl", () => {
     assert.doesNotMatch(anchorBody, /<button/);
     assert.match(firstRow, /data-testid="home-awaiting-action"/);
     assert.match(html, /Yanıtla/);
+    assert.match(html, /href="\/mentions"/);
   });
 
   it("dolu: aksiyonsuz satırda buton yok", () => {
@@ -646,6 +658,7 @@ describe("ARKADAŞLAR — dört hâl", () => {
 
     assert.match(html, /4 çevrimiçi/);
     assert.match(html, /· 5 kişiden/);
+    assert.match(html, /href="\/messages\/friends"/);
   });
 
   it("dolu: durum metni öncelik sırasını izler", () => {

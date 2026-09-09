@@ -107,6 +107,9 @@ async function withPatchedEnvironment(run: (restores: Restore[]) => Promise<void
       ),
   );
   setOnlineServerMemberCountRedisForTest({ status: "wait" } as never);
+  // Ş2: üye listesi artık `N / toplam` sayacını da okuyor. Sayım hiçbir senaryonun konusu
+  // değil, ama yamalanmazsa bu dosyadaki her üye testi gerçek veritabanına uzanırdı.
+  patchMethod(prisma.serverMember, "count", async () => 0, restores);
 
   try {
     await run(restores);
@@ -1084,6 +1087,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
         "findMany",
         async () => [
           {
+            communicationDisabledUntil: null,
             id: "member-target",
             nickname: null,
             roles: [
@@ -1125,6 +1129,8 @@ describe("workspace service characterization", { concurrency: false }, () => {
       const publicMembers = await listWorkspaceServerMembers("actor", "server-1");
 
       assert.deepEqual(publicMembers, {
+        // Ş2: sayaç iki dalda da aynı yükten geliyor — genel yanıt onu taşır, iç yanıt da.
+        memberCounts: internal.memberCounts,
         memberPage: internal.memberPage,
         members: internal.members.map(({ member }) => member),
       });
@@ -1147,6 +1153,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
       assert.deepEqual(Object.keys(internal.members[0]?.member ?? {}).sort(), [
         "accessLevel",
         "avatarUrl",
+        "communicationDisabledUntil",
         "customStatus",
         "displayName",
         "id",
@@ -1247,6 +1254,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
         description: null,
         iconUrl: null,
         name: "  Guild  ",
+        shortName: "GUI",
       });
 
       assert.deepEqual(result, { channelId: "channel-general", serverId: "server-1" });
@@ -1930,6 +1938,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
             expiresAt: new Date("2026-07-14T10:00:00.000Z"),
             id: "invite-1",
             maxUses: 5,
+            targetUserId: null,
             uses: 2,
           },
         ],
@@ -1945,6 +1954,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
           expiresAt: "2026-07-14T10:00:00.000Z",
           id: "invite-1",
           maxUses: 5,
+          targetUserId: null,
           uses: 2,
         },
       ]);
@@ -2030,7 +2040,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
     });
   });
 
-  it("keeps createWorkspaceInvite byte-compatible while the internal variant returns details", async () => {
+  it("returns the same full invite from the public and internal create entry points", async () => {
     await withPatchedEnvironment(async (restores) => {
       let createCount = 0;
       patchMethod(prisma.serverBan, "findUnique", async () => null, restores);
@@ -2047,7 +2057,18 @@ describe("workspace service characterization", { concurrency: false }, () => {
       );
       patchMethod(prisma.channel, "findFirst", async () => ({ id: "channel-1" }), restores);
       patchMethod(prisma.serverInvite, "findUnique", async () => null, restores);
-      patchMethod(prisma.server, "findUnique", async () => null, restores);
+      // Ş3: davet oluşturma artık iki ayrı `server.findUnique` yapıyor — biri kod
+      // benzersizliği için (`where.inviteCode`), biri `Üyeler kullanıcı ekleyebilir`
+      // bayrağı için (`where.id`). İkincisi `null` dönerse uç 404 verir.
+      patchMethod(
+        prisma.server,
+        "findUnique",
+        async (query?: unknown) => {
+          const where = (query as { where: Record<string, unknown> }).where;
+          return "inviteCode" in where ? null : { features: [], name: "Server" };
+        },
+        restores,
+      );
       patchMethod(
         prisma.serverInvite,
         "create",
@@ -2071,6 +2092,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
             expiresAt: data.expiresAt,
             id: `invite-${createCount}`,
             maxUses: data.maxUses,
+            targetUserId: null,
             uses: 0,
           };
         },
@@ -2081,8 +2103,12 @@ describe("workspace service characterization", { concurrency: false }, () => {
       const publicResult = await createWorkspaceInvite("manager", "server-1", input);
       const internalResult = await createWorkspaceInviteWithDetails("manager", "server-1", input);
 
-      assert.deepEqual(Object.keys(publicResult), ["code"]);
-      assert.equal(JSON.stringify(publicResult), `{"code":"${publicResult.code}"}`);
+      // Ş3: uç eskiden yalnız `{ code }` dönüyordu. Hedefli davet satırı tek yanıtta
+      // kod + hedef + süre + kullanım istiyor, bu yüzden iki giriş noktası da tam daveti
+      // döndürüyor. `code` yerinde durduğu için eski çağıranlar kırılmıyor.
+      assert.deepEqual(Object.keys(publicResult).sort(), Object.keys(internalResult).sort());
+      assert.equal(typeof publicResult.code, "string");
+      assert.equal(publicResult.targetUserId, null);
       assert.deepEqual(internalResult, {
         channelId: "channel-1",
         code: internalResult.code,
@@ -2091,6 +2117,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
         expiresAt: null,
         id: "invite-2",
         maxUses: 5,
+        targetUserId: null,
         uses: 0,
       });
     });

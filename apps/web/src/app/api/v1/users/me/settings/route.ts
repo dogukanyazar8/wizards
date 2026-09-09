@@ -14,6 +14,7 @@ import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { requireApiUserId } from "@/lib/auth/api";
 import { broadcastPresenceVisibilityChanged } from "@/lib/friends/service";
 import { logError } from "@/lib/logger";
+import { deriveModernNotificationColumns } from "@/lib/notifications/prefs-service";
 
 export type { UserLayoutSettings, UserSettingsResponse };
 
@@ -25,6 +26,7 @@ async function loadSettings(userId: string): Promise<SettingsPersistenceRecord |
         select: {
           serverRailWidth: true,
           channelSidebarWidth: true,
+          idleTimeoutMinutes: true,
           messageFont: true,
           notificationLimit: true,
           notificationAutoClose: true,
@@ -37,6 +39,25 @@ async function loadSettings(userId: string): Promise<SettingsPersistenceRecord |
           dateFormat: true,
           timeFormat: true,
           interfaceDensity: true,
+          messageSizePx: true,
+          messageDisplayCompact: true,
+          inlineAttachmentMedia: true,
+          linkPreviews: true,
+          renderEmbeds: true,
+          renderReactions: true,
+          animateEmoji: true,
+          animateStickers: true,
+          enableTTS: true,
+          reduceMotion: true,
+          highContrast: true,
+          strongFocusRings: true,
+          uiTextScale: true,
+          screenReaderDescriptions: true,
+          followSystemA11y: true,
+          appIcon: true,
+          serverIconSize: true,
+          mainContentWidth: true,
+          showMemberPanelByDefault: true,
         },
       },
       notificationSettings: {
@@ -68,6 +89,7 @@ async function updateSettings(
       select: {
         serverRailWidth: true,
         channelSidebarWidth: true,
+        idleTimeoutMinutes: true,
         messageFont: true,
         notificationLimit: true,
         notificationAutoClose: true,
@@ -80,14 +102,41 @@ async function updateSettings(
         dateFormat: true,
         timeFormat: true,
         interfaceDensity: true,
+        messageSizePx: true,
+        messageDisplayCompact: true,
+        inlineAttachmentMedia: true,
+        linkPreviews: true,
+        renderEmbeds: true,
+        renderReactions: true,
+        animateEmoji: true,
+        animateStickers: true,
+        enableTTS: true,
+        reduceMotion: true,
+        highContrast: true,
+        strongFocusRings: true,
+        uiTextScale: true,
+        screenReaderDescriptions: true,
+        followSystemA11y: true,
+        appIcon: true,
+        serverIconSize: true,
+        mainContentWidth: true,
+        showMemberPanelByDefault: true,
       },
     });
 
-    const notificationSettings = Object.keys(notificationData).length
+    // Ayarlar Ş1 / K12 — the other half of the two-way map. This endpoint still writes the four
+    // legacy notification columns, and `notification-prefs` reads the new ones; without the
+    // derivation "mobil push kapalı" would be stored here and ignored there. The mapping itself
+    // lives in `prefs-service`, next to the direction that goes the other way.
+    const notificationWrite = {
+      ...notificationData,
+      ...deriveModernNotificationColumns(notificationData),
+    };
+    const notificationSettings = Object.keys(notificationWrite).length
       ? await tx.userNotificationSettings.upsert({
           where: { userId },
-          create: { userId, ...DEFAULT_NOTIFICATION_SETTINGS, ...notificationData },
-          update: notificationData,
+          create: { userId, ...DEFAULT_NOTIFICATION_SETTINGS, ...notificationWrite },
+          update: notificationWrite,
           select: {
             desktopNotifications: true,
             mobileNotifications: true,

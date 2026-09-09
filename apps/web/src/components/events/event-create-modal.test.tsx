@@ -36,10 +36,11 @@ const MESSAGES = getMessagesForLocale("tr");
 const copy = (key: string): string => MESSAGES[key] ?? "";
 
 const COMMUNITY: EventPlaceServer = {
+  iconColor: null,
   iconUrl: null,
   id: "s1",
   name: "Whispr Topluluğu",
-  shortName: "W",
+  shortName: "WHS",
   type: "COMMUNITY",
 };
 

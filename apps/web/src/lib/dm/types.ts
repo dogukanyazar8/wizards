@@ -1,5 +1,15 @@
-import type { DMConversationDTO, DMParticipantDTO, DMMessagePayload } from "@wizards/types";
-import { DMConversationDTOSchema, DMMessagePayloadSchema } from "@wizards/types";
+import type {
+  DMConversationDTO,
+  DMParticipantDTO,
+  DMMessagePayload,
+  ServerIconTone,
+} from "@wizards/types";
+import {
+  DMConversationDTOSchema,
+  DMMessagePayloadSchema,
+  ServerIconToneSchema,
+  SetMutedRequestSchema,
+} from "@wizards/types";
 import { z } from "zod";
 
 export type DMErrorCode = "NOT_FRIENDS" | "BLOCKED" | "NOT_FOUND";
@@ -19,6 +29,7 @@ export interface DMConversationsPageResponse {
 }
 
 export type DMMutualServerSummary = {
+  iconColor: ServerIconTone | null;
   iconUrl: string | null;
   id: string;
   memberCount: number;
@@ -47,6 +58,7 @@ export const DMConversationsPageResponseSchema = z.object({
 });
 
 export const DMMutualServerSummarySchema = z.object({
+  iconColor: ServerIconToneSchema.nullable(),
   iconUrl: z.string().nullable(),
   id: z.string(),
   memberCount: z.number().int().nonnegative(),
@@ -66,9 +78,16 @@ export const DMConversationParamsSchema = z.object({
   conversationId: z.string().min(1),
 });
 
-export const SetDMMutedBodySchema = z.object({
-  muted: z.boolean(),
-});
+/**
+ * Mesajlar §17's `Sessize al` submenu (karar K8). The shared contract lives in
+ * `@wizards/types` so the mobile route parses the same shape; this alias keeps
+ * the existing import site working rather than opening a second definition that
+ * could drift from it.
+ *
+ * `duration` is optional and absent means `forever`, which is exactly what the
+ * pre-submenu body `{ muted }` already meant.
+ */
+export const SetDMMutedBodySchema = SetMutedRequestSchema;
 
 export const DMMessagesQuerySchema = z.object({
   cursor: z.string().min(1).optional(),

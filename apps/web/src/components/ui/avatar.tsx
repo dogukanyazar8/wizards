@@ -32,20 +32,23 @@ function getFallbackInitials(value: string) {
 }
 
 export function Avatar({ alt, className, fallback, src, style }: AvatarProps) {
+  const accessibleName = alt.trim() || fallback.trim();
+
   return (
     <div
-      aria-label={alt}
+      aria-hidden={accessibleName ? undefined : true}
+      aria-label={accessibleName || undefined}
       className={cn(
         "flex shrink-0 items-center justify-center overflow-hidden rounded-full border text-xs font-semibold uppercase",
         "border-[hsl(var(--border)/0.78)] bg-[hsl(var(--surface-soft)/0.72)] text-[hsl(var(--foreground))]",
         className,
       )}
-      role="img"
+      role={accessibleName ? "img" : undefined}
       style={style}
     >
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img alt={alt} className="h-full w-full object-cover" src={src} />
+        <img alt="" aria-hidden="true" className="h-full w-full object-cover" src={src} />
       ) : (
         <span>{getFallbackInitials(fallback)}</span>
       )}

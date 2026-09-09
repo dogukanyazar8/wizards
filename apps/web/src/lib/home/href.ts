@@ -73,7 +73,6 @@ export function buildMentionHref(input: {
 }
 
 export const HOME_FRIENDS_HREF = "/messages";
-export const HOME_INBOX_HREF = "/inbox";
 export const HOME_MENTIONS_HREF = "/mentions";
 export const HOME_EVENTS_HREF = "/events";
 

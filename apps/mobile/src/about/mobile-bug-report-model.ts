@@ -4,6 +4,7 @@ import {
   MOBILE_BUG_REPORT_BODY_MAX_LENGTH,
   MOBILE_BUG_REPORT_BODY_MIN_LENGTH,
   MOBILE_BUG_REPORT_LOG_MAX_LINES,
+  redactBugReportLogLines,
   type MobileBugReportCategory,
   type MobileBugReportRequest,
   type MobileReleaseChannel,
@@ -11,9 +12,6 @@ import {
 
 export const MOBILE_BUG_REPORT_QUEUE_KEY = "whispr.report.queuedDrafts";
 export const MOBILE_BUG_REPORT_QUEUE_LIMIT = 5;
-
-const SENSITIVE_LOG_PATTERN =
-  /(?:access[_-]?token|refresh[_-]?token|oauth[_-]?code|password|secret|authorization\s*:|bearer\s+[a-z0-9._~-]|(?:message|content|body|person(?:[_-]?name)?|contact|display[_-]?name|user[_-]?name|file[_-]?name|attachment[_-]?name)\s*[:=]|[\w.+-]+@[\w.-]+\.[a-z]{2,}|(?:^|[\\/])[^\\/\s]+\.(?:docx?|pdf|png|jpe?g|webp|gif|zip|txt|csv)\b)/i;
 
 export type MobileBugReportValidationReason = "body-long" | "body-short" | "category";
 
@@ -73,22 +71,15 @@ export function validateMobileBugReportDraft(input: {
 
 /**
  * Diagnostics are allow-listed elsewhere, but every line is redacted again at
- * the last client-side boundary. A suspicious line is removed wholesale: a
- * partial mask can leave a person's name or a file stem behind.
+ * the last client-side boundary. The pattern itself lives in `@wizards/types`
+ * so the web report surface masks with exactly the same rule — two copies would
+ * be two rules, and one of them would drift.
  */
 export function redactMobileBugReportLogLines(
   lines: readonly string[],
   limit = MOBILE_BUG_REPORT_LOG_MAX_LINES,
 ): readonly string[] {
-  const boundedLimit = Math.max(0, Math.min(MOBILE_BUG_REPORT_LOG_MAX_LINES, Math.trunc(limit)));
-  if (boundedLimit === 0) {
-    return [];
-  }
-
-  return lines.slice(-boundedLimit).map((line) => {
-    const normalized = line.replace(/[\r\n]+/g, " ").trim();
-    return SENSITIVE_LOG_PATTERN.test(normalized) ? "[redacted]" : normalized;
-  });
+  return redactBugReportLogLines(lines, limit);
 }
 
 export function buildMobileBugReportRequest(

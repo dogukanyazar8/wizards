@@ -66,12 +66,13 @@ function readMobileScreenImplementationSource() {
 
 function readMobileAuthImplementationSource() {
   return [
+    "src/app/components/kit/auth/auth-code-cells.tsx",
     "src/app/components/kit/auth/auth-password-strength-row.tsx",
-    "src/app/components/kit/auth/auth-security-card.tsx",
+    "src/app/screens/auth/auth-backup-code-screen.tsx",
     "src/app/screens/auth/auth-forgot-password-screen.tsx",
     "src/app/screens/auth/auth-login-screen.tsx",
     "src/app/screens/auth/auth-register-screen.tsx",
-    "src/app/screens/auth/auth-welcome-screen.tsx",
+    "src/app/screens/auth/auth-two-factor-screen.tsx",
     "src/app/screens/auth/mobile-auth-screen-containers.tsx",
     "src/navigation/mobile-auth-navigator.tsx",
   ]
@@ -240,11 +241,16 @@ describe("mobile design contract", () => {
   it("renders the mobile auth flow through reusable screens, kit primitives, and typed navigation", () => {
     const screenSource = readMobileAuthImplementationSource();
 
+    /*
+     * SPEC-GIRIS-KAYIT §6 — bes ekran: Giris, Hesap olustur, Sifremi unuttum, iki adimli
+     * dogrulama, yedek kod. Karsilama ekrani paket karari K4 ile kaldirildi.
+     */
     for (const componentName of [
-      "AuthWelcomeScreen",
       "AuthLoginScreen",
       "AuthRegisterScreen",
       "AuthForgotPasswordScreen",
+      "AuthTwoFactorScreen",
+      "AuthBackupCodeScreen",
       "MobileAuthNavigator",
     ]) {
       assert.match(screenSource, new RegExp(`function ${componentName}\\(`));
@@ -254,18 +260,20 @@ describe("mobile design contract", () => {
       "AuthPrimaryButton",
       "AuthSecondaryButton",
       "AuthPasswordStrengthRow",
-      "AuthSecurityCard",
+      "AuthCodeCells",
     ]) {
       assert.match(screenSource, new RegExp(componentName));
     }
 
     assert.doesNotMatch(screenSource, /cloudflare|turnstile/i);
-    assert.match(screenSource, /authRememberMe/);
+    assert.match(screenSource, /identityLoginRemember/);
     assert.match(screenSource, /termsAccepted/);
     assert.match(screenSource, /createNativeStackNavigator<MobileAuthStackParamList>\(\)/);
-    assert.match(screenSource, /initialRouteName="Welcome"/);
+    assert.match(screenSource, /initialRouteName="Login"/);
     assert.match(screenSource, /MobileAuthSessionCheckingContainer/);
     assert.doesNotMatch(screenSource, /authSocialDiscord|logo-discord/);
+    // K10: sifre tekrar alani yok; K1: telefon numarasi hicbir ekranda yok.
+    assert.doesNotMatch(screenSource, /authConfirmPasswordFieldLabel|identityFieldPhone/);
   });
 
   it("keeps the dedicated mobile channel chat visually focused and virtualized", () => {

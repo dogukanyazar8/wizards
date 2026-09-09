@@ -134,6 +134,15 @@ async function expectMobileAuthError(
   });
 }
 
+/**
+ * SPEC-GIRIS-KAYIT §4.2 — parola girişi artık iki şeyden birini döndürüyor: oturum ya da
+ * challenge (paket kararı K2). Testler oturum dalını beklediği için daraltma yardımcısı.
+ */
+function expectSession<T extends object>(response: T | null | undefined) {
+  assert.ok(response && "session" in response, "Beklenen oturum yanıtı gelmedi.");
+  return response as Extract<T, { session: unknown }>;
+}
+
 describe("mobile password session two-factor enforcement", () => {
   it("requires a two-factor code after validating the password", async () => {
     const user = buildPasswordUser({
@@ -239,7 +248,7 @@ describe("mobile password session two-factor enforcement", () => {
       }),
     );
 
-    assert.equal(response?.session.user.id, user.id);
+    assert.equal(expectSession(response).session.user.id, user.id);
     assert.deepEqual(calls, [
       {
         code: "123456",
@@ -264,7 +273,7 @@ describe("mobile password session two-factor enforcement", () => {
       }),
     );
 
-    assert.equal(response?.session.user.id, user.id);
+    assert.equal(expectSession(response).session.user.id, user.id);
   });
 
   it("does not invoke two-factor verification for an invalid password", async () => {

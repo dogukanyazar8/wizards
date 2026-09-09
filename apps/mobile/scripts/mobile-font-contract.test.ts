@@ -4,46 +4,94 @@ import { existsSync, readFileSync, readdirSync, type Dirent } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
-import { mobileTypography } from "../src/design/tokens";
+import { mobileSplashTypography, mobileTypography } from "../src/design/tokens";
 
 type FontManifestEntry = {
   readonly family: string;
   readonly weight: number;
   readonly sha256: string;
+  readonly source: string;
+};
+
+type FontManifestSource = {
+  readonly package: string;
+  readonly version: string;
+  readonly license: string;
+  readonly licenseFile: string;
 };
 
 type FontManifest = {
-  readonly source: {
-    readonly package: string;
-    readonly version: string;
-    readonly license: string;
-    readonly licenseFile: string;
-  };
+  readonly sources: Record<string, FontManifestSource>;
   readonly files: Record<string, FontManifestEntry>;
 };
 
+/**
+ * Vendored yüzler.
+ *
+ * Jakarta ürünün geneli. Outfit ve Figtree yalnız açılış ekranı içindir
+ * (SPEC-SPLASH §1) ve Google'dan çekilmez: ikili dosyalar depodaki
+ * `apps/web/src/app/fonts/*.woff2` değişken yüzlerinden sabit ağırlığa indirgendi,
+ * yani web ile mobil aynı çizimi paylaşıyor ve çalışma anında ağ isteği yok.
+ */
 const EXPECTED_FONTS = {
+  "Figtree-Bold.ttf": {
+    family: "WhisprFigtree_700Bold",
+    source: "figtree",
+    weight: 700,
+  },
+  "Figtree-Medium.ttf": {
+    family: "WhisprFigtree_500Medium",
+    source: "figtree",
+    weight: 500,
+  },
+  "Figtree-Regular.ttf": {
+    family: "WhisprFigtree_400Regular",
+    source: "figtree",
+    weight: 400,
+  },
+  "Figtree-SemiBold.ttf": {
+    family: "WhisprFigtree_600SemiBold",
+    source: "figtree",
+    weight: 600,
+  },
+  "Outfit-Bold.ttf": {
+    family: "WhisprOutfit_700Bold",
+    source: "outfit",
+    weight: 700,
+  },
+  "Outfit-SemiBold.ttf": {
+    family: "WhisprOutfit_600SemiBold",
+    source: "outfit",
+    weight: 600,
+  },
   "PlusJakartaSans-Bold.ttf": {
     family: "WhisprJakarta_700Bold",
+    source: "plus-jakarta-sans",
     weight: 700,
   },
   "PlusJakartaSans-ExtraBold.ttf": {
     family: "WhisprJakarta_800ExtraBold",
+    source: "plus-jakarta-sans",
     weight: 800,
   },
   "PlusJakartaSans-Medium.ttf": {
     family: "WhisprJakarta_500Medium",
+    source: "plus-jakarta-sans",
     weight: 500,
   },
   "PlusJakartaSans-Regular.ttf": {
     family: "WhisprJakarta_400Regular",
+    source: "plus-jakarta-sans",
     weight: 400,
   },
   "PlusJakartaSans-SemiBold.ttf": {
     family: "WhisprJakarta_600SemiBold",
+    source: "plus-jakarta-sans",
     weight: 600,
   },
 } as const;
+
+const EXPECTED_FONT_COUNT = Object.keys(EXPECTED_FONTS).length;
 
 function collectRuntimeSources(root: string): string {
   return readdirSync(root, { withFileTypes: true })
@@ -60,7 +108,7 @@ function collectRuntimeSources(root: string): string {
 }
 
 describe("mobile font contract", () => {
-  it("vendors licensed Plus Jakarta Sans binaries behind stable Whispr families", () => {
+  it("vendors every licensed binary behind a stable Whispr family", () => {
     const mobileRoot = process.cwd();
     const fontsRoot = join(mobileRoot, "assets", "fonts");
     const manifestPath = join(fontsRoot, "manifest.json");
@@ -69,23 +117,29 @@ describe("mobile font contract", () => {
 
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as FontManifest;
 
-    assert.deepEqual(Object.keys(manifest.files).sort(), [
-      "PlusJakartaSans-Bold.ttf",
-      "PlusJakartaSans-ExtraBold.ttf",
-      "PlusJakartaSans-Medium.ttf",
-      "PlusJakartaSans-Regular.ttf",
-      "PlusJakartaSans-SemiBold.ttf",
+    assert.deepEqual(Object.keys(manifest.files).sort(), Object.keys(EXPECTED_FONTS).sort());
+    assert.deepEqual(Object.keys(manifest.sources).sort(), [
+      "figtree",
+      "outfit",
+      "plus-jakarta-sans",
     ]);
-    assert.deepEqual(manifest.source, {
-      package: "@expo-google-fonts/plus-jakarta-sans",
-      version: "0.4.2",
-      license: "OFL-1.1",
-      licenseFile: "OFL.txt",
-    });
 
-    const licensePath = join(fontsRoot, manifest.source.licenseFile);
-    assert.equal(existsSync(licensePath), true, "the OFL license must be vendored with the fonts");
-    assert.match(readFileSync(licensePath, "utf8"), /SIL OPEN FONT LICENSE Version 1\.1/);
+    for (const [name, source] of Object.entries(manifest.sources)) {
+      assert.equal(source.license, "OFL-1.1", `${name} must stay OFL-1.1`);
+
+      const licensePath = join(fontsRoot, source.licenseFile);
+      assert.equal(existsSync(licensePath), true, `${name} must vendor its license`);
+
+      const license = readFileSync(licensePath, "utf8");
+      assert.match(license, /SIL OPEN FONT LICENSE Version 1\.1/);
+    }
+
+    // Her ailenin telif satırı lisans dosyasında adıyla geçmeli; yeni bir yüzü
+    // lisansı güncellemeden eklemek böyle yakalanır.
+    const license = readFileSync(join(fontsRoot, "OFL.txt"), "utf8");
+    for (const project of ["Plus Jakarta Sans", "Outfit", "Figtree"]) {
+      assert.match(license, new RegExp(`${project} Project Authors`));
+    }
 
     const manifestFamilies = new Set<string>();
     const manifestHashes = new Set<string>();
@@ -98,6 +152,8 @@ describe("mobile font contract", () => {
       assert.ok(entry, `${filename} must have a manifest entry`);
       assert.equal(entry.family, expected.family);
       assert.equal(entry.weight, expected.weight);
+      assert.equal(entry.source, expected.source);
+      assert.ok(manifest.sources[entry.source], `${filename} names an unknown source`);
       assert.match(entry.sha256, /^[a-f0-9]{64}$/);
       assert.equal(
         entry.sha256,
@@ -109,8 +165,16 @@ describe("mobile font contract", () => {
       manifestHashes.add(entry.sha256);
     }
 
-    assert.equal(manifestFamilies.size, 5, "each font weight must use a distinct runtime family");
-    assert.equal(manifestHashes.size, 5, "each font weight must use a distinct binary");
+    assert.equal(
+      manifestFamilies.size,
+      EXPECTED_FONT_COUNT,
+      "each font weight must use a distinct runtime family",
+    );
+    assert.equal(
+      manifestHashes.size,
+      EXPECTED_FONT_COUNT,
+      "each font weight must use a distinct binary",
+    );
     assert.deepEqual(
       {
         regular: mobileTypography.fontFamily,
@@ -125,6 +189,25 @@ describe("mobile font contract", () => {
         semiBold: "WhisprJakarta_600SemiBold",
         bold: "WhisprJakarta_700Bold",
         extraBold: "WhisprJakarta_800ExtraBold",
+      },
+    );
+    // Splash kendi ailelerini kullanır; ürünün varsayılan yüzü ona karışmaz.
+    assert.deepEqual(
+      {
+        body: mobileSplashTypography.fontFamilyBody,
+        bodyBold: mobileSplashTypography.fontFamilyBodyBold,
+        bodyMedium: mobileSplashTypography.fontFamilyBodyMedium,
+        bodySemiBold: mobileSplashTypography.fontFamilyBodySemiBold,
+        display: mobileSplashTypography.fontFamilyDisplay,
+        displaySemiBold: mobileSplashTypography.fontFamilyDisplaySemiBold,
+      },
+      {
+        body: "WhisprFigtree_400Regular",
+        bodyBold: "WhisprFigtree_700Bold",
+        bodyMedium: "WhisprFigtree_500Medium",
+        bodySemiBold: "WhisprFigtree_600SemiBold",
+        display: "WhisprOutfit_700Bold",
+        displaySemiBold: "WhisprOutfit_600SemiBold",
       },
     );
 
@@ -146,9 +229,12 @@ describe("mobile font contract", () => {
       readonly dependencies?: Record<string, string>;
     };
 
-    assert.equal(runtimeSource.includes("Outfit"), false);
+    // Yüzler yereldir: ne çalışma anında Google'dan indirilir ne de bir runtime
+    // font paketi kurulur. Outfit/Figtree adları artık kodda geçebilir, ama
+    // yalnız vendored aile adı ve yerel `require` yolu olarak.
     assert.equal(runtimeSource.includes("@expo-google-fonts"), false);
     assert.equal(runtimeSource.includes("https://fonts.googleapis.com"), false);
+    assert.equal(runtimeSource.includes("https://fonts.gstatic.com"), false);
     assert.equal(
       Object.keys(packageJson.dependencies ?? {}).some((name) =>
         name.startsWith("@expo-google-fonts/"),

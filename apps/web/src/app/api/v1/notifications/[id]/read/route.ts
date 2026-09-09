@@ -1,8 +1,4 @@
-import { requireApiUserId } from "@/lib/auth/api";
-import { enforceApiRateLimit } from "@/lib/api-rate-limit";
-import { jsonError } from "@/lib/api";
-import { markRead } from "@/lib/notifications/service";
-import { NotificationIdParamsSchema } from "@/lib/notifications/types";
+import { notificationReadRoute } from "./route-logic";
 
 type RouteContext = {
   params: Promise<{
@@ -10,17 +6,13 @@ type RouteContext = {
   }>;
 };
 
-export async function PATCH(_: Request, context: RouteContext) {
-  try {
-    const userId = await requireApiUserId();
-    await enforceApiRateLimit(userId, "notification:mark-read");
-    const { id } = await context.params;
-    const validatedParams = NotificationIdParamsSchema.parse({ id });
-
-    await markRead(userId, validatedParams.id);
-
-    return Response.json({});
-  } catch (error) {
-    return jsonError(error);
-  }
+/**
+ * Ayarlar Ş2 §4 — uç `{ read: boolean }` gövdesi alır ve durumu **çevirir**.
+ *
+ * Ş13: eski gövdesiz `PATCH` takma adı silindi. Onu çağıran tek yer `markNotificationRead`
+ * idi ve o da panel bağlandığında tüketicisiz kaldı; iki metot aynı mantığa gidiyor ve
+ * "gövdesiz mutasyon" izin listesi bu yüzden yeniden büyümek zorunda kalıyordu.
+ */
+export async function POST(request: Request, context: RouteContext) {
+  return notificationReadRoute(request, await context.params);
 }

@@ -60,6 +60,8 @@ import {
   requestMobileVerificationEmail,
   revokeMobileAuthSession,
   signInMobileWithGoogleIdToken,
+  completeMobileBackupCode,
+  completeMobileTwoFactor,
   signInMobileWithPassword,
 } from "./mobile-auth-exchange";
 import { markMobileStartupPhase } from "../performance/mobile-startup-phases";
@@ -181,6 +183,8 @@ export interface MobileAuthContextValue extends MobileAuthState {
   ): Promise<MobileSocialSignInResult>;
   registerWithPassword(input: {
     confirmPassword: string;
+    /** SPEC-GIRIS-KAYIT §4.4/1 — `Ad Soyad`. */
+    displayName?: string;
     email: string;
     password: string;
     username: string;
@@ -197,11 +201,21 @@ export interface MobileAuthContextValue extends MobileAuthState {
   replaceSessionUser(user: MobileSessionUser): Promise<boolean>;
   retryAppLockUnlock(): Promise<boolean>;
   setAppLockEnabled(enabled: boolean): Promise<void>;
+  completeTwoFactorChallenge(input: {
+    backupCode?: string;
+    challengeId: string;
+    code?: string;
+    rememberDevice?: boolean;
+  }): Promise<{ ok: true } | { message: string; ok: false }>;
   signInWithPassword(input: {
     email: string;
     password: string;
     twoFactorCode?: string;
-  }): Promise<{ ok: true } | { message: string; ok: false; requiresTwoFactor: boolean }>;
+  }): Promise<
+    | { ok: true }
+    | { challengeId: string; message: string; ok: false; requiresTwoFactor: true }
+    | { message: string; ok: false; requiresTwoFactor: boolean }
+  >;
   signOut(): Promise<void>;
   sessionReadFailed: boolean;
 }
@@ -865,12 +879,27 @@ export function MobileAuthProvider({
       const generation = sessionGenerationRef.current + 1;
       sessionGenerationRef.current = generation;
       try {
-        const session = await signInMobileWithPassword(createUnauthenticatedClient(), {
+        const outcome = await signInMobileWithPassword(createUnauthenticatedClient(), {
           ...input,
         });
         if (generation !== sessionGenerationRef.current) {
           return { ok: false, message: "Giris tamamlanamadi.", requiresTwoFactor: false } as const;
         }
+
+        if (outcome.kind === "two-factor-required") {
+          /*
+           * SPEC-GIRIS-KAYIT §4.2 — ayrı ekran (K2). Oturum **açılmaz**; ekran challenge
+           * kimliğini alıp ikinci adıma geçer ve parola bir daha taşınmaz.
+           */
+          return {
+            challengeId: outcome.challengeId,
+            ok: false,
+            message: "",
+            requiresTwoFactor: true,
+          } as const;
+        }
+
+        const session = outcome.session;
         await runSessionRepositoryOperation(() => repository.save(session));
         if (generation !== sessionGenerationRef.current) {
           return { ok: false, message: "Giris tamamlanamadi.", requiresTwoFactor: false } as const;
@@ -890,9 +919,64 @@ export function MobileAuthProvider({
     [commitAuthState, createUnauthenticatedClient, repository, runSessionRepositoryOperation],
   );
 
+  /**
+   * SPEC-GIRIS-KAYIT §4.2 / §4.3 — ikinci adım.
+   *
+   * Challenge kimliği ve kod gönderilir; başarıda oturum açılır. Parola bu yolda hiç görünmez.
+   */
+  const completeTwoFactorChallenge = useCallback(
+    async (input: {
+      backupCode?: string;
+      challengeId: string;
+      code?: string;
+      rememberDevice?: boolean;
+    }) => {
+      const generation = sessionGenerationRef.current + 1;
+      sessionGenerationRef.current = generation;
+
+      try {
+        const client = createUnauthenticatedClient();
+        const session = input.backupCode
+          ? await completeMobileBackupCode(client, {
+              backupCode: input.backupCode,
+              challengeId: input.challengeId,
+            })
+          : await completeMobileTwoFactor(client, {
+              challengeId: input.challengeId,
+              code: input.code ?? "",
+              ...(input.rememberDevice === undefined
+                ? {}
+                : { rememberDevice: input.rememberDevice }),
+            });
+
+        if (generation !== sessionGenerationRef.current) {
+          return { ok: false, message: "Giris tamamlanamadi." } as const;
+        }
+
+        await runSessionRepositoryOperation(() => repository.save(session));
+
+        if (generation !== sessionGenerationRef.current) {
+          return { ok: false, message: "Giris tamamlanamadi." } as const;
+        }
+
+        commitAuthState(createMobileAuthState("signed-in", session));
+        return { ok: true } as const;
+      } catch (error) {
+        if (generation === sessionGenerationRef.current) {
+          commitAuthState(createMobileAuthState("signed-out", null, "Giris tamamlanamadi."));
+        }
+
+        const failure = getMobilePasswordSignInFailure(error);
+        return { ok: false, message: failure.message } as const;
+      }
+    },
+    [commitAuthState, createUnauthenticatedClient, repository, runSessionRepositoryOperation],
+  );
+
   const registerWithPassword = useCallback(
     async (input: {
       confirmPassword: string;
+      displayName?: string;
       email: string;
       password: string;
       username: string;
@@ -1210,6 +1294,7 @@ export function MobileAuthProvider({
       replaceSessionUser,
       retryAppLockUnlock,
       setAppLockEnabled,
+      completeTwoFactorChallenge,
       signInWithPassword,
       signOut,
       sessionReadFailed,
@@ -1236,6 +1321,7 @@ export function MobileAuthProvider({
       replaceSessionUser,
       retryAppLockUnlock,
       setAppLockEnabled,
+      completeTwoFactorChallenge,
       signInWithPassword,
       signOut,
       sessionReadFailed,

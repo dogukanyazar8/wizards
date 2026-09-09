@@ -103,7 +103,9 @@ test.describe("mobile responsive experience", () => {
     const drawer = page.getByTestId("mobile-workspace-drawer");
     await expectMobileSurfaceHealthy(page, drawer);
     await expect(drawer.getByTestId("server-rail")).toBeVisible();
-    await expect(drawer.getByTestId("channel-sidebar").first()).toBeVisible();
+    // Mesajlar kendi rotasına taşındıktan sonra çekmecenin üçüncü kolonu sohbet rayıdır;
+    // `channel-sidebar` yalnız `/channels/[serverId]/*` altında çizilir (bkz. `app-shell.spec`).
+    await expect(drawer.getByTestId("messages-rail").first()).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     await page.keyboard.press("Escape");
@@ -176,7 +178,16 @@ test.describe("mobile responsive experience", () => {
     const message = messageByText(page, content);
     await expect(message).toBeVisible({ timeout: 10_000 });
     await message.getByTestId("message-mobile-actions").click();
-    const toolbar = message.locator('[data-testid="message-toolbar"]:visible');
+
+    /*
+     * Çubuk gövdeye portallanıyor: transform'lu sanal satırın içinde kalsaydı
+     * `fixed` ekranın altına değil satırın altına oturuyordu. Bu yüzden çubuk
+     * satırın **içinde** değil, sayfada mesaj kimliğiyle aranıyor.
+     */
+    const messageId = await message.getAttribute("data-message-id");
+    const toolbar = page.locator(
+      `[data-testid="message-toolbar"][data-message-id="${messageId}"]:visible`,
+    );
     await expect(toolbar).toBeVisible();
     const reactButton = toolbar.getByTestId("message-action-react");
     await reactButton.focus();
@@ -218,24 +229,33 @@ test.describe("mobile responsive experience", () => {
   test("mobile settings navigation stays inside the viewport", async ({ page }) => {
     await useMobileViewport(page, { height: 800, width: 360 });
     await loginAs(page, "alice");
-    await gotoAppRoute(page, "/settings", { readyTestId: "settings-panel" });
-    await expect(page.getByTestId("settings-panel")).toHaveAttribute("data-client-ready", "true");
+    /*
+     * K2: `settings-panel.tsx` (ve `settings-mobile-*` iskelesi) silindi; Ayarlar artık bir
+     * rota ve tek bir pencere bileşeni çiziyor. `?section=&panel=` sorgusu yol segmentine
+     * göç etti — `/settings` bugün 308 ile `/settings/account/profile`'a gider.
+     *
+     * Dar ekranın karşılığı ayrı bir ekran değil, aynı pencerenin kırılımı: `<=860px`'te
+     * gezinme kolonu yatay şeride döner (`globals.css`, `.settings-window-nav`). Test bu
+     * yüzden şeridi ölçüyor; sorduğu şey değişmedi: bölüm değiştirmek görünüm alanının
+     * dışına taşmıyor mu.
+     */
+    await gotoAppRoute(page, "/settings", { readyTestId: "settings-window" });
+    await expect(page).toHaveURL(/\/settings\/account\/profile$/);
+    await expect(page.getByTestId("settings-skeleton")).toHaveCount(0);
 
-    await expectMobileSurfaceHealthy(page, page.getByTestId("settings-mobile-sidebar"));
+    const settingsNav = page.getByTestId("settings-nav");
+
+    await expectMobileSurfaceHealthy(page, settingsNav);
     await expectNoHorizontalOverflow(page);
 
-    await page.getByTestId("settings-mobile-section-appearance").click();
-    await expect(page).toHaveURL(/section=appearance/);
-    await expect(page.getByTestId("settings-mobile-panel-appearance-theme")).toBeVisible();
-    await page.getByTestId("settings-mobile-panel-appearance-theme").click();
-    await expect(page).toHaveURL(/section=appearance&panel=theme/);
+    await settingsNav.locator('[data-section="appearance"]').click();
+    await expect(page).toHaveURL(/\/settings\/appearance\//);
+    await expectMobileSurfaceHealthy(page, settingsNav);
     await expectNoHorizontalOverflow(page);
 
-    await page.getByTestId("settings-mobile-section-notifications").click();
-    await expect(page).toHaveURL(/section=notifications/);
-    await expect(page.getByTestId("settings-mobile-panel-notifications-general")).toBeVisible();
-    await page.getByTestId("settings-mobile-panel-notifications-general").click();
-    await expect(page).toHaveURL(/section=notifications&panel=general/);
+    await settingsNav.locator('[data-section="notifications"]').click();
+    await expect(page).toHaveURL(/\/settings\/notifications\//);
+    await expectMobileSurfaceHealthy(page, settingsNav);
     await expectNoHorizontalOverflow(page);
   });
 
@@ -254,9 +274,9 @@ test.describe("mobile responsive experience", () => {
       .getByTestId("notification-bell-button")
       .click();
 
-    const popup = visibleTestId(page, "notification-popup");
+    const popup = visibleTestId(page, "notification-panel");
     await expectMobileSurfaceHealthy(page, popup);
-    await expectVisibleTestIdCountAtMost(page, "notification-popup", 1);
+    await expectVisibleTestIdCountAtMost(page, "notification-panel", 1);
     await expectNoHorizontalOverflow(page);
   });
 
@@ -279,9 +299,9 @@ test.describe("mobile responsive experience", () => {
     await drawer.getByTestId("notification-bell-button").click();
     await expect(quickMenu).toHaveCount(0);
 
-    const notificationPopup = visibleTestId(page, "notification-popup");
+    const notificationPopup = visibleTestId(page, "notification-panel");
     await expectMobileSurfaceHealthy(page, notificationPopup);
-    await expectVisibleTestIdCountAtMost(page, "notification-popup", 1);
+    await expectVisibleTestIdCountAtMost(page, "notification-panel", 1);
     await expectVisibleTestIdCountAtMost(page, "user-quick-menu", 0);
   });
 });

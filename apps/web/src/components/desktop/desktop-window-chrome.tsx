@@ -7,12 +7,17 @@ import { Copy, Minus, Square, X } from "lucide-react";
 import type { Window as TauriWindow } from "@tauri-apps/api/window";
 import { DesktopNativeUpdateNotifier } from "@/components/desktop/desktop-native-update-notifier";
 import {
+  shouldUseSquareDesktopFrame,
+  type DesktopWindowFrameState,
+} from "@/components/desktop/desktop-window-frame-state";
+import {
   WHISPR_DESKTOP_BEFORE_CLOSE_EVENT,
   completeWhisprDesktopBeforeClose,
   getWhisprDesktopBeforeCloseRequestId,
   isWhisprDesktopRuntime,
   promoteWhisprDesktopWindow,
 } from "@/lib/desktop/runtime";
+import { isDesktopStartupWindowPending } from "@/lib/desktop/startup-window";
 import { clearDesktopTransientAuthSession } from "@/lib/desktop/session";
 import { cn } from "@/lib/utils";
 
@@ -74,20 +79,37 @@ export function DesktopWindowChrome() {
     isWhisprDesktopRuntime,
     () => false,
   );
-  const [isWindowMaximized, setIsWindowMaximized] = useState(false);
+  const [windowFrameState, setWindowFrameState] = useState<DesktopWindowFrameState>({
+    fullscreen: false,
+    maximized: false,
+  });
+  const isWindowMaximized = windowFrameState.maximized;
   const isChromeLessDesktopRoute = isChromeLessDesktopPathname(pathname);
 
   useEffect(() => {
     if (!isDesktop || isChromeLessDesktopRoute) {
       document.documentElement.classList.remove("whispr-desktop-chrome");
+      document.documentElement.classList.remove("whispr-desktop-square-frame");
       return;
     }
 
     document.documentElement.classList.add("whispr-desktop-chrome");
     return () => {
       document.documentElement.classList.remove("whispr-desktop-chrome");
+      document.documentElement.classList.remove("whispr-desktop-square-frame");
     };
   }, [isChromeLessDesktopRoute, isDesktop]);
+
+  useEffect(() => {
+    if (!isDesktop || isChromeLessDesktopRoute) {
+      return;
+    }
+
+    document.documentElement.classList.toggle(
+      "whispr-desktop-square-frame",
+      shouldUseSquareDesktopFrame(windowFrameState),
+    );
+  }, [isChromeLessDesktopRoute, isDesktop, windowFrameState]);
 
   useEffect(() => {
     if (!isDesktop || isChromeLessDesktopRoute) {
@@ -97,14 +119,17 @@ export function DesktopWindowChrome() {
     let disposed = false;
     let unlistenResize: (() => void) | undefined;
 
-    const syncMaximizedState = async (window: TauriWindow) => {
+    const syncWindowFrameState = async (window: TauriWindow) => {
       try {
-        const maximized = await window.isMaximized();
+        const [fullscreen, maximized] = await Promise.all([
+          window.isFullscreen(),
+          window.isMaximized(),
+        ]);
         if (!disposed) {
-          setIsWindowMaximized(maximized);
+          setWindowFrameState({ fullscreen, maximized });
         }
       } catch {
-        // Maximize state is best-effort and only available inside Tauri.
+        // Native frame state is best-effort and only available inside Tauri.
       }
     };
 
@@ -112,9 +137,9 @@ export function DesktopWindowChrome() {
       try {
         const { getCurrentWindow } = await import("@tauri-apps/api/window");
         const currentWindow = getCurrentWindow();
-        await syncMaximizedState(currentWindow);
+        await syncWindowFrameState(currentWindow);
         unlistenResize = await currentWindow.onResized(() => {
-          void syncMaximizedState(currentWindow);
+          void syncWindowFrameState(currentWindow);
         });
       } catch {
         // Native window events are unavailable in the web runtime.
@@ -129,6 +154,19 @@ export function DesktopWindowChrome() {
 
   useEffect(() => {
     if (!isDesktop || isChromeLessDesktopRoute) {
+      return;
+    }
+
+    /*
+     * Açılış penceresi hâlâ ayaktaysa terfi **buranın işi değil**.
+     *
+     * Bu etki her masaüstü rotasında çalışır ve kabuk yüklenir yüklenmez pencereyi
+     * ana ölçüye çıkarıyordu: kullanıcı açılış ekranının maddeleri bitmeden pencerenin
+     * büyüdüğünü, kartın arkasında dev bir çerçeve belirdiğini görüyordu. Açılışta
+     * terfiyi kabuk, dört adım da bittikten sonra yapar (SPEC-SPLASH §8); burası
+     * yalnız açılış dışı yollar (deep link, yeniden yükleme) için son çare kalır.
+     */
+    if (isDesktopStartupWindowPending()) {
       return;
     }
 
@@ -175,18 +213,18 @@ export function DesktopWindowChrome() {
 
   return (
     <div
-      className="desktop-window-chrome relative z-[220] flex h-[var(--desktop-titlebar-height)] select-none items-center border-b border-[hsl(var(--border)/0.52)] bg-[hsl(var(--surface-card)/0.86)] text-app-foreground shadow-[0_1px_0_hsl(var(--foreground)/0.04)] backdrop-blur-xl supports-[backdrop-filter]:bg-[hsl(var(--surface-card)/0.72)]"
+      className="desktop-window-chrome relative z-[220] flex h-[var(--desktop-titlebar-height)] shrink-0 select-none items-center border-b border-[hsl(var(--border)/0.52)] bg-[hsl(var(--surface-card)/0.86)] text-app-foreground shadow-[0_1px_0_hsl(var(--foreground)/0.04)] backdrop-blur-xl supports-[backdrop-filter]:bg-[hsl(var(--surface-card)/0.72)]"
       data-testid="desktop-window-chrome"
     >
       <div className="flex h-full min-w-0 flex-1 items-center gap-2 px-2.5" data-tauri-drag-region>
         <span
           aria-hidden="true"
-          className="relative grid h-5 w-5 shrink-0 place-items-center overflow-hidden rounded-md border border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--surface-card)/0.72)] shadow-[0_6px_14px_hsl(var(--primary)/0.1)]"
+          className="relative block h-5 w-5 shrink-0 overflow-hidden rounded-[5px]"
           data-tauri-drag-region
         >
           <Image
             alt=""
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain drop-shadow-[0_3px_6px_hsl(var(--primary)/0.18)]"
             data-tauri-drag-region
             draggable={false}
             height={20}
@@ -227,9 +265,16 @@ export function DesktopWindowChrome() {
             void runWindowAction(async (window) => {
               await window.toggleMaximize();
               try {
-                setIsWindowMaximized(await window.isMaximized());
+                const [fullscreen, maximized] = await Promise.all([
+                  window.isFullscreen(),
+                  window.isMaximized(),
+                ]);
+                setWindowFrameState({ fullscreen, maximized });
               } catch {
-                setIsWindowMaximized((current) => !current);
+                setWindowFrameState((current) => ({
+                  ...current,
+                  maximized: !current.maximized,
+                }));
               }
             });
           }}

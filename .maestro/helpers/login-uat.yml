@@ -1,8 +1,9 @@
 appId: team.whispr.mobile
 ---
 # Signed-in runs deliberately remain a no-op. The first signed-out branch
-# normalizes Settings to Welcome; the second then proves the native Login
+# normalizes Settings to the auth stack; the second then proves the native Login
 # surface without fabricating a session.
+# SPEC-GIRIS-KAYIT §6 — karsilama ekrani K4 ile kaldirildi; yigin kokü Login.
 - runFlow:
     when:
       visible:
@@ -12,16 +13,12 @@ appId: team.whispr.mobile
           id: "mobile-bottom-tab-overview"
       - extendedWaitUntil:
           visible:
-            id: "mobile-auth-welcome-screen"
+            id: "mobile-auth-login-screen"
           timeout: 15000
 - runFlow:
     when:
       visible:
-        id: "mobile-auth-welcome-screen"
+        id: "mobile-auth-login-screen"
     commands:
-      - tapOn:
-          id: "mobile-auth-welcome-sign-in"
-      - extendedWaitUntil:
-          visible:
-            id: "mobile-auth-login-screen"
-          timeout: 15000
+      - assertVisible:
+          id: "mobile-auth-login-register"

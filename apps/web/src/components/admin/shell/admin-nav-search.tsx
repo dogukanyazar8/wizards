@@ -89,7 +89,7 @@ export function AdminNavSearch({ items }: { items: AdminNavSearchItem[] }) {
           ) : (
             matches.map((item) => (
               <button
-                className="text-app-foreground flex w-full items-center rounded-[9px] px-3 py-2 text-left text-[12.5px] font-semibold hover:bg-[hsl(var(--surface-soft))]"
+                className="text-app-foreground flex w-full items-center rounded-[9px] px-3 py-2 text-left text-[12.5px] font-semibold hover:bg-[var(--surface-hover)]"
                 key={item.key}
                 onClick={() => navigate(item.href)}
                 role="option"

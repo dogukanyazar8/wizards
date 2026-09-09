@@ -198,17 +198,32 @@ test.describe("uploads, GIFs, and attachments", () => {
     await expect(page.getByTestId("message-file-button")).toBeEnabled();
 
     await openServerSettings(page, serverId);
-    await page.getByTestId("server-media-gifs-toggle").click();
-    await page.getByTestId("server-media-files-toggle").click();
-    await page.getByTestId("server-settings-save-overview").click();
-    await expect(page.getByTestId("server-settings-overview-saved")).toBeVisible({
-      timeout: 10_000,
-    });
+    /**
+     * Ş11: SPEC-SUNUCU §8'in başlık çubuğunda `Kaydet` düğmesi yok; anahtarlar kendiliğinden
+     * kaydeder ve sonucu başlıktaki `Değişiklikler kaydedildi` göstergesi bildirir. Eski
+     * `server-settings-save-overview` / `server-settings-overview-saved` çifti bu yüzden
+     * `server-settings-saved-indicator`'a taşındı.
+     */
+    await page.getByTestId("server-settings-nav-content").click();
+    await page.getByTestId("server-media-gifs-toggle-switch").click();
+    await expect(page.getByTestId("server-settings-saved-indicator")).toHaveAttribute(
+      "data-state",
+      "saved",
+      { timeout: 10_000 },
+    );
+    await page.getByTestId("server-media-files-toggle-switch").click();
+    await expect(page.getByTestId("server-settings-saved-indicator")).toHaveAttribute(
+      "data-state",
+      "saved",
+      { timeout: 10_000 },
+    );
     await page.getByTestId("server-settings-close-button").click();
 
     await expect(page.getByTestId("server-settings-overlay")).toBeHidden({ timeout: 10_000 });
-    await expect(page.getByTestId("gif-picker-button")).toBeDisabled({ timeout: 10_000 });
-    await expect(page.getByTestId("message-file-button")).toBeDisabled({ timeout: 10_000 });
+    await expect(page.getByTestId("gif-picker-button")).toHaveCount(0);
+    await expect(page.getByTestId("message-file-button")).toHaveCount(0);
+    // Gizli input savunma-in-depth olarak kalır; programatik dosya seçimi de yetkiyi aşamaz.
+    await expect(page.getByTestId("message-file-input")).toBeDisabled({ timeout: 10_000 });
   });
 
   test("pending attachment scans keep uploader URLs visible and hide them from other viewers", async ({

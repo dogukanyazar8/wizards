@@ -72,7 +72,7 @@ function routeDependencies(
 
 describe("GET /api/v1/search/command", () => {
   it("groups every reachable surface behind one relative link each", async () => {
-    const { database } = searchDatabase();
+    const { calls, database } = searchDatabase();
 
     const payload = SearchCommandResponseSchema.parse(
       await searchHomeCommandSurfaces("u1", { q: "genel" }, serviceDependencies(database)),
@@ -80,8 +80,9 @@ describe("GET /api/v1/search/command", () => {
 
     assert.deepEqual(
       payload.groups.map((group) => group.kind),
-      ["server", "channel", "dm", "user"],
+      ["channel", "dm", "user"],
     );
+    assert.ok(!calls.some((call) => call.operation === "server.findMany"));
     for (const group of payload.groups) {
       assert.ok(group.items.length <= 5);
       for (const item of group.items) {
@@ -134,16 +135,18 @@ describe("GET /api/v1/search/command", () => {
   });
 
   it("answers an empty query with recent surfaces, not with the directory", async () => {
-    const { calls, database } = searchDatabase();
+    const { calls, database, queryCount } = searchDatabase();
 
     const payload = await searchHomeCommandSurfaces("u1", { q: "" }, serviceDependencies(database));
 
     assert.deepEqual(
       payload.groups.map((group) => group.kind),
-      ["server", "dm"],
+      ["dm"],
     );
     assert.ok(!calls.some((call) => call.operation === "user.findMany"));
     assert.ok(!calls.some((call) => call.operation === "channel.findMany"));
+    assert.ok(!calls.some((call) => call.operation === "serverMember.findMany"));
+    assert.equal(queryCount(), 1);
   });
 
   it("is registered in the rate limit table and charged before any work", async () => {
@@ -167,11 +170,11 @@ describe("GET /api/v1/search/command", () => {
     assert.equal(response.status, 400);
   });
 
-  it("costs at most five queries", async () => {
+  it("sunucu grubunu sorgulamayarak en fazla dört sorguya mal olur", async () => {
     const { database, queryCount } = searchDatabase();
 
     await searchHomeCommandSurfaces("u1", { q: "genel" }, serviceDependencies(database));
 
-    assert.equal(queryCount(), 5);
+    assert.equal(queryCount(), 4);
   });
 });

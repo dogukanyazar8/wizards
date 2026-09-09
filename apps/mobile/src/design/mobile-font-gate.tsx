@@ -1,4 +1,11 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useColorScheme } from "react-native";
+import { formatSplashVersionLine, resolveSplashEnvironment } from "@wizards/types";
+
+import { getMobileAppReleaseChannel, getMobileAppVersion } from "../about/mobile-app-identity";
+import { activeMobileCopy } from "../locale/mobile-locale-preferences";
+import { MobileSplashScreen } from "../app/screens/splash/mobile-splash-screen";
+import { getMobileTheme } from "./mobile-theme-runtime";
 
 import { installMobileFontDefaults, useMobileFonts } from "./mobile-fonts";
 
@@ -53,5 +60,29 @@ export function MobileFontGate({ children }: { readonly children: ReactNode }) {
     };
   }, [fontError, fontsLoaded]);
 
-  return state === "loading" ? null : children;
+  if (state !== "loading") {
+    return children;
+  }
+
+  // Fontlar gelene kadarki ilk kare boş bırakılmaz: açılış ekranının aynısı, sistem
+  // yüzüyle çizilir (SPEC-SPLASH §6). Ölçüler yüz ailesine değil sabit px değerlerine
+  // bağlı olduğu için kare fallback yüzde de kırılmaz.
+  return <MobileFontGateSplash />;
+}
+
+function MobileFontGateSplash() {
+  const colorScheme = useColorScheme();
+  const environment = resolveSplashEnvironment(getMobileAppReleaseChannel());
+
+  return (
+    <MobileSplashScreen
+      environmentLabel={
+        environment === "prod" ? activeMobileCopy.splashEnvProd : activeMobileCopy.splashEnvUat
+      }
+      environmentTone={environment}
+      step="connecting"
+      theme={getMobileTheme("system", colorScheme)}
+      versionLine={formatSplashVersionLine({ version: getMobileAppVersion() })}
+    />
+  );
 }

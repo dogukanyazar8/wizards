@@ -1,6 +1,7 @@
 import { toRelativeAppHref } from "@/lib/home/href";
 import type { HomeTranslate } from "@/lib/home/presentation";
 import type { HomeCommandGroupKind, HomePresence, SearchCommandResponse } from "@/lib/home/types";
+import { matchesAppShortcut, type AppShortcutEvent } from "@/lib/shortcuts/catalog";
 
 /**
  * Ana Sayfa 1a — Faz 5 §5. Everything the command palette decides, with no React
@@ -20,15 +21,14 @@ import type { HomeCommandGroupKind, HomePresence, SearchCommandResponse } from "
 /** §5.2 — one request per pause, not one per keystroke. */
 export const COMMAND_PALETTE_DEBOUNCE_MS = 200;
 
-/** §5.2 — the fixed group order. `command` is always last. */
-const GROUP_ORDER: readonly HomeCommandGroupKind[] = ["server", "channel", "dm", "user", "command"];
+/** Referans arama penceresinin sabit grup sırası. */
+const GROUP_ORDER: readonly HomeCommandGroupKind[] = ["command", "channel", "user", "dm"];
 
 /** §1 — grup başlıkları sözlükten; bu tablo yalnız hangi anahtarın okunacağını söyler. */
 const GROUP_LABEL_KEY: Record<HomeCommandGroupKind, string> = {
   channel: "home.palette.group.channel",
   command: "home.palette.group.command",
   dm: "home.palette.group.dm",
-  server: "home.palette.group.server",
   user: "home.palette.group.user",
 };
 
@@ -36,7 +36,6 @@ export type HomeCommandActionId =
   | "focus:start"
   | "focus:stop"
   | "nav:events"
-  | "nav:inbox"
   | "nav:mentions"
   | "presence:menu"
   | "server:create"
@@ -58,12 +57,12 @@ export type CommandPaletteCapabilities = {
 };
 
 /**
- * §5.3 — the seven static commands.
+ * §5.3 — the static commands.
  *
- * `/mentions` and `/inbox` were pointed at their real routes before those
- * screens existed — the Faz 2 decision for the nav rows, followed here rather
- * than inventing a second answer. Faz 6 wrote the screens, so the stand-in
- * period is over and every command lands on a real surface.
+ * Every command lands on a real surface. Ş13 (Ayarlar paketi) dropped `nav:inbox`
+ * with the `/inbox` route itself (K10): the full notification list is `/mentions`,
+ * and `nav:mentions` already points there — a second command for the same screen
+ * would be two names for one place.
  */
 export const HOME_COMMAND_ACTIONS: readonly {
   readonly href: string | null;
@@ -106,13 +105,25 @@ export const HOME_COMMAND_ACTIONS: readonly {
     labelKey: "home.palette.command.mentions",
     sublabelKey: null,
   },
-  { href: "/inbox", id: "nav:inbox", labelKey: "home.palette.command.inbox", sublabelKey: null },
   { href: "/events", id: "nav:events", labelKey: "home.palette.command.events", sublabelKey: null },
 ];
 
 /** Turkish-aware, diacritic-blind: "ODAK" has to find "Odak modunu başlat". */
 function fold(value: string): string {
   return value.toLocaleLowerCase("tr").normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+export function parseCommandPaletteQuery(query: string): {
+  readonly commandMode: boolean;
+  readonly searchTerm: string;
+} {
+  const trimmed = query.trim();
+  const commandMode = trimmed.startsWith(">");
+
+  return {
+    commandMode,
+    searchTerm: commandMode ? trimmed.slice(1).trimStart() : trimmed,
+  };
 }
 
 /**
@@ -169,6 +180,42 @@ export type PaletteSection = {
   readonly kind: HomeCommandGroupKind;
   readonly label: string;
   readonly rows: readonly PaletteRow[];
+};
+
+export type CommandPaletteTab = "all" | "command" | "channel" | "user" | "dm" | "event";
+
+export function shouldShowPaletteRateLimit(input: {
+  commandMode: boolean;
+  isRateLimited: boolean;
+  tab: CommandPaletteTab;
+}): boolean {
+  return (
+    input.isRateLimited && !input.commandMode && input.tab !== "command" && input.tab !== "event"
+  );
+}
+
+export type PaletteTab = {
+  readonly count: number;
+  readonly id: CommandPaletteTab;
+  readonly label: string;
+};
+
+const PALETTE_TAB_ORDER: readonly CommandPaletteTab[] = [
+  "all",
+  "command",
+  "channel",
+  "user",
+  "dm",
+  "event",
+];
+
+const PALETTE_TAB_LABEL_KEY: Record<CommandPaletteTab, string> = {
+  all: "home.palette.tab.all",
+  channel: "home.palette.tab.channel",
+  command: "home.palette.tab.command",
+  dm: "home.palette.tab.dm",
+  event: "home.palette.tab.event",
+  user: "home.palette.tab.user",
 };
 
 export function buildPaletteSections(input: {
@@ -231,6 +278,48 @@ export function buildPaletteSections(input: {
   });
 }
 
+export function filterPaletteSections(
+  sections: readonly PaletteSection[],
+  tab: CommandPaletteTab,
+  translate: HomeTranslate,
+): PaletteSection[] {
+  if (tab === "all") {
+    return [...sections];
+  }
+
+  if (tab === "event") {
+    const rows = sections
+      .flatMap((section) => section.rows)
+      .filter((row) => row.actionId === "nav:events");
+
+    return rows.length === 0
+      ? []
+      : [{ kind: "command", label: translate(PALETTE_TAB_LABEL_KEY.event), rows }];
+  }
+
+  return sections.filter((section) => section.kind === tab);
+}
+
+export function buildPaletteTabs(
+  sections: readonly PaletteSection[],
+  translate: HomeTranslate,
+): PaletteTab[] {
+  const allCount = sections.reduce((total, section) => total + section.rows.length, 0);
+
+  return PALETTE_TAB_ORDER.map((id) => ({
+    count:
+      id === "all"
+        ? allCount
+        : id === "event"
+          ? sections
+              .flatMap((section) => section.rows)
+              .filter((row) => row.actionId === "nav:events").length
+          : (sections.find((section) => section.kind === id)?.rows.length ?? 0),
+    id,
+    label: translate(PALETTE_TAB_LABEL_KEY[id]),
+  }));
+}
+
 /** §5.2 — `↑`/`↓` wrap; an id that no longer exists lands on the first row. */
 export function moveActiveRow(
   rowIds: readonly string[],
@@ -251,17 +340,6 @@ export function moveActiveRow(
   return rowIds[next]!;
 }
 
-type ShortcutEvent = {
-  altKey?: boolean;
-  ctrlKey?: boolean;
-  key: string;
-  metaKey?: boolean;
-  shiftKey?: boolean;
-  target?: unknown;
-};
-
-const TYPING_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
-
 /**
  * §5.1 — one global listener, and it stays quiet while somebody is typing.
  *
@@ -269,31 +347,13 @@ const TYPING_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
  * `⌘K` while the palette is open would do nothing, and §9 says the second press
  * has to close it rather than open a second one.
  */
-export function isCommandPaletteShortcut(event: ShortcutEvent): boolean {
-  if (event.key.toLowerCase() !== "k") {
-    return false;
-  }
-
-  if (event.altKey === true || event.shiftKey === true) {
-    return false;
-  }
-
-  if (event.metaKey !== true && event.ctrlKey !== true) {
-    return false;
-  }
-
+export function isCommandPaletteShortcut(event: AppShortcutEvent): boolean {
   const target = event.target as
     | { dataset?: Record<string, string>; isContentEditable?: boolean; tagName?: string }
     | null
     | undefined;
 
-  if (!target) {
-    return true;
-  }
-
-  if (target.dataset?.commandPaletteInput === "true") {
-    return true;
-  }
-
-  return !(TYPING_TAGS.has(target.tagName ?? "") || target.isContentEditable === true);
+  return matchesAppShortcut("commandPalette.toggle", event, {
+    allowInTypingTarget: target?.dataset?.commandPaletteInput === "true",
+  });
 }

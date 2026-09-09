@@ -347,7 +347,7 @@ export function AdminReleaseEditor({
                   <div className="flex gap-1 md:flex-col">
                     <button
                       aria-label="Yukarı taşı"
-                      className="text-app-muted rounded-lg p-2 hover:bg-[hsl(var(--surface-soft))]"
+                      className="text-app-muted rounded-lg p-2 hover:bg-[var(--surface-hover)]"
                       disabled={index === 0}
                       onClick={() => moveChange(index, -1)}
                       type="button"
@@ -356,7 +356,7 @@ export function AdminReleaseEditor({
                     </button>
                     <button
                       aria-label="Aşağı taşı"
-                      className="text-app-muted rounded-lg p-2 hover:bg-[hsl(var(--surface-soft))]"
+                      className="text-app-muted rounded-lg p-2 hover:bg-[var(--surface-hover)]"
                       disabled={index === changes.length - 1}
                       onClick={() => moveChange(index, 1)}
                       type="button"

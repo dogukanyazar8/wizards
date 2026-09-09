@@ -1,3 +1,9 @@
+import {
+  DEFAULT_DESKTOP_SHORTCUTS,
+  captureDesktopShortcut,
+  validateDesktopShortcutAssignments,
+} from "./shortcut-editor.mjs";
+
 (() => {
   "use strict";
 
@@ -8,6 +14,8 @@
     installUpdate: "desktop_control_install_update",
     recover: "desktop_control_recover",
     requestNotification: "desktop_control_request_notification_permission",
+    resolveMediaPermission: "resolve_desktop_media_permission",
+    saveAppSettings: "desktop_control_set_app_settings",
     saveShortcuts: "configure_desktop_voice_shortcuts",
   });
   const RECOVERY_ACTIONS = Object.freeze({
@@ -20,6 +28,20 @@
   const actionButtons = () => Array.from(document.querySelectorAll("[data-action]"));
   let currentState = null;
   let availableUpdateVersion = null;
+  const shortcutFields = Object.freeze({
+    hideGameOverlay: "hide-game-overlay",
+    pushToTalk: "push-to-talk",
+    toggleAdminConsole: "toggle-admin-console",
+    toggleDeafen: "toggle-deafen",
+    toggleMute: "toggle-mute",
+  });
+  const shortcutMessages = Object.freeze({
+    duplicate: "Already assigned to another action.",
+    invalid: "Use a modifier plus a key, or F13–F24.",
+    osRefused: "Operating system refused this combination.",
+    reserved: "Reserved by the operating system.",
+  });
+  let activeMediaPermissionPrompt = null;
 
   function setGlobalStatus(message, tone = "neutral") {
     const status = byId("global-status");
@@ -78,16 +100,52 @@
     }
   }
 
+  function setShortcutStatus(action, message, tone = "neutral") {
+    const output = byId(`${shortcutFields[action]}-status`);
+    output.textContent = message;
+    output.dataset.tone = tone;
+  }
+
+  function shortcutAssignments() {
+    return Object.fromEntries(
+      Object.entries(shortcutFields).map(([action, id]) => [action, byId(id).value.trim()]),
+    );
+  }
+
+  function shortcutEntries(shortcuts) {
+    if (Array.isArray(shortcuts?.entries)) return shortcuts.entries;
+    return (shortcuts?.registered ?? []).map((entry) => ({
+      action: entry.action,
+      conflict: false,
+      keys: entry.shortcut.split("+").filter(Boolean),
+      reason: null,
+      registered: true,
+    }));
+  }
+
   function renderShortcuts(shortcuts) {
     byId("shortcuts-enabled").checked = Boolean(shortcuts?.enabled);
-    const values = new Map(
-      (shortcuts?.registered ?? []).map((entry) => [entry.action, entry.shortcut]),
-    );
-    byId("toggle-mute").value = values.get("toggleMute") ?? "";
-    byId("toggle-deafen").value = values.get("toggleDeafen") ?? "";
-    byId("push-to-talk").value = values.get("pushToTalk") ?? "";
-    byId("hide-game-overlay").value = values.get("hideGameOverlay") ?? "";
-    byId("toggle-admin-console").value = values.get("toggleAdminConsole") ?? "";
+    const entries = new Map(shortcutEntries(shortcuts).map((entry) => [entry.action, entry]));
+    for (const [action, id] of Object.entries(shortcutFields)) {
+      const entry = entries.get(action);
+      byId(id).value = entry?.keys?.join("+") ?? DEFAULT_DESKTOP_SHORTCUTS[action] ?? "";
+      if (entry?.reason) {
+        setShortcutStatus(
+          action,
+          shortcutMessages[entry.reason] ?? "Shortcut unavailable.",
+          "error",
+        );
+      } else if (entry?.registered) {
+        setShortcutStatus(action, "Active", "success");
+      } else {
+        setShortcutStatus(action, shortcuts?.enabled ? "Not assigned" : "Disabled");
+      }
+    }
+  }
+
+  function renderAppSettings(settings) {
+    byId("launch-on-startup").checked = Boolean(settings?.launchOnStartup);
+    byId("close-action").value = settings?.closeAction === "quit" ? "quit" : "tray";
   }
 
   function renderState(state) {
@@ -101,9 +159,65 @@
     byId("voice-mini-summary").textContent = describeSurface(state.companionSurfaces.voiceMini);
     byId("overlay-summary").textContent = describeSurface(state.companionSurfaces.gameOverlay);
     byId("update-status").textContent = state.updater.message;
+    renderAppSettings(state.application);
     renderShortcuts(state.shortcuts);
     renderPermissions(state.permissions);
+    if (state.mediaPermissionPrompt) {
+      showMediaPermissionPrompt(state.mediaPermissionPrompt);
+    }
     updateInstallButton();
+  }
+
+  function showMediaPermissionPrompt(prompt) {
+    if (
+      !prompt ||
+      !["camera", "microphone"].includes(prompt.kind) ||
+      typeof prompt.requestId !== "string" ||
+      !/^media-permission-[1-9][0-9]*$/.test(prompt.requestId)
+    ) {
+      return;
+    }
+
+    activeMediaPermissionPrompt = prompt;
+    const isCamera = prompt.kind === "camera";
+    byId("media-permission-icon").textContent = isCamera ? "●" : "◉";
+    byId("media-permission-title").textContent = isCamera
+      ? "Allow Whispr to use your camera?"
+      : "Allow Whispr to use your microphone?";
+    byId("media-permission-description").textContent = isCamera
+      ? "Used for video calls and camera preview. Whispr starts the camera only after an action you take."
+      : "Used for voice channels, calls, and microphone testing. Whispr starts listening only after an action you take.";
+    byId("media-permission-result").textContent = "";
+
+    const dialog = byId("media-permission-dialog");
+    if (!dialog.open) dialog.showModal();
+    byId("media-permission-deny").focus();
+  }
+
+  async function resolveMediaPermission(allowed) {
+    const prompt = activeMediaPermissionPrompt;
+    if (!prompt) return;
+
+    const allowButton = byId("media-permission-allow");
+    const denyButton = byId("media-permission-deny");
+    allowButton.disabled = true;
+    denyButton.disabled = true;
+    byId("media-permission-result").textContent = "Applying your choice…";
+
+    try {
+      const result = await invoke(CONTROL_COMMANDS.resolveMediaPermission, {
+        allowed,
+        requestId: prompt.requestId,
+      });
+      activeMediaPermissionPrompt = null;
+      byId("media-permission-dialog").close();
+      setGlobalStatus(result.message, allowed ? "success" : "neutral");
+    } catch (error) {
+      byId("media-permission-result").textContent = formatError(error);
+    } finally {
+      allowButton.disabled = false;
+      denyButton.disabled = false;
+    }
   }
 
   function updateInstallButton() {
@@ -118,25 +232,74 @@
   }
 
   function shortcutConfig(enabled) {
+    const assignments = shortcutAssignments();
     return {
-      hideGameOverlay: enabled ? byId("hide-game-overlay").value : null,
-      pushToTalk: enabled ? byId("push-to-talk").value : null,
+      hideGameOverlay: assignments.hideGameOverlay || null,
+      pushToTalk: assignments.pushToTalk || null,
       shortcutsEnabled: enabled,
-      toggleAdminConsole: enabled ? byId("toggle-admin-console").value : null,
-      toggleDeafen: enabled ? byId("toggle-deafen").value : null,
-      toggleMute: enabled ? byId("toggle-mute").value : null,
+      toggleAdminConsole: assignments.toggleAdminConsole || null,
+      toggleDeafen: assignments.toggleDeafen || null,
+      toggleMute: assignments.toggleMute || null,
     };
   }
 
+  function validateShortcutForm(enabled) {
+    const assignments = shortcutAssignments();
+    const errors = validateDesktopShortcutAssignments(assignments);
+    for (const action of Object.keys(shortcutFields)) setShortcutStatus(action, "");
+    for (const [action, reason] of Object.entries(errors)) {
+      setShortcutStatus(action, shortcutMessages[reason] ?? "Shortcut unavailable.", "error");
+    }
+    if (enabled && !Object.values(assignments).some(Boolean)) {
+      setGlobalStatus("Assign at least one shortcut before enabling.", "error");
+      return false;
+    }
+    if (Object.keys(errors).length > 0) {
+      setGlobalStatus("Fix shortcut conflicts before saving.", "error");
+      return false;
+    }
+    return true;
+  }
+
   async function saveShortcuts(button, enabled) {
-    const status = await runOperation(button, () =>
-      invoke(CONTROL_COMMANDS.saveShortcuts, { config: shortcutConfig(enabled) }),
-    );
+    if (!validateShortcutForm(enabled)) return;
+    let status;
+    try {
+      status = await runOperation(button, () =>
+        invoke(CONTROL_COMMANDS.saveShortcuts, { config: shortcutConfig(enabled) }),
+      );
+    } catch (error) {
+      const refusedAction = formatError(error).match(
+        /Desktop shortcut (\w+) was refused by the operating system/u,
+      )?.[1];
+      if (refusedAction && shortcutFields[refusedAction]) {
+        setShortcutStatus(
+          refusedAction,
+          "Operating system refused this combination; previous shortcuts remain active.",
+          "error",
+        );
+      }
+      throw error;
+    }
     currentState.shortcuts = status;
     renderShortcuts(status);
     byId("shortcut-summary").textContent = status.enabled
       ? `${status.registered.length} active`
       : "Disabled";
+  }
+
+  async function saveAppSettings(button) {
+    const application = await runOperation(button, () =>
+      invoke(CONTROL_COMMANDS.saveAppSettings, {
+        settings: {
+          closeAction: byId("close-action").value === "quit" ? "quit" : "tray",
+          launchOnStartup: byId("launch-on-startup").checked,
+        },
+      }),
+    );
+    currentState.application = application;
+    renderAppSettings(application);
+    setGlobalStatus("Application settings saved.", "success");
   }
 
   async function exportDiagnostics(button) {
@@ -181,6 +344,20 @@
   }
 
   function bindActions() {
+    byId("media-permission-allow").addEventListener("click", () => {
+      void resolveMediaPermission(true);
+    });
+    byId("media-permission-deny").addEventListener("click", () => {
+      void resolveMediaPermission(false);
+    });
+    byId("media-permission-dialog").addEventListener("cancel", (event) => {
+      event.preventDefault();
+      void resolveMediaPermission(false);
+    });
+    byId("app-settings-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      void saveAppSettings(event.submitter).catch(() => {});
+    });
     byId("shortcut-form").addEventListener("submit", (event) => {
       event.preventDefault();
       void saveShortcuts(event.submitter, byId("shortcuts-enabled").checked).catch(() => {});
@@ -195,7 +372,14 @@
       "refresh-state": (button) => refreshState(button),
       "request-notification": (button) => requestNotification(button),
       "reset-main-window": (button) => recover(button, RECOVERY_ACTIONS.resetMainWindow),
-      "reset-shortcuts": (button) => saveShortcuts(button, false),
+      "reset-shortcuts": (button) => {
+        for (const [action, id] of Object.entries(shortcutFields)) {
+          byId(id).value = DEFAULT_DESKTOP_SHORTCUTS[action];
+        }
+        byId("shortcuts-enabled").checked = false;
+        return saveShortcuts(button, false);
+      },
+      "save-app-settings": (button) => saveAppSettings(button),
     };
     for (const button of actionButtons()) {
       const handler = handlers[button.dataset.action];
@@ -207,11 +391,31 @@
         byId(button.dataset.sectionTarget)?.scrollIntoView({ block: "start" });
       });
     }
+    for (const [action, id] of Object.entries(shortcutFields)) {
+      const input = byId(id);
+      let valueBeforeCapture = input.value;
+      input.addEventListener("focus", () => {
+        valueBeforeCapture = input.value;
+        setShortcutStatus(action, "Press a shortcut; Escape cancels.");
+      });
+      input.addEventListener("keydown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const result = captureDesktopShortcut(event);
+        if (result.kind === "pending") return;
+        if (result.kind === "cancel") input.value = valueBeforeCapture;
+        if (result.kind === "clear") input.value = "";
+        if (result.kind === "captured") input.value = result.accelerator;
+        input.blur();
+        validateShortcutForm(byId("shortcuts-enabled").checked);
+      });
+    }
   }
 
   window.whisprDesktopControlSelectSection = (section) => {
     const allowed = new Set([
       "overview",
+      "app",
       "shortcuts",
       "diagnostics",
       "updates",
@@ -219,6 +423,14 @@
       "recovery",
     ]);
     if (allowed.has(section)) byId(section)?.scrollIntoView({ block: "start" });
+  };
+
+  window.whisprDesktopControlRefreshState = () => {
+    void refreshState(null).catch(() => {});
+  };
+
+  window.whisprDesktopControlCancelMediaPermission = () => {
+    if (activeMediaPermissionPrompt) void resolveMediaPermission(false);
   };
 
   bindActions();

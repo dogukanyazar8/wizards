@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { selectUiScale, type UiScaleStep } from "@/lib/home/scale";
+import { composeRootFontSize, readTextScaleMultiplier } from "@/lib/settings/text-scale";
 
 /** Ölçek adımının DOM tutamağı; testler ve CSS istisnaları bunu okur (SPEC §8.2.2). */
 export const UI_SCALE_ATTRIBUTE = "data-ui-scale";
@@ -22,6 +23,12 @@ export interface UiScaleRoot {
  * Adımı köke yazar. Adım zaten yerindeyse **hiçbir şey yazmaz** — `style.fontSize` yazımı stil
  * yeniden hesaplaması tetikler (02-faz1 §5).
  *
+ * Ayarlar › Erişilebilirlik'teki `Yazı boyutu` (%85–130) adımın **üstüne** biner: nihai kök font
+ * boyutu `adım × çarpan`. Çarpan kökten okunur (`data-text-scale`), yani iki yazıcı — bu motor
+ * ve `applyTextScaleToDocument` — aynı formülü paylaşır ve hangisi sonra koşarsa koşsun aynı
+ * sonucu yazar. Çarpanı burada okumazsak resize sonrası kullanıcının seçimi sessizce silinirdi
+ * (Ş8 §B.9).
+ *
  * @returns DOM'a yazıldıysa `true`.
  */
 export function applyUiScale(root: UiScaleRoot, step: UiScaleStep): boolean {
@@ -29,7 +36,7 @@ export function applyUiScale(root: UiScaleRoot, step: UiScaleStep): boolean {
     return false;
   }
 
-  const nextFontSize = `${step.rootFontSizePx}px`;
+  const nextFontSize = composeRootFontSize(step.rootFontSizePx, readTextScaleMultiplier(root));
   const fontSizeMatches = root.style.fontSize === nextFontSize;
   const attributeMatches = root.getAttribute(UI_SCALE_ATTRIBUTE) === step.attribute;
 

@@ -111,11 +111,10 @@ export function EventsEmptyState({
         ) : null}
 
         <button
-          className="grid place-items-center text-[hsl(var(--text-secondary))] transition-colors hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="grid place-items-center bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           data-testid="events-empty-clear"
           onClick={onClearFilters}
           style={{
-            background: "hsl(var(--surface-card))",
             border: `${hairline()} solid hsl(var(--border))`,
             borderRadius: pxToRem(emptyState.buttonRadius),
             fontSize: pxToRem(emptyState.buttonFontSize),

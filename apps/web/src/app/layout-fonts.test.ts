@@ -20,11 +20,13 @@ const VENDORED_FONTS = [
 ] as const;
 
 /**
- * CSS değişkeni → font dosyası. SPEC §1: gövde Figtree, display Outfit. Giriş fontu ve mesaj
- * fontu tercihleri bu pakete dahil değil, burada da sabitlenir ki kazara kaymasınlar.
+ * CSS değişkeni → font dosyası. SPEC §1: gövde Figtree, display Outfit. Mesaj fontu tercihleri
+ * bu pakete dahil değil, burada da sabitlenir ki kazara kaymasınlar.
+ *
+ * SPEC-GIRIS-KAYIT §1.3 kimlik yüzeyinin gövdesini de Figtree yaptı; DM Sans bağı hiçbir CSS
+ * kuralı tarafından okunmuyordu ve Ş9 temizliğinde kaldırıldı (dosya duruyor).
  */
 const FONT_BINDINGS = {
-  "--font-auth-body": "dm-sans-latin.woff2",
   "--font-display": "outfit-latin.woff2",
   "--font-message-inter": "inter-latin.woff2",
   "--font-message-open-sans": "open-sans-latin.woff2",

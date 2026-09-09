@@ -29,12 +29,23 @@ function securedMessage(overrides: Record<string, unknown> = {}): PollRow["dmMes
   } as unknown as PollRow["dmMessage"];
 }
 
+function securedChannelMessage(overrides: Record<string, unknown> = {}): PollRow["message"] {
+  return {
+    channelId: "channel-1",
+    createdAt: NOW,
+    deletedAt: null,
+    placeholderRemovedAt: null,
+    ...overrides,
+  } as unknown as PollRow["message"];
+}
+
 function pollRow(overrides: Partial<PollRow> = {}): PollRow {
   return {
     anonymous: false,
     closesAt: OPEN_UNTIL,
     createdById: "user-1",
     dmMessage: securedMessage(),
+    message: null,
     id: "poll-1",
     multi: false,
     options: [
@@ -49,6 +60,7 @@ function pollRow(overrides: Partial<PollRow> = {}): PollRow {
 }
 
 type Calls = {
+  channelSent: unknown[];
   sent: unknown[];
   votes: { multi: boolean; optionIds: readonly string[]; pollId: string; userId: string }[];
 };
@@ -57,15 +69,20 @@ function buildDependencies(overrides: Partial<PollServiceDependencies> = {}): {
   calls: Calls;
   dependencies: PollServiceDependencies;
 } {
-  const calls: Calls = { sent: [], votes: [] };
+  const calls: Calls = { channelSent: [], sent: [], votes: [] };
 
   const dependencies: PollServiceDependencies = {
+    authorizeChannelViewer: async () => true,
     loadPollForViewer: async () => pollRow(),
     loadVoters: async () => [],
     now: () => NOW,
     replaceVote: async (input) => {
       calls.votes.push(input);
     },
+    sendChannelMessage: (async (input: unknown) => {
+      calls.channelSent.push(input);
+      return { id: "channel-message-1" };
+    }) as PollServiceDependencies["sendChannelMessage"],
     sendMessage: (async (input: unknown) => {
       calls.sent.push(input);
       return { id: "msg-1" };
@@ -144,9 +161,47 @@ describe("anket oluşturma", () => {
     const sent = calls.sent[0] as { poll: { closesAt: Date } };
     assert.equal(sent.poll.closesAt.toISOString(), "2026-08-21T09:00:00.000Z");
   });
+
+  it("kanal hedefini mevcut kanal mesaj servisinden gönderir", async () => {
+    const { calls, dependencies } = buildDependencies();
+
+    await createPollMessage(
+      { channelId: "channel-1", poll: draft, userId: "user-1" },
+      dependencies,
+    );
+
+    assert.equal(calls.sent.length, 0);
+    assert.equal(calls.channelSent.length, 1);
+    assert.equal((calls.channelSent[0] as { channelId: string }).channelId, "channel-1");
+  });
 });
 
 describe("anket okuma", () => {
+  it("kanal anketini VIEW_CHANNEL kapısından geçirir", async () => {
+    const authorized = buildDependencies({
+      loadPollForViewer: async () => pollRow({ dmMessage: null, message: securedChannelMessage() }),
+    });
+
+    const result = await getPollForViewer("poll-1", "user-1", authorized.dependencies);
+
+    assert.equal(result.channelId, "channel-1");
+    assert.equal(result.conversationId, null);
+
+    const denied = buildDependencies({
+      authorizeChannelViewer: async () => false,
+      loadPollForViewer: async () => pollRow({ dmMessage: null, message: securedChannelMessage() }),
+    });
+
+    await assert.rejects(
+      () => getPollForViewer("poll-1", "stranger", denied.dependencies),
+      (error: { status?: number; code?: string }) => {
+        assert.equal(error.status, 404);
+        assert.equal(error.code, "NOT_FOUND");
+        return true;
+      },
+    );
+  });
+
   it("katılımcı olmayana 404 verir", async () => {
     // 403 "var ama senin değil" demektir; bu da yine var olduğunu söylemektir.
     const { dependencies } = buildDependencies({ loadPollForViewer: async () => null });

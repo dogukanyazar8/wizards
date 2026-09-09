@@ -5,8 +5,6 @@ import {
   MobileUserProfileQuerySchema,
   MobileUserProfileResponseSchema,
   MobileUserReportRequestSchema,
-  MobileUserReportResponseSchema,
-  type MobileUserReportReason,
 } from "@wizards/types";
 
 import { enforceApiRateLimit, type ApiRateLimitAction } from "@/lib/api-rate-limit";
@@ -17,6 +15,7 @@ import {
   createMobileUserReport,
   getMobileUserProfile,
 } from "@/lib/social/mobile-user-profile-service";
+import { submitUserReport } from "@/lib/social/user-report-submission";
 
 export type MobileUserRouteContext = { params: Promise<Record<string, string>> };
 
@@ -36,18 +35,6 @@ const defaultDependencies: MobileUserRouteDependencies = {
   getProfile: getMobileUserProfile,
   parseBody: (request, schema) => parseJsonBody(request, schema),
   saveNote: saveMobileUserNote,
-};
-
-/** Contract reason → stored enum. Kept explicit so a new reason cannot silently widen the column. */
-const REPORT_REASONS: Record<
-  MobileUserReportReason,
-  "HARASSMENT" | "IMPERSONATION" | "INAPPROPRIATE" | "OTHER" | "SPAM"
-> = {
-  harassment: "HARASSMENT",
-  impersonation: "IMPERSONATION",
-  inappropriate: "INAPPROPRIATE",
-  other: "OTHER",
-  spam: "SPAM",
 };
 
 export async function mobileUserProfileRoute(
@@ -103,6 +90,11 @@ export async function mobileUserNoteRoute(
   }
 }
 
+/**
+ * Karar K12. The body parsing, the reason mapping and the case write all moved
+ * to `submitUserReport`, which the web `Bildir` row calls as well — the two
+ * front doors must land the same record in the moderation queue.
+ */
 export async function mobileUserReportRoute(
   request: Request,
   context: MobileUserRouteContext,
@@ -115,13 +107,9 @@ export async function mobileUserReportRoute(
     const body = await dependencies.parseBody(request, MobileUserReportRequestSchema);
 
     return Response.json(
-      MobileUserReportResponseSchema.parse(
-        await dependencies.createReport({
-          details: body.details ?? null,
-          reason: REPORT_REASONS[body.reason],
-          reporterId: requesterId,
-          subjectId: userId,
-        }),
+      await submitUserReport(
+        { body, reporterId: requesterId, subjectId: userId },
+        dependencies.createReport,
       ),
     );
   } catch (error) {

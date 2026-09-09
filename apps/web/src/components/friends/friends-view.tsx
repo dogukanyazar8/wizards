@@ -186,7 +186,7 @@ function FriendsToolbar({
           aria-expanded={sortMenu}
           aria-haspopup="menu"
           aria-label={t("messages.friends.sort.aria")}
-          className="flex items-center bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="flex items-center bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition hover:bg-[var(--surface-hover)] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           data-testid="friends-sort"
           onClick={onToggleSortMenu}
           style={{
@@ -229,7 +229,7 @@ function FriendsToolbar({
                 <button
                   aria-checked={option === sort}
                   className={cn(
-                    "flex w-full items-center text-left transition hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
+                    "flex w-full items-center text-left transition hover:bg-[var(--surface-hover)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
                     option === sort
                       ? "text-[hsl(var(--primary))]"
                       : "text-[hsl(var(--text-secondary))]",
@@ -446,7 +446,7 @@ function CompactButton({
         tone === "danger" &&
           "bg-[hsl(var(--surface-card))] text-[hsl(var(--danger))] hover:bg-[hsl(var(--danger)/0.12)]",
         tone === "neutral" &&
-          "bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))]",
+          "bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] hover:bg-[var(--surface-hover)] hover:text-[hsl(var(--foreground))]",
       )}
       data-testid={testId}
       onClick={onClick}

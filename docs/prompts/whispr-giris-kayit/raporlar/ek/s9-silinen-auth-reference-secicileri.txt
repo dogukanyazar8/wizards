@@ -1,0 +1,220 @@
+.auth-reference-alert
+.auth-reference-beta-badge
+.auth-reference-beta-copy
+.auth-reference-beta-icon
+.auth-reference-beta-notice
+.auth-reference-beta-notice p
+.auth-reference-beta-notice.is-compact
+.auth-reference-beta-notice.is-compact .auth-reference-beta-icon
+.auth-reference-beta-notice.is-compact .auth-reference-beta-title-row
+.auth-reference-beta-notice.is-compact p
+.auth-reference-beta-notice.is-hero
+.auth-reference-beta-notice:hover
+.auth-reference-beta-title-row
+.auth-reference-beta-topline
+.auth-reference-bottom-text
+.auth-reference-bottom-text a
+.auth-reference-brand
+.auth-reference-card
+.auth-reference-card-arrow
+.auth-reference-card-header
+.auth-reference-card-header h2
+.auth-reference-card-header p
+.auth-reference-card[data-auth-card-variant="register"]
+.auth-reference-card[data-auth-card-variant="register"] .auth-reference-form
+.auth-reference-card[data-auth-card-variant="register"] .auth-reference-form-stack
+.auth-reference-card[data-auth-card-variant="register"] .auth-reference-user-type-card
+.auth-reference-card[data-auth-card-variant="register"] .auth-reference-user-types
+.auth-reference-check-badge
+.auth-reference-checkbox
+.auth-reference-checkbox input
+.auth-reference-controls
+.auth-reference-copy
+.auth-reference-copy h1
+.auth-reference-copy h1 span
+.auth-reference-copy p
+.auth-reference-copy-frame
+.auth-reference-divider
+.auth-reference-divider span
+.auth-reference-divider span:last-child
+.auth-reference-field
+.auth-reference-field-error
+.auth-reference-footer
+.auth-reference-footer-links
+.auth-reference-footer-links > * + *::before
+.auth-reference-footer-links a
+.auth-reference-footer-links a:hover
+.auth-reference-footer-row
+.auth-reference-form
+.auth-reference-form-stack
+.auth-reference-have-account
+.auth-reference-hero
+.auth-reference-hero-art
+.auth-reference-hero-art::before
+.auth-reference-icon-bubble
+.auth-reference-icon-gamer
+.auth-reference-icon-personal
+.auth-reference-icon-team
+.auth-reference-input
+.auth-reference-input-action
+.auth-reference-input-action button
+.auth-reference-input-icon
+.auth-reference-input-wrap
+.auth-reference-input::placeholder
+.auth-reference-input:focus
+.auth-reference-label-link
+.auth-reference-label-row
+.auth-reference-label-row label
+.auth-reference-language
+.auth-reference-language svg
+.auth-reference-language-item
+.auth-reference-language-item.is-active
+.auth-reference-language-menu
+.auth-reference-mini-button
+.auth-reference-page
+.auth-reference-password-grid
+.auth-reference-password-help
+.auth-reference-password-help svg
+.auth-reference-primary-button
+.auth-reference-primary-button svg
+.auth-reference-primary-button:disabled
+.auth-reference-primary-button:not(:disabled):hover
+.auth-reference-profile-card
+.auth-reference-profile-card h3
+.auth-reference-profile-card p
+.auth-reference-profile-cards
+.auth-reference-secondary-button
+.auth-reference-secondary-button:hover
+.auth-reference-security-line
+.auth-reference-security-line svg
+.auth-reference-shell
+.auth-reference-social-button
+.auth-reference-social-button:disabled
+.auth-reference-social-button:not(:disabled):hover
+.auth-reference-social-grid
+.auth-reference-status-card
+.auth-reference-status-card > div:first-child
+.auth-reference-status-card h1
+.auth-reference-status-card p
+.auth-reference-status-card.is-compact
+.auth-reference-system-dot
+.auth-reference-system-status
+.auth-reference-terms
+.auth-reference-terms a
+.auth-reference-theme-option
+.auth-reference-theme-option svg
+.auth-reference-theme-option.is-active
+.auth-reference-theme-option.is-active svg
+.auth-reference-theme-toggle
+.auth-reference-title-gradient
+.auth-reference-user-type-card
+.auth-reference-user-type-card > span:last-child
+.auth-reference-user-type-card.is-selected
+.auth-reference-user-type-note
+.auth-reference-user-types
+html.theme-ash .auth-reference-beta-notice
+html.theme-ash .auth-reference-beta-notice p
+html.theme-ash .auth-reference-bottom-text
+html.theme-ash .auth-reference-card
+html.theme-ash .auth-reference-card-header p
+html.theme-ash .auth-reference-copy p
+html.theme-ash .auth-reference-footer
+html.theme-ash .auth-reference-hero-art
+html.theme-ash .auth-reference-hero-art::before
+html.theme-ash .auth-reference-input
+html.theme-ash .auth-reference-language
+html.theme-ash .auth-reference-language svg
+html.theme-ash .auth-reference-language-menu
+html.theme-ash .auth-reference-page
+html.theme-ash .auth-reference-profile-card
+html.theme-ash .auth-reference-profile-card p
+html.theme-ash .auth-reference-system-status
+html.theme-ash .auth-reference-theme-option
+html.theme-ash .auth-reference-theme-option.is-active
+html.theme-ash .auth-reference-theme-toggle
+html.theme-ash .auth-reference-user-type-note
+html.theme-dark .auth-reference-beta-notice
+html.theme-dark .auth-reference-beta-notice p
+html.theme-dark .auth-reference-bottom-text
+html.theme-dark .auth-reference-card
+html.theme-dark .auth-reference-card-header p
+html.theme-dark .auth-reference-copy p
+html.theme-dark .auth-reference-footer
+html.theme-dark .auth-reference-hero-art
+html.theme-dark .auth-reference-hero-art::before
+html.theme-dark .auth-reference-input
+html.theme-dark .auth-reference-language
+html.theme-dark .auth-reference-language svg
+html.theme-dark .auth-reference-language-menu
+html.theme-dark .auth-reference-page
+html.theme-dark .auth-reference-profile-card
+html.theme-dark .auth-reference-profile-card p
+html.theme-dark .auth-reference-system-status
+html.theme-dark .auth-reference-theme-option
+html.theme-dark .auth-reference-theme-option.is-active
+html.theme-dark .auth-reference-theme-toggle
+html.theme-dark .auth-reference-user-type-note
+html.theme-graphite .auth-reference-beta-notice
+html.theme-graphite .auth-reference-beta-notice p
+html.theme-graphite .auth-reference-bottom-text
+html.theme-graphite .auth-reference-card
+html.theme-graphite .auth-reference-card-header p
+html.theme-graphite .auth-reference-copy p
+html.theme-graphite .auth-reference-footer
+html.theme-graphite .auth-reference-hero-art
+html.theme-graphite .auth-reference-hero-art::before
+html.theme-graphite .auth-reference-input
+html.theme-graphite .auth-reference-language
+html.theme-graphite .auth-reference-language svg
+html.theme-graphite .auth-reference-language-menu
+html.theme-graphite .auth-reference-page
+html.theme-graphite .auth-reference-profile-card
+html.theme-graphite .auth-reference-profile-card p
+html.theme-graphite .auth-reference-system-status
+html.theme-graphite .auth-reference-theme-option
+html.theme-graphite .auth-reference-theme-option.is-active
+html.theme-graphite .auth-reference-theme-toggle
+html.theme-graphite .auth-reference-user-type-note
+html.theme-midnight .auth-reference-beta-notice
+html.theme-midnight .auth-reference-beta-notice p
+html.theme-midnight .auth-reference-bottom-text
+html.theme-midnight .auth-reference-card
+html.theme-midnight .auth-reference-card-header p
+html.theme-midnight .auth-reference-copy p
+html.theme-midnight .auth-reference-footer
+html.theme-midnight .auth-reference-hero-art
+html.theme-midnight .auth-reference-hero-art::before
+html.theme-midnight .auth-reference-input
+html.theme-midnight .auth-reference-language
+html.theme-midnight .auth-reference-language svg
+html.theme-midnight .auth-reference-language-menu
+html.theme-midnight .auth-reference-page
+html.theme-midnight .auth-reference-profile-card
+html.theme-midnight .auth-reference-profile-card p
+html.theme-midnight .auth-reference-system-status
+html.theme-midnight .auth-reference-theme-option
+html.theme-midnight .auth-reference-theme-option.is-active
+html.theme-midnight .auth-reference-theme-toggle
+html.theme-midnight .auth-reference-user-type-note
+html.theme-onyx .auth-reference-beta-notice
+html.theme-onyx .auth-reference-beta-notice p
+html.theme-onyx .auth-reference-bottom-text
+html.theme-onyx .auth-reference-card
+html.theme-onyx .auth-reference-card-header p
+html.theme-onyx .auth-reference-copy p
+html.theme-onyx .auth-reference-footer
+html.theme-onyx .auth-reference-hero-art
+html.theme-onyx .auth-reference-hero-art::before
+html.theme-onyx .auth-reference-input
+html.theme-onyx .auth-reference-language
+html.theme-onyx .auth-reference-language svg
+html.theme-onyx .auth-reference-language-menu
+html.theme-onyx .auth-reference-page
+html.theme-onyx .auth-reference-profile-card
+html.theme-onyx .auth-reference-profile-card p
+html.theme-onyx .auth-reference-system-status
+html.theme-onyx .auth-reference-theme-option
+html.theme-onyx .auth-reference-theme-option.is-active
+html.theme-onyx .auth-reference-theme-toggle
+html.theme-onyx .auth-reference-user-type-note
+html.whispr-desktop-chrome .auth-reference-page

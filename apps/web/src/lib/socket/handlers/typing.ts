@@ -1,6 +1,8 @@
 import { ChannelType, prisma } from "@wizards/db";
+import type { ConversationPrivacy } from "@wizards/types";
 import { isDMParticipant } from "@/lib/dm/participant-service";
 import { logError } from "@/lib/logger";
+import { createMessagePrivacyCache } from "@/lib/messages/typing-visibility";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { ensureChannelMembership } from "@/lib/socket/channel-membership";
 import {
@@ -37,6 +39,7 @@ type DMTypingEntry = {
 
 type CheckTypingEventAllowed = (scope: string) => Promise<boolean>;
 type IsDMParticipant = (userId: string, conversationId: string) => Promise<boolean>;
+type ReadMessagePrivacy = (userId: string) => Promise<ConversationPrivacy>;
 type RequireChannelPermission = typeof requireChannelPermissionForUser;
 
 export function parseDMTypingEntry(value: string): DMTypingEntry | null {
@@ -69,6 +72,7 @@ export function registerTypingHandlers(
   options: {
     checkTypingEventAllowed?: CheckTypingEventAllowed;
     isDMParticipant?: IsDMParticipant;
+    readMessagePrivacy?: ReadMessagePrivacy;
     requireChannelPermission?: RequireChannelPermission;
   } = {},
 ): SocketHandlerRegistration {
@@ -80,6 +84,20 @@ export function registerTypingHandlers(
   const dmParticipantCache = new Map<string, { expiresAt: number; userIds: string[] }>();
   const requireChannelPermission =
     options.requireChannelPermission ?? requireChannelPermissionForUser;
+  /**
+   * §15.5's `Yazıyor göstergesi` switch (karar K9), enforced on the publishing
+   * side: an opted-out person's keystrokes never become an event, rather than
+   * becoming one that readers are asked to ignore.
+   *
+   * Cached for the same reason the participant lookup above is — this is asked
+   * once per keystroke burst, and a per-keypress settings read would cost more
+   * than the dots are worth. Flipping the switch takes effect within the window.
+   */
+  const readMessagePrivacy = options.readMessagePrivacy ?? createMessagePrivacyCache();
+
+  async function isTypingIndicatorPublishable() {
+    return (await readMessagePrivacy(ctx.userId)).typingIndicator;
+  }
 
   /**
    * The conversation list needs typing dots for chats the reader does not
@@ -229,6 +247,9 @@ export function registerTypingHandlers(
   ctx.socket.on("typing:start", async (rawChannelId: string) => {
     try {
       const channelId = parseSocketPayload(SocketIdSchema, rawChannelId);
+      if (!(await isTypingIndicatorPublishable())) {
+        return;
+      }
       if (!(await isTypingEventAllowed(`channel:${channelId}`))) {
         return;
       }
@@ -293,6 +314,10 @@ export function registerTypingHandlers(
         return;
       }
 
+      if (!(await isTypingIndicatorPublishable())) {
+        return;
+      }
+
       if (!(await isTypingEventAllowed(`dm:${data.conversationId}`))) {
         return;
       }
@@ -303,6 +328,11 @@ export function registerTypingHandlers(
     }
   });
 
+  /**
+   * Deliberately ungated by the privacy switch. `stop` only clears state and
+   * republishes the (now shorter) list, so it is what removes a dot somebody
+   * left behind when they turned the switch off mid-sentence.
+   */
   ctx.socket.on("dm:typing:stop", async (rawData) => {
     try {
       const data = parseSocketPayload(SocketConversationPayloadSchema, rawData);

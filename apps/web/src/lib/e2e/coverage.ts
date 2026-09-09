@@ -13,7 +13,7 @@ export type ApiE2ECoverageMode = {
 
 export type CoverageEnvironment = Record<string, string | undefined>;
 
-const C8_REPORT_HEAP_MIB = 6144;
+const C8_REPORT_HEAP_MIB = 8192;
 
 export function buildNodeCoverageEnv(
   env: CoverageEnvironment,

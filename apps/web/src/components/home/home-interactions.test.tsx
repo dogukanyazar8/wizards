@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import Link from "next/link";
 import React from "react";
 
 import { renderWithLocale } from "./home-test-render";
@@ -19,6 +20,7 @@ import { HomeAwaitingCard } from "./home-awaiting-card";
 import { HomeFriendsStrip } from "./home-friends-strip";
 import { HomeLiveCard } from "./home-live-card";
 import { HomePresenceCard } from "./home-presence-card";
+import { HomeHeaderLink } from "./home-primitives";
 import { HomeUpNextCard } from "./home-up-next-card";
 
 /**
@@ -51,6 +53,21 @@ function withProviders(node: React.ReactElement) {
     </QueryClientProvider>,
   );
 }
+
+describe("HomeHeaderLink", () => {
+  it("href verilen başlık kontrolünü Next client bağlantısı olarak kurar", () => {
+    const element = HomeHeaderLink({ children: "Bahsedilmeler", fontSize: 12, href: "/mentions" });
+
+    assert.equal(element.type, Link);
+  });
+
+  it("yerel pencere aksiyonunu bağlantı yerine gerçek düğme olarak kurar", () => {
+    const element = HomeHeaderLink({ children: "Tümünü gör", fontSize: 12, onClick: noop });
+
+    assert.equal(element.type, "button");
+    assert.equal(element.props.type, "button");
+  });
+});
 
 /* ------------------------------------------------------------------- live */
 

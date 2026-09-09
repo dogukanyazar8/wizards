@@ -67,7 +67,7 @@ export function ActiveSessionsCard({ t }: { t: Translate }) {
 
   return (
     <section
-      className="rounded-[20px] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface)/0.9)] p-3 shadow-[0_12px_32px_hsl(var(--shadow-color)/0.05)] sm:p-4"
+      className="rounded-[1.25rem] border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface)/0.9)] p-3 shadow-[0_12px_32px_hsl(var(--shadow-color)/0.05)] sm:p-4"
       data-testid="active-sessions-card"
     >
       <div className="flex items-start justify-between gap-3">
@@ -86,7 +86,7 @@ export function ActiveSessionsCard({ t }: { t: Translate }) {
         </div>
         <button
           aria-label={t("settings.account.security.sessions.refresh")}
-          className="rounded-lg p-2 text-app-muted transition hover:bg-[hsl(var(--surface-soft))] hover:text-app-foreground disabled:opacity-50"
+          className="rounded-lg p-2 text-app-muted transition hover:bg-[var(--surface-hover)] hover:text-app-foreground disabled:opacity-50"
           disabled={sessionsQuery.isFetching}
           onClick={() => void sessionsQuery.refetch()}
           type="button"
@@ -106,7 +106,7 @@ export function ActiveSessionsCard({ t }: { t: Translate }) {
               {t("settings.account.security.sessions.error")}
             </p>
             <button
-              className="mt-2 text-xs font-bold text-[hsl(var(--primary))]"
+              className="mt-2 text-xs font-bold text-[var(--primary-readable)]"
               onClick={() => void sessionsQuery.refetch()}
               type="button"
             >
@@ -120,7 +120,7 @@ export function ActiveSessionsCard({ t }: { t: Translate }) {
         ) : (
           sessions.map((session) => (
             <article
-              className={`rounded-[16px] border p-3 ${session.current ? "border-[hsl(var(--primary)/0.35)] bg-[hsl(var(--primary)/0.06)]" : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--background)/0.46)]"}`}
+              className={`rounded-[1rem] border p-3 ${session.current ? "border-[hsl(var(--primary)/0.35)] bg-[hsl(var(--primary)/0.06)]" : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--background)/0.46)]"}`}
               key={session.id}
             >
               <div className="flex items-start gap-3">
@@ -136,18 +136,18 @@ export function ActiveSessionsCard({ t }: { t: Translate }) {
                       <Badge>{t("settings.account.security.sessions.current")}</Badge>
                     ) : null}
                   </div>
-                  <p className="mt-1 text-[11px] leading-4 text-app-muted">
+                  <p className="mt-1 text-[0.6875rem] leading-4 text-app-muted">
                     {[session.browser, session.countryCode].filter(Boolean).join(" · ") ||
                       t("settings.account.security.sessions.unknown")}
                   </p>
-                  <p className="mt-1 text-[11px] text-app-soft">
+                  <p className="mt-1 text-[0.6875rem] text-app-soft">
                     {t("settings.account.security.sessions.lastSeen", {
                       date: formatDate(session.lastSeenAt),
                     })}
                   </p>
                 </div>
                 <button
-                  className="shrink-0 rounded-lg px-2 py-1.5 text-[11px] font-bold text-rose-600 transition hover:bg-rose-500/10 disabled:opacity-50"
+                  className="shrink-0 rounded-lg px-2 py-1.5 text-[0.6875rem] font-bold text-rose-600 transition hover:bg-rose-500/10 disabled:opacity-50"
                   disabled={pending}
                   onClick={() => setConfirmTarget(session.id)}
                   type="button"
@@ -157,21 +157,21 @@ export function ActiveSessionsCard({ t }: { t: Translate }) {
               </div>
               {confirmTarget === session.id ? (
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[hsl(var(--border)/0.55)] pt-3">
-                  <p className="text-[11px] font-semibold text-rose-600">
+                  <p className="text-[0.6875rem] font-semibold text-rose-600">
                     {session.current
                       ? t("settings.account.security.sessions.confirmCurrent")
                       : t("settings.account.security.sessions.confirmOne")}
                   </p>
                   <div className="flex gap-2">
                     <button
-                      className="px-2 py-1 text-[11px] font-bold text-app-muted"
+                      className="px-2 py-1 text-[0.6875rem] font-bold text-app-muted"
                       onClick={() => setConfirmTarget(null)}
                       type="button"
                     >
                       {t("common.cancel")}
                     </button>
                     <button
-                      className="rounded-lg bg-rose-600 px-2.5 py-1.5 text-[11px] font-bold text-white"
+                      className="rounded-lg bg-rose-600 px-2.5 py-1.5 text-[0.6875rem] font-bold text-white"
                       disabled={pending}
                       onClick={() => revokeOne.mutate(session.id)}
                       type="button"
@@ -190,19 +190,19 @@ export function ActiveSessionsCard({ t }: { t: Translate }) {
         <div className="mt-3 border-t border-[hsl(var(--border)/0.55)] pt-3">
           {confirmTarget === "others" ? (
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[11px] font-semibold text-rose-600">
+              <p className="text-[0.6875rem] font-semibold text-rose-600">
                 {t("settings.account.security.sessions.confirmOthers", { count: otherCount })}
               </p>
               <div className="flex gap-2">
                 <button
-                  className="px-2 py-1 text-[11px] font-bold text-app-muted"
+                  className="px-2 py-1 text-[0.6875rem] font-bold text-app-muted"
                   onClick={() => setConfirmTarget(null)}
                   type="button"
                 >
                   {t("common.cancel")}
                 </button>
                 <button
-                  className="rounded-lg bg-rose-600 px-2.5 py-1.5 text-[11px] font-bold text-white"
+                  className="rounded-lg bg-rose-600 px-2.5 py-1.5 text-[0.6875rem] font-bold text-white"
                   disabled={pending}
                   onClick={() => revokeOthers.mutate()}
                   type="button"

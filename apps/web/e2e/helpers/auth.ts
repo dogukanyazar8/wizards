@@ -55,7 +55,7 @@ export async function loginViaUi(page: Page, userKey: E2EUserKey): Promise<void>
   await expect(page).toHaveURL(/\/messages/);
 }
 
-export async function loginAs(page: Page, userKey: E2EUserKey): Promise<void> {
+export async function authenticateAs(page: Page, userKey: E2EUserKey): Promise<void> {
   const response = await page.request.post("/api/e2e/auth/session", {
     data: { userKey },
     headers: e2eRequestHeaders,
@@ -63,6 +63,10 @@ export async function loginAs(page: Page, userKey: E2EUserKey): Promise<void> {
   });
 
   await assertSuccessfulE2EResponse(response);
+}
+
+export async function loginAs(page: Page, userKey: E2EUserKey): Promise<void> {
+  await authenticateAs(page, userKey);
   await gotoAppRoute(page, "/messages");
   await expect(
     page

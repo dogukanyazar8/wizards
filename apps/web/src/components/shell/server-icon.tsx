@@ -4,10 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { GripVertical } from "lucide-react";
+import type { ServerIconTone } from "@wizards/types";
 import { Avatar } from "@/components/ui/avatar";
 import { SERVER_RAIL_ICON_SIZE, SERVER_RAIL_TOUCH_SIZE } from "@/lib/appearance";
 import { HOME_METRICS, pxToRem } from "@/lib/home/metrics";
-import { getServerAccentStyle, getServerInitial } from "@/lib/home/server-identity";
+import { getServerIconToneColor } from "@/lib/servers/server-icon-tone";
+import {
+  resolveServerAbbreviation,
+  resolveServerIconPresentation,
+} from "@/lib/servers/server-icon-presentation";
 import { cn } from "@/lib/utils";
 
 const { rail } = HOME_METRICS;
@@ -35,12 +40,11 @@ const DISPLAY_FONT = "[font-family:var(--font-display),sans-serif]";
 
 type ServerIconProps = {
   active?: boolean;
-  /** Tint sunucu kimliğinden türer; tasarımdaki W/O/P/T/G renkleri örnek veridir (§2.1). */
-  serverId: string;
   badgeCount?: number;
   className?: string;
   fallback: string;
   iconSize?: number;
+  iconColor?: ServerIconTone | null;
   iconUrl?: string | null;
   label: string;
   labelPreview?: string;
@@ -56,11 +60,11 @@ type ServerIconProps = {
 
 export function ServerIcon({
   active,
-  serverId,
   badgeCount = 0,
   className,
   fallback,
   iconSize,
+  iconColor,
   iconUrl,
   label,
   labelPreview,
@@ -75,13 +79,18 @@ export function ServerIcon({
 }: ServerIconProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null);
-  const preview = labelPreview ?? fallback;
   const resolvedIconSize = iconSize ?? (showLabel ? 40 : SERVER_RAIL_ICON_SIZE);
   // Rayın ikon kutusu tıklama hedefinin kendisidir (44); çevresine pay eklenmez (§2.1).
   const resolvedTouchSize = showLabel
     ? Math.max(56, resolvedIconSize + 14)
     : Math.max(SERVER_RAIL_TOUCH_SIZE, resolvedIconSize);
-  const accent = getServerAccentStyle(serverId, "rail");
+  const presentation = resolveServerIconPresentation({
+    iconColor,
+    iconUrl,
+    name: fallback,
+    shortName: labelPreview ?? null,
+  });
+  const fallbackLabel = resolveServerAbbreviation(fallback, labelPreview ?? null);
 
   const showTooltip = () => {
     if (!buttonRef.current) return;
@@ -156,7 +165,7 @@ export function ServerIcon({
           width: showLabel ? undefined : pxToRem(resolvedTouchSize),
         }}
       >
-        {showLabel || iconUrl ? (
+        {presentation.kind === "image" ? (
           <Avatar
             alt={label}
             className={cn(
@@ -166,13 +175,13 @@ export function ServerIcon({
                 ? "border-[hsl(var(--primary)/0.56)] bg-[hsl(var(--primary)/0.17)]"
                 : "bg-[hsl(var(--surface-soft)/0.7)] ring-1 ring-transparent",
             )}
-            fallback={fallback}
+            fallback={fallbackLabel}
             style={{
               borderRadius: showLabel ? undefined : pxToRem(rail.iconRadius),
               height: showLabel ? resolvedIconSize : pxToRem(resolvedIconSize),
               width: showLabel ? resolvedIconSize : pxToRem(resolvedIconSize),
             }}
-            src={iconUrl}
+            src={presentation.imageUrl}
           />
         ) : (
           /* SPEC §2.1 — ikonsuz sunucu: 44×44 kutu, baş harf 600/15 display. Aktif olan dolu
@@ -181,7 +190,7 @@ export function ServerIcon({
             aria-hidden="true"
             className={cn(DISPLAY_FONT, "grid place-items-center uppercase transition-colors")}
             style={{
-              background: active ? "hsl(var(--primary))" : accent.background,
+              background: getServerIconToneColor(presentation.tone, active ? undefined : 0.16),
               borderRadius: pxToRem(rail.iconRadius),
               boxShadow: active
                 ? `${pxToRem(HOME_METRICS.shadow.activeServerIcon.offsetX)} ${pxToRem(
@@ -190,7 +199,7 @@ export function ServerIcon({
                     HOME_METRICS.shadow.activeServerIcon.spread,
                   )} hsl(var(--primary))`
                 : undefined,
-              color: active ? ON_ACCENT_COLOR : accent.color,
+              color: active ? ON_ACCENT_COLOR : getServerIconToneColor(presentation.tone),
               fontSize: pxToRem(rail.iconFontSize),
               fontWeight: 600,
               height: pxToRem(resolvedIconSize),
@@ -198,12 +207,12 @@ export function ServerIcon({
               width: pxToRem(resolvedIconSize),
             }}
           >
-            {getServerInitial({ name: fallback, shortName: labelPreview ?? null })}
+            {presentation.label}
           </span>
         )}
         {showLabel ? (
           <span className="min-w-0 flex-1 truncate text-[12px] font-semibold uppercase tracking-[0.08em] text-app-foreground">
-            {preview}
+            {fallbackLabel}
           </span>
         ) : null}
         {showLabel && reorderable ? (

@@ -5,9 +5,13 @@ import {
   COMMAND_PALETTE_DEBOUNCE_MS,
   HOME_COMMAND_ACTIONS,
   buildPaletteSections,
+  buildPaletteTabs,
+  filterPaletteSections,
   isCommandPaletteShortcut,
   moveActiveRow,
+  parseCommandPaletteQuery,
   selectCommandActions,
+  shouldShowPaletteRateLimit,
 } from "@/lib/home/command-palette";
 import { interpolateMessage, resolveMessageTemplate } from "@/lib/locale/core";
 import { TR_MESSAGES } from "@/lib/locale/messages/tr";
@@ -33,19 +37,6 @@ const RESULTS: SearchCommandResponse = {
       items: [
         {
           avatarUrl: null,
-          href: "/channels/s1",
-          id: "s1",
-          label: "Wizards",
-          presence: null,
-          sublabel: null,
-        },
-      ],
-      kind: "server",
-    },
-    {
-      items: [
-        {
-          avatarUrl: null,
           href: "/channels/s1/c1",
           id: "c1",
           label: "genel",
@@ -54,6 +45,19 @@ const RESULTS: SearchCommandResponse = {
         },
       ],
       kind: "channel",
+    },
+    {
+      items: [
+        {
+          avatarUrl: null,
+          href: "/messages/friends?user=u1",
+          id: "u1",
+          label: "Selin",
+          presence: "ONLINE",
+          sublabel: "selin",
+        },
+      ],
+      kind: "user",
     },
   ],
 };
@@ -104,15 +108,16 @@ describe("selectCommandActions", () => {
     }
   });
 
-  it("lists the eight static commands, minus the focus branch that does not apply", () => {
-    // Faz 6 added `Etkinliklere git` once `/events` became a real screen.
-    assert.equal(HOME_COMMAND_ACTIONS.length, 8);
+  it("lists the seven static commands, minus the focus branch that does not apply", () => {
+    // Faz 6 added `Etkinliklere git` once `/events` became a real screen. Ayarlar Ş13
+    // dropped `nav:inbox` with the `/inbox` route (K10); `/mentions` is the full list.
+    assert.equal(HOME_COMMAND_ACTIONS.length, 7);
 
     const closed = selectCommandActions({ focusActive: false, query: "", translate });
     const open = selectCommandActions({ focusActive: true, query: "", translate });
 
-    assert.equal(closed.length, 7);
-    assert.equal(open.length, 7);
+    assert.equal(closed.length, 6);
+    assert.equal(open.length, 6);
     assert.ok(closed.some((action) => action.id === "focus:start"));
     assert.ok(!closed.some((action) => action.id === "focus:stop"));
     assert.ok(open.some((action) => action.id === "focus:stop"));
@@ -138,8 +143,54 @@ describe("selectCommandActions", () => {
   });
 });
 
+describe("parseCommandPaletteQuery", () => {
+  it("baştaki > işaretini komut modu olarak ayırır ve sunucu aramasına göndermez", () => {
+    assert.deepEqual(parseCommandPaletteQuery("  >  odak"), {
+      commandMode: true,
+      searchTerm: "odak",
+    });
+  });
+
+  it("normal sorguyu yalnız dış boşluklarından arındırır", () => {
+    assert.deepEqual(parseCommandPaletteQuery("  tasarım  "), {
+      commandMode: false,
+      searchTerm: "tasarım",
+    });
+  });
+});
+
+describe("shouldShowPaletteRateLimit", () => {
+  it("cached 429 yerel Komutlar ve Etkinlikler sekmelerini kapatmaz", () => {
+    assert.equal(
+      shouldShowPaletteRateLimit({ commandMode: true, isRateLimited: true, tab: "command" }),
+      false,
+    );
+    assert.equal(
+      shouldShowPaletteRateLimit({ commandMode: false, isRateLimited: true, tab: "command" }),
+      false,
+    );
+    assert.equal(
+      shouldShowPaletteRateLimit({ commandMode: false, isRateLimited: true, tab: "event" }),
+      false,
+    );
+  });
+
+  it("429 yalnız uzak sonuç kullanan sekmelerde bildirilir", () => {
+    for (const tab of ["all", "channel", "user", "dm"] as const) {
+      assert.equal(
+        shouldShowPaletteRateLimit({ commandMode: false, isRateLimited: true, tab }),
+        true,
+      );
+    }
+    assert.equal(
+      shouldShowPaletteRateLimit({ commandMode: false, isRateLimited: false, tab: "all" }),
+      false,
+    );
+  });
+});
+
 describe("buildPaletteSections", () => {
-  it("orders the groups the way §5.2 lists them, commands last", () => {
+  it("referans sırasını korur: komutlar, kanallar, kişiler, mesajlar", () => {
     const sections = buildPaletteSections({
       actions: selectCommandActions({ focusActive: false, query: "", translate }),
       results: {
@@ -165,7 +216,7 @@ describe("buildPaletteSections", () => {
 
     assert.deepEqual(
       sections.map((section) => section.kind),
-      ["server", "channel", "dm", "command"],
+      ["command", "channel", "user", "dm"],
     );
   });
 
@@ -194,14 +245,14 @@ describe("buildPaletteSections", () => {
               },
               {
                 avatarUrl: null,
-                href: "/channels/s1",
-                id: "s1",
-                label: "Wizards",
+                href: "/channels/s1/c1",
+                id: "c1",
+                label: "genel",
                 presence: null,
                 sublabel: null,
               },
             ],
-            kind: "server",
+            kind: "channel",
           },
         ],
       },
@@ -210,7 +261,7 @@ describe("buildPaletteSections", () => {
 
     assert.deepEqual(
       sections.flatMap((section) => section.rows.map((row) => row.id)),
-      ["server:s1"],
+      ["channel:c1"],
     );
   });
 
@@ -227,6 +278,54 @@ describe("buildPaletteSections", () => {
 
   it("returns nothing at all when there is nothing to list", () => {
     assert.deepEqual(buildPaletteSections({ actions: [], results: { groups: [] }, translate }), []);
+  });
+});
+
+describe("palette tabs", () => {
+  const sections = buildPaletteSections({
+    actions: selectCommandActions({ focusActive: false, query: "", translate }),
+    results: {
+      groups: [
+        ...RESULTS.groups,
+        {
+          items: [
+            {
+              avatarUrl: null,
+              href: "/messages/d1",
+              id: "d1",
+              label: "Mert",
+              presence: "IDLE",
+              sublabel: null,
+            },
+          ],
+          kind: "dm",
+        },
+      ],
+    },
+    translate,
+  });
+
+  it("altı referans sekmesini gerçek görünür satır sayılarıyla üretir", () => {
+    assert.deepEqual(
+      buildPaletteTabs(sections, translate).map(({ count, id }) => ({ count, id })),
+      [
+        { count: 9, id: "all" },
+        { count: 6, id: "command" },
+        { count: 1, id: "channel" },
+        { count: 1, id: "user" },
+        { count: 1, id: "dm" },
+        { count: 1, id: "event" },
+      ],
+    );
+  });
+
+  it("Etkinlikler sekmesinde yalnız güvenli mevcut etkinlik komutunu gösterir", () => {
+    const filtered = filterPaletteSections(sections, "event", translate);
+
+    assert.deepEqual(
+      filtered.flatMap((section) => section.rows.map((row) => row.actionId)),
+      ["nav:events"],
+    );
   });
 });
 

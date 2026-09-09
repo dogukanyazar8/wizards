@@ -29,7 +29,7 @@ import {
   AuthInfoBanner,
   AuthPasswordStrengthRow,
   AuthPrimaryButton,
-  AuthProfileTypeSelector,
+  AuthCodeCells,
   AuthScreenBackground,
   AuthSecurityCard,
   AuthSecondaryButton,
@@ -137,12 +137,7 @@ for (const theme of [lightTheme, darkTheme]) {
       mockTheme = theme;
       const view = await render(
         <>
-          <AuthTextField
-            label="Email"
-            onChangeText={jest.fn()}
-            testID="auth-form-email"
-            value=""
-          />
+          <AuthTextField label="Email" onChangeText={jest.fn()} testID="auth-form-email" value="" />
           <AuthTextField
             errorMessage="Invalid email"
             label="Invalid email"
@@ -183,9 +178,7 @@ for (const theme of [lightTheme, darkTheme]) {
           top: -theme.layout.auth.focusRingRadius,
         }),
       );
-      expect(
-        StyleSheet.flatten(view.getByTestId("auth-error-email-field").props.style),
-      ).toEqual(
+      expect(StyleSheet.flatten(view.getByTestId("auth-error-email-field").props.style)).toEqual(
         expect.objectContaining({
           borderColor: theme.status.danger,
           borderWidth: theme.layout.border.hairline,
@@ -193,7 +186,8 @@ for (const theme of [lightTheme, darkTheme]) {
       );
       expect(view.queryByTestId("auth-error-email-focus-ring")).toBeNull();
       expect(
-        StyleSheet.flatten(view.getByTestId("auth-register-email-field").props.style).paddingVertical,
+        StyleSheet.flatten(view.getByTestId("auth-register-email-field").props.style)
+          .paddingVertical,
       ).toBe(theme.layout.auth.inputPaddingVertical);
     });
 
@@ -280,9 +274,6 @@ for (const theme of [lightTheme, darkTheme]) {
         <AuthTopBar backAccessibilityLabel="Back" onBack={jest.fn()} testID="auth-top-bar" />,
       );
       const security = await render(<AuthSecurityCard testID="auth-security" />);
-      const profile = await render(
-        <AuthProfileTypeSelector onChange={jest.fn()} testID="auth-profile-sizes" value="personal" />,
-      );
       const passwordHint = await render(
         <AuthPasswordStrengthRow password="weak" testID="auth-password-hint" />,
       );
@@ -299,8 +290,16 @@ for (const theme of [lightTheme, darkTheme]) {
       expect(flattenPressableStyle(secondaryWelcome, "auth-secondary-welcome")).toEqual(
         expect.objectContaining({ gap: theme.layout.auth.ctaContentGap }),
       );
-      expectIconSize(primaryForm, "auth-primary-form-icon", theme.layout.auth.formPrimaryActionIcon);
-      expectIconSize(primaryWelcome, "auth-primary-welcome-icon", theme.layout.auth.welcomePrimaryActionIcon);
+      expectIconSize(
+        primaryForm,
+        "auth-primary-form-icon",
+        theme.layout.auth.formPrimaryActionIcon,
+      );
+      expectIconSize(
+        primaryWelcome,
+        "auth-primary-welcome-icon",
+        theme.layout.auth.welcomePrimaryActionIcon,
+      );
       const welcomeLabel = primaryWelcome.getByText("Continue");
       const welcomeIcon = primaryWelcome.getByTestId("auth-primary-welcome-icon", {
         includeHiddenElements: true,
@@ -309,17 +308,31 @@ for (const theme of [lightTheme, darkTheme]) {
       expect(welcomeLabel.parent?.children.indexOf(welcomeLabel)).toBeLessThan(
         welcomeLabel.parent?.children.indexOf(welcomeIcon) ?? -1,
       );
-      expectIconSize(secondaryWelcome, "auth-secondary-welcome-icon", theme.layout.auth.welcomeSecondaryActionIcon);
+      expectIconSize(
+        secondaryWelcome,
+        "auth-secondary-welcome-icon",
+        theme.layout.auth.welcomeSecondaryActionIcon,
+      );
       expectIconSize(fullInput, "auth-full-input-leading-icon", theme.layout.auth.fullInputIcon);
       expectIconSize(fullInput, "auth-full-input-trailing-icon", theme.layout.auth.fullInputIcon);
-      expectIconSize(compactInput, "auth-compact-input-leading-icon", theme.layout.auth.compactRegisterPasswordIcon);
-      expectIconSize(compactInput, "auth-compact-input-trailing-icon", theme.layout.auth.compactRegisterPasswordIcon);
+      expectIconSize(
+        compactInput,
+        "auth-compact-input-leading-icon",
+        theme.layout.auth.compactRegisterPasswordIcon,
+      );
+      expectIconSize(
+        compactInput,
+        "auth-compact-input-trailing-icon",
+        theme.layout.auth.compactRegisterPasswordIcon,
+      );
       expectIconSize(topBar, "auth-top-bar-back-icon", theme.layout.auth.topBarBackIcon);
       expectIconSize(security, "auth-security-shield-icon", theme.layout.auth.securityShieldIcon);
       expectIconSize(security, "auth-security-badge-icon", theme.layout.auth.securityBadgeIcon);
-      expectIconSize(profile, "auth-profile-sizes-option-personal-glyph", theme.layout.auth.profileGlyph);
-      expectIconSize(profile, "auth-profile-sizes-option-personal-check", theme.layout.auth.profileCheckGlyph);
-      expectIconSize(passwordHint, "auth-password-hint-shield-icon", theme.layout.auth.passwordHintShieldIcon);
+      expectIconSize(
+        passwordHint,
+        "auth-password-hint-shield-icon",
+        theme.layout.auth.passwordHintShieldIcon,
+      );
       expectIconSize(checkbox, "auth-checkbox-check-icon", theme.layout.auth.checkboxCheckGlyph);
       expectIconSize(infoBanner, "auth-info-icon", theme.layout.auth.infoBannerGlyph);
     });
@@ -418,42 +431,27 @@ for (const theme of [lightTheme, darkTheme]) {
       );
     });
 
-    it("marks only configured preview profiles and exposes the selected state", async () => {
+    it("splits the verification code into single-character cells and reports the joined value", async () => {
       mockTheme = theme;
       const onChange = jest.fn();
       const view = await render(
-        <AuthProfileTypeSelector onChange={onChange} testID="auth-profile" value="personal" />,
+        <AuthCodeCells
+          accessibilityLabel="Verification code"
+          onChange={onChange}
+          testID="auth-code"
+          value="4810"
+        />,
       );
 
-      expect(view.getByTestId("auth-profile-option-personal").props.accessibilityState.selected).toBe(
-        true,
-      );
-      expect(view.getByTestId("auth-profile-option-gamer").props.accessibilityState.selected).toBe(
-        false,
-      );
-      expect(view.queryByTestId("auth-profile-preview-personal")).toBeNull();
-      expect(view.getByTestId("auth-profile-preview-gamer")).toBeTruthy();
-      expect(view.getByTestId("auth-profile-preview-corporate")).toBeTruthy();
-      expect(
-        StyleSheet.flatten(view.getByTestId("auth-profile-option-personal").props.style),
-      ).toEqual(
-        expect.objectContaining({
-          backgroundColor: theme.accent.soft,
-          borderColor: theme.accent.default,
-          borderWidth: theme.layout.auth.profileSelectionBorderWidth,
-        }),
-      );
-      expect(
-        StyleSheet.flatten(view.getByTestId("auth-profile-preview-gamer").props.style),
-      ).toEqual(
-        expect.objectContaining({
-          position: "absolute",
-          right: theme.layout.auth.profilePreviewOffsetRight,
-        }),
-      );
+      // SPEC-GIRIS-KAYIT §4.2 — alti hucre; dolu hucreler yazilan degeri gosterir.
+      expect(view.getByTestId("auth-code-cell-0").props.children).toBe("4");
+      expect(view.getByTestId("auth-code-cell-3").props.children).toBe("0");
+      expect(view.getByTestId("auth-code-cell-4").props.children).toBe("");
+      expect(view.getByTestId("auth-code-cell-5").props.children).toBe("");
 
-      await fireEvent.press(view.getByTestId("auth-profile-option-gamer"));
-      expect(onChange).toHaveBeenCalledWith("gamer");
+      await fireEvent.changeText(view.getByTestId("auth-code-input"), "48102a9");
+      // Rakam disi karakterler dusuruluyor ve uzunluk asilmiyor.
+      expect(onChange).toHaveBeenCalledWith("481029");
     });
 
     it("renders secondary CTA icons without changing button accessibility", async () => {
@@ -476,25 +474,28 @@ for (const theme of [lightTheme, darkTheme]) {
       const view = await render(
         <>
           <AuthPasswordStrengthRow password="weak" testID="auth-password-weak" />
-          <AuthPasswordStrengthRow password="Ab1!xyzz" testID="auth-password-strong" />
+          <AuthPasswordStrengthRow password="Whispr!2026x" testID="auth-password-strong" />
         </>,
       );
 
-      expect(StyleSheet.flatten(view.getByTestId("auth-password-weak-hint").props.style).color).toBe(
-        theme.text.placeholder,
-      );
-      expect(StyleSheet.flatten(view.getByTestId("auth-password-strong-hint").props.style).color).toBe(
-        theme.status.success,
-      );
+      expect(
+        StyleSheet.flatten(view.getByTestId("auth-password-weak-hint").props.style).color,
+      ).toBe(theme.text.placeholder);
+      expect(
+        StyleSheet.flatten(view.getByTestId("auth-password-strong-hint").props.style).color,
+      ).toBe(theme.status.success);
     });
   });
 }
 
 describe("mobile auth password policy", () => {
-  it("requires eight characters with an ASCII letter, digit, and special character", () => {
-    expect(isMobileAuthPasswordStrong("Ab1!xyz")).toBe(false);
-    expect(isMobileAuthPasswordStrong("Ab1!xyzz")).toBe(true);
-    expect(isMobileAuthPasswordStrong("abcdefgh")).toBe(false);
+  // SPEC-GIRIS-KAYIT §4.4 — on karakter + dort kuraldan uc'u; kural paylasilan politikadan gelir.
+  it("requires ten characters and three of the four rule classes", () => {
+    expect(isMobileAuthPasswordStrong("Ab1!xyzz")).toBe(false);
+    expect(isMobileAuthPasswordStrong("Whispr!2026x")).toBe(true);
+    expect(isMobileAuthPasswordStrong("abcdefghijkl")).toBe(false);
+    expect(isMobileAuthPasswordStrong("abcdefghij12")).toBe(false);
+    expect(isMobileAuthPasswordStrong("Abcdefghij12")).toBe(true);
   });
 });
 
@@ -507,9 +508,9 @@ describe("mobile auth screen background", () => {
       </AuthScreenBackground>,
     );
 
-    expect(StyleSheet.flatten(view.getByTestId("auth-background-fill-content").props.style)).toEqual(
-      expect.objectContaining({ flex: 1 }),
-    );
+    expect(
+      StyleSheet.flatten(view.getByTestId("auth-background-fill-content").props.style),
+    ).toEqual(expect.objectContaining({ flex: 1 }));
   });
 
   it("ports the approved 24-dot and exact glow geometry through semantic roles", async () => {

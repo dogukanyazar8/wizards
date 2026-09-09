@@ -9,7 +9,9 @@
     "allow-desktop-control-install-update",
     "allow-desktop-control-recover",
     "allow-desktop-control-request-notification-permission",
+    "allow-desktop-control-set-app-settings",
     "allow-export-desktop-diagnostics-bundle",
-    "allow-get-desktop-control-state"
+    "allow-get-desktop-control-state",
+    "allow-resolve-desktop-media-permission"
   ]
 }

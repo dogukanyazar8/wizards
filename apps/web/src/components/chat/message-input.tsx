@@ -32,6 +32,7 @@ import { ReplyPreview } from "./reply-preview";
 import { VoiceRecorder, type VoiceRecording } from "./voice-recorder";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
+import { SERVER_METRICS, pxToRem } from "@/lib/servers/metrics";
 import { filterRolesByMentionQuery } from "@/lib/workspace/mention-parser";
 import { useTyping } from "@/hooks/use-typing";
 import type { MessageMode } from "@/hooks/use-messages";
@@ -45,21 +46,32 @@ import {
   MESSAGE_ATTACHMENT_ACCEPT,
   MESSAGE_ATTACHMENT_MAX_COUNT,
 } from "@/lib/messages/attachment-rules";
+import {
+  matchesAppShortcut,
+  resolveAppShortcut,
+  type AppShortcutId,
+} from "@/lib/shortcuts/catalog";
 import { useUploadThing } from "@/lib/uploadthing";
 
 const MAX_MESSAGE_LENGTH = 2000;
 
 /**
- * SPEC §5.6'nın üç kısayolu. Anahtar **küçük harf**: `Ctrl+Shift+B` de `B`
- * üretir ve tabloyu iki kez yazmak gerekmesin diye tek yerde küçültülüyor.
+ * SPEC §5.6'nın üç biçimlendirme eylemi. Tuş eşleşmesi merkezi uygulama kataloğunda;
+ * burada yalnız eylemin metne hangi işaretçiyi yazdığı tutulur.
  *
  * İşaretçiler biçimlendirme şeridindekiyle aynı: kalın `**`, italik `_`, altı
  * çizili `++`. Şerit ile kısayol farklı işaretçi kullansaydı, aynı düğmenin iki
  * yolu iki farklı metin yazardı.
  */
+const COMPOSER_FORMATTING_SHORTCUT_IDS = [
+  "composer.bold",
+  "composer.italic",
+  "composer.underline",
+] as const satisfies readonly AppShortcutId[];
+
 const FORMATTING_SHORTCUTS: Readonly<
   Record<
-    string,
+    (typeof COMPOSER_FORMATTING_SHORTCUT_IDS)[number],
     {
       fallbackKey:
         "chat.input.boldFallback" | "chat.input.italicFallback" | "chat.input.underlineFallback";
@@ -67,9 +79,9 @@ const FORMATTING_SHORTCUTS: Readonly<
     }
   >
 > = Object.freeze({
-  b: { fallbackKey: "chat.input.boldFallback", marker: "**" },
-  i: { fallbackKey: "chat.input.italicFallback", marker: "_" },
-  u: { fallbackKey: "chat.input.underlineFallback", marker: "++" },
+  "composer.bold": { fallbackKey: "chat.input.boldFallback", marker: "**" },
+  "composer.italic": { fallbackKey: "chat.input.italicFallback", marker: "_" },
+  "composer.underline": { fallbackKey: "chat.input.underlineFallback", marker: "++" },
 });
 
 interface MessageInputProps {
@@ -198,15 +210,15 @@ function ComposerButton({
     <button
       aria-label={label}
       className={cn(
-        "group/composer-button inline-flex h-11 min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-2xl border text-sm font-bold transition-colors duration-150 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-55 motion-safe:transition-transform",
+        "group/composer-button inline-flex h-11 min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-2xl border-0 text-sm font-bold transition-colors duration-150 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-55 motion-safe:transition-transform",
         variant === "primary"
-          ? "border-[hsl(var(--primary)/0.34)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.92),hsl(var(--primary))_52%,hsl(var(--ambient-1)/0.88))] text-white shadow-[0_16px_34px_hsl(var(--primary)/0.24),inset_0_1px_0_rgba(255,255,255,0.3)] hover:shadow-[0_20px_44px_hsl(var(--primary)/0.32),inset_0_1px_0_rgba(255,255,255,0.35)] motion-safe:hover:scale-[1.025]"
+          ? "bg-[hsl(var(--primary))] text-white motion-safe:hover:scale-[1.025] hover:brightness-110"
           : variant === "ghost"
-            ? "border-transparent bg-transparent text-app-muted hover:bg-[hsl(var(--surface-soft)/0.64)] hover:text-app-foreground"
-            : "border-transparent bg-[hsl(var(--surface-soft)/0.34)] text-app-muted hover:bg-[hsl(var(--primary)/0.08)] hover:text-[hsl(var(--primary))]",
+            ? "bg-transparent text-app-muted hover:bg-[hsl(var(--surface-soft)/0.64)] hover:text-app-foreground"
+            : "bg-[hsl(var(--surface-soft)/0.34)] text-app-muted hover:bg-[hsl(var(--primary)/0.08)] hover:text-[hsl(var(--primary))]",
         active &&
           variant !== "primary" &&
-          "border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.13)] text-[var(--primary-readable)]",
+          "bg-[hsl(var(--primary)/0.13)] text-[var(--primary-readable)]",
         disabled && "motion-safe:hover:scale-100",
         className,
       )}
@@ -288,6 +300,67 @@ const AutoResizeTextarea = forwardRef<HTMLTextAreaElement, AutoResizeTextareaPro
   },
 );
 
+/**
+ * SPEC-SUNUCU §3.4'ün ölçüleri. `null` dönen çağrılar DM yolundadır: orada Mesajlar paketinin
+ * sınıfları geçerli ve bu şerit onlara dokunmuyor.
+ */
+const { composer: serverComposerMetrics } = SERVER_METRICS;
+
+function serverComposerOuterStyle(active: boolean): React.CSSProperties | undefined {
+  return active
+    ? {
+        paddingBottom: pxToRem(serverComposerMetrics.paddingBottom),
+        paddingInline: pxToRem(serverComposerMetrics.paddingX),
+        paddingTop: 0,
+      }
+    : undefined;
+}
+
+function serverComposerBoxStyle(active: boolean): React.CSSProperties | undefined {
+  return active
+    ? {
+        borderRadius: pxToRem(serverComposerMetrics.boxRadius),
+        gap: pxToRem(serverComposerMetrics.boxGap),
+        padding: `${pxToRem(serverComposerMetrics.boxPaddingY)} ${pxToRem(
+          serverComposerMetrics.boxPaddingX,
+        )}`,
+      }
+    : undefined;
+}
+
+function serverComposerSquareStyle(
+  active: boolean,
+  size: number,
+  radius: number,
+): React.CSSProperties | undefined {
+  return active
+    ? {
+        borderRadius: pxToRem(radius),
+        height: pxToRem(size),
+        minHeight: pxToRem(size),
+        minWidth: pxToRem(size),
+        width: pxToRem(size),
+      }
+    : undefined;
+}
+
+function messageSendButtonStyle(): React.CSSProperties {
+  return {
+    ...serverComposerSquareStyle(
+      true,
+      serverComposerMetrics.sendSize,
+      serverComposerMetrics.sendRadius,
+    ),
+    background: "hsl(var(--primary))",
+    boxShadow: `${pxToRem(serverComposerMetrics.sendShadow.x)} ${pxToRem(
+      serverComposerMetrics.sendShadow.y,
+    )} ${pxToRem(serverComposerMetrics.sendShadow.blur)} ${pxToRem(
+      serverComposerMetrics.sendShadow.spread,
+    )} hsl(var(--primary))`,
+    marginLeft: pxToRem(serverComposerMetrics.sendMarginLeft),
+  };
+}
+
 export function ChatComposer({
   conversationId,
   mode,
@@ -334,7 +407,16 @@ export function ChatComposer({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const previewUrlsRef = useRef<Set<string>>(new Set());
   const isThreadComposer = variant === "thread";
-  const referenceComposer = mode === "dm" && !isThreadComposer;
+  /**
+   * Ş6 · SPEC-SUNUCU §3.4. Sunucu kanalının bestekarı da **tek satırlık** düzeni kullanır:
+   * `9px 12px` kutu, `r15`, solda `34 r11` dosya düğmesi, sağda `Aa` · emoji · `GIF` ve
+   * `36 r12` gönder. Mesajlar paketi bu düzeni zaten çizdi (`referenceComposer`); ikinci bir
+   * kopya yazmak iki bestekarın ilk düzenlemede ayrışması olurdu. Geometri farkı tek yerde:
+   * kanal yolunda ölçüler `SERVER_METRICS.composer`dan satır içi `style` ile veriliyor,
+   * DM yolu **hiç değişmiyor**.
+   */
+  const serverComposer = mode === "channel" && !isThreadComposer;
+  const referenceComposer = (mode === "dm" || serverComposer) && !isThreadComposer;
   const effectiveMaxLength = maxLength ?? Number.POSITIVE_INFINITY;
   const hasFiniteMaxLength = Number.isFinite(effectiveMaxLength);
 
@@ -400,7 +482,7 @@ export function ChatComposer({
 
   const formatButtonLabelClass = isThreadComposer ? "sr-only" : "hidden sm:inline";
   const compactToolButtonClass = cn(
-    "inline-flex items-center justify-center gap-1.5 rounded-[0.875rem] border border-transparent bg-[hsl(var(--surface-soft)/0.3)] text-[0.78125rem] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.44)] disabled:cursor-not-allowed disabled:opacity-55",
+    "inline-flex items-center justify-center gap-1.5 rounded-[0.875rem] border-0 bg-[hsl(var(--surface-soft)/0.3)] text-[0.78125rem] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.44)] disabled:cursor-not-allowed disabled:opacity-55",
     isThreadComposer ? "h-9 w-9 px-0" : "min-h-8 px-2.5 py-1.5 md:min-h-0",
   );
   const composerHint = t("chat.input.sendHint");
@@ -1034,21 +1116,44 @@ export function ChatComposer({
       return;
     }
 
+    if (
+      content.length === 0 &&
+      !replyTo &&
+      matchesAppShortcut("message.editLast", event, { allowInTypingTarget: true })
+    ) {
+      const messageContext = isThreadComposer ? "thread" : "main";
+      const editableMessages = Array.from(
+        document.querySelectorAll<HTMLElement>('[data-message-editable="true"]'),
+      ).filter(
+        (message) =>
+          message.dataset.messageConversationId === conversationId &&
+          message.dataset.messageContext === messageContext,
+      );
+      const lastEditableMessage = editableMessages.at(-1);
+      const editButton = lastEditableMessage?.querySelector<HTMLButtonElement>(
+        '[data-message-shortcut-action="edit"]',
+      );
+
+      if (editButton) {
+        event.preventDefault();
+        editButton.click();
+        return;
+      }
+    }
+
     /*
      * SPEC §5.6 / §10: `Ctrl/Cmd+B|I|U`.
      *
-     * `altKey` dışlanıyor: `AltGr` Türkçe ve birçok Avrupa düzeninde `Ctrl+Alt`
-     * olarak gelir, ve `AltGr+B` yazmak isteyen birine kalın metin açmak
-     * yazdığını bozmak olurdu.
+     * Katalog `altKey` değerini dışlar: `AltGr` Türkçe ve birçok Avrupa düzeninde `Ctrl+Alt`
+     * olarak gelir. `AltGr+B` yazmak isteyen birine kalın metin açmak yazdığını bozardı.
      */
-    if ((event.metaKey || event.ctrlKey) && !event.altKey) {
-      const shortcut = FORMATTING_SHORTCUTS[event.key.toLowerCase()];
+    const formattingShortcutId = resolveAppShortcut(COMPOSER_FORMATTING_SHORTCUT_IDS, event);
+    if (formattingShortcutId) {
+      const shortcut = FORMATTING_SHORTCUTS[formattingShortcutId];
 
-      if (shortcut) {
-        event.preventDefault();
-        insertMarkdownWrap(shortcut.marker, shortcut.marker, t(shortcut.fallbackKey));
-        return;
-      }
+      event.preventDefault();
+      insertMarkdownWrap(shortcut.marker, shortcut.marker, t(shortcut.fallbackKey));
+      return;
     }
 
     /*
@@ -1131,7 +1236,11 @@ export function ChatComposer({
         )
       : mode === "dm"
         ? t("dm.input.placeholder")
-        : t("chat.input.placeholder");
+        : conversationName
+          ? // SPEC-SUNUCU §3.4 — `#surum-notlari kanalına yaz`. Kanal adı çağırandan gelir;
+            // bestekâr kanalı bilmez ve bilmemeli (Mesajlar §5.6 ile aynı gerekçe).
+            t("server.channel.composer.placeholder", { channel: conversationName })
+          : t("chat.input.placeholder");
 
   const characterCounter = hasFiniteMaxLength ? (
     <span
@@ -1245,7 +1354,9 @@ export function ChatComposer({
             : "space-y-1.5 p-2 pb-[max(0.65rem,env(safe-area-inset-bottom))] md:px-3 md:pb-3 md:pt-1.5",
       )}
       data-testid="message-composer"
+      data-composer-surface={serverComposer ? "server" : undefined}
       data-composer-variant={isThreadComposer ? "thread" : "default"}
+      style={serverComposerOuterStyle(serverComposer)}
       data-disabled={disabled ? "true" : undefined}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -1421,6 +1532,7 @@ export function ChatComposer({
                 "border-[hsl(var(--primary)/0.5)] ring-2 ring-[hsl(var(--primary)/0.1)]",
             )}
             data-testid="message-composer-input-row"
+            style={serverComposerBoxStyle(serverComposer)}
           >
             {!referenceComposer && showFormattingToolbar ? (
               <ComposerFormattingBar
@@ -1592,45 +1704,57 @@ export function ChatComposer({
                   type="file"
                 />
 
-                <ComposerButton
-                  aria-expanded={actionSheetOpen}
-                  className={cn(
-                    referenceComposer
-                      ? "order-1 h-[2.125rem] min-h-[2.125rem] w-[2.125rem] min-w-[2.125rem] rounded-[0.6875rem] bg-[hsl(var(--surface-soft))]"
-                      : isThreadComposer
-                        ? "h-10 min-h-10 min-w-10 rounded-xl"
-                        : "h-10 w-10 md:h-11 md:w-11",
-                  )}
-                  data-testid="message-file-button"
-                  disabled={disabled || !allowFileUploads}
-                  icon={Plus}
-                  label={t("chat.attachments.attachFile")}
-                  onClick={() => {
-                    if (disabled) {
-                      setAttachmentUploadError(disabledMessage);
-                      return;
-                    }
+                {/*
+                  Ş6 §4 — sunucu `allowFileUploads` kapalıyken düğme **hiç çizilmez**; pasif
+                  bir düğme kullanıcıya var olmayan bir yetenek gösterirdi. DM yolunda davranış
+                  değişmedi: orada bayrak her zaman açık gelir.
+                */}
+                {serverComposer && !allowFileUploads ? null : (
+                  <ComposerButton
+                    aria-expanded={actionSheetOpen}
+                    className={cn(
+                      referenceComposer
+                        ? "order-1 h-[2.125rem] min-h-[2.125rem] w-[2.125rem] min-w-[2.125rem] rounded-[0.6875rem] bg-[hsl(var(--surface-soft))]"
+                        : isThreadComposer
+                          ? "h-10 min-h-10 min-w-10 rounded-xl"
+                          : "h-10 w-10 md:h-11 md:w-11",
+                    )}
+                    data-testid="message-file-button"
+                    disabled={disabled || !allowFileUploads}
+                    style={serverComposerSquareStyle(
+                      serverComposer,
+                      serverComposerMetrics.attachSize,
+                      serverComposerMetrics.attachRadius,
+                    )}
+                    icon={Plus}
+                    label={t("chat.attachments.attachFile")}
+                    onClick={() => {
+                      if (disabled) {
+                        setAttachmentUploadError(disabledMessage);
+                        return;
+                      }
 
-                    if (typeof window !== "undefined" && window.innerWidth < 768) {
-                      setIsActionSheetOpen((current) => !current);
-                      return;
-                    }
+                      if (typeof window !== "undefined" && window.innerWidth < 768) {
+                        setIsActionSheetOpen((current) => !current);
+                        return;
+                      }
 
-                    if (!allowFileUploads) {
-                      setAttachmentUploadError(t("chat.attachments.disabled"));
-                      return;
-                    }
+                      if (!allowFileUploads) {
+                        setAttachmentUploadError(t("chat.attachments.disabled"));
+                        return;
+                      }
 
-                    openFilePicker();
-                  }}
-                  title={
-                    disabled
-                      ? disabledMessage
-                      : !allowFileUploads
-                        ? t("chat.attachments.disabled")
-                        : t("chat.attachments.attachFile")
-                  }
-                />
+                      openFilePicker();
+                    }}
+                    title={
+                      disabled
+                        ? disabledMessage
+                        : !allowFileUploads
+                          ? t("chat.attachments.disabled")
+                          : t("chat.attachments.attachFile")
+                    }
+                  />
+                )}
 
                 <button
                   aria-expanded={showFormattingToolbar}
@@ -1640,11 +1764,16 @@ export function ChatComposer({
                     "hidden md:inline-flex",
                     referenceComposer && "order-3 h-[2.125rem] min-h-[2.125rem] w-[2.125rem] px-0",
                     showFormattingToolbar
-                      ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.14)] text-[var(--primary-readable)] shadow-[0_12px_26px_hsl(var(--primary)/0.12)]"
-                      : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted hover:text-app-foreground",
+                      ? "bg-[hsl(var(--primary)/0.14)] text-[var(--primary-readable)] shadow-[0_12px_26px_hsl(var(--primary)/0.12)]"
+                      : "bg-[hsl(var(--surface-soft)/0.42)] text-app-muted hover:text-app-foreground",
                   )}
                   data-testid="message-formatting-toggle"
                   onClick={() => setShowFormattingToolbar((current) => !current)}
+                  style={serverComposerSquareStyle(
+                    serverComposer,
+                    serverComposerMetrics.actionSize,
+                    serverComposerMetrics.actionRadius,
+                  )}
                   title={t("chat.input.toggleFormatting")}
                   type="button"
                 >
@@ -1675,11 +1804,16 @@ export function ChatComposer({
                       compactToolButtonClass,
                       "hidden md:inline-flex",
                       referenceComposer && "h-[2.125rem] min-h-[2.125rem] w-[2.125rem] px-0",
-                      "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted hover:text-app-foreground",
+                      "bg-[hsl(var(--surface-soft)/0.42)] text-app-muted hover:text-app-foreground",
                     )}
                     aria-label={t("chat.input.openEmojiPicker")}
                     data-testid="emoji-picker-button"
                     disabled={disabled}
+                    style={serverComposerSquareStyle(
+                      serverComposer,
+                      serverComposerMetrics.actionSize,
+                      serverComposerMetrics.actionRadius,
+                    )}
                     type="button"
                   >
                     <Smile className="h-4 w-4" />
@@ -1689,52 +1823,67 @@ export function ChatComposer({
                   </button>
                 </div>
 
-                <div
-                  className={cn(
-                    "relative",
-                    referenceComposer ? "order-5 hidden md:inline-flex" : "inline-flex",
-                  )}
-                >
-                  <button
-                    aria-label={t("chat.gifs.openPicker")}
+                {/* Ş6 §4 — `allowGifs` kapalıyken GIF düğmesi çizilmez. */}
+                {serverComposer && !allowGifs ? null : (
+                  <div
                     className={cn(
-                      compactToolButtonClass,
-                      "hidden md:inline-flex",
-                      referenceComposer &&
-                        "h-[2.125rem] min-h-[2.125rem] w-[2.125rem] px-0 text-[0.6875rem] font-black",
-                      "border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.26)] text-app-soft hover:border-[hsl(var(--primary)/0.38)] hover:text-app-foreground",
+                      "relative",
+                      referenceComposer ? "order-5 hidden md:inline-flex" : "inline-flex",
                     )}
-                    data-testid="gif-picker-button"
-                    disabled={!allowGifs || disabled}
-                    onClick={() => {
-                      if (disabled) {
-                        setAttachmentUploadError(disabledMessage);
-                        return;
-                      }
-                      if (!allowGifs) {
-                        setAttachmentUploadError(t("chat.gifs.disabled"));
-                        return;
-                      }
-                      setShowEmojiPicker(false);
-                      setShowGifPicker((current) => !current);
-                    }}
-                    onMouseDown={(event) => event.stopPropagation()}
-                    onPointerDown={(event) => event.stopPropagation()}
-                    title={
-                      disabled
-                        ? disabledMessage
-                        : allowGifs
-                          ? t("chat.gifs.openPicker")
-                          : t("chat.gifs.disabled")
-                    }
-                    type="button"
                   >
-                    {!referenceComposer ? <ImageIcon className="h-3.5 w-3.5" /> : null}
-                    <span className={referenceComposer ? "inline" : formatButtonLabelClass}>
-                      {t("chat.attachments.gif")}
-                    </span>
-                  </button>
-                </div>
+                    <button
+                      aria-label={t("chat.gifs.openPicker")}
+                      className={cn(
+                        compactToolButtonClass,
+                        "hidden md:inline-flex",
+                        referenceComposer &&
+                          "h-[2.125rem] min-h-[2.125rem] w-[2.125rem] px-0 text-[0.6875rem] font-black",
+                        "bg-[hsl(var(--surface-soft)/0.26)] text-app-soft hover:text-app-foreground",
+                      )}
+                      data-testid="gif-picker-button"
+                      disabled={!allowGifs || disabled}
+                      style={
+                        serverComposer
+                          ? {
+                              borderRadius: pxToRem(serverComposerMetrics.gifButtonRadius),
+                              fontSize: pxToRem(serverComposerMetrics.gifButtonFontSize),
+                              height: pxToRem(serverComposerMetrics.gifButtonHeight),
+                              letterSpacing: `${serverComposerMetrics.gifButtonLetterSpacing}em`,
+                              minHeight: pxToRem(serverComposerMetrics.gifButtonHeight),
+                              paddingInline: pxToRem(serverComposerMetrics.gifButtonPaddingX),
+                            }
+                          : undefined
+                      }
+                      onClick={() => {
+                        if (disabled) {
+                          setAttachmentUploadError(disabledMessage);
+                          return;
+                        }
+                        if (!allowGifs) {
+                          setAttachmentUploadError(t("chat.gifs.disabled"));
+                          return;
+                        }
+                        setShowEmojiPicker(false);
+                        setShowGifPicker((current) => !current);
+                      }}
+                      onMouseDown={(event) => event.stopPropagation()}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      title={
+                        disabled
+                          ? disabledMessage
+                          : allowGifs
+                            ? t("chat.gifs.openPicker")
+                            : t("chat.gifs.disabled")
+                      }
+                      type="button"
+                    >
+                      {!referenceComposer ? <ImageIcon className="h-3.5 w-3.5" /> : null}
+                      <span className={referenceComposer ? "inline" : formatButtonLabelClass}>
+                        {t("chat.attachments.gif")}
+                      </span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div
@@ -1798,7 +1947,7 @@ export function ChatComposer({
                   aria-disabled={!canSend}
                   className={cn(
                     referenceComposer
-                      ? "order-8 h-[2.125rem] min-h-[2.125rem] w-[2.125rem] min-w-[2.125rem] rounded-[0.6875rem] border-transparent bg-[hsl(var(--primary))] shadow-none hover:bg-[hsl(var(--primary))] hover:brightness-110"
+                      ? "order-8 h-[2.125rem] min-h-[2.125rem] w-[2.125rem] min-w-[2.125rem] rounded-[0.6875rem] bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))] hover:brightness-110"
                       : isThreadComposer
                         ? "h-10 min-h-10 min-w-10 rounded-xl"
                         : "h-10 w-10 md:h-12 md:w-12",
@@ -1806,6 +1955,7 @@ export function ChatComposer({
                   data-testid="message-send-button"
                   disabled={!canSend}
                   icon={Send}
+                  style={messageSendButtonStyle()}
                   label={t("chat.input.sendMessage")}
                   onClick={handleSend}
                   variant="primary"

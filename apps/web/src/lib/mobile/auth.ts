@@ -8,6 +8,7 @@ import {
   MobileAuthPasswordLoginResponseSchema,
   MobileAuthRegisterResponseSchema,
   MobileAuthRefreshResponseSchema,
+  MobileAuthTwoFactorResponseSchema,
   MobileAuthVerificationEmailResponseSchema,
 } from "@wizards/types";
 import bcrypt from "bcryptjs";
@@ -26,6 +27,7 @@ import {
 } from "@/lib/auth/password-reset";
 import { rollbackUnverifiedUser } from "@/lib/auth/registration-compensation";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
+import { loginChallengeStore } from "@/lib/auth/login-challenge";
 import { verifyTwoFactorCredential } from "@/lib/auth/two-factor";
 import { requiresOAuthTwoFactorStepUp } from "@/lib/auth/oauth-email";
 import { resolveRegistrationConflict } from "@/lib/auth/registration-policy";
@@ -136,9 +138,16 @@ interface MobileGoogleAuthOptions extends MobileAuthOptions {
 }
 
 interface MobileNativeAuthOptions extends MobileAuthOptions {
+  challenges?: typeof loginChallengeStore;
   comparePassword?: (password: string, passwordHash: string) => Promise<boolean>;
   loadUserByEmail?: (email: string) => Promise<MobilePasswordAuthUser | null>;
+  loadUserById?: (userId: string) => Promise<MobilePasswordAuthUser | null>;
   loginAttemptStore?: AttemptStore;
+  /**
+   * SPEC-GIRIS-KAYIT §4.2 — challenge, isteğin IP + User-Agent parmak izine bağlanır. Rota
+   * başlıkları okuyup buraya verir; servis `Request` görmez.
+   */
+  requestFingerprint?: string;
   verifyTwoFactor?: typeof verifyTwoFactorCredential;
 }
 
@@ -191,6 +200,11 @@ interface MobilePasswordResetUser {
 
 interface MobilePasswordResetOptions {
   loadUserByEmail?: (email: string) => Promise<MobilePasswordResetUser | null>;
+  /**
+   * Mobil uçtan gelen isteğin başlıkları. Şifre sıfırlama mektubundaki "İstek özeti" bloğu
+   * cihaz satırını buradan türetir; verilmezse satır hiç çizilmez (uydurma değer yazılmaz).
+   */
+  requestHeaders?: Headers;
   sendPasswordReset?: typeof sendPasswordResetEmail;
 }
 
@@ -411,6 +425,29 @@ async function loadMobileAuthUser(userId: string) {
 async function loadMobilePasswordAuthUser(email: string) {
   return prisma.user.findUnique({
     where: { email },
+    select: {
+      avatarUrl: true,
+      deletedAt: true,
+      displayName: true,
+      email: true,
+      emailVerified: true,
+      id: true,
+      isBanned: true,
+      locale: true,
+      passwordHash: true,
+      twoFactorEnabled: true,
+      twoFactorSecret: true,
+      twoFactorSecretCiphertext: true,
+      twoFactorSecretKeyVersion: true,
+      username: true,
+    },
+  });
+}
+
+/** Challenge tüketilirken kullanıcı e-posta ile değil kimlikle yüklenir (SPEC §4.2). */
+async function loadMobilePasswordAuthUserById(userId: string) {
+  return prisma.user.findUnique({
+    where: { id: userId },
     select: {
       avatarUrl: true,
       deletedAt: true,
@@ -735,6 +772,7 @@ export async function createMobilePasswordSession(
   input: {
     email: string;
     password: string;
+    supportsTwoFactorChallenge?: boolean;
     twoFactorCode?: string;
   },
   options: MobileNativeAuthOptions = {},
@@ -796,6 +834,29 @@ export async function createMobilePasswordSession(
 
   if (user.twoFactorEnabled) {
     if (!input.twoFactorCode) {
+      /*
+       * SPEC-GIRIS-KAYIT §4.2 ve paket kararı K2 — ayrı ekran.
+       *
+       * Bayrağı gönderen istemci parolayı ikinci kez taşımaz: kısa ömürlü, tek kullanımlık bir
+       * challenge alır ve kodu ayrı uca gönderir. Bayrağı **göndermeyen** sahadaki sürümler
+       * bugünkü 401'i görmeye devam eder — sözleşme kırılmaz.
+       */
+      if (input.supportsTwoFactorChallenge) {
+        const challenges = options.challenges ?? loginChallengeStore;
+        const challengeId = await challenges.issue({
+          email,
+          fingerprintOverride: options.requestFingerprint,
+          redirectTo: "/",
+          rememberMe: true,
+          userId: user.id,
+        });
+
+        return MobileAuthPasswordLoginResponseSchema.parse({
+          challengeId,
+          twoFactorRequired: true,
+        });
+      }
+
       throw new MobileNativeAuthError(
         "TWO_FACTOR_REQUIRED",
         401,
@@ -845,6 +906,97 @@ export async function createMobilePasswordSession(
     session: await createMobileSessionSnapshot(user, { nowMs, redis }, options),
   });
   await resetMobileLoginAttemptFailures({ email, store: loginAttemptStore });
+  return response;
+}
+
+/**
+ * SPEC-GIRIS-KAYIT §4.2 / §4.3 — mobilde ikinci adım.
+ *
+ * Challenge tüketilir, kod (TOTP ya da yedek kod) aynı servisle doğrulanır ve oturum açılır.
+ * Parola bu yolda hiç görünmez; challenge tek kullanımlıktır, beş dakikada düşer ve başka bir
+ * cihazın parmak iziyle çalışmaz.
+ */
+export async function completeMobileTwoFactorChallenge(
+  input: { challengeId: string; code: string },
+  options: MobileNativeAuthOptions = {},
+) {
+  const challenges = options.challenges ?? loginChallengeStore;
+  const fingerprint = options.requestFingerprint ?? "";
+  const challenge = await challenges.peek(input.challengeId, fingerprint);
+
+  if (!challenge) {
+    throw new MobileNativeAuthError(
+      "TWO_FACTOR_CHALLENGE_EXPIRED",
+      401,
+      "The verification session expired. Please sign in again.",
+    );
+  }
+
+  const loadUser = options.loadUserById ?? loadMobilePasswordAuthUserById;
+  const user = await loadUser(challenge.userId);
+
+  if (!isActiveMobileAuthUser(user)) {
+    throw new MobileNativeAuthError(
+      "TWO_FACTOR_CHALLENGE_EXPIRED",
+      401,
+      "The verification session expired. Please sign in again.",
+    );
+  }
+
+  const verifyTwoFactor = options.verifyTwoFactor ?? verifyTwoFactorCredential;
+  const result = await verifyTwoFactor({
+    code: input.code,
+    secret: user.twoFactorSecret,
+    ...(user.twoFactorSecretCiphertext === undefined
+      ? {}
+      : { secretCiphertext: user.twoFactorSecretCiphertext }),
+    ...(user.twoFactorSecretKeyVersion === undefined
+      ? {}
+      : { secretKeyVersion: user.twoFactorSecretKeyVersion }),
+    userId: user.id,
+  });
+
+  if (!result.success) {
+    if (result.error === "verification_unavailable") {
+      throw new MobileNativeAuthError(
+        "TWO_FACTOR_UNAVAILABLE",
+        503,
+        "Two-factor verification is temporarily unavailable.",
+      );
+    }
+
+    const failure = await challenges.registerCodeFailure(input.challengeId, fingerprint);
+
+    throw new MobileNativeAuthError(
+      failure.status === "retry" ? "TWO_FACTOR_INVALID" : "TWO_FACTOR_CHALLENGE_EXPIRED",
+      401,
+      failure.status === "retry"
+        ? "The two-factor code is invalid or expired."
+        : "The verification session expired. Please sign in again.",
+    );
+  }
+
+  const consumed = await challenges.consume(input.challengeId, fingerprint);
+
+  if (!consumed) {
+    throw new MobileNativeAuthError(
+      "TWO_FACTOR_CHALLENGE_EXPIRED",
+      401,
+      "The verification session expired. Please sign in again.",
+    );
+  }
+
+  const nowMs = Math.trunc(options.nowMs ?? Date.now());
+  const redis = getMobileAuthRedis(options);
+  const response = MobileAuthTwoFactorResponseSchema.parse({
+    session: await createMobileSessionSnapshot(user, { nowMs, redis }, options),
+  });
+
+  await resetMobileLoginAttemptFailures({
+    email: normalizeMobileAuthEmail(consumed.email),
+    store: options.loginAttemptStore ?? createRedisAttemptStore(getRedisRate()),
+  });
+
   return response;
 }
 
@@ -1037,6 +1189,7 @@ export async function requestMobilePasswordReset(
         username: user.username,
       } satisfies PasswordResetUser,
       normalizeAppLocale(user.locale ?? locale),
+      { headers: options.requestHeaders ?? null },
     );
   } catch {
     logError("[mobile-auth] Password reset email failed", MOBILE_PASSWORD_RESET_DELIVERY_FAILURE);

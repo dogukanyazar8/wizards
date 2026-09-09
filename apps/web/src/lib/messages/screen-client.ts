@@ -15,7 +15,7 @@ import {
   type PollVoterDTO,
 } from "@wizards/types";
 import { z } from "zod";
-import type { DMMessagePayload } from "@wizards/types";
+import type { ChatMessage, DMMessagePayload } from "@wizards/types";
 
 /**
  * Mesajlar paketinin istemci yüzeyi — Dalga 2 şeritleri **yalnız** buradan
@@ -118,9 +118,11 @@ const PollResponseSchema = z.object({ poll: PollDTOSchema });
 const PollVotersResponseSchema = z.object({ voters: z.array(PollVoterDTOSchema) });
 
 export async function createPoll(
-  input: PollCreateRequest & { content?: string; conversationId: string },
-): Promise<DMMessagePayload> {
-  const payload = await requestJson<{ message: DMMessagePayload }>("/api/v1/polls", {
+  input: PollCreateRequest & { content?: string } & (
+      { channelId: string; conversationId?: never } | { channelId?: never; conversationId: string }
+    ),
+): Promise<ChatMessage | DMMessagePayload> {
+  const payload = await requestJson<{ message: ChatMessage | DMMessagePayload }>("/api/v1/polls", {
     body: input,
     method: "POST",
   });

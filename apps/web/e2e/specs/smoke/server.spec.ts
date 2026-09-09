@@ -1,3 +1,5 @@
+import type { Locator, Page } from "@playwright/test";
+
 import { test, expect } from "../../fixtures/test";
 import { apiLoginAs, e2eRequestHeaders } from "../../helpers/api-auth";
 import { loginAs } from "../../helpers/auth";
@@ -16,13 +18,15 @@ test.describe("server smoke", () => {
     await gotoAppRoute(page, "/messages", { readyTestId: "create-server-button" });
     await page.getByTestId("create-server-button").click();
 
-    await expect(page.getByTestId("server-create-form")).toBeVisible();
-    await page.getByTestId("server-name-input").fill(serverName);
-    await page.getByTestId("server-short-name-input").fill("SMK1");
+    await expect(page.getByTestId("create-server-form")).toBeVisible();
+    await page.getByTestId("create-server-name").fill(serverName);
+    // Ş10: kısaltma **tam** 3 karakter (`ServerAbbreviationSchema`); eski 4 harfli
+    // değer artık `maxLength` tarafından kırpılır ve gönderim kapısı hiç açılmazdı.
+    await page.getByTestId("create-server-short-name").fill("SMK");
     await page
-      .getByTestId("server-description-input")
+      .getByTestId("create-server-description")
       .fill("Created by the Playwright smoke suite.");
-    await page.getByTestId("server-submit-button").click();
+    await page.getByTestId("create-server-submit").click();
 
     await expect(page).toHaveURL(/\/channels\/[0-9a-f-]+\/[0-9a-f-]+/i);
     const channelSidebar = page.getByTestId("channel-sidebar");
@@ -36,17 +40,31 @@ test.describe("server smoke", () => {
     await gotoAppRoute(page, "/messages", { readyTestId: "create-server-button" });
     await page.getByTestId("create-server-button").click();
 
-    await expect(page.getByTestId("server-create-form")).toBeVisible();
-    await expect(page.getByTestId("server-submit-button")).toBeDisabled();
-    await page.getByTestId("server-name-input").fill("A");
-    await expect(page.getByText(/At least 2 characters|En az 2 karakter/i)).toBeVisible();
-    await expect(page.getByTestId("server-submit-button")).toBeDisabled();
+    const submit = page.getByTestId("create-server-submit");
+
+    await expect(page.getByTestId("create-server-form")).toBeVisible();
+    await expect(submit).toBeDisabled();
+
+    // Kısa adı geçerli yap: geriye tek geçersiz alan (**ad**) kalsın, kapanık kapı gerçekten
+    // onu ölçsün. İki alan birden geçersizken "disabled" hangisinden geldiğini söylemez.
+    await page.getByTestId("create-server-short-name").fill("SMK");
+    await page.getByTestId("create-server-name").fill("A");
+    await expect(page.getByTestId("create-server-note")).toHaveText(
+      /3 karakterli kısa ad|3-character short name/i,
+    );
+    await expect(submit).toBeDisabled();
+
+    // Sınırın öbür yanı: `isCreateServerNameValid` eşiği 2, kapalılık adın uzunluğundan geliyor.
+    await page.getByTestId("create-server-name").fill("AB");
+    await expect(submit).toBeEnabled();
 
     await apiLoginAs(request, "alice");
     const response = await request.post("/api/v1/servers", {
       data: {
         name: "x".repeat(65),
-        shortName: "LONG",
+        // Ş10 sonrası `shortName` **tam** 3 karakter; 4 harfli bir değer 400'ü tek başına
+        // üretir ve ad uzunluğu sınırı hiç sınanmazdı. Kısaltma geçerli, ad geçersiz.
+        shortName: "LNG",
       },
       headers: e2eRequestHeaders,
     });
@@ -55,6 +73,40 @@ test.describe("server smoke", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: expect.any(String),
     });
+  });
+
+  test("server short-name label stays on one line while typing", async ({ page }) => {
+    await loginAs(page, "alice");
+    await gotoAppRoute(page, "/messages", { readyTestId: "create-server-button" });
+    await page.getByTestId("create-server-button").click();
+
+    const input = page.getByTestId("create-server-short-name");
+    const label = page.locator('label[for="create-server-short-name"]');
+    await expect(label).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+
+    const readGeometry = () =>
+      label.evaluate((node) => {
+        const rect = node.getBoundingClientRect();
+        const inputNode = document.getElementById("create-server-short-name");
+        if (!(inputNode instanceof HTMLInputElement)) {
+          throw new Error("Create-server short-name input is missing.");
+        }
+        const inputRect = inputNode.getBoundingClientRect();
+        const lineHeight = Number.parseFloat(getComputedStyle(node).lineHeight);
+
+        return { height: rect.height, inputOffset: inputRect.top - rect.top, lineHeight };
+      });
+
+    const initial = await readGeometry();
+    expect(initial.height).toBeCloseTo(initial.lineHeight, 0);
+
+    for (const value of ["A", "AB", "ABC", ""]) {
+      await input.fill(value);
+      const current = await readGeometry();
+      expect(current.height).toBeCloseTo(initial.height, 0);
+      expect(current.inputOffset).toBeCloseTo(initial.inputOffset, 0);
+    }
   });
 
   test("non-owners cannot delete another user's server", async ({ request }) => {
@@ -84,57 +136,77 @@ test.describe("server smoke", () => {
     const voiceName = `advanced-voice-${Date.now().toString(36)}`;
     const textName = `advanced-text-${Date.now().toString(36)}`;
 
+    // Ş8: kanal penceresi SPEC §6.2'nin dört adımına geçti. `<details>` + dört `<select>`
+    // yerine ölçüleri sözlükten gelen çip kartları var, bu yüzden sürücü `selectOption`
+    // değil çipe tıklıyor. Sorduğu şey aynı: değer oluşturmada, düzenlemede ve yenilemeden
+    // sonra korunuyor mu.
+    const openChannelContextMenu = async (target: Page, channelName: string) => {
+      await target.getByText(channelName, { exact: true }).click({ button: "right" });
+      await expect(target.getByTestId("channel-context-edit")).toBeVisible();
+    };
+    const openCreateChannelWizard = async (target: Page, kind: "text" | "voice") => {
+      await target.getByTestId("server-header-button").click();
+      await target.getByTestId("server-menu-createChannel").click();
+      await target.getByTestId(`channel-kind-${kind}`).click();
+    };
+    const pickChip = (form: Locator, group: string, label: string) =>
+      form.getByTestId(group).getByRole("radio", { name: label, exact: true }).click();
+    const expectChip = (form: Locator, group: string, label: string) =>
+      expect(
+        form.getByTestId(group).getByRole("radio", { name: label, exact: true }),
+      ).toHaveAttribute("aria-checked", "true");
+
     try {
       await loginAs(page, "alice");
       await gotoAppRoute(page, `/channels/${serverId}/${textChannelId}`, {
         readyTestId: "channel-sidebar",
       });
 
-      await page.getByTestId("create-voice-channel-button").click();
+      // S4: kenar cubugunun iki hizli olusturma dugmesi kalkti; kanal olusturma SPEC 2.2'nin
+      // bes satirlik sunucu menusunden geciyor ve tur sihirbazin ilk adiminda seciliyor.
+      await openCreateChannelWizard(page, "voice");
       const voiceForm = page.getByTestId("channel-form");
-      await voiceForm.locator("#channel-name").fill(voiceName);
-      await voiceForm.getByTestId("channel-advanced-settings").locator("summary").click();
-      await voiceForm.locator("#channel-bitrate").selectOption("96000");
-      await voiceForm.locator("#channel-user-limit").fill("3");
-      await voiceForm.locator("#channel-video-quality").selectOption("FULL");
-      await voiceForm.getByTestId("channel-submit-button").click();
+      await voiceForm.getByRole("textbox").first().fill(voiceName);
+      await pickChip(voiceForm, "channel-bitrate", "96 kbps");
+      await pickChip(voiceForm, "channel-user-limit", "3");
+      await pickChip(voiceForm, "channel-video-quality", "Tam kalite");
+      await page.getByTestId("channel-submit-button").click();
       await expect(page.getByText(voiceName, { exact: true })).toBeVisible();
 
-      await page.getByTestId("create-text-channel-button").click();
+      await openCreateChannelWizard(page, "text");
       const textForm = page.getByTestId("channel-form");
-      await textForm.locator("#channel-name").fill(textName);
-      await textForm.getByTestId("channel-advanced-settings").locator("summary").click();
-      await textForm.locator("#channel-slow-mode").selectOption("30");
-      await textForm.getByTestId("channel-submit-button").click();
+      await textForm.getByRole("textbox").first().fill(textName);
+      await pickChip(textForm, "channel-slow-mode", "30 sn");
+      await page.getByTestId("channel-submit-button").click();
       await expect(page.getByText(textName, { exact: true })).toBeVisible();
 
       await page.reload();
       await expect(page.getByTestId("channel-sidebar")).toBeVisible();
-      await page.getByText(voiceName, { exact: true }).hover();
-      await page.locator(`button[data-channel-edit-name="${voiceName}"]`).click();
+      // S4: satirdaki kalem/cop kaplamasi kalkti (referansta yok); duzenleme sag tik menusunde.
+      await openChannelContextMenu(page, voiceName);
+      await page.getByTestId("channel-context-edit").click();
 
       const editForm = page.getByTestId("channel-form");
-      await editForm.getByTestId("channel-advanced-settings").locator("summary").click();
-      await expect(editForm.locator("#channel-bitrate")).toHaveValue("96000");
-      await expect(editForm.locator("#channel-user-limit")).toHaveValue("3");
-      await expect(editForm.locator("#channel-rtc-region")).toHaveValue("");
-      await expect(editForm.locator("#channel-video-quality")).toHaveValue("FULL");
+      await expectChip(editForm, "channel-bitrate", "96 kbps");
+      await expectChip(editForm, "channel-user-limit", "3");
+      await expectChip(editForm, "channel-rtc-region", "Otomatik");
+      await expectChip(editForm, "channel-video-quality", "Tam kalite");
 
-      await editForm.locator("#channel-bitrate").selectOption("128000");
-      await editForm.locator("#channel-user-limit").fill("5");
-      await editForm.locator("#channel-video-quality").selectOption("AUTO");
-      await editForm.getByTestId("channel-submit-button").click();
+      await pickChip(editForm, "channel-bitrate", "128 kbps");
+      await pickChip(editForm, "channel-user-limit", "5");
+      await pickChip(editForm, "channel-video-quality", "Otomatik — önerilen");
+      await page.getByTestId("channel-submit-button").click();
       await expect(editForm).toBeHidden();
 
       await page.reload();
       await expect(page.getByTestId("channel-sidebar")).toBeVisible();
-      await page.getByText(voiceName, { exact: true }).hover();
-      await page.locator(`button[data-channel-edit-name="${voiceName}"]`).click();
+      // S4: satirdaki kalem/cop kaplamasi kalkti (referansta yok); duzenleme sag tik menusunde.
+      await openChannelContextMenu(page, voiceName);
+      await page.getByTestId("channel-context-edit").click();
       const refreshedForm = page.getByTestId("channel-form");
-      await refreshedForm.getByTestId("channel-advanced-settings").locator("summary").click();
-      await expect(refreshedForm.locator("#channel-bitrate")).toHaveValue("128000");
-      await expect(refreshedForm.locator("#channel-user-limit")).toHaveValue("5");
-      await expect(refreshedForm.locator("#channel-video-quality")).toHaveValue("AUTO");
+      await expectChip(refreshedForm, "channel-bitrate", "128 kbps");
+      await expectChip(refreshedForm, "channel-user-limit", "5");
+      await expectChip(refreshedForm, "channel-video-quality", "Otomatik — önerilen");
     } finally {
       await deleteIsolatedE2EServer(serverId);
     }

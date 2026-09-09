@@ -6,7 +6,6 @@ import { ChevronDown, Link2 } from "lucide-react";
 import { useI18n } from "@/components/providers/locale-provider";
 import { Input } from "@/components/ui/input";
 import {
-  eventPlaceServerInitials,
   isValidEventExternalLocation,
   selectEventPlaceChannels,
   type EventCreateFormAction,
@@ -15,6 +14,8 @@ import {
   type EventPlaceServer,
 } from "@/lib/events/create-form";
 import { EVENTS_METRICS, hairline, pxToEm, pxToRem } from "@/lib/events/metrics";
+import { resolveServerIconPresentation } from "@/lib/servers/server-icon-presentation";
+import { getServerIconToneColor } from "@/lib/servers/server-icon-tone";
 
 /**
  * Yer seçici — SPEC §6 `YER` alanı, K10.
@@ -67,6 +68,41 @@ function sectionLabelStyle() {
   } as const;
 }
 
+function EventPlaceServerTile({ server }: { readonly server: EventPlaceServer }) {
+  const presentation = resolveServerIconPresentation({
+    iconColor: server.iconColor,
+    iconUrl: server.iconUrl,
+    name: server.name,
+    shortName: server.shortName,
+  });
+
+  return (
+    <span
+      aria-hidden="true"
+      className="font-display grid shrink-0 place-items-center"
+      style={{
+        background:
+          presentation.kind === "fallback"
+            ? getServerIconToneColor(presentation.tone)
+            : "hsl(var(--surface-tertiary))",
+        backgroundImage:
+          presentation.kind === "image" ? `url("${presentation.imageUrl}")` : undefined,
+        backgroundPosition: "center",
+        backgroundSize: "cover",
+        borderRadius: pxToRem(createModal.placeTileRadius),
+        color: "white",
+        fontSize: pxToRem(createModal.placeTileFontSize),
+        fontWeight: 600,
+        height: pxToRem(createModal.placeTileSize),
+        lineHeight: 1,
+        width: pxToRem(createModal.placeTileSize),
+      }}
+    >
+      {presentation.kind === "fallback" ? presentation.label : null}
+    </span>
+  );
+}
+
 export function EventPlacePicker({
   channels,
   dispatch,
@@ -102,22 +138,7 @@ export function EventPlacePicker({
         type="button"
       >
         {state.server && !external ? (
-          <span
-            aria-hidden="true"
-            className="font-display grid shrink-0 place-items-center"
-            style={{
-              background: "hsl(var(--primary))",
-              borderRadius: pxToRem(createModal.placeTileRadius),
-              color: "#fff",
-              fontSize: pxToRem(createModal.placeTileFontSize),
-              fontWeight: 600,
-              height: pxToRem(createModal.placeTileSize),
-              lineHeight: 1,
-              width: pxToRem(createModal.placeTileSize),
-            }}
-          >
-            {eventPlaceServerInitials(state.server)}
-          </span>
+          <EventPlaceServerTile server={state.server} />
         ) : (
           <Link2
             aria-hidden="true"
@@ -234,22 +255,7 @@ export function EventPlacePicker({
                   }}
                   type="button"
                 >
-                  <span
-                    aria-hidden="true"
-                    className="font-display grid shrink-0 place-items-center"
-                    style={{
-                      background: "hsl(var(--primary))",
-                      borderRadius: pxToRem(createModal.placeTileRadius),
-                      color: "#fff",
-                      fontSize: pxToRem(createModal.placeTileFontSize),
-                      fontWeight: 600,
-                      height: pxToRem(createModal.placeTileSize),
-                      lineHeight: 1,
-                      width: pxToRem(createModal.placeTileSize),
-                    }}
-                  >
-                    {eventPlaceServerInitials(server)}
-                  </span>
+                  <EventPlaceServerTile server={server} />
                   <span className="min-w-0 flex-1 truncate">{server.name}</span>
                 </button>
               ))}

@@ -5,8 +5,8 @@ import { createPortal } from "react-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { X } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
+import { WindowCloseButton } from "@/components/ui/window-close-button";
 import { useI18n } from "@/components/providers/locale-provider";
 import { ProfileBadgeChips } from "@/components/shared/profile-badge-chips";
 import {
@@ -33,7 +33,7 @@ import {
   FriendsClientError,
 } from "@/lib/friends/client";
 import { createDMConversationRequest } from "@/lib/dm/client";
-import { buildSettingsHref } from "@/lib/settings/navigation";
+import { buildLegacySettingsHref } from "@/lib/settings/navigation";
 import type { FriendDto, PendingFriendsResponse } from "@/lib/friends/types";
 
 interface UserProfileData {
@@ -193,7 +193,7 @@ export function UserProfilePopover({
   const openBadgeOverflow = () => {
     if (isSelf) {
       closePopover();
-      router.push(buildSettingsHref("account", "badges"));
+      router.push(buildLegacySettingsHref("account", "badges"));
       return;
     }
 
@@ -315,14 +315,11 @@ export function UserProfilePopover({
               exit={isMobileViewport ? { opacity: 0, y: 28 } : { opacity: 0, scale: 0.95, y: -8 }}
               transition={{ duration: 0.15 }}
             >
-              <button
+              <WindowCloseButton
                 aria-label={t("common.close")}
-                className="absolute right-3 top-3 z-10 rounded-full border border-[hsl(var(--border)/0.55)] bg-[hsl(var(--surface-overlay)/0.84)] p-2 text-app-muted backdrop-blur transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="absolute right-3 top-3 z-10 bg-[hsl(var(--surface-overlay)/0.84)] backdrop-blur"
                 onClick={closePopover}
-                type="button"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
+              />
 
               <div
                 className="h-24 w-full bg-[linear-gradient(135deg,hsl(var(--primary)/0.28),hsl(var(--ambient-2)/0.2),hsl(var(--surface-soft)/0.6))]"

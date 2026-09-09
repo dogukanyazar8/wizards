@@ -36,6 +36,9 @@ function authorizationDependencies(
 ): MobileMediaUploadAuthorizationDependencies {
   return {
     authenticate: async () => "user-1",
+    authenticateSession: async () => {
+      assert.fail("the session path must only be tried after the bearer path fails");
+    },
     enforceRateLimit: async () => undefined,
     ensureServerPermission: () => undefined,
     getAccessContext: async () => accessContext,
@@ -497,5 +500,113 @@ describe("completeMobileMediaUpload", () => {
     assert.equal(first.claimId, "claim-1");
     assert.equal(retry.claimId, first.claimId);
     assert.equal(claims.size, 1);
+  });
+});
+
+/**
+ * SPEC-INDIRME §A. "Sorun bildir" web ve masaüstünde de çalışıyor ve orada
+ * taşıyıcı jeton yok. Ekran görüntüsü mevcut claim akışını kullanmaya devam
+ * ediyor; açılan tek şey kimlik yolu, ve yalnız o amaç için.
+ */
+describe("authorizeMobileMediaUpload · browser session fallback", () => {
+  const unauthenticatedBearer = async () => {
+    throw new ApiError("Unauthorized", 401, "UNAUTHORIZED");
+  };
+
+  it("accepts a session for a feedback screenshot when there is no bearer token", async () => {
+    const result = await authorizeMobileMediaUpload(
+      { intent: { purpose: "feedback-attachment" }, request },
+      authorizationDependencies({
+        authenticate: unauthenticatedBearer,
+        authenticateSession: async () => "user-1",
+        getAccessContext: async () => {
+          assert.fail("an owner-scoped screenshot must not load a server access context");
+        },
+      }),
+    );
+
+    assert.deepEqual(result, {
+      ownerId: "user-1",
+      purpose: "feedback-attachment",
+      targetServerId: null,
+    });
+  });
+
+  it("prefers the bearer token and never reaches for a session while it works", async () => {
+    const result = await authorizeMobileMediaUpload(
+      { intent: { purpose: "feedback-attachment" }, request },
+      authorizationDependencies({ authenticate: async () => "user-mobile" }),
+    );
+
+    assert.equal(result.ownerId, "user-mobile");
+  });
+
+  it("keeps every other purpose bearer-only", async () => {
+    for (const intent of [
+      { purpose: "profile-avatar" } as const,
+      { purpose: "profile-banner" } as const,
+      { purpose: "server-icon", targetServerId: "server-1" } as const,
+    ]) {
+      await assert.rejects(
+        () =>
+          authorizeMobileMediaUpload(
+            { intent, request },
+            authorizationDependencies({
+              authenticate: unauthenticatedBearer,
+              authenticateSession: async () => {
+                assert.fail(`${intent.purpose} must not fall back to a browser session`);
+              },
+            }),
+          ),
+        (error) => assertBoundedUploadThingError(error, ["bearer", "secret-mobile-token"]),
+      );
+    }
+  });
+
+  it("refuses a forged purpose that claims to be a screenshot and then is not", async () => {
+    await assert.rejects(
+      () =>
+        authorizeMobileMediaUpload(
+          {
+            intent: {
+              purpose: "feedback-attachment",
+              targetServerId: "server-1",
+            } as never,
+            request,
+          },
+          authorizationDependencies({
+            authenticate: unauthenticatedBearer,
+            authenticateSession: async () => "user-1",
+            ensureServerPermission: () => {
+              assert.fail("a session must never reach a server permission check");
+            },
+            getAccessContext: async () => {
+              assert.fail("a session must never reach a membership lookup");
+            },
+          }),
+        ),
+      (error) => assertBoundedUploadThingError(error, ["server-1"]),
+    );
+  });
+
+  it("still maps a rejected session to a bounded error without leaking it", async () => {
+    const leaked = "session-cookie-value";
+
+    await assert.rejects(
+      () =>
+        authorizeMobileMediaUpload(
+          { intent: { purpose: "feedback-attachment" }, request },
+          authorizationDependencies({
+            authenticate: unauthenticatedBearer,
+            authenticateSession: async () => {
+              throw new ApiError(`Invalid session ${leaked}`, 401, "UNAUTHORIZED");
+            },
+            enforceRateLimit: async () => {
+              assert.fail("rate limiting must not run before successful authentication");
+            },
+          }),
+        ),
+      (error) => assertBoundedUploadThingError(error, [leaked, "session-cookie"]),
+    );
   });
 });

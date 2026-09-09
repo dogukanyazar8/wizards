@@ -13,7 +13,14 @@ const UNAUTHENTICATED_ROUTE_PATHS = new Set([
   // OAuth completion cannot have a session yet. The route authenticates the
   // request with a short-lived, one-time signed grant before accepting TOTP.
   "auth/oauth-two-factor",
+  // SPEC-GIRIS-KAYIT §10 — kullanıcı adı müsaitliği kayıt formundan, oturum açılmadan sorulur.
+  // Kimlik doğrulaması yerine kayıt hız sınırı korur; yanıt yalnız "boşta mı" ve üç öneri taşır,
+  // hesap hakkında başka hiçbir şey sızdırmaz.
+  "auth/username-availability",
   "desktop/download",
+  // SPEC-GIRIS-KAYIT §4.2 / §4.3 — ikinci adım henüz oturumu olmayan bir istemciden gelir.
+  // Kimlik doğrulaması yerine tek kullanımlık, parmak izine bağlı challenge korur (K2).
+  "mobile/auth/backup-code",
   "mobile/auth/exchange",
   "mobile/auth/forgot-password",
   "mobile/auth/google",
@@ -21,6 +28,7 @@ const UNAUTHENTICATED_ROUTE_PATHS = new Set([
   "mobile/auth/refresh",
   "mobile/auth/register",
   "mobile/auth/revoke",
+  "mobile/auth/two-factor",
   "mobile/auth/verification-email",
   // S2 binding decision: the profile card is readable without a session — a
   // signed-in caller's viewerId is still passed through when present, but
@@ -34,6 +42,9 @@ const UNAUTHENTICATED_ROUTE_PATHS = new Set([
 ]);
 
 const BODYLESS_MUTATING_METHOD_PATHS = new Set([
+  // SPEC-INDIRME §B: silinecek paketin kimliği rotanın kendisi; gövde uydurmak
+  // tek bir kimlik için bir şema demekti.
+  "DELETE admin/downloads/[artifactId]",
   "DELETE admin/help/articles/[articleId]",
   "DELETE admin/releases/[releaseId]",
   "DELETE admin/servers/[serverId]",
@@ -70,6 +81,11 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   // Unpinning names nothing but the group: the path is the whole request and
   // the new state arrives over the socket.
   "DELETE dm/groups/[conversationId]/pin",
+  // SPEC-MESAJLAR §15.5.3's two destructive rows. Both name the group and
+  // nothing else, and both re-derive the caller's role from the database — a
+  // body would only be somewhere for a client to state a role it does not hold.
+  "DELETE dm/groups/[conversationId]",
+  "DELETE dm/groups/[conversationId]/history",
   // Faz 2 §B3. Rotating mints a fresh code server-side; a client-supplied code
   // is exactly what the endpoint must never accept.
   "POST dm/groups/[conversationId]/invite/rotate",
@@ -125,7 +141,9 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "POST mobile/friends/requests/[id]/accept",
   "POST mobile/friends/requests/[id]/reject",
   "PUT mobile/friends/blocks/[userId]",
-  "PATCH notifications/[id]/read",
+  // `notifications/[id]/read` bu listeden **çıktı**: Ayarlar Ş2 §4 ile uç `{ read: boolean }`
+  // gövdesi alıyor (çevirme kipi) ve iki metodu da `parseJsonBody`den geçiyor. Gövdesiz çağrı
+  // hâlâ geçerli — boş gövde `{}` olarak okunup şemanın `.default(true)`una düşüyor.
   "DELETE notifications/clear",
   "PATCH notifications/read-all",
   "DELETE servers/[serverId]/invites/[inviteId]",
@@ -186,6 +204,18 @@ const MUTATING_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);
 const RAW_REQUEST_BODY_CALL_PATTERN = /\b(?:request|req)\.(?:json|text|formData)\s*\(/;
 
 const EXPECTED_RATE_LIMIT_ACTIONS = [
+  // Ş2 / K3 — üye moderasyonu. İkisi de yetki kapısı arkasında ve ikisi de audit satırı
+  // yazıyor; hangi metodun hangi eylemi saydığı burada kayıt altında.
+  {
+    action: "member:timeout",
+    method: "PATCH",
+    routePath: "servers/[serverId]/members/[memberId]/timeout",
+  },
+  {
+    action: "server:bans:list",
+    method: "GET",
+    routePath: "servers/[serverId]/bans",
+  },
   {
     action: "attachment:download",
     method: "GET",
@@ -215,6 +245,13 @@ const EXPECTED_RATE_LIMIT_ACTIONS = [
     action: "friend:pending:list",
     method: "GET",
     routePath: "friends/pending",
+  },
+  {
+    // Ş3. Aynı yol POST ile davet üretiyor; okuma kipinin ayrı kovaya bağlı kaldığını
+    // kilitler, yoksa bekleyen davet listesi oluşturma bütçesini yakabilir.
+    action: "invite:list",
+    method: "GET",
+    routePath: "servers/[serverId]/invites",
   },
   {
     action: "notification:list",
@@ -250,6 +287,14 @@ const EXPECTED_RATE_LIMIT_ACTIONS = [
     action: "server:delete",
     method: "DELETE",
     routePath: "servers/[serverId]",
+  },
+  {
+    // Ş1 §3: sahiplik devri sunucu kolonu yazar, o yüzden `server:update`
+    // bütçesini paylaşır. Ayrı bir bütçe, çağıranın birini harcayıp diğerinin
+    // etrafından dolaşmasına izin verirdi.
+    action: "server:update",
+    method: "POST",
+    routePath: "servers/[serverId]/transfer-ownership",
   },
   {
     action: "server:profile",

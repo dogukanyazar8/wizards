@@ -173,7 +173,7 @@ function DiscoverChannelRowComponent({ channel, onOpen, onPreview }: DiscoverCha
           ))}
         </div>
         <button
-          className="shrink-0 border-[hsl(var(--border)/0.7)] bg-transparent text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="shrink-0 border-[hsl(var(--border)/0.7)] bg-transparent text-[hsl(var(--text-secondary))] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           onClick={() => onPreview(channel)}
           style={{
             borderRadius: pxToRem(metrics.previewButtonRadius),

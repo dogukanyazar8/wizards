@@ -135,6 +135,7 @@ function profileFixture(overrides: Partial<ServerPublicProfile> = {}): ServerPub
     createdAt: "2025-03-12T10:00:00.000Z",
     description: "Whispr'ın resmi topluluk sunucusu.",
     discoverable: true,
+    iconColor: null,
     iconUrl: null,
     inviteAddress: "whispr.gg/whispr-community",
     isPublic: true,

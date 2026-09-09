@@ -49,7 +49,16 @@ const PollCreateBodySchema = PollCreateRequestSchema.extend({
    * body is the question itself (`createPollMessage`).
    */
   content: z.string().max(2000).optional(),
-  conversationId: z.string().min(1).max(128),
+  channelId: z.string().min(1).max(128).optional(),
+  conversationId: z.string().min(1).max(128).optional(),
+}).superRefine((value, context) => {
+  if (Number(Boolean(value.channelId)) + Number(Boolean(value.conversationId)) !== 1) {
+    context.addIssue({
+      code: "custom",
+      message: "Exactly one message target is required",
+      path: ["conversationId"],
+    });
+  }
 });
 
 export async function pollCreateRoute(
@@ -59,15 +68,20 @@ export async function pollCreateRoute(
   try {
     const userId = await dependencies.authenticate(request);
     await dependencies.enforceRateLimit(userId, "poll:create");
-    const { content, conversationId, ...poll } = await parseJsonBody(request, PollCreateBodySchema);
+    const { channelId, content, conversationId, ...poll } = await parseJsonBody(
+      request,
+      PollCreateBodySchema,
+    );
 
-    const message = await dependencies.createPoll({
+    const shared = {
       ...(content === undefined ? {} : { content }),
-      conversationId,
       io: dependencies.getIo(),
       poll,
       userId,
-    });
+    };
+    const message = channelId
+      ? await dependencies.createPoll({ ...shared, channelId })
+      : await dependencies.createPoll({ ...shared, conversationId: conversationId! });
 
     // No `poll:updated` here: the message itself already reached the room as
     // `dm:message:new`, carrying the poll inline. A second event would make the
@@ -96,9 +110,21 @@ export async function pollReadRoute(
 
 function announceVote(
   dependencies: PollRouteDependencies,
-  result: { conversationId: string; poll: PollDTO },
+  result: {
+    channelId: string | null;
+    conversationId: string | null;
+    poll: PollDTO;
+  },
 ): void {
   const io = dependencies.getIo();
+
+  if (io && result.channelId) {
+    dependencies.emitUpdated(io, {
+      channelId: result.channelId,
+      pollId: result.poll.id,
+    });
+    return;
+  }
 
   if (io && result.conversationId) {
     dependencies.emitUpdated(io, {

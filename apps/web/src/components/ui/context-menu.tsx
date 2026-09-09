@@ -9,17 +9,64 @@ type ContextMenuProps = {
   children: React.ReactNode;
   onClose: () => void;
   open: boolean;
-  position: {
+  position?: {
     x: number;
     y: number;
   };
+  /**
+   * Nereye çizileceği.
+   *
+   * - `viewport` (varsayılan): gövdeye portallanır, `position` bir **görünüm alanı**
+   *   koordinatıdır ve kabuk kendi yüzeyini (`app-overlay`, `min-w-52`, `rounded-2xl`)
+   *   getirir. Satır menüleri ve sağ tık menüleri bunu kullanır.
+   * - `anchor`: menü tetikleyicinin yanında, `position: relative` bir sarmalayıcının
+   *   **içinde** çizilir; portal yok, `position` okunmaz. SPEC-MESAJLAR §17 başlık
+   *   menüsünü `top:41px; right:0` ile tetikleyiciye bağlıyor ve kendi genişliğini
+   *   (254 / 262), yarıçapını (17) ve gölgesini taşıyor — portallanan bir kabuk bunu
+   *   ancak görünüm alanı matematiğiyle taklit edebilirdi ve pencere yeniden
+   *   boyutlandığında kayardı. Yüzey `className` / `style` ile dışarıdan verilir.
+   *
+   * Klavye ve kapanma sözleşmesi iki modda **aynı**: açılışta ilk öğeye focus,
+   * kapanışta tetikleyiciye dönüş, `Tab` menünün içinde döner, `Esc` ve dış tıklama
+   * kapatır.
+   */
+  placement?: "viewport" | "anchor";
+  className?: string;
+  style?: React.CSSProperties;
+  /** `anchor` modunda kabuğun erişilebilir adı; menünün neyi yönettiğini söyler. */
+  label?: string;
+  testId?: string;
 };
 
 type ContextMenuItemProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   destructive?: boolean;
+  /**
+   * Satırın kendisine erişim. Alt menüsü olan bir satır kapanışta odağı **geri**
+   * almak zorunda; ref olmadan `Esc`ten sonra odak belgenin başına düşerdi.
+   */
+  ref?: React.Ref<HTMLButtonElement>;
 };
 
-export function ContextMenu({ children, onClose, open, position }: ContextMenuProps) {
+/**
+ * Odak halkasındaki her öğe.
+ *
+ * `menuitemradio` ve `menuitemcheckbox` da menü öğesidir; seçilebilir bir satırı
+ * `menuitem` yapmak ekran okuyucuya seçili olup olmadığını söylemez, ama seçiciyi
+ * dar tutmak da o satırı `Tab` turunun dışında bırakırdı.
+ */
+const MENU_ITEM_SELECTOR = '[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"]';
+
+export function ContextMenu({
+  children,
+  className,
+  label,
+  onClose,
+  open,
+  placement = "viewport",
+  position = { x: 0, y: 0 },
+  style,
+  testId,
+}: ContextMenuProps) {
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -70,7 +117,7 @@ export function ContextMenu({ children, onClose, open, position }: ContextMenuPr
     triggerRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
-    const firstItem = menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]');
+    const firstItem = menuRef.current?.querySelector<HTMLElement>(MENU_ITEM_SELECTOR);
     firstItem?.focus();
 
     return () => {
@@ -79,26 +126,62 @@ export function ContextMenu({ children, onClose, open, position }: ContextMenuPr
     };
   }, [open]);
 
-  /** Menü açıkken Tab menünün içinde döner; arka plana kaçan bir odak kalmaz. */
+  /**
+   * Menü açıkken `Tab` menünün içinde döner; arka plana kaçan bir odak kalmaz.
+   *
+   * Yukarı/aşağı oklar da aynı halkayı sürer: bir menüyü klavyeyle gezmenin beklenen
+   * yolu ok tuşlarıdır (`role="menu"` bunu vaat eder) ve yalnız `Tab` çalıştığında
+   * kullanıcı ilk okta menünün ölü olduğunu sanır.
+   */
   const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== "Tab") {
+    const backwards = event.key === "ArrowUp" || (event.key === "Tab" && event.shiftKey);
+    const forwards = event.key === "ArrowDown" || (event.key === "Tab" && !event.shiftKey);
+
+    if (!backwards && !forwards) {
       return;
     }
 
     const items = Array.from(
-      menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? [],
-    );
+      menuRef.current?.querySelectorAll<HTMLElement>(MENU_ITEM_SELECTOR) ?? [],
+    ).filter((item) => !item.hasAttribute("disabled"));
 
     if (items.length === 0) {
       return;
     }
 
     const current = items.indexOf(document.activeElement as HTMLElement);
-    const next = (current + (event.shiftKey ? -1 : 1) + items.length) % items.length;
+    const next = (current + (backwards ? -1 : 1) + items.length) % items.length;
 
     event.preventDefault();
     items[next]?.focus();
   };
+
+  /**
+   * Bağlı menü portala girmez: sarmalayıcısının içinde, `position:absolute` ile durur.
+   * Sunucuda da çizilir — portallanan kol `document` olmadan `null` döner ve bu, menüyü
+   * statik işaretlemeyle sınayan her testi boş bir dizeyle baş başa bırakırdı.
+   */
+  if (placement === "anchor") {
+    if (!open) {
+      return null;
+    }
+
+    return (
+      <div
+        aria-label={label}
+        className={cn("absolute", className)}
+        data-testid={testId}
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={handleMenuKeyDown}
+        onPointerDown={(event) => event.stopPropagation()}
+        ref={menuRef}
+        role="menu"
+        style={style}
+      >
+        {children}
+      </div>
+    );
+  }
 
   if (typeof document === "undefined") {
     return null;
@@ -183,11 +266,21 @@ export function ContextMenuItem({
   );
 }
 
-export function ContextMenuSeparator() {
+export function ContextMenuSeparator({
+  className,
+  style,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+} = {}) {
   return (
     <div
-      className="my-1 h-px w-full bg-[linear-gradient(90deg,transparent,hsl(var(--border)/0.72),transparent)]"
+      className={cn(
+        "my-1 h-px w-full bg-[linear-gradient(90deg,transparent,hsl(var(--border)/0.72),transparent)]",
+        className,
+      )}
       role="separator"
+      style={style}
     />
   );
 }

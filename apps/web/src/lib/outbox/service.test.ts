@@ -612,6 +612,9 @@ describe("notification jobs enqueue through the caller's transaction", () => {
     assert.deepEqual((jobs[0]?.payload as { participants: unknown[] }).participants, [
       {
         muted: false,
+        // Karar K8. Serialised beside `muted` so the worker can tell a live mute
+        // from one that already ran out.
+        mutedUntil: null,
         notifyLevel: "ALL",
         user: { locale: "tr" },
         userId: "user-2",

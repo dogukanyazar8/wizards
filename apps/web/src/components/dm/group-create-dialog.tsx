@@ -1,6 +1,6 @@
 "use client";
 
-import React, { type CSSProperties, useId, useMemo, useRef, useState } from "react";
+import React, { type CSSProperties, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Check, ChevronLeft, ChevronRight, Lock, Search, UserPlus, X } from "lucide-react";
 import {
@@ -12,6 +12,7 @@ import {
   canAdvanceToIdentity,
   canSubmitGroup,
   createInitialGroupCreateState,
+  hasGroupCreateProgress,
   isGroupSelectionFull,
   toGroupCreateRequest,
   toggleGroupMember,
@@ -23,8 +24,10 @@ import {
 
 import { DISPLAY_FONT } from "@/components/home/home-primitives";
 import { useI18n } from "@/components/providers/locale-provider";
+import { BugReportDiscardDialog } from "@/components/support/bug-report-overlays";
 import { Avatar } from "@/components/ui/avatar";
 import { Modal } from "@/components/ui/modal";
+import { WindowCloseButton } from "@/components/ui/window-close-button";
 import { getGroupSwatchBackground, getGroupSwatchInk } from "@/lib/messages/group-swatch";
 import { MESSAGES_METRICS, pxToRem } from "@/lib/messages/metrics";
 import { cn } from "@/lib/utils";
@@ -57,6 +60,7 @@ type GroupCreateDialogContentProps = {
   initialState?: GroupCreateState;
   isSubmitting?: boolean;
   onClose: () => void;
+  onProgressChange?: (hasProgress: boolean) => void;
   onSubmit: (input: ReturnType<typeof toGroupCreateRequest>) => void;
 };
 
@@ -100,19 +104,51 @@ function footerButtonStyle(primary = false): CSSProperties {
 
 export function GroupCreateDialog({ open, ...content }: GroupCreateDialogProps) {
   const { t } = useI18n();
+  const hasProgressRef = useRef(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const requestClose = () => {
+    if (hasProgressRef.current) {
+      setDiscardOpen(true);
+      return;
+    }
+
+    content.onClose();
+  };
 
   return (
-    <Modal
-      className="!max-w-[35rem] !rounded-t-[1.375rem] !border-[hsl(var(--border))] !bg-[hsl(var(--surface-card))] !p-0 !shadow-[0_3.125rem_5.625rem_-2.5rem_hsl(var(--shadow-color))] !backdrop-blur-none sm:!rounded-[1.375rem]"
-      closeLabel={t("messages.groupModal.cancel")}
-      hideHeader
-      onClose={content.onClose}
-      open={open}
-      overlayClassName="messages-reference-surface !bg-[hsl(var(--backdrop)/0.62)] !backdrop-blur-[0.25rem]"
-      title={t("messages.groupModal.title")}
-    >
-      <GroupCreateDialogContent {...content} />
-    </Modal>
+    <>
+      <Modal
+        className="!max-w-[35rem] !rounded-t-[1.375rem] !border-[hsl(var(--border))] !bg-[hsl(var(--surface-card))] !p-0 !shadow-[0_3.125rem_5.625rem_-2.5rem_hsl(var(--shadow-color))] !backdrop-blur-none sm:!rounded-[1.375rem]"
+        closeLabel={t("messages.groupModal.cancel")}
+        hideHeader
+        onClose={requestClose}
+        open={open}
+        overlayClassName="messages-reference-surface !bg-[hsl(var(--backdrop)/0.62)] !backdrop-blur-[0.25rem]"
+        title={t("messages.groupModal.title")}
+      >
+        <GroupCreateDialogContent
+          {...content}
+          onClose={requestClose}
+          onProgressChange={(hasProgress) => {
+            hasProgressRef.current = hasProgress;
+          }}
+        />
+      </Modal>
+      <BugReportDiscardDialog
+        body={t("messages.groupModal.discardBody")}
+        cancelLabel={t("messages.groupModal.discardCancel")}
+        confirmLabel={t("messages.groupModal.discardConfirm")}
+        onCancel={() => setDiscardOpen(false)}
+        onConfirm={() => {
+          hasProgressRef.current = false;
+          setDiscardOpen(false);
+          content.onClose();
+        }}
+        open={open && discardOpen}
+        testIdPrefix="group-create"
+        title={t("messages.groupModal.discardTitle")}
+      />
+    </>
   );
 }
 
@@ -122,6 +158,7 @@ export function GroupCreateDialogContent({
   initialState,
   isSubmitting = false,
   onClose,
+  onProgressChange,
   onSubmit,
 }: GroupCreateDialogContentProps) {
   const { locale, t } = useI18n();
@@ -165,6 +202,10 @@ export function GroupCreateDialogContent({
     count: state.selectedUserIds.length,
   });
   const displayName = state.name.trim() || derivedName || "#";
+
+  useEffect(() => {
+    onProgressChange?.(hasGroupCreateProgress(state));
+  }, [onProgressChange, state]);
 
   return (
     <div data-testid="group-create-dialog">
@@ -237,25 +278,7 @@ export function GroupCreateDialogContent({
             />
           ))}
         </div>
-        <button
-          aria-label={t("messages.groupModal.cancel")}
-          className="grid shrink-0 place-items-center text-[hsl(var(--text-muted))] transition hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
-          onClick={onClose}
-          style={{
-            borderRadius: pxToRem(groupModal.closeRadius),
-            height: pxToRem(groupModal.closeSize),
-            width: pxToRem(groupModal.closeSize),
-          }}
-          type="button"
-        >
-          <X
-            aria-hidden="true"
-            style={{
-              height: pxToRem(groupModal.closeIconSize),
-              width: pxToRem(groupModal.closeIconSize),
-            }}
-          />
-        </button>
+        <WindowCloseButton aria-label={t("messages.groupModal.cancel")} onClick={onClose} />
       </header>
 
       {isIdentityStep ? (
@@ -293,7 +316,7 @@ export function GroupCreateDialogContent({
         {isIdentityStep ? (
           <>
             <button
-              className="flex items-center border border-[hsl(var(--border))] bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+              className="flex items-center border border-[hsl(var(--border))] bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition hover:bg-[var(--surface-hover)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
               data-testid="group-create-back"
               onClick={() => patch({ step: "members" })}
               style={{ ...footerButtonStyle(), gap: pxToRem(groupModal.footerButtonGap) }}
@@ -337,7 +360,7 @@ export function GroupCreateDialogContent({
                 : t("messages.groupModal.footerHint", { count: GROUP_DM_MAX_PARTICIPANTS })}
             </span>
             <button
-              className="border border-[hsl(var(--border))] bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+              className="border border-[hsl(var(--border))] bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition hover:bg-[var(--surface-hover)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
               data-testid="group-create-cancel"
               onClick={onClose}
               style={footerButtonStyle()}

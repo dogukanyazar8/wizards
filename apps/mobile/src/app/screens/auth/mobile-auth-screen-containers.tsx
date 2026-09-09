@@ -14,9 +14,11 @@ import { AuthForgotPasswordScreen } from "./auth-forgot-password-screen";
 import { AuthLanguagePickerSheet } from "./auth-language-picker-sheet";
 import { AuthLoginScreen } from "./auth-login-screen";
 import { AuthRegisterScreen } from "./auth-register-screen";
-import { AuthWelcomeScreen } from "./auth-welcome-screen";
+import { AuthBackupCodeScreen } from "./auth-backup-code-screen";
+import { AuthTwoFactorScreen } from "./auth-two-factor-screen";
 
-type WelcomeScreenProps = NativeStackScreenProps<MobileAuthStackParamList, "Welcome">;
+type TwoFactorScreenProps = NativeStackScreenProps<MobileAuthStackParamList, "TwoFactor">;
+type BackupCodeScreenProps = NativeStackScreenProps<MobileAuthStackParamList, "BackupCode">;
 type LoginScreenProps = NativeStackScreenProps<MobileAuthStackParamList, "Login">;
 type RegisterScreenProps = NativeStackScreenProps<MobileAuthStackParamList, "Register">;
 type ForgotPasswordScreenProps = NativeStackScreenProps<MobileAuthStackParamList, "ForgotPassword">;
@@ -52,7 +54,8 @@ const createSessionCheckingStyles = (theme: ReturnType<typeof useTheme>) => ({
   },
 });
 
-function navigateBackOrWelcome(
+/** K4 — karşılama ekranı kalktı; yığının tabanı giriş ekranı. */
+function navigateBackOrLogin(
   navigation: LoginScreenProps["navigation"] | RegisterScreenProps["navigation"],
 ) {
   if (navigation.canGoBack()) {
@@ -60,7 +63,7 @@ function navigateBackOrWelcome(
     return;
   }
 
-  navigation.navigate("Welcome");
+  navigation.navigate("Login");
 }
 
 export function MobileAuthSessionCheckingContainer() {
@@ -112,16 +115,33 @@ export function MobileAuthSessionErrorContainer() {
   );
 }
 
-export function MobileAuthWelcomeScreenContainer({ navigation }: WelcomeScreenProps) {
+export function MobileAuthLoginScreenContainer({ navigation }: LoginScreenProps) {
+  const auth = useMobileAuth();
+  const developmentCredentials = getMobileDevLoginCredentials();
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
   const { locale, selectLocale, setUseDeviceLocale, usingDeviceLocale } = useMobileLocaleRuntime();
 
   return (
     <>
-      <AuthWelcomeScreen
+      <AuthLoginScreen
+        developmentCredentials={developmentCredentials}
+        onForgotPassword={() => navigation.navigate("ForgotPassword")}
         onOpenLanguagePicker={() => setLanguagePickerOpen(true)}
-        onSignIn={() => navigation.navigate("Login")}
-        onSignUp={() => navigation.navigate("Register")}
+        onRegister={() => navigation.navigate("Register")}
+        onSignIn={async (input) => {
+          const result = await auth.signInWithPassword(input);
+
+          /*
+           * SPEC-GIRIS-KAYIT §4.2 ve paket kararı K2 — oturum açılmadı, ikinci adım bekleniyor.
+           * Challenge kimliği rota parametresiyle taşınır; parola ekranda kalmaz.
+           */
+          if (!result.ok && result.requiresTwoFactor && "challengeId" in result) {
+            navigation.navigate("TwoFactor", { challengeId: result.challengeId });
+          }
+
+          return result;
+        }}
+        onSocialSignIn={auth.startSocialSignIn}
       />
       <AuthLanguagePickerSheet
         locale={locale}
@@ -135,18 +155,35 @@ export function MobileAuthWelcomeScreenContainer({ navigation }: WelcomeScreenPr
   );
 }
 
-export function MobileAuthLoginScreenContainer({ navigation }: LoginScreenProps) {
+export function MobileAuthTwoFactorScreenContainer({ navigation, route }: TwoFactorScreenProps) {
   const auth = useMobileAuth();
-  const developmentCredentials = getMobileDevLoginCredentials();
 
   return (
-    <AuthLoginScreen
-      developmentCredentials={developmentCredentials}
-      onBack={() => navigateBackOrWelcome(navigation)}
-      onForgotPassword={() => navigation.navigate("ForgotPassword")}
-      onRegister={() => navigation.navigate("Register")}
-      onSignIn={auth.signInWithPassword}
-      onSocialSignIn={auth.startSocialSignIn}
+    <AuthTwoFactorScreen
+      onBackToSignIn={() => navigation.navigate("Login")}
+      onSubmit={({ code, rememberDevice }) =>
+        auth.completeTwoFactorChallenge({
+          challengeId: route.params.challengeId,
+          code,
+          rememberDevice,
+        })
+      }
+      onUseBackupCode={() =>
+        navigation.navigate("BackupCode", { challengeId: route.params.challengeId })
+      }
+    />
+  );
+}
+
+export function MobileAuthBackupCodeScreenContainer({ navigation, route }: BackupCodeScreenProps) {
+  const auth = useMobileAuth();
+
+  return (
+    <AuthBackupCodeScreen
+      onBackToSignIn={() => navigation.navigate("Login")}
+      onSubmit={({ backupCode }) =>
+        auth.completeTwoFactorChallenge({ backupCode, challengeId: route.params.challengeId })
+      }
     />
   );
 }
@@ -156,7 +193,7 @@ export function MobileAuthRegisterScreenContainer({ navigation }: RegisterScreen
 
   return (
     <AuthRegisterScreen
-      onBack={() => navigateBackOrWelcome(navigation)}
+      onBack={() => navigateBackOrLogin(navigation)}
       onRegister={auth.registerWithPassword}
       onSignIn={() => navigation.navigate("Login")}
     />

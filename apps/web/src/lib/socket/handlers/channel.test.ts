@@ -52,6 +52,84 @@ describe("socket channel handlers", () => {
     ]);
   });
 
+  it("releases joined channel viewer state when the socket disconnects", async () => {
+    const handlers = new Map<string, (payload: unknown) => Promise<void>>();
+    const removed: string[] = [];
+    const socket = {
+      data: { userId: "user-1" },
+      emit() {},
+      id: "socket-1",
+      join() {},
+      on(event: string, handler: (payload: unknown) => Promise<void>) {
+        handlers.set(event, handler);
+        return socket;
+      },
+    };
+    const registration = registerChannelHandlers(
+      {
+        io: {
+          in: () => ({ fetchSockets: async () => [] }),
+        },
+        redis: {
+          expire: async () => 1,
+          sadd: async () => 1,
+          srem: async (key: string) => removed.push(key),
+        },
+        socket,
+        userId: "user-1",
+      } as unknown as HandlerContext,
+      {
+        requireChannelPermission: async () => ({ channel: { serverId: "server-1" } }) as never,
+      },
+    );
+
+    await handlers.get("channel:join")!("channel-1");
+    await registration.cleanup?.();
+
+    assert.deepEqual(removed, ["channel:channel-1:viewers"]);
+  });
+
+  it("keeps viewer state while another socket of the user still views the channel", async () => {
+    const handlers = new Map<string, (payload: unknown) => Promise<void>>();
+    const removed: string[] = [];
+    const socket = {
+      data: { userId: "user-1" },
+      emit() {},
+      id: "socket-1",
+      join() {},
+      on(event: string, handler: (payload: unknown) => Promise<void>) {
+        handlers.set(event, handler);
+        return socket;
+      },
+    };
+    const registration = registerChannelHandlers(
+      {
+        io: {
+          in: () => ({
+            fetchSockets: async () => [
+              { id: "socket-2", rooms: new Set(["user:user-1", "channel-1"]) },
+            ],
+          }),
+        },
+        redis: {
+          expire: async () => 1,
+          sadd: async () => 1,
+          srem: async (key: string) => removed.push(key),
+        },
+        socket,
+        userId: "user-1",
+      } as unknown as HandlerContext,
+      {
+        requireChannelPermission: async () => ({ channel: { serverId: "server-1" } }) as never,
+      },
+    );
+
+    await handlers.get("channel:join")!("channel-1");
+    await registration.cleanup?.();
+
+    assert.deepEqual(removed, []);
+  });
+
   it("does not join a channel room when current authorization denies VIEW_CHANNEL", async () => {
     const handlers = new Map<string, (payload: unknown) => Promise<void>>();
     const joined: string[] = [];

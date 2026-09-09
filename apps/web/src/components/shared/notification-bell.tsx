@@ -1,84 +1,53 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+// Varsayılan içe aktarım node test koşucusunun klasik JSX dönüşümünün çözdüğü referanstır;
+// Next'in derleyicisi buna ihtiyaç duymaz.
+import React, { useCallback, useEffect, useReducer, useRef, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "framer-motion";
-import { Bell, CheckCheck, Inbox, Sparkles, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useShallow } from "zustand/react/shallow";
-import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Bell } from "lucide-react";
+
+import { NotificationPanel } from "@/components/notifications/notification-panel";
+import { NotificationPrefsDialog } from "@/components/notifications/notification-prefs-dialog";
+import { useI18n } from "@/components/providers/locale-provider";
 import { useSocket } from "@/hooks/use-socket";
 import { badgeQueryKeys } from "@/lib/badges/client";
-import { useI18n } from "@/components/providers/locale-provider";
-import { useAppStore } from "@/lib/store";
-import { actOnFriendRequestRequest } from "@/lib/friends/client";
+import { HOME_METRICS, hairline, pxToRem } from "@/lib/home/metrics";
 import {
-  deleteAllNotifications,
-  fetchNotifications,
-  fetchUnreadCount,
-  markAllNotificationsRead,
-  markNotificationRead,
+  fetchNotificationCounts,
+  fetchNotificationPage,
   notificationsQueryKeys,
 } from "@/lib/notifications/client";
-import type { NotificationDTO } from "@/lib/notifications/types";
-import { HOME_METRICS, hairline, pxToRem } from "@/lib/home/metrics";
-import type { NotificationSocketPayload } from "@/lib/socket/events";
+import {
+  EMPTY_NOTIF_COUNTS,
+  createNotifPanelState,
+  hasVisibleNotifCount,
+  notifPanelReducer,
+  resolveNotifPanelEscape,
+} from "@/lib/notifications/panel-state";
+import type { NotificationReadSocketPayload, NotificationSocketPayload } from "@/lib/socket/events";
 import { cn } from "@/lib/utils";
 
-const COMPACT_NOTIFICATION_LIMIT = 6;
-const NOTIFICATION_POPUP_WIDTH = 304;
+/**
+ * Zil düğmesi ve iki yüzeyi — SPEC §1 / §2, Ş11.
+ *
+ * **Düğme değişmedi**: 40×40 kutu, `badgeVariant` ("count" | "dot") ve okunmamış noktası
+ * SPEC-ANA-SAYFA §2.3'ten geliyor ve yerinde duruyor. Değişen popover'ın **gövdesi**:
+ * altı satırlık düz liste yerine dört sekmeli, sonsuz kaydıran, okundu durumunu çeviren panel
+ * (`NotificationPanel`) ve dişlisinin açtığı 560 px pencere (`NotificationPrefsDialog`).
+ *
+ * Bileşenin kendi işi üçe indi: düğmeyi çizmek, **sayacı** beslemek ve merdiveni yürütmek.
+ * Sayaç burada yaşıyor çünkü nokta panel kapalıyken de doğru olmalı; liste ise yalnız panel
+ * açıkken yükleniyor.
+ *
+ * Sayaç **hiçbir yerde artırılmıyor** (prompt §3): `notification:new` yükü sayacı taşıyorsa
+ * o yazılır, taşımıyorsa uç yeniden okunur. `current + 1` yazmak iki sekme açıkken kaçınılmaz
+ * olarak ayrışırdı.
+ */
 
-export function prependIncomingNotification(
-  current: NotificationDTO[] | undefined,
-  notification: NotificationSocketPayload,
-  limit: number,
-): NotificationDTO[] {
-  const meta = notification.metadata
-    ? Object.fromEntries(
-        Object.entries(notification.metadata).filter(
-          (entry): entry is [string, string] => typeof entry[1] === "string",
-        ),
-      )
-    : undefined;
-  const incoming: NotificationDTO = {
-    actionUrl: notification.actionUrl,
-    actor: notification.actor ?? null,
-    createdAt: notification.createdAt,
-    id: notification.id,
-    message: notification.body,
-    readAt: notification.readAt,
-    type: notification.type,
-    ...(meta && Object.keys(meta).length > 0 ? { meta } : {}),
-  };
+const { topBar } = HOME_METRICS;
 
-  return [incoming, ...(current ?? []).filter((item) => item.id !== incoming.id)].slice(0, limit);
-}
-
-export function applyIncomingNotification(
-  notification: NotificationSocketPayload,
-  dependencies: {
-    invalidateBadgeQuery: (queryKey: readonly unknown[]) => void;
-    updateUnreadCount: (update: (current: number) => number) => void;
-  },
-) {
-  dependencies.updateUnreadCount((current) => current + 1);
-
-  if (notification?.type === "BADGE") {
-    dependencies.invalidateBadgeQuery(badgeQueryKeys.own());
-    dependencies.invalidateBadgeQuery(badgeQueryKeys.user(notification.userId));
-  }
-}
-
-function formatNotificationDate(locale: string, createdAt: string) {
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(createdAt));
-}
-
-type NotificationBellProps = {
+export type NotificationBellProps = {
   /**
    * Ana Sayfa üst çubuğu okunmamışı **sayıyla değil noktayla** işaretler (SPEC-ANA-SAYFA §2.3):
    * 40×40 butonun köşesinde 7px `--danger` nokta. Varsayılan davranış (sayı balonu) değişmez.
@@ -86,7 +55,6 @@ type NotificationBellProps = {
   badgeVariant?: "count" | "dot";
   className?: string;
   onOpenChange?: (open: boolean) => void;
-  open?: boolean;
   style?: CSSProperties;
 };
 
@@ -94,130 +62,37 @@ export function NotificationBell({
   badgeVariant = "count",
   className,
   onOpenChange,
-  open: controlledOpen,
   style,
 }: NotificationBellProps = {}) {
-  const { locale, t } = useI18n();
-  const router = useRouter();
+  const { t } = useI18n();
   const socket = useSocket();
   const queryClient = useQueryClient();
-  const { notificationAutoClose, notificationLimit, notificationPopupTimeoutSeconds } = useAppStore(
-    useShallow((state) => ({
-      notificationAutoClose: state.notificationAutoClose,
-      notificationLimit: state.notificationLimit,
-      notificationPopupTimeoutSeconds: state.notificationPopupTimeoutSeconds,
-    })),
-  );
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const baseTitleRef = useRef<string | null>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
-  const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState<{
-    bottom: number;
-    left: number;
-    maxHeight: number;
-  } | null>(null);
-  const popupNotificationLimit = Math.min(notificationLimit, COMPACT_NOTIFICATION_LIMIT);
-  const open = controlledOpen ?? uncontrolledOpen;
-  const setPopoverOpen = useCallback(
-    (nextOpen: boolean) => {
-      if (controlledOpen === undefined) {
-        setUncontrolledOpen(nextOpen);
-      }
+  const [state, dispatch] = useReducer(notifPanelReducer, undefined, createNotifPanelState);
 
-      onOpenChange?.(nextOpen);
-    },
-    [controlledOpen, onOpenChange],
-  );
+  const panelOpen = state.surface === "panel";
+  const prefsOpen = state.surface === "prefs";
 
-  const unreadQuery = useQuery({
-    queryFn: fetchUnreadCount,
-    queryKey: notificationsQueryKeys.unreadCount,
+  const countsQuery = useQuery({
+    queryFn: fetchNotificationCounts,
+    queryKey: notificationsQueryKeys.counts,
     staleTime: 30_000,
   });
 
-  const listQuery = useQuery({
-    enabled: open,
-    queryFn: () => fetchNotifications(popupNotificationLimit),
-    queryKey: notificationsQueryKeys.list(popupNotificationLimit),
-    staleTime: 30_000,
-  });
-  const unreadCount = unreadQuery.data ?? 0;
-  const updateUnreadCount = useCallback(
-    (update: (current: number) => number) => {
-      queryClient.setQueryData<number>(notificationsQueryKeys.unreadCount, (current) =>
-        Math.max(0, update(current ?? 0)),
-      );
-    },
-    [queryClient],
-  );
-
-  const syncNotificationQueries = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.unreadCount });
-    void queryClient.invalidateQueries({
-      queryKey: notificationsQueryKeys.list(popupNotificationLimit),
-    });
-  }, [popupNotificationLimit, queryClient]);
-
-  const prefetchNotifications = useCallback(() => {
-    void queryClient.prefetchQuery({
-      queryFn: () => fetchNotifications(popupNotificationLimit),
-      queryKey: notificationsQueryKeys.list(popupNotificationLimit),
-      staleTime: 30_000,
-    });
-  }, [popupNotificationLimit, queryClient]);
-
-  const removeFriendRequestNotification = useCallback(
-    (requestId: string) => {
-      let removedUnreadCount = 0;
-
-      queryClient.setQueryData<NotificationDTO[] | undefined>(
-        notificationsQueryKeys.list(popupNotificationLimit),
-        (current) => {
-          if (!current) {
-            return current;
-          }
-
-          return current.filter((notification) => {
-            const matches =
-              notification.type === "FRIEND_REQUEST" &&
-              notification.meta?.friendRequestId === requestId;
-
-            if (matches && !notification.readAt) {
-              removedUnreadCount += 1;
-            }
-
-            return !matches;
-          });
-        },
-      );
-
-      if (removedUnreadCount > 0) {
-        updateUnreadCount((current) => current - removedUnreadCount);
-      }
-
-      syncNotificationQueries();
-    },
-    [popupNotificationLimit, queryClient, syncNotificationQueries, updateUnreadCount],
-  );
+  const unreadCount = (countsQuery.data ?? EMPTY_NOTIF_COUNTS).all;
 
   useEffect(() => {
-    const query = window.matchMedia("(max-width: 767px)");
-    const handleChange = () => setIsMobileViewport(query.matches);
-
-    handleChange();
-    query.addEventListener("change", handleChange);
-
-    return () => query.removeEventListener("change", handleChange);
-  }, []);
+    onOpenChange?.(panelOpen);
+  }, [onOpenChange, panelOpen]);
 
   useEffect(() => {
     if (typeof document === "undefined") {
       return;
     }
 
-    baseTitleRef.current ??= document.title.replace(/^\(\d+\+?\)\s*/, "") || "Whispr";
+    baseTitleRef.current ??= document.title.replace(/^\(\d+\+?\)\s*/u, "") || "Whispr";
     const baseTitle = baseTitleRef.current;
     document.title =
       unreadCount > 0 ? `(${unreadCount > 99 ? "99+" : unreadCount}) ${baseTitle}` : baseTitle;
@@ -227,226 +102,138 @@ export function NotificationBell({
     };
   }, [unreadCount]);
 
-  useEffect(() => {
-    const handleIncomingNotification = (notification: NotificationSocketPayload) => {
-      // Socket delivery already carries enough information for the unread count.
-      // Invalidating here caused one GET per notification despite staleTime.
-      applyIncomingNotification(notification, {
-        invalidateBadgeQuery: (queryKey) => {
-          void queryClient.invalidateQueries({ queryKey });
-        },
-        updateUnreadCount,
-      });
+  const prefetchPanel = useCallback(() => {
+    void queryClient.prefetchInfiniteQuery({
+      initialPageParam: undefined as string | undefined,
+      queryFn: () => fetchNotificationPage("all"),
+      queryKey: notificationsQueryKeys.panel("all"),
+      staleTime: 30_000,
+    });
+  }, [queryClient]);
 
-      if (open) {
-        const listKey = notificationsQueryKeys.list(popupNotificationLimit);
-        // Opening starts a GET. Stop it before seeding the socket event, otherwise
-        // an older in-flight response can overwrite the newer notification.
-        void queryClient.cancelQueries({ queryKey: listKey }).then(() => {
-          queryClient.setQueryData<NotificationDTO[] | undefined>(listKey, (current) =>
-            prependIncomingNotification(current, notification, popupNotificationLimit),
-          );
-        });
+  useEffect(() => {
+    const handleIncoming = (notification: NotificationSocketPayload) => {
+      if (notification.counts) {
+        queryClient.setQueryData(notificationsQueryKeys.counts, notification.counts);
+      } else {
+        // Sayacı taşımayan bir yayımcı istemciyi ucu okumaya düşürür — yanlış bir sayı
+        // göstermeye değil (`NotificationSocketPayload.counts` yorumu).
+        void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.counts });
+      }
+
+      if (notification.type === "BADGE") {
+        void queryClient.invalidateQueries({ queryKey: badgeQueryKeys.own() });
+        void queryClient.invalidateQueries({ queryKey: badgeQueryKeys.user(notification.userId) });
       }
     };
 
-    const handleFriendsUpdated = () => {
-      syncNotificationQueries();
+    const handleRead = (payload: NotificationReadSocketPayload) => {
+      queryClient.setQueryData(notificationsQueryKeys.counts, payload.counts);
     };
 
-    socket.on("notification:new", handleIncomingNotification);
+    const handleFriendsUpdated = () => {
+      // Kabul/ret edilen bir arkadaşlık isteği bildirimi sunucuda siliniyor; liste ve sayaç
+      // birlikte tazelenir.
+      void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.root });
+    };
+
+    socket.on("notification:new", handleIncoming);
+    socket.on("notification:read", handleRead);
     socket.on("friends:updated", handleFriendsUpdated);
 
     return () => {
-      socket.off("notification:new", handleIncomingNotification);
+      socket.off("notification:new", handleIncoming);
+      socket.off("notification:read", handleRead);
       socket.off("friends:updated", handleFriendsUpdated);
     };
-  }, [
-    open,
-    popupNotificationLimit,
-    queryClient,
-    socket,
-    syncNotificationQueries,
-    updateUnreadCount,
-  ]);
+  }, [queryClient, socket]);
 
+  /** Panel dışına tıklamak paneli kapatır; pencerenin kendi örtüsü var (00 tuzak #11). */
   useEffect(() => {
-    if (open) {
-      // Reconcile optimistic socket state when the user asks to see the popup,
-      // not on every incoming event in every open tab.
-      syncNotificationQueries();
-    }
-  }, [open, syncNotificationQueries]);
-
-  useEffect(() => {
-    if (!open) {
+    if (!panelOpen) {
       return;
     }
 
     const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
-
-      if (buttonRef.current?.contains(target) || popoverRef.current?.contains(target)) {
+      if (rootRef.current?.contains(event.target as Node)) {
         return;
       }
 
-      setPopoverOpen(false);
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setPopoverOpen(false);
-      }
+      dispatch({ type: "closeAll" });
     };
 
     document.addEventListener("pointerdown", handlePointerDown, true);
-    window.addEventListener("keydown", handleEscape);
 
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown, true);
-      window.removeEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("pointerdown", handlePointerDown, true);
+  }, [panelOpen]);
+
+  /**
+   * `Esc` sırayla: modal → panel. Basamak `resolveNotifPanelEscape` ile adlandırılıyor ve
+   * yalnız bir katman açıkken olay yutuluyor — aksi hâlde `Esc` arkadaki yüzeye de sızardı.
+   */
+  useEffect(() => {
+    const target = resolveNotifPanelEscape(state);
+
+    if (target === "none") {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      dispatch({ type: "escape" });
     };
-  }, [open, setPopoverOpen]);
+
+    window.addEventListener("keydown", handleKeyDown, true);
+
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [state]);
+
+  /** Panel kapanınca odak tetikleyiciye döner; pencere kendi odağını kendi geri veriyor. */
+  const wasPanelOpenRef = useRef(false);
 
   useEffect(() => {
-    if (!open || !notificationAutoClose) {
-      return;
+    if (wasPanelOpenRef.current && state.surface === "closed") {
+      buttonRef.current?.focus();
     }
 
-    const timeout = window.setTimeout(() => {
-      setPopoverOpen(false);
-    }, notificationPopupTimeoutSeconds * 1000);
-
-    return () => window.clearTimeout(timeout);
-  }, [notificationAutoClose, notificationPopupTimeoutSeconds, open, setPopoverOpen]);
-
-  const markAllMutation = useMutation({
-    mutationFn: markAllNotificationsRead,
-    onMutate: () => {
-      const previousCount = unreadCount;
-      updateUnreadCount(() => 0);
-      return { previousCount };
-    },
-    onError: (_error, _variables, context) => {
-      updateUnreadCount(() => context?.previousCount ?? 0);
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.unreadCount });
-      await queryClient.invalidateQueries({
-        queryKey: notificationsQueryKeys.list(popupNotificationLimit),
-      });
-    },
-  });
-
-  const clearAllMutation = useMutation({
-    mutationFn: deleteAllNotifications,
-    onMutate: () => {
-      const previousCount = unreadCount;
-      updateUnreadCount(() => 0);
-      return { previousCount };
-    },
-    onError: (_error, _variables, context) => {
-      updateUnreadCount(() => context?.previousCount ?? 0);
-    },
-    onSuccess: async () => {
-      setPopoverOpen(false);
-      setDropdownPos(null);
-      await queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.unreadCount });
-      await queryClient.invalidateQueries({
-        queryKey: notificationsQueryKeys.list(popupNotificationLimit),
-      });
-    },
-  });
-
-  const list = listQuery.data ?? [];
-  const unreadSummaryLabel = useMemo(
-    () => t("notifications.bell.unreadSummary", { count: unreadCount }),
-    [t, unreadCount],
-  );
-
-  const closePopover = () => {
-    setPopoverOpen(false);
-    setDropdownPos(null);
-  };
-
-  const handleToggle = () => {
-    if (open) {
-      closePopover();
-      return;
-    }
-
-    if (!buttonRef.current) {
-      return;
-    }
-
-    if (isMobileViewport) {
-      setDropdownPos({ bottom: 0, left: 0, maxHeight: window.innerHeight });
-      setPopoverOpen(true);
-      return;
-    }
-
-    const rect = buttonRef.current.getBoundingClientRect();
-    const controlsRoot = buttonRef.current.closest<HTMLElement>(
-      "[data-notification-popup-anchor='controls-border']",
-    );
-    const userBarAnchor = buttonRef.current.closest<HTMLElement>("[data-user-bar-anchor='true']");
-    const sidebarRoot = buttonRef.current.closest<HTMLElement>(".app-sidebar");
-    const anchorElement =
-      userBarAnchor ??
-      controlsRoot ??
-      sidebarRoot?.querySelector<HTMLElement>(
-        "[data-notification-popup-anchor='controls-border']",
-      ) ??
-      sidebarRoot?.querySelector<HTMLElement>("[data-notification-popup-anchor='voice']") ??
-      sidebarRoot?.querySelector<HTMLElement>("[data-notification-popup-anchor='user']");
-    const userBarRect = anchorElement?.getBoundingClientRect() ?? rect;
-    const minMargin = 12;
-    const popupWidth = Math.min(NOTIFICATION_POPUP_WIDTH, window.innerWidth - minMargin * 2);
-    const gapFromBar = 6;
-    const bottom = Math.max(minMargin, window.innerHeight - userBarRect.top + gapFromBar);
-    const maxHeight = Math.max(260, userBarRect.top - gapFromBar - minMargin);
-
-    let left = userBarRect.right - popupWidth;
-    left = Math.max(minMargin, Math.min(left, window.innerWidth - popupWidth - minMargin));
-
-    setDropdownPos({ bottom, left, maxHeight });
-    setPopoverOpen(true);
-  };
-
-  const handleReadAndNavigate = async (notification: NotificationDTO) => {
-    if (!notification.readAt) {
-      await markNotificationRead(notification.id);
-      updateUnreadCount((current) => current - 1);
-      void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.unreadCount });
-      void queryClient.invalidateQueries({
-        queryKey: notificationsQueryKeys.list(popupNotificationLimit),
-      });
-    }
-
-    if (notification.actionUrl) {
-      closePopover();
-      router.push(notification.actionUrl);
-    }
-  };
+    wasPanelOpenRef.current = panelOpen;
+  }, [panelOpen, state.surface]);
 
   return (
-    <>
+    <div className="relative shrink-0" data-testid="notification-bell" ref={rootRef}>
       <button
-        ref={buttonRef}
+        aria-expanded={panelOpen}
+        aria-haspopup="dialog"
         aria-label={t("notifications.bell.title")}
         className={cn(
-          "relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-[hsl(var(--foreground)/0.7)] transition hover:bg-[hsl(var(--surface-soft)/0.42)] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
+          "relative inline-flex items-center justify-center border-solid transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
           className,
         )}
+        data-open={panelOpen || undefined}
         data-testid="notification-bell-button"
-        onFocus={prefetchNotifications}
-        onMouseEnter={prefetchNotifications}
-        onClick={handleToggle}
-        style={style}
+        onClick={() => dispatch({ type: "togglePanel" })}
+        onFocus={prefetchPanel}
+        onMouseEnter={prefetchPanel}
+        ref={buttonRef}
+        style={{
+          ...style,
+          // Açıkken primary vurgu (SPEC §1). Ebeveynin verdiği yüzey stilini **bilerek** ezer:
+          // düğmenin açık hâli tasarımın kendi durumudur, çağrı yerinin değil.
+          ...(panelOpen
+            ? {
+                background: "hsl(var(--primary) / 0.14)",
+                borderColor: "hsl(var(--primary) / 0.5)",
+                color: "hsl(var(--primary))",
+              }
+            : {}),
+        }}
         type="button"
       >
-        <Bell className="h-5 w-5" />
-        {unreadCount > 0 && badgeVariant === "count" ? (
+        <Bell aria-hidden="true" className="h-5 w-5" />
+        {hasVisibleNotifCount(unreadCount) && badgeVariant === "count" ? (
           <span
             className="absolute -right-1 -top-1 inline-flex min-w-[1.4rem] items-center justify-center rounded-full border border-[hsl(var(--surface-card))] bg-[hsl(var(--danger))] px-1.5 py-0.5 text-[10px] font-semibold text-[hsl(var(--danger-foreground))] shadow-[0_10px_22px_hsl(var(--shadow-color)/0.18)]"
             data-testid="notification-bell-badge"
@@ -454,311 +241,43 @@ export function NotificationBell({
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         ) : null}
-        {unreadCount > 0 && badgeVariant === "dot" ? (
+        {hasVisibleNotifCount(unreadCount) && badgeVariant === "dot" ? (
           <span
             aria-hidden="true"
             className="absolute rounded-full border-solid border-[hsl(var(--surface-card))] bg-[hsl(var(--danger))]"
             data-testid="notification-bell-dot"
             style={{
-              borderWidth: hairline(HOME_METRICS.topBar.bellDotBorderWidth),
-              height: pxToRem(HOME_METRICS.topBar.bellDotSize),
-              right: pxToRem(HOME_METRICS.topBar.bellDotOffsetRight),
-              top: pxToRem(HOME_METRICS.topBar.bellDotOffsetTop),
-              width: pxToRem(HOME_METRICS.topBar.bellDotSize),
+              borderWidth: hairline(topBar.bellDotBorderWidth),
+              height: pxToRem(topBar.bellDotSize),
+              right: pxToRem(topBar.bellDotOffsetRight),
+              top: pxToRem(topBar.bellDotOffsetTop),
+              width: pxToRem(topBar.bellDotSize),
             }}
           />
         ) : null}
       </button>
 
-      {typeof document !== "undefined" && dropdownPos
+      {panelOpen ? (
+        <NotificationPanel
+          onClose={() => dispatch({ type: "closeAll" })}
+          onOpenPrefs={() => dispatch({ type: "openPrefs" })}
+          onSelectTab={(tab) => dispatch({ tab, type: "selectTab" })}
+          tab={state.tab}
+        />
+      ) : null}
+
+      {/* Pencere gövdeye taşınır: modal kabuğun kırpma ve yığma bağlamlarının dışında durmalı,
+          zil ise `overflow:hidden` taşıyan bir ekran kabının içinde yaşıyor. */}
+      {prefsOpen && typeof document !== "undefined"
         ? createPortal(
-            <AnimatePresence>
-              {open ? (
-                <motion.div
-                  ref={popoverRef}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  className={cn(
-                    "fixed z-[80] overflow-hidden border border-[hsl(var(--border)/0.66)] bg-[linear-gradient(180deg,hsl(var(--surface-card)/0.98),hsl(var(--surface-soft)/0.9))] shadow-[0_18px_46px_hsl(var(--shadow-color)/0.14)] backdrop-blur-xl",
-                    isMobileViewport
-                      ? "inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-h-[min(28rem,calc(100dvh-1.5rem))] rounded-[22px]"
-                      : "w-[min(19rem,calc(100vw-1.25rem))] rounded-[22px]",
-                  )}
-                  aria-label={t("notifications.bell.title")}
-                  data-notification-popup="true"
-                  data-testid="notification-popup"
-                  exit={{ opacity: 0, scale: 0.97, y: -10 }}
-                  initial={{ opacity: 0, scale: 0.97, y: -10 }}
-                  role="dialog"
-                  style={
-                    isMobileViewport
-                      ? {}
-                      : {
-                          bottom: `${dropdownPos.bottom}px`,
-                          left: `${dropdownPos.left}px`,
-                          maxHeight: `${dropdownPos.maxHeight}px`,
-                        }
-                  }
-                  transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  <div className="border-b border-[hsl(var(--border)/0.58)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.94),hsl(var(--primary)/0.08))] px-3 py-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-2.5">
-                        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl border border-[hsl(var(--primary)/0.16)] bg-[hsl(var(--primary)/0.09)] text-[hsl(var(--primary))]">
-                          <Sparkles className="h-3.5 w-3.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="truncate text-sm font-semibold text-app-foreground">
-                            {t("notifications.bell.title")}
-                          </h3>
-                          <p className="mt-0.5 truncate text-[11px] text-app-muted">
-                            {unreadSummaryLabel}
-                          </p>
-                        </div>
-                      </div>
-                      {unreadCount > 0 ? (
-                        <button
-                          className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary))] px-2.5 text-[11px] font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_10px_20px_hsl(var(--primary)/0.18)] transition hover:brightness-[1.03] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
-                          disabled={markAllMutation.isPending}
-                          onClick={() => markAllMutation.mutate()}
-                          type="button"
-                        >
-                          <CheckCheck className="h-3 w-3" />
-                          {t("notifications.bell.markAllRead")}
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="max-h-[min(16rem,calc(100dvh-9rem))] overflow-y-auto overscroll-contain p-2 [scrollbar-width:none] sm:max-h-[22rem] [&::-webkit-scrollbar]:hidden">
-                    {listQuery.isLoading ? (
-                      <div className="space-y-2">
-                        {Array.from({ length: 4 }).map((_, index) => (
-                          <div
-                            className="rounded-[18px] bg-[hsl(var(--surface-card)/0.5)] p-2.5"
-                            key={index}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <div className="h-8 w-8 animate-pulse rounded-full bg-[hsl(var(--surface-soft))]" />
-                              <div className="min-w-0 flex-1 space-y-1.5">
-                                <div className="h-2.5 w-20 animate-pulse rounded-full bg-[hsl(var(--surface-soft))]" />
-                                <div className="h-3 w-32 animate-pulse rounded-full bg-[hsl(var(--surface-soft)/0.85)]" />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : list.length === 0 ? (
-                      <div className="flex min-h-[168px] flex-col items-center justify-center rounded-[20px] border border-dashed border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.48)] px-4 text-center">
-                        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-[hsl(var(--surface-soft)/0.7)]">
-                          <Inbox className="h-4 w-4 text-app-muted" />
-                        </div>
-                        <p className="mt-3 text-sm font-semibold text-app-foreground">
-                          {t("notifications.bell.empty")}
-                        </p>
-                        <p className="mt-1.5 text-xs leading-5 text-app-muted">
-                          {t("notifications.bell.emptyDescription")}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-1.5">
-                        {list.map((notification) => (
-                          <NotificationItem
-                            key={notification.id}
-                            locale={locale}
-                            notification={notification}
-                            onClose={closePopover}
-                            onDismissFriendRequest={removeFriendRequestNotification}
-                            onReadAndNavigate={handleReadAndNavigate}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {list.length > 0 ? (
-                    <div className="border-t border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.78)] px-2.5 py-2.5">
-                      <div className="flex items-center gap-2">
-                        <button
-                          className="min-h-9 flex-1 rounded-xl border border-[hsl(var(--border)/0.68)] px-3 text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                          onClick={() => {
-                            closePopover();
-                            router.push("/messages");
-                          }}
-                          type="button"
-                        >
-                          {t("notifications.bell.seeAll")}
-                        </button>
-                        <button
-                          className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.1)] px-2.5 text-xs font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:opacity-50"
-                          disabled={clearAllMutation.isPending}
-                          onClick={() => clearAllMutation.mutate()}
-                          type="button"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          {t("notifications.bell.clearAll")}
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
-                </motion.div>
-              ) : null}
-            </AnimatePresence>,
+            <NotificationPrefsDialog
+              onClose={() => dispatch({ type: "closeAll" })}
+              onSaveState={(save) => dispatch({ save, type: "save" })}
+              saveState={state.save}
+            />,
             document.body,
           )
         : null}
-    </>
-  );
-}
-
-function NotificationItem({
-  locale,
-  notification,
-  onClose,
-  onDismissFriendRequest,
-  onReadAndNavigate,
-}: {
-  locale: string;
-  notification: NotificationDTO;
-  onClose: () => void;
-  onDismissFriendRequest: (requestId: string) => void;
-  onReadAndNavigate: (notification: NotificationDTO) => Promise<void>;
-}) {
-  const { t } = useI18n();
-  const [isReading, setIsReading] = useState(false);
-  const actorName =
-    notification.actor?.displayName ||
-    notification.actor?.username ||
-    t("notifications.actor.system");
-  const actorUsername = notification.actor?.username ?? "system";
-  const actorAvatarUrl = notification.actor?.avatarUrl ?? null;
-
-  const handleClick = async () => {
-    setIsReading(true);
-    try {
-      await onReadAndNavigate(notification);
-      if (!notification.actionUrl) {
-        onClose();
-      }
-    } finally {
-      setIsReading(false);
-    }
-  };
-
-  return (
-    <div
-      className={`w-full rounded-[18px] border px-2.5 py-2 transition ${
-        notification.readAt
-          ? "border-transparent bg-transparent opacity-80 hover:border-[hsl(var(--border)/0.42)] hover:bg-[hsl(var(--surface-card)/0.52)]"
-          : "border-[hsl(var(--primary)/0.2)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.1),hsl(var(--surface-card)/0.82))] shadow-[0_10px_24px_hsl(var(--shadow-color)/0.06)] hover:bg-[linear-gradient(135deg,hsl(var(--primary)/0.13),hsl(var(--surface-card)/0.92))]"
-      }`}
-      data-testid="notification-item"
-    >
-      <button
-        className="w-full text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-        onClick={handleClick}
-        type="button"
-      >
-        <div className="flex items-start gap-2.5">
-          <Avatar
-            alt={actorName}
-            className="h-8 w-8 shrink-0 text-xs"
-            fallback={actorName}
-            src={actorAvatarUrl}
-          />
-
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="truncate text-[11px] font-semibold text-app-muted">
-                  {actorName}
-                  <span className="ml-1 text-app-soft">@{actorUsername}</span>
-                </p>
-                <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-app-foreground [overflow-wrap:anywhere]">
-                  {notification.message}
-                </p>
-              </div>
-              {!notification.readAt ? (
-                <Badge
-                  className="shrink-0 border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary))] px-1.5 py-0 text-[10px] text-[hsl(var(--primary-foreground))]"
-                  tone="danger"
-                >
-                  {t("notifications.bell.new")}
-                </Badge>
-              ) : null}
-            </div>
-
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-app-soft">
-              <span>{formatNotificationDate(locale, notification.createdAt)}</span>
-              {isReading && !notification.readAt ? (
-                <>
-                  <span>/</span>
-                  <span>...</span>
-                </>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </button>
-
-      {notification.type === "FRIEND_REQUEST" && notification.meta?.friendRequestId ? (
-        <div className="mt-2 border-t border-[hsl(var(--border)/0.48)] pt-2">
-          <FriendRequestActions
-            onHandled={onDismissFriendRequest}
-            requestId={notification.meta.friendRequestId}
-          />
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function FriendRequestActions({
-  onHandled,
-  requestId,
-}: {
-  onHandled: (requestId: string) => void;
-  requestId: string;
-}) {
-  const { t } = useI18n();
-  const queryClient = useQueryClient();
-
-  const acceptMutation = useMutation({
-    mutationFn: () => actOnFriendRequestRequest(requestId, "accept"),
-    onSuccess: async () => {
-      onHandled(requestId);
-      await queryClient.invalidateQueries({ queryKey: ["friends", "pending"] });
-      await queryClient.invalidateQueries({ queryKey: ["friends", "list"] });
-      await queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.root });
-    },
-  });
-
-  const declineMutation = useMutation({
-    mutationFn: () => actOnFriendRequestRequest(requestId, "decline"),
-    onSuccess: async () => {
-      onHandled(requestId);
-      await queryClient.invalidateQueries({ queryKey: ["friends", "pending"] });
-      await queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.root });
-    },
-  });
-
-  return (
-    <div className="flex gap-2">
-      <button
-        className="min-h-8 flex-1 rounded-xl bg-[hsl(var(--primary))] px-2.5 text-[11px] font-semibold text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
-        disabled={acceptMutation.isPending || declineMutation.isPending}
-        onClick={() => acceptMutation.mutate()}
-        type="button"
-      >
-        {t("notifications.actions.accept")}
-      </button>
-      <button
-        className="min-h-8 flex-1 rounded-xl border border-[hsl(var(--border)/0.66)] px-2.5 text-[11px] font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
-        disabled={acceptMutation.isPending || declineMutation.isPending}
-        onClick={() => declineMutation.mutate()}
-        type="button"
-      >
-        {t("notifications.actions.decline")}
-      </button>
     </div>
   );
 }

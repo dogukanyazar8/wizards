@@ -85,7 +85,6 @@ describe("token denetimi — paket yüzeyleri", () => {
       [
         "app/(main)/events",
         "app/(main)/home",
-        "app/(main)/inbox",
         "app/(main)/mentions",
         "components/command",
         "components/home",
@@ -94,7 +93,7 @@ describe("token denetimi — paket yüzeyleri", () => {
     );
   });
 
-  it("izin listesi sekiz maddeden ibarettir", () => {
+  it("izin listesi dokuz maddeden ibarettir", () => {
     assert.deepEqual(
       [...HOME_TOKEN_AUDIT_ALLOWLIST],
       [
@@ -104,6 +103,8 @@ describe("token denetimi — paket yüzeyleri", () => {
         "#6366f1",
         "#a5b4fc",
         "bg-amber-400",
+        // Ş6 — tek dolaylılık: sabit `var(--font-display)`e çıkar (bkz. `token-audit.ts`).
+        "fontFamily: DISPLAY_FONT",
         "hsl(199 89% 48%)",
         // Açık zeminli grup swatch'larının üzerine gelen koyu mürekkep (§7).
         "hsl(222 30% 14%)",

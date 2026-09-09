@@ -263,7 +263,7 @@ export function DiscoverFeedHeader({
           <button
             aria-label={t("discover.header.cardSize")}
             aria-pressed={cardSize === "large"}
-            className="relative grid place-items-center border-0 bg-transparent transition-colors before:absolute before:-inset-1.5 before:content-[''] hover:bg-[hsl(var(--surface-soft))] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+            className="relative grid place-items-center border-0 bg-transparent transition-colors before:absolute before:-inset-1.5 before:content-[''] hover:bg-[var(--surface-hover)] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
             onClick={onToggleCardSize}
             style={{
               borderRadius: pxToRem(metrics.iconButtonRadius),

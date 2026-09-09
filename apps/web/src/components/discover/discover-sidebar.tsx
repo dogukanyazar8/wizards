@@ -371,7 +371,7 @@ export function DiscoverSidebar({ categories, onQueryChange, routeState }: Disco
           {t("discover.invite.body")}
         </p>
         <Link
-          className="flex w-full items-center justify-center border-[hsl(var(--border))] bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition-colors hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="flex w-full items-center justify-center border-[hsl(var(--border))] bg-[hsl(var(--surface-card))] text-[hsl(var(--text-secondary))] transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           href={buildDiscoverHref({ modal: "join" }, routeState)}
           prefetch={false}
           scroll={false}

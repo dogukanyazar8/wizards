@@ -234,6 +234,7 @@ export function MessageToolbar({
               aria-haspopup="menu"
               aria-label={t("chat.message.addReaction")}
               className={hoverButtonClassName}
+              data-message-shortcut-action="react"
               data-testid="message-action-react"
               onClick={() => setShowReactionMenu((current) => !current)}
               ref={reactionButtonRef}
@@ -442,6 +443,7 @@ export function MessageToolbar({
             aria-expanded={showReactionMenu}
             aria-haspopup="menu"
             aria-label={t("chat.message.addReaction")}
+            data-message-shortcut-action="react"
             data-testid="message-action-react"
             ref={reactionButtonRef}
             type="button"
@@ -526,6 +528,7 @@ export function MessageToolbar({
           title={t("chat.message.edit")}
           className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
           aria-label={t("chat.message.editAria")}
+          data-message-shortcut-action="edit"
           data-testid="message-action-edit"
           type="button"
         >

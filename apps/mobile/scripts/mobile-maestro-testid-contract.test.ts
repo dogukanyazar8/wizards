@@ -79,18 +79,20 @@ describe("Phase 0 Maestro testID contract", () => {
     assert.match(rootGitignoreSource, /^\.env\.local$/m);
     assert.ok(loginHelperSource, ".maestro/helpers/login-uat.yml must exist");
     assert.match(loginHelperSource, /id:\s*"mobile-settings-web-sign-in-action"/);
+    /*
+     * SPEC-GIRIS-KAYIT §6 — karsilama ekrani paket karari K4 ile kaldirildi. Ayarlar
+     * baglami dogrudan yigin kokune, yani Login ekranina duser; auth baglami ise yuzeyin
+     * gercekten Login oldugunu ekrana ozel bir denetimle kanitlar.
+     */
     assert.match(
       loginHelperSource,
-      /when:\s*\r?\n\s+visible:\s*\r?\n\s+id:\s*"mobile-settings-web-sign-in-action"[\s\S]*?id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-welcome-screen"/,
+      /when:\s*\r?\n\s+visible:\s*\r?\n\s+id:\s*"mobile-settings-web-sign-in-action"[\s\S]*?id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-login-screen"/,
     );
     assert.match(
       loginHelperSource,
-      /when:\s*\r?\n\s+visible:\s*\r?\n\s+id:\s*"mobile-auth-welcome-screen"[\s\S]*?id:\s*"mobile-auth-welcome-sign-in"[\s\S]*?id:\s*"mobile-auth-login-screen"/,
+      /when:\s*\r?\n\s+visible:\s*\r?\n\s+id:\s*"mobile-auth-login-screen"[\s\S]*?assertVisible:\s*\r?\n\s+id:\s*"mobile-auth-login-register"/,
     );
-    assert.match(
-      loginHelperSource,
-      /id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-auth-welcome-screen"[\s\S]*?id:\s*"mobile-auth-welcome-sign-in"[\s\S]*?id:\s*"mobile-auth-login-screen"/,
-    );
+    assert.doesNotMatch(loginHelperSource, /mobile-auth-welcome/);
     assert.doesNotMatch(loginHelperSource, /mobile-auth-screen/);
     assert.doesNotMatch(loginHelperSource, /MAESTRO_UAT_(?:EMAIL|PASSWORD)/);
     assert.doesNotMatch(loginHelperSource, /(?:development|fill-dev|inputText|retry)/i);

@@ -226,6 +226,25 @@ module.exports = ({ config }) => {
     icon: WHISPR_MOBILE_ICON.icon,
     scheme: WHISPR_MOBILE_APP_IDENTITY.scheme,
     userInterfaceStyle: "automatic",
+    /*
+     * Native açılış katmanı (SPEC-SPLASH K11).
+     *
+     * Statik pencere arka planı aurora ya da metin çizemez; tek işi JS açılış ekranı
+     * devralana kadar **zemini ve işareti** aynı tutmak. Zemin değerleri temanın
+     * `redesignLight.bg` / `redesignDark.bg` renkleridir, işaret 52dp Whispr markasıdır.
+     * Android tarafı `res/drawable/splashscreen.xml` ile zaten bu düzende; buradaki
+     * yapılandırma iOS'un prebuild'de aynı kareyi üretmesi içindir.
+     */
+    splash: {
+      backgroundColor: "#F6F7FB",
+      dark: {
+        backgroundColor: "#131529",
+        image: "./assets/whispr-splash.png",
+        resizeMode: "contain",
+      },
+      image: "./assets/whispr-splash.png",
+      resizeMode: "contain",
+    },
     ios: {
       ...config.ios,
       bundleIdentifier: WHISPR_MOBILE_APP_IDENTITY.iosBundleIdentifier,

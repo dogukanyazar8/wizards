@@ -54,7 +54,7 @@ export function AdminConsoleDetachButton() {
 
   return (
     <button
-      className="text-app-muted hover:bg-[hsl(var(--surface-soft))] flex items-center gap-1.5 rounded-[10px] border border-[hsl(var(--border)/0.7)] px-2.5 py-1.5 text-[12px] font-semibold disabled:opacity-60"
+      className="text-app-muted hover:bg-[var(--surface-hover)] flex items-center gap-1.5 rounded-[10px] border border-[hsl(var(--border)/0.7)] px-2.5 py-1.5 text-[12px] font-semibold disabled:opacity-60"
       data-testid="admin-console-detach"
       disabled={busy}
       onClick={() => void toggle()}

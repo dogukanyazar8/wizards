@@ -1,4 +1,4 @@
-import { shouldNotifyForDMMessage, type DMNotifyLevel } from "@wizards/types";
+import { isMuteActive, shouldNotifyForDMMessage, type DMNotifyLevel } from "@wizards/types";
 import { prisma } from "@wizards/db";
 
 import { normalizeAppLocale, translate } from "@/lib/locale";
@@ -21,6 +21,13 @@ export type DMNotificationParticipant = {
    * and any caller that has not been migrated — keeps its old behaviour.
    */
   muted: boolean;
+  /**
+   * Mesajlar §17 / karar K8. Null means "until it is turned back on"; a date in
+   * the past means the mute has run out. Optional so a job queued before the
+   * column shipped still parses — an absent value reads as `Süresiz`, which is
+   * exactly what those rows meant.
+   */
+  mutedUntil?: Date | string | null | undefined;
   notifyLevel?: DMNotifyLevel | undefined;
   userId: string;
   user: {
@@ -33,21 +40,37 @@ export type DMNotificationParticipant = {
  * ordinary message, which is exactly what reading `muted` alone could not do —
  * `muted` is only true for `NONE`, so every `MENTIONS` member was being
  * notified about every message.
+ *
+ * Karar K8 adds the deadline on top. A timed mute writes `notifyLevel = NONE`
+ * alongside `muted`, so once it expires the tier alone would keep the person
+ * silent forever — the row still says `NONE`. `isMuteActive` is what ends it:
+ * an expired mute demotes the participant back to `ALL` here, at read time, and
+ * that is why the feature needs no scheduled sweep to be correct.
+ *
+ * A deliberate `Kapalı` on the notification radio is untouched: it stores
+ * `mutedUntil = null`, which never expires.
  */
 export function selectDMNotificationRecipients<T extends DMNotificationParticipant>(args: {
   mentionedUserIds?: readonly string[];
+  now?: Date;
   participants: readonly T[];
   replyToAuthorId?: string | undefined;
   senderId: string;
 }): T[] {
   const mentioned = new Set(args.mentionedUserIds ?? []);
+  const now = args.now ?? new Date();
 
   return args.participants.filter((participant) => {
     if (participant.userId === args.senderId) {
       return false;
     }
 
-    const notifyLevel = participant.notifyLevel ?? (participant.muted ? "NONE" : "ALL");
+    const muteExpired =
+      participant.muted &&
+      !isMuteActive({ ...participant, mutedUntil: participant.mutedUntil ?? null }, now);
+    const notifyLevel = muteExpired
+      ? "ALL"
+      : (participant.notifyLevel ?? (participant.muted ? "NONE" : "ALL"));
 
     return shouldNotifyForDMMessage(notifyLevel, {
       isMentioned: mentioned.has(participant.userId),

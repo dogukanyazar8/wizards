@@ -24,17 +24,21 @@ test.describe("app shell smoke", () => {
     await loginAs(page, "alice");
     await gotoAppRoute(page, "/messages", { readyTestId: "user-bar" });
 
+    // K2: Ayarlar bir **rota**. Pencere `(main)/@modal` ile kabuğun üstünde yakalanır ama
+    // adres çubuğu `/settings/…` gösterir; "hâlâ /messages'tayız" beklentisi rotalaşmadan
+    // sonra yalan söylüyordu. Kapanış tek adım geri gider, yani açan rotaya.
     await openSettingsFromUserQuickMenu(page);
-    await expect(page).toHaveURL(/\/messages/);
+    await expect(page).toHaveURL(/\/settings\/account\/profile$/);
 
     await closeInAppSettingsOverlay(page);
-    await expect(page).toHaveURL(/\/messages/);
+    await expect(page).toHaveURL(/\/messages$/);
     await expect(page.getByTestId("user-bar")).toBeVisible();
 
     await openSettingsFromUserQuickMenu(page);
+    await expect(page).toHaveURL(/\/settings\/account\/profile$/);
     await page.keyboard.press("Escape");
     await expectSettingsOverlayClosed(page);
-    await expect(page).toHaveURL(/\/messages/);
+    await expect(page).toHaveURL(/\/messages$/);
     await expect(page.getByTestId("user-bar")).toBeVisible();
   });
 });

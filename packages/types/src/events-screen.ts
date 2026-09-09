@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { ServerIconToneSchema } from "./server-icon";
+
 /**
  * Etkinlikler paketi — Dalga 0 / Ş0.1. Ekranın veri ve durum sözleşmesi.
  *
@@ -164,6 +166,9 @@ export const WhisprEventSchema = z.object({
   /** K3 — `serverId` **zorunlu** kalır; herkese açıklık `isPublic` bayrağıdır. */
   serverId: z.string().min(1),
   serverName: z.string(),
+  serverIconColor: ServerIconToneSchema.nullable().optional(),
+  serverIconUrl: z.string().nullable().optional(),
+  serverShortName: z.string().nullable().optional(),
   /** `null` = harici; kart "kaynak › kanal" satırı o zaman harici bağlantı başlığını yazar. */
   channelId: z.string().nullable(),
   /** `#tasarım-kritiği` / `Sahne · sesli oda` / `Topluluk sahnesi` — sunucudan gelir. */
