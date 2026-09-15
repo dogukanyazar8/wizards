@@ -1,8 +1,8 @@
 import type { AudioCaptureOptions, VideoCaptureOptions } from "livekit-client";
 
 import {
-  DEFAULT_CAMERA_QUALITY_TIER,
   getCameraCaptureOptions,
+  getCameraResolution,
   type CameraQualityTier,
 } from "@/lib/voice/video-quality";
 import {
@@ -56,6 +56,8 @@ export function buildAudioCaptureOptions(
 ): AudioCaptureOptions {
   const enhancedNoiseFilterActive = captureProcessing.enhancedNoiseFilterActive === true;
   const options: AudioCaptureOptions = {
+    // Omitting this lets LiveKit merge the room's previous exact device back in.
+    deviceId: { ideal: DEFAULT_AUDIO_DEVICE_ID },
     autoGainControl: audioPreferences.autoGainControl,
     channelCount: { ideal: 1 },
     echoCancellation: audioPreferences.echoCancellation,
@@ -82,11 +84,20 @@ export function buildAudioCaptureOptions(
 
 export function buildCameraCaptureOptions(
   cameraPreferences: VoiceCameraPreferences,
-  tier: CameraQualityTier = DEFAULT_CAMERA_QUALITY_TIER,
+  tier: CameraQualityTier = cameraPreferences.quality,
 ): VideoCaptureOptions {
-  return cameraPreferences.deviceId === DEFAULT_CAMERA_DEVICE_ID
-    ? getCameraCaptureOptions(tier)
-    : getCameraCaptureOptions(tier, cameraPreferences.deviceId);
+  const options = getCameraCaptureOptions(
+    tier,
+    cameraPreferences.deviceId === DEFAULT_CAMERA_DEVICE_ID
+      ? undefined
+      : cameraPreferences.deviceId,
+  );
+  const frameRate = cameraPreferences.frameRate ?? 30;
+  return {
+    ...options,
+    frameRate: { ideal: frameRate, max: frameRate },
+    resolution: { ...getCameraResolution(tier), frameRate },
+  };
 }
 
 export function getAudioCaptureRestartSignature(

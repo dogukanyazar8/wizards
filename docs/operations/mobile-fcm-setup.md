@@ -8,7 +8,7 @@ One-time setup, owned by whoever holds the Firebase/EAS accounts:
    → create (or reuse) a project.
 2. **Android app:** add an Android app using the package name from
    `apps/mobile/src/release/mobile-store-contract-data.json`
-   (`appIdentity.androidPackage`). Repeat per environment if UAT/canary ship
+   (`appIdentity.androidPackage`). Repeat per environment if UAT ship
    with distinct application ids.
 3. **google-services.json:** download from Firebase project settings → place at
    `apps/mobile/google-services.json`. The file is git-ignored; every

@@ -235,7 +235,7 @@ export function CommandPalette({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[85] flex items-start justify-center bg-[hsl(var(--backdrop)/0.62)]"
+      className="fixed inset-x-0 bottom-0 top-[var(--app-viewport-top,0px)] z-[85] flex items-start justify-center bg-[hsl(var(--backdrop)/0.62)]"
       data-testid="command-palette-overlay"
       onClick={onClose}
       style={{
@@ -258,9 +258,7 @@ export function CommandPalette({
           boxShadow: `0 ${pxToRem(commandPalette.shadowY)} ${pxToRem(
             commandPalette.shadowBlur,
           )} -${pxToRem(commandPalette.shadowSpread)} hsl(var(--shadow-color))`,
-          maxHeight: `calc(100dvh - ${pxToRem(
-            commandPalette.topOffset + commandPalette.viewportPaddingBottom,
-          )})`,
+          maxHeight: "100%",
           maxWidth: pxToRem(commandPalette.width),
         }}
       >
@@ -465,7 +463,6 @@ export function CommandPalette({
         >
           <PaletteHint keys="↑ ↓">{t("home.palette.footer.navigate")}</PaletteHint>
           <PaletteHint keys="↵">{t("home.palette.footer.open")}</PaletteHint>
-          <PaletteHint keys="⌘↵">{t("home.palette.footer.sidePanel")}</PaletteHint>
           <span className="ml-auto">
             <strong className="font-semibold text-[hsl(var(--text-secondary))]">&gt;</strong>{" "}
             {t("home.palette.footer.commandMode")}

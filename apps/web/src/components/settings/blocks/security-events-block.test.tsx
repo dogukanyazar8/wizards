@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import React from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SecurityEventKindSchema, type SecurityEvent } from "@wizards/types";
 
@@ -71,9 +72,11 @@ describe("SecurityEventsBlock — metin", () => {
 describe("SecurityEventsBlock — çizim", () => {
   it("veri gelene kadar iskelet çiziyor", () => {
     const markup = renderToStaticMarkup(
-      <LocaleProvider initialLocale="tr" initialMessages={MESSAGES}>
-        <SecurityEventsBlock data={{}} row={ROW} />
-      </LocaleProvider>,
+      <QueryClientProvider client={new QueryClient()}>
+        <LocaleProvider initialLocale="tr" initialMessages={MESSAGES}>
+          <SecurityEventsBlock data={{}} row={ROW} />
+        </LocaleProvider>
+      </QueryClientProvider>,
     );
 
     assert.ok(markup.includes('data-testid="settings-block-s3-skeleton"'));
@@ -88,4 +91,29 @@ describe("SecurityEventsBlock — çizim", () => {
     assert.ok(SOURCE.includes("fetchSecurityEvents"));
     assert.ok(!/["'`]\/api\//u.test(SOURCE));
   });
+});
+
+it("shows device, location and full event timestamp without truncating long details", () => {
+  const client = new QueryClient();
+  const item = event({ userAgent: "Whispr Desktop · 0.9.0 · Windows 11" });
+  client.setQueryData(["user", "security-events"], [item]);
+  const markup = renderToStaticMarkup(
+    <QueryClientProvider client={client}>
+      <LocaleProvider initialLocale="tr" initialMessages={MESSAGES}>
+        <SecurityEventsBlock data={{}} row={ROW} />
+      </LocaleProvider>
+    </QueryClientProvider>,
+  );
+  assert.ok(markup.includes(item.userAgent!));
+  assert.ok(markup.includes("İstanbul"));
+  assert.ok(markup.includes('dateTime="2026-08-12T09:12:00.000Z"'));
+  assert.ok(
+    markup.includes(
+      new Intl.DateTimeFormat("tr", { dateStyle: "medium", timeStyle: "short" }).format(
+        new Date(item.createdAt),
+      ),
+    ),
+  );
+  assert.ok(!markup.includes("truncate"));
+  client.clear();
 });

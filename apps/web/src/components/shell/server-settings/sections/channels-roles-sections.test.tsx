@@ -171,7 +171,7 @@ describe("Kanallar ve Kategoriler (§8.4)", () => {
       ],
     });
 
-    assert.match(html, /text-\[hsl\(var\(--success\)\)\][^"]*"[^>]*><svg[^>]*lucide-volume2/u);
+    assert.match(html, /text-\[hsl\(var\(--success\)\)\][^"]*"[^>]*><svg[^>]*lucide-volume-2/u);
     assert.match(html, /lucide-hash/u);
   });
 

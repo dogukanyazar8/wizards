@@ -16,6 +16,7 @@ import {
   ServerScreenShareStage,
   ServerScreenShareStripCard,
   ServerVoiceControls,
+  ServerVoiceDisconnectedState,
   ServerVoiceEmptyState,
   ServerVoiceGrid,
   ServerVoiceHeader,
@@ -347,14 +348,15 @@ describe("§5.2 katılımcı kartı", () => {
 });
 
 describe("§5.2 ızgara", () => {
-  it("kolon sayısını sözlüğün aralığında tutar", () => {
+  it("ekrana sığan eşit kartlarla dört katılımcıyı iki kolona yerleştirir", () => {
     const html = render(
       <ServerVoiceGrid participantCount={4}>
         <span />
       </ServerVoiceGrid>,
     );
 
-    assert.match(html, /data-columns="3"/u);
+    assert.match(html, /data-columns="2"/u);
+    assert.match(html, /data-layout="fit"/u);
     assert.ok(html.includes(`gap:${pxToRem(voiceGrid.gap)}`));
     assert.match(html, /class="[^"]*flex-1/u);
   });
@@ -454,7 +456,6 @@ describe("§5.4 kontrol çubuğu", () => {
         isMuted={false}
         isScreenSharing={false}
         onLeave={() => undefined}
-        onOpenSettings={() => undefined}
         onToggleCamera={() => undefined}
         onToggleDeafen={() => undefined}
         onToggleMute={() => undefined}
@@ -480,6 +481,16 @@ describe("§5.4 kontrol çubuğu", () => {
 
     assert.ok(html.includes(`height:${pxToRem(voiceControls.buttonHeight)}`));
     assert.ok(html.includes(`border-radius:${pxToRem(voiceControls.buttonRadius)}`));
+  });
+
+  it("ayarlar doğrudan ses sekmesine giden ön yüklemeli bir bağlantıdır", () => {
+    const html = renderControls();
+    assert.match(
+      html,
+      /<a[^>]*data-testid="server-voice-control-settings"[^>]*href="\/settings\/av\/audio"/u,
+    );
+    const controls = readFileSync(join(here, "server-voice-surface.tsx"), "utf8");
+    assert.match(controls, /href=\{buildSettingsHref\("av", "audio"\)\}\s+prefetch=\{true\}/u);
   });
 
   it("kapalı mikrofon ve hoparlör danger tonuna geçer", () => {
@@ -567,7 +578,7 @@ describe("`voice-channel-view` Ş7'ye devretti", () => {
   });
 
   it("ayarlar düğmesi doğrudan Ses ve Video / Ses sekmesini açar", () => {
-    assert.match(source, /router\.push\(buildSettingsHref\("av", "audio"\)\)/u);
+    assert.doesNotMatch(source, /onOpenSettings=|router\.push/u);
     assert.doesNotMatch(source, /VoiceSettingsModal/u);
   });
 
@@ -575,4 +586,26 @@ describe("`voice-channel-view` Ş7'ye devretti", () => {
     assert.doesNotMatch(source, /ScreenShareStagePanel/u);
     assert.doesNotMatch(source, /extraControls=/u);
   });
+});
+
+it("compact and speaker modes keep all participant cards", () => {
+  for (const layout of ["compact", "speaker"] as const) {
+    const html = render(
+      <ServerVoiceGrid participantCount={3} layout={layout} featuredIndex={1}>
+        {["a", "b", "c"].map((id) => (
+          <span key={id} data-person={id} />
+        ))}
+      </ServerVoiceGrid>,
+    );
+    assert.equal((html.match(/data-person=/g) ?? []).length, 3);
+    assert.ok(html.includes(`data-layout="${layout}"`));
+    if (layout === "speaker") assert.equal((html.match(/data-featured="true"/g) ?? []).length, 1);
+  }
+});
+it("the leave state uses shared typography and preserves the reconnect action", () => {
+  const html = render(<ServerVoiceDisconnectedState onReconnect={() => undefined} />);
+  assert.ok(html.includes("var(--font-display)"));
+  assert.ok(html.includes("Bu ses kanalından ayrıldın"));
+  assert.ok(html.includes(MESSAGES["voice.view.reconnectAction"] ?? ""));
+  assert.ok(html.includes("hsl(var(--primary))"));
 });

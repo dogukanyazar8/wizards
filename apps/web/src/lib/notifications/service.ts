@@ -1,3 +1,4 @@
+import { resolveNotificationTarget } from "@/lib/notifications/target";
 import { prisma } from "@wizards/db";
 import type { NotificationType, Prisma } from "@wizards/db";
 import {
@@ -438,6 +439,7 @@ function toAppNotification(row: NotifPanelRow, channelNames: Map<string, string>
   };
 
   return {
+    actionUrl: resolveNotificationTarget(row.actionUrl, metadata),
     createdAt: row.createdAt.toISOString(),
     id: row.id,
     kind: toNotifKind(resolveNotifPanelBucket(row.type, metadata)),

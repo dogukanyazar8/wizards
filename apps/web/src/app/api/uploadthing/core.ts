@@ -16,6 +16,7 @@ import {
 import { getBearerTokenFromRequest } from "@/lib/mobile/auth";
 import {
   authorizeMobileMediaUpload,
+  authorizeProfileBannerUpload,
   completeMobileMediaUpload,
 } from "@/lib/mobile/mobile-media-uploadthing";
 
@@ -230,6 +231,13 @@ export const uploadRouter: FileRouter = {
   })
     .input(MobileMediaUploadIntentSchema)
     .middleware(({ input, req }) => authorizeMobileMediaUpload({ intent: input, request: req }))
+    .onUploadComplete(completeMobileMediaUpload),
+  profileBannerUploader: f({
+    "image/jpeg": { maxFileCount: 1, maxFileSize: "4MB" },
+    "image/png": { maxFileCount: 1, maxFileSize: "4MB" },
+    "image/webp": { maxFileCount: 1, maxFileSize: "4MB" },
+  })
+    .middleware(() => authorizeProfileBannerUpload())
     .onUploadComplete(completeMobileMediaUpload),
   profileAvatarUploader: f({
     "image/jpeg": {

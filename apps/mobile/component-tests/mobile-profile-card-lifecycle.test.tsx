@@ -41,6 +41,10 @@ jest.mock("../src/account/mobile-account-settings-query", () => ({
 
 const mockIdleMutation = { isPending: false, mutate: jest.fn(), mutateAsync: jest.fn() };
 
+jest.mock("../src/social/mobile-game-activity", () => ({
+  useMobileGameActivity: () => null,
+}));
+
 jest.mock("../src/social/mobile-social-query", () => ({
   useMobileFriendsQuery: () => ({ data: undefined }),
   useMobileSocialMutations: () => ({
@@ -98,7 +102,6 @@ const peerProfile: MobileUserProfile = {
   mutualServers: { count: 0, preview: [] },
   note: null,
   presence: { customStatus: null, status: "ONLINE" },
-  pronouns: null,
   registeredAt: "2025-04-02T09:00:00.000Z",
   relationship: "friend",
   self: false,

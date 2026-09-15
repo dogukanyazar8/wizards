@@ -430,6 +430,8 @@ export interface ServerToClientEvents {
    * event has one definition rather than one per lane that emits it.
    */
   "settings:updated": (payload: SettingsUpdatedEvent) => void;
+  /** Account-owned invalidation only; never sends session identifiers or security details. */
+  "account:security:changed": (payload: { sessionsChanged: boolean }) => void;
   /**
    * Etkinlikler Ş4. Beş olay, `server:<serverId>` odasına; herkese açık etkinlikte ayrıca
    * `events:public` odasına.

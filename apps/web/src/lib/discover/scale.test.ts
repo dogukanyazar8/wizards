@@ -8,6 +8,11 @@ import {
 } from "./scale";
 
 describe("Keşfet ilk sayfa yoğunluğu", () => {
+  it("masaüstünde pencere büyüyünce sabit arayüz ölçeğiyle aynı yoğunluğu kullanır", () => {
+    assert.equal(selectDiscoverPageSize({ width: 1360, height: 920 }, "desktop"), 24);
+    assert.equal(selectDiscoverPageSize({ width: 3840, height: 2160 }, "desktop"), 24);
+  });
+
   it("dört ölçek adımını 24, 24, 36, 48 kayda eşler", () => {
     assert.deepEqual(DISCOVER_PAGE_SIZES, { 1: 24, 1.15: 24, 1.5: 36, 2: 48 });
     assert.equal(selectDiscoverPageSizeForScale(1), 24);

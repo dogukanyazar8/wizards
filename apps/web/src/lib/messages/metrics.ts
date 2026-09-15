@@ -367,6 +367,8 @@ export const MESSAGES_METRICS = {
 
   /** Sohbet başlığı — SPEC §5.1. */
   conversation: {
+    /** Conversation and adjacent profile/search panels share one header baseline. */
+    headerHeight: 76,
     headerPaddingY: 15,
     headerPaddingX: 22,
     headerGap: 13,

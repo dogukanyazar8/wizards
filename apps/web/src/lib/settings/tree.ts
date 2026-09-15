@@ -1,9 +1,9 @@
 /**
- * Ayarlar penceresinin içerik ağacı — 6 bölüm · 27 alt sekme · 58 grup · 169 satır.
+ * Ayarlar penceresinin içerik ağacı — güncel sayımlar SETTINGS_TREE_COUNTS içinde.
  *
  * `design_handoff/app_new/ayarlar-paketi/referans/Ayarlar-referans.dc.html` içindeki `SET` dizisinden
  * **birebir** çıkarıldı; sıralama, gruplama ve metin referansın kendisidir. Bu dosya Ş7–Ş10'un
- * tek girdi kaynağıdır: hiçbir bölüm kendi satır listesini elle yazmaz, yoksa "169 satırın hepsi
+ * tek girdi kaynağıdır: hiçbir bölüm kendi satır listesini elle yazmaz, yoksa "166 satırın hepsi
  * çizili mi" sorusunun tek bir cevabı kalmaz.
  *
  * Ağaç **metin taşımaz**, i18n anahtarı taşır. Referanstaki Türkçe dizeler
@@ -24,13 +24,11 @@
  *   İkisi de durum tutmayan satırlar (`custom` ve `action`), bu yüzden çakışma zararsızdır;
  *   `tree.test.ts` bunu bir kural olarak sabitler.
  *
- * ## Aynı durumun iki anahtarla geçtiği yer
- *
- * `v7`/`x1` (`Hareketi azalt`) ve `v8`/`x5` (`Text-to-speech`) referansta ayrı anahtarlar ama tek
- * tercihtir (SPEC_DEVIATIONS #4). `stateKey` ikisini aynı kolona bağlar.
+ * Hareket tercihi Medya sekmesinde tek bir kontrolle sunulur.
  */
 
 import type { SettingsSection, SettingsTab } from "@/lib/settings/navigation";
+import { PROFILE_BIO_MAX_LENGTH, PROFILE_STATUS_MAX_LENGTH } from "@wizards/types";
 
 /** SPEC §4.4 — on üç kontrol tipi. Her ayar için elle markup yazmak yasak. */
 export type SettingsControlType =
@@ -51,6 +49,7 @@ export type SettingsControlType =
 /** PLAN §7.2 — yirmi özel blok yuvası. */
 export type SettingsBlockKey =
   | "hero"
+  | "profileEmoji"
   | "connections"
   | "secEvents"
   | "sessions"
@@ -60,7 +59,6 @@ export type SettingsBlockKey =
   | "themes"
   | "themeGrid"
   | "msgPreview"
-  | "appIcons"
   | "notifSummary"
   | "exceptions"
   | "shortcuts"
@@ -72,7 +70,7 @@ export type SettingsBlockKey =
   | "contributors";
 
 /** SPEC §5.1 — satır içinde açılan üç riskli akış. Aynı anda yalnız biri açık (tuzak #12). */
-export type SettingsRiskyBlockKey = "password" | "twoFactor" | "deleteAccount";
+export type SettingsRiskyBlockKey = "email" | "phone" | "password" | "twoFactor" | "deleteAccount";
 
 /**
  * Ton **token adının kısaltmasıdır**, renk değil: tüketici `--success` / `--warning` /
@@ -83,9 +81,12 @@ export type SettingsTone = "success" | "warning" | "danger" | "muted" | "info";
 export type SettingsActionDef = {
   labelKey: string;
   kind?: "primary" | "danger";
+  disabled?: boolean;
 };
 
 export type SettingsRowDef = {
+  /** Native-only controls stay out of shared web settings surfaces. */
+  desktopOnly?: boolean;
   /** Referanstaki anahtar (`pn`, `nt3`, `ns1` …). Bölüm içinde tekildir. */
   key: string;
   type: SettingsControlType;
@@ -98,7 +99,7 @@ export type SettingsRowDef = {
   badgeData?: string;
   tone?: SettingsTone;
   /** `toggle` / `sound` → boolean · `select` / `segment` → seçenek dizini · `slider` → sayı. */
-  defaultValue?: boolean | number;
+  defaultValue?: boolean | number | string;
   /** `select` / `segment` seçeneklerinin i18n anahtarları. */
   options?: readonly string[];
   /** `slider`: [min, max, birim]. Birim referanstaki biçimiyle (` ms`, ` px`, `%`). */
@@ -188,16 +189,10 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
                 prefixKey: "settings.row.pu.prefix",
               },
               {
-                key: "pz",
-                type: "input",
-                titleKey: "settings.row.pz.title",
-                descriptionKey: "settings.row.pz.description",
-              },
-              {
                 key: "pbio",
                 type: "textarea",
                 titleKey: "settings.row.pbio.title",
-                maxLength: 190,
+                maxLength: PROFILE_BIO_MAX_LENGTH,
               },
             ],
           },
@@ -218,33 +213,24 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
               },
               {
                 key: "ps",
-                type: "input",
+                type: "custom",
+                block: "profileEmoji",
+                defaultValue: "",
+                maxLength: PROFILE_STATUS_MAX_LENGTH,
                 titleKey: "settings.row.ps.title",
                 descriptionKey: "settings.row.ps.description",
-              },
-              {
-                key: "pe",
-                type: "select",
-                titleKey: "settings.row.pe.title",
-                defaultValue: 0,
-                options: [
-                  "settings.option.pe.1",
-                  "settings.option.pe.2",
-                  "settings.option.pe.3",
-                  "settings.option.pe.4",
-                  "settings.option.pe.5",
-                ],
               },
               {
                 key: "px",
                 type: "select",
                 titleKey: "settings.row.px.title",
-                defaultValue: 1,
+                defaultValue: 3,
                 options: [
                   "settings.option.px.1",
                   "settings.option.px.2",
                   "settings.option.px.3",
                   "settings.option.px.4",
+                  "settings.option.px.5",
                 ],
               },
             ],
@@ -261,6 +247,7 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
               {
                 key: "ae",
                 type: "action",
+                riskyBlock: "email",
                 titleKey: "settings.row.ae.title",
                 descriptionData: "email",
                 badgeKey: "settings.row.ae.badge",
@@ -268,22 +255,16 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
                 actions: [{ labelKey: "settings.action.ae.1" }],
               },
               {
-                key: "ae2",
-                type: "action",
-                titleKey: "settings.row.ae2.title",
-                descriptionData: "verificationEmailSentAt",
-                actions: [{ labelKey: "settings.action.ae2.1" }],
-              },
-              {
                 key: "ap",
                 type: "action",
+                riskyBlock: "phone",
                 titleKey: "settings.row.ap.title",
                 descriptionData: "phone",
                 badgeKey: "settings.row.ap.badge",
                 tone: "warning",
                 actions: [
                   { labelKey: "settings.action.ap.1" },
-                  { labelKey: "settings.action.ap.2" },
+                  { labelKey: "settings.action.ap.2", disabled: true },
                 ],
               },
               {
@@ -297,7 +278,6 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
           },
           {
             titleKey: "settings.group.account.account.2.title",
-            noteKey: "settings.group.account.account.2.note",
             rows: [
               {
                 key: "cn",
@@ -333,6 +313,7 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
                 key: "g7",
                 type: "toggle",
                 titleKey: "settings.row.g7.title",
+                descriptionKey: "settings.row.g7.description",
                 defaultValue: false,
               },
             ],
@@ -376,61 +357,6 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
                 titleKey: "settings.row.g6.title",
                 descriptionKey: "settings.row.g6.description",
                 defaultValue: true,
-              },
-            ],
-          },
-          {
-            titleKey: "settings.group.account.privacy.3.title",
-            rows: [
-              {
-                key: "g8",
-                type: "select",
-                titleKey: "settings.row.g8.title",
-                defaultValue: 1,
-                options: ["settings.option.g8.1", "settings.option.g8.2", "settings.option.g8.3"],
-              },
-            ],
-          },
-          {
-            titleKey: "settings.group.account.privacy.4.title",
-            rows: [
-              {
-                key: "l1",
-                type: "segment",
-                titleKey: "settings.row.l1.title",
-                defaultValue: 0,
-                options: ["settings.option.l1.1", "settings.option.l1.2"],
-              },
-              {
-                key: "l2",
-                type: "select",
-                titleKey: "settings.row.l2.title",
-                defaultValue: 0,
-                options: [
-                  "settings.option.l2.1",
-                  "settings.option.l2.2",
-                  "settings.option.l2.3",
-                  "settings.option.l2.4",
-                ],
-              },
-              {
-                key: "l3",
-                type: "select",
-                titleKey: "settings.row.l3.title",
-                defaultValue: 1,
-                options: [
-                  "settings.option.l3.1",
-                  "settings.option.l3.2",
-                  "settings.option.l3.3",
-                  "settings.option.l3.4",
-                ],
-              },
-              {
-                key: "l4",
-                type: "segment",
-                titleKey: "settings.row.l4.title",
-                defaultValue: 2,
-                options: ["settings.option.l4.1", "settings.option.l4.2", "settings.option.l4.3"],
               },
             ],
           },
@@ -648,23 +574,12 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
             noteKey: "settings.group.av.audio.3.note",
             rows: [
               {
-                key: "p1",
-                type: "toggle",
-                titleKey: "settings.row.p1.title",
-                descriptionKey: "settings.row.p1.description",
-                defaultValue: true,
-              },
-              {
-                key: "p2",
-                type: "toggle",
-                titleKey: "settings.row.p2.title",
-                defaultValue: true,
-              },
-              {
-                key: "p3",
-                type: "toggle",
-                titleKey: "settings.row.p3.title",
-                defaultValue: true,
+                key: "p7",
+                type: "select",
+                titleKey: "settings.row.p7.title",
+                descriptionKey: "settings.row.p7.description",
+                defaultValue: 0,
+                options: ["settings.option.p7.1", "settings.option.p7.2", "settings.option.p7.3"],
               },
               {
                 key: "p4",
@@ -677,28 +592,6 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
                 type: "toggle",
                 titleKey: "settings.row.p5.title",
                 defaultValue: false,
-              },
-              {
-                key: "p6",
-                type: "toggle",
-                titleKey: "settings.row.p6.title",
-                defaultValue: true,
-              },
-              {
-                key: "p7",
-                type: "select",
-                titleKey: "settings.row.p7.title",
-                defaultValue: 0,
-                options: ["settings.option.p7.1", "settings.option.p7.2", "settings.option.p7.3"],
-              },
-              {
-                key: "p9",
-                type: "action",
-                titleKey: "settings.row.p9.title",
-                descriptionData: "audioProcessingState",
-                badgeKey: "settings.row.p9.badge",
-                tone: "success",
-                actions: [{ labelKey: "settings.action.p9.1" }],
               },
             ],
           },
@@ -793,6 +686,7 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
                 key: "e5",
                 type: "toggle",
                 titleKey: "settings.row.e5.title",
+                descriptionKey: "settings.row.e5.description",
                 defaultValue: true,
               },
               {
@@ -937,32 +831,12 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
             titleKey: "settings.group.appearance.media.2.title",
             rows: [
               {
-                key: "v5",
-                type: "toggle",
-                titleKey: "settings.row.v5.title",
-                defaultValue: true,
-              },
-              {
-                key: "v6",
-                type: "select",
-                titleKey: "settings.row.v6.title",
-                defaultValue: 1,
-                options: ["settings.option.v6.1", "settings.option.v6.2", "settings.option.v6.3"],
-              },
-              {
                 key: "v7",
                 type: "toggle",
                 titleKey: "settings.row.v7.title",
                 descriptionKey: "settings.row.v7.description",
                 defaultValue: false,
                 stateKey: "reduceMotion",
-              },
-              {
-                key: "v8",
-                type: "toggle",
-                titleKey: "settings.row.v8.title",
-                defaultValue: false,
-                stateKey: "enableTTS",
               },
             ],
           },
@@ -994,7 +868,7 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
                 key: "y3",
                 type: "slider",
                 titleKey: "settings.row.y3.title",
-                defaultValue: 228,
+                defaultValue: 252,
                 range: [200, 300, " px"],
               },
               {
@@ -1016,17 +890,6 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
                 titleKey: "settings.row.y6.title",
                 descriptionKey: "settings.row.y6.description",
                 actions: [{ labelKey: "settings.action.y6.1" }],
-              },
-            ],
-          },
-          {
-            titleKey: "settings.group.appearance.layout.2.title",
-            noteKey: "settings.group.appearance.layout.2.note",
-            rows: [
-              {
-                key: "n1",
-                type: "custom",
-                block: "appIcons",
               },
             ],
           },
@@ -1060,34 +923,52 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
               },
             ],
           },
+        ],
+      },
+      {
+        key: "language",
+        labelKey: "settings.tab.appearance.language",
+        groups: [
           {
-            titleKey: "settings.group.appearance.accessibility.2.title",
+            titleKey: "settings.group.account.privacy.4.title",
             rows: [
               {
-                key: "x1",
-                type: "toggle",
-                titleKey: "settings.row.x1.title",
-                defaultValue: false,
-                stateKey: "reduceMotion",
+                key: "l1",
+                type: "segment",
+                titleKey: "settings.row.l1.title",
+                defaultValue: 0,
+                options: ["settings.option.l1.1", "settings.option.l1.2"],
               },
               {
-                key: "x5",
-                type: "toggle",
-                titleKey: "settings.row.x5.title",
-                defaultValue: false,
-                stateKey: "enableTTS",
+                key: "l2",
+                type: "select",
+                titleKey: "settings.row.l2.title",
+                defaultValue: 0,
+                options: [
+                  "settings.option.l2.1",
+                  "settings.option.l2.2",
+                  "settings.option.l2.3",
+                  "settings.option.l2.4",
+                ],
               },
               {
-                key: "x6",
-                type: "toggle",
-                titleKey: "settings.row.x6.title",
-                defaultValue: true,
+                key: "l3",
+                type: "select",
+                titleKey: "settings.row.l3.title",
+                defaultValue: 1,
+                options: [
+                  "settings.option.l3.1",
+                  "settings.option.l3.2",
+                  "settings.option.l3.3",
+                  "settings.option.l3.4",
+                ],
               },
               {
-                key: "x7",
-                type: "toggle",
-                titleKey: "settings.row.x7.title",
-                defaultValue: true,
+                key: "l4",
+                type: "segment",
+                titleKey: "settings.row.l4.title",
+                defaultValue: 2,
+                options: ["settings.option.l4.1", "settings.option.l4.2", "settings.option.l4.3"],
               },
             ],
           },
@@ -1656,6 +1537,13 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
                 titleKey: "settings.row.w2.title",
                 actions: [{ labelKey: "settings.action.desktopApp.manage" }],
               },
+              {
+                key: "w8",
+                type: "action",
+                titleKey: "settings.row.w8.title",
+                descriptionKey: "settings.row.w8.description",
+                actions: [{ labelKey: "settings.action.desktopApp.manage" }],
+              },
             ],
           },
           {
@@ -1711,15 +1599,6 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
                 type: "custom",
                 block: "shortcuts",
               },
-              {
-                key: "q3",
-                type: "action",
-                titleKey: "settings.row.q3.title",
-                descriptionData: "shortcutConflicts",
-                badgeData: "shortcutConflicts",
-                tone: "danger",
-                actions: [{ labelKey: "settings.action.q3.1", kind: "primary" }],
-              },
             ],
           },
         ],
@@ -1738,12 +1617,6 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
                 descriptionKey: "settings.row.z1.description",
                 defaultValue: true,
               },
-              {
-                key: "z5",
-                type: "toggle",
-                titleKey: "settings.row.z5.title",
-                defaultValue: true,
-              },
             ],
           },
           {
@@ -1754,6 +1627,13 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
                 type: "toggle",
                 titleKey: "settings.row.z2.title",
                 defaultValue: true,
+              },
+              {
+                key: "z5",
+                type: "toggle",
+                titleKey: "settings.row.z5.title",
+                descriptionKey: "settings.row.z5.description",
+                defaultValue: false,
               },
               {
                 key: "z3",
@@ -1818,6 +1698,15 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
           },
         ],
       },
+    ],
+  },
+  {
+    key: "updates",
+    labelKey: "settings.section.updates.label",
+    leadKey: "settings.section.updates.lead",
+    group: "info",
+    icon: "refresh",
+    tabs: [
       {
         key: "updates",
         labelKey: "settings.tab.desktop.updates",
@@ -1839,10 +1728,11 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
                 type: "segment",
                 titleKey: "settings.row.h2.title",
                 defaultValue: 0,
-                options: ["settings.option.h2.1", "settings.option.h2.2", "settings.option.h2.3"],
+                options: ["settings.option.h2.1", "settings.option.h2.2"],
               },
               {
                 key: "h4",
+                desktopOnly: true,
                 type: "toggle",
                 titleKey: "settings.row.h4.title",
                 descriptionKey: "settings.row.h4.description",
@@ -1851,22 +1741,50 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
             ],
           },
           {
+            titleKey: "settings.group.about.about.2.title",
+            rows: [
+              {
+                key: "o2",
+                type: "custom",
+                block: "version",
+              },
+            ],
+          },
+          {
+            titleData: "appVersion",
+            rows: [
+              {
+                key: "o4",
+                type: "custom",
+                block: "whatsNew",
+              },
+              {
+                key: "o5",
+                type: "nav",
+                titleKey: "settings.row.o5.title",
+                descriptionKey: "settings.row.o5.description",
+                navLabelKey: "settings.action.o5.1",
+              },
+            ],
+          },
+          {
             titleKey: "settings.group.desktop.updates.2.title",
             rows: [
               {
                 key: "n3",
+                desktopOnly: true,
                 type: "custom",
                 block: "diag",
               },
               {
                 key: "n4",
+                desktopOnly: true,
                 type: "action",
                 titleKey: "settings.row.n4.title",
                 descriptionKey: "settings.row.n4.description",
                 actions: [
                   { labelKey: "settings.action.n4.1" },
                   { labelKey: "settings.action.n4.2" },
-                  { labelKey: "settings.action.n4.3" },
                 ],
               },
             ],
@@ -1896,40 +1814,6 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
             ],
           },
           {
-            titleKey: "settings.group.about.about.2.title",
-            rows: [
-              {
-                key: "o2",
-                type: "custom",
-                block: "version",
-              },
-              {
-                key: "o3",
-                type: "action",
-                titleKey: "settings.row.o3.title",
-                descriptionData: "updateChannelState",
-                actions: [{ labelKey: "settings.action.o3.1", kind: "primary" }],
-              },
-            ],
-          },
-          {
-            titleData: "appVersion",
-            rows: [
-              {
-                key: "o4",
-                type: "custom",
-                block: "whatsNew",
-              },
-              {
-                key: "o5",
-                type: "nav",
-                titleKey: "settings.row.o5.title",
-                descriptionKey: "settings.row.o5.description",
-                navLabelKey: "settings.action.o5.1",
-              },
-            ],
-          },
-          {
             titleKey: "settings.group.about.about.4.title",
             rows: [
               {
@@ -1950,10 +1834,10 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
  * dosyada durur ki bir satır eklendiğinde iki yerde birden yalan söylemek gereksin.
  */
 export const SETTINGS_TREE_COUNTS = {
-  sections: 6,
-  tabs: 27,
-  groups: 58,
-  rows: 169,
+  sections: 7,
+  tabs: 28,
+  groups: 55,
+  rows: 151,
   controlTypes: 13,
   blocks: 20,
   risky: 3,
@@ -1970,9 +1854,10 @@ export const SETTINGS_LOCKED_ROW_KEYS = ["nt13", "nt14"] as const;
 export const SETTINGS_TAB_COUNTS: Readonly<Record<SettingsSection, number>> = {
   account: 6,
   av: 3,
-  appearance: 5,
+  appearance: 6,
   notifications: 7,
-  desktop: 5,
+  desktop: 4,
+  updates: 1,
   about: 1,
 };
 

@@ -119,29 +119,6 @@ export const DOWNLOAD_METRICS = {
     emptyFontSize: 11.5,
   },
 
-  /** SPEC §B.6 — PROD/UAT fark tablosu. */
-  compare: {
-    marginTop: 16,
-    radius: 16,
-    borderAlpha: 0.7,
-    headerPaddingTop: 11,
-    headerPaddingX: 13,
-    headerPaddingBottom: 9,
-    headerSurfaceAlpha: 0.5,
-    labelColumnWidth: 96,
-    columnGap: 10,
-    labelFontSize: 10,
-    labelLineHeight: 1.3,
-    labelLetterSpacing: 0.13,
-    columnFontSize: 11,
-    columnLetterSpacing: 0.06,
-    rowPaddingY: 10,
-    rowPaddingX: 13,
-    rowDividerAlpha: 0.5,
-    rowFontSize: 11.5,
-    rowLineHeight: 1.35,
-  },
-
   /** SPEC §B.7 — alt bar; ölçüler Sorun bildir alt barıyla ortak. */
   footer: {
     secondaryPaddingX: 15,

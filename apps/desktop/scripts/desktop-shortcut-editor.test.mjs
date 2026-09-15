@@ -6,6 +6,7 @@ import {
   captureDesktopShortcut,
   validateDesktopShortcutAssignments,
 } from "../src-tauri/assets/desktop-control/shortcut-editor.mjs";
+import { formatShortcut } from "../../../packages/ui/src/platform-keyboard.mjs";
 
 function keyEvent(overrides = {}) {
   return {
@@ -20,6 +21,16 @@ function keyEvent(overrides = {}) {
 }
 
 describe("Desktop Control shortcut editor", () => {
+  it("formats physical key captures without changing the accelerator sent to native", () => {
+    const captured = captureDesktopShortcut(
+      keyEvent({ ctrlKey: true, altKey: true, code: "Digit1", key: "1" }),
+    );
+    assert.equal(captured.kind, "captured");
+    assert.equal(formatShortcut(captured.accelerator, "macos"), "⌃⌥1");
+    assert.equal(formatShortcut(captured.accelerator, "windows"), "Ctrl+Alt+1");
+    assert.equal(captured.accelerator, "Control+Alt+1");
+    assert.deepEqual(validateDesktopShortcutAssignments({ toggleMute: captured.accelerator }), {});
+  });
   it("starts disabled with five valid device-local defaults", () => {
     assert.deepEqual(DEFAULT_DESKTOP_SHORTCUTS, {
       hideGameOverlay: "Alt+H",

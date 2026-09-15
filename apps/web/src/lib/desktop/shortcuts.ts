@@ -1,6 +1,7 @@
 "use client";
 
 import { DesktopShortcutSchema, type DesktopShortcut } from "@wizards/types";
+import { formatShortcutParts } from "@wizards/ui/platform-keyboard.mjs";
 
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import { isApplicationShortcutAccelerator } from "@/lib/shortcuts/reserved";
@@ -87,12 +88,6 @@ const MODIFIER_ALIASES: Readonly<Record<string, "alt" | "control" | "meta" | "sh
   shift: "shift",
   super: "meta",
 };
-
-const MODIFIER_LABELS = {
-  linux: { alt: "Alt", control: "Ctrl", meta: "Super", shift: "Shift" },
-  macos: { alt: "⌥", control: "⌃", meta: "⌘", shift: "⇧" },
-  windows: { alt: "Alt", control: "Ctrl", meta: "Win", shift: "Shift" },
-} as const;
 
 /** Rust `MAX_DESKTOP_SHORTCUT_LENGTH` ile aynı sınır. */
 const MAX_ACCELERATOR_LENGTH = 64;
@@ -189,23 +184,9 @@ export function isValidDesktopShortcut(value: string): boolean {
  */
 export function toDesktopShortcutCapsules(
   accelerator: string,
-  platform: string | null = "macos",
+  platform: string | null = null,
 ): string[] {
-  const labels =
-    platform === "windows"
-      ? MODIFIER_LABELS.windows
-      : platform === "linux"
-        ? MODIFIER_LABELS.linux
-        : MODIFIER_LABELS.macos;
-
-  return accelerator
-    .split("+")
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0)
-    .map((part) => {
-      const modifier = MODIFIER_ALIASES[part.toLowerCase()];
-      return modifier ? labels[modifier] : part;
-    });
+  return formatShortcutParts(accelerator, platform);
 }
 
 /**
@@ -302,7 +283,7 @@ export function mergeDesktopShortcutStatus(
   assignments: DesktopShortcutAssignments,
   bridgeEntries: readonly DesktopShortcutBridgeEntry[] | null,
   enabled: boolean,
-  platform: string | null = "macos",
+  platform: string | null = null,
 ): DesktopShortcut[] {
   const byLabel = new Map<string, DesktopShortcutBridgeEntry>();
 
@@ -389,7 +370,39 @@ export function fromDesktopShortcutCapsules(keys: readonly string[]): string {
     .join("+");
 }
 
-function toBridgeConfig(assignments: DesktopShortcutAssignments, enabled: boolean) {
+/** Native device assignments preserve explicitly unassigned shortcuts. */
+export function nativeDesktopShortcutAssignments(
+  status: DesktopShortcutNativeStatus,
+): DesktopShortcutAssignments {
+  return Object.fromEntries(
+    DESKTOP_SHORTCUT_ACTIONS.map((action) => [
+      action,
+      status.entries
+        .find((entry) => entry.action === BRIDGE_LABEL_BY_ACTION[action])
+        ?.keys.join("+") ?? DEFAULT_DESKTOP_SHORTCUT_ASSIGNMENTS[action],
+    ]),
+  ) as DesktopShortcutAssignments;
+}
+
+export function desktopShortcutDraftError(
+  assignments: DesktopShortcutAssignments,
+  platform: string,
+): "invalid" | "duplicate" | null {
+  const seen = new Set<string>();
+  for (const value of Object.values(assignments)) {
+    if (!value) continue;
+    if (!isValidDesktopShortcut(value)) return "invalid";
+    const normalized = toDesktopShortcutCapsules(value, platform)
+      .map((key) => key.toLowerCase())
+      .sort()
+      .join("+");
+    if (seen.has(normalized)) return "duplicate";
+    seen.add(normalized);
+  }
+  return null;
+}
+
+export function toDesktopShortcutConfig(assignments: DesktopShortcutAssignments, enabled: boolean) {
   const config: Record<string, unknown> = { shortcutsEnabled: enabled };
 
   for (const action of DESKTOP_SHORTCUT_ACTIONS) {
@@ -448,7 +461,7 @@ export function writeDesktopShortcutStatus(
   enabled: boolean,
 ): Promise<DesktopShortcutBridgeEntry[] | null> {
   return invokeDesktopShortcutCommand<DesktopShortcutBridgeEntry[]>("configure_desktop_shortcuts", {
-    config: toBridgeConfig(assignments, enabled),
+    config: toDesktopShortcutConfig(assignments, enabled),
   });
 }
 

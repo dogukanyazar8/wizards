@@ -7,6 +7,7 @@ import { WindowCloseButton } from "@/components/ui/window-close-button";
 import { DISPLAY_FONT, DISPLAY_TRACKING } from "@/components/servers/shared/typography";
 import { SERVER_METRICS, hairline, pxToRem } from "@/lib/servers/metrics";
 import { useLayerStack } from "@/lib/servers/use-layer-stack";
+import { cn } from "@/lib/utils";
 
 /**
  * SPEC-SUNUCU §6 — sunucu pencerelerinin ortak kabuğu.
@@ -64,7 +65,7 @@ export type ServerModalShellProps = {
   readonly layerId?: string | undefined;
   readonly onClose: () => void;
   readonly open: boolean;
-  /** Gövde kaydırılabilir olmalı mı — kategori ve etkinlik pencerelerinde evet. */
+  /** Uzun içerik varsayılan olarak kartın içinde kaydırılır. */
   readonly scrollBody?: boolean;
   readonly title: string;
   readonly tone?: ServerModalTone;
@@ -167,7 +168,7 @@ export function ServerModalShell({
   layerId,
   onClose,
   open,
-  scrollBody = false,
+  scrollBody = true,
   title,
   tone = "primary",
   width,
@@ -193,7 +194,7 @@ export function ServerModalShell({
       overlayStyle={{ ...serverModalOverlayStyle(), zIndex: layer.zIndex }}
     >
       <div
-        className="flex items-start"
+        className="flex shrink-0 items-start"
         style={{
           borderBottom: `${hairline()} solid hsl(var(--border)/${modal.headerBorderBottomAlpha})`,
           gap: pxToRem(modal.headerGap),
@@ -242,7 +243,11 @@ export function ServerModalShell({
       </div>
 
       <div
-        className={bodyClassName ?? (scrollBody ? "min-h-0 flex-1 overflow-y-auto" : undefined)}
+        className={cn(
+          "min-h-0 min-w-0",
+          scrollBody && "flex-auto overflow-y-auto overscroll-contain",
+          bodyClassName,
+        )}
         style={{
           ...bodyStyle,
           paddingBottom: pxToRem(bodyPaddingBottom ?? modal.bodyPaddingBottom),
@@ -254,7 +259,7 @@ export function ServerModalShell({
         {children}
       </div>
 
-      {footer}
+      {footer ? <div className="shrink-0">{footer}</div> : null}
     </Modal>
   );
 }

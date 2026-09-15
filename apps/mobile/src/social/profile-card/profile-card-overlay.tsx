@@ -59,6 +59,7 @@ import {
 } from "../profile-badges/profile-badge-detail-sheet";
 import { ProfileCardMenu, type ProfileCardMenuItem } from "./profile-card-menu";
 import { ProfileCardErrorState, ProfileCardSkeleton, ProfileCardView } from "./profile-card-view";
+import { useMobileGameActivity } from "../mobile-game-activity";
 import { PROFILE_CARD_OPEN_DURATION_MS, useProfileCardStyles } from "./profile-card.styles";
 
 export interface MobileProfileCardTarget {
@@ -160,6 +161,7 @@ function ProfileCardOverlay({
     userId: target.userId,
   });
   const profile = profileQuery.data ?? null;
+  const gameName = useMobileGameActivity(apiClient, target.userId, open && status === "signed-in");
   const displayName = profile ? (profile.user.displayName ?? profile.user.username) : "";
   // Starts with the profile read, not after it: the chip row reserves its height
   // either way, so whichever request lands second does not move the card.
@@ -539,6 +541,9 @@ function ProfileCardOverlay({
         >
           {profile ? (
             <ProfileCardView
+              gameActivityLabel={
+                gameName ? labels.profilePlayingGame.replace("{game}", gameName) : null
+              }
               badges={badgesQuery.data?.badges ?? []}
               // `isLoading`, not `isPending`: a disabled query is pending
               // forever, and a signed-out card would hold an empty row for good.
@@ -656,6 +661,7 @@ function ProfileCardOverlay({
             presence={profile.presence.status}
           />
           <MobileCustomStatusSheet
+            customStatusExpiresAt={accountQuery.data?.account.customStatusExpiresAt ?? null}
             client={apiClient}
             customStatus={profile.presence.customStatus}
             customStatusEmoji={customStatusEmoji}

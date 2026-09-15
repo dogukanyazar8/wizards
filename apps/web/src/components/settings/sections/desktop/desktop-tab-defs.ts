@@ -2,41 +2,14 @@ import type { SettingsGroupDef, SettingsRowDef, SettingsTabDef } from "@/lib/set
 
 import { DESKTOP_ROW_DATA_FIELDS } from "./desktop-settings-bridge";
 
-/**
- * Ağaç tanımının çalışma zamanı türevi — Ş10.
- *
- * `lib/settings/tree.ts` bu şeritte **okunur, yazılmaz**. Ama iki satırın pili çalışma
- * zamanında bilinir ve ağaca yazılamaz:
- *
- * - `q3` (`Kısayol atamaları`) referansta `1 çakışma` pili taşıyor. Sabit `1` bir tasarım
- *   kararıydı, ürün gerçeği değil: çakışma sayısı işletim sisteminin kayıt cevabından çıkar ve
- *   sıfır olduğunda pil `danger` tonuyla durmamalı.
- * - `h1` (`Mevcut sürüm`) referansta `Güncel` pili taşıyor. Güncelleyici kontrol ederken ya da
- *   yeni sürüm bulduğunda o pil yalan söylerdi.
- *
- * Türev **eksiltmez**: satır sayısı, sırası ve anahtarları ağacınkiyle aynı kalır.
- */
-
+/** The update badge follows the verified native updater state. */
 export type DesktopTabDerivation = {
-  /** Gerçek kayıt sonucundan sayılan çakışma; `0` pili düşürür. */
-  readonly conflictCount: number;
-  /** Güncelleyici bir sürüm bulduysa `Güncel` pili düşer. */
-  readonly upToDate: boolean;
+  /** Yalnız doğrulanmış güncel durumunda rozet gösterilir; null henüz bilinmiyor demektir. */
+  readonly upToDate: boolean | null;
 };
 
 function deriveRow(row: SettingsRowDef, input: DesktopTabDerivation): SettingsRowDef {
-  if (row.key === "q3") {
-    if (input.conflictCount > 0) {
-      return row;
-    }
-
-    // Çakışma yokken pil de ton da düşer; `badgeData` kalsa boş bir pil çizilirdi.
-    const { badgeData, tone, ...rest } = row;
-
-    return rest;
-  }
-
-  if (row.key === "h1" && !input.upToDate) {
+  if (row.key === "h1" && input.upToDate !== true) {
     const { badgeKey, tone, ...rest } = row;
 
     return rest;

@@ -158,16 +158,13 @@ test.describe("SPEC-INDIRME — ray düğmeleri ve iki pencere", () => {
     expect(catalogRequests).toBe(requestsAfterOpen);
   });
 
-  test("fark tablosu dört satır ve iki sütun taşıyor", async ({ page }) => {
+  test("indirme penceresi kaldırılan fark tablosunu göstermiyor", async ({ page }) => {
     await loginAs(page, "alice");
     await gotoAppRoute(page, "/home", HOME_READY);
     await page.getByTestId("server-rail-download-button").click();
 
-    const compare = page.getByTestId("download-compare");
-    await expect(compare).toBeVisible();
-    for (const label of ["Sunucu", "Hesap", "Güncelleme", "Veri"]) {
-      await expect(compare).toContainText(label);
-    }
+    await expect(page.getByTestId("download-modal")).toBeVisible();
+    await expect(page.getByTestId("download-compare")).toHaveCount(0);
   });
 
   for (const theme of THEMES) {

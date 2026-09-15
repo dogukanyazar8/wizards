@@ -109,9 +109,7 @@ export function isDesktopDownloadPlatform(platform: DownloadPlatform): boolean {
 }
 
 /**
- * `STABLE` yayındaki kararlı sürümdür ve pencerede PROD kartı odur. `BETA`
- * masaüstü/mobil indirme kataloğunda karşılığı olmayan bir kanaldır; katalog
- * yalnız iki ortam gösterir, o yüzden okuma tarafı yalnız bu ikisini sorar.
+ * STABLE is the PROD (Stable) catalog; UAT is the Beta catalog.
  */
 export const DOWNLOAD_ENVIRONMENT_CHANNEL = {
   prod: "STABLE",

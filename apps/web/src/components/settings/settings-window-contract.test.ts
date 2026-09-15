@@ -138,7 +138,7 @@ describe("Pencere kabuğu", () => {
 
   it("modal içinde rota değişimlerini replace eder; çarpı tek geri adımda kapatır", () => {
     assert.match(windowSource, /resolveSettingsNavigationMethod\(mode\)/u);
-    assert.match(windowSource, /router\[navigationMethod\]\(buildSettingsHref/u);
+    assert.match(windowSource, /writeSettingsHistory\(window\.history, navigationMethod,/u);
     assert.match(windowSource, /if \(mode === "modal"\) \{\s+router\.back\(\)/u);
   });
 
@@ -146,7 +146,10 @@ describe("Pencere kabuğu", () => {
     assert.match(windowSource, /rowKey: string/u);
     assert.match(windowSource, /setHighlightedRowKey\(target\.rowKey\)/u);
     assert.match(windowSource, /useSearchParams\(\)/u);
-    assert.match(windowSource, /highlight=\$\{encodeURIComponent\(target\.rowKey\)\}/u);
+    assert.match(
+      windowSource,
+      /writeSettingsHistory\(window\.history, navigationMethod, target, target\.rowKey\)/u,
+    );
     assert.match(windowSource, /<SettingsSearchHighlightProvider rowKey=\{highlightedRowKey\}>/u);
   });
 

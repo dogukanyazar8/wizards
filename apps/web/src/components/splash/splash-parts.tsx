@@ -16,6 +16,7 @@ import {
 
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { useI18n } from "@/components/providers/locale-provider";
+import { useAppShortcutLabel } from "@/hooks/use-app-shortcut-label";
 import { SPLASH_STEP_DONE_ICON, type SplashStateVisual } from "@/components/splash/splash-visuals";
 
 /**
@@ -61,9 +62,10 @@ export function SplashTagline() {
 
 export function SplashTip({ tipKey }: { tipKey: string | null }) {
   const { t } = useI18n();
+  const shortcut = useAppShortcutLabel("commandPalette.toggle");
 
   // Sunucuda seçim yapılmaz (hidrasyon uyuşmazlığı olurdu); satır yerini korur.
-  return <p className="whispr-splash-tip">{tipKey ? t(tipKey) : " "}</p>;
+  return <p className="whispr-splash-tip">{tipKey ? t(tipKey, { shortcut }) : " "}</p>;
 }
 
 export function SplashPill({ environment }: { environment: SplashEnvironment }) {

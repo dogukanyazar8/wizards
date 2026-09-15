@@ -83,7 +83,7 @@ describe("mobile update controller factory", () => {
     { buildEnvironment: "production" as const, platform: "android" as const },
     { buildEnvironment: "uat" as const, platform: "ios" as const },
     {
-      buildEnvironment: "canary" as const,
+      buildEnvironment: "uat" as const,
       platform: "android" as const,
       currentVersionCode: 8_200,
     },

@@ -1,5 +1,7 @@
 "use client";
 
+import { confirmAction } from "@/lib/confirmation";
+
 import React, { useState } from "react";
 import { BookOpen, Loader2, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@wizards/ui";
@@ -84,7 +86,10 @@ export function AdminHelpArticles({ articles }: { articles: AdminHelpArticle[] }
   }
 
   async function removeArticle() {
-    if (!editor.id || !window.confirm(`${editor.title} makalesini silmek istiyor musun?`)) {
+    if (
+      !editor.id ||
+      !(await confirmAction(`${editor.title} makalesini silmek istiyor musun?`, true))
+    ) {
       return;
     }
 

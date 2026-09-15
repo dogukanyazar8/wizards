@@ -226,8 +226,10 @@ describe("a11y — renk tek başına anlam taşımıyor", () => {
     assert.match(ITEM, /stateLabel/u);
     assert.match(
       ITEM,
-      /aria-label=\{\[notification\.title, notification\.body, time, stateLabel\]/u,
+      /"aria-label": \[notification\.title, notification\.body, time, stateLabel\]/u,
     );
+    assert.match(ITEM, /<Link\s+\{\.\.\.rowProps\}/u);
+    assert.match(ITEM, /<button \{\.\.\.rowProps\}/u);
     // Nokta yalnız görsel bir tekrar.
     assert.match(ITEM, /data-testid="notification-panel-row-dot"/u);
     assert.match(ITEM, /aria-hidden="true"/u);

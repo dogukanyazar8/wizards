@@ -103,7 +103,7 @@ describe("admin OTA publication service", () => {
       (error: unknown) => error instanceof ApiError && error.code === "RELEASE_MUST_BE_PUBLISHED",
     );
     await assert.rejects(
-      registerAdminOtaBundle("release-1", { ...input, channel: "BETA" }, dependencies()),
+      registerAdminOtaBundle("release-1", { ...input, channel: "STABLE" }, dependencies()),
       (error: unknown) => error instanceof ApiError && error.code === "OTA_CHANNEL_MISMATCH",
     );
   });

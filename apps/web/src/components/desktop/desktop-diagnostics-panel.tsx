@@ -135,20 +135,8 @@ function formatDesktopError(error: unknown, fallback: string) {
 }
 
 async function readNotificationPermission() {
-  try {
-    const api = await import("@tauri-apps/plugin-notification");
-    if (await api.isPermissionGranted().catch(() => false)) {
-      return "granted";
-    }
-  } catch {
-    // Fall through to the browser Notification API when the Tauri plugin is absent.
-  }
-
-  if (typeof window !== "undefined" && "Notification" in window) {
-    return Notification.permission;
-  }
-
-  return "unknown";
+  const { readDesktopPermission } = await import("@/lib/desktop/permissions");
+  return readDesktopPermission("notifications");
 }
 
 export function DesktopDiagnosticsPanel() {

@@ -4,16 +4,14 @@ import { fileURLToPath } from "node:url";
 /**
  * Referans tasarım ağacını okuyan tek yer.
  *
- * `design_handoff/` sürüm kontrolüne girmez (`.git/info/exclude`); yerel bir varlıktır ve
- * zaman zaman yeniden düzenlenir. Parity kapıları ağacı doğrudan okurken her dosya kendi
- * göreli yolunu taşıyordu; ağaç bir kez taşınınca sekiz test dosyası birden okunamaz hâle
- * geldi. Kök artık burada tanımlı: bir sonraki düzenlemede yalnız bu dosya güncellenir.
+ * Parite kapılarının kullandığı referanslar sürüm kontrollü test verisidir. Böylece
+ * yerel tasarım klasörü bulunmayan temiz CI checkout'ları aynı sözleşmeyi doğrular.
  */
 
 /** `apps/web/src/lib/` → depo kökü. */
 const REPO_ROOT = new URL("../../../../", import.meta.url);
 
-const DESIGN_ROOT = new URL("design_handoff/app_new/", REPO_ROOT);
+const DESIGN_ROOT = new URL("apps/web/test-fixtures/design/", REPO_ROOT);
 
 /**
  * Referans tasarım ağacından bir dosyayı okur. `relativePath` ağacın kökünden itibarendir,
@@ -31,8 +29,7 @@ export function readDesignReference(relativePath: string): string {
     throw new Error(
       `Referans tasarım dosyası okunamadı: ${relativePath}\n` +
         `Aranan yol: ${fileURLToPath(url)}\n` +
-        "`design_handoff/` ağacı sürüm kontrolünde değildir; yerel kopya eksik ya da " +
-        "taşınmışsa parity kapıları koşamaz.",
+        "Sürüm kontrollü `apps/web/test-fixtures/design/` referansını kontrol edin.",
       { cause },
     );
   }

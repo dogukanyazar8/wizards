@@ -38,10 +38,11 @@ const ERROR_KEY: Readonly<Record<string, string>> = {
 };
 
 export type PasswordBlockProps = {
+  readonly email?: string;
   readonly onClose: () => void;
 };
 
-export function PasswordBlock({ onClose }: PasswordBlockProps) {
+export function PasswordBlock({ email = "", onClose }: PasswordBlockProps) {
   const { t } = useI18n();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -51,7 +52,7 @@ export function PasswordBlock({ onClose }: PasswordBlockProps) {
   const [done, setDone] = useState(false);
 
   const submit = () => {
-    if (pending) return;
+    if (pending || !current || !next || !confirm) return;
 
     setPending(true);
     setError(null);
@@ -76,63 +77,74 @@ export function PasswordBlock({ onClose }: PasswordBlockProps) {
   };
 
   return (
-    <RiskyGrid>
-      <RiskyField
-        autoComplete="current-password"
-        label={t("settings.block.password.current")}
-        onChange={setCurrent}
-        span="full"
-        testId="settings-password-current"
-        type="password"
-        value={current}
-      />
-      <RiskyField
-        autoComplete="new-password"
-        label={t("settings.block.password.next")}
-        onChange={setNext}
-        testId="settings-password-next"
-        type="password"
-        value={next}
-      />
-      <RiskyField
-        autoComplete="new-password"
-        invalid={confirm.length > 0 && confirm !== next}
-        label={t("settings.block.password.confirm")}
-        onChange={setConfirm}
-        testId="settings-password-confirm"
-        type="password"
-        value={confirm}
-      />
+    <form
+      data-testid="settings-password-form"
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit();
+      }}
+    >
+      {/* Give password managers the account identity inside this form, so they
+          do not use the settings search input as the username field. */}
+      <input autoComplete="username" name="username" type="text" value={email} readOnly hidden />
+      <RiskyGrid>
+        <RiskyField
+          autoComplete="current-password"
+          label={t("settings.block.password.current")}
+          onChange={setCurrent}
+          span="full"
+          testId="settings-password-current"
+          type="password"
+          value={current}
+        />
+        <RiskyField
+          autoComplete="new-password"
+          label={t("settings.block.password.next")}
+          onChange={setNext}
+          testId="settings-password-next"
+          type="password"
+          value={next}
+        />
+        <RiskyField
+          autoComplete="new-password"
+          invalid={confirm.length > 0 && confirm !== next}
+          label={t("settings.block.password.confirm")}
+          onChange={setConfirm}
+          testId="settings-password-confirm"
+          type="password"
+          value={confirm}
+        />
 
-      {error ? (
-        <RiskyMessage
-          testId="settings-password-error"
-          text={[t(error.key), ...error.rules.map((rule) => t(RULE_KEY[rule] ?? rule))].join(" ")}
-          tone="danger"
-        />
-      ) : null}
-      {done ? (
-        <RiskyMessage
-          testId="settings-password-done"
-          text={t("settings.security.password.success")}
-          tone="success"
-        />
-      ) : null}
+        {error ? (
+          <RiskyMessage
+            testId="settings-password-error"
+            text={[t(error.key), ...error.rules.map((rule) => t(RULE_KEY[rule] ?? rule))].join(" ")}
+            tone="danger"
+          />
+        ) : null}
+        {done ? (
+          <RiskyMessage
+            testId="settings-password-done"
+            text={t("settings.security.password.success")}
+            tone="success"
+          />
+        ) : null}
 
-      <RiskyFooter help={t("settings.block.password.help")}>
-        <RiskyButton
-          label={t("settings.block.password.cancel")}
-          onClick={onClose}
-          testId="settings-password-cancel"
-        />
-        <RiskyButton
-          disabled={pending || !current || !next || !confirm}
-          label={t("settings.block.password.submit")}
-          onClick={submit}
-          testId="settings-password-submit"
-          tone="primary"
-        />
-      </RiskyFooter>
-    </RiskyGrid>
+        <RiskyFooter help={t("settings.block.password.help")}>
+          <RiskyButton
+            label={t("settings.block.password.cancel")}
+            onClick={onClose}
+            testId="settings-password-cancel"
+          />
+          <RiskyButton
+            disabled={pending || !current || !next || !confirm}
+            label={t("settings.block.password.submit")}
+            onClick={submit}
+            testId="settings-password-submit"
+            tone="primary"
+          />
+        </RiskyFooter>
+      </RiskyGrid>
+    </form>
   );
 }

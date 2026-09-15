@@ -10,9 +10,21 @@ import {
   APP_SHORTCUT_CATALOG,
   APP_SHORTCUT_IDS,
   getAppShortcutLabels,
+  getAppShortcutAccessibleLabels,
+  getAppShortcutAriaKeyShortcuts,
   matchesAppShortcut,
   resolveAppShortcut,
 } from "./catalog";
+
+it("ignores keydown events without a usable key, including synthetic autofill events", () => {
+  for (const key of [undefined, null, 42, {}, ""]) {
+    const event = { key, ctrlKey: true } as unknown as Parameters<typeof matchesAppShortcut>[1];
+    assert.equal(matchesAppShortcut("commandPalette.toggle", event), false);
+    assert.equal(resolveAppShortcut(APP_SHORTCUT_IDS, event), null);
+  }
+  const event = new Event("keydown") as unknown as Parameters<typeof matchesAppShortcut>[1];
+  assert.equal(resolveAppShortcut(APP_SHORTCUT_IDS, event), null);
+});
 
 function press(
   key: string,
@@ -54,6 +66,31 @@ describe("application shortcut catalog", () => {
     assert.deepEqual(getAppShortcutLabels("commandPalette.toggle", "windows"), ["Ctrl+K"]);
     assert.deepEqual(getAppShortcutLabels("navigation.back", "macos"), ["⌥←", "⌘["]);
     assert.deepEqual(getAppShortcutLabels("navigation.back", "windows"), ["Alt+←"]);
+  });
+
+  it("keeps every catalog binding visible across platforms, including the literal plus key", () => {
+    for (const platform of ["windows", "macos", "linux", "unknown"] as const) {
+      for (const id of APP_SHORTCUT_IDS) {
+        const labels = getAppShortcutLabels(id, platform);
+        assert.ok(labels.length > 0, `${platform}: ${id}`);
+        assert.ok(
+          labels.every((label) => label.length > 0),
+          `${platform}: ${id}`,
+        );
+      }
+      assert.deepEqual(getAppShortcutLabels("message.addReaction", platform), ["+"]);
+    }
+    assert.deepEqual(getAppShortcutLabels("commandPalette.toggle", "unknown"), ["Ctrl/Cmd+K"]);
+    assert.deepEqual(getAppShortcutAccessibleLabels("navigation.back", "macos"), [
+      "Option + ArrowLeft",
+      "Command + [",
+    ]);
+    assert.equal(getAppShortcutAriaKeyShortcuts("commandPalette.toggle", "macos"), "Meta+k");
+    assert.equal(getAppShortcutAriaKeyShortcuts("commandPalette.toggle", "windows"), "Control+k");
+    assert.equal(
+      getAppShortcutAriaKeyShortcuts("commandPalette.toggle", "unknown"),
+      "Control+k Meta+k",
+    );
   });
 
   it("matches modifiers exactly and respects typing-target policy", () => {

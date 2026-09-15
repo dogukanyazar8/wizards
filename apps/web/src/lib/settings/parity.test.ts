@@ -304,7 +304,6 @@ describe("settings parity — kayıt şeridi ve sapmaların HTML tarafı", () =>
         "exceptions.ne1Group",
         "sounds.storage",
         "desktopShortcuts.storage",
-        "releaseChannel.canary",
         "desktopShortcuts.remoteActions",
       ],
     );
@@ -321,6 +320,7 @@ describe("settings parity — yirmi özel bloğun tamamı", () => {
   /** `SettingsBlockKey`'in yirmi değeri ↔ sözlükteki ölçü kaydı. */
   const BLOCK_METRICS: Readonly<Record<string, string>> = {
     hero: "hero",
+    profileEmoji: "input",
     connections: "connections",
     secEvents: "securityEvents",
     sessions: "sessions",
@@ -330,7 +330,6 @@ describe("settings parity — yirmi özel bloğun tamamı", () => {
     themes: "simpleThemes",
     themeGrid: "themeGrid",
     msgPreview: "messagePreview",
-    appIcons: "appIconGrid",
     notifSummary: "notifSummary",
     exceptions: "exceptions",
     shortcuts: "shortcuts",
@@ -343,7 +342,10 @@ describe("settings parity — yirmi özel bloğun tamamı", () => {
   };
 
   it("yirmi yuvanın yirmisinin de ölçü kaydı var", () => {
-    const blocks = SETTINGS_METRICS.blocks as unknown as Record<string, unknown>;
+    const blocks = { ...SETTINGS_METRICS.blocks, input: SETTINGS_METRICS.controls.input } as Record<
+      string,
+      unknown
+    >;
     const missing = Object.entries(BLOCK_METRICS)
       .filter(([, metricKey]) => blocks[metricKey] === undefined)
       .map(([blockKey]) => blockKey);
@@ -365,12 +367,11 @@ describe("settings parity — yirmi özel bloğun tamamı", () => {
   });
 
   it("blok ölçülerinin referanstaki karşılığı gerçekten orada", () => {
-    const { micMeter, appIconGrid, securityEvents, connections } = SETTINGS_METRICS.blocks;
+    const { micMeter, securityEvents, connections } = SETTINGS_METRICS.blocks;
 
     assertReferenceContains(
       `height:${micMeter.segmentHeight}px;border-radius:${micMeter.radius}px`,
     );
-    assertReferenceContains(`width:${appIconGrid.tileSize}px;height:${appIconGrid.tileSize}px`);
     assertReferenceContains(
       `width:${securityEvents.dotSize}px;height:${securityEvents.dotSize}px;border-radius:50%`,
     );

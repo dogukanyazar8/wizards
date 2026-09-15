@@ -88,7 +88,9 @@ function assertRegion(region: Region) {
     region.x + region.width > CANONICAL_PHYSICAL_VIEWPORT.width ||
     region.y + region.height > CANONICAL_PHYSICAL_VIEWPORT.height
   ) {
-    throw new Error(`Region ${region.id} is outside the ${CANONICAL_PHYSICAL_VIEWPORT.width}×${CANONICAL_PHYSICAL_VIEWPORT.height} DPR-3 viewport.`);
+    throw new Error(
+      `Region ${region.id} is outside the ${CANONICAL_PHYSICAL_VIEWPORT.width}×${CANONICAL_PHYSICAL_VIEWPORT.height} DPR-3 viewport.`,
+    );
   }
 }
 
@@ -102,13 +104,17 @@ async function decodeOpaqueSrgbRgba(filePath: string): Promise<DecodedImage> {
     metadata.width !== CANONICAL_PHYSICAL_VIEWPORT.width ||
     metadata.height !== CANONICAL_PHYSICAL_VIEWPORT.height
   ) {
-    throw new Error(`${filePath} must be exactly ${CANONICAL_PHYSICAL_VIEWPORT.width}×${CANONICAL_PHYSICAL_VIEWPORT.height} physical pixels at DPR ${CANONICAL_DPR}; resizing is forbidden.`);
+    throw new Error(
+      `${filePath} must be exactly ${CANONICAL_PHYSICAL_VIEWPORT.width}×${CANONICAL_PHYSICAL_VIEWPORT.height} physical pixels at DPR ${CANONICAL_DPR}; resizing is forbidden.`,
+    );
   }
   if (metadata.space !== "srgb" || metadata.channels !== 4 || metadata.depth !== "uchar") {
     throw new Error(`${filePath} must decode as 8-bit sRGB RGBA without channel conversion.`);
   }
   if (metadata.hasProfile) {
-    throw new Error(`${filePath} has an embedded colour profile; colour-profile conversion is forbidden.`);
+    throw new Error(
+      `${filePath} has an embedded colour profile; colour-profile conversion is forbidden.`,
+    );
   }
 
   const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
@@ -125,12 +131,19 @@ async function decodeOpaqueSrgbRgba(filePath: string): Promise<DecodedImage> {
 
 function pointInPolygon(x: number, y: number, polygon: readonly Point[]) {
   let inside = false;
-  for (let current = 0, previous = polygon.length - 1; current < polygon.length; previous = current++) {
+  for (
+    let current = 0, previous = polygon.length - 1;
+    current < polygon.length;
+    previous = current++
+  ) {
     const currentPoint = polygon[current]!;
     const previousPoint = polygon[previous]!;
     if (
-      (currentPoint.y > y) !== (previousPoint.y > y) &&
-      x < ((previousPoint.x - currentPoint.x) * (y - currentPoint.y)) / (previousPoint.y - currentPoint.y) + currentPoint.x
+      currentPoint.y > y !== previousPoint.y > y &&
+      x <
+        ((previousPoint.x - currentPoint.x) * (y - currentPoint.y)) /
+          (previousPoint.y - currentPoint.y) +
+          currentPoint.x
     ) {
       inside = !inside;
     }
@@ -173,9 +186,12 @@ function crop(image: DecodedImage, region: Region) {
   const pixels = new Uint8ClampedArray(region.width * region.height * 4);
   for (let y = 0; y < region.height; y += 1) {
     const sourceStart = ((region.y + y) * image.width + region.x) * 4;
-    pixels.set(image.data.subarray(sourceStart, sourceStart + region.width * 4), y * region.width * 4);
+    pixels.set(
+      image.data.subarray(sourceStart, sourceStart + region.width * 4),
+      y * region.width * 4,
+    );
   }
-  return { data: pixels, width: region.width, height: region.height };
+  return { data: pixels, width: region.width, height: region.height, colorSpace: "srgb" as const };
 }
 
 function calculateSsim(expected: DecodedImage, actual: DecodedImage, region: Region) {
@@ -290,18 +306,32 @@ export async function diffTwoLayerVisuals(input: VisualDiffInput): Promise<Visua
       ? [`flat mismatch ratio ${(mismatchRatio * 100).toFixed(3)}% exceeds 0.5%`]
       : []),
     ...components
-      .filter((component) => component.width > MAX_FLAT_COMPONENT_DIMENSION || component.height > MAX_FLAT_COMPONENT_DIMENSION)
-      .map((component) => `flat component at ${component.x},${component.y} is ${component.width}×${component.height}, above 6×6`),
+      .filter(
+        (component) =>
+          component.width > MAX_FLAT_COMPONENT_DIMENSION ||
+          component.height > MAX_FLAT_COMPONENT_DIMENSION,
+      )
+      .map(
+        (component) =>
+          `flat component at ${component.x},${component.y} is ${component.width}×${component.height}, above 6×6`,
+      ),
   ];
 
   const textFailures = textRegions.flatMap((region) => {
     const value = calculateSsim(expected, actual, region);
-    return value >= TEXT_SSIM_MINIMUM ? [] : [{ id: region.id, ssim: value, minimum: TEXT_SSIM_MINIMUM }];
+    return value >= TEXT_SSIM_MINIMUM
+      ? []
+      : [{ id: region.id, ssim: value, minimum: TEXT_SSIM_MINIMUM }];
   });
   const shadowFailures = shadowRegions.flatMap((region) => {
     const failures: VisualDiffResult["shadows"]["failures"][number][] = [];
     if (region.expectedParameters !== region.actualParameters) {
-      failures.push({ id: region.id, reason: "declared-parameters", expected: region.expectedParameters, actual: region.actualParameters });
+      failures.push({
+        id: region.id,
+        reason: "declared-parameters",
+        expected: region.expectedParameters,
+        actual: region.actualParameters,
+      });
     }
     const value = calculateSsim(expected, actual, region);
     if (value < SHADOW_SSIM_MINIMUM) {
@@ -310,7 +340,8 @@ export async function diffTwoLayerVisuals(input: VisualDiffInput): Promise<Visua
     return failures;
   });
 
-  const passed = flatFailures.length === 0 && textFailures.length === 0 && shadowFailures.length === 0;
+  const passed =
+    flatFailures.length === 0 && textFailures.length === 0 && shadowFailures.length === 0;
   const outputDirectory = input.outputDirectory ?? defaultOutputDirectory;
   await mkdir(outputDirectory, { recursive: true });
   const overlayPath = path.join(outputDirectory, "visual-diff-overlay.png");
@@ -331,7 +362,9 @@ export async function diffTwoLayerVisuals(input: VisualDiffInput): Promise<Visua
     const region = shadowRegions.find((candidate) => candidate.id === failure.id);
     if (region) drawRectangle(overlay, region, [139, 92, 246]);
   }
-  await sharp(overlay, { raw: { width: expected.width, height: expected.height, channels: 4 } }).png().toFile(overlayPath);
+  await sharp(overlay, { raw: { width: expected.width, height: expected.height, channels: 4 } })
+    .png()
+    .toFile(overlayPath);
 
   const result: VisualDiffResult = {
     passed,
@@ -350,9 +383,14 @@ async function main() {
   const actualPath = process.env.WHISPR_DIFF_ACTUAL;
   const regionsPath = process.env.WHISPR_DIFF_REGIONS;
   if (!expectedPath || !actualPath || !regionsPath) {
-    throw new Error("WHISPR_DIFF_EXPECTED, WHISPR_DIFF_ACTUAL, and WHISPR_DIFF_REGIONS are required.");
+    throw new Error(
+      "WHISPR_DIFF_EXPECTED, WHISPR_DIFF_ACTUAL, and WHISPR_DIFF_REGIONS are required.",
+    );
   }
-  const regions = JSON.parse(await readFile(regionsPath, "utf8")) as Pick<VisualDiffInput, "masks" | "textRegions" | "shadowRegions">;
+  const regions = JSON.parse(await readFile(regionsPath, "utf8")) as Pick<
+    VisualDiffInput,
+    "masks" | "textRegions" | "shadowRegions"
+  >;
   const result = await diffTwoLayerVisuals({
     expectedPath,
     actualPath,

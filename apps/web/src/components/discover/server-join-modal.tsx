@@ -1,5 +1,8 @@
 "use client";
 
+import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
+import { nativeSettingsClient } from "@/lib/desktop/settings-client";
+
 import React, { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { UserPlus } from "lucide-react";
@@ -160,7 +163,11 @@ export function ServerJoinModal({
   };
 
   const pasteCode = async () => {
-    const result = await readServerJoinClipboard(() => navigator.clipboard.readText());
+    const result = await readServerJoinClipboard(() =>
+      isWhisprDesktopRuntime()
+        ? nativeSettingsClient.clipboardText()
+        : navigator.clipboard.readText(),
+    );
     if (!result.ok) {
       setClipboardDenied(true);
       return;

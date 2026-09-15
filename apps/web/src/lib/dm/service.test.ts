@@ -235,8 +235,16 @@ describe("DM participant preferences", () => {
     }
   });
 
-  it("clears unread and mention badges when the conversation is read", async () => {
+  it("clears unread and mention badges without publishing a read when privacy is unavailable", async () => {
     const restores: Restore[] = [];
+    patchMethod(
+      prisma.userSettings,
+      "findUnique",
+      async () => {
+        throw new Error("privacy lookup unavailable");
+      },
+      restores,
+    );
     let updateArgs: unknown;
 
     patchMethod(
@@ -265,7 +273,6 @@ describe("DM participant preferences", () => {
 
     assert.deepEqual(updateArgs, {
       data: {
-        lastReadAt: (updateArgs as { data: { lastReadAt: Date } }).data.lastReadAt,
         mentionCount: 0,
         unreadCount: 0,
       },

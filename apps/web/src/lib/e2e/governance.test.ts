@@ -27,7 +27,7 @@ function collectFiles(directory: string, predicate: (fileName: string) => boolea
 }
 
 function readWorkspaceFile(path: string): string {
-  return readFileSync(path, "utf8");
+  return readFileSync(path, "utf8").replaceAll("\r\n", "\n");
 }
 
 interface GitleaksAllowlistMetadata {
@@ -453,8 +453,8 @@ describe("Playwright E2E governance", () => {
     assert.match(visualScript, /e2e:check-env/);
     assert.match(visualScript, /--project=chromium/);
     assert.match(visualScript, /e2e\/specs\/visual/);
-    assert.equal(packageJson.devDependencies["@playwright/test"], "^1.61.1");
-    assert.equal(mobilePackageJson.devDependencies["@playwright/test"], "1.61.1");
+    assert.equal(packageJson.devDependencies["@playwright/test"], "^1.63.0");
+    assert.equal(mobilePackageJson.devDependencies["@playwright/test"], "1.63.0");
     assert.match(config, /toHaveScreenshot:\s*\{/);
     assert.match(config, /maxDiffPixelRatio:\s*0\.02/);
     assert.match(config, /animations:\s*"disabled"/);
@@ -471,7 +471,7 @@ describe("Playwright E2E governance", () => {
     );
     assert.match(visualSpec, /wizards\.locale/);
     assert.match(visualSpec, /wizards-theme/);
-    assert.match(e2eReadme, /mcr\.microsoft\.com\/playwright:v1\.61\.1-noble/);
+    assert.match(e2eReadme, /mcr\.microsoft\.com\/playwright:v1\.63\.0-noble/);
     assert.match(e2eReadme, /baseline snapshots must only be updated inside Docker/i);
     assert.match(
       e2eReadme,

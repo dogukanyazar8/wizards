@@ -103,6 +103,22 @@ describe("API CSRF guard", () => {
 });
 
 describe("Content Security Policy", () => {
+  it("allows only the fixed Tauri IPC transports in development and production", () => {
+    for (const NODE_ENV of ["development", "production"]) {
+      const csp = buildContentSecurityPolicy("ipc-nonce", { NODE_ENV });
+      const sources = csp
+        .split(";")
+        .find((part) => part.trim().startsWith("connect-src "))!
+        .trim()
+        .split(/\s+/);
+      for (const source of ["ipc:", "http://ipc.localhost", "https://ipc.localhost"]) {
+        assert.ok(sources.includes(source), `${NODE_ENV}: missing ${source}`);
+      }
+      assert.ok(!sources.includes("*"));
+      assert.ok(!sources.includes("http:"));
+      assert.ok(!sources.includes("https:"));
+    }
+  });
   it("allows Next development inline scripts without carrying invalid sources", () => {
     const csp = buildContentSecurityPolicy("test-nonce", {
       APP_URL: "http://127.0.0.1:3000",
@@ -153,6 +169,36 @@ describe("Content Security Policy", () => {
 });
 
 describe("auth middleware fail-closed contract", () => {
+  it("lets auth pages validate a signed JWT against the current session before redirecting", () => {
+    // A signed cookie can still name a revoked or missing database session.
+    // Only auth() in the page may decide whether this user should leave login.
+    const disposition = getAuthTokenDisposition({ sub: "user-with-stale-session" });
+    assert.equal(disposition.isAuthenticated, true);
+    for (const pathname of ["/login", "/register"]) {
+      assert.equal(
+        getAuthRouteRedirectPath({
+          hasAuthSecret: true,
+          isAuthenticated: disposition.isAuthenticated,
+          pathname,
+        }),
+        null,
+      );
+    }
+  });
+  it("permits only the token-bound Google bridge without a browser session", () => {
+    const input = { hasAuthSecret: true, isAuthenticated: false };
+    assert.equal(
+      getAuthRouteRedirectPath({ ...input, pathname: "/settings/email-change/google" }),
+      null,
+    );
+    for (const pathname of [
+      "/settings",
+      "/settings/email-change",
+      "/settings/email-change/google/other",
+    ]) {
+      assert.equal(getAuthRouteRedirectPath({ ...input, pathname }), "/login");
+    }
+  });
   it("redirects protected routes when neither AUTH_SECRET nor NEXTAUTH_SECRET is configured", () => {
     assert.equal(
       getAuthRouteRedirectPath({

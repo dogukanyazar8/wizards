@@ -1229,7 +1229,10 @@ function ChatAreaContent({
       serverMembersQuery.data &&
       typeof document !== "undefined"
         ? createPortal(
-            <div className="fixed inset-0 z-[90] xl:hidden" data-testid="mobile-info-drawer-root">
+            <div
+              className="fixed inset-x-0 bottom-0 top-[var(--app-viewport-top,0px)] z-[90] xl:hidden"
+              data-testid="mobile-info-drawer-root"
+            >
               <div
                 className="absolute inset-0 bg-[hsl(var(--backdrop)/0.5)] backdrop-blur-xs"
                 data-testid="mobile-info-drawer-backdrop"

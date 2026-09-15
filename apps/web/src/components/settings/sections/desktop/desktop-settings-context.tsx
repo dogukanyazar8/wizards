@@ -27,13 +27,13 @@ export type DesktopUpdaterState = {
   readonly checking: boolean;
   readonly enabled: boolean;
   readonly lastCheckedAt: string | null;
-  readonly upToDate: boolean;
+  readonly upToDate: boolean | null;
 };
 
 export type DesktopSettingsValue = {
   readonly appInfo: DesktopAppInfo | null;
   readonly buildInfo: SettingsBootstrapPayload["buildInfo"] | null;
-  /** `q3` satırının pili — gerçek kayıt sonucundan sayılır, sabit `1` yoktur. */
+  /** İşletim sisteminin kayıt sonucundaki gerçek kısayol çakışma sayısı. */
   readonly conflictCount: number;
   readonly desktopRuntime: boolean;
   readonly featuredContributor: string | null;
@@ -79,7 +79,7 @@ export const UNKNOWN_DESKTOP_SETTINGS: DesktopSettingsValue = {
   shortcutsEnabled: false,
   socketConnected: false,
   surfaces: null,
-  updater: { checking: false, enabled: false, lastCheckedAt: null, upToDate: false },
+  updater: { checking: false, enabled: false, lastCheckedAt: null, upToDate: null },
   voiceConnected: false,
 };
 

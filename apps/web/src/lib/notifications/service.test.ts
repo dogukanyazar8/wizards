@@ -1,3 +1,4 @@
+import { NotificationPageSchema } from "@/lib/notifications/types";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { prisma } from "@wizards/db";
@@ -305,6 +306,7 @@ describe("direct message badge release", () => {
 // ---------------------------------------------------------------------------
 
 type PanelRow = {
+  actionUrl: string | null;
   body: string;
   createdAt: Date;
   id: string;
@@ -356,6 +358,7 @@ function stubPanel(
 
 function panelRow(overrides: Partial<PanelRow> & Pick<PanelRow, "id">): PanelRow {
   return {
+    actionUrl: null,
     body: "gövde",
     createdAt: new Date("2026-08-24T06:41:00.000Z"),
     metadata: null,
@@ -367,6 +370,31 @@ function panelRow(overrides: Partial<PanelRow> & Pick<PanelRow, "id">): PanelRow
 }
 
 describe("bildirim paneli — sayfa", () => {
+  it("hedefi SQL'den API şemasına kadar korur ve mesaj bağlantısını tamamlar", async () => {
+    const restores: Restore[] = [];
+    const queries = stubPanel(restores, {
+      rows: [
+        panelRow({
+          id: "n1",
+          type: "MENTION",
+          actionUrl: "/channels/server/channel",
+          metadata: { messageId: "message-1" },
+        }),
+      ],
+    });
+    try {
+      const page = await listNotificationPanel("user-1", { limit: 6, tab: "all" });
+      assert.match(queries[0]!.sql, /"actionUrl"/u);
+      const parsed = NotificationPageSchema.parse(page);
+      assert.equal(
+        parsed.groups[0]!.items[0]!.actionUrl,
+        "/channels/server/channel?message=message-1",
+      );
+    } finally {
+      restoreAll(restores);
+    }
+  });
+
   it("satırları gün gruplarına böler ve sekmeyi yanıtta taşır", async () => {
     const restores: Restore[] = [];
     stubPanel(restores, {

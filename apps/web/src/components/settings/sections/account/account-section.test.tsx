@@ -3,6 +3,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import React from "react";
+import { settingsQueryKeys } from "@/lib/settings/client";
+import { SETTINGS_TEST_BOOTSTRAP } from "@/lib/settings/read-test-fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -15,7 +17,7 @@ import { AccountProfileTab } from "@/components/settings/sections/account/profil
 import { AccountSection } from "@/components/settings/sections/account/account-section";
 import { AccountSecurityTab } from "@/components/settings/sections/account/security-tab";
 import { getMessagesForLocale } from "@/lib/locale";
-import { findSettingsSection } from "@/lib/settings/tree";
+import { findSettingsSection, type SettingsRiskyBlockKey } from "@/lib/settings/tree";
 import {
   SettingsRowRuntimeContext,
   SettingsValueContext,
@@ -23,7 +25,7 @@ import {
   type SettingsRowRuntime,
 } from "@/lib/settings/use-setting-value";
 
-/** Ş7 — altı sekme, 35 satır, elle satır markup'ı **yok**. */
+/** Account tabs render rows through the shared settings engine. */
 
 const MESSAGES = getMessagesForLocale("tr");
 const SECTION_DIR = fileURLToPath(new URL(".", import.meta.url));
@@ -54,17 +56,19 @@ function render(Tab: () => React.ReactNode, runtime: Partial<SettingsRowRuntime>
   };
 
   return renderToStaticMarkup(
-    <LocaleProvider initialLocale="tr" initialMessages={MESSAGES}>
-      <SettingsValueContext.Provider value={store}>
-        <SettingsRowRuntimeContext.Provider value={full}>
-          <Tab />
-        </SettingsRowRuntimeContext.Provider>
-      </SettingsValueContext.Provider>
-    </LocaleProvider>,
+    <QueryClientProvider client={new QueryClient()}>
+      <LocaleProvider initialLocale="tr" initialMessages={MESSAGES}>
+        <SettingsValueContext.Provider value={store}>
+          <SettingsRowRuntimeContext.Provider value={full}>
+            <Tab />
+          </SettingsRowRuntimeContext.Provider>
+        </SettingsValueContext.Provider>
+      </LocaleProvider>
+    </QueryClientProvider>,
   );
 }
 
-function renderSection(tabKey: string): string {
+function renderSection(tabKey: string, openRisky: SettingsRiskyBlockKey | null = null): string {
   const section = findSettingsSection("account");
   const tab = section?.tabs.find((entry) => entry.key === tabKey);
 
@@ -74,13 +78,22 @@ function renderSection(tabKey: string): string {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
   });
+  if (tabKey === "account") {
+    queryClient.setQueryData(settingsQueryKeys.bootstrap, SETTINGS_TEST_BOOTSTRAP);
+    queryClient.setQueryData(["account-contact", SETTINGS_TEST_BOOTSTRAP.initialAccount.id], {
+      phone: null,
+      hasPassword: true,
+      googleAvailable: false,
+      twoFactorEnabled: false,
+    });
+  }
 
   return renderToStaticMarkup(
     <QueryClientProvider client={queryClient}>
       <LocaleProvider initialLocale="tr" initialMessages={MESSAGES}>
         <AccountSection
           input={{
-            openRisky: null,
+            openRisky,
             openSelect: null,
             section,
             tab,
@@ -93,29 +106,49 @@ function renderSection(tabKey: string): string {
   );
 }
 
-function assertDisabled(markup: string, testId: string): void {
-  const tag = markup.match(new RegExp(`<[^>]*data-testid="${testId}"[^>]*>`, "u"))?.[0];
+it("kabuktaki password durumu gerçek parola alanlarını açar", () => {
+  const markup = renderSection("account", "password");
+  for (const field of ["current", "next", "confirm"]) {
+    assert.ok(markup.includes(`data-testid="settings-password-${field}"`));
+  }
+  assert.ok(!renderSection("account").includes('data-testid="settings-password-current"'));
+});
 
-  assert.ok(tag, `${testId} çizilmedi`);
-  assert.match(tag, /(?:aria-disabled="true"|disabled="")/u, `${testId} etkileşime açık`);
-}
+it("hesap bölümü iletişim formunu ilgili satırın altında sunar, dialog üretmez", () => {
+  for (const [kind, row] of [
+    ["email", "ae"],
+    ["phone", "ap"],
+  ] as const) {
+    const markup = renderSection("account", kind);
+    assert.match(
+      markup,
+      new RegExp(
+        `id="setting-risky-${row}"[^>]*><form[^>]*data-testid="settings-contact-form-${kind}"`,
+        "u",
+      ),
+    );
+    assert.ok(markup.includes('data-testid="settings-contact-value"'));
+    assert.ok(!markup.includes('role="dialog"'));
+    assert.equal(markup.match(/<form/gu)?.length, 1);
+  }
+});
 
 describe("Hesabım — sayım", () => {
-  it("ağaç altı sekme, on beş grup ve otuz beş satır taşıyor", () => {
+  it("ağaç altı sekme, on üç grup ve yirmi yedi satır taşıyor", () => {
     const section = findSettingsSection("account");
 
     assert.ok(section);
     assert.equal(section.tabs.length, 6);
     assert.equal(
       section.tabs.reduce((total, tab) => total + tab.groups.length, 0),
-      15,
+      13,
     );
     assert.equal(
       section.tabs.reduce(
         (total, tab) => total + tab.groups.reduce((sum, group) => sum + group.rows.length, 0),
         0,
       ),
-      35,
+      27,
     );
   });
 
@@ -174,7 +207,7 @@ describe("Hesabım — motor sözleşmesi", () => {
 
   it("riskli gövde satırın altında, aynı anda tek blok", () => {
     const markup = render(TABS.security, {
-      openRisky: "s1",
+      openRisky: "twoFactor",
       riskyBodies: { s1: <p>iki aşamalı gövde</p> },
     });
 
@@ -194,22 +227,23 @@ describe("Hesabım — motor sözleşmesi", () => {
 });
 
 describe("Hesabım — gerçek kullanılabilirlik", () => {
-  it("web yazma yolu olmayan profil ve gizlilik tercihleri etkileşime kapalı", () => {
+  it("kayıtlı değerler yüklenmeden varsayılan profil/gizlilik kontrolleri gösterilmez", () => {
     const profile = renderSection("profile");
     const privacy = renderSection("privacy");
 
     for (const testId of [
-      "setting-input-pz",
       "setting-textarea-pbio",
       "setting-input-ps",
-      "setting-select-pe",
+      "profile-status-emoji",
       "setting-select-px",
     ]) {
-      assertDisabled(profile, testId);
+      assert.ok(!profile.includes(`data-testid="${testId}"`));
     }
 
-    for (const testId of ["setting-toggle-g6", "setting-toggle-g7", "setting-select-g8"]) {
-      assertDisabled(privacy, testId);
+    for (const testId of ["setting-toggle-g6", "setting-toggle-g7"]) {
+      assert.ok(!privacy.includes(`data-testid="${testId}"`));
     }
+    assert.match(profile, /data-testid="settings-skeleton"/u);
+    assert.match(privacy, /data-testid="settings-skeleton"/u);
   });
 });

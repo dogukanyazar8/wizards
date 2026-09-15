@@ -18,12 +18,6 @@ import type { SettingsPatch } from "@/lib/settings/use-setting-value";
  * Karşılığı olmayan alan **uydurma uç çağırmaz** (00 §6): eşleme onu döndürmez, çağıran
  * `TODO(api):` notuyla birlikte yerinde bırakır. Bugün karşılıksız olanlar:
  *
- * - `pz` (Zamirler) · `pbio` (Biyografi) · `ps` / `pe` / `px` (özel durum): web'de yazma ucu yok;
- *   `updateAccountSettingsAction` yalnız görünen ad, kullanıcı adı, e-posta ve durumu alıyor.
- *   `updateAccountProfile` servisi alanların hepsini tanıyor, ama onu çağıran **web** ucu
- *   yalnız mobilde var (`/api/v1/mobile/account/profile`).
- * - `bannerUrl` (Banner değiştir / kaldır): web'de yükleme yolu yok.
- * - `usernameChangedAt` (30 günlük bekleme): hiçbir web okuma yolu döndürmüyor.
  * - Hesap satırlarının okunması (`getAccountSettingsRows`): servis var, **uç yok**.
  */
 
@@ -89,6 +83,8 @@ export function indexOf<T extends string | number>(
  */
 export type SettingsWriteSplit = {
   readonly layout: Record<string, unknown>;
+  readonly messagingPrivacy: { readReceipts: boolean } | null;
+  readonly gameSharing: { enabled: boolean } | null;
   /** `l1` — dil sunucu ayarı değil, `updateLocalePreferenceAction`'ın işi. */
   readonly localeIndex: number | null;
   /** K9 — boşta sayılma süresi tarayıcı tercihidir. */
@@ -101,9 +97,23 @@ export function splitAccountPatch(patch: SettingsPatch): SettingsWriteSplit {
   const unmapped: string[] = [];
   let localMinutes: number | null = null;
   let localeIndex: number | null = null;
+  let messagingPrivacy: SettingsWriteSplit["messagingPrivacy"] = null;
+  let gameSharing: SettingsWriteSplit["gameSharing"] = null;
 
   for (const [key, value] of Object.entries(patch)) {
     switch (key) {
+      case "g7":
+        gameSharing = { enabled: Boolean(value) };
+        break;
+      case "pn":
+      case "pu":
+      case "pp":
+      case "pbio":
+      case "ps":
+      case "pe":
+      case "px":
+        // Profile writes use their authenticated actions, not the layout endpoint.
+        break;
       case "g1":
         layout.profileVisibility = VISIBILITY_BY_INDEX[Number(value)] ?? VISIBILITY_BY_INDEX[0];
         break;
@@ -119,6 +129,9 @@ export function splitAccountPatch(patch: SettingsPatch): SettingsWriteSplit {
         break;
       case "g5":
         layout.allowGroupInvites = Boolean(value);
+        break;
+      case "g6":
+        messagingPrivacy = { readReceipts: Boolean(value) };
         break;
       case "l1":
         localeIndex = Number(value);
@@ -141,15 +154,13 @@ export function splitAccountPatch(patch: SettingsPatch): SettingsWriteSplit {
           IDLE_TIMEOUT_BY_INDEX[Number(value)] ?? DEFAULT_PRESENCE_IDLE_TIMEOUT_MINUTES;
         break;
       default:
-        // TODO(api): `pz` `pbio` `ps` `pe` `px` (profil alanları), `g6` (okundu bilgisi),
-        // `g7` (oynanan oyun), `g8` (hassas içerik) — ya web ucu yok ya da `PatchSettingsSchema`
-        // bu alanı tanımıyor. Uydurma uç çağrılmaz.
+        // Unsupported or removed rows must never be silently persisted.
         unmapped.push(key);
         break;
     }
   }
 
-  return { layout, localeIndex, localMinutes, unmapped };
+  return { layout, localeIndex, localMinutes, messagingPrivacy, gameSharing, unmapped };
 }
 
 /** Kirli profil alanlarının `updateAccountSettingsAction` gövdesine indirgenmesi. */

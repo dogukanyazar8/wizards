@@ -572,6 +572,7 @@ export async function setEventReminder(
 /* ------------------------------------------------------------------ oluşturma */
 
 export type CreateEventServiceInput = {
+  readonly description?: string | undefined;
   readonly channelId?: string | undefined;
   readonly durationMinutes: number;
   readonly externalLocation?: string | undefined;
@@ -625,6 +626,7 @@ export async function createEvent(
       data: {
         channelId: input.channelId ?? null,
         creatorId: userId,
+        description: input.description ?? null,
         entityType: resolveEventEntityType({ channelType, externalLocation }),
         externalLocation,
         isPublic: input.isPublic,

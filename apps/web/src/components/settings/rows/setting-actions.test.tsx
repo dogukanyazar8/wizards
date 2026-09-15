@@ -33,10 +33,10 @@ describe("SettingActions", () => {
     assert.ok(markup.includes("Kodları indir"));
   });
 
-  it("32 px yükseklik ve 10 yarıçap sözlükten geliyor", () => {
+  it("32 px minimum yükseklik ve 10 yarıçap sözlükten geliyor", () => {
     const markup = render();
 
-    assert.ok(markup.includes(`height:${pxToRem(action.height)}`));
+    assert.ok(markup.includes(`min-height:${pxToRem(action.height)}`));
     assert.ok(markup.includes(`border-radius:${pxToRem(action.radius)}`));
     assert.ok(markup.includes(`gap:${pxToRem(action.gap)}`));
   });

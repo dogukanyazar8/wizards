@@ -51,3 +51,11 @@ export function getAppIconById(iconId: string | null | undefined) {
     APP_ICON_OPTIONS[0]
   );
 }
+
+/** The tab mark has opaque white bars; touch/desktop icons keep their PNG asset. */
+export function getAppFaviconById(iconId: string | null | undefined) {
+  const icon = getAppIconById(iconId);
+  return icon.id === DEFAULT_APP_ICON_ID
+    ? { src: "/favicon.svg", type: "image/svg+xml" }
+    : { src: icon.src, type: "image/png" };
+}

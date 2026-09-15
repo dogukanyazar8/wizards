@@ -119,3 +119,15 @@ describe("about preferences", () => {
     assert.equal(harness.store.has("whispr.update.skippedVersion"), false);
   });
 });
+
+it("normalizes an existing UAT preference to Beta and rejects removed channels", async () => {
+  for (const [stored, expected] of [
+    ["uat", "beta"],
+    ["canary", null],
+  ] as const) {
+    const preferences = await readMobileAboutPreferences(
+      createStorage({ "whispr.settings.channel": stored }).storage,
+    );
+    assert.equal(preferences.channel, expected);
+  }
+});

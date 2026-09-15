@@ -11,6 +11,7 @@ import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { requireApiUserId } from "@/lib/auth/api";
 import { listEvents, type EventsListQuery } from "@/lib/events/events-service";
 import { createEvent, type EventWriteResponse } from "@/lib/events/mutations";
+import { publishEventCreated } from "@/lib/events/realtime";
 import {
   parseEventMineFilter,
   parseEventQuery,
@@ -104,6 +105,7 @@ export async function eventsRoute(
 /* ------------------------------------------------------------------ Ş3 · POST */
 
 export type EventCreateRouteDependencies = HomeRouteContext & {
+  publishCreated: typeof publishEventCreated;
   createEvent: (
     userId: string,
     input: z.infer<typeof CreateEventInputSchema>,
@@ -112,12 +114,14 @@ export type EventCreateRouteDependencies = HomeRouteContext & {
 };
 
 export const defaultEventCreateDependencies: EventCreateRouteDependencies = {
+  publishCreated: publishEventCreated,
   authenticate: () => requireApiUserId(),
   createEvent: (userId, input) =>
     createEvent(
       userId,
       {
         ...(input.channelId === undefined ? {} : { channelId: input.channelId }),
+        ...(input.description === undefined ? {} : { description: input.description }),
         durationMinutes: input.durationMinutes,
         ...(input.externalLocation === undefined
           ? {}
@@ -153,7 +157,13 @@ export async function eventCreateRoute(
     await dependencies.enforceRateLimit(userId, "events:create");
     const input = await dependencies.parseBody(request, CreateEventInputSchema);
 
-    return Response.json(await dependencies.createEvent(userId, input), {
+    const payload = await dependencies.createEvent(userId, input);
+    dependencies.publishCreated({
+      eventId: payload.event.id,
+      serverId: payload.event.serverId,
+      isPublic: payload.event.isPublic,
+    });
+    return Response.json(payload, {
       headers: { "Cache-Control": "private, no-store" },
       status: 201,
     });

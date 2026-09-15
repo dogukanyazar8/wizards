@@ -8,13 +8,13 @@ describe("mobile About update client", () => {
     assert.equal(
       buildMobileAppUpdatePath({
         buildEnvironment: "uat",
-        channel: "uat",
+        channel: "beta",
         installed: "0.8.15",
         platform: "android",
         runtimeVersion: "fingerprint-1",
         versionCode: 815,
       }),
-      "/api/v1/mobile/app/update?buildEnvironment=uat&channel=uat&installed=0.8.15&platform=android&runtimeVersion=fingerprint-1&versionCode=815",
+      "/api/v1/mobile/app/update?buildEnvironment=uat&channel=beta&installed=0.8.15&platform=android&runtimeVersion=fingerprint-1&versionCode=815",
     );
   });
 });

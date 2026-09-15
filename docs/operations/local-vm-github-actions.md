@@ -1,3 +1,5 @@
+> Historical runner setup. Active workflows now use GitHub-hosted runners; see [current CI/CD setup](github-hosted-ci-cd.md). These local machines are optional developer tooling.
+
 # Local VM GitHub Actions operations
 
 GitHub Actions is the sole CI/CD orchestrator. Repository jobs execute only on

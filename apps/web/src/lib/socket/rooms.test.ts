@@ -13,7 +13,7 @@ describe("socket room helpers", () => {
   it("maps durable session ids to fixed-length opaque room names", () => {
     assert.equal(
       getAuthSessionSocketRoomName("session-1"),
-      "auth-session:hAl4KPwxqMjSkhDfSJAahd5_0BP2hrF7530b4py3qYs",
+      "auth-session:hAl4KPwxqMjSkhDfSJAahd5_0BP2hrF7530b4py3qYs", // gitleaks:allow -- Public deterministic fixture, not a credential.
     );
     assert.equal(getAuthSessionSocketRoomName("session-2").length, 56);
     assert.notEqual(

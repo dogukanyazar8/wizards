@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import React from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { LocaleProvider } from "@/components/providers/locale-provider";
@@ -24,19 +25,21 @@ const VOICE_STATE = {
 
 function render(props: Partial<React.ComponentProps<typeof UserBarMenu>> = {}) {
   return renderToStaticMarkup(
-    <LocaleProvider initialLocale="tr" initialMessages={TR}>
-      <VoiceStateContext.Provider value={VOICE_STATE}>
-        <UserBarMenu
-          dndActive={false}
-          dndDuration={null}
-          onLogout={NOOP}
-          onOpenSettings={NOOP}
-          onSelectDndDuration={NOOP}
-          onToggleDnd={NOOP}
-          {...props}
-        />
-      </VoiceStateContext.Provider>
-    </LocaleProvider>,
+    <QueryClientProvider client={new QueryClient()}>
+      <LocaleProvider initialLocale="tr" initialMessages={TR}>
+        <VoiceStateContext.Provider value={VOICE_STATE}>
+          <UserBarMenu
+            dndActive={false}
+            dndDuration={null}
+            onLogout={NOOP}
+            onOpenSettings={NOOP}
+            onSelectDndDuration={NOOP}
+            onToggleDnd={NOOP}
+            {...props}
+          />
+        </VoiceStateContext.Provider>
+      </LocaleProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -104,7 +107,7 @@ describe("UserBarMenu — sıra ve içerik", () => {
 describe("UserBarMenu — kısayol ipucu", () => {
   it("sunucu anlık görüntüsü platform varsaymaz", () => {
     // Sunucuda platform bilinmez; `⌘` sabit gömülmez (§5).
-    assert.ok(render().includes("Ctrl+,"));
+    assert.ok(render().includes("Ctrl/Cmd+,"));
     assert.ok(!render().includes("⌘"));
   });
 });

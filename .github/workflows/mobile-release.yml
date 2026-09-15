@@ -7,7 +7,6 @@ on:
         description: Protected mobile release environment
         options:
           - uat
-          - canary
           - production
         required: true
         type: choice
@@ -30,7 +29,7 @@ on:
         type: choice
       preflight_only:
         default: false
-        description: Validate the protected self-hosted runner without publishing
+        description: Validate the GitHub-hosted runner without publishing
         required: true
         type: boolean
       version:
@@ -48,31 +47,34 @@ permissions:
 
 jobs:
   preflight:
-    name: Verify self-hosted release runner toolchain
-    runs-on: [self-hosted, Linux, X64, mobile-release]
+    name: Verify GitHub-hosted release runner toolchain
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:
       - name: Require UAT dispatch
         shell: bash
+        env:
+          VALUE_GITHUB_REF_NAME: ${{ github.ref_name }}
+          VALUE_INPUTS_ENVIRONMENT: ${{ inputs.environment }}
         run: |
           set -euo pipefail
-          [[ "${{ github.ref_name }}" == "uat" ]] || {
+          [[ "${VALUE_GITHUB_REF_NAME}" == "uat" ]] || {
             echo "::error::Mobile release jobs may only run from the uat branch."
             exit 1
           }
-          [[ "${{ inputs.environment }}" == "uat" ]] || {
+          [[ "${VALUE_INPUTS_ENVIRONMENT}" == "uat" ]] || {
             echo "::error::The release workflow is authorized only for mobile-uat."
             exit 1
           }
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           clean: true
           persist-credentials: false
 
-      - name: Verify self-hosted release runner prerequisites
+      - name: Verify GitHub-hosted release runner prerequisites
         shell: bash
         run: |
           set -euo pipefail
@@ -81,17 +83,20 @@ jobs:
             command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
           done
           if (( ${#missing[@]} > 0 )); then
-            printf '::error::Self-hosted mobile release runner is missing: %s\n' "${missing[*]}"
+            printf '::error::GitHub-hosted mobile release runner is missing: %s\n' "${missing[*]}"
             exit 1
           fi
 
+      - name: Prepare hosted Android storage
+        run: bash .github/scripts/prepare-hosted-android.sh
+
       - name: Setup JDK for Android SDK tools
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Provision persistent Android local-build toolchain
+      - name: Provision Android build toolchain
         shell: bash
         run: bash .github/scripts/setup-android-build-tools.sh
 
@@ -99,7 +104,7 @@ jobs:
         shell: bash
         run: bash .github/scripts/setup-aws-cli.sh
 
-      - name: Verify self-hosted release runner toolchain
+      - name: Verify GitHub-hosted release runner toolchain
         shell: bash
         run: |
           set -euo pipefail
@@ -123,7 +128,7 @@ jobs:
             exit 1
           }
           {
-            echo "### Self-hosted mobile release runner"
+            echo "### GitHub-hosted mobile release runner"
             echo "- AWS CLI: $aws_version"
             echo "- Android SDK: $ANDROID_HOME"
             echo "- Android NDK: $ANDROID_NDK_HOME"
@@ -145,7 +150,7 @@ jobs:
     name: Validate mobile release contract
     if: ${{ ! inputs.preflight_only }}
     needs: preflight
-    runs-on: [self-hosted, Linux, X64, mobile-release]
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
       api_base_url: ${{ steps.contract.outputs.api_base_url }}
@@ -156,16 +161,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           clean: true
           persist-credentials: false
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -176,16 +181,24 @@ jobs:
       - name: Validate dispatch and immutable paths
         id: contract
         shell: bash
+        env:
+          VALUE_INPUTS_ENVIRONMENT: ${{ inputs.environment }}
+          VALUE_INPUTS_KIND: ${{ inputs.kind }}
+          VALUE_INPUTS_RELEASE_ID: ${{ inputs.release_id }}
+          VALUE_INPUTS_ROLLOUT: ${{ inputs.rollout }}
+          VALUE_GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          VALUE_GITHUB_SHA: ${{ github.sha }}
+          VALUE_INPUTS_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
           node apps/mobile/scripts/mobile-release-workflow.mjs \
-            --environment "${{ inputs.environment }}" \
-            --kind "${{ inputs.kind }}" \
-            --release-id "${{ inputs.release_id }}" \
-            --rollout "${{ inputs.rollout }}" \
-            --run-number "${{ github.run_number }}" \
-            --source-sha "${{ github.sha }}" \
-            --version "${{ inputs.version }}"
+            --environment "${VALUE_INPUTS_ENVIRONMENT}" \
+            --kind "${VALUE_INPUTS_KIND}" \
+            --release-id "${VALUE_INPUTS_RELEASE_ID}" \
+            --rollout "${VALUE_INPUTS_ROLLOUT}" \
+            --run-number "${VALUE_GITHUB_RUN_NUMBER}" \
+            --source-sha "${VALUE_GITHUB_SHA}" \
+            --version "${VALUE_INPUTS_VERSION}"
 
       - name: Run release contract tests
         run: |
@@ -196,7 +209,7 @@ jobs:
     name: Publish signed UAT OTA
     if: inputs.kind == 'ota' && inputs.environment == 'uat' && github.ref_name == 'uat'
     needs: contract
-    runs-on: [self-hosted, Linux, X64, mobile-release]
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     environment: mobile-${{ inputs.environment }}
     env:
@@ -209,7 +222,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           clean: true
           persist-credentials: false
@@ -219,10 +232,10 @@ jobs:
         run: bash .github/scripts/setup-aws-cli.sh
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -232,10 +245,12 @@ jobs:
 
       - name: Require OTA and R2 publication secrets
         shell: bash
+        env:
+          VALUE_INPUTS_ENVIRONMENT: ${{ inputs.environment }}
         run: |
           set -euo pipefail
           missing=()
-          [[ "${{ inputs.environment }}" == "uat" ]] || missing+=("configured UAT trust root")
+          [[ "${VALUE_INPUTS_ENVIRONMENT}" == "uat" ]] || missing+=("configured UAT trust root")
           [[ -n "${WHISPR_MOBILE_OTA_PRIVATE_KEY:-}" ]] || missing+=("WHISPR_MOBILE_OTA_PRIVATE_KEY")
           [[ -n "${WHISPR_RELEASE_PUBLISH_TOKEN:-}" ]] || missing+=("WHISPR_RELEASE_PUBLISH_TOKEN")
           [[ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]] || missing+=("CLOUDFLARE_ACCOUNT_ID")
@@ -251,6 +266,13 @@ jobs:
         id: prepare
         shell: bash
         env:
+          VALUE_NEEDS_CONTRACT_OUTPUTS_API_BASE_URL: ${{ needs.contract.outputs.api_base_url }}
+          VALUE_NEEDS_CONTRACT_OUTPUTS_BUNDLE_KEY: ${{ needs.contract.outputs.bundle_key }}
+          VALUE_NEEDS_CONTRACT_OUTPUTS_RELEASE_CHANNEL: ${{ needs.contract.outputs.release_channel }}
+          VALUE_INPUTS_ENVIRONMENT: ${{ inputs.environment }}
+          VALUE_NEEDS_CONTRACT_OUTPUTS_KEY_ID: ${{ needs.contract.outputs.key_id }}
+          VALUE_INPUTS_RELEASE_ID: ${{ inputs.release_id }}
+          VALUE_INPUTS_ROLLOUT: ${{ inputs.rollout }}
           # Telemetry reports this as the build a sample came from; without it
           # every device percentile is unattributable to a release.
           EXPO_PUBLIC_WHISPR_BUILD_ID: ${{ github.sha }}
@@ -275,17 +297,17 @@ jobs:
           runtime_version="$(node -e 'const fs=require("node:fs"); const value=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if(!/^[a-f0-9]{64}$/.test(value.hash)) process.exit(2); process.stdout.write(value.hash)' "$fingerprint")"
 
           node apps/mobile/scripts/publish-ota-bundle.mjs --prepare \
-            --admin-base-url "${{ needs.contract.outputs.api_base_url }}" \
-            --bundle-key "${{ needs.contract.outputs.bundle_key }}" \
-            --channel "${{ needs.contract.outputs.release_channel }}" \
-            --environment "${{ inputs.environment }}" \
+            --admin-base-url "${VALUE_NEEDS_CONTRACT_OUTPUTS_API_BASE_URL}" \
+            --bundle-key "${VALUE_NEEDS_CONTRACT_OUTPUTS_BUNDLE_KEY}" \
+            --channel "${VALUE_NEEDS_CONTRACT_OUTPUTS_RELEASE_CHANNEL}" \
+            --environment "${VALUE_INPUTS_ENVIRONMENT}" \
             --export-dir "$export_dir" \
-            --key-id "${{ needs.contract.outputs.key_id }}" \
+            --key-id "${VALUE_NEEDS_CONTRACT_OUTPUTS_KEY_ID}" \
             --platform android \
             --private-key-path "$key_path" \
             --registration-out "$registration" \
-            --release-id "${{ inputs.release_id }}" \
-            --rollout "${{ inputs.rollout }}" \
+            --release-id "${VALUE_INPUTS_RELEASE_ID}" \
+            --rollout "${VALUE_INPUTS_ROLLOUT}" \
             --runtime-version "$runtime_version" \
             --uploads-out "$uploads"
 
@@ -303,6 +325,7 @@ jobs:
       - name: Publish immutable OTA assets to Cloudflare R2
         shell: bash
         env:
+          VALUE_STEPS_PREPARE_OUTPUTS_UPLOADS: ${{ steps.prepare.outputs.uploads }}
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_DEFAULT_REGION: auto
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -323,22 +346,33 @@ jobs:
               --content-type "$content_type" \
               --cache-control "public, max-age=31536000, immutable" \
               --no-progress
-          done < <(jq -r '.[] | @base64' "${{ steps.prepare.outputs.uploads }}")
+          done < <(jq -r '.[] | @base64' "${VALUE_STEPS_PREPARE_OUTPUTS_UPLOADS}")
 
       - name: Register signed OTA metadata
         shell: bash
+        env:
+          VALUE_STEPS_PREPARE_OUTPUTS_REGISTRATION: ${{ steps.prepare.outputs.registration }}
+          VALUE_NEEDS_CONTRACT_OUTPUTS_API_BASE_URL: ${{ needs.contract.outputs.api_base_url }}
+          VALUE_INPUTS_RELEASE_ID: ${{ inputs.release_id }}
         run: |
           set -euo pipefail
-          jq '.payload' "${{ steps.prepare.outputs.registration }}" > "$RUNNER_TEMP/mobile-ota-registration-body.json"
+          jq '.payload' "${VALUE_STEPS_PREPARE_OUTPUTS_REGISTRATION}" > "$RUNNER_TEMP/mobile-ota-registration-body.json"
           curl --fail-with-body --silent --show-error \
             -H "Authorization: Bearer ${WHISPR_RELEASE_PUBLISH_TOKEN}" \
             -H "Content-Type: application/json" \
             --data-binary "@$RUNNER_TEMP/mobile-ota-registration-body.json" \
-            "${{ needs.contract.outputs.api_base_url }}/api/v1/admin/releases/${{ inputs.release_id }}/ota" \
+            "${VALUE_NEEDS_CONTRACT_OUTPUTS_API_BASE_URL}/api/v1/admin/releases/${VALUE_INPUTS_RELEASE_ID}/ota" \
             > "$RUNNER_TEMP/mobile-ota-registration-response.json"
 
       - name: Validate remote signed manifest and assets
         shell: bash
+        env:
+          VALUE_STEPS_PREPARE_OUTPUTS_RUNTIME_VERSION: ${{ steps.prepare.outputs.runtime_version }}
+          VALUE_INPUTS_ENVIRONMENT: ${{ inputs.environment }}
+          VALUE_NEEDS_CONTRACT_OUTPUTS_KEY_ID: ${{ needs.contract.outputs.key_id }}
+          VALUE_GITHUB_RUN_ID: ${{ github.run_id }}
+          VALUE_NEEDS_CONTRACT_OUTPUTS_API_BASE_URL: ${{ needs.contract.outputs.api_base_url }}
+          VALUE_STEPS_PREPARE_OUTPUTS_REGISTRATION: ${{ steps.prepare.outputs.registration }}
         run: |
           set -euo pipefail
           response_headers="$RUNNER_TEMP/mobile-ota-response.headers"
@@ -347,17 +381,17 @@ jobs:
             -D "$response_headers" -o "$response_body" \
             -H "expo-protocol-version: 1" \
             -H "expo-platform: android" \
-            -H "expo-runtime-version: ${{ steps.prepare.outputs.runtime_version }}" \
-            -H "expo-channel-name: ${{ inputs.environment }}" \
-            -H "expo-expect-signature: sig, keyid=\"${{ needs.contract.outputs.key_id }}\", alg=\"rsa-v1_5-sha256\"" \
-            -H "expo-installation-id: ci-${{ github.run_id }}" \
-            "${{ needs.contract.outputs.api_base_url }}/api/v1/app/updates/manifest"
+            -H "expo-runtime-version: ${VALUE_STEPS_PREPARE_OUTPUTS_RUNTIME_VERSION}" \
+            -H "expo-channel-name: ${VALUE_INPUTS_ENVIRONMENT}" \
+            -H "expo-expect-signature: sig, keyid=\"${VALUE_NEEDS_CONTRACT_OUTPUTS_KEY_ID}\", alg=\"rsa-v1_5-sha256\"" \
+            -H "expo-installation-id: ci-${VALUE_GITHUB_RUN_ID}" \
+            "${VALUE_NEEDS_CONTRACT_OUTPUTS_API_BASE_URL}/api/v1/app/updates/manifest"
           grep -qi 'expo-protocol-version: 1' "$response_headers"
           grep -qi 'expo-signature:' "$response_body"
-          manifest_id="$(jq -r '.payload.id' "${{ steps.prepare.outputs.registration }}")"
+          manifest_id="$(jq -r '.payload.id' "${VALUE_STEPS_PREPARE_OUTPUTS_REGISTRATION}")"
           grep -q "$manifest_id" "$response_body"
           jq -r '.payload.manifestBody | fromjson | [.launchAsset.url, (.assets[].url)] | .[]' \
-            "${{ steps.prepare.outputs.registration }}" |
+            "${VALUE_STEPS_PREPARE_OUTPUTS_REGISTRATION}" |
             while IFS= read -r asset_url; do
               curl --fail --silent --show-error --head "$asset_url" >/dev/null
             done
@@ -377,7 +411,7 @@ jobs:
     name: Build and publish internal Android APK
     if: inputs.kind == 'apk' && inputs.environment == 'uat' && github.ref_name == 'uat'
     needs: contract
-    runs-on: [self-hosted, Linux, X64, mobile-release]
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     environment: mobile-${{ inputs.environment }}
     env:
@@ -392,18 +426,21 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           clean: true
           persist-credentials: false
 
+      - name: Prepare hosted Android storage
+        run: bash .github/scripts/prepare-hosted-android.sh
+
       - name: Setup JDK for Android SDK tools
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Provision persistent Android local-build toolchain
+      - name: Provision Android build toolchain
         shell: bash
         run: bash .github/scripts/setup-android-build-tools.sh
 
@@ -412,10 +449,10 @@ jobs:
         run: bash .github/scripts/setup-aws-cli.sh
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -425,7 +462,7 @@ jobs:
         run: |
           set -euo pipefail
           pnpm install --frozen-lockfile
-          npm install --prefix "$RUNNER_TEMP/eas-cli" eas-cli@21.3.0
+          npm install --prefix "$RUNNER_TEMP/eas-cli" eas-cli@24.5.0
           echo "$RUNNER_TEMP/eas-cli/node_modules/.bin" >> "$GITHUB_PATH"
 
       - name: Require APK and R2 publication secrets
@@ -461,12 +498,13 @@ jobs:
       - name: Build APK locally with the existing EAS-managed Android credential
         id: build
         env:
+          VALUE_INPUTS_ENVIRONMENT: ${{ inputs.environment }}
           SENTRY_DISABLE_AUTO_UPLOAD: "true"
         working-directory: apps/mobile
         shell: bash
         run: |
           set -euo pipefail
-          environment="${{ inputs.environment }}"
+          environment="${VALUE_INPUTS_ENVIRONMENT}"
           apk="$RUNNER_TEMP/mobile-release.apk"
           build_root="$RUNNER_TEMP/eas-local-build"
           build_log="$RUNNER_TEMP/eas-local-build.log"
@@ -508,9 +546,17 @@ jobs:
       - name: Verify APK certificate and immutable metadata
         id: verify
         shell: bash
+        env:
+          VALUE_STEPS_BUILD_OUTPUTS_APK: ${{ steps.build.outputs.apk }}
+          VALUE_INPUTS_VERSION: ${{ inputs.version }}
+          VALUE_INPUTS_ENVIRONMENT: ${{ inputs.environment }}
+          VALUE_INPUTS_RELEASE_ID: ${{ inputs.release_id }}
+          VALUE_INPUTS_ROLLOUT: ${{ inputs.rollout }}
+          VALUE_GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          VALUE_GITHUB_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          apk="${{ steps.build.outputs.apk }}"
+          apk="${VALUE_STEPS_BUILD_OUTPUTS_APK}"
           apksigner_path="$(command -v apksigner || true)"
           if [[ -z "$apksigner_path" && -n "${ANDROID_HOME:-}" ]]; then
             apksigner_path="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
@@ -528,18 +574,18 @@ jobs:
             echo "::error::APK has no positive Android versionCode."
             exit 1
           }
-          [[ "$actual_version_name" == "${{ inputs.version }}" ]] || {
-            echo "::error::APK versionName $actual_version_name does not match requested ${{ inputs.version }}."
+          [[ "$actual_version_name" == "${VALUE_INPUTS_VERSION}" ]] || {
+            echo "::error::APK versionName $actual_version_name does not match requested ${VALUE_INPUTS_VERSION}."
             exit 1
           }
           contract_json="$(
             node apps/mobile/scripts/mobile-release-workflow.mjs \
-              --environment "${{ inputs.environment }}" \
+              --environment "${VALUE_INPUTS_ENVIRONMENT}" \
               --kind apk \
-              --release-id "${{ inputs.release_id }}" \
-              --rollout "${{ inputs.rollout }}" \
-              --run-number "${{ github.run_number }}" \
-              --source-sha "${{ github.sha }}" \
+              --release-id "${VALUE_INPUTS_RELEASE_ID}" \
+              --rollout "${VALUE_INPUTS_ROLLOUT}" \
+              --run-number "${VALUE_GITHUB_RUN_NUMBER}" \
+              --source-sha "${VALUE_GITHUB_SHA}" \
               --version "$actual_version_name" \
               --version-code "$actual_version_code"
           )"
@@ -563,31 +609,36 @@ jobs:
       - name: Publish and remotely verify immutable APK
         shell: bash
         env:
+          VALUE_STEPS_VERIFY_OUTPUTS_ARTIFACT_KEY: ${{ steps.verify.outputs.artifact_key }}
+          VALUE_STEPS_BUILD_OUTPUTS_APK: ${{ steps.build.outputs.apk }}
+          VALUE_STEPS_VERIFY_OUTPUTS_FILE_NAME: ${{ steps.verify.outputs.file_name }}
+          VALUE_STEPS_VERIFY_OUTPUTS_SHA256: ${{ steps.verify.outputs.sha256 }}
+          VALUE_STEPS_VERIFY_OUTPUTS_SIZE_BYTES: ${{ steps.verify.outputs.size_bytes }}
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_DEFAULT_REGION: auto
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
           set -euo pipefail
-          artifact_key="${{ steps.verify.outputs.artifact_key }}"
+          artifact_key="${VALUE_STEPS_VERIFY_OUTPUTS_ARTIFACT_KEY}"
           endpoint_url="https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
           if aws --endpoint-url "$endpoint_url" s3api head-object \
             --bucket "$R2_BUCKET" --key "$artifact_key" >/dev/null 2>&1; then
             echo "::error::Immutable APK key already exists: $artifact_key"
             exit 1
           fi
-          aws --endpoint-url "$endpoint_url" s3 cp "${{ steps.build.outputs.apk }}" \
+          aws --endpoint-url "$endpoint_url" s3 cp "${VALUE_STEPS_BUILD_OUTPUTS_APK}" \
             "s3://${R2_BUCKET}/${artifact_key}" \
             --content-type "application/vnd.android.package-archive" \
             --cache-control "public, max-age=31536000, immutable" --no-progress
           aws --endpoint-url "$endpoint_url" s3 cp \
-            "$RUNNER_TEMP/${{ steps.verify.outputs.file_name }}.sha256" \
+            "$RUNNER_TEMP/${VALUE_STEPS_VERIFY_OUTPUTS_FILE_NAME}.sha256" \
             "s3://${R2_BUCKET}/${artifact_key}.sha256" \
             --content-type "text/plain; charset=utf-8" \
             --cache-control "public, max-age=31536000, immutable" --no-progress
 
           artifact_url="https://updates.whispr.team/${artifact_key}"
           remote_sha256="$(curl --fail --silent --show-error "$artifact_url" | sha256sum | awk '{print $1}')"
-          [[ "$remote_sha256" == "${{ steps.verify.outputs.sha256 }}" ]] || {
+          [[ "$remote_sha256" == "${VALUE_STEPS_VERIFY_OUTPUTS_SHA256}" ]] || {
             echo "::error::Published APK SHA-256 does not match the verified build."
             exit 1
           }
@@ -596,7 +647,7 @@ jobs:
             --output /dev/null "$artifact_url"
           remote_size="$(awk 'tolower($1) == "content-length:" { gsub("\r", "", $2); print $2 }' \
             "$head_headers" | tail -n 1)"
-          [[ "$remote_size" == "${{ steps.verify.outputs.size_bytes }}" ]] || {
+          [[ "$remote_size" == "${VALUE_STEPS_VERIFY_OUTPUTS_SIZE_BYTES}" ]] || {
             echo "::error::Published APK Content-Length does not match the verified build."
             exit 1
           }
@@ -607,52 +658,62 @@ jobs:
       - name: Register verified APK and update parity manifest
         shell: bash
         env:
+          VALUE_STEPS_VERIFY_OUTPUTS_ARTIFACT_KEY: ${{ steps.verify.outputs.artifact_key }}
+          VALUE_STEPS_VERIFY_OUTPUTS_SHA256: ${{ steps.verify.outputs.sha256 }}
+          VALUE_STEPS_VERIFY_OUTPUTS_SIGNING_FINGERPRINT: ${{ steps.verify.outputs.signing_fingerprint }}
+          VALUE_STEPS_VERIFY_OUTPUTS_SIZE_BYTES: ${{ steps.verify.outputs.size_bytes }}
+          VALUE_STEPS_VERIFY_OUTPUTS_VERSION_CODE: ${{ steps.verify.outputs.version_code }}
+          VALUE_NEEDS_CONTRACT_OUTPUTS_API_BASE_URL: ${{ needs.contract.outputs.api_base_url }}
+          VALUE_INPUTS_RELEASE_ID: ${{ inputs.release_id }}
+          VALUE_INPUTS_ENVIRONMENT: ${{ inputs.environment }}
+          VALUE_STEPS_VERIFY_OUTPUTS_VERSION_NAME: ${{ steps.verify.outputs.version_name }}
+          VALUE_STEPS_VERIFY_OUTPUTS_LATEST_KEY: ${{ steps.verify.outputs.latest_key }}
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_DEFAULT_REGION: auto
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
           set -euo pipefail
-          artifact_url="https://updates.whispr.team/${{ steps.verify.outputs.artifact_key }}"
+          artifact_url="https://updates.whispr.team/${VALUE_STEPS_VERIFY_OUTPUTS_ARTIFACT_KEY}"
           jq -n \
-            --arg sha256 "${{ steps.verify.outputs.sha256 }}" \
-            --arg signingCertSha256 "${{ steps.verify.outputs.signing_fingerprint }}" \
+            --arg sha256 "${VALUE_STEPS_VERIFY_OUTPUTS_SHA256}" \
+            --arg signingCertSha256 "${VALUE_STEPS_VERIFY_OUTPUTS_SIGNING_FINGERPRINT}" \
             --arg url "$artifact_url" \
-            --argjson sizeBytes "${{ steps.verify.outputs.size_bytes }}" \
-            --argjson versionCode "${{ steps.verify.outputs.version_code }}" \
+            --argjson sizeBytes "${VALUE_STEPS_VERIFY_OUTPUTS_SIZE_BYTES}" \
+            --argjson versionCode "${VALUE_STEPS_VERIFY_OUTPUTS_VERSION_CODE}" \
             '{kind:"APK",platform:"ANDROID",sha256:$sha256,signingCertSha256:$signingCertSha256,sizeBytes:$sizeBytes,url:$url,versionCode:$versionCode}' \
             > "$RUNNER_TEMP/mobile-apk-registration.json"
           curl --fail-with-body --silent --show-error \
             -H "Authorization: Bearer ${WHISPR_RELEASE_PUBLISH_TOKEN}" \
             -H "Content-Type: application/json" \
             --data-binary "@$RUNNER_TEMP/mobile-apk-registration.json" \
-            "${{ needs.contract.outputs.api_base_url }}/api/v1/admin/releases/${{ inputs.release_id }}/artifact" \
+            "${VALUE_NEEDS_CONTRACT_OUTPUTS_API_BASE_URL}/api/v1/admin/releases/${VALUE_INPUTS_RELEASE_ID}/artifact" \
             > "$RUNNER_TEMP/mobile-apk-registration-response.json"
 
-          environment="${{ inputs.environment }}"
+          environment="${VALUE_INPUTS_ENVIRONMENT}"
           mobile_channel="$([[ "$environment" == "uat" ]] && printf 'uat' || printf 'beta')"
-          version_code="${{ steps.verify.outputs.version_code }}"
+          version_code="${VALUE_STEPS_VERIFY_OUTPUTS_VERSION_CODE}"
           previous_version_code="$((version_code - 1))"
           curl --fail-with-body --silent --show-error \
             -H "Authorization: Bearer ${WHISPR_RELEASE_PUBLISH_TOKEN}" \
-            "${{ needs.contract.outputs.api_base_url }}/api/v1/mobile/app/update?buildEnvironment=${environment}&channel=${mobile_channel}&installed=${{ steps.verify.outputs.version_name }}&platform=android&runtimeVersion=publication-verification&versionCode=${previous_version_code}" \
+            "${VALUE_NEEDS_CONTRACT_OUTPUTS_API_BASE_URL}/api/v1/mobile/app/update?buildEnvironment=${environment}&channel=${mobile_channel}&installed=${VALUE_STEPS_VERIFY_OUTPUTS_VERSION_NAME}&platform=android&runtimeVersion=publication-verification&versionCode=${previous_version_code}" \
             > "$RUNNER_TEMP/mobile-apk-decision.json"
           jq -e \
             --arg url "$artifact_url" \
-            --argjson versionCode "${{ steps.verify.outputs.version_code }}" \
+            --argjson versionCode "${VALUE_STEPS_VERIFY_OUTPUTS_VERSION_CODE}" \
             '.updateKind == "apk" and .androidArtifact.url == $url and .androidArtifact.versionCode == $versionCode' \
             "$RUNNER_TEMP/mobile-apk-decision.json" >/dev/null
 
           jq -n \
-            --arg sha256 "${{ steps.verify.outputs.sha256 }}" \
+            --arg sha256 "${VALUE_STEPS_VERIFY_OUTPUTS_SHA256}" \
             --arg url "$artifact_url" \
-            --arg version "${{ steps.verify.outputs.version_name }}" \
-            --argjson sizeBytes "${{ steps.verify.outputs.size_bytes }}" \
-            --argjson versionCode "${{ steps.verify.outputs.version_code }}" \
+            --arg version "${VALUE_STEPS_VERIFY_OUTPUTS_VERSION_NAME}" \
+            --argjson sizeBytes "${VALUE_STEPS_VERIFY_OUTPUTS_SIZE_BYTES}" \
+            --argjson versionCode "${VALUE_STEPS_VERIFY_OUTPUTS_VERSION_CODE}" \
             '{sha256:$sha256,sizeBytes:$sizeBytes,url:$url,version:$version,versionCode:$versionCode}' \
             > "$RUNNER_TEMP/mobile-latest.json"
           endpoint_url="https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
           aws --endpoint-url "$endpoint_url" s3 cp "$RUNNER_TEMP/mobile-latest.json" \
-            "s3://${R2_BUCKET}/${{ steps.verify.outputs.latest_key }}" \
+            "s3://${R2_BUCKET}/${VALUE_STEPS_VERIFY_OUTPUTS_LATEST_KEY}" \
             --content-type "application/json" \
             --cache-control "public, max-age=60" --no-progress
 

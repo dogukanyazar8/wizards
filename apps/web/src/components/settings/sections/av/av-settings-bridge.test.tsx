@@ -7,18 +7,12 @@ import { fileURLToPath } from "node:url";
 import {
   applyAvSettingsPatch,
   readAvSettingsValues,
-  resolveAudioProcessingStateKey,
   type AvVoiceSnapshot,
   type AvVoiceWriter,
 } from "@/components/settings/sections/av/av-settings-bridge";
 import { SETTINGS_DIRTY_PROFILE_KEYS } from "@/lib/settings/metrics";
 import { findSettingsTab } from "@/lib/settings/tree";
 import { isDirtyProfileKey } from "@/lib/settings/use-setting-value";
-import {
-  CLEAN_AUDIO_PROFILE_PRESET,
-  isCleanAudioProfileActive,
-} from "@/lib/voice/clean-audio-profile";
-
 /** Ş8 §A — cihaz durumu ↔ satır değerleri eşlemesi. */
 
 const srcRoot = dirname(dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url))))));
@@ -40,6 +34,8 @@ function snapshot(overrides: Partial<AvVoiceSnapshot> = {}): AvVoiceSnapshot {
       deviceId: "default",
       mirrorPreview: true,
       rotation: 0,
+      quality: "h1080",
+      frameRate: 30,
     },
     pushToTalkHangoverMs: 200,
     masterOutputVolume: 78,
@@ -48,7 +44,6 @@ function snapshot(overrides: Partial<AvVoiceSnapshot> = {}): AvVoiceSnapshot {
     screenShareExcludeSelfWindow: true,
     screenShareQuality: "h1080fps60",
     screenShareVolume: 60,
-    selfMonitorEnabled: false,
     voiceInputMode: "voice-activity",
     ...overrides,
   };
@@ -58,6 +53,7 @@ function recorder() {
   const calls: Array<[string, unknown, unknown]> = [];
 
   const writer: AvVoiceWriter = {
+    setAudioPreferences: (value) => calls.push(["setAudioPreferences", value, null]),
     setAudioPreference: (key, value) => calls.push(["setAudioPreference", key, value]),
     setCameraPreference: (key, value) => calls.push(["setCameraPreference", key, value]),
     setPushToTalkHangoverMs: (value) => calls.push(["setPushToTalkHangoverMs", value, null]),
@@ -71,7 +67,6 @@ function recorder() {
       calls.push(["setScreenShareAllowSourceSwitch", value, null]),
     setScreenShareExcludeSelfWindow: (value) =>
       calls.push(["setScreenShareExcludeSelfWindow", value, null]),
-    setSelfMonitorEnabled: (value) => calls.push(["setSelfMonitorEnabled", value, null]),
     setVoiceInputMode: (value) => calls.push(["setVoiceInputMode", value, null]),
   };
 
@@ -79,68 +74,47 @@ function recorder() {
 }
 
 describe("AV köprüsü — okuma", () => {
-  it("cihaz durumundan satır değerlerine", () => {
+  it("Krisp ve ses giriş değerlerini mevcut tercihlerden okur", () => {
     const values = readAvSettingsValues(snapshot());
-
-    assert.equal(values.p1, true, "önerilen kümede profil açık olmalı");
+    assert.equal(values.p7, 0);
     assert.equal(values.i5, 0);
     assert.equal(values.i6, 200);
-    assert.equal(values.e1, 1, "1080p60 ikinci seçenek");
-    assert.equal(values.e3, 60);
-    assert.equal(values.p7, 0, "katmanlı ilk seçenek");
-  });
-
-  it("bir filtre sapınca profil kapanıyor (kendiliğinden)", () => {
-    const drifted = snapshot({
-      audioPreferences: {
-        ...snapshot().audioPreferences,
-        noiseSuppression: false,
-      },
-    });
-
-    assert.equal(readAvSettingsValues(drifted).p1, false);
-    assert.equal(isCleanAudioProfileActive(drifted.audioPreferences), false);
+    assert.equal(values.e1, 1);
+    assert.equal(values.i4, undefined, "mikrofon önizlemesi kalıcı tercih değildir");
   });
 });
 
 describe("AV köprüsü — yazma", () => {
-  it("`p1` açılınca beş filtre önerilen kümeye eşitleniyor", () => {
+  it("cihaz seçimi de kayıt durumunu izleyen köprüden geçer", () => {
     const { calls, writer } = recorder();
-    const messy = snapshot({
-      audioPreferences: {
-        ...snapshot().audioPreferences,
-        autoGainControl: true,
-        krispNoiseCancellation: false,
-        noiseSuppression: false,
-      },
-    });
-
-    applyAvSettingsPatch({ p1: true }, messy, writer);
-
-    assert.equal(calls.length, 5);
-
-    for (const [name, key, value] of calls) {
-      assert.equal(name, "setAudioPreference");
-      assert.equal(
-        value,
-        CLEAN_AUDIO_PROFILE_PRESET[key as keyof typeof CLEAN_AUDIO_PROFILE_PRESET],
-      );
-    }
+    applyAvSettingsPatch({ i1: "mic", u1: "headphones" }, snapshot(), writer);
+    assert.deepEqual(calls, [
+      ["setAudioPreference", "inputDeviceId", "mic"],
+      ["setAudioPreference", "outputDeviceId", "headphones"],
+    ]);
   });
-
-  it("`p1` kapatma isteği hiçbir filtre yazmıyor — kapanış filtreye dokunmakla olur", () => {
+  it("gürültü seçimini tek güncellemede uygular; yankı ve kazancı değiştirmez", () => {
     const { calls, writer } = recorder();
-
-    applyAvSettingsPatch({ p1: false }, snapshot(), writer);
-
-    assert.deepEqual(calls, []);
+    applyAvSettingsPatch({ p7: 0 }, snapshot(), writer);
+    assert.deepEqual(calls, [
+      [
+        "setAudioPreferences",
+        {
+          krispNoiseCancellation: true,
+          enhancedNoiseFilterMode: "krisp_only",
+          noiseSuppression: true,
+          voiceIsolation: true,
+        },
+        null,
+      ],
+    ]);
   });
 
   it("her satır kendi cihaz alanına gidiyor", () => {
     const { calls, writer } = recorder();
 
     applyAvSettingsPatch(
-      { e1: 2, e2: false, e3: 25, i5: 1, i6: 900, k3: true, p3: false, p7: 1 },
+      { e1: 2, e2: false, e3: 25, i5: 1, i6: 900, k3: true, p4: false, p5: true },
       snapshot(),
       writer,
     );
@@ -153,20 +127,19 @@ describe("AV köprüsü — yazma", () => {
       // 900 ms store'un üst sınırına (750) kırpılır.
       ["setPushToTalkHangoverMs", 750, null],
       ["setCameraPreference", "backgroundBlur", true],
-      ["setAudioPreference", "voiceIsolation", false],
-      ["setAudioPreference", "enhancedNoiseFilterMode", "krisp_only"],
+      ["setAudioPreference", "echoCancellation", false],
+      ["setAudioPreference", "autoGainControl", true],
     ]);
   });
 
   it("F2 — dört cihaz tercihi persist store adapterine yazılıyor", () => {
     const { calls, writer } = recorder();
 
-    applyAvSettingsPatch({ e4: false, e5: false, i4: true, u3: 80 }, snapshot(), writer);
+    applyAvSettingsPatch({ e4: false, e5: false, u3: 80 }, snapshot(), writer);
 
     assert.deepEqual(calls, [
       ["setScreenShareExcludeSelfWindow", false, null],
       ["setScreenShareAllowSourceSwitch", false, null],
-      ["setSelfMonitorEnabled", true, null],
       ["setMasterOutputVolume", 80, null],
     ]);
   });
@@ -182,50 +155,6 @@ describe("AV köprüsü — yazma", () => {
   });
 });
 
-describe("Ses işleme durumu", () => {
-  it("durum satırı gerçek filtre kararından türüyor", () => {
-    assert.equal(resolveAudioProcessingStateKey(snapshot()), "settings.block.audio.state.layered");
-
-    assert.equal(
-      resolveAudioProcessingStateKey(
-        snapshot({
-          audioPreferences: {
-            ...snapshot().audioPreferences,
-            enhancedNoiseFilterMode: "krisp_only",
-          },
-        }),
-      ),
-      "settings.block.audio.state.krisp",
-    );
-
-    assert.equal(
-      resolveAudioProcessingStateKey(
-        snapshot({
-          audioPreferences: {
-            ...snapshot().audioPreferences,
-            krispNoiseCancellation: false,
-          },
-        }),
-      ),
-      "settings.block.audio.state.browser",
-    );
-
-    assert.equal(
-      resolveAudioProcessingStateKey(
-        snapshot({
-          audioPreferences: {
-            ...snapshot().audioPreferences,
-            krispNoiseCancellation: false,
-            noiseSuppression: false,
-            voiceIsolation: false,
-          },
-        }),
-      ),
-      "settings.block.audio.state.off",
-    );
-  });
-});
-
 describe("SPEC_DEVIATIONS #5 — ses işleme satırları kirli bayrağı kurmaz", () => {
   it("`p1`…`p9` profil alanı değil", () => {
     const audioTab = findSettingsTab("av", "audio");
@@ -236,7 +165,7 @@ describe("SPEC_DEVIATIONS #5 — ses işleme satırları kirli bayrağı kurmaz"
       .map((row) => row.key)
       .filter((key) => /^p\d$/u.test(key));
 
-    assert.deepEqual(processingRows, ["p1", "p2", "p3", "p4", "p5", "p6", "p7", "p9"]);
+    assert.deepEqual(processingRows, ["p7", "p4", "p5"]);
 
     for (const key of processingRows) {
       assert.equal(isDirtyProfileKey(key), false, `${key} kirli bayrağı kuruyor`);
@@ -245,7 +174,7 @@ describe("SPEC_DEVIATIONS #5 — ses işleme satırları kirli bayrağı kurmaz"
     // Kirli liste yalnız Hesabım › Profil alanlarını sayar.
     assert.deepEqual(
       [...SETTINGS_DIRTY_PROFILE_KEYS],
-      ["pn", "pu", "pz", "pbio", "pp", "ps", "pe", "px"],
+      ["pn", "pu", "pbio", "pp", "ps", "pe", "px"],
     );
   });
 });

@@ -85,6 +85,8 @@ export interface VoiceCameraPreferences {
   deviceId: string;
   mirrorPreview: boolean;
   rotation: VoiceCameraRotation;
+  quality: "h720" | "h1080";
+  frameRate: 15 | 30;
 }
 
 export const DEFAULT_VOICE_CAMERA_PREFERENCES: VoiceCameraPreferences = {
@@ -92,6 +94,8 @@ export const DEFAULT_VOICE_CAMERA_PREFERENCES: VoiceCameraPreferences = {
   deviceId: DEFAULT_CAMERA_DEVICE_ID,
   mirrorPreview: true,
   rotation: 0,
+  quality: "h1080",
+  frameRate: 30,
 };
 
 const CLEAN_VOICE_PROCESSING_VERSION = 2;
@@ -196,6 +200,8 @@ export function sanitizeCameraPreferences(value: unknown): VoiceCameraPreference
         ? value.mirrorPreview
         : DEFAULT_VOICE_CAMERA_PREFERENCES.mirrorPreview,
     rotation: sanitizeCameraRotation(value.rotation),
+    quality: value.quality === "h720" ? "h720" : "h1080",
+    frameRate: value.frameRate === 15 ? 15 : 30,
   };
 }
 
@@ -349,7 +355,6 @@ type PersistedVoiceStoreState = {
    * kutusunda yaşıyordu ve pencere kapanınca ölüyordu — gösterge yine de `Kaydedildi` diyordu.
    */
   /** `i4` — mikrofonu kulaklığa geri ver. */
-  selfMonitorEnabled: boolean;
   /** `u3` — ana çıkış ses seviyesi, yüzde. */
   masterOutputVolume: number;
   /** `e4` — kendi Whispr penceresini paylaşım kaynaklarından çıkar. */
@@ -408,6 +413,7 @@ interface VoiceStoreState extends PersistedVoiceStoreState {
   leave: () => void;
   resetParticipantVolume: (userId: string) => void;
   resetCameraPreferences: () => void;
+  setAudioPreferences: (preferences: Partial<VoiceAudioPreferences>) => void;
   setAudioPreference: <Key extends keyof VoiceAudioPreferences>(
     key: Key,
     value: VoiceAudioPreferences[Key],
@@ -442,7 +448,6 @@ interface VoiceStoreState extends PersistedVoiceStoreState {
   setParticipantVolume: (userId: string, volume: number) => void;
   setScreenShareError: (error: string | null) => void;
   /** Ayarlar F2 — dört cihaz tercihinin yazıcıları. */
-  setSelfMonitorEnabled: (enabled: boolean) => void;
   setMasterOutputVolume: (volume: number) => void;
   setScreenShareExcludeSelfWindow: (enabled: boolean) => void;
   setScreenShareAllowSourceSwitch: (enabled: boolean) => void;
@@ -506,7 +511,6 @@ export const useVoiceStore = create<VoiceStoreState>()(
       screenShareError: null,
       screenShareMode: null,
       // F2 — referans varsayılanları: `i4` kapalı, `u3` %78, `e4` ve `e5` açık.
-      selfMonitorEnabled: false,
       masterOutputVolume: 78,
       screenShareExcludeSelfWindow: true,
       screenShareAllowSourceSwitch: true,
@@ -576,6 +580,13 @@ export const useVoiceStore = create<VoiceStoreState>()(
             ...(key === "krispNoiseCancellation" ? { hasConfiguredKrispPreference: true } : {}),
           };
         }),
+      setAudioPreferences: (preferences) =>
+        set((state) => ({
+          audioPreferences: { ...state.audioPreferences, ...preferences },
+          ...(preferences.krispNoiseCancellation !== undefined
+            ? { hasConfiguredKrispPreference: true }
+            : {}),
+        })),
       setCameraPreference: (key, value) =>
         set((state) => {
           if (state.cameraPreferences[key] === value) {
@@ -727,10 +738,6 @@ export const useVoiceStore = create<VoiceStoreState>()(
         set({
           screenShareError: error,
         }),
-      setSelfMonitorEnabled: (enabled) =>
-        set((state) =>
-          state.selfMonitorEnabled === enabled ? state : { selfMonitorEnabled: enabled },
-        ),
       setMasterOutputVolume: (volume) =>
         set((state) => {
           const next = sanitizeScreenShareVolume(volume);
@@ -840,7 +847,6 @@ export const useVoiceStore = create<VoiceStoreState>()(
           participantVolumes: sanitizeParticipantVolumes(persistedState.participantVolumes),
           pushToTalkHangoverMs: sanitizePushToTalkHangoverMs(persistedState.pushToTalkHangoverMs),
           pushToTalkShortcut: desktopShortcuts.pushToTalkShortcut,
-          selfMonitorEnabled: persistedState.selfMonitorEnabled === true,
           masterOutputVolume: sanitizeScreenShareVolume(persistedState.masterOutputVolume),
           screenShareExcludeSelfWindow: persistedState.screenShareExcludeSelfWindow !== false,
           screenShareAllowSourceSwitch: persistedState.screenShareAllowSourceSwitch !== false,
@@ -871,7 +877,6 @@ export const useVoiceStore = create<VoiceStoreState>()(
         participantVolumes: state.participantVolumes,
         pushToTalkHangoverMs: state.pushToTalkHangoverMs,
         pushToTalkShortcut: state.pushToTalkShortcut,
-        selfMonitorEnabled: state.selfMonitorEnabled,
         masterOutputVolume: state.masterOutputVolume,
         screenShareExcludeSelfWindow: state.screenShareExcludeSelfWindow,
         screenShareAllowSourceSwitch: state.screenShareAllowSourceSwitch,

@@ -570,7 +570,6 @@ model User {
   bannerOffsetX         Float?
   bannerOffsetY         Float?
   bio                   String?     @db.VarChar(500)
-  pronouns              String?
   status                UserStatus  @default(OFFLINE)
   customStatus          String?
   customStatusEmoji     String?
@@ -618,6 +617,7 @@ model User {
   authSessions            AuthSession[]
   emailVerificationTokens EmailVerificationToken[]
   accountReauthChallenges AccountReauthChallenge[]
+  emailChangeChallenge EmailChangeChallenge?
   twoFactorRecoveryCodes   TwoFactorRecoveryCode[]
   settings                UserSettings?
   notificationSettings    UserNotificationSettings?
@@ -1165,6 +1165,24 @@ model EmailVerificationCode {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+/// One pending change per account; codes and OAuth bearer tokens are never stored in plaintext.
+model EmailChangeChallenge {
+  userId String @id
+  id String @unique
+  currentEmail String
+  newEmail String
+  credentialStamp String
+  codeHash String?
+  attempts Int @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  sentAt DateTime?
+  oauthTokenHash String? @unique
+  oauthVerifiedAt DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([expiresAt])
 }
 
@@ -2791,7 +2809,6 @@ model FeedbackClusterSuggestion {
 /// is never the default a new account lands on.
 enum ReleaseChannel {
   STABLE
-  BETA
   UAT
 }
 
@@ -2838,7 +2855,7 @@ enum DownloadDelivery {
 /// modelindeki sozlesmenin aynisi.
 model DownloadArtifact {
   id               String           @id @default(uuid())
-  /// STABLE = pencerenin PROD karti, UAT = UAT karti. BETA katalogda gosterilmez.
+  /// STABLE = PROD (Stable), UAT = UAT (Beta).
   channel          ReleaseChannel
   platform         DownloadPlatform
   delivery         DownloadDelivery

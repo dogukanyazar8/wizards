@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 
 import { useI18n } from "@/components/providers/locale-provider";
 import { SETTINGS_METRICS, hairline, pxToRem } from "@/lib/settings/metrics";
@@ -24,6 +24,8 @@ import { SettingActionButton } from "./setting-actions";
 const { riskyBlock } = SETTINGS_METRICS;
 
 const OPEN_LABEL_KEY: Readonly<Record<SettingsRiskyBlockKey, string>> = {
+  email: "settings.action.ae.1",
+  phone: "settings.action.ap.1",
   deleteAccount: "settings.control.risky.deleteAccount",
   password: "settings.control.risky.password",
   twoFactor: "settings.control.risky.twoFactor",
@@ -83,10 +85,34 @@ export function SettingRiskyBlockBody({
   readonly rowKey: string;
   readonly testId?: string;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // When switching rows, the previous panel's cleanup may restore its own
+    // trigger first. Resolve this row's trigger instead of capturing that focus.
+    const trigger =
+      panelRef.current
+        ?.closest("[data-setting-row]")
+        ?.querySelector<HTMLElement>(`[aria-controls="${settingRiskyPanelId(rowKey)}"]`) ??
+      (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    // Expanded rows can start below the scroll viewport. Focus the form so the
+    // newly opened fields are revealed and keyboard input stays in this flow.
+    panelRef.current
+      ?.querySelector<HTMLElement>(
+        "input:not(:disabled):not([hidden]):not([type='hidden']), textarea:not(:disabled), select:not(:disabled), button:not(:disabled)",
+      )
+      ?.focus();
+
+    return () => {
+      if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+    };
+  }, [rowKey]);
+
   return (
     <div
       data-testid={testId}
       id={settingRiskyPanelId(rowKey)}
+      ref={panelRef}
       style={{
         borderTop: `${hairline()} solid hsl(var(--border) / ${riskyBlock.borderTopAlpha})`,
         marginTop: pxToRem(riskyBlock.marginTop),

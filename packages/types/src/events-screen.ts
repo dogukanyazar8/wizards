@@ -282,6 +282,7 @@ export const CreateEventInputSchema = z
   .object({
     kind: EventKindSchema,
     title: z.string().trim().min(1).max(120),
+    description: z.string().trim().max(180).optional(),
     startsAt: z.string().datetime({ offset: true }),
     durationMinutes: z
       .number()

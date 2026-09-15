@@ -7,16 +7,19 @@ import { getDesktopVersionContract } from "./release-ops.mjs";
 const SUPPORTED_PLATFORMS = Object.freeze(["windows-x86_64"]);
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
 const DEFAULT_REMOTE_TIMEOUT_MS = 8_000;
-const DESKTOP_RELEASE_RINGS = Object.freeze(["uat", "canary", "stable"]);
+const DESKTOP_RELEASE_RINGS = Object.freeze(["uat", "stable"]);
 const DESKTOP_RELEASE_RING_SET = new Set(DESKTOP_RELEASE_RINGS);
 
 export function validateDesktopUpdateManifest(manifest, options = {}) {
   const platform = options.platform || "windows-x86_64";
-  const expectedVersion = options.expectedVersion || getDesktopVersionContract().desktopNativeVersion;
+  const expectedVersion =
+    options.expectedVersion || getDesktopVersionContract().desktopNativeVersion;
   const expectedReleaseTag = options.expectedReleaseTag;
   const expectedRing = options.expectedRing;
   const expectedSignature = options.expectedSignature;
-  const expectedArtifactPath = options.artifactPath ? assertExistingFile(options.artifactPath, "artifact") : null;
+  const expectedArtifactPath = options.artifactPath
+    ? assertExistingFile(options.artifactPath, "artifact")
+    : null;
 
   assertPlainObject(manifest, "Updater manifest");
   assertSupportedPlatform(platform);
@@ -249,7 +252,9 @@ function assertExistingFile(filePath, label) {
 
 function assertSupportedPlatform(platform) {
   if (!SUPPORTED_PLATFORMS.includes(platform)) {
-    throw new Error(`Unsupported updater platform (${platform}). Supported platforms: ${SUPPORTED_PLATFORMS.join(", ")}.`);
+    throw new Error(
+      `Unsupported updater platform (${platform}). Supported platforms: ${SUPPORTED_PLATFORMS.join(", ")}.`,
+    );
   }
 }
 
@@ -306,17 +311,24 @@ function assertSafeHttpsUrl(value, label) {
 }
 
 function assertImmutableReleaseArtifactUrl(url, options = {}) {
-  const segments = url.pathname.split("/").filter(Boolean).map((segment) => decodeURIComponent(segment));
+  const segments = url.pathname
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => decodeURIComponent(segment));
   const filename = segments.at(-1) || "";
   const desktopIndex = segments.findIndex(
     (segment, index) => segment === "desktop" && DESKTOP_RELEASE_RING_SET.has(segments[index + 1]),
   );
   const expectedRing = options.expectedRing ? normalizeReleaseRing(options.expectedRing) : null;
-  const expectedReleaseTag = options.expectedReleaseTag ? normalizeReleaseTag(options.expectedReleaseTag) : null;
+  const expectedReleaseTag = options.expectedReleaseTag
+    ? normalizeReleaseTag(options.expectedReleaseTag)
+    : null;
 
   if (desktopIndex === -1) {
     if (expectedRing || expectedReleaseTag) {
-      throw new Error("Updater artifact URL must include desktop/<ring>/releases/<release-tag>/ path segments.");
+      throw new Error(
+        "Updater artifact URL must include desktop/<ring>/releases/<release-tag>/ path segments.",
+      );
     }
 
     return;
@@ -328,7 +340,9 @@ function assertImmutableReleaseArtifactUrl(url, options = {}) {
   const releaseFilename = segments[desktopIndex + 4];
 
   if (expectedRing && ring !== expectedRing) {
-    throw new Error(`Updater artifact URL release ring (${ring}) does not match expected ${expectedRing}.`);
+    throw new Error(
+      `Updater artifact URL release ring (${ring}) does not match expected ${expectedRing}.`,
+    );
   }
 
   if (releasesSegment !== "releases" || !releaseTag) {
@@ -338,11 +352,15 @@ function assertImmutableReleaseArtifactUrl(url, options = {}) {
   }
 
   if (expectedReleaseTag && releaseTag !== expectedReleaseTag) {
-    throw new Error(`Updater artifact URL release tag (${releaseTag}) does not match expected ${expectedReleaseTag}.`);
+    throw new Error(
+      `Updater artifact URL release tag (${releaseTag}) does not match expected ${expectedReleaseTag}.`,
+    );
   }
 
   if (releaseFilename !== filename || segments.length !== desktopIndex + 5) {
-    throw new Error("Updater artifact URL must place the installer directly under its immutable release tag directory.");
+    throw new Error(
+      "Updater artifact URL must place the installer directly under its immutable release tag directory.",
+    );
   }
 }
 
@@ -350,7 +368,9 @@ function normalizeReleaseRing(value) {
   const ring = String(value || "").trim();
 
   if (!DESKTOP_RELEASE_RING_SET.has(ring)) {
-    throw new Error(`Updater artifact release ring must be one of: ${DESKTOP_RELEASE_RINGS.join(", ")}.`);
+    throw new Error(
+      `Updater artifact release ring must be one of: ${DESKTOP_RELEASE_RINGS.join(", ")}.`,
+    );
   }
 
   return ring;
@@ -359,7 +379,7 @@ function normalizeReleaseRing(value) {
 function normalizeReleaseTag(value) {
   const releaseTag = String(value || "").trim();
 
-  if (!/^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?(?:-(?:uat|canary)\.[1-9]\d*)?$/.test(releaseTag)) {
+  if (!/^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?(?:-uat\.[1-9]\d*)?$/.test(releaseTag)) {
     throw new Error("Updater artifact release tag must be a valid desktop release tag.");
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo } from "react";
+import type { SettingsRiskyBlockKey } from "@/lib/settings/tree";
 
 import type {
   SettingSaveStatus,
@@ -21,9 +22,9 @@ import type {
  * yerel merdivenini kurar (yalıtılmış blok testleri bu dalda koşuyor); varsa kabuğunkini alır.
  */
 export type SettingsLadder = {
-  readonly openRisky: string | null;
+  readonly openRisky: SettingsRiskyBlockKey | null;
   readonly openSelect: string | null;
-  readonly toggleRisky: (key: string) => void;
+  readonly toggleRisky: (key: SettingsRiskyBlockKey) => void;
   readonly toggleSelect: (key: string) => void;
 };
 
@@ -58,7 +59,10 @@ export function useSettingsLadderOverrides(): Partial<SettingsRowRuntime> {
     return {
       openRisky: ladder.openRisky,
       openSelect: ladder.openSelect,
-      setOpenRisky: (key: string | null) => ladder.toggleRisky(key ?? ladder.openRisky ?? ""),
+      setOpenRisky: (key: SettingsRiskyBlockKey | null) => {
+        const target = key ?? ladder.openRisky;
+        if (target) ladder.toggleRisky(target);
+      },
       setOpenSelect: (key: string | null) => ladder.toggleSelect(key ?? ladder.openSelect ?? ""),
     };
   }, [ladder]);

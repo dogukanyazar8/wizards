@@ -1,3 +1,10 @@
+/** Constraint names are safe diagnostics; never include device IDs or labels. */
+export function getMicrophoneConstraintName(error: unknown): string | null {
+  if (!error || typeof error !== "object" || !("constraint" in error)) return null;
+  const value = error.constraint;
+  return typeof value === "string" && /^[A-Za-z][A-Za-z0-9]{0,63}$/.test(value) ? value : null;
+}
+
 export function isMicrophonePermissionDenied(error: unknown) {
   if (error instanceof DOMException) {
     return (

@@ -132,3 +132,75 @@ describe("Önizleme kısıtları ve dönüşümü", () => {
     assert.equal(rotateCameraPreview(90, 90), 180);
   });
 });
+
+it("quality changes replace preview tracks and apply the selected constraints", async () => {
+  const streams = [fakeStream(), fakeStream()];
+  const calls: unknown[] = [];
+  const session = new CameraPreviewSession({
+    capture: async (id, quality) => {
+      calls.push({ id, quality });
+      return streams[calls.length - 1]!;
+    },
+  });
+  session.reconfigure("unused", { quality: "h720", frameRate: 15 });
+  assert.equal(calls.length, 0, "changing an idle preference must not request camera access");
+  await session.start("first");
+  session.reconfigure("second", { quality: "h720", frameRate: 15 });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(streams[0]!.tracks[0]!.stopped, true);
+  assert.equal(session.getSnapshot().stream, streams[1]);
+  assert.deepEqual(calls[1], { id: "second", quality: { quality: "h720", frameRate: 15 } });
+  const constraints = buildCameraPreviewConstraints("second", { quality: "h720", frameRate: 15 });
+  assert.deepEqual(constraints.video, {
+    deviceId: { exact: "second" },
+    facingMode: { ideal: "user" },
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+    frameRate: { ideal: 15, max: 15 },
+  });
+  session.dispose();
+  assert.equal(streams[1]!.tracks[0]!.stopped, true);
+});
+
+it("rapid camera changes dispose late captures and keep the newest stream", async () => {
+  const pending: Array<(stream: CapturedVideoStream) => void> = [];
+  const session = new CameraPreviewSession({
+    capture: () => new Promise((resolve) => pending.push(resolve)),
+  });
+  const first = session.start("first");
+  session.reconfigure("second", { quality: "h720", frameRate: 15 });
+  session.reconfigure("third", { quality: "h1080", frameRate: 30 });
+  const stale = [fakeStream(), fakeStream()];
+  const latest = fakeStream();
+  pending[2]!(latest);
+  pending[1]!(stale[1]!);
+  pending[0]!(stale[0]!);
+  await first;
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(session.getSnapshot().stream, latest);
+  assert.ok(stale.every((stream) => stream.tracks[0]!.stopped));
+  session.dispose();
+});
+
+it("device disconnection clears the preview and releases its event listeners", async () => {
+  const handlers = new Set<() => void>();
+  let stopped = 0;
+  const track = {
+    stop: () => stopped++,
+    addEventListener: (_type: "ended", handler: () => void) => {
+      handlers.add(handler);
+    },
+    removeEventListener: (_type: "ended", handler: () => void) => {
+      handlers.delete(handler);
+    },
+  };
+  const session = new CameraPreviewSession({ capture: async () => ({ getTracks: () => [track] }) });
+  await session.start();
+  assert.equal(handlers.size, 1);
+  for (const handler of handlers) handler();
+  assert.equal(session.getSnapshot().status, "device-unavailable");
+  assert.equal(session.getSnapshot().stream, null);
+  assert.equal(stopped, 1);
+  assert.equal(handlers.size, 0);
+  session.dispose();
+});

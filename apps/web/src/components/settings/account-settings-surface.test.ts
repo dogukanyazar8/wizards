@@ -28,10 +28,10 @@ describe("web account settings surface", () => {
    * taşındı (`m3`), kalan on üçü Hesabım'ın üç sekmesinde.
    */
   const SURFACE_ROWS: ReadonlyArray<readonly [string, string, string]> = [
-    ["language", "account/privacy", "l1"],
-    ["timeZone", "account/privacy", "l2"],
-    ["dateFormat", "account/privacy", "l3"],
-    ["timeFormat", "account/privacy", "l4"],
+    ["language", "appearance/language", "l1"],
+    ["timeZone", "appearance/language", "l2"],
+    ["dateFormat", "appearance/language", "l3"],
+    ["timeFormat", "appearance/language", "l4"],
     ["interfaceDensity", "appearance/text", "m3"],
     ["profileVisibility", "account/privacy", "g1"],
     ["presenceVisibility", "account/privacy", "g2"],
@@ -65,7 +65,7 @@ describe("web account settings surface", () => {
   });
 
   it("keeps the time and region controls together in one group", () => {
-    const privacy = findSettingsTab("account", "privacy");
+    const privacy = findSettingsTab("appearance", "language");
 
     assert.ok(privacy);
 

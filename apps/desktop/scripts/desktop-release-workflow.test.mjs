@@ -151,9 +151,10 @@ describe("desktop release workflow contract", () => {
       buildDesktopReleaseTag({ releaseSequence: "42", ring: "uat", version: desktopVersion }),
       `v${desktopVersion}-uat.42`,
     );
-    assert.equal(
-      buildDesktopReleaseTag({ releaseSequence: "42", ring: "canary", version: desktopVersion }),
-      `v${desktopVersion}-canary.42`,
+    assert.throws(
+      () =>
+        buildDesktopReleaseTag({ releaseSequence: "42", ring: "canary", version: desktopVersion }),
+      /release ring must be one of/,
     );
     assert.equal(
       buildDesktopReleaseTag({ releaseSequence: null, ring: "stable", version: desktopVersion }),
@@ -302,6 +303,9 @@ describe("desktop release workflow contract", () => {
     );
 
     assert.throws(() => parseDesktopReleaseWorkflowCliArgs(["--wat", "1"]), /Unknown option/);
-    assert.throws(() => parseDesktopReleaseWorkflowCliArgs(["unexpected"]), /Unexpected positional/);
+    assert.throws(
+      () => parseDesktopReleaseWorkflowCliArgs(["unexpected"]),
+      /Unexpected positional/,
+    );
   });
 });

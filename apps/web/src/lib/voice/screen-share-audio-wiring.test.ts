@@ -24,39 +24,26 @@ describe("screen share audio wiring", () => {
     );
     assert.match(
       providerSource,
-      /getScreenShareCaptureOptions\(currentQuality, \{ shareSystemAudio \}\)/,
+      /getScreenShareCaptureOptions\(currentQuality, \{\s*shareSystemAudio,\s*excludeSelfWindow: store\.screenShareExcludeSelfWindow,\s*allowSourceSwitch: store\.screenShareAllowSourceSwitch,/,
     );
   });
 
   it("tears the share down through the helper that covers both sources", () => {
-    assert.match(
-      providerSource,
-      /const localScreenTracks = getLocalScreenShareTracks\(activeRoom\)/,
-    );
-    assert.doesNotMatch(
-      providerSource,
-      /publication\.source === Track\.Source\.ScreenShare\b(?![\s\S]{0,120}ScreenShareAudio)/,
-      "stop must never filter screen share publications by video source alone",
-    );
+    const sessionSource = readSource("lib/voice/screen-share-session.ts");
+    assert.match(providerSource, /await screenShareSession\.stop\(activeRoom\)/);
+    assert.match(sessionSource, /publication\.source === Track\.Source\.ScreenShareAudio/);
   });
 
   it("ends the share on the video track only, so losing audio keeps the picture", () => {
-    const endedListenerIndex = providerSource.indexOf(
-      "localScreenTrack.mediaStreamTrack.addEventListener",
-    );
-    const videoGuardIndex = providerSource.indexOf("localScreenTrack instanceof LocalVideoTrack");
-
-    assert.ok(videoGuardIndex > 0 && endedListenerIndex > videoGuardIndex);
-    assert.doesNotMatch(
-      providerSource,
-      /ScreenShareAudio[\s\S]{0,200}addEventListener\(\s*"ended"/,
-    );
+    const sessionSource = readSource("lib/voice/screen-share-session.ts");
+    assert.match(sessionSource, /video\.mediaStreamTrack\.addEventListener\(/);
+    assert.match(providerSource, /onEnded: \(\) => \{\s*void stopScreenShare\(activeRoom\);/);
   });
 
   it("suppresses local playback only when share audio was actually requested", () => {
     assert.match(
       providerSource,
-      /if \(shareSystemAudio\) \{\s*\n\s*suppressLocalScreenShareAudioPlayback\(activeRoom\);/,
+      /if \(started && shareSystemAudio\) \{\s*\n\s*suppressLocalScreenShareAudioPlayback\(activeRoom\);/,
     );
   });
 });
@@ -112,9 +99,12 @@ describe("screen share audio control", () => {
 
     assert.match(
       providerSource,
-      /applyRemoteAudioState\(\s*activeRoom,\s*isDeafened,\s*participantVolumes,\s*DEFAULT_PARTICIPANT_VOLUME,\s*screenShareVolume,\s*\)/,
+      /applyRemoteAudioState\(\s*activeRoom,\s*isDeafened,\s*participantVolumes,\s*DEFAULT_PARTICIPANT_VOLUME,\s*screenShareVolume,\s*masterOutputVolume,\s*\)/,
     );
-    assert.match(providerSource, /\[isDeafened, participantVolumes, screenShareVolume\]/);
+    assert.match(
+      providerSource,
+      /\[isDeafened, participantVolumes, screenShareVolume, masterOutputVolume\]/,
+    );
   });
 
   it("tells both locales that the surface audio is shared with everyone", () => {
@@ -134,7 +124,7 @@ describe("screen share audio control", () => {
       "the Turkish copy must be translated, not copied",
     );
     // The old settings chip promised the opposite of what now ships.
-    assert.doesNotMatch(EN_MESSAGES["settings.voice.screenShare.feature.noSystemAudio"], /^No /);
+    assert.equal("settings.voice.screenShare.feature.noSystemAudio" in EN_MESSAGES, false);
   });
 
   it("can be turned on before the first share, from the settings window", () => {

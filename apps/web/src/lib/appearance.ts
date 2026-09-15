@@ -446,14 +446,14 @@ export function getWizardsThemeMode(value: string | null | undefined) {
 }
 
 export const ICON_ONLY_SERVER_RAIL_WIDTH = 88;
-export const EXPANDED_MIN_SERVER_RAIL_WIDTH = 136;
-export const DEFAULT_SERVER_RAIL_WIDTH = 136;
-export const MIN_SERVER_RAIL_WIDTH = ICON_ONLY_SERVER_RAIL_WIDTH;
-export const MAX_SERVER_RAIL_WIDTH = 184;
+export const EXPANDED_MIN_SERVER_RAIL_WIDTH = 60;
+export const DEFAULT_SERVER_RAIL_WIDTH = 74;
+export const MIN_SERVER_RAIL_WIDTH = 60;
+export const MAX_SERVER_RAIL_WIDTH = 92;
 export const SERVER_RAIL_WIDTH_STEP = 4;
-export const DEFAULT_SERVER_RAIL_ICON_SIZE = 40;
-export const MIN_SERVER_RAIL_ICON_SIZE = 34;
-export const MAX_SERVER_RAIL_ICON_SIZE = 54;
+export const DEFAULT_SERVER_RAIL_ICON_SIZE = 44;
+export const MIN_SERVER_RAIL_ICON_SIZE = 36;
+export const MAX_SERVER_RAIL_ICON_SIZE = 56;
 export const SERVER_RAIL_ICON_SIZE_STEP = 2;
 /**
  * Kabuk rayının tek genişliği — SPEC-ANA-SAYFA §2.1 (74). Eski adı `COMPACT_SERVER_RAIL_WIDTH`
@@ -464,14 +464,10 @@ export const SERVER_RAIL_WIDTH = HOME_METRICS.rail.width;
 /** Ray ikonunun kutusu ve tıklama hedefi aynıdır: 44×44 (§2.1, §8.2.5 tabanı). */
 export const SERVER_RAIL_ICON_SIZE = HOME_METRICS.rail.iconSize;
 export const SERVER_RAIL_TOUCH_SIZE = HOME_METRICS.rail.iconSize;
-/**
- * Kanal kenar cubugu tek genislikte: SPEC-SUNUCU 1 ve 2 icin 252. Uc sabit de sozlukten
- * okunur; alt/ust sinir esit oldugu icin genislik ayarlanabilir bir alan degil, sabit bir
- * kolon -- deger iki yerde yazilsaydi biri digerini sessizce kirpardi.
- */
+/** Channel width stays within the same 200–300 px range exposed in Settings. */
 export const DEFAULT_CHANNEL_SIDEBAR_WIDTH = SERVER_METRICS.layout.sidebarWidth;
-export const MIN_CHANNEL_SIDEBAR_WIDTH = SERVER_METRICS.layout.sidebarWidth;
-export const MAX_CHANNEL_SIDEBAR_WIDTH = SERVER_METRICS.layout.sidebarWidth;
+export const MIN_CHANNEL_SIDEBAR_WIDTH = 200;
+export const MAX_CHANNEL_SIDEBAR_WIDTH = 300;
 export const CHANNEL_SIDEBAR_WIDTH_STEP = 8;
 export const LEGACY_DEFAULT_MAIN_PANEL_WIDTH = 1280;
 export const DEFAULT_MAIN_PANEL_WIDTH = 1400;
@@ -526,6 +522,13 @@ const NOTIFICATION_AUTO_CLOSE_STORAGE_KEY = "wizards.notificationAutoClose";
 
 export function clampServerRailWidth(value: number) {
   return Math.min(MAX_SERVER_RAIL_WIDTH, Math.max(MIN_SERVER_RAIL_WIDTH, value));
+}
+
+/** Old expanded-rail values were ignored by the fixed 74 px shell. Preserve that appearance. */
+export function normalizeStoredServerRailWidth(value: number) {
+  return !Number.isFinite(value) || value > MAX_SERVER_RAIL_WIDTH
+    ? DEFAULT_SERVER_RAIL_WIDTH
+    : clampServerRailWidth(value);
 }
 
 export function clampExpandedServerRailWidth(value: number) {

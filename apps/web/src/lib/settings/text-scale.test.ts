@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { UI_SCALE_STEPS } from "@/lib/home/scale";
+import { selectUiScale, UI_SCALE_STEPS } from "@/lib/home/scale";
 import { applyUiScale } from "@/hooks/use-ui-scale";
 import {
   applyTextScaleToDocument,
@@ -41,6 +41,21 @@ const stepX1 = UI_SCALE_STEPS[0]!;
 const stepX15 = UI_SCALE_STEPS[2]!;
 
 describe("Yazı boyutu — ölçek adımının üstüne biner", () => {
+  it("masaüstünde tam ekran ve geri dönüş kullanıcının yazı boyutunu değiştirmez", () => {
+    const { root } = createRoot();
+    applyTextScaleToDocument(root, 130, 16);
+
+    for (const viewport of [
+      { width: 1360, height: 920 },
+      { width: 3840, height: 2160 },
+      { width: 1360, height: 920 },
+    ]) {
+      applyUiScale(root, selectUiScale(viewport, "desktop"));
+      assert.equal(root.style.fontSize, "20.8px");
+      assert.equal(root.getAttribute(TEXT_SCALE_ATTRIBUTE), "130");
+    }
+  });
+
   it("aralık SPEC §5.3 ile aynı", () => {
     assert.equal(MIN_TEXT_SCALE_PERCENT, 85);
     assert.equal(MAX_TEXT_SCALE_PERCENT, 130);

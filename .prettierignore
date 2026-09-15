@@ -8,3 +8,5 @@ graphify-out/
 pnpm-lock.yaml
 package-lock.json
 yarn.lock
+# Canonical reference HTML: parity tests depend on the original inline formatting.
+apps/web/test-fixtures/design/

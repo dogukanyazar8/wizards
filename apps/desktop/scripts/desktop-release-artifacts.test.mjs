@@ -47,12 +47,12 @@ describe("desktop release artifact metadata", () => {
 
       const metadata = await createDesktopBuildMetadata({
         artifactDir,
-        ring: "canary",
+        ring: "uat",
         updaterEnabled: "false",
         version: desktopVersion,
       });
 
-      assert.equal(metadata.releaseRing, "canary");
+      assert.equal(metadata.releaseRing, "uat");
       assert.equal(metadata.updaterEnabled, false);
       assert.equal(metadata.artifacts.signature, null);
     });

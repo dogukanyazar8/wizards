@@ -46,10 +46,12 @@ export function LocaleProvider({
   children,
   initialMessages,
   initialLocale,
+  initialDesktop = false,
 }: {
   children: ReactNode;
   initialMessages?: TranslationDictionary;
   initialLocale?: string | null;
+  initialDesktop?: boolean;
 }) {
   const normalizedInitialLocale = normalizeAppLocale(initialLocale);
   const [locale, setLocaleState] = useState<AppLocale>(() => normalizedInitialLocale);
@@ -155,10 +157,12 @@ export function LocaleProvider({
       t: (key, values) => {
         const messages =
           messagesByLocale[locale] ?? messagesByLocale[DEFAULT_APP_LOCALE] ?? initialMessages;
-        return interpolateMessage(resolveMessageTemplate(messages, key, values), values);
+        const resolvedKey =
+          initialDesktop && messages?.[`${key}.desktop`] !== undefined ? `${key}.desktop` : key;
+        return interpolateMessage(resolveMessageTemplate(messages, resolvedKey, values), values);
       },
     }),
-    [initialMessages, locale, messagesByLocale],
+    [initialDesktop, initialMessages, locale, messagesByLocale],
   );
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;

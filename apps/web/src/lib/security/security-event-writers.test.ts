@@ -56,7 +56,7 @@ describe("security event writers", () => {
 
   it("keeps the eight kinds wired to the flows they describe", () => {
     const expectedWriters: Record<SecurityEventKind, string> = {
-      EMAIL_CHANGED: "lib/account/service.ts",
+      EMAIL_CHANGED: "lib/account/email-change-service.ts",
       FAILED_LOGIN: "auth.ts",
       LOGIN_NEW_DEVICE: "lib/auth/auth-session-service.ts",
       PASSWORD_CHANGED: "app/api/v1/users/me/password/route-logic.ts",

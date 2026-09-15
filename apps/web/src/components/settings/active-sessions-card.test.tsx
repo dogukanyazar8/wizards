@@ -56,6 +56,9 @@ describe("ActiveSessionsCard", () => {
     );
 
     assert.match(html, /data-testid="active-sessions-card"/);
+    assert.doesNotMatch(html, /Chrome/);
+    assert.match(html, /0\.8\.15/);
+    assert.match(html, /Safari/);
     assert.match(html, /Whispr Desktop|client\.DESKTOP/);
     assert.match(html, /settings\.account\.security\.sessions\.current/);
     assert.match(html, /settings\.account\.security\.sessions\.revokeOthers/);

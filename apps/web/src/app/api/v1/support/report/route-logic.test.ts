@@ -107,7 +107,7 @@ describe("web bug report route", () => {
 
     assert.equal(response.status, 201);
     assert.equal(written[0]?.platform, "desktop");
-    assert.equal(written[0]?.releaseChannel, "uat");
+    assert.equal(written[0]?.releaseChannel, "beta");
   });
 
   it("refuses a draft the window would have kept disabled", async () => {

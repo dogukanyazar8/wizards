@@ -122,4 +122,20 @@ describe("auth desktop contract", () => {
     assert.equal(desktop["--auth-brand-logo-scale"], String(AUTH_METRICS.logo.scale.desktop));
     assert.equal(AUTH_METRICS.logo.scale.desktop, 1.2);
   });
+
+  it("keeps both columns in the centred reference frame when desktop is maximized", () => {
+    const desktop = buildAuthCssVars("desktop") as Record<string, string>;
+    assert.equal(desktop["--auth-window-width"], "65rem");
+    const frame = GLOBALS.match(/^\.auth-window \{([^}]+)\}/m)?.[1] ?? "";
+    const nativeFrame =
+      GLOBALS.match(/html\.whispr-desktop-chrome \.auth-window \{([^}]+)\}/)?.[1] ?? "";
+    assert.match(frame, /width: var\(--auth-window-width\)/);
+    assert.match(frame, /max-width: 100%/);
+    assert.match(frame, /margin-block: auto/);
+    assert.match(
+      nativeFrame,
+      /min-height: calc\(var\(--auth-window-height\) - var\(--desktop-titlebar-height\)\)/,
+    );
+    assert.doesNotMatch(nativeFrame, /(?:^|;)\s*width:|100(?:dvh|vh|vw)/);
+  });
 });

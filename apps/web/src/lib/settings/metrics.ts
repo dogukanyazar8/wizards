@@ -61,7 +61,7 @@ export const SPEC_DEVIATIONS = [
    * işleme satırlarını (`p1`…`p9`) de profil alanı sayar ve Ses ve Video sekmesinde kaydet
    * şeridi çıkarır. Kirli alan listesi açıkça sayılır: `SETTINGS_DIRTY_PROFILE_KEYS`.
    */
-  { field: "profileDirtyKeys.count", html: "prefix:p", spec: 8 },
+  { field: "profileDirtyKeys.count", html: "prefix:p", spec: 7 },
   /**
    * #6 — Bildirim düzeyi iki farklı etiket kümesiyle görünüyor: 560 px pencere
    * `Tümü / Yalnızca önemli / Kapalı`, Ayarlar › Genel `Tüm bildirimler / Yalnız DM ve
@@ -112,16 +112,6 @@ export const SPEC_DEVIATIONS = [
    */
   { field: "desktopShortcuts.storage", html: "typed columns", spec: "Json?" },
   /**
-   * #12 — Release kanalının üçüncü çipi `Canary`, veritabanının `ReleaseChannel` enum'unda ise
-   * o değerin adı `UAT`.
-   *
-   * İkisi aynı akış: ürünün en erken, en riskli yayın hattı. Etiket referanstan **birebir**
-   * korunur, saklanan değer kolonun bildiği addır (`lib/desktop/release-channel.ts`). Enum'a
-   * dördüncü bir değer eklemek, hiçbir yayın hattının beslemediği bir kanalı var göstermek ve
-   * şemayı — Ş0'ın dosyasını — bu şeritten değiştirmek olurdu.
-   */
-  { field: "releaseChannel.canary", html: "Canary", spec: "UAT" },
-  /**
    * #13 — Referans kısayol satırı uzak WebView içinde `Kaydet / Sıfırla` çalıştırıyor. Tauri
    * capability sınırı ayrıcalıklı kısayol mutasyonunu yalnız ağsız Desktop Control penceresine
    * verir. Ana pencere salt-okunur durumu gösterir ve tek açık eylemle güvenilir yüzeye geçer.
@@ -138,16 +128,7 @@ export const SPEC_DEVIATIONS = [
  * `p1`…`p9` (Ses işleme) satırlarını da yakalıyordu; burada sayılan sekiz anahtar Hesabım ›
  * Profil sekmesindeki gerçek profil alanlarıdır.
  */
-export const SETTINGS_DIRTY_PROFILE_KEYS = [
-  "pn",
-  "pu",
-  "pz",
-  "pbio",
-  "pp",
-  "ps",
-  "pe",
-  "px",
-] as const;
+export const SETTINGS_DIRTY_PROFILE_KEYS = ["pn", "pu", "pbio", "pp", "ps", "pe", "px"] as const;
 
 export const SETTINGS_METRICS = {
   /** SPEC §1 — başlıktaki zilin açtığı 400 px popover. */
@@ -936,6 +917,7 @@ export const SETTINGS_METRICS = {
   },
 
   /** SPEC §4.5 — profil alanları kirlendiğinde çıkan alt şerit. */
+  footerHeight: 64,
   saveBar: {
     paddingY: 12,
     paddingX: 24,
@@ -1031,7 +1013,6 @@ export const SETTINGS_METRICS = {
     messagePreview: { paddingY: 14, paddingX: 15, gap: 12, avatarSize: 36 },
 
     /** SPEC §5.3 — yedi kutu (Whispr, Wave 5…0). */
-    appIconGrid: { columns: 7, tileSize: 56, tileRadius: 14, selectedBorderWidth: 2 },
 
     /**
      * SPEC §5.4 — `Şu anki durum` üç kutulu özet.
@@ -1158,7 +1139,6 @@ export const SETTINGS_METRICS = {
       logoRadius: 18,
       paddingY: 18,
       paddingX: 18,
-      bodyMaxWidth: 400,
       /** Ş10 — logo ile gövdenin arası, başlık ve dört bağlantı. */
       gap: 16,
       logoFontSize: 21,

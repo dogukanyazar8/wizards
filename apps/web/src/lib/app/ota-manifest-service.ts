@@ -3,8 +3,8 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 
 export type OtaPlatform = "ANDROID" | "IOS";
-export type OtaReleaseChannel = "STABLE" | "BETA" | "UAT";
-export type OtaRequestChannel = "uat" | "canary" | "production";
+export type OtaReleaseChannel = "STABLE" | "UAT";
+export type OtaRequestChannel = "uat" | "production";
 
 export type OtaBundleRecord = {
   bundleKey: string;
@@ -103,9 +103,6 @@ function mapPlatform(platform: OtaManifestRequest["platform"]): OtaPlatform {
 export function mapOtaReleaseChannel(channel: OtaRequestChannel): OtaReleaseChannel {
   if (channel === "uat") {
     return "UAT";
-  }
-  if (channel === "canary") {
-    return "BETA";
   }
   return "STABLE";
 }

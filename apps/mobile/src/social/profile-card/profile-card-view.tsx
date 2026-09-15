@@ -205,6 +205,7 @@ export function ProfileCardErrorState({ onRetry }: { onRetry(): void }) {
 }
 
 export interface ProfileCardViewProps extends ProfileCardViewHandlers {
+  readonly gameActivityLabel?: string | null;
   /**
    * From the badge query, not from `profile.badges`: the profile payload's
    * field is frozen to the three 0.8.x ids (00 §2) and no longer read by any
@@ -225,6 +226,7 @@ export interface ProfileCardViewProps extends ProfileCardViewHandlers {
 
 /** Presentational card body; every variant in README 1a/1b/1d renders from here. */
 export function ProfileCardView({
+  gameActivityLabel,
   badges,
   badgesLoading,
   busy,
@@ -376,6 +378,11 @@ export function ProfileCardView({
             </Text>
           </View>
         )}
+        {!isBlocked && tone !== "offline" && gameActivityLabel ? (
+          <Text style={styles.presenceText} testID="mobile-profile-game-activity">
+            {gameActivityLabel}
+          </Text>
+        ) : null}
         {showRoles && profile.serverContext ? (
           <ProfileRoleChips
             roles={profile.serverContext.roles}

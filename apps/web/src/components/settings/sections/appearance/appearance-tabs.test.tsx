@@ -11,8 +11,11 @@ import { AppearanceLayoutTab } from "@/components/settings/sections/appearance/l
 import { AppearanceMediaTab } from "@/components/settings/sections/appearance/media-tab";
 import { AppearanceTextTab } from "@/components/settings/sections/appearance/text-tab";
 import { AppearanceThemeTab } from "@/components/settings/sections/appearance/theme-tab";
+import { AppearanceLanguageTab } from "@/components/settings/sections/appearance/language-tab";
 import { getMessagesForLocale } from "@/lib/locale";
 import { walkSettingsRows } from "@/lib/settings/tree";
+import { settingsQueryKeys } from "@/lib/settings/client";
+import { SETTINGS_TEST_LAYOUT } from "@/lib/settings/read-test-fixtures";
 
 /** Ş8 §B — beş sekmenin tamamı ağaçtan çiziliyor. */
 
@@ -25,6 +28,7 @@ function render(node: React.ReactNode) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
   });
+  queryClient.setQueryData(settingsQueryKeys.layout, SETTINGS_TEST_LAYOUT);
 
   return renderToStaticMarkup(
     <QueryClientProvider client={queryClient}>
@@ -36,6 +40,7 @@ function render(node: React.ReactNode) {
 }
 
 const rendered = {
+  language: render(<AppearanceLanguageTab />),
   accessibility: render(<AppearanceAccessibilityTab />),
   layout: render(<AppearanceLayoutTab />),
   media: render(<AppearanceMediaTab />),
@@ -43,11 +48,11 @@ const rendered = {
   theme: render(<AppearanceThemeTab />),
 } as const;
 
-function assertControlDisabled(markup: string, testId: string): void {
+function assertControlEnabled(markup: string, testId: string): void {
   const tag = markup.match(new RegExp(`<[^>]*data-testid="${testId}"[^>]*>`, "u"))?.[0];
 
   assert.ok(tag, `${testId} çizilmedi`);
-  assert.match(tag, /(?:aria-disabled="true"|disabled="")/u, `${testId} etkileşime açık`);
+  assert.doesNotMatch(tag, /(?:aria-disabled="true"|disabled="")/u, `${testId} etkileşime kapalı`);
 }
 
 describe("Görünüm sekmeleri", () => {
@@ -75,17 +80,8 @@ describe("Görünüm sekmeleri", () => {
     assert.ok(rendered.text.includes("Selin Aksoy"));
   });
 
-  it("Düzen sekmesi uygulama simgesi ızgarasını taşıyor", () => {
-    assert.ok(rendered.layout.includes('data-block="appIcons"'));
-    assert.ok(rendered.layout.includes(">Wave 5<"));
-  });
-
-  it("Medya ve Erişilebilirlik aynı iki satırı ayrı sekmede çiziyor", () => {
-    // SPEC_DEVIATIONS #4 — iki ayrı anahtar (`v7`/`x1`), tek durum.
-    assert.ok(rendered.media.includes('data-setting-row="v7"'));
-    assert.ok(rendered.accessibility.includes('data-setting-row="x1"'));
-    assert.ok(rendered.media.includes('data-setting-row="v8"'));
-    assert.ok(rendered.accessibility.includes('data-setting-row="x5"'));
+  it("Düzen sekmesi uygulama simgesi seçeneğini taşımaz", () => {
+    assert.doesNotMatch(rendered.layout, /data-block="appIcons"|Wave 5|Uygulama simgesi/u);
   });
 
   it("Erişilebilirlik `Yazı boyutu` kaydırıcısını %85–130 aralığında çiziyor", () => {
@@ -94,33 +90,32 @@ describe("Görünüm sekmeleri", () => {
     assert.ok(rendered.accessibility.includes('aria-valuemax="130"'));
   });
 
-  it("henüz gerçek consumer'ı olmayan görünüm tercihleri kullanılamaz", () => {
+  it("mesaj boyutu ve kompakt görünüm gerçek consumer ile kullanılabilir", () => {
     for (const testId of ["setting-slider-m2", "setting-toggle-m4"]) {
-      assertControlDisabled(rendered.text, testId);
+      const tag = rendered.text.match(new RegExp(`<[^>]*data-testid="${testId}"[^>]*>`, "u"))?.[0];
+      assert.ok(tag);
+      assert.doesNotMatch(tag, /(?:aria-disabled="true"|disabled="")/u);
     }
+  });
 
+  it("medya ve erişilebilirlik tercihleri kullanılabilir; kaldırılan kontroller çizilmez", () => {
     for (const testId of [
       "setting-toggle-v1",
       "setting-toggle-v2",
       "setting-toggle-v3",
       "setting-toggle-v4",
-      "setting-toggle-v5",
-      "setting-select-v6",
       "setting-toggle-v7",
-      "setting-toggle-v8",
     ]) {
-      assertControlDisabled(rendered.media, testId);
+      assertControlEnabled(rendered.media, testId);
     }
 
-    for (const testId of [
-      "setting-toggle-x1",
-      "setting-toggle-x2",
-      "setting-toggle-x3",
-      "setting-toggle-x5",
-      "setting-toggle-x6",
-      "setting-toggle-x7",
-    ]) {
-      assertControlDisabled(rendered.accessibility, testId);
+    for (const testId of ["setting-toggle-x2", "setting-toggle-x3"]) {
+      assertControlEnabled(rendered.accessibility, testId);
     }
+    assert.doesNotMatch(rendered.media, /data-setting-row="(?:v5|v6|v8)"/u);
+    assert.doesNotMatch(
+      rendered.accessibility,
+      /data-setting-row="(?:x1|x5|x6|x7)"|Yardımcı teknolojiler/u,
+    );
   });
 });

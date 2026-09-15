@@ -4,6 +4,13 @@ fn main() {
     println!("cargo:rerun-if-env-changed=WHISPR_DESKTOP_RELEASE_RING");
     println!("cargo:rerun-if-env-changed=WHISPR_DESKTOP_UPDATER_ENABLED");
 
+    if let Ok(ring) = std::env::var("WHISPR_DESKTOP_RELEASE_RING") {
+        assert!(
+            matches!(ring.as_str(), "dev" | "uat" | "stable" | "production"),
+            "Unsupported WHISPR_DESKTOP_RELEASE_RING; expected dev, uat, or stable"
+        );
+    }
+
     const WHISPR_DESKTOP_COMMANDS: &[&str] = &[
         "complete_desktop_before_close",
         "configure_desktop_voice_shortcuts",
@@ -14,9 +21,14 @@ fn main() {
         "desktop_control_set_app_settings",
         "export_desktop_diagnostics_bundle",
         "get_desktop_app_info",
+        "get_desktop_notification_permission",
+        "test_desktop_screen_capture",
+        "read_desktop_clipboard_text",
+        "send_desktop_notification",
         "get_desktop_control_state",
         "get_desktop_companion_surfaces_status",
         "get_desktop_foreground_process_name",
+        "get_desktop_detected_game",
         "get_desktop_main_window_focused",
         "get_desktop_platform_capabilities",
         "get_desktop_voice_shortcut_status",

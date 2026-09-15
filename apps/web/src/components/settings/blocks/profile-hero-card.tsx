@@ -5,12 +5,13 @@ import { Camera, X } from "lucide-react";
 
 import { useI18n } from "@/components/providers/locale-provider";
 import { UserProfilePopover } from "@/components/shared/user-profile-popover";
+import { ProfileBannerField } from "@/components/settings/profile-banner-field";
 import { ProfileAvatarField } from "@/components/settings/profile-avatar-field";
 import { useAccountSurface } from "@/components/settings/sections/account/account-context";
 import type { SettingsBlockProps } from "@/components/settings/rows/setting-custom-block";
 import { Avatar } from "@/components/ui/avatar";
 import { Modal } from "@/components/ui/modal";
-import { SETTINGS_METRICS, hairline, pxToEm, pxToRem } from "@/lib/settings/metrics";
+import { SETTINGS_METRICS, hairline, pxToRem } from "@/lib/settings/metrics";
 import { findSettingsTab } from "@/lib/settings/tree";
 import { useSettingValue } from "@/lib/settings/use-setting-value";
 
@@ -24,8 +25,6 @@ import { useSettingValue } from "@/lib/settings/use-setting-value";
  *
  * **`Kırp / Yakınlaştır / Sıfırla` dizisi burada yok** (PROMPT §5). Kırpma dosya seçildikten
  * sonraki ayrı adımda, korunan `ProfileAvatarField`'in kendi penceresinde yapılır.
- *
- * Banner düğmeleri `disabled`: web'de banner yükleme yolu yok (aşağıdaki `TODO(api)`).
  */
 
 const { hero } = SETTINGS_METRICS.blocks;
@@ -62,19 +61,19 @@ export function ProfileHeroCard({ data, row: rowDef }: SettingsBlockProps) {
   const username = useSettingValue<string>("pu").value;
   const presence = useSettingValue<number>("pp").value;
   const customStatus = useSettingValue<string>("ps").value;
-  const emoji = useSettingValue<number>("pe").value;
+  const emoji = useSettingValue<string>("pe").value;
   const expiry = useSettingValue<number>("px").value;
 
   const clearCustomStatus = useSettingValue<string>("ps").setValue;
+  const clearEmoji = useSettingValue<string>("pe").setValue;
+  const clearExpiry = useSettingValue<number>("px").setValue;
 
   const toneToken = PRESENCE_TONE_TOKENS[presence] ?? "--text-muted";
   const presenceLabelKey = optionLabels("pp")[presence];
-  const emojiLabelKey = optionLabels("pe")[emoji];
   const expiryLabelKey = optionLabels("px")[expiry];
 
   const name = displayName || data.displayName || "";
   const handle = username || data.username || "";
-  const bannerUrl = data.bannerUrl ?? "";
 
   const viewProfileControl = (
     <span
@@ -97,84 +96,16 @@ export function ProfileHeroCard({ data, row: rowDef }: SettingsBlockProps) {
 
   return (
     <div
-      className="overflow-hidden rounded-[1.5rem] border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card))] shadow-[0_18px_46px_hsl(var(--shadow-color)/0.08)]"
+      // The group owns the border; match its inner clipping radius without adding a second frame.
+      className="overflow-hidden rounded-[inherit] bg-[hsl(var(--surface-card))]"
       data-block="hero"
       data-testid={`settings-block-${rowDef.key}`}
     >
-      <div
-        className="relative"
-        style={{
-          background: bannerUrl
-            ? `center / cover no-repeat url(${JSON.stringify(bannerUrl)})`
-            : "linear-gradient(120deg,hsl(var(--primary)/.45),hsl(var(--primary)/.14) 62%,hsl(var(--primary)/.3))",
-          // Banner odak noktası `bannerOffsetX/Y` kolonlarından gelir; görsel yokken anlamsız.
-          backgroundPosition: bannerUrl
-            ? `${data.bannerOffsetX || "50"}% ${data.bannerOffsetY || "50"}%`
-            : undefined,
-          height: pxToRem(hero.bannerHeight),
-        }}
-      >
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 bottom-0"
-          style={{
-            background:
-              "linear-gradient(180deg,hsl(var(--surface-card)/0),hsl(var(--surface-card)/.55))",
-            height: pxToRem(hero.bannerFadeHeight),
-          }}
-        />
-        <div
-          className="absolute flex"
-          style={{
-            gap: pxToRem(hero.bannerButtonGap),
-            right: pxToRem(hero.bannerButtonRight),
-            top: pxToRem(hero.bannerButtonTop),
-          }}
-        >
-          {/* TODO(api): Banner yükleme ve kaldırma uçları web'de yok (`bannerUrl` yalnız mobil
-              profil ucundan yazılıyor). Satır çizilir, düğmeler `disabled` — K5 deseni. */}
-          <button
-            className="flex items-center disabled:cursor-not-allowed disabled:opacity-55"
-            data-testid="settings-hero-change-banner"
-            disabled
-            style={{
-              background: "hsl(var(--surface-card)/.9)",
-              border: 0,
-              borderRadius: pxToRem(hero.bannerButtonRadius),
-              color: "hsl(var(--foreground))",
-              fontSize: pxToRem(11),
-              fontWeight: 600,
-              gap: pxToRem(hero.bannerButtonGap),
-              height: pxToRem(hero.bannerButtonHeight),
-              lineHeight: 1,
-              padding: `0 ${pxToRem(hero.bannerButtonPaddingX)}`,
-            }}
-            type="button"
-          >
-            <Camera aria-hidden="true" style={{ height: pxToEm(12, 11), width: pxToEm(12, 11) }} />
-            {t("settings.block.hero.changeBanner")}
-          </button>
-          <button
-            aria-label={t("settings.block.hero.removeBanner")}
-            className="grid place-items-center disabled:cursor-not-allowed disabled:opacity-55"
-            data-testid="settings-hero-remove-banner"
-            disabled
-            style={{
-              background: "hsl(var(--surface-card)/.9)",
-              border: 0,
-              borderRadius: pxToRem(hero.bannerButtonRadius),
-              color: "hsl(var(--text-muted))",
-              height: pxToRem(hero.bannerRemoveSize),
-              width: pxToRem(hero.bannerRemoveSize),
-            }}
-            title={t("settings.block.hero.removeBanner")}
-            type="button"
-          >
-            <X aria-hidden="true" style={{ height: pxToRem(13), width: pxToRem(13) }} />
-          </button>
-        </div>
-      </div>
-
+      <ProfileBannerField
+        key={surface.account?.id ?? "anonymous"}
+        accountId={surface.account?.id}
+        uploadthingEnabled={surface.uploadthingEnabled}
+      />
       <div
         data-testid="settings-hero-avatar-row"
         style={{
@@ -182,7 +113,7 @@ export function ProfileHeroCard({ data, row: rowDef }: SettingsBlockProps) {
           padding: `0 ${pxToRem(hero.avatarRowPaddingX)}`,
         }}
       >
-        <div className="relative shrink-0">
+        <div className="relative w-fit shrink-0" data-testid="settings-hero-avatar-anchor">
           <span
             className="inline-flex rounded-full"
             style={{
@@ -194,6 +125,7 @@ export function ProfileHeroCard({ data, row: rowDef }: SettingsBlockProps) {
             }}
           >
             <Avatar
+              className="bg-[hsl(var(--surface-soft))]"
               alt={name}
               fallback={name || handle}
               src={data.avatarUrl || null}
@@ -204,6 +136,7 @@ export function ProfileHeroCard({ data, row: rowDef }: SettingsBlockProps) {
           <span
             aria-hidden="true"
             className="absolute rounded-full"
+            data-testid="settings-hero-status-dot"
             style={{
               background: `hsl(var(${toneToken}))`,
               border: `${pxToRem(hero.statusDotRing)} solid hsl(var(--surface-card))`,
@@ -352,7 +285,7 @@ export function ProfileHeroCard({ data, row: rowDef }: SettingsBlockProps) {
           }}
         >
           <span aria-hidden="true" className="shrink-0" style={{ fontSize: pxToRem(15) }}>
-            {emojiLabelKey ? t(emojiLabelKey) : ""}
+            {emoji || ""}
           </span>
           <span
             className="min-w-0 flex-1 truncate"
@@ -380,14 +313,18 @@ export function ProfileHeroCard({ data, row: rowDef }: SettingsBlockProps) {
           </span>
           <button
             aria-label={t("settings.block.hero.clearStatus")}
-            className="grid shrink-0 place-items-center"
+            className="grid shrink-0 place-items-center transition-[filter] hover:brightness-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
             data-testid="settings-hero-clear-status"
-            onClick={() => clearCustomStatus("")}
+            onClick={() => {
+              clearCustomStatus("");
+              clearEmoji("");
+              clearExpiry(3);
+            }}
             style={{
-              background: "transparent",
+              background: "hsl(var(--primary))",
               border: 0,
               borderRadius: pxToRem(7),
-              color: "hsl(var(--text-muted))",
+              color: "#fff",
               height: pxToRem(24),
               width: pxToRem(24),
             }}
@@ -401,6 +338,7 @@ export function ProfileHeroCard({ data, row: rowDef }: SettingsBlockProps) {
 
       {surface.account ? (
         <Modal
+          overlayClassName="z-[110]"
           onClose={() => setPhotoOpen(false)}
           open={photoOpen}
           title={t("settings.block.hero.changePhoto")}

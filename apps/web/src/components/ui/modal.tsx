@@ -32,6 +32,29 @@ const subscribeToHydration = () => () => {};
 const getClientHydrationSnapshot = () => true;
 const getServerHydrationSnapshot = () => false;
 
+// Native querySelectorAll cannot see controls inside web components such as Emoji Mart.
+// Traverse open shadow roots in document order so Tab can enter and leave those controls.
+function getModalFocusableElements(root: HTMLElement): HTMLElement[] {
+  const elements: HTMLElement[] = [];
+  const visit = (parent: Element | ShadowRoot) => {
+    for (const child of parent.children) {
+      if (child.matches("[hidden], [inert]")) continue;
+      if (
+        child instanceof HTMLElement &&
+        child.tabIndex >= 0 &&
+        !child.matches(":disabled") &&
+        child.getClientRects().length > 0 &&
+        getComputedStyle(child).visibility !== "hidden"
+      ) {
+        elements.push(child);
+      }
+      visit(child.shadowRoot ?? child);
+    }
+  };
+  visit(root);
+  return elements;
+}
+
 export function Modal({
   children,
   className,
@@ -71,14 +94,22 @@ export function Modal({
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
     const dialog = dialogRef.current;
-    const focusable = dialog?.querySelectorAll<HTMLElement>(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    );
+    const focusable = dialog ? getModalFocusableElements(dialog) : [];
 
     (initialFocusRef?.current ?? focusable?.[0] ?? dialog)?.focus();
 
     const handleEscape = (event: KeyboardEvent) => {
+      // Portalled child dialogs own their keyboard events. Parent dialogs must
+      // neither close nor move focus when the child handles Escape or Tab.
+      if (
+        event.defaultPrevented ||
+        !(event.target instanceof Element) ||
+        event.target.closest('[role="dialog"]') !== dialog
+      ) {
+        return;
+      }
       if (event.key === "Escape") {
+        event.preventDefault();
         onCloseRef.current();
         return;
       }
@@ -87,9 +118,7 @@ export function Modal({
         return;
       }
 
-      const currentFocusable = dialog.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      );
+      const currentFocusable = getModalFocusableElements(dialog);
 
       if (currentFocusable.length === 0) {
         event.preventDefault();
@@ -99,11 +128,12 @@ export function Modal({
 
       const first = currentFocusable[0];
       const last = currentFocusable[currentFocusable.length - 1];
+      const activeElement = event.composedPath()[0] ?? document.activeElement;
 
-      if (event.shiftKey && document.activeElement === first) {
+      if (event.shiftKey && activeElement === first) {
         event.preventDefault();
         last?.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+      } else if (!event.shiftKey && activeElement === last) {
         event.preventDefault();
         first?.focus();
       }
@@ -127,7 +157,7 @@ export function Modal({
         <motion.div
           animate={{ opacity: 1 }}
           className={cn(
-            "fixed inset-0 z-[80] flex items-end justify-center bg-[hsl(var(--background)/0.66)] p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:items-center sm:p-4",
+            "fixed inset-x-0 bottom-0 top-[var(--app-viewport-top,0px)] z-[100] flex min-h-0 min-w-0 items-end justify-center bg-[hsl(var(--background)/0.66)] p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:items-center sm:p-4",
             overlayClassName,
           )}
           exit={{ opacity: 0 }}
@@ -141,7 +171,7 @@ export function Modal({
             aria-labelledby={titleId}
             aria-modal="true"
             className={cn(
-              "app-overlay max-h-[calc(100dvh-1rem)] w-full max-w-lg overflow-y-auto rounded-t-[28px] p-5 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.16)] backdrop-blur-2xl sm:rounded-[28px] sm:p-6",
+              "app-overlay min-h-0 min-w-0 max-h-full w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-[28px] p-5 shadow-[0_28px_70px_hsl(var(--shadow-color)/0.16)] backdrop-blur-2xl sm:rounded-[28px] sm:p-6",
               className,
             )}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}

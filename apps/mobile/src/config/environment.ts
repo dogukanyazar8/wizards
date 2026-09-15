@@ -1,4 +1,4 @@
-export const MOBILE_ENVIRONMENTS = ["development", "uat", "canary", "production"] as const;
+export const MOBILE_ENVIRONMENTS = ["development", "uat", "production"] as const;
 
 export type MobileEnvironmentName = (typeof MOBILE_ENVIRONMENTS)[number];
 
@@ -37,11 +37,6 @@ const DEFAULT_PUBLIC_ENV: Record<
     apiUrl: "https://wizardsweb-uat.up.railway.app",
     socketUrl: "https://wizardsweb-uat.up.railway.app",
     webUrl: "https://wizardsweb-uat.up.railway.app",
-  },
-  canary: {
-    apiUrl: "https://whispr.team",
-    socketUrl: "https://whispr.team",
-    webUrl: "https://whispr.team",
   },
   production: {
     apiUrl: "https://whispr.team",

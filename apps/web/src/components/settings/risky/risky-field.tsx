@@ -11,7 +11,7 @@ import { SETTINGS_METRICS, hairline, pxToRem } from "@/lib/settings/metrics";
  * `fieldRadius`'u kaçırdığında fark yalnız ekran görüntüsü karşılaştırmasında görünürdü.
  */
 
-const { riskyBlock } = SETTINGS_METRICS;
+const { riskyBlock, row, controls } = SETTINGS_METRICS;
 
 export type RiskyFieldProps = {
   readonly autoComplete?: string;
@@ -24,7 +24,7 @@ export type RiskyFieldProps = {
   readonly placeholder?: string;
   readonly span?: "full" | "half";
   readonly testId: string;
-  readonly type?: "password" | "text";
+  readonly type?: "password" | "text" | "email" | "tel";
   readonly value: string;
 };
 
@@ -45,18 +45,16 @@ export function RiskyField({
   const fieldId = useId();
 
   return (
-    <div style={span === "full" ? { gridColumn: "1 / -1" } : undefined}>
+    <div className="min-w-0" style={span === "full" ? { gridColumn: "1 / -1" } : undefined}>
       <label
         htmlFor={fieldId}
         style={{
-          color: "hsl(var(--text-muted))",
+          color: "hsl(var(--foreground))",
           display: "block",
-          fontFamily: "var(--font-display)",
-          fontSize: pxToRem(riskyBlock.fieldLabelFontSize),
-          fontWeight: riskyBlock.fieldLabelWeight,
-          letterSpacing: `${riskyBlock.fieldLabelTracking}em`,
-          lineHeight: 1,
-          textTransform: "uppercase",
+          fontFamily: "inherit",
+          fontSize: pxToRem(row.titleFontSize),
+          fontWeight: row.titleWeight,
+          lineHeight: row.titleLineHeight,
         }}
       >
         {label}
@@ -77,9 +75,10 @@ export function RiskyField({
           border: `${hairline()} solid hsl(var(--${invalid ? "danger" : "border"}) / 0.75)`,
           borderRadius: pxToRem(riskyBlock.fieldRadius),
           color: "hsl(var(--foreground))",
-          fontSize: pxToRem(riskyBlock.fieldFontSize),
-          fontWeight: 500,
-          lineHeight: 1.2,
+          fontFamily: "inherit",
+          fontSize: pxToRem(controls.input.fontSize),
+          fontWeight: controls.input.weight,
+          lineHeight: controls.input.lineHeight,
           marginTop: pxToRem(riskyBlock.fieldMarginTop),
           padding: `${pxToRem(riskyBlock.fieldPaddingY)} ${pxToRem(riskyBlock.fieldPaddingX)}`,
         }}
@@ -99,15 +98,15 @@ export function RiskyFooter({
 }) {
   return (
     <div
-      className="flex items-center"
+      className="flex min-w-0 flex-wrap items-center justify-end"
       style={{ gap: pxToRem(riskyBlock.buttonGap), gridColumn: "1 / -1" }}
     >
       <span
-        className="flex-1"
+        className="min-w-0 grow basis-full sm:basis-48"
         style={{
           color: "hsl(var(--text-muted))",
-          fontSize: pxToRem(riskyBlock.helpFontSize),
-          lineHeight: riskyBlock.helpLineHeight,
+          fontSize: pxToRem(row.subFontSize),
+          lineHeight: row.subLineHeight,
         }}
       >
         {help}
@@ -146,8 +145,9 @@ export function RiskyButton({
         border: tone === "neutral" ? `${hairline()} solid hsl(var(--border) / 0.75)` : "0",
         borderRadius: pxToRem(riskyBlock.buttonRadius),
         color: tone === "neutral" ? "hsl(var(--text-secondary))" : "#fff",
-        fontSize: pxToRem(11.5),
-        fontWeight: 600,
+        fontFamily: "inherit",
+        fontSize: pxToRem(controls.action.fontSize),
+        fontWeight: controls.action.weight,
         height: pxToRem(riskyBlock.buttonHeight),
         lineHeight: 1,
         padding: `0 ${pxToRem(riskyBlock.buttonPaddingX)}`,
@@ -162,8 +162,11 @@ export function RiskyButton({
 export function RiskyGrid({ children }: { readonly children: React.ReactNode }) {
   return (
     <div
-      className="grid"
-      style={{ gap: pxToRem(riskyBlock.columnGap), gridTemplateColumns: "1fr 1fr" }}
+      className="grid min-w-0"
+      style={{
+        gap: pxToRem(riskyBlock.columnGap),
+        gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 14rem), 1fr))",
+      }}
     >
       {children}
     </div>
@@ -185,9 +188,9 @@ export function RiskyMessage({
       data-testid={testId}
       style={{
         color: `hsl(var(--${tone === "danger" ? "danger" : "success"}))`,
-        fontSize: pxToRem(riskyBlock.helpFontSize),
+        fontSize: pxToRem(row.subFontSize),
         gridColumn: "1 / -1",
-        lineHeight: riskyBlock.helpLineHeight,
+        lineHeight: row.subLineHeight,
       }}
     >
       {text}

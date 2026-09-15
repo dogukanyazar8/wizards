@@ -95,7 +95,7 @@ function New-Artifact {
 function Assert-ArtifactContract {
   param([string]$ArtifactPath)
 
-  $nodeCommand = Get-Command node -CommandType Application -ErrorAction SilentlyContinue
+  $nodeCommand = Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($null -eq $nodeCommand) {
     throw "Node.js is required to validate desktop measurement evidence."
   }

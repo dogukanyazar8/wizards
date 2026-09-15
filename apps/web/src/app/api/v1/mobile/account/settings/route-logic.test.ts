@@ -22,7 +22,6 @@ const settingsRecord: MobileAccountSettingsRecord = {
     email: "dogukan@whispr.app",
     emailVerified: true,
     nextUsernameChangeAt: null,
-    pronouns: null,
     twoFactorEnabled: true,
   },
   privacy: { dmPermission: "FRIENDS", friendRequests: "EVERYONE", groupInvites: true },

@@ -93,6 +93,13 @@ const AppearanceThemeTab = dynamic(
     import("@/components/settings/sections/appearance/theme-tab").then((m) => m.AppearanceThemeTab),
   { loading: () => <SettingsSkeleton /> },
 );
+const AppearanceLanguageTab = dynamic(
+  () =>
+    import("@/components/settings/sections/appearance/language-tab").then(
+      (m) => m.AppearanceLanguageTab,
+    ),
+  { loading: () => <SettingsSkeleton /> },
+);
 const AvAudioTab = dynamic(
   () => import("@/components/settings/sections/av/audio-tab").then((m) => m.AvAudioTab),
   { loading: () => <SettingsSkeleton /> },
@@ -117,6 +124,7 @@ const AV_TABS: Readonly<Partial<Record<SettingsTab, SettingsTabComponent>>> = {
 };
 
 const APPEARANCE_TABS: Readonly<Partial<Record<SettingsTab, SettingsTabComponent>>> = {
+  language: AppearanceLanguageTab,
   accessibility: AppearanceAccessibilityTab,
   layout: AppearanceLayoutTab,
   media: AppearanceMediaTab,
@@ -142,8 +150,9 @@ type SectionRenderer = (
 ) => React.ReactNode;
 
 const SECTION_RENDERERS: Readonly<Record<SettingsSection, SectionRenderer>> = {
+  updates: (_input, bootstrap) => <DesktopSection bootstrap={bootstrap} tab="updates" />,
   about: (_input, bootstrap) => <AboutSection bootstrap={bootstrap} />,
-  account: (input) => <AccountSection input={input} />,
+  account: (input, bootstrap) => <AccountSection input={input} bootstrap={bootstrap} />,
   appearance: (input) => renderAppearanceSection(input),
   av: (input) => renderAvSection(input),
   desktop: (input, bootstrap) => <DesktopSection bootstrap={bootstrap} tab={input.tab.key} />,
@@ -169,7 +178,7 @@ export function renderSettingsSection(
       value={{
         openRisky: input.openRisky,
         openSelect: input.openSelect,
-        toggleRisky: (key) => input.toggleRisky(key as never),
+        toggleRisky: input.toggleRisky,
         toggleSelect: input.toggleSelect,
       }}
     >

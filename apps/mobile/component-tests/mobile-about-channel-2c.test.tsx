@@ -68,7 +68,7 @@ function createQueryClient() {
 
 async function renderScreen({
   apiClient = createApiClient(),
-  currentChannel = "uat",
+  currentChannel = "beta",
   onBack = jest.fn(),
   openBetaConsent = jest.fn(async () => true),
 }: {
@@ -137,10 +137,10 @@ describe("2c update channel screen", () => {
     const stable = await view.findByTestId("mobile-about-channel-option-stable");
     expect(stable).toBeTruthy();
     expect(view.getByTestId("mobile-about-channel-option-beta")).toBeTruthy();
-    expect(view.getByTestId("mobile-about-channel-option-uat")).toBeTruthy();
+    expect(view.queryByTestId("mobile-about-channel-option-uat")).toBeNull();
     expect(
-      within(view.getByTestId("mobile-about-channel-option-uat")).getByText(
-        "Her hafta · şu anki kanal",
+      within(view.getByTestId("mobile-about-channel-option-beta")).getByText(
+        "UAT · test ortamı · şu anki kanal",
       ),
     ).toBeTruthy();
     expect(view.queryByText("12,4B KULLANICI")).toBeNull();
@@ -150,15 +150,16 @@ describe("2c update channel screen", () => {
     expect(view.queryByText("Uygulama bir kez yeniden başlar")).toBeNull();
   });
 
-  it("keeps save disabled until selection changes and only shows warnings for Beta or UAT", async () => {
+  it("keeps save disabled until selection changes and only shows warnings for Beta", async () => {
     const { view } = await renderScreen();
-    await view.findByTestId("mobile-about-channel-option-uat");
+    await view.findByTestId("mobile-about-channel-option-beta");
 
     expect(view.getByTestId("mobile-about-channel-save").props.accessibilityState).toMatchObject({
       disabled: true,
     });
     expect(view.getByTestId("mobile-about-channel-warning")).toBeTruthy();
 
+    await fireEvent.press(view.getByTestId("mobile-about-channel-option-stable"));
     await fireEvent.press(view.getByTestId("mobile-about-channel-option-beta"));
     expect(
       view.getByText(
@@ -166,16 +167,19 @@ describe("2c update channel screen", () => {
       ),
     ).toBeTruthy();
     expect(view.getByTestId("mobile-about-channel-save").props.accessibilityState).toMatchObject({
-      disabled: false,
+      disabled: true,
     });
 
     await fireEvent.press(view.getByTestId("mobile-about-channel-option-stable"));
     expect(view.queryByTestId("mobile-about-channel-warning")).toBeNull();
+    expect(view.getByTestId("mobile-about-channel-save").props.accessibilityState).toMatchObject({
+      disabled: false,
+    });
   });
 
   it("criterion 26: fills the selected last row, rounds r24, and draws the white radio tick", async () => {
     const { view } = await renderScreen();
-    const selectedRow = await view.findByTestId("mobile-about-channel-option-uat");
+    const selectedRow = await view.findByTestId("mobile-about-channel-option-beta");
     const selectedStyle = flattenStyle(selectedRow.props.style);
 
     expect(selectedStyle).toMatchObject({
@@ -184,19 +188,19 @@ describe("2c update channel screen", () => {
       borderBottomRightRadius: mobileAboutMetrics.cardRadius,
     });
     expect(
-      flattenStyle(view.getByTestId("mobile-about-channel-radio-uat").props.style),
+      flattenStyle(view.getByTestId("mobile-about-channel-radio-beta").props.style),
     ).toMatchObject({
       backgroundColor: lightTheme.about.accent,
       height: 22,
       width: 22,
     });
     expect(
-      view.getByTestId("mobile-about-channel-radio-uat-check", {
+      view.getByTestId("mobile-about-channel-radio-beta-check", {
         includeHiddenElements: true,
       }).props,
     ).toMatchObject({ height: 12, width: 12 });
     expect(
-      view.getByTestId("mobile-about-channel-radio-uat-check-path", {
+      view.getByTestId("mobile-about-channel-radio-beta-check-path", {
         includeHiddenElements: true,
       }).props,
     ).toMatchObject({
@@ -230,9 +234,9 @@ describe("2c update channel screen", () => {
 
   it("criterion 10: keeps every channel row at least 44px high", async () => {
     const { view } = await renderScreen();
-    await view.findByTestId("mobile-about-channel-option-uat");
+    await view.findByTestId("mobile-about-channel-option-beta");
 
-    for (const channel of ["stable", "beta", "uat"] as const) {
+    for (const channel of ["stable", "beta"] as const) {
       expect(
         flattenStyle(view.getByTestId(`mobile-about-channel-option-${channel}`).props.style)
           .minHeight,
@@ -277,8 +281,8 @@ describe("2c update channel screen", () => {
 
   it("asks for beta consent and sends no request when consent is rejected", async () => {
     const openBetaConsent = jest.fn(async () => false);
-    const { apiClient, view } = await renderScreen({ openBetaConsent });
-    await view.findByTestId("mobile-about-channel-option-uat");
+    const { apiClient, view } = await renderScreen({ currentChannel: "stable", openBetaConsent });
+    await view.findByTestId("mobile-about-channel-option-beta");
 
     await fireEvent.press(view.getByTestId("mobile-about-channel-option-beta"));
     await fireEvent.press(view.getByTestId("mobile-about-channel-save"));
@@ -286,7 +290,7 @@ describe("2c update channel screen", () => {
     await waitFor(() => expect(openBetaConsent).toHaveBeenCalledTimes(1));
     expect(apiClient.requestJson).not.toHaveBeenCalled();
     expect(
-      view.getByTestId("mobile-about-channel-option-uat").props.accessibilityState,
+      view.getByTestId("mobile-about-channel-option-stable").props.accessibilityState,
     ).toMatchObject({ checked: true });
     expect(view.getByTestId("mobile-about-channel-save").props.accessibilityState).toMatchObject({
       disabled: true,
@@ -297,7 +301,7 @@ describe("2c update channel screen", () => {
     const apiClient = createApiClient({ requiresRestart: true });
     const onBack = jest.fn();
     const { view } = await renderScreen({ apiClient, onBack });
-    await view.findByTestId("mobile-about-channel-option-uat");
+    await view.findByTestId("mobile-about-channel-option-beta");
 
     await fireEvent.press(view.getByTestId("mobile-about-channel-option-stable"));
     await fireEvent.press(view.getByTestId("mobile-about-channel-save"));
@@ -322,7 +326,7 @@ describe("2c update channel screen", () => {
     const apiClient = createApiClient({ reject: true });
     const onBack = jest.fn();
     const { view } = await renderScreen({ apiClient, onBack });
-    await view.findByTestId("mobile-about-channel-option-uat");
+    await view.findByTestId("mobile-about-channel-option-beta");
 
     await fireEvent.press(view.getByTestId("mobile-about-channel-option-stable"));
     await fireEvent.press(view.getByTestId("mobile-about-channel-save"));
@@ -353,7 +357,7 @@ describe("2c update channel screen", () => {
     });
     const onBack = jest.fn();
     const { view } = await renderScreen({ onBack });
-    await view.findByTestId("mobile-about-channel-option-uat");
+    await view.findByTestId("mobile-about-channel-option-beta");
 
     await fireEvent.press(view.getByTestId("mobile-about-channel-option-stable"));
     await fireEvent.press(view.getByTestId("mobile-about-channel-save"));

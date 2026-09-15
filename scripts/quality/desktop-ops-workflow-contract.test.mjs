@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -46,9 +46,9 @@ test("automatic Linux Desktop Ops runs its cargo audit step with Bash", () => {
   const desktopOps = readWorkflowJob(workflow, "desktop-ops");
   const cargoAudit = readWorkflowStep(desktopOps, "Audit Rust dependencies");
 
-  assert.match(desktopOps, /^    runs-on: \[self-hosted, linux, x64, ci-fast\]$/mu);
+  assert.match(desktopOps, /^    runs-on: ubuntu-24\.04$/mu);
   assert.doesNotMatch(desktopOps, /matrix\.os|windows-latest|macos-latest/u);
-  assert.doesNotMatch(desktopOps, /Install Tauri Linux system dependencies/u);
+  assert.match(desktopOps, /Install Tauri Linux system dependencies/u);
   assert.match(cargoAudit, /^        shell: bash$/mu);
   assert.match(cargoAudit, /^          expected_version="cargo-audit \$CARGO_AUDIT_VERSION"$/mu);
   assert.match(cargoAudit, /^          if command -v cargo-audit >\/dev\/null 2>&1; then$/mu);
@@ -64,7 +64,7 @@ test("automatic Linux Desktop Ops runs its cargo audit step with Bash", () => {
   assert.doesNotMatch(cargoAudit, /Get-Command|\$env:|\$LASTEXITCODE/u);
 });
 
-test("automatic Linux CI jobs use capability-scoped self-hosted runners", () => {
+test("automatic Linux CI jobs use GitHub-hosted runners", () => {
   const workflow = readFileSync(workflowPath, "utf8");
   const actionlintConfig = readFileSync(join(root, ".github", "actionlint.yaml"), "utf8");
   const semgrep = readWorkflowJob(workflow, "semgrep");
@@ -77,51 +77,37 @@ test("automatic Linux CI jobs use capability-scoped self-hosted runners", () => 
     "e2e-a11y",
     "e2e-visual",
   ]) {
-    assert.match(
-      readWorkflowJob(workflow, jobName),
-      /^    runs-on: \[self-hosted, linux, x64, wizards-ci\]$/mu,
-      jobName,
-    );
+    assert.match(readWorkflowJob(workflow, jobName), /^    runs-on: ubuntu-24\.04$/mu, jobName);
   }
 
   for (const jobName of ["actionlint", "typescript-native-shadow"]) {
-    assert.match(
-      readWorkflowJob(workflow, jobName),
-      /^    runs-on: \[self-hosted, linux, x64, ci-fast\]$/mu,
-      jobName,
-    );
+    assert.match(readWorkflowJob(workflow, jobName), /^    runs-on: ubuntu-24\.04$/mu, jobName);
   }
 
-  for (const label of ["wizards-ci", "playwright", "ci-fast", "mobile-release"]) {
-    assert.match(actionlintConfig, new RegExp(`^    - ${label}$`, "mu"));
-  }
+  assert.doesNotMatch(actionlintConfig, /self-hosted|ci-fast|wizards-ci/u);
   assert.match(semgrep, /\bdocker run\b/u);
 });
 
-test("scheduled mobile device evidence gate uses the heavy self-hosted Linux runner", () => {
+test("scheduled mobile device evidence gate uses a GitHub-hosted Linux runner", () => {
   const workflow = readFileSync(
     join(root, ".github", "workflows", "mobile-redesign-device-gate-nightly.yml"),
     "utf8",
   );
 
-  assert.match(workflow, /^    runs-on: \[self-hosted, linux, x64, wizards-ci\]$/mu);
-  assert.doesNotMatch(workflow, /^    runs-on: ubuntu-/mu);
+  assert.match(workflow, /^    runs-on: ubuntu-24\.04$/mu);
+  assert.doesNotMatch(workflow, /self-hosted/u);
 });
 
-test("remaining workflow files use only registered local Linux runners", () => {
-  const hostedRunner = /(?:ubuntu-(?:latest|\d+\.\d+)|windows-latest|macos-latest)/u;
-
-  for (const workflowName of readdirSync(workflowsDirectory)) {
-    if (!/\.ya?ml$/u.test(workflowName)) {
-      continue;
-    }
-
-    const workflow = readFileSync(join(workflowsDirectory, workflowName), "utf8");
-    assert.doesNotMatch(workflow, hostedRunner, workflowName);
-  }
-
-  assert.equal(existsSync(join(workflowsDirectory, "desktop-native-build.yml")), false);
-  assert.equal(existsSync(join(workflowsDirectory, "desktop-release.yml")), false);
+test("desktop workflows use Windows hosted builds and manual protected publication", () => {
+  const native = readFileSync(join(workflowsDirectory, "desktop-native-build.yml"), "utf8");
+  const release = readFileSync(join(workflowsDirectory, "desktop-release.yml"), "utf8");
+  assert.match(native, /runs-on: windows-2025/u);
+  assert.doesNotMatch(native, /matrix|macos/u);
+  assert.match(release, /runs-on: windows-2025/u);
+  assert.match(release, /environment: desktop-/u);
+  assert.match(release, /Require successful CI for this commit/u);
+  assert.match(release, /--if-none-match "\*"/u);
+  assert.doesNotMatch(release, /^  (push|pull_request|schedule):/mu);
 });
 
 test("automatic Linux Desktop Ops runs fail-closed Clippy through the local command", () => {

@@ -4,6 +4,12 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getRedisRate } from "@/lib/redis";
 
 export const API_RATE_LIMITS = {
+  "game-activity:read": { limit: 120, windowSeconds: 60 },
+  "game-activity:publish": { limit: 12, windowSeconds: 60 },
+  "game-activity:settings": { limit: 20, windowSeconds: 60 },
+  "account:phone": { limit: 10, windowSeconds: 60 },
+  "account:email-request": { limit: 5, windowSeconds: 15 * 60 },
+  "account:email-confirm": { limit: 10, windowSeconds: 10 * 60 },
   /**
    * Ana Sayfa 1a, Faz 3 §4. The home screen opens six reads in parallel and
    * refreshes them from socket events, never from a poll — these budgets are
@@ -199,6 +205,8 @@ export const API_RATE_LIMITS = {
   "mobile:app:channel": { limit: 20, windowSeconds: 60 },
   "mobile:app:release-detail": { limit: 120, windowSeconds: 60 },
   "mobile:app:releases": { limit: 60, windowSeconds: 60 },
+  "app:releases": { limit: 60, windowSeconds: 60 },
+  "app:release-detail": { limit: 120, windowSeconds: 60 },
   "mobile:app:status": { limit: 60, windowSeconds: 60 },
   /** "Denetle" is a button a frustrated user taps repeatedly; keep it cheap but bounded. */
   "mobile:app:update": { limit: 60, windowSeconds: 60 },

@@ -22,7 +22,7 @@ import { resolveSettingStateKey } from "@/lib/settings/use-setting-value";
  * uygulanmazsa liste bir iddia olur, kayıt olmaktan çıkar.
  *
  * Prompt on bir kayıt bekliyordu (Ş0'ın dokuzu + iki dalga eklemesi); Dalga 3 ve 4 üç kayıt
- * ekledi; güvenilir Desktop Control sınırı da bir kayıt ekleyerek sayıyı **on üç** yaptı. Bir
+ * ekledi; güvenilir Desktop Control sınırı da bir kayıt ekleyerek sayıyı **on iki** yaptı. Bir
  * kaydı sayı tutsun diye silmek, "sessizce kaybolan ayar
  * yasak" kuralının aynısını sapma listesinde çiğnemek olurdu; rapor farkı açıkça yazıyor.
  */
@@ -32,11 +32,11 @@ const TR: Record<string, string> = TR_MESSAGES;
 const reference = readDesignReference("ayarlar-paketi/referans/Ayarlar-referans.dc.html");
 
 describe("SPEC_DEVIATIONS — her kayıt için davranış", () => {
-  it("liste on üç kayıt taşıyor ve her alan tekil", () => {
+  it("liste on iki kayıt taşıyor ve her alan tekil", () => {
     const fields = SPEC_DEVIATIONS.map(({ field }) => field);
 
-    assert.equal(fields.length, 13);
-    assert.equal(new Set(fields).size, 13);
+    assert.equal(fields.length, 12);
+    assert.equal(new Set(fields).size, 12);
   });
 
   it("#1 tema sayımı koddan okunuyor: 14 koyu + 9 açık", () => {
@@ -83,19 +83,17 @@ describe("SPEC_DEVIATIONS — her kayıt için davranış", () => {
     assert.ok(!/["'`]Web["'`]/u.test(code));
   });
 
-  it("#4 `Hareketi azalt` ve `Text-to-speech` tek durum anahtarına bağlı", () => {
-    assert.equal(resolveSettingStateKey("v7"), resolveSettingStateKey("x1"));
-    assert.equal(resolveSettingStateKey("v8"), resolveSettingStateKey("x5"));
+  it("#4 removed assistive controls leave reduce motion in Media only", () => {
     assert.equal(resolveSettingStateKey("v7"), "reduceMotion");
-    assert.equal(resolveSettingStateKey("v8"), "enableTTS");
-    // Referans iki ayrı anahtar tutuyor; sapma tam olarak bu.
-    assert.equal(reference.match(/'Hareketi azalt'/gu)?.length, 2);
+    const keys = new Set([...walkSettingsRows()].map(({ row }) => row.key));
+    for (const key of ["v5", "v6", "v8", "x1", "x5", "x6", "x7"])
+      assert.equal(keys.has(key), false);
   });
 
   it("#5 kirli profil alanları sayılı; `p1…p9` listede yok", () => {
     assert.deepEqual(
       [...SETTINGS_DIRTY_PROFILE_KEYS],
-      ["pn", "pu", "pz", "pbio", "pp", "ps", "pe", "px"],
+      ["pn", "pu", "pbio", "pp", "ps", "pe", "px"],
     );
 
     const audioRows = [...walkSettingsRows()]
@@ -167,10 +165,10 @@ describe("SPEC_DEVIATIONS — her kayıt için davranış", () => {
     assert.equal(row.ownGroupTitleKey, "settings.group.notifications.exceptions.defaults.title");
     assert.equal(TR["settings.row.ne1.title"], "Yeni istisnalar için geçici sessize alma");
     assert.ok(reference.includes("'Yeni istisnalar için geçici sessize alma'"));
-    // Ağaç `SET` ile birebir: grup sayısı 58'de kaldı.
+    // Removed appearance groups are excluded from the current inventory.
     assert.equal(
       SETTINGS_TREE.flatMap((section) => section.tabs).flatMap((tab) => tab.groups).length,
-      58,
+      55,
     );
   });
 
@@ -209,34 +207,28 @@ describe("SPEC_DEVIATIONS — her kayıt için davranış", () => {
     assert.match(shortcuts, /conflict/iu);
   });
 
-  it("#12 `Canary` çipi `UAT` değerini yazıyor", () => {
-    const channel = readFileSync(new URL("../desktop/release-channel.ts", import.meta.url), "utf8");
-
-    assert.match(channel, /UAT/u);
-    assert.equal(TR["settings.option.h2.3"], "Canary");
-
-    const schema = readFileSync(
-      new URL("../../../../../packages/db/prisma/schema.prisma", import.meta.url),
-      "utf8",
-    );
-
-    assert.match(schema, /enum ReleaseChannel \{[^}]*UAT/su);
-    assert.ok(!/enum ReleaseChannel \{[^}]*CANARY/su.test(schema));
-  });
-
-  it("#13 uzak Ayarlar kısayol mutasyonunu Desktop Control'e yönlendiriyor", () => {
+  it("#13 kısayol yönetimini korumalı masaüstü ayarlarına yönlendiriyor", () => {
     const shortcutsTab = findSettingsTab("desktop", "shortcuts");
-    const action = shortcutsTab?.groups
-      .flatMap((group) => group.rows)
-      .find((row) => row.key === "q3")?.actions;
+    const rows = shortcutsTab?.groups.flatMap((group) => group.rows) ?? [];
     const section = readFileSync(
       new URL("../../components/settings/sections/desktop/desktop-section.tsx", import.meta.url),
       "utf8",
     );
 
-    assert.equal(action?.length, 1);
-    assert.equal(TR[action?.[0]?.labelKey ?? ""], "Masaüstü Denetimi'nde yönet");
-    assert.match(section, /openDesktopControl\("shortcuts"\)/u);
+    assert.equal(rows.find((row) => row.key === "q2")?.block, "shortcuts");
+    assert.equal(
+      rows.some((row) => row.key === "q3"),
+      false,
+      "manual save row was removed",
+    );
+    const editor = readFileSync(
+      new URL(
+        "../../components/settings/sections/desktop/native-shortcut-editor.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    assert.match(editor, /nativeSettingsClient\.shortcuts\(next, data\.shortcuts\.enabled\)/u);
     assert.doesNotMatch(section, /writeDesktopShortcutStatus/u);
   });
 });

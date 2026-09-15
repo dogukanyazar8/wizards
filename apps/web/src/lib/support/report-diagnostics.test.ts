@@ -66,10 +66,10 @@ describe("report diagnostics", () => {
     assert.equal(
       collectReportDiagnostics(source({ desktopReleaseRing: "uat", isDesktop: true }))
         .releaseChannel,
-      "uat",
+      "beta",
     );
     assert.equal(
-      collectReportDiagnostics(source({ desktopReleaseRing: "production-small", isDesktop: true }))
+      collectReportDiagnostics(source({ desktopReleaseRing: "stable", isDesktop: true }))
         .releaseChannel,
       "stable",
     );

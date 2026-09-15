@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { setSocketServer, type AppSocketServer } from "@/lib/socket/runtime";
 import type { RecordSecurityEventInput } from "@/lib/security/security-event-service";
 
 import {
@@ -372,4 +373,69 @@ describe("auth session service", () => {
 
     assert.deepEqual(disconnectedSessions, ["other-1", "other-2"]);
   });
+});
+
+it("known desktop sessions are described as Whispr without rewriting historical storage", async () => {
+  const store = new MemoryAuthSessionStore();
+  store.records.set("desktop", record({ id: "desktop", clientType: "DESKTOP", browser: "Edge" }));
+  store.records.set("web", record({ id: "web", clientType: "WEB", browser: "Edge" }));
+  const result = await listAuthSessions("user-1", "desktop", { now, store });
+  assert.equal(
+    result.sessions.find((session) => session.id === "desktop")?.browser,
+    "Whispr Desktop",
+  );
+  assert.equal(result.sessions.find((session) => session.id === "web")?.browser, "Edge");
+  assert.equal(store.records.get("desktop")?.browser, "Edge");
+});
+
+it("notifies only the owning account after creation and actual revocation, not heartbeats", async () => {
+  const sent: Array<{ room: string; event: string; payload: unknown }> = [];
+  setSocketServer({
+    to: (room: string) => ({
+      emit: (event: string, payload: unknown) => sent.push({ room, event, payload }),
+    }),
+  } as unknown as AppSocketServer);
+  const store = new MemoryAuthSessionStore();
+  const { recordEvent } = createEventRecorder();
+  const input = {
+    id: "realtime-session",
+    userId: "user-1",
+    expiresAt: new Date(now.getTime() + 86400000),
+    metadata: null,
+    now,
+    recordEvent,
+  };
+  try {
+    await ensureAuthSession(input, store);
+    assert.deepEqual(sent, [
+      {
+        room: "user:user-1",
+        event: "account:security:changed",
+        payload: { sessionsChanged: true },
+      },
+    ]);
+    await ensureAuthSession({ ...input, now: new Date(now.getTime() + 60000) }, store);
+    assert.equal(sent.length, 1);
+    await revokeAuthSession("someone-else", input.id, {
+      store,
+      recordEvent,
+      disconnectSockets: () => {},
+    });
+    assert.equal(sent.length, 1);
+    await revokeAuthSession(input.userId, input.id, {
+      store,
+      recordEvent,
+      disconnectSockets: () => {},
+    });
+    assert.equal(sent.length, 2);
+    assert.equal(sent[1]?.room, "user:user-1");
+    await revokeAuthSession(input.userId, input.id, {
+      store,
+      recordEvent,
+      disconnectSockets: () => {},
+    });
+    assert.equal(sent.length, 2);
+  } finally {
+    setSocketServer(null);
+  }
 });

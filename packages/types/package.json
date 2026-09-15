@@ -17,12 +17,12 @@
     "format": "node ../../scripts/quality/prettier-changed.mjs --scope packages/types"
   },
   "dependencies": {
-    "zod": "^4.4.3"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@types/node": "^24.13.3",
+    "@types/node": "^24.13.4",
     "prettier": "3.9.6",
-    "tsx": "^4.23.1",
+    "tsx": "^4.23.13",
     "typescript": "catalog:"
   }
 }

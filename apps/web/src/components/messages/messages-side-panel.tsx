@@ -156,9 +156,10 @@ export function MessagesSidePanel({
       }}
     >
       <div
-        className="flex shrink-0 items-start"
+        className="flex shrink-0 items-center"
         style={{
           borderBottom: `${hairline()} solid hsl(var(--border)/0.5)`,
+          height: pxToRem(MESSAGES_METRICS.conversation.headerHeight),
           gap: pxToRem(sidePanel.headerGap),
           padding: `${pxToRem(sidePanel.headerPaddingTop)} ${pxToRem(sidePanel.headerPaddingX)} ${pxToRem(sidePanel.headerPaddingBottom)}`,
         }}

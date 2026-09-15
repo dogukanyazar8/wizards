@@ -1,6 +1,8 @@
 "use client";
+import { UserGameActivity } from "./user-game-activity";
+import { profileStatusRefetchInterval } from "@wizards/types";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -41,8 +43,12 @@ interface UserProfileData {
   username: string | null;
   avatarUrl: string | null;
   bannerColor: string | null;
+  bannerOffsetX: number | null;
+  bannerOffsetY: number | null;
   bannerUrl: string | null;
   customStatus: string | null;
+  customStatusEmoji: string | null;
+  customStatusExpiresAt: string | null;
   bio: string | null;
   createdAt: string;
   serverNickname: string | null;
@@ -79,7 +85,6 @@ export function UserProfilePopover({
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const [popoverPos, setPopoverPos] = useState<{ x: number; y: number } | null>(null);
   const [blockedByThem, setBlockedByThem] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
 
@@ -94,6 +99,8 @@ export function UserProfilePopover({
       return res.json() as Promise<UserProfileData>;
     },
     enabled: open,
+    refetchInterval: (query) =>
+      open ? profileStatusRefetchInterval(query.state.data?.customStatusExpiresAt) : false,
     staleTime: 60_000,
   });
 
@@ -202,29 +209,40 @@ export function UserProfilePopover({
 
   const openPopover = () => {
     if (!triggerRef.current) return;
+    setOpen(true);
+  };
 
+  useLayoutEffect(() => {
+    const popover = popoverRef.current;
+    const trigger = triggerRef.current;
+    if (!open || !popover || !trigger) return;
     if (isMobileViewport) {
-      setPopoverPos({ x: 0, y: 0 });
-      setOpen(true);
+      popover.style.removeProperty("left");
+      popover.style.removeProperty("top");
       return;
     }
 
-    const rect = triggerRef.current.getBoundingClientRect();
-
-    let x = rect.right + 12;
-    let y = rect.top;
-
-    if (x + 320 > window.innerWidth) {
-      x = rect.left - 320 - 12;
-    }
-
-    if (y + 480 > window.innerHeight) {
-      y = Math.max(8, window.innerHeight - 480);
-    }
-
-    setPopoverPos({ x, y });
-    setOpen(true);
-  };
+    const positionPopover = () => {
+      const rect = trigger.getBoundingClientRect();
+      const topInset =
+        parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue("--app-viewport-top"),
+        ) || 0;
+      const width = popover.offsetWidth;
+      const x =
+        rect.right + width + 12 <= window.innerWidth ? rect.right + 12 : rect.left - width - 12;
+      popover.style.left = `${Math.max(12, Math.min(x, window.innerWidth - width - 12))}px`;
+      popover.style.top = `${Math.max(topInset + 12, Math.min(rect.top, window.innerHeight - popover.offsetHeight - 12))}px`;
+    };
+    positionPopover();
+    const observer = new ResizeObserver(positionPopover);
+    observer.observe(popover);
+    window.addEventListener("resize", positionPopover);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", positionPopover);
+    };
+  }, [open, isMobileViewport]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 767px)");
@@ -278,7 +296,6 @@ export function UserProfilePopover({
       </div>
 
       {open &&
-        popoverPos &&
         createPortal(
           <>
             {isMobileViewport ? (
@@ -300,14 +317,11 @@ export function UserProfilePopover({
               role="dialog"
               data-testid="user-profile-popover"
               className={cn(
-                "fixed z-[91] overflow-hidden border border-[hsl(var(--border)/0.88)] bg-[hsl(var(--surface-overlay)/0.98)] shadow-[0_28px_80px_hsl(var(--shadow-color)/0.28)] backdrop-blur-2xl",
+                "fixed z-[91] max-h-[calc(100dvh-var(--app-viewport-top,0px)-24px)] max-w-[calc(100vw-24px)] overflow-y-auto overscroll-contain border border-[hsl(var(--border)/0.88)] bg-[hsl(var(--surface-overlay)/0.98)] shadow-[0_28px_80px_hsl(var(--shadow-color)/0.28)] backdrop-blur-2xl",
                 isMobileViewport
-                  ? "inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-h-[min(34rem,calc(100dvh-1.5rem))] overflow-y-auto rounded-[30px]"
+                  ? "inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] rounded-[30px]"
                   : "w-80 rounded-[30px]",
               )}
-              {...(isMobileViewport
-                ? {}
-                : { style: { left: `${popoverPos.x}px`, top: `${popoverPos.y}px` } })}
               initial={
                 isMobileViewport ? { opacity: 0, y: 28 } : { opacity: 0, scale: 0.95, y: -8 }
               }
@@ -326,10 +340,12 @@ export function UserProfilePopover({
                 style={{
                   backgroundColor: profileQuery.data?.bannerColor ?? undefined,
                   backgroundImage: profileQuery.data?.bannerUrl
-                    ? `url(${profileQuery.data.bannerUrl})`
-                    : undefined,
+                    ? `url(${JSON.stringify(profileQuery.data.bannerUrl)})`
+                    : profileQuery.data?.bannerColor
+                      ? "none"
+                      : undefined,
                   backgroundSize: "cover",
-                  backgroundPosition: "center",
+                  backgroundPosition: `${(profileQuery.data?.bannerOffsetX ?? 0.5) * 100}% ${(profileQuery.data?.bannerOffsetY ?? 0.5) * 100}%`,
                 }}
               />
 
@@ -379,6 +395,9 @@ export function UserProfilePopover({
                     </p>
                     {profileQuery.data?.customStatus && (
                       <p className="mt-2 rounded-2xl border border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-soft)/0.42)] px-3 py-2 text-xs text-app-muted">
+                        {profileQuery.data.customStatusEmoji
+                          ? `${profileQuery.data.customStatusEmoji} `
+                          : ""}
                         {profileQuery.data.customStatus}
                       </p>
                     )}
@@ -387,6 +406,7 @@ export function UserProfilePopover({
                         {profileQuery.data.bio}
                       </p>
                     )}
+                    {!isBlocked && <UserGameActivity userId={userId} />}
                   </div>
 
                   <div className="app-panel-soft space-y-1 rounded-[20px] border px-3 py-3 text-xs text-app-muted">

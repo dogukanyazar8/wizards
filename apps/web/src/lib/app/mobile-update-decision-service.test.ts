@@ -47,7 +47,7 @@ function dependencies(
 
 const baseInput = {
   buildEnvironment: "uat" as const,
-  channel: "uat" as const,
+  channel: "beta" as const,
   installed: "0.8.15",
   platform: "android" as const,
   runtimeVersion: "runtime-old",
@@ -107,7 +107,7 @@ describe("mobile update decision service", () => {
       {
         ...baseInput,
         buildEnvironment: "production",
-        channel: "uat",
+        channel: "beta",
       },
       dependencies(),
     );
@@ -135,4 +135,33 @@ describe("mobile update decision service", () => {
     assert.equal(missing.updateKind, "none");
     assert.equal(current.updateKind, "none");
   });
+});
+
+it("uses only the UAT database stream for Beta and STABLE for Stable", async () => {
+  for (const [channel, expected] of [
+    ["beta", "UAT"],
+    ["stable", "STABLE"],
+  ] as const) {
+    await decideMobileUpdate(
+      { ...baseInput, channel },
+      {
+        findLatestRelease: async (actual) => {
+          assert.equal(actual, expected);
+          return null;
+        },
+      },
+    );
+  }
+});
+
+it("does not offer cross-environment OTA even if runtime fingerprints match", async () => {
+  for (const buildEnvironment of ["production", "development"] as const) {
+    const decision = await decideMobileUpdate(
+      { ...baseInput, buildEnvironment, runtimeVersion: "runtime-new" },
+      dependencies(),
+    );
+    assert.notEqual(decision.updateKind, "ota");
+    assert.equal(decision.otaEnabled, false);
+    assert.equal(decision.androidArtifact, undefined);
+  }
 });

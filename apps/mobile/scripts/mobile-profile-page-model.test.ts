@@ -32,7 +32,6 @@ function createProfile(overrides: Partial<MobileUserProfile> = {}): MobileUserPr
     mutualServers: { count: 0, preview: [] },
     note: null,
     presence: { customStatus: null, customStatusEmoji: null, status: "ONLINE" },
-    pronouns: null,
     registeredAt: "2024-05-18T09:00:00.000Z",
     relationship: "friend",
     self: false,

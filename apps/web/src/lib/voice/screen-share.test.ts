@@ -20,6 +20,22 @@ function probe(constraints: Record<string, unknown> | (() => never)) {
 }
 
 describe("web screen share audio capture contract", () => {
+  it("honors both behavior preferences independently with and without audio", () => {
+    for (const excludeSelfWindow of [false, true]) {
+      for (const allowSourceSwitch of [false, true]) {
+        for (const shareSystemAudio of [false, true]) {
+          const options = getScreenShareCaptureOptions("h1080fps60", {
+            excludeSelfWindow,
+            allowSourceSwitch,
+            shareSystemAudio,
+          });
+          assert.equal(options.selfBrowserSurface, excludeSelfWindow ? "exclude" : "include");
+          assert.equal(options.surfaceSwitching, allowSourceSwitch ? "include" : "exclude");
+          assert.equal(options.audio, shareSystemAudio);
+        }
+      }
+    }
+  });
   it("captures video only until the sharer opts in", () => {
     const captureOptions = getScreenShareCaptureOptions("h1080fps60");
 

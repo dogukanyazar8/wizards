@@ -75,8 +75,8 @@ function* triggerPositions(): Generator<{ bottom: number; top: number }> {
 }
 
 describe("açılır menü kırpılma ölçümü", () => {
-  it("ağaçta ölçülecek en az yirmi `select` satırı var", () => {
-    assert.ok(SELECT_ROWS.length >= 20, `select satırı: ${SELECT_ROWS.length}`);
+  it("ağaçta ölçülecek kalan on dokuz `select` satırı var", () => {
+    assert.ok(SELECT_ROWS.length >= 19, `select satırı: ${SELECT_ROWS.length}`);
   });
 
   it("her `select` satırında ilk ve son seçenek kaydırma alanının içinde", () => {
@@ -118,7 +118,7 @@ describe("açılır menü kırpılma ölçümü", () => {
    * 236 px yok, menü yukarı açılmak zorunda.
    */
   const CRITICAL: ReadonlyArray<readonly [string, string, string]> = [
-    ["account", "privacy", "l2"],
+    ["appearance", "language", "l2"],
     ["notifications", "quiet-hours", "nq4"],
     ["av", "audio", "p7"],
   ];

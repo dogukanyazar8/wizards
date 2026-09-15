@@ -85,7 +85,7 @@ export function useSettingsShortcut(onOpen: () => void): void {
 /**
  * İpucu metni platformdan okunur; sabit `⌘` gömülmez (§5).
  *
- * Sunucuda platform bilinmez: sunucu anlık görüntüsü `Ctrl+,`, istemcininki gerçek platformdur.
+ * Sunucuda platform bilinmez: tarafsız `Ctrl/Cmd+,`, istemcide gerçek platform gösterilir.
  */
 export function useSettingsShortcutChip(): string {
   return useAppShortcutLabel("settings.open");

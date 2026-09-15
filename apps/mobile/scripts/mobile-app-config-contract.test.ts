@@ -25,6 +25,7 @@ type BuildExpoConfig = (context: { config: Record<string, unknown> }) => {
     infoPlist?: Record<string, string>;
   };
   name?: string;
+  version?: string;
   plugins?: unknown[];
   runtimeVersion?: {
     policy?: string;
@@ -71,6 +72,7 @@ describe("mobile app config contract", () => {
     const config = buildTestExpoConfig();
 
     assert.equal(config.name, WHISPR_MOBILE_APP_IDENTITY.name);
+    assert.equal(config.version, require("../package.json").version);
     assert.equal(config.slug, WHISPR_MOBILE_APP_IDENTITY.slug);
     assert.equal(config.scheme, WHISPR_MOBILE_APP_IDENTITY.scheme);
     assert.equal(config.android?.package, WHISPR_MOBILE_APP_IDENTITY.androidPackage);
@@ -192,4 +194,9 @@ describe("mobile app config contract", () => {
 
     assert.throws(() => buildTestExpoConfig(), /EXPO_PUBLIC_WHISPR_API_URL must use HTTPS/);
   });
+});
+
+it("rejects removed release environments instead of producing a development build", () => {
+  process.env.WHISPR_MOBILE_ENV = "canary";
+  assert.throws(() => buildTestExpoConfig(), /Unsupported WHISPR_MOBILE_ENV/);
 });

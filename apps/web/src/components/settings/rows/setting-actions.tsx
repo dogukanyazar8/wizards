@@ -23,8 +23,10 @@ const { action } = SETTINGS_METRICS.controls;
 export const SETTING_ACTIONS_MAX = 3;
 
 export type SettingActionDescriptor = {
+  readonly controlsId?: string | undefined;
+  readonly expanded?: boolean | undefined;
   readonly disabled?: boolean;
-  readonly kind?: "danger" | "primary" | undefined;
+  readonly kind?: "danger" | "primary" | "success" | undefined;
   readonly label: string;
   readonly onClick: () => void;
 };
@@ -48,7 +50,7 @@ export function SettingActions({
     // üçünü de "E-posta" diye okuturdu.
     <div
       aria-labelledby={labelledById}
-      className="flex shrink-0 items-center"
+      className="flex max-w-full shrink-0 flex-wrap items-center justify-end"
       data-actions-overflow={actions.length > SETTING_ACTIONS_MAX || undefined}
       data-testid={testId}
       role="group"
@@ -56,9 +58,11 @@ export function SettingActions({
     >
       {actions.map((entry, index) => (
         <SettingActionButton
+          controlsId={entry.controlsId}
+          expanded={entry.expanded}
           describedById={index === 0 ? describedById : undefined}
           entry={entry}
-          key={entry.label}
+          key={index}
           testId={testId ? `${testId}-${index}` : undefined}
         />
       ))}
@@ -86,34 +90,33 @@ export function SettingActionButton({
   readonly expanded?: boolean | undefined;
   readonly testId?: string | undefined;
 }) {
-  const primary = entry.kind === "primary";
   const danger = entry.kind === "danger";
+  const success = entry.kind === "success";
 
   return (
     <button
       aria-controls={controlsId}
       aria-describedby={describedById}
       aria-expanded={expanded}
-      className="whitespace-nowrap transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:cursor-not-allowed disabled:opacity-55"
+      className={`max-w-full whitespace-normal transition-[filter] enabled:hover:brightness-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] ${success ? "disabled:cursor-default" : "disabled:cursor-not-allowed disabled:opacity-55"}`}
       data-testid={testId}
       disabled={entry.disabled ?? false}
       onClick={entry.onClick}
       style={{
-        background: primary
-          ? "hsl(var(--primary))"
+        cursor: success ? "default" : undefined,
+        background: success
+          ? "hsl(var(--success) / 0.16)"
           : danger
             ? `hsl(var(--danger) / ${action.dangerSurfaceAlpha})`
-            : "transparent",
-        border: primary
-          ? "0"
-          : danger
-            ? `${hairline()} solid hsl(var(--danger) / ${action.dangerBorderAlpha})`
-            : `${hairline()} solid hsl(var(--border) / ${action.borderAlpha})`,
+            : "hsl(var(--primary))",
+        border: danger
+          ? `${hairline()} solid hsl(var(--danger) / ${action.dangerBorderAlpha})`
+          : "0",
         borderRadius: pxToRem(action.radius),
-        color: primary ? "#fff" : danger ? "hsl(var(--danger))" : "hsl(var(--text-secondary))",
+        color: success ? "hsl(var(--success))" : danger ? "hsl(var(--danger))" : "#fff",
         fontSize: pxToRem(action.fontSize),
         fontWeight: action.weight,
-        height: pxToRem(action.height),
+        minHeight: pxToRem(action.height),
         lineHeight: 1,
         padding: `0 ${pxToRem(action.paddingX)}`,
         transitionDuration: `${SETTINGS_METRICS.motion.transitionSeconds}s`,

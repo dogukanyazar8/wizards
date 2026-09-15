@@ -4,7 +4,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { DownloadArtifact, DownloadEnvironment, DownloadSection } from "@wizards/types";
 
-import { DownloadCompareTable, DownloadSectionCard } from "./download-section-card";
+import { DownloadSectionCard } from "./download-section-card";
 import {
   AdminDownloads,
   getDownloadPublishLabel,
@@ -118,28 +118,6 @@ describe("download section card", () => {
 
     assert.match(markup, /download\.empty/);
     assert.equal(markup.includes("download-row-"), false);
-  });
-});
-
-describe("download compare table", () => {
-  it("emphasises the active column and keeps the other muted", () => {
-    const prod = renderToStaticMarkup(
-      <DownloadCompareTable environment="prod" translate={translate} />,
-    );
-    const uat = renderToStaticMarkup(
-      <DownloadCompareTable environment="uat" translate={translate} />,
-    );
-
-    for (const row of ["server", "account", "update", "data"]) {
-      assert.match(prod, new RegExp(`download\\.diff\\.${row}\\.prod`));
-      assert.match(prod, new RegExp(`download\\.diff\\.${row}\\.uat`));
-    }
-
-    // Aktif sütun 600 ağırlık + foreground; diğeri 500 + text-muted.
-    assert.match(prod, /hsl\(var\(--success\)\)/);
-    assert.match(uat, /hsl\(var\(--warning\)\)/);
-    assert.match(prod, /font-weight:600/);
-    assert.match(prod, /font-weight:500/);
   });
 });
 

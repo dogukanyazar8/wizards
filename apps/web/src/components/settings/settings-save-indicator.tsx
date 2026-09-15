@@ -3,10 +3,11 @@
 // The default import is what the node test runner's classic JSX transform resolves this
 // component's elements against; Next's compiler does not need it.
 import React from "react";
+import { CircleAlert, CircleCheck, LoaderCircle } from "lucide-react";
 
 import { useI18n } from "@/components/providers/locale-provider";
 import type { SettingsSaveState } from "@/components/settings/settings-window-state";
-import { SETTINGS_METRICS, pxToRem } from "@/lib/settings/metrics";
+import { SETTINGS_METRICS, hairline, pxToRem } from "@/lib/settings/metrics";
 import { cn } from "@/lib/utils";
 
 const { header } = SETTINGS_METRICS;
@@ -32,8 +33,10 @@ const { header } = SETTINGS_METRICS;
 const SAVE_TONE: Readonly<Record<Exclude<SettingsSaveState, "idle">, string>> = {
   error: "--danger-readable",
   saved: "--success-readable",
-  saving: "--text-muted",
+  saving: "--info-readable",
 };
+
+const SAVE_SURFACE = { saving: "--info", saved: "--success", error: "--danger" } as const;
 
 const SAVE_LABEL_KEY: Readonly<Record<Exclude<SettingsSaveState, "idle">, string>> = {
   error: "settings.saveFailed",
@@ -49,37 +52,54 @@ export type SettingsSaveIndicatorProps = {
 
 export function SettingsSaveIndicator({ onRetry, state }: SettingsSaveIndicatorProps) {
   const { t } = useI18n();
+  const Icon = state === "saving" ? LoaderCircle : state === "error" ? CircleAlert : CircleCheck;
 
   const body =
     state === "idle" ? null : (
       <>
-        <span
+        <Icon
           aria-hidden="true"
-          className="shrink-0 rounded-full"
+          className={cn("shrink-0", state === "saving" && "motion-safe:animate-spin")}
           style={{
-            background: `hsl(var(${SAVE_TONE[state]}))`,
-            height: pxToRem(header.saveDotSize),
-            width: pxToRem(header.saveDotSize),
+            height: pxToRem(13),
+            width: pxToRem(13),
           }}
         />
-        {t(SAVE_LABEL_KEY[state])}
+        <span className="min-w-0">{t(SAVE_LABEL_KEY[state])}</span>
       </>
     );
 
   const shared = {
-    className: cn("inline-flex items-center whitespace-nowrap"),
+    className: cn(
+      "inline-flex max-w-full items-center rounded-full text-left",
+      state === "error" &&
+        "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
+    ),
     style: {
-      color: state === "idle" ? undefined : `hsl(var(${SAVE_TONE[state]}))`,
+      color: state === "idle" ? undefined : `var(${SAVE_TONE[state]})`,
+      background: state === "idle" ? undefined : `hsl(var(${SAVE_SURFACE[state]}) / 0.1)`,
+      border:
+        state === "idle"
+          ? undefined
+          : `${hairline()} solid hsl(var(${SAVE_SURFACE[state]}) / 0.25)`,
+      padding: state === "idle" ? undefined : `${pxToRem(5)} ${pxToRem(9)}`,
       fontSize: pxToRem(header.saveFontSize),
       fontWeight: header.saveWeight,
       gap: pxToRem(header.saveGap),
+      lineHeight: 1.3,
     },
   };
 
   return (
     // `aria-live` kabın kendisinde durur, içeriğinde değil: içerik değiştikçe kap yerinde
     // kalır ve ekran okuyucu her geçişi bir kez duyurur.
-    <div aria-live="polite" data-save-state={state} data-testid="settings-save-indicator">
+    <div
+      className="min-w-0"
+      aria-live="polite"
+      aria-atomic="true"
+      data-save-state={state}
+      data-testid="settings-save-indicator"
+    >
       {state === "error" && onRetry ? (
         <button {...shared} onClick={onRetry} type="button">
           {body}

@@ -1,13 +1,10 @@
 import { MobileProfileResponseSchema, MobileProfileUpdateSchema } from "@wizards/types";
 
-import {
-  getNextUsernameChangeAt,
-  resolveVisibleCustomStatus,
-  updateAccountProfile,
-} from "@/lib/account/service";
+import { resolveVisibleCustomStatus, updateAccountProfile } from "@/lib/account/service";
 import { enforceApiRateLimit, type ApiRateLimitAction } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
 import { requireMobileApiUserId } from "@/lib/auth/api";
+import { mobileProfileEmoji } from "@/lib/mobile/profile-compatibility";
 
 export type MobileProfileRouteDependencies = {
   authenticate(request: Request): Promise<string>;
@@ -32,6 +29,7 @@ export async function mobileProfileUpdateRoute(
     await dependencies.enforceRateLimit(userId, "mobile:account:profile");
     const input = await dependencies.parseBody(request, MobileProfileUpdateSchema);
     const user = await dependencies.updateProfile(userId, input);
+    const status = resolveVisibleCustomStatus(user);
     return Response.json(
       MobileProfileResponseSchema.parse({
         user: {
@@ -41,12 +39,11 @@ export async function mobileProfileUpdateRoute(
           bannerOffsetY: user.bannerOffsetY,
           bannerUrl: user.bannerUrl,
           bio: user.bio,
-          ...resolveVisibleCustomStatus(user),
+          ...status,
+          customStatusEmoji: mobileProfileEmoji(request, status.customStatusEmoji),
           displayName: user.displayName,
           id: user.id,
-          nextUsernameChangeAt:
-            getNextUsernameChangeAt(user.usernameChangedAt)?.toISOString() ?? null,
-          pronouns: user.pronouns,
+          nextUsernameChangeAt: null,
           status: user.status,
           twoFactorEnabled: user.twoFactorEnabled,
           username: user.username,

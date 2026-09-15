@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { pnpmInvocation } from "./pnpm-invocation.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const packages = Object.freeze([
@@ -51,7 +52,8 @@ function declarationMap(directory) {
 
 function runPnpm(args) {
   assert.ok(process.env.npm_execpath, "Declaration parity must run through pnpm");
-  return spawnSync(process.execPath, [process.env.npm_execpath, ...args], {
+  const invocation = pnpmInvocation(process.env.npm_execpath, args);
+  return spawnSync(invocation.command, invocation.args, {
     cwd: root,
     shell: false,
     stdio: "inherit",

@@ -3,8 +3,12 @@ import { createRequire } from "node:module";
 import test from "node:test";
 
 const mobileRequire = createRequire(new URL("../../apps/mobile/package.json", import.meta.url));
-const eslintRequire = createRequire(mobileRequire.resolve("eslint/package.json"));
-const minimatchRequire = createRequire(eslintRequire.resolve("minimatch/package.json"));
+// ESLint 10 uses modern minimatch; Jest 29 still exercises the legacy consumer.
+const jestRequire = createRequire(mobileRequire.resolve("jest/package.json"));
+const jestCoreRequire = createRequire(jestRequire.resolve("@jest/core/package.json"));
+const jestRuntimeRequire = createRequire(jestCoreRequire.resolve("jest-runtime/package.json"));
+const globRequire = createRequire(jestRuntimeRequire.resolve("glob/package.json"));
+const minimatchRequire = createRequire(globRequire.resolve("minimatch/package.json"));
 
 test("minimatch 3 keeps callable CommonJS brace-pattern behavior", () => {
   const minimatch = minimatchRequire("minimatch");
@@ -19,7 +23,7 @@ test("brace-expansion keeps its callable and named CommonJS exports", () => {
   const braceExpansion = minimatchRequire("brace-expansion");
   const braceExpansionPackage = minimatchRequire("brace-expansion/package.json");
 
-  assert.equal(braceExpansionPackage.version, "5.0.9");
+  assert.equal(braceExpansionPackage.version, "5.0.12");
   assert.equal(typeof braceExpansion, "function");
   assert.equal(braceExpansion.expand, braceExpansion);
   assert.equal(typeof braceExpansion.EXPANSION_MAX, "number");

@@ -54,7 +54,7 @@ export interface MobileAboutPreferenceStorage {
   readonly setItem: (key: string, value: string) => Promise<void>;
 }
 
-const RELEASE_CHANNELS: readonly MobileReleaseChannel[] = ["stable", "beta", "uat"];
+const RELEASE_CHANNELS: readonly MobileReleaseChannel[] = ["stable", "beta"];
 const channelPreferenceListeners = new Set<(channel: MobileReleaseChannel | null) => void>();
 
 export function subscribeMobileAboutChannelPreference(
@@ -82,6 +82,7 @@ function parseBoolean(value: string | null, fallback: boolean): boolean {
 }
 
 function parseChannel(value: string | null): MobileReleaseChannel | null {
+  if (value === "uat") return "beta";
   return RELEASE_CHANNELS.includes(value as MobileReleaseChannel)
     ? (value as MobileReleaseChannel)
     : null;

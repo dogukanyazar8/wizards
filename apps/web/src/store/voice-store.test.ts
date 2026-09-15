@@ -12,6 +12,9 @@ import {
   sanitizeUniqueDesktopVoiceShortcut,
   sanitizeScreenShareVolume,
   sanitizeVoiceInputMode,
+  sanitizeCameraPreferences,
+  DEFAULT_VOICE_CAMERA_PREFERENCES,
+  useVoiceStore,
 } from "./voice-store";
 import {
   DEFAULT_DESKTOP_GAME_OVERLAY_ANCHOR,
@@ -21,6 +24,31 @@ import {
 } from "@/lib/desktop/voice-mini";
 
 describe("screen share audio volume preference", () => {
+  it("audio processing presets update subscribers once and preserve other preferences", () => {
+    const before = useVoiceStore.getState();
+    const updates: unknown[] = [];
+    const unsubscribe = useVoiceStore.subscribe((state) => updates.push(state.audioPreferences));
+    try {
+      before.setAudioPreferences({
+        krispNoiseCancellation: false,
+        enhancedNoiseFilterMode: "browser_only",
+        noiseSuppression: false,
+        voiceIsolation: false,
+      });
+      const after = useVoiceStore.getState();
+      assert.equal(updates.length, 1);
+      assert.equal(
+        after.audioPreferences.echoCancellation,
+        before.audioPreferences.echoCancellation,
+      );
+      assert.equal(after.audioPreferences.autoGainControl, before.audioPreferences.autoGainControl);
+      assert.equal(after.audioPreferences.inputDeviceId, before.audioPreferences.inputDeviceId);
+      assert.equal(after.hasConfiguredKrispPreference, true);
+    } finally {
+      unsubscribe();
+      useVoiceStore.setState(before);
+    }
+  });
   it("keeps the listener ceiling inside 0-100 and rounds it", () => {
     assert.equal(sanitizeScreenShareVolume(0), 0);
     assert.equal(sanitizeScreenShareVolume(45.4), 45);
@@ -110,4 +138,12 @@ describe("voice desktop preference sanitizers", () => {
     assert.equal(sanitizeDesktopGameOverlaySize("large"), "large");
     assert.equal(sanitizeDesktopGameOverlaySize("full-screen"), DEFAULT_DESKTOP_GAME_OVERLAY_SIZE);
   });
+});
+
+it("camera preferences migrate old data and reject unsupported persisted quality", () => {
+  assert.deepEqual(sanitizeCameraPreferences({}), DEFAULT_VOICE_CAMERA_PREFERENCES);
+  assert.equal(sanitizeCameraPreferences({ quality: "h720", frameRate: 15 }).frameRate, 15);
+  assert.equal(sanitizeCameraPreferences({ quality: "h720", frameRate: 15 }).quality, "h720");
+  assert.equal(sanitizeCameraPreferences({ quality: "4k", frameRate: 240 }).quality, "h1080");
+  assert.equal(sanitizeCameraPreferences({ frameRate: 240 }).frameRate, 30);
 });

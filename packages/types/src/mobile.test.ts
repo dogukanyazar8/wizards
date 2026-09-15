@@ -224,7 +224,7 @@ describe("mobile update delivery contract", () => {
       }),
       {
         buildEnvironment: "uat",
-        channel: "uat",
+        channel: "beta",
         installed: "0.8.15",
         platform: "android",
         runtimeVersion: "fingerprint-2026-07-30",
@@ -2144,4 +2144,11 @@ describe("mobile invite preview exposure boundary", () => {
 
     assert.deepEqual([...previewKeys], ["slug"]);
   });
+});
+
+it("normalizes the legacy UAT channel input to Beta and rejects removed channels", () => {
+  assert.equal(MobileReleaseChannelSchema.parse("uat"), "beta");
+  assert.equal(MobileReleaseChannelSchema.parse("stable"), "stable");
+  assert.equal(MobileReleaseChannelSchema.safeParse("canary").success, false);
+  assert.equal(MobileBuildEnvironmentSchema.safeParse("canary").success, false);
 });

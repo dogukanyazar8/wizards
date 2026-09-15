@@ -1,4 +1,8 @@
-import { MOBILE_PROFILE_CUSTOM_STATUS_MAX_LENGTH } from "@wizards/types";
+import {
+  MOBILE_PROFILE_CUSTOM_STATUS_MAX_LENGTH,
+  PROFILE_STATUS_EMOJI_MAX_LENGTH,
+  appendProfileStatusEmoji,
+} from "@wizards/types";
 import { useEffect, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
@@ -12,6 +16,7 @@ import { useMobileProfileSheetStyles } from "./mobile-profile-sheets.styles";
 import {
   MOBILE_STATUS_EXPIRY_CHOICES,
   resolveMobileStatusExpiresAt,
+  inferMobileStatusExpiryChoice,
   type MobileStatusExpiryChoice,
 } from "./mobile-profile-status-expiry";
 import { useMobileSocialMutations } from "./mobile-social-query";
@@ -38,6 +43,7 @@ export interface MobileCustomStatusSheetProps {
   readonly client: MobileApiClient;
   readonly customStatus: string | null;
   readonly customStatusEmoji: string | null;
+  readonly customStatusExpiresAt?: string | null;
   readonly onClose: () => void;
   readonly open: boolean;
 }
@@ -51,6 +57,7 @@ export function MobileCustomStatusSheet({
   client,
   customStatus,
   customStatusEmoji,
+  customStatusExpiresAt = null,
   onClose,
   open,
 }: MobileCustomStatusSheetProps) {
@@ -64,6 +71,7 @@ export function MobileCustomStatusSheet({
   const [draft, setDraft] = useState(customStatus ?? "");
   const [emoji, setEmoji] = useState<string | null>(customStatusEmoji);
   const [duration, setDuration] = useState<MobileStatusExpiryChoice>("never");
+  const [initialDuration, setInitialDuration] = useState<MobileStatusExpiryChoice>("never");
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [focused, setFocused] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -72,10 +80,12 @@ export function MobileCustomStatusSheet({
     if (open) {
       setDraft(customStatus ?? "");
       setEmoji(customStatusEmoji);
-      setDuration("never");
+      const choice = inferMobileStatusExpiryChoice(customStatusExpiresAt);
+      setDuration(choice);
+      setInitialDuration(choice);
       setFailed(false);
     }
-  }, [customStatus, customStatusEmoji, open]);
+  }, [customStatus, customStatusEmoji, customStatusExpiresAt, open]);
 
   const trimmed = draft.trim();
   const canSave = trimmed.length > 0 && !updateProfile.isPending;
@@ -91,7 +101,9 @@ export function MobileCustomStatusSheet({
       {
         customStatus: trimmed,
         customStatusEmoji: emoji,
-        customStatusExpiresAt: resolveMobileStatusExpiresAt(duration),
+        ...(duration !== initialDuration || !customStatus
+          ? { customStatusExpiresAt: resolveMobileStatusExpiresAt(duration) }
+          : {}),
       },
       { onError: () => setFailed(true), onSuccess: () => onClose() },
     );
@@ -141,7 +153,9 @@ export function MobileCustomStatusSheet({
               style={styles.customEmojiButton}
               testID={`${MOBILE_CUSTOM_STATUS_SHEET_TEST_ID}-emoji`}
             >
-              <Text style={styles.customEmojiGlyph}>{emoji ?? "🙂"}</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.customEmojiGlyph}>
+                {emoji ?? "🙂"}
+              </Text>
             </Pressable>
             <TextInput
               accessibilityLabel={copy.profileCustomStatusSheetTitle}
@@ -223,11 +237,16 @@ export function MobileCustomStatusSheet({
       </BottomSheet>
 
       <MessageEmojiPicker
+        closeOnSelect={false}
+        selectedEmojis={emoji ?? ""}
+        onClearSelection={() => setEmoji(null)}
+        canSelect={(selected) =>
+          (emoji?.length ?? 0) + selected.length <= PROFILE_STATUS_EMOJI_MAX_LENGTH
+        }
         isOpen={emojiPickerOpen}
         onClose={() => setEmojiPickerOpen(false)}
         onSelect={(selected) => {
-          setEmoji(selected);
-          setEmojiPickerOpen(false);
+          setEmoji((current) => appendProfileStatusEmoji(current, selected));
         }}
       />
     </>

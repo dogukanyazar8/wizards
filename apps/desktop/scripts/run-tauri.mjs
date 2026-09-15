@@ -8,8 +8,6 @@ import { DESKTOP_RELEASE_RINGS } from "./release-ops.mjs";
 const scriptPath = fileURLToPath(import.meta.url);
 const require = createRequire(import.meta.url);
 const desktopRoot = path.resolve(path.dirname(scriptPath), "..");
-const generatedDir = path.join(desktopRoot, ".tauri", "generated");
-const generatedConfigPath = path.join(generatedDir, "tauri.conf.generated.json");
 const defaultProductionWebUrl = "https://whispr.team";
 const updaterReleaseRings = new Set(DESKTOP_RELEASE_RINGS);
 
@@ -17,6 +15,12 @@ const command = process.argv[2];
 const rawExtraArgs = process.argv.slice(3);
 const extraArgs = rawExtraArgs[0] === "--" ? rawExtraArgs.slice(1) : rawExtraArgs;
 const writeConfigOnly = extraArgs.includes("--write-config-only");
+// Isolate config-only validation from the files used by a running development shell.
+const generatedDir =
+  writeConfigOnly && process.env.WHISPR_DESKTOP_CONFIG_OUTPUT_DIR
+    ? path.resolve(process.env.WHISPR_DESKTOP_CONFIG_OUTPUT_DIR)
+    : path.join(desktopRoot, ".tauri", "generated");
+const generatedConfigPath = path.join(generatedDir, "tauri.conf.generated.json");
 const noBundle = extraArgs.includes("--no-bundle");
 const unknownArgs = extraArgs.filter(
   (arg) => arg !== "--write-config-only" && arg !== "--no-bundle",
@@ -60,6 +64,7 @@ const appCommandPermissions = [
   "allow-complete-desktop-before-close",
   "allow-get-desktop-app-info",
   "allow-get-desktop-companion-surfaces-status",
+  "allow-get-desktop-detected-game",
   "allow-get-desktop-foreground-process-name",
   "allow-get-desktop-main-window-focused",
   "allow-get-desktop-platform-capabilities",
@@ -75,22 +80,25 @@ const appCommandPermissions = [
   "allow-set-desktop-game-overlay-visible",
   "allow-set-desktop-voice-mini-visible",
   "allow-show-desktop-control",
-];
-const desktopControlPermissions = [
   "allow-configure-desktop-voice-shortcuts",
+  "allow-export-desktop-diagnostics-bundle",
+  "allow-get-desktop-control-state",
+  "allow-desktop-control-set-app-settings",
   "allow-desktop-control-check-for-updates",
   "allow-desktop-control-install-update",
-  "allow-desktop-control-recover",
   "allow-desktop-control-request-notification-permission",
-  "allow-desktop-control-set-app-settings",
-  "allow-export-desktop-diagnostics-bundle",
+  "allow-get-desktop-notification-permission",
+  "allow-test-desktop-screen-capture",
+  "allow-read-desktop-clipboard-text",
+  "allow-send-desktop-notification",
+  "allow-desktop-control-recover",
+];
+const desktopControlPermissions = [
   "allow-get-desktop-control-state",
   "allow-resolve-desktop-media-permission",
 ];
 const nativeUxPermissions = [
   ...appCommandPermissions,
-  "notification:allow-is-permission-granted",
-  "notification:allow-notify",
   "core:window:allow-close",
   "core:window:allow-center",
   "core:event:allow-listen",
@@ -181,7 +189,7 @@ await writeFile(
             {
               identifier: "desktop-control",
               description:
-                "Whispr's local Desktop Control window owns privileged desktop mutations and never loads a remote URL.",
+                "Local, network-free microphone and camera consent. Desktop settings are in the guarded main application.",
               windows: ["desktop-control"],
               permissions: desktopControlPermissions,
             },
@@ -470,6 +478,9 @@ function capabilityUrlPatterns(url) {
 function buildDesktopCsp(webUrl, mode) {
   const connectSources = new Set([
     "'self'",
+    "ipc:",
+    "http://ipc.localhost",
+    "https://ipc.localhost",
     originPattern(webUrl),
     websocketOriginPattern(webUrl),
     "https://api.giphy.com",

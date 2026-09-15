@@ -45,9 +45,9 @@ describe("segment eşlemeleri", () => {
 });
 
 describe("release kanalı", () => {
-  it("kolonun `UAT` değeri tasarımın `Canary` çipine düşer", () => {
-    assert.equal(fromReleaseChannel("UAT"), 2);
-    assert.equal(toReleaseChannel(2), "canary");
+  it("kolonun `UAT` değeri tasarımın `Beta` çipine düşer", () => {
+    assert.equal(fromReleaseChannel("UAT"), 1);
+    assert.equal(toReleaseChannel(1), "beta");
   });
 
   it("kolon boşken `Kararlı` seçili gelir", () => {
@@ -74,7 +74,7 @@ describe("toDesktopSettingsValues", () => {
     streamerModeDetection: true,
     updaterAutoCheck: false,
     voiceMiniEnabled: true,
-    voiceMiniSpeakingOnly: false,
+    gameOverlaySpeakingOnly: false,
   };
 
   it("on üç satır anahtarı doldurulur", () => {
@@ -93,37 +93,40 @@ describe("toDesktopSettingsValues", () => {
     assert.equal(values.z4, 2);
     assert.equal(values.h2, 1);
     assert.equal(values.q1, true);
+    assert.equal(values.z5, false);
+    assert.equal(toDesktopSettingsValues({ ...state, gameOverlaySpeakingOnly: true }).z5, true);
+    assert.equal(toDesktopSettingsValues({ ...state, voiceMiniEnabled: false }).z5, false);
+  });
+});
+
+describe("overlay settings ownership", () => {
+  it("keeps speaking-only in the game group and leaves Voice Mini independent", () => {
+    const tab = findSettingsTab("desktop", "overlay");
+    assert.ok(tab);
+    assert.deepEqual(
+      tab.groups[0]?.rows.map((row) => row.key),
+      ["z1"],
+    );
+    assert.ok(tab.groups[1]?.rows.some((row) => row.key === "z5"));
   });
 });
 
 describe("deriveDesktopTab — pil türevi", () => {
-  it("çakışma yokken `q3` pili düşer", () => {
+  it("yalnız etkinleştirme ve tekil atama kontrollerini taşır", () => {
     const tab = findSettingsTab("desktop", "shortcuts");
     assert.ok(tab);
-
-    const derived = deriveDesktopTab(tab, { conflictCount: 0, upToDate: true });
-    const row = derived.groups[0]?.rows.find((entry) => entry.key === "q3");
-
-    assert.equal(row?.badgeData, undefined);
-    assert.equal(row?.tone, undefined);
-  });
-
-  it("çakışma varken pil ve ton korunur", () => {
-    const tab = findSettingsTab("desktop", "shortcuts");
-    assert.ok(tab);
-
-    const derived = deriveDesktopTab(tab, { conflictCount: 1, upToDate: true });
-    const row = derived.groups[0]?.rows.find((entry) => entry.key === "q3");
-
-    assert.equal(row?.badgeData, "shortcutConflicts");
-    assert.equal(row?.tone, "danger");
+    const derived = deriveDesktopTab(tab, { upToDate: true });
+    assert.deepEqual(
+      derived.groups.flatMap((group) => group.rows.map((row) => row.key)),
+      ["q1", "q2"],
+    );
   });
 
   it("güncelleme varken `h1` `Güncel` demez", () => {
-    const tab = findSettingsTab("desktop", "updates");
+    const tab = findSettingsTab("updates", "updates");
     assert.ok(tab);
 
-    const derived = deriveDesktopTab(tab, { conflictCount: 0, upToDate: false });
+    const derived = deriveDesktopTab(tab, { upToDate: false });
     const row = derived.groups[0]?.rows.find((entry) => entry.key === "h1");
 
     assert.equal(row?.badgeKey, undefined);
@@ -131,10 +134,10 @@ describe("deriveDesktopTab — pil türevi", () => {
 
   it("türev satır sayısını ve sırasını değiştirmez", () => {
     for (const key of ["app", "shortcuts", "overlay", "permissions", "updates"] as const) {
-      const tab = findSettingsTab("desktop", key);
+      const tab = findSettingsTab(key === "updates" ? "updates" : "desktop", key);
       assert.ok(tab);
 
-      const derived = deriveDesktopTab(tab, { conflictCount: 0, upToDate: false });
+      const derived = deriveDesktopTab(tab, { upToDate: false });
 
       assert.deepEqual(
         derived.groups.map((group) => group.rows.map((row) => row.key)),

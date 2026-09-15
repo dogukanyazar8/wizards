@@ -14,9 +14,13 @@ import { Modal } from "@/components/ui/modal";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { WindowCloseButton } from "@/components/ui/window-close-button";
 import { useToast } from "@/hooks/use-toast";
-import { createEvent, eventsQueryKeys } from "@/lib/events/client";
+import { createEvent } from "@/lib/events/client";
+import { invalidateEventQueries } from "@/lib/events/invalidate-event-queries";
+import { useLayerStack } from "@/lib/servers/use-layer-stack";
 import {
   EVENT_CREATE_DURATIONS,
+  EVENT_CREATE_DESCRIPTION_MAX,
+  EVENT_CREATE_TITLE_MAX,
   canListEventInDiscover,
   createEventFormInitialState,
   selectEventPlaceServers,
@@ -215,7 +219,7 @@ export function EventCreateForm({
           <Input
             className="border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-base))]"
             data-testid="events-create-title"
-            maxLength={createModal.inputHeight * 3}
+            maxLength={EVENT_CREATE_TITLE_MAX}
             onChange={(event) => dispatch({ title: event.target.value, type: "setTitle" })}
             placeholder={t("events.create.titlePlaceholder")}
             style={{
@@ -232,11 +236,26 @@ export function EventCreateForm({
           ) : null}
         </div>
 
+        <label className="grid gap-2">
+          <span className="uppercase font-display" style={fieldLabelStyle()}>
+            {t("server.modal.event.field.description")}
+          </span>
+          <textarea
+            className="min-h-20 w-full resize-y rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface-base))] px-3 py-2 text-sm text-[hsl(var(--foreground))] outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+            data-testid="events-create-description"
+            maxLength={EVENT_CREATE_DESCRIPTION_MAX}
+            onChange={(event) => dispatch({ type: "setDescription", value: event.target.value })}
+            value={state.description}
+          />
+          {errors.includes("description") ? (
+            <span style={errorStyle()}>{t("events.create.descriptionInvalid")}</span>
+          ) : null}
+        </label>
+
         <div
-          className="grid"
+          className="grid grid-cols-1 sm:grid-cols-2"
           style={{
             gap: pxToRem(createModal.fieldRowGap),
-            gridTemplateColumns: "1fr 1fr",
           }}
         >
           <div>
@@ -253,7 +272,7 @@ export function EventCreateForm({
             ) : null}
           </div>
 
-          <div>
+          <div className="min-w-0">
             <div className="uppercase font-display" id={durationLabelId} style={fieldLabelStyle()}>
               {t("events.create.durationLabel")}
             </div>
@@ -264,7 +283,30 @@ export function EventCreateForm({
             */}
             <div
               aria-labelledby={durationLabelId}
-              className="flex"
+              className="flex overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              data-testid="events-duration-options"
+              onKeyDown={(event) => {
+                const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+                if (!step && event.key !== "Home" && event.key !== "End") return;
+                event.preventDefault();
+                const index =
+                  event.key === "Home"
+                    ? 0
+                    : event.key === "End"
+                      ? EVENT_CREATE_DURATIONS.length - 1
+                      : (EVENT_CREATE_DURATIONS.indexOf(state.duration) +
+                          step +
+                          EVENT_CREATE_DURATIONS.length) %
+                        EVENT_CREATE_DURATIONS.length;
+                const duration = EVENT_CREATE_DURATIONS[index];
+                if (duration === undefined) return;
+                dispatch({ duration, type: "setDuration" });
+                const button = event.currentTarget.querySelector<HTMLButtonElement>(
+                  `[data-testid="events-duration-${duration}"]`,
+                );
+                button?.focus();
+                button?.scrollIntoView({ block: "nearest", inline: "nearest" });
+              }}
               role="radiogroup"
               style={{
                 background: "hsl(var(--surface-soft))",
@@ -282,7 +324,7 @@ export function EventCreateForm({
                 return (
                   <button
                     aria-checked={selected}
-                    className="flex-1 whitespace-nowrap focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] motion-safe:transition-colors"
+                    className="min-w-16 shrink-0 whitespace-nowrap px-3 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] motion-safe:transition-colors"
                     data-testid={`events-duration-${duration}`}
                     key={duration}
                     onClick={() => dispatch({ duration, type: "setDuration" })}
@@ -291,7 +333,9 @@ export function EventCreateForm({
                       background: selected ? "hsl(var(--primary))" : "transparent",
                       borderRadius: pxToRem(createModal.durationButtonRadius),
                       // Primary zemin üstündeki ters metin: PROMPT §4'ün tek renk istisnası.
-                      color: selected ? "#fff" : "hsl(var(--text-secondary))",
+                      color: selected
+                        ? "hsl(var(--primary-foreground))"
+                        : "hsl(var(--text-secondary))",
                       fontSize: pxToRem(createModal.durationButtonFontSize),
                       fontWeight: createModal.durationButtonWeight,
                       lineHeight: 1,
@@ -319,6 +363,9 @@ export function EventCreateForm({
             servers={servers}
             state={state}
           />
+          <p className="mt-2 text-xs text-[hsl(var(--text-muted))]">
+            {t("events.create.placeOptional")}
+          </p>
           {errors.includes("place") || errors.includes("server") ? (
             <p style={errorStyle()}>{t("events.create.placeInvalid")}</p>
           ) : null}
@@ -438,7 +485,7 @@ export function EventCreateForm({
               pxToRem(createModal.footerSubmitShadow.spread),
               "hsl(var(--primary))",
             ].join(" "),
-            color: "#fff",
+            color: "hsl(var(--primary-foreground))",
             fontSize: pxToRem(createModal.footerButtonFontSize),
             fontWeight: createModal.footerButtonWeight,
             height: pxToRem(createModal.footerButtonHeight),
@@ -468,15 +515,18 @@ function toEventPlaceChannels(detail: WorkspaceServerDetail): readonly EventPlac
 }
 
 export type EventCreateModalProps = {
+  readonly serverDetail?: WorkspaceServerDetail;
   readonly onClose: () => void;
   readonly onCreated?: (event: EventDetailResponse) => void;
 };
 
-export function EventCreateModal({ onClose, onCreated }: EventCreateModalProps) {
+export function EventCreateModal({ onClose, onCreated, serverDetail }: EventCreateModalProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const { show } = useToast();
   const firstKindRef = useRef<HTMLButtonElement | null>(null);
+  const layerId = useId();
+  const layer = useLayerStack({ id: layerId, kind: "modal", onClose, open: true });
 
   const [raw, setRaw] = useState<EventCreateFormState>(() =>
     createEventFormInitialState({ now: new Date() }),
@@ -486,24 +536,39 @@ export function EventCreateModal({ onClose, onCreated }: EventCreateModalProps) 
   const [placeOpen, setPlaceOpen] = useState(false);
 
   const serversQuery = useQuery({
+    enabled: !serverDetail,
     queryFn: fetchWorkspaceServers,
     queryKey: workspaceQueryKeys.servers,
   });
 
   const servers = useMemo(
-    () => selectEventPlaceServers(serversQuery.data ?? []),
-    [serversQuery.data],
+    () =>
+      serverDetail
+        ? [
+            {
+              id: serverDetail.server.id,
+              name: serverDetail.server.name,
+              iconUrl: serverDetail.server.iconUrl,
+              iconColor: serverDetail.server.iconColor,
+              shortName: serverDetail.server.shortName,
+              type: serverDetail.server.type,
+            },
+          ]
+        : selectEventPlaceServers(serversQuery.data ?? []),
+    [serversQuery.data, serverDetail],
   );
 
   const selectedId = raw.server?.id ?? servers[0]?.id ?? null;
 
   const detailQuery = useQuery({
-    enabled: selectedId !== null,
+    enabled: !serverDetail && selectedId !== null,
     queryFn: () => fetchWorkspaceServer(selectedId ?? ""),
     queryKey: workspaceQueryKeys.server(selectedId ?? ""),
   });
 
-  const detail = detailQuery.data?.server.id === selectedId ? (detailQuery.data ?? null) : null;
+  const detail =
+    serverDetail ??
+    (detailQuery.data?.server.id === selectedId ? (detailQuery.data ?? null) : null);
   const channels = useMemo(() => (detail ? toEventPlaceChannels(detail) : []), [detail]);
 
   /**
@@ -531,8 +596,7 @@ export function EventCreateModal({ onClose, onCreated }: EventCreateModalProps) 
     onSuccess: (payload) => {
       // Yanıt güncel etkinliği ve sayaçları taşıyor; yine de açık liste sorguları yeni kartı
       // kendiliğinden bilmiyor.
-      void queryClient.invalidateQueries({ queryKey: eventsQueryKeys.lists });
-      void queryClient.invalidateQueries({ queryKey: eventsQueryKeys.counts });
+      void invalidateEventQueries(queryClient, payload.event.serverId);
       show({ message: t("events.create.success") });
       onCreated?.(payload.event);
       onClose();
@@ -561,6 +625,11 @@ export function EventCreateModal({ onClose, onCreated }: EventCreateModalProps) 
       onClose={onClose}
       open
       overlayClassName={EVENT_CREATE_MODAL_OVERLAY_CLASS}
+      overlayStyle={{ zIndex: layer.zIndex }}
+      style={{
+        backgroundColor: "hsl(var(--surface-card))",
+        fontFamily: "var(--font-sans), sans-serif",
+      }}
       title={t("events.create.title")}
     >
       <EventCreateForm

@@ -8,7 +8,7 @@ import {
   ChartNoAxesCombined,
   ChevronDown,
   Code2,
-  Command,
+  Slash,
   Crown,
   Ellipsis,
   FileImage,
@@ -433,9 +433,6 @@ function SearchBox({ compact = false }: { compact?: boolean }) {
         className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[#151827] outline-hidden placeholder:text-[#9AA1B5]"
         placeholder="Ara"
       />
-      <span className="hidden items-center gap-1 rounded-lg border border-[#E7EAF3] bg-[#F7F8FC] px-2 py-1 text-[11px] font-bold text-[#697089] md:flex">
-        <Command className="h-3 w-3" /> K
-      </span>
     </label>
   );
 }
@@ -773,7 +770,7 @@ function ChatComposer() {
     { icon: FileImage, label: "Görsel" },
     { icon: Shield, label: "Sticker" },
     { icon: Code2, label: "Kod" },
-    { icon: Command, label: "/" },
+    { icon: Slash, label: "/" },
   ];
 
   return (

@@ -3,7 +3,6 @@ import { getToken } from "next-auth/jwt";
 import { expireAuthSessionCookies, getAuthSessionCookieConfig } from "@/lib/auth/session-cookies";
 import { WHISPR_REQUEST_PATHNAME_HEADER } from "@/lib/request-context";
 
-const REDIRECT_IF_AUTHENTICATED = new Set(["/login", "/register"]);
 const CSRF_PROTECTED_API_PREFIXES = ["/api/v1", "/api/e2e"] as const;
 const UNSAFE_METHODS = new Set(["DELETE", "PATCH", "POST", "PUT"]);
 
@@ -120,6 +119,11 @@ export function buildContentSecurityPolicy(
     "base-uri": ["'self'"],
     "connect-src": unique([
       "'self'",
+      // Remote pages also carry this CSP inside Tauri. Permit its fixed IPC
+      // transports without opening arbitrary local/network destinations.
+      "ipc:",
+      "http://ipc.localhost",
+      "https://ipc.localhost",
       ...appOrigins,
       ...liveKitOrigins,
       "https://api.giphy.com",
@@ -180,6 +184,9 @@ function attachSecurityHeaders(response: NextResponse, cspHeader: string, nonce:
 }
 
 function isProtectedRoute(pathname: string): boolean {
+  // This token-bound OAuth bridge opens in a separate browser for desktop users.
+  // It never changes an email; completion requires the original authenticated session.
+  if (pathname === "/settings/email-change/google") return false;
   return (
     pathname === "/channels" ||
     pathname.startsWith("/channels/") ||
@@ -201,10 +208,9 @@ export function getAuthRouteRedirectPath({
     return "/login";
   }
 
-  if (hasAuthSecret && isAuthenticated && REDIRECT_IF_AUTHENTICATED.has(pathname)) {
-    return "/channels";
-  }
-
+  // A decoded JWT is not proof that its database session is still active.
+  // Login/register already use auth() before redirecting; bypassing that check
+  // here creates a login -> channels -> login loop for a revoked session.
   return null;
 }
 

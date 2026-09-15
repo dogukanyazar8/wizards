@@ -18,52 +18,59 @@ Bu blok, plan gövdesindeki herhangi bir adımla çeliştiğinde **planı geçer
 
 ### Gerçek Sentry değerleri (Görev 0 çıktısı)
 
-| Alan | Değer |
-|---|---|
-| **Organization slug (`SENTRY_ORG`)** | `whispr-p0` — plandaki `whispr` varsayımı YANLIŞ |
-| **Veri bölgesi** | **EU / Almanya (DE)** — `o4511722135617536.ingest.de.sentry.io`, region URL `https://de.sentry.io` |
-| DSN — `SENTRY_DSN` (server/worker) | whispr-server projesi DSN'i (Railway/whispr-web + outbox-worker servis değişkeni) |
-| DSN — `NEXT_PUBLIC_SENTRY_DSN` | whispr-web projesi DSN'i |
-| DSN — `EXPO_PUBLIC_WHISPR_SENTRY_DSN` | whispr-mobile projesi DSN'i (EAS public env) |
-| DSN — `WHISPR_DESKTOP_SENTRY_DSN` | whispr-desktop projesi DSN'i (derleme-zamanı, GitHub `vars`) |
-| `SENTRY_AUTH_TOKEN` | Organization auth token (`org:ci` scope) — **yalnız parola yöneticisi + GitHub/Railway/EAS secret'ında; hiçbir dosyaya yazma** |
+| Alan                                  | Değer                                                                                                                          |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Organization slug (`SENTRY_ORG`)**  | `whispr-p0` — plandaki `whispr` varsayımı YANLIŞ                                                                               |
+| **Veri bölgesi**                      | **EU / Almanya (DE)** — `o4511722135617536.ingest.de.sentry.io`, region URL `https://de.sentry.io`                             |
+| DSN — `SENTRY_DSN` (server/worker)    | whispr-server projesi DSN'i (Railway/whispr-web + outbox-worker servis değişkeni)                                              |
+| DSN — `NEXT_PUBLIC_SENTRY_DSN`        | whispr-web projesi DSN'i                                                                                                       |
+| DSN — `EXPO_PUBLIC_WHISPR_SENTRY_DSN` | whispr-mobile projesi DSN'i (EAS public env)                                                                                   |
+| DSN — `WHISPR_DESKTOP_SENTRY_DSN`     | whispr-desktop projesi DSN'i (derleme-zamanı, GitHub `vars`)                                                                   |
+| `SENTRY_AUTH_TOKEN`                   | Organization auth token (`org:ci` scope) — **yalnız parola yöneticisi + GitHub/Railway/EAS secret'ında; hiçbir dosyaya yazma** |
 
 DSN'ler gömülebilir istemci anahtarıdır (sır değil) ama yine de env değişkeninden okunur; DSN değerlerini koda sabit yazma. Auth token bir yönetim sırrıdır ve depoya asla girmez.
 
 ### D1 — İzolasyon (ÖNCE)
+
 Mevcut `uat` checkout'unda ilgisiz WIP değişiklikleri var. Onlara dokunma. Temiz `uat` HEAD'inden izole worktree/branch aç (Görev 0.5).
 
 ### D2 — Auth token & org slug
+
 `SENTRY_ORG=whispr-p0`. Token bir **organization auth token**'dır, `org:ci` scope'lu. Plandaki eski `project:releases`/`org:read`/`project:write` scope önerisini yok say.
 
 ### D3 — Source map token'ı yalnız deployment build'ine
+
 `SENTRY_AUTH_TOKEN`'ı GitHub CI'nin `pnpm build` adımına EKLEME. Web source map yüklemesi yalnız **Railway deployment build'inde** (token orada Railway build değişkeni) gerçekleşir. `turbo.json` build env dizisinde `SENTRY_AUTH_TOKEN` bulunmalı ki Railway'in turbo build'i onu görsün. Token yoksa `withSentryConfig` yüklemeyi sessizce atlar ve build kırılmaz.
 
 ### D4 — EAS environment-variable akışı
+
 `eas secret:create` KULLANMA. `SENTRY_AUTH_TOKEN` Expo Dashboard → Project Settings → Environment variables üzerinden `Sensitive` görünürlükle **Preview + Production** ortamlarına eklenir (profil eşlemesi: uat→preview, canary→preview, production→production). `eas.json`'a yalnız public `EXPO_PUBLIC_WHISPR_SENTRY_DSN` eklenir.
 
 ### D5 — Katmanlı PII redaksiyonu (KRİTİK)
+
 Sentry'ye **ham `Error` gönderme**. Katmanlar: (1) birincil — `logger.ts`'ten `redactErrorForReport` export edilir, köprü redakte Error gönderir; (2) ikincil — `beforeSend` ile olay süpürme; (3) son — Sentry UI Data Scrubbing (Görev 0'da açıldı). Tam kod Görev 1 ve 2'dedir. Bu olmadan "PII'siz" kabul kriteri karşılanmaz.
 
 ### D6 — Production ertelenir
+
 Production Railway değişkenleri Görev 0'da eklenmedi (doğru). Sıra: UAT deploy → 48h gözlem (Görev 11) → sonra production `SENTRY_TRACES_SAMPLE_RATE=0.1`. Kodun hiçbir yeri production'ı otomatik açmaz.
 
 ### D7 — EU/DE bölgesi (gerçek değerlerden çıktı)
+
 Runtime olay gönderimi DSN'deki bölgeden (`ingest.de.sentry.io`) otomatik çözülür — ek ayar gerekmez. **Build-time source map yüklemesi** için `withSentryConfig`'e `sentryUrl: "https://de.sentry.io"` ekle; mobil/desktop CLI işlemlerinde gerekirse `SENTRY_URL=https://de.sentry.io`. (Org auth token region_url'ü gömülü taşır; sentry-cli 2.x çoğu durumda otomatik algılar, `sentryUrl` bunu garantiye alır.)
 
 ---
 
 ## Tasarım Kararları (uygulayıcı için bağlam)
 
-| Karar | Gerekçe |
-|---|---|
-| SaaS Sentry (EU/DE), 4 proje | Server+worker aynı kod → tek projede `process` tag'iyle ayrışır; istemci/mobil/desktop farklı SDK platformları |
-| `tunnelRoute: "/monitoring"` | CSP `connect-src 'self'` kalır; desktop webview CSP'si değişmez; adblocker kaybı sıfırlanır |
-| Init `--import` ile ayrı `instrument` entry'de | esbuild her entry'yi ayrı bundle'lar; Sentry paketi `packages: "external"` sayesinde tüm bundle'larda TEK instance → `isInitialized()` her yerden doğru |
-| `logError` köprüsü + `redactErrorForReport` | 85+ `logError` çağrısı tek hamlede redakte Sentry'ye akar; logger `@sentry` import etmez |
-| `sendDefaultPii: false` + katmanlı redaksiyon | E-posta/IP asla gönderilmez; kullanıcı bağlamı yalnız `userId` |
-| E2E/dev'de kapalı | `E2E_TEST_MODE=true` → `beforeSend` düşürür; dev'de DSN tanımsız; CI token'sız da yeşil |
-| Örnekleme: prod trace 0.1, uat 1.0, client 0.05; hatalar tam | Kota kontrolü; `SENTRY_TRACES_SAMPLE_RATE` ortam bazında |
+| Karar                                                        | Gerekçe                                                                                                                                                 |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SaaS Sentry (EU/DE), 4 proje                                 | Server+worker aynı kod → tek projede `process` tag'iyle ayrışır; istemci/mobil/desktop farklı SDK platformları                                          |
+| `tunnelRoute: "/monitoring"`                                 | CSP `connect-src 'self'` kalır; desktop webview CSP'si değişmez; adblocker kaybı sıfırlanır                                                             |
+| Init `--import` ile ayrı `instrument` entry'de               | esbuild her entry'yi ayrı bundle'lar; Sentry paketi `packages: "external"` sayesinde tüm bundle'larda TEK instance → `isInitialized()` her yerden doğru |
+| `logError` köprüsü + `redactErrorForReport`                  | 85+ `logError` çağrısı tek hamlede redakte Sentry'ye akar; logger `@sentry` import etmez                                                                |
+| `sendDefaultPii: false` + katmanlı redaksiyon                | E-posta/IP asla gönderilmez; kullanıcı bağlamı yalnız `userId`                                                                                          |
+| E2E/dev'de kapalı                                            | `E2E_TEST_MODE=true` → `beforeSend` düşürür; dev'de DSN tanımsız; CI token'sız da yeşil                                                                 |
+| Örnekleme: prod trace 0.1, uat 1.0, client 0.05; hatalar tam | Kota kontrolü; `SENTRY_TRACES_SAMPLE_RATE` ortam bazında                                                                                                |
 
 ## Dosya Haritası
 
@@ -135,6 +142,7 @@ Beklenen: boş çıktı (uat HEAD'i temiz).
 ### Görev 1: Reporter köprüsü + `logError` + redaksiyon (D5)
 
 **Files:**
+
 - Create: `apps/web/src/lib/observability/reporter.ts`
 - Create: `apps/web/src/lib/observability/reporter.test.ts`
 - Modify: `apps/web/src/lib/logger.ts` (export'lar + `redactErrorForReport`; `logError` gövdesi)
@@ -147,11 +155,7 @@ Beklenen: boş çıktı (uat HEAD'i temiz).
 ```ts
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
-import {
-  clearErrorReporter,
-  registerErrorReporter,
-  reportError,
-} from "./reporter";
+import { clearErrorReporter, registerErrorReporter, reportError } from "./reporter";
 
 describe("observability reporter", () => {
   beforeEach(() => {
@@ -227,6 +231,7 @@ Beklenen: PASS.
 - [ ] **Adım 5: `logger.ts` — export'lar + `redactErrorForReport` (D5 birincil katman)**
 
 `apps/web/src/lib/logger.ts`:
+
 1. `function redactText(` → `export function redactText(` (satır 20).
 2. `function redactValue(` → `export function redactValue(` (satır 26).
 3. Dosya başına import ekle: `import { reportError } from "@/lib/observability/reporter";` (dosyadaki mevcut import stiline uy — göreli ise `./observability/reporter`).
@@ -256,9 +261,7 @@ export function redactErrorForReport(error: unknown): Error {
     return redacted;
   }
   const safe = redactValue(error);
-  return new Error(
-    redactText(typeof safe === "string" ? safe : JSON.stringify(safe)),
-  );
+  return new Error(redactText(typeof safe === "string" ? safe : JSON.stringify(safe)));
 }
 ```
 
@@ -267,10 +270,7 @@ export function redactErrorForReport(error: unknown): Error {
 Mevcut import bloğuna ekle (`node:test`/`node:assert/strict` kalıbına uy) ve dosya sonuna:
 
 ```ts
-import {
-  clearErrorReporter,
-  registerErrorReporter,
-} from "./observability/reporter";
+import { clearErrorReporter, registerErrorReporter } from "./observability/reporter";
 import { redactErrorForReport } from "./logger";
 
 describe("logError reporter köprüsü", () => {
@@ -295,8 +295,7 @@ describe("logError reporter köprüsü", () => {
 
 describe("redactErrorForReport", () => {
   it("mesajdaki JWT'yi redakte eder, stack'i korur", () => {
-    const jwt =
-      "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwMTIzNCJ9.dozjgNryP4J3jVmNHl0w5N";
+    const jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwMTIzNCJ9.dozjgNryP4J3jVmNHl0w5N"; // gitleaks:allow -- Public deterministic fixture, not a credential.
     const failure = new Error(`token sızdı: ${jwt}`);
     const redacted = redactErrorForReport(failure);
     assert.ok(!redacted.message.includes("eyJ"));
@@ -306,7 +305,7 @@ describe("redactErrorForReport", () => {
   });
 
   it("Error olmayan değeri redakte string'e sarar", () => {
-    const redacted = redactErrorForReport({ secret: "sk_live_ABCDEFGHIJKLMNOP123" });
+    const redacted = redactErrorForReport({ secret: "sk_live_ABCDEFGHIJKLMNOP123" }); // gitleaks:allow -- Public deterministic fixture, not a credential.
     assert.ok(redacted instanceof Error);
   });
 });
@@ -329,6 +328,7 @@ git commit -m "feat(web): add error reporter bridge with report-time redaction"
 ### Görev 2: Server/worker Sentry init (`instrument.ts`) + redakte köprü + build/start
 
 **Files:**
+
 - Create: `apps/web/instrument.ts`
 - Create: `apps/web/src/lib/observability/register-sentry.ts`
 - Modify: `apps/web/scripts/build-server.mjs`, `apps/web/package.json`, `apps/web/server.ts`, `apps/web/scripts/run-outbox-worker.ts`, `.env.example`, `turbo.json`
@@ -353,13 +353,10 @@ import { PrismaInstrumentation } from "@prisma/instrumentation";
 
 // KAYNAK-DOĞRU: apps/web/src/lib/logger.ts. Bu dosya import-bağımsız olmak
 // zorunda olduğundan iki desen kasıtlı tekrarlanır; logger.ts değişirse güncelle.
-const JWT_PATTERN =
-  /\beyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\b/g;
+const JWT_PATTERN = /\beyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\b/g;
 const SECRET_PATTERN = /\b(?:sk|pk|ya29|gh[opsu])_[a-zA-Z0-9_-]{16,}\b/g;
 function scrub(value: string) {
-  return value
-    .replace(JWT_PATTERN, "[redacted-jwt]")
-    .replace(SECRET_PATTERN, "[redacted-secret]");
+  return value.replace(JWT_PATTERN, "[redacted-jwt]").replace(SECRET_PATTERN, "[redacted-secret]");
 }
 
 function parseSampleRate(value: string | undefined, fallback: number) {
@@ -393,8 +390,7 @@ if (!dsn) {
     ignoreTransactions: [/^GET \/(ready|health)$/, /^POST \/monitoring/],
     initialScope: {
       tags: {
-        process:
-          process.env.WHISPR_OUTBOX_WORKER === "true" ? "outbox-worker" : "web",
+        process: process.env.WHISPR_OUTBOX_WORKER === "true" ? "outbox-worker" : "web",
       },
     },
     beforeSend(event) {
@@ -591,9 +587,7 @@ if (dsn && process.env.NEXT_PUBLIC_E2E_TEST_MODE !== "true") {
 
   Sentry.setTag(
     "app_surface",
-    typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
-      ? "desktop"
-      : "web",
+    typeof window !== "undefined" && "__TAURI_INTERNALS__" in window ? "desktop" : "web",
   );
 }
 
@@ -621,11 +615,21 @@ export default function GlobalError({
 
   return (
     <html lang="en">
-      <body style={{ alignItems: "center", display: "flex", fontFamily: "system-ui, sans-serif", justifyContent: "center", minHeight: "100vh" }}>
+      <body
+        style={{
+          alignItems: "center",
+          display: "flex",
+          fontFamily: "system-ui, sans-serif",
+          justifyContent: "center",
+          minHeight: "100vh",
+        }}
+      >
         <div style={{ textAlign: "center" }}>
           <h1>Bir şeyler ters gitti</h1>
           <p>Hata kaydedildi. Lütfen tekrar deneyin.</p>
-          <button onClick={reset} type="button">Tekrar dene</button>
+          <button onClick={reset} type="button">
+            Tekrar dene
+          </button>
         </div>
       </body>
     </html>
@@ -746,8 +750,7 @@ module.exports = getSentryExpoConfig(__dirname);
 import * as Sentry from "@sentry/react-native";
 
 // KAYNAK-DOĞRU: apps/web/src/lib/logger.ts — mobil web logger'ı paylaşmaz, desen tekrarlanır.
-const JWT_PATTERN =
-  /\beyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\b/g;
+const JWT_PATTERN = /\beyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\b/g;
 const SECRET_PATTERN = /\b(?:sk|pk|ya29|gh[opsu])_[a-zA-Z0-9_-]{16,}\b/g;
 function scrub(value: string) {
   return value.replace(JWT_PATTERN, "[redacted-jwt]").replace(SECRET_PATTERN, "[redacted-secret]");
@@ -786,7 +789,10 @@ export function initMobileSentry(config: MobileSentryConfig) {
   return true;
 }
 
-export function reportMobileBoundaryError(error: unknown, componentStack: string | null | undefined) {
+export function reportMobileBoundaryError(
+  error: unknown,
+  componentStack: string | null | undefined,
+) {
   if (!initialized) {
     return;
   }
@@ -808,9 +814,12 @@ export const wrapWithSentry = Sentry.wrap;
 - [ ] **Adım 6: `index.ts`** — environment.ts'in gerçek erişim noktasından config alıp:
 
 ```ts
-import { initMobileSentry, wrapWithSentry } from './src/observability/mobile-sentry';
+import { initMobileSentry, wrapWithSentry } from "./src/observability/mobile-sentry";
 // ... environment config erişimi (gerçek export adını kullan) ...
-initMobileSentry({ environment: environmentConfig.environment, sentryDsn: environmentConfig.sentryDsn });
+initMobileSentry({
+  environment: environmentConfig.environment,
+  sentryDsn: environmentConfig.sentryDsn,
+});
 registerRootComponent(wrapWithSentry(App));
 ```
 
@@ -911,14 +920,14 @@ let _sentry_guard = option_env!("WHISPR_DESKTOP_SENTRY_DSN")
 
 ## Efor Tahmini
 
-| Görev | Efor |
-|---|---|
-| 0 (tamam), 0.5, 6, 7, 11 | ~1 gün |
-| 1–5 | 2–3 gün |
-| 8 (mobil, EAS build dahil) | 1–2 gün |
-| 9 (desktop) | ~yarım gün |
-| 10, 12 | ~yarım gün |
-| **Toplam** | **~1 sprint** |
+| Görev                      | Efor          |
+| -------------------------- | ------------- |
+| 0 (tamam), 0.5, 6, 7, 11   | ~1 gün        |
+| 1–5                        | 2–3 gün       |
+| 8 (mobil, EAS build dahil) | 1–2 gün       |
+| 9 (desktop)                | ~yarım gün    |
+| 10, 12                     | ~yarım gün    |
+| **Toplam**                 | **~1 sprint** |
 
 ## Bilinen Riskler
 

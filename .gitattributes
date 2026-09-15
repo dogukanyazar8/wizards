@@ -5,3 +5,6 @@ packages/db/prisma/rebaseline-migrations/**/migration.sql text eol=lf
 # Graphify writes generated JSON from Windows tooling. Normalize it before it
 # enters history so diff and hook checks remain platform-neutral.
 graphify-out/** text eol=lf
+
+# GitHub-hosted Linux executes these scripts directly through Bash.
+.github/scripts/*.sh text eol=lf

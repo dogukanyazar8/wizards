@@ -1,8 +1,8 @@
 const DESKTOP_UPDATE_ORIGIN = "https://updates.whispr.team";
 const DESKTOP_DOWNLOAD_ROUTE = "/api/v1/desktop/download";
-const DEFAULT_DESKTOP_DOWNLOAD_MANIFEST_URL = `${DESKTOP_UPDATE_ORIGIN}/desktop/canary/latest.json`;
+const DEFAULT_DESKTOP_DOWNLOAD_MANIFEST_URL = `${DESKTOP_UPDATE_ORIGIN}/desktop/stable/latest.json`;
 
-const DESKTOP_MANIFEST_RINGS = new Set(["canary", "stable", "uat"]);
+const DESKTOP_MANIFEST_RINGS = new Set(["stable", "uat"]);
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
 
 type DesktopUpdateManifest = {

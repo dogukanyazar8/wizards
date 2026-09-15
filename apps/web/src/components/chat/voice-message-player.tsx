@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { masterOutputGain } from "@/lib/voice/output-volume";
+import { useVoiceStore } from "@/store/voice-store";
 import { Pause, Play } from "lucide-react";
 import { VOICE_MESSAGE_WAVEFORM_BUCKETS, formatVoiceDuration, parseWaveform } from "@wizards/types";
 
@@ -53,6 +55,10 @@ export function VoiceMessagePlayer({ durationSeconds, url, waveform }: VoiceMess
   const { t } = useI18n();
   const reducedMotion = usePrefersReducedMotion();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const masterVolume = useVoiceStore((state) => state.masterOutputVolume);
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = masterOutputGain(masterVolume);
+  }, [masterVolume, url]);
   const [playing, setPlaying] = useState(false);
   const [positionSeconds, setPositionSeconds] = useState(0);
 

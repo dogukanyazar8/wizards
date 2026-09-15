@@ -28,10 +28,27 @@ function render(): string {
 }
 
 describe("PasswordBlock — biçim", () => {
+  it("parola alanlarını ayrı bir form ve hesap kimliğiyle otomatik doldurmaya sunar", () => {
+    const markup = renderToStaticMarkup(
+      <LocaleProvider initialLocale="tr" initialMessages={MESSAGES}>
+        <PasswordBlock onClose={() => {}} email="account@example.test" />
+      </LocaleProvider>,
+    ).toLowerCase();
+    assert.match(markup, /<form[^>]*data-testid="settings-password-form"/u);
+    assert.match(
+      markup,
+      /autocomplete="username"[^>]*name="username"[^>]*value="account@example.test"/u,
+    );
+    assert.ok(
+      markup.indexOf('autocomplete="username"') < markup.indexOf('autocomplete="current-password"'),
+    );
+  });
   it("mevcut parola tam genişlik, yeni parola ve tekrarı iki kolon", () => {
     const markup = render();
 
-    assert.ok(markup.includes("grid-template-columns:1fr 1fr"));
+    assert.ok(
+      markup.includes("grid-template-columns:repeat(auto-fit, minmax(min(100%, 14rem), 1fr))"),
+    );
     assert.ok(markup.includes("grid-column:1 / -1"));
     assert.ok(markup.includes('data-testid="settings-password-current"'));
     assert.ok(markup.includes('data-testid="settings-password-next"'));

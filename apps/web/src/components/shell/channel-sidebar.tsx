@@ -53,7 +53,6 @@ import {
   ChannelSearchTrigger,
   type ChannelSearchHit,
 } from "@/components/shell/channel-search-popover";
-import { ConnectedVoiceStripLive } from "@/components/shell/connected-voice-strip";
 import { ServerMenu, type ServerMenuRowKey } from "@/components/shell/server-menu";
 import { VoiceChannelItem } from "@/components/shell/voice-activity";
 import { ChannelSidebarSkeleton } from "@/components/shell/shell-skeletons";
@@ -900,12 +899,7 @@ export function ChannelSidebar({
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const voiceStatesQuery = useVoiceStates(detail?.server.id ?? null);
-  const {
-    activeChannelId: connectedVoiceChannelId,
-    leaveChannel,
-    prepareForVoiceJoin,
-    serverId: connectedVoiceServerId,
-  } = useVoiceState();
+  const { prepareForVoiceJoin } = useVoiceState();
   const {
     collapsedCategories,
     openCategoryModal,
@@ -1363,14 +1357,6 @@ export function ChannelSidebar({
     })),
   ];
 
-  const connectedVoiceChannel =
-    connectedVoiceServerId === detail.server.id && connectedVoiceChannelId
-      ? ([
-          ...detail.categories.flatMap((category) => category.channels),
-          ...detail.ungroupedChannels,
-        ].find((channel) => channel.id === connectedVoiceChannelId) ?? null)
-      : null;
-
   const onlineMemberCount = detail.members.filter((member) => member.status !== "OFFLINE").length;
   const serverIcon = resolveServerIconPresentation({
     iconColor: detail.server.iconColor,
@@ -1689,6 +1675,8 @@ export function ChannelSidebar({
         style={{
           background: sidebarOverlay === "menu" ? "hsl(var(--surface-soft))" : "transparent",
           borderBottom: `${hairline()} solid hsl(var(--border) / ${SERVER_METRICS.sidebar.headerBorderBottomAlpha})`,
+          height: pxToRem(SERVER_METRICS.headerHeight),
+          flexShrink: 0,
           gap: pxToRem(SERVER_METRICS.sidebar.headerGap),
           padding: `${pxToRem(SERVER_METRICS.sidebar.headerPaddingY)} ${pxToRem(
             SERVER_METRICS.sidebar.headerPaddingX,
@@ -1870,18 +1858,6 @@ export function ChannelSidebar({
           )}
         </div>
       </DndContext>
-
-      {connectedVoiceChannel ? (
-        <ConnectedVoiceStripLive
-          channelName={connectedVoiceChannel.name}
-          /* TODO(api): odanın RTT'sini veren bir alan yok; sayı uydurulmuyor (bkz. bileşen). */
-          latencyMs={null}
-          onLeave={() => {
-            void leaveChannel();
-          }}
-          serverName={detail.server.name}
-        />
-      ) : null}
 
       {showUserFooter ? (
         <div

@@ -176,10 +176,10 @@ describe("events create modal — alanlar", () => {
     assert.ok(render().includes("27 Ağustos · 15:00"));
   });
 
-  it("süre segmenti üç seçenek ve seçili olan `--primary` zemin", () => {
+  it("süre segmenti beş seçenek ve seçili olan `--primary` zemin", () => {
     const markup = render();
 
-    for (const duration of [30, 45, 60]) {
+    for (const duration of [30, 45, 60, 90, 120]) {
       assert.ok(markup.includes(`data-testid="events-duration-${duration}"`));
     }
 

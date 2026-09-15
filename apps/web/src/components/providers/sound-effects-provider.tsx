@@ -7,6 +7,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useSocket } from "@/hooks/use-socket";
 import { fetchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
 import { useAppStore } from "@/lib/store";
+import { masterOutputGain } from "@/lib/voice/output-volume";
 import { useVoiceStore } from "@/store/voice-store";
 import {
   resolveSoundEffectPath,
@@ -83,7 +84,8 @@ export function SoundEffectsProvider({ children, currentUserId }: SoundEffectsPr
 
       const baseAudio = getAudio(effect, profile);
       const audio = baseAudio.cloneNode(true) as HTMLAudioElement;
-      audio.volume = toAudioVolume(volume);
+      audio.volume =
+        toAudioVolume(volume) * masterOutputGain(useVoiceStore.getState().masterOutputVolume);
       audio.play().catch(() => {
         // Browser autoplay policies can reject playback until the user interacts.
       });

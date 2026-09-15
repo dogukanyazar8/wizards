@@ -282,7 +282,7 @@ export function SettingSelect({
   };
 
   return (
-    <div className="relative shrink-0" style={{ width: pxToRem(width) }}>
+    <div className="relative shrink-0" style={{ width: pxToRem(width), maxWidth: "100%" }}>
       <button
         aria-controls={open ? listboxId : undefined}
         aria-describedby={describedById}
@@ -355,7 +355,7 @@ export function SettingSelect({
             borderRadius: pxToRem(select.menuRadius),
             boxShadow: `${pxToRem(select.menuShadow.x)} ${pxToRem(select.menuShadow.y)} ${pxToRem(select.menuShadow.blur)} ${pxToRem(select.menuShadow.spread)} hsl(var(--shadow-color))`,
             maxHeight: pxToRem(Math.min(placement.maxHeight, SETTINGS_MENU_MAX_HEIGHT)),
-            minWidth: pxToRem(select.menuMinWidth),
+            minWidth: `min(100%, ${pxToRem(select.menuMinWidth)})`,
             padding: pxToRem(select.menuPadding),
             zIndex: select.menuZIndex,
             ...(placement.direction === "down"
@@ -380,9 +380,9 @@ export function SettingSelect({
                 onMouseEnter={() => setActiveIndex(index)}
                 role="option"
                 style={{
-                  background: isSelected ? "hsl(var(--primary) / 0.1)" : undefined,
+                  background: isSelected ? "hsl(var(--primary))" : undefined,
                   borderRadius: pxToRem(select.optionRadius),
-                  color: isSelected ? "hsl(var(--primary))" : "hsl(var(--text-secondary))",
+                  color: isSelected ? "#fff" : "hsl(var(--text-secondary))",
                   gap: pxToRem(select.optionGap),
                   padding: `${pxToRem(select.optionPaddingY)} ${pxToRem(select.optionPaddingX)}`,
                   transitionDuration: `${SETTINGS_METRICS.motion.transitionSeconds}s`,
@@ -404,7 +404,7 @@ export function SettingSelect({
                 {isSelected ? (
                   <Check
                     aria-hidden="true"
-                    className="shrink-0 text-[hsl(var(--primary))]"
+                    className="shrink-0 text-current"
                     style={{
                       height: pxToEm(select.optionTickSize, select.optionFontSize),
                       width: pxToEm(select.optionTickSize, select.optionFontSize),

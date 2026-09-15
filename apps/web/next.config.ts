@@ -1,6 +1,7 @@
+import { resolveWebReleaseChannel } from "./src/lib/build-release-channel";
 import type { NextConfig } from "next";
 import bundleAnalyzer from "@next/bundle-analyzer";
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -18,7 +19,7 @@ function shortId(value: string | undefined, length = 8) {
 }
 
 function isProductionValue(value: string | undefined) {
-  return value?.trim().toLowerCase() === "production";
+  return ["prod", "production", "stable"].includes(value?.trim().toLowerCase() ?? "");
 }
 
 const whisprVersion = firstNonEmpty(process.env.WHISPR_VERSION, packageJson.version) ?? "0.0.0";
@@ -60,7 +61,7 @@ const whisprReleaseCodename =
   firstNonEmpty(
     process.env.WHISPR_RELEASE_CODENAME,
     process.env.NEXT_PUBLIC_WHISPR_RELEASE_CODENAME,
-  ) ?? "Echo";
+  ) ?? "Resonance";
 const isProductionDeployment =
   isProductionValue(whisprReleaseChannel) ||
   isProductionValue(process.env.RAILWAY_ENVIRONMENT_NAME);
@@ -99,7 +100,7 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_WHISPR_BUILD_ID: whisprBuildId,
     NEXT_PUBLIC_WHISPR_BUILD_NUMBER: whisprBuildNumber,
     NEXT_PUBLIC_WHISPR_BUILD_TIME: whisprBuildTime,
-    NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL: whisprReleaseChannel,
+    NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL: resolveWebReleaseChannel(whisprReleaseChannel),
     NEXT_PUBLIC_WHISPR_RELEASE_CODENAME: whisprReleaseCodename,
     NEXT_PUBLIC_WHISPR_VERSION: whisprVersion,
   },

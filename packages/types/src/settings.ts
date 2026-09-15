@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AuthSessionDeviceTypeSchema } from "./auth-sessions";
 
 /**
  * Bildirimler + Ayarlar pencereleri — Dalga 0 / Ş0. The four surfaces' data contract.
@@ -65,6 +66,7 @@ export const AppNotificationSchema = z.object({
   body: z.string(),
   createdAt: z.string(),
   read: z.boolean(),
+  actionUrl: z.string().nullable().optional(),
   source: AppNotificationSourceSchema.optional(),
 });
 export type AppNotification = z.infer<typeof AppNotificationSchema>;
@@ -343,6 +345,8 @@ export type SecurityEvent = z.infer<typeof SecurityEventSchema>;
 export const AccountSessionSchema = z.object({
   id: z.string(),
   device: z.string(),
+  /** Older settings payloads can omit the device classification. */
+  deviceType: AuthSessionDeviceTypeSchema.optional(),
   platform: z.enum(["web", "desktop", "mobile"]),
   os: z.string(),
   browser: z.string().nullable(),
@@ -384,7 +388,7 @@ export const PresenceStatusSchema = z.enum(["online", "idle", "dnd", "invisible"
 export type PresenceStatus = z.infer<typeof PresenceStatusSchema>;
 
 /** Referans `px` — when a custom status clears itself. */
-export const CustomStatusExpirySchema = z.enum(["1h", "4h", "today", "never"]);
+export const CustomStatusExpirySchema = z.enum(["1h", "4h", "today", "never", "30m"]);
 export type CustomStatusExpiry = z.infer<typeof CustomStatusExpirySchema>;
 
 export const ProfileStatusSchema = z.object({
@@ -399,7 +403,6 @@ export type ProfileStatus = z.infer<typeof ProfileStatusSchema>;
 export const SettingsProfileSchema = z.object({
   displayName: z.string(),
   username: z.string(),
-  pronouns: z.string().nullable(),
   bio: z.string().nullable(),
   avatarUrl: z.string().nullable(),
   bannerUrl: z.string().nullable(),
@@ -419,7 +422,7 @@ export const SettingsAccountSchema = z.object({
 });
 export type SettingsAccount = z.infer<typeof SettingsAccountSchema>;
 
-/** Referans `g1`–`g8` plus K9's `idleTimeoutMinutes`. One named field per row. */
+/** Account privacy preferences, including the idle timeout. */
 export const SettingsPrivacySchema = z.object({
   profileVisibility: z.enum(["everyone", "friends", "nobody"]),
   presenceVisibility: z.enum(["everyone", "friends", "nobody"]),
@@ -430,7 +433,6 @@ export const SettingsPrivacySchema = z.object({
   friendRequestPolicy: z.enum(["everyone", "mutualServers", "mutualFriends", "nobody"]),
   allowGroupInvites: z.boolean(),
   showReadReceipts: z.boolean(),
-  explicitContentFilter: z.enum(["off", "friends", "all"]),
 });
 export type SettingsPrivacy = z.infer<typeof SettingsPrivacySchema>;
 
@@ -608,7 +610,7 @@ export type DesktopPermissions = z.infer<typeof DesktopPermissionsSchema>;
 export const DesktopUpdatesSchema = z.object({
   version: z.string(),
   build: z.string(),
-  channel: z.enum(["stable", "beta", "canary"]),
+  channel: z.enum(["stable", "beta"]),
   auto: z.boolean(),
   lastCheck: z.string().nullable(),
   upToDate: z.boolean(),

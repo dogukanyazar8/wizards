@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { selectUiScale, type UiScaleStep } from "@/lib/home/scale";
+import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import { composeRootFontSize, readTextScaleMultiplier } from "@/lib/settings/text-scale";
 
 /** Ölçek adımının DOM tutamağı; testler ve CSS istisnaları bunu okur (SPEC §8.2.2). */
@@ -65,7 +66,13 @@ export function useUiScale(): void {
     let frame = 0;
 
     const sync = () => {
-      applyUiScale(root, selectUiScale({ height: window.innerHeight, width: window.innerWidth }));
+      applyUiScale(
+        root,
+        selectUiScale(
+          { height: window.innerHeight, width: window.innerWidth },
+          isWhisprDesktopRuntime() ? "desktop" : "web",
+        ),
+      );
     };
 
     const handleResize = () => {

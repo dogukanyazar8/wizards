@@ -55,8 +55,8 @@ describe("SettingTextarea", () => {
     assert.ok(markup.includes("191 / 190"));
   });
 
-  it("`maxLength` niteliği verilmiyor — tarayıcı sessizce kesmesin", () => {
-    assert.ok(!render().includes("maxlength"));
+  it("giriş sınırı gösterilen sayaçla aynı", () => {
+    assert.ok(render().includes('maxLength="190"') || render().includes('maxlength="190"'));
   });
 
   it("geometri sözlükten geliyor", () => {

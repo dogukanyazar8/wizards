@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { pnpmInvocation } from "../../../scripts/quality/pnpm-invocation.mjs";
 
-const JAVASCRIPT_CLI_EXTENSION = /\.(?:cjs|mjs|js)$/iu;
 const PNPM_BUILD_ARGS = Object.freeze(["exec", "next", "build"]);
 
 export function buildPnpmInvocation(environment, nodeExecutable = process.execPath) {
@@ -11,10 +11,7 @@ export function buildPnpmInvocation(environment, nodeExecutable = process.execPa
     throw new Error("The production build must be launched through pnpm");
   }
 
-  const args = [...PNPM_BUILD_ARGS];
-  return JAVASCRIPT_CLI_EXTENSION.test(pnpmCli)
-    ? { command: nodeExecutable, args: [pnpmCli, ...args] }
-    : { command: pnpmCli, args };
+  return pnpmInvocation(pnpmCli, PNPM_BUILD_ARGS, nodeExecutable);
 }
 
 function runNextBuild() {

@@ -10,7 +10,7 @@ import { TR_MESSAGES } from "./messages/tr";
  * SPEC-SPLASH metin denetimi.
  *
  * `design_handoff/splash-1b-paketi/SPEC.md` tek doğru kaynak ve Türkçe metinlerin
- * **birebir** aynı olmasını istiyor. Bir kelime kayması hiçbir görsel testte
+ * **birebir** aynı olmasını istiyor; kısayol tuşu kullanıcının platformuyla doldurulur. Bir kelime kayması hiçbir görsel testte
  * görünmez; bu dosyada görünür.
  */
 
@@ -27,7 +27,7 @@ const SPLASH_TR = {
   "splash.step.almostReady": "Neredeyse hazır",
   "splash.env.prod": "PROD",
   "splash.env.uat": "UAT",
-  "splash.tip.commandPalette": "Ctrl + K ile sunucu, kanal ve kişiler arasında atla.",
+  "splash.tip.commandPalette": "{shortcut} ile sunucu, kanal ve kişiler arasında atla.",
   "splash.tip.voiceMute": "Sesli kanalda M tuşu mikrofonu anında kapatır.",
   "splash.tip.quickReaction": "Bir mesaja çift dokunarak hızlı tepki bırak.",
   "splash.tip.mentions": "Bahsedilmeler sekmesi sana gelen her şeyi tek listede toplar.",
@@ -51,7 +51,7 @@ const SPLASH_TR = {
 } as const;
 
 describe("splash copy", () => {
-  it("matches the handoff word for word", () => {
+  it("matches the handoff with a platform-dependent shortcut placeholder", () => {
     for (const [key, value] of Object.entries(SPLASH_TR)) {
       assert.equal(TR[key], value, key);
     }

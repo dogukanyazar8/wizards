@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { pnpmInvocation } from "./pnpm-invocation.mjs";
 
 export const PROJECTS = Object.freeze({
   db: "packages/db/tsconfig.json",
@@ -70,7 +71,7 @@ export function buildCompilerArgs({ project, mode, checkers }) {
 export function buildPnpmInvocation(environment, args) {
   const pnpmCli = environment.npm_execpath;
   if (!pnpmCli) throw new Error("TypeScript project runner must be launched through pnpm");
-  return { command: process.execPath, args: [pnpmCli, ...args] };
+  return pnpmInvocation(pnpmCli, args);
 }
 
 function runPnpm(args, stdio = "inherit") {

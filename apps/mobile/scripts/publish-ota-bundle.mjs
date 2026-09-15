@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const MOBILE_ROOT = resolve(SCRIPT_PATH, "..", "..");
 const DEFAULT_WORKSPACE_ROOT = resolve(MOBILE_ROOT, "..", "..");
-const VALID_ENVIRONMENTS = new Set(["uat", "canary", "production"]);
+const VALID_ENVIRONMENTS = new Set(["uat", "production"]);
 const VALID_PLATFORMS = new Set(["android", "ios"]);
 
 function isInside(parent, candidate) {
@@ -35,7 +35,7 @@ export function buildMobileOtaPublishPlan(options) {
     throw new Error("OTA private key must stay outside the workspace.");
   }
   if (!VALID_ENVIRONMENTS.has(options.environment)) {
-    throw new Error("environment must be uat, canary, or production.");
+    throw new Error("environment must be uat or production.");
   }
   if (!VALID_PLATFORMS.has(options.platform)) {
     throw new Error("platform must be android or ios.");

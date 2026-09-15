@@ -5,6 +5,7 @@ import {
   playTestTone,
   TEST_TONE_DURATION_SECONDS,
   TEST_TONE_FREQUENCY_HZ,
+  TEST_TONE_PEAK_GAIN,
   type TestTonePlayer,
 } from "@/components/settings/sections/av/av-test-tone";
 
@@ -76,4 +77,14 @@ describe("playTestTone", () => {
   it("AudioContext yoksa sessizce `false`", async () => {
     assert.equal(await playTestTone("default", () => null), false);
   });
+});
+
+it("speaker test honors the master volume including silence", async () => {
+  for (const volume of [0, 50, 100]) {
+    const { player } = fakePlayer();
+    const gain = { connect: () => undefined, gain: { value: -1 } };
+    player.createGain = () => gain as never;
+    await playTestTone("default", () => player, volume);
+    assert.equal(gain.gain.value, (TEST_TONE_PEAK_GAIN * volume) / 100);
+  }
 });

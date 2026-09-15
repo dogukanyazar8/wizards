@@ -345,7 +345,10 @@ export function EventCard({ event, now, onOpen, onRsvp, selected = false }: Even
               lineHeight: card.timeLineHeight,
             }}
           >
-            {t("events.card.place", { channel: event.channelLabel, server: event.serverName })}
+            {t("events.card.place", {
+              channel: event.channelLabel || t("events.create.placeNone"),
+              server: event.serverName,
+            })}
           </span>
         </div>
       </div>

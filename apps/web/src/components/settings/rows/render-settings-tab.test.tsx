@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { PROFILE_BIO_MAX_LENGTH } from "@wizards/types";
 
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import {
@@ -27,7 +29,7 @@ import {
 /**
  * Ş6 §6 — ağaçtan çizim.
  *
- * Bu dosyanın işi tek soruya kesin cevap vermek: **169 satırın hepsi çiziliyor mu?** Ağaç
+ * Bu dosyanın işi tek soruya kesin cevap vermek: **Ağaçtaki tüm satırlar çiziliyor mu?** Ağaç
  * üzerinden taranıyor, tek tek elle sayılmıyor; bir satır eklendiğinde bu test onu kendiliğinden
  * kapsar. Elle yazılmış bir liste, ağaç değiştiğinde sessizce eskiyen bir liste olurdu.
  */
@@ -55,18 +57,25 @@ function renderTab(
     ...runtime,
   };
 
-  return renderToStaticMarkup(
-    <LocaleProvider initialLocale="tr" initialMessages={MESSAGES}>
-      <SettingsValueContext.Provider value={store}>
-        <SettingsRowRuntimeContext.Provider value={full}>
-          {renderSettingsTab(section, tab as never)}
-        </SettingsRowRuntimeContext.Provider>
-      </SettingsValueContext.Provider>
-    </LocaleProvider>,
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
+  const markup = renderToStaticMarkup(
+    <QueryClientProvider client={client}>
+      <LocaleProvider initialLocale="tr" initialMessages={MESSAGES}>
+        <SettingsValueContext.Provider value={store}>
+          <SettingsRowRuntimeContext.Provider value={full}>
+            {renderSettingsTab(section, tab as never)}
+          </SettingsRowRuntimeContext.Provider>
+        </SettingsValueContext.Provider>
+      </LocaleProvider>
+    </QueryClientProvider>,
   );
+  client.clear();
+  return markup;
 }
 
-describe("renderSettingsTab — 169 satırın tamamı", () => {
+describe("renderSettingsTab — tüm ayar satırları", () => {
   it("her sekme hatasız çiziliyor", () => {
     for (const section of Object.keys(SETTINGS_TABS_BY_SECTION) as SettingsSection[]) {
       for (const tab of SETTINGS_TABS_BY_SECTION[section]) {
@@ -99,7 +108,6 @@ describe("renderSettingsTab — 169 satırın tamamı", () => {
 
     assert.deepEqual(missing, []);
     assert.equal(drawn, SETTINGS_TREE_COUNTS.rows);
-    assert.equal(drawn, 169);
   });
 
   it("on üç kontrol tipinin hepsi en az bir kez çizildi", () => {
@@ -132,7 +140,8 @@ describe("renderSettingsTab — tek kontrol ekseni (PROMPT §3)", () => {
    * büyümez ve sol kolonun **kardeşi** olarak satırın sonunda durur. Üçü birden tuttuğu sürece
    * 38 px anahtar ile 260 px input aynı sağ kenarda biter.
    */
-  const SLOT = '<div class="flex shrink-0 items-center justify-end" data-setting-control=';
+  const SLOT =
+    '<div class="flex min-w-0 max-w-full shrink-0 items-center justify-end [&amp;&gt;*]:max-w-full" data-setting-control=';
 
   it("her sekmedeki her kontrol yuvası aynı sınıf sözleşmesini taşıyor", () => {
     const offenders: string[] = [];
@@ -164,7 +173,7 @@ describe("renderSettingsTab — tek kontrol ekseni (PROMPT §3)", () => {
 
           if (slot < 0) break;
 
-          const label = markup.lastIndexOf('class="min-w-0 flex-1"', slot);
+          const label = markup.lastIndexOf('class="min-w-0 flex-1 [overflow-wrap:anywhere]"', slot);
 
           assert.ok(
             label >= 0 && label < slot,
@@ -205,8 +214,8 @@ describe("renderSettingsTab — kontrol seçimi ağaçtan", () => {
     assert.ok(!markup.includes('value="@'));
   });
 
-  it("`pbio` sayacı 190 sınırıyla çiziliyor", () => {
-    assert.ok(renderTab("account", "profile").includes("0 / 190"));
+  it("`pbio` sayacı ortak profil sınırıyla çiziliyor", () => {
+    assert.ok(renderTab("account", "profile").includes(`0 / ${PROFILE_BIO_MAX_LENGTH}`));
   });
 
   it("`pp` menüsü durum noktalarını token adından alıyor", () => {
@@ -243,12 +252,34 @@ describe("renderSettingsTab — aynı anda tek menü, tek riskli blok (tuzak #12
 
   it("tek riskli blok gövdesi açılıyor", () => {
     const markup = renderTab("account", "account", {
-      openRisky: "apw",
+      openRisky: "password",
       riskyBodies: { apw: <div data-testid="pw-body">parola gövdesi</div> },
     });
 
     assert.ok(markup.includes("parola gövdesi"));
     assert.equal(markup.match(/aria-expanded="true"/gu)?.length, 1);
+  });
+
+  it("e-posta ve telefon düzenleyicileri kendi eylem satırının altında açılır", () => {
+    for (const [key, block] of [
+      ["ae", "email"],
+      ["ap", "phone"],
+    ] as const) {
+      const markup = renderTab("account", "account", {
+        openRisky: block,
+        riskyBodies: { [key]: <input data-testid="contact-inline-field" /> },
+      });
+      assert.ok(markup.includes(`id="setting-risky-${key}"`));
+      assert.match(
+        markup,
+        new RegExp(
+          `aria-controls="setting-risky-${key}"[^>]*aria-expanded="true"[^>]*data-testid="setting-actions-${key}-0"`,
+          "u",
+        ),
+      );
+      assert.ok(markup.includes('data-testid="contact-inline-field"'));
+      assert.equal(markup.match(/aria-expanded="true"/gu)?.length, 1);
+    }
   });
 
   it("kapalı riskli blokta gövde çizilmiyor", () => {

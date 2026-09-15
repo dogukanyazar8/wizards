@@ -131,7 +131,10 @@ function logBestEffortWarning(
 }
 
 async function runBestEffortAuthenticatedCleanup(
-  dependencies: MobileMediaUploadAuthorizationDependencies,
+  dependencies: Pick<
+    MobileMediaUploadAuthorizationDependencies,
+    "runOpportunisticCleanup" | "logWarning"
+  >,
 ) {
   try {
     await dependencies.runOpportunisticCleanup();
@@ -212,6 +215,23 @@ export async function authorizeMobileMediaUpload(
       purpose: "server-icon",
       targetServerId: intent.targetServerId,
     };
+  } catch (error) {
+    throw authorizationUploadThingError(error);
+  }
+}
+
+/** Browser sessions may only presign the fixed, owner-scoped banner purpose. */
+export async function authorizeProfileBannerUpload(
+  dependencies: Pick<
+    MobileMediaUploadAuthorizationDependencies,
+    "authenticateSession" | "enforceRateLimit" | "runOpportunisticCleanup" | "logWarning"
+  > = defaultAuthorizationDependencies,
+): Promise<MobileUploadMetadata> {
+  try {
+    const ownerId = await dependencies.authenticateSession();
+    await dependencies.enforceRateLimit(ownerId, MOBILE_MEDIA_UPLOAD_RATE_LIMIT_ACTION);
+    void runBestEffortAuthenticatedCleanup(dependencies);
+    return { ownerId, purpose: "profile-banner", targetServerId: null };
   } catch (error) {
     throw authorizationUploadThingError(error);
   }

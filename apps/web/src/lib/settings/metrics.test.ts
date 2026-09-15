@@ -118,8 +118,8 @@ describe("settings ölçü sözlüğü — sayısal bütünlük", () => {
 });
 
 describe("settings sapma kaydı", () => {
-  it("on üç sapma taşır", () => {
-    assert.equal(SPEC_DEVIATIONS.length, 13);
+  it("on iki sapma taşır", () => {
+    assert.equal(SPEC_DEVIATIONS.length, 12);
   });
 
   it("her sapma alan adını, HTML değerini ve SPEC değerini taşır", () => {
@@ -130,22 +130,14 @@ describe("settings sapma kaydı", () => {
     }
   });
 
-  it("release kanalının üçüncü çipi kolonun `UAT` değerine düşer (#12)", () => {
-    const deviation = SPEC_DEVIATIONS.find((entry) => entry.field === "releaseChannel.canary");
-
-    assert.ok(deviation, "#12 kayıtlı değil");
-    assert.equal(deviation.html, "Canary");
-    assert.equal(deviation.spec, "UAT");
-  });
-
   it("kirli profil alanları önek sezgisiyle değil, sayılarak veriliyor (#5)", () => {
     // Referansın `k.charAt(0) === 'p'` kuralı Ses işleme satırlarını (`p1`…`p9`) de profil
     // sayardı ve Ses ve Video sekmesinde kaydet şeridi çıkarırdı.
     assert.deepEqual(
       [...SETTINGS_DIRTY_PROFILE_KEYS],
-      ["pn", "pu", "pz", "pbio", "pp", "ps", "pe", "px"],
+      ["pn", "pu", "pbio", "pp", "ps", "pe", "px"],
     );
-    assert.equal(SETTINGS_DIRTY_PROFILE_KEYS.length, 8);
+    assert.equal(SETTINGS_DIRTY_PROFILE_KEYS.length, 7);
     assert.ok(!SETTINGS_DIRTY_PROFILE_KEYS.some((key) => /^p\d/u.test(key)));
   });
 });

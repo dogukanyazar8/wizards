@@ -20,11 +20,8 @@ const VENDORED_FONTS = [
 ] as const;
 
 /**
- * CSS değişkeni → font dosyası. SPEC §1: gövde Figtree, display Outfit. Mesaj fontu tercihleri
- * bu pakete dahil değil, burada da sabitlenir ki kazara kaymasınlar.
- *
- * SPEC-GIRIS-KAYIT §1.3 kimlik yüzeyinin gövdesini de Figtree yaptı; DM Sans bağı hiçbir CSS
- * kuralı tarafından okunmuyordu ve Ş9 temizliğinde kaldırıldı (dosya duruyor).
+ * Gövde ve başlıklar Outfit kullanır; portallar ve durum mesajları da aynı aileyi miras alır.
+ * Kullanıcının mesaj fontu tercihleri ayrı kalır.
  */
 const FONT_BINDINGS = {
   "--font-display": "outfit-latin.woff2",
@@ -32,7 +29,7 @@ const FONT_BINDINGS = {
   "--font-message-open-sans": "open-sans-latin.woff2",
   "--font-message-outfit": "outfit-latin.woff2",
   "--font-message-raleway": "raleway-latin.woff2",
-  "--font-sans": "figtree-latin.woff2",
+  "--font-sans": "outfit-latin.woff2",
 } as const;
 
 /** Türkçe — ilk beşi Latin Extended-A, yani `latin` alt kümesinde **yok**. */
@@ -282,8 +279,8 @@ test("every CSS font variable is bound to the expected family file", () => {
   assert.deepEqual(Object.fromEntries([...bindings].sort()), FONT_BINDINGS);
 });
 
-test("body and display variables carry the SPEC typography pair", () => {
-  assert.equal(FONT_BINDINGS["--font-sans"], "figtree-latin.woff2");
+test("body and display variables share the application font", () => {
+  assert.equal(FONT_BINDINGS["--font-sans"], "outfit-latin.woff2");
   assert.equal(FONT_BINDINGS["--font-display"], "outfit-latin.woff2");
   // Gövde 900'e kadar bildirilir: mevcut ekranlarda font-black / font-weight: 800 kullanan
   // bildirimler var ve dar bir aralık onları sessizce 700'e indirirdi.

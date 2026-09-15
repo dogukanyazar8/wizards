@@ -282,7 +282,7 @@ function hasValidPurposeTarget(upload: {
 
 export async function claimMobileMediaUpload(
   userId: string,
-  input: { claimId: string },
+  input: { claimId: string; expectedPurpose?: MobileMediaUploadPublicPurpose },
   dependencies: MobileMediaClaimDependencies = defaultClaimDependencies,
 ): Promise<MobileMediaClaimResponse> {
   const now = dependencies.now();
@@ -317,6 +317,13 @@ export async function claimMobileMediaUpload(
     const unclaimableReason = describeUnclaimableUpload(upload, userId, now);
     if (!upload || unclaimableReason) {
       return claimUnavailable(unclaimableReason ?? "claim-not-found");
+    }
+
+    if (
+      input.expectedPurpose !== undefined &&
+      upload.purpose !== toDatabasePurpose(input.expectedPurpose)
+    ) {
+      return claimUnavailable("claim-purpose-mismatch");
     }
 
     let previousUrl: string | null;

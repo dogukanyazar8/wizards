@@ -109,7 +109,6 @@ const peerProfile: MobileUserProfile = {
   mutualServers: { count: 0, preview: [] },
   note: null,
   presence: { customStatus: null, status: "ONLINE" },
-  pronouns: null,
   registeredAt: "2025-04-02T09:00:00.000Z",
   relationship: "friend",
   self: false,

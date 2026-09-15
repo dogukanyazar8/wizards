@@ -5,7 +5,7 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
-import type { MobileBootstrapPayload } from "@wizards/types";
+import { profileStatusRefetchInterval, type MobileBootstrapPayload } from "@wizards/types";
 
 import type { MobileApiClient } from "../api/mobile-api-client";
 import { MOBILE_PERSISTED_QUERY_GC_TIME_MS } from "../query/mobile-query-cache-policy";
@@ -113,6 +113,8 @@ export function getMobileUserProfileQueryOptions(
     enabled: input.enabled ?? true,
     queryFn: () => fetchMobileUserProfile(client, input.userId, input.serverId),
     queryKey: mobileQueryKeys.userProfile(input.userId, input.serverId),
+    refetchInterval: (query) =>
+      profileStatusRefetchInterval(query.state.data?.presence.customStatusExpiresAt),
     // The card re-opens constantly from message rows; a short window keeps the
     // second open instant while still refetching on a real revisit.
     staleTime: 30_000,

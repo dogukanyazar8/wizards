@@ -76,6 +76,22 @@ describe("ActiveSessionsBlock — tuzak #13", () => {
 });
 
 describe("ActiveSessionsBlock — durumlar", () => {
+  it("uses the session device type even for a web client on another operating system", () => {
+    for (const [deviceType, iconClass] of [
+      ["MOBILE", "lucide-smartphone"],
+      ["TABLET", "lucide-tablet"],
+      ["DESKTOP", "lucide-monitor"],
+      ["UNKNOWN", "lucide-monitor-smartphone"],
+      [undefined, "lucide-monitor-smartphone"],
+    ] as const) {
+      const markup = render({ sessions: [session({ deviceType, platform: "web" })] });
+      const classes = [...markup.matchAll(/class="([^"]*)"/gu)].flatMap((match) =>
+        (match[1] ?? "").split(/\s+/u),
+      );
+      assert.ok(classes.includes(iconClass), `${deviceType}: wrong device icon`);
+    }
+  });
+
   it("liste yokken iskelet", () => {
     assert.ok(render({}).includes('data-testid="settings-block-o1-skeleton"'));
   });

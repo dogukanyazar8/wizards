@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useId } from "react";
-import { ChevronDown, Link2 } from "lucide-react";
+import { ChevronDown, Hash, Link2, MapPin, Podcast, Volume2 } from "lucide-react";
 
 import { useI18n } from "@/components/providers/locale-provider";
 import { Input } from "@/components/ui/input";
@@ -124,7 +124,9 @@ export function EventPlacePicker({
     ? state.externalLocation.trim() || t("events.create.placeExternal")
     : state.server && state.channel
       ? t("events.card.place", { channel: state.channel.name, server: state.server.name })
-      : t("events.create.placePlaceholder");
+      : state.server
+        ? `${state.server.name} · ${t("events.create.placeNone")}`
+        : t("events.create.placePlaceholder");
 
   return (
     <div>
@@ -297,6 +299,17 @@ export function EventPlacePicker({
                       }}
                       type="button"
                     >
+                      {React.createElement(
+                        channel.type === "TEXT"
+                          ? Hash
+                          : channel.type === "STAGE"
+                            ? Podcast
+                            : Volume2,
+                        {
+                          "aria-hidden": true,
+                          className: "h-4 w-4 shrink-0 text-[hsl(var(--text-muted))]",
+                        },
+                      )}
                       <span className="min-w-0 flex-1 truncate">{channel.name}</span>
                     </button>
                   ))}
@@ -304,6 +317,18 @@ export function EventPlacePicker({
               )}
             </div>
           )}
+
+          <button
+            aria-pressed={!external && state.channel === null}
+            className="flex items-center text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+            data-testid="events-place-none"
+            onClick={() => dispatch({ type: "clearPlace" })}
+            style={{ ...optionStyle, color: "hsl(var(--foreground))" }}
+            type="button"
+          >
+            <MapPin aria-hidden="true" className="h-4 w-4 shrink-0 text-[hsl(var(--text-muted))]" />
+            <span>{t("events.create.placeNone")}</span>
+          </button>
 
           <button
             aria-pressed={external}

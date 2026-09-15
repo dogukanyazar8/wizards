@@ -60,7 +60,7 @@ Do not add a direct GLib override, `[patch]`, audit ignore, feature removal, run
 
 ## CI, monitoring, and re-evaluation
 
-Dependabot checks Cargo in `/apps/desktop/src-tauri` weekly against `uat`. Automatic `desktop-ops` runs locked `cargo audit` and `cargo clippy --locked --all-targets -- -D warnings` on the self-hosted Linux runner, then release-operation/script/config checks. This compiles Rust code and test targets but does not prove a native Linux Tauri bundle, launch, tray smoke, or this GLib path at runtime. Windows/macOS native checks and signed Tauri package builds are **NOT RUN** until matching local runners are registered and their workflows are restored.
+Dependabot checks Cargo in `/apps/desktop/src-tauri` weekly against `uat`. Automatic `desktop-ops` runs locked `cargo audit` and `cargo clippy --locked --all-targets -- -D warnings` on a GitHub-hosted Linux runner, then release-operation/script/config checks. This compiles Rust code and test targets but does not prove a native Linux Tauri bundle, launch, tray smoke, or this GLib path at runtime. Windows native checks and manual signed releases use GitHub-hosted Windows runners. Their runtime acceptance requires actual run/artifact evidence; macOS remains outside scope.
 
 Before accepting any future upstream resolution, require all of the following: lockfile diff review, `cargo audit --json` with no `unsound` warning for this chain, Windows desktop build evidence, and a Linux CI job that compiles the affected target and performs native launch plus tray smoke. The test/build evidence must come from the candidate lockfile, not a prior successful CI run.
 

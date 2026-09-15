@@ -100,13 +100,8 @@ describe("panel kabuğu (§4)", () => {
     const { rightPanel } = SERVER_METRICS;
     const html = view();
 
-    assert.ok(
-      html.includes(
-        `padding:${pxToRem(rightPanel.headerPaddingTop)} ${pxToRem(
-          rightPanel.headerPaddingX,
-        )} ${pxToRem(rightPanel.headerPaddingBottom)}`,
-      ),
-    );
+    assert.ok(html.includes(`padding:0 ${pxToRem(rightPanel.headerPaddingX)}`));
+    assert.ok(html.includes(`height:${pxToRem(SERVER_METRICS.headerHeight)}`));
     assert.ok(html.includes(`height:${pxToRem(SETTINGS_METRICS.header.closeSize)}`));
     assert.ok(html.includes(`border-radius:${pxToRem(SETTINGS_METRICS.header.closeRadius)}`));
     assert.ok(html.includes(`aria-label="${copy("server.panel.close")}"`));
@@ -122,6 +117,7 @@ describe("panel kabuğu (§4)", () => {
     const html = view({ overlay: true });
 
     assert.match(html, /data-panel-overlay="true"/u);
+    assert.ok(html.includes(`top:${pxToRem(SERVER_METRICS.headerHeight)}`));
     assert.ok(html.includes(`z-index:${SERVER_METRICS.layout.rightPanelOverlayZIndex}`));
     assert.equal(/data-panel-overlay/u.test(view()), false);
   });

@@ -3,13 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { MicOff, VolumeX } from "lucide-react";
 import {
-  parseVoiceMiniSnapshot,
   type VoiceMiniParticipant,
   type VoiceMiniSnapshot,
   type VoiceOverlaySize,
 } from "@wizards/types";
 import { DEFAULT_DESKTOP_GAME_OVERLAY_PREFERENCES } from "@/lib/desktop/voice-mini";
-import { WHISPR_DESKTOP_GAME_OVERLAY_SNAPSHOT_EVENT } from "@/lib/desktop/runtime";
+import {
+  getVisibleGameOverlayParticipants,
+  subscribeGameOverlaySnapshots,
+} from "@/lib/desktop/game-overlay-state";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/components/providers/locale-provider";
 
@@ -226,33 +228,15 @@ export function DesktopGameOverlay() {
     };
   }, []);
 
-  useEffect(() => {
-    const handleSnapshot = (event: Event) => {
-      const nextSnapshot = parseVoiceMiniSnapshot((event as CustomEvent<unknown>).detail);
+  useEffect(() => subscribeGameOverlaySnapshots(window, setSnapshot), []);
 
-      if (nextSnapshot) {
-        setSnapshot(nextSnapshot);
-      }
-    };
-
-    window.addEventListener(WHISPR_DESKTOP_GAME_OVERLAY_SNAPSHOT_EVENT, handleSnapshot);
-    return () => {
-      window.removeEventListener(WHISPR_DESKTOP_GAME_OVERLAY_SNAPSHOT_EVENT, handleSnapshot);
-    };
-  }, []);
-
-  const visibleParticipants = useMemo(() => {
-    const participants = snapshot?.participants ?? [];
-    const speaking = participants.filter((participant) => participant.isSpeaking);
-    const overlay = snapshot?.overlay ?? DEFAULT_DESKTOP_GAME_OVERLAY_PREFERENCES;
-    const maxParticipants = overlay.size === "large" ? 8 : overlay.size === "compact" ? 3 : 6;
-    if (overlay.speakingOnly) {
-      return speaking.slice(0, maxParticipants);
-    }
-
-    return participants.slice(0, maxParticipants);
-  }, [snapshot]);
+  const visibleParticipants = useMemo(
+    () => getVisibleGameOverlayParticipants(snapshot),
+    [snapshot],
+  );
   const overlay = snapshot?.overlay ?? DEFAULT_DESKTOP_GAME_OVERLAY_PREFERENCES;
+
+  if (visibleParticipants.length === 0) return null;
 
   return (
     <main
@@ -274,21 +258,15 @@ export function DesktopGameOverlay() {
         )}
         data-testid="desktop-game-overlay"
       >
-        {visibleParticipants.length > 0 ? (
-          <ul className="grid gap-2">
-            {visibleParticipants.map((participant) => (
-              <OverlayParticipant
-                key={participant.userId}
-                participant={participant}
-                size={overlay.size}
-              />
-            ))}
-          </ul>
-        ) : (
-          <div className="inline-flex rounded-[20px] bg-slate-950/[0.34] px-3 py-2 text-xs font-semibold text-white/[0.72] shadow-[0_14px_34px_rgba(15,23,42,0.18)] backdrop-blur-xl">
-            {t("desktop.gameOverlay.idle")}
-          </div>
-        )}
+        <ul className="grid gap-2">
+          {visibleParticipants.map((participant) => (
+            <OverlayParticipant
+              key={participant.userId}
+              participant={participant}
+              size={overlay.size}
+            />
+          ))}
+        </ul>
       </section>
     </main>
   );

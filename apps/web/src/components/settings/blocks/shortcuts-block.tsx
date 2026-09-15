@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { readableShortcut } from "@wizards/ui/platform-keyboard.mjs";
 
 import { useI18n } from "@/components/providers/locale-provider";
 import { ShortcutHelpDialog } from "@/components/shortcuts/shortcut-help-dialog";
@@ -17,8 +18,8 @@ import { useAppShortcutLabel } from "@/hooks/use-app-shortcut-label";
  * kaydetmeye çalışır ve sonucu satır satır geri verir; blok yalnız o sonucu çizer. Bir
  * "alınmış kısayollar" tablosu tutmak, ilk üçüncü parti uygulamada yanlış cevap vermek olurdu.
  *
- * Yeniden atama, uzak WebView'in ayrıcalıklı native komut çağırmasına izin vermeden güvenilir
- * yerel Desktop Control'ü açar. Kayıt ve çakışma çözümü oradaki ağsız yüzeyin sorumluluğudur.
+ * Genel satır motorunun salt okunur görünümü; düzenleme Masaüstü → Kısayollar
+ * ekranındaki NativeShortcutEditor üzerinden yapılır.
  */
 
 const { shortcuts } = SETTINGS_METRICS.blocks;
@@ -64,11 +65,11 @@ export function ShortcutsBlock({ row: rowDef }: SettingsBlockProps) {
           <span className="min-w-0 flex-1 text-sm text-[hsl(var(--text-secondary))]">
             {t("settings.block.shortcuts.appShortcuts")}
           </span>
-          <kbd className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-base))] px-2 py-1 font-mono text-xs text-[hsl(var(--text-muted))]">
+          <kbd className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-base))] px-2 py-1 [font-family:inherit] text-xs text-[hsl(var(--text-muted))]">
             {helpShortcut}
           </kbd>
           <button
-            className="rounded-lg border border-[hsl(var(--border)/0.72)] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--text-secondary))] transition hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+            className="rounded-lg bg-[hsl(var(--primary))] px-3 py-1.5 text-xs font-semibold text-white transition-[filter] hover:brightness-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
             onClick={() => setHelpOpen(true)}
             type="button"
           >
@@ -144,9 +145,14 @@ function ShortcutRow({
         </span>
       ) : null}
 
-      <span className="flex flex-none" style={{ gap: pxToRem(shortcuts.keysGap) }}>
+      <kbd
+        aria-label={readableShortcut(capsules)}
+        className="flex flex-none"
+        style={{ gap: pxToRem(shortcuts.keysGap), fontFamily: "inherit" }}
+      >
         {capsules.map((key, index) => (
           <span
+            aria-hidden="true"
             className="text-center"
             key={`${key}-${index}`}
             style={{
@@ -171,7 +177,7 @@ function ShortcutRow({
             {key}
           </span>
         ))}
-      </span>
+      </kbd>
 
       <button
         aria-label={`${label} · ${t("settings.block.shortcuts.rebind")}`}
@@ -179,10 +185,10 @@ function ShortcutRow({
         data-testid={`settings-shortcut-rebind-${action}`}
         onClick={onOpenManager}
         style={{
-          background: "transparent",
+          background: "hsl(var(--primary))",
           border: `${hairline()} solid hsl(var(--border) / ${shortcuts.capsuleBorderAlpha})`,
           borderRadius: pxToRem(shortcuts.rebindRadius),
-          color: "hsl(var(--text-muted))",
+          color: "#fff",
           height: pxToRem(shortcuts.rebindHeight),
           transitionDuration: `${SETTINGS_METRICS.motion.transitionSeconds}s`,
           width: pxToRem(shortcuts.rebindHeight),

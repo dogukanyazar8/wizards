@@ -1,7 +1,20 @@
 "use client";
 
-import React, { useEffect, useMemo, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useEffect, useLayoutEffect, useMemo, type ReactNode } from "react";
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import {
+  SettingsDataBoundary,
+  type SettingsReadState,
+} from "@/components/settings/settings-data-boundary";
+import { useI18n } from "@/components/providers/locale-provider";
+import { updateLocalePreferenceAction } from "@/lib/locale/actions";
+import {
+  LOCALE_BY_INDEX,
+  TIME_ZONE_BY_INDEX,
+  DATE_FORMAT_BY_INDEX,
+  TIME_FORMAT_BY_INDEX,
+  splitAccountPatch,
+} from "@/components/settings/sections/account/account-surface";
 
 import {
   useReportSettingsStore,
@@ -16,101 +29,37 @@ import {
   type SettingsRowRuntime,
 } from "@/lib/settings/use-setting-value";
 import { APPEARANCE_UNAVAILABLE_ROWS } from "@/lib/settings/availability";
-import {
-  applyTextScaleToDocument,
-  DEFAULT_TEXT_SCALE_PERCENT,
-  type TextScaleRoot,
-} from "@/lib/settings/text-scale";
+
 import { selectUiScale } from "@/lib/home/scale";
+import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import { fetchLayoutSettings, patchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
 import type { UserLayoutSettings } from "@/app/api/v1/users/me/settings/route";
+import { MESSAGE_FONT_OPTIONS, normalizeMessageFontId } from "@/lib/message-fonts";
 import {
-  applyMessageFontToDocument,
-  MESSAGE_FONT_OPTIONS,
-  normalizeMessageFontId,
-} from "@/lib/message-fonts";
-import {
-  clampChannelSidebarWidth,
-  clampMainPanelWidth,
+  normalizeStoredServerRailWidth,
   clampServerRailIconSize,
-  clampServerRailWidth,
-  MAX_MAIN_PANEL_WIDTH,
-  MIN_MAIN_PANEL_WIDTH,
+  clampChannelSidebarWidth,
 } from "@/lib/appearance";
 import { useAppStore } from "@/lib/store";
+import { applyMessageAppearance } from "@/lib/messages/appearance";
 
-/**
- * Görünüm bölümünün **taşıma yolu** — Ş6 §2.1'in `write` dikişi.
- *
- * Üç hedef var ve her satır tam olarak birine gider:
- *
- * 1. **Sunucu** (`PATCH /api/v1/users/me/settings`) — cihazlar arası taşınması gereken dört alan:
- *    `messageFont`, `interfaceDensity`, `serverRailWidth`, `channelSidebarWidth`. Bugünkü
- *    `PatchSettingsSchema` tam olarak bunları kabul ediyor; şemaya olmayan alan **göndermiyoruz**.
- * 2. **Uygulama kutusu** (`useAppStore`, persist) — kabuğun ölçüleri: ray ikonu, ana içerik
- *    genişliği, üye paneli.
- * 3. **Belge** — tema dışındaki görsel etkiler: mesaj fontu değişkeni, yazı boyutu çarpanı,
- *    hareket ve kontrast nitelikleri.
- *
- * Kalıcı alanı olup gerçek consumer'ı bulunmayan satırlar `APPEARANCE_UNAVAILABLE_ROWS` ile
- * etkileşime kapanır. Veritabanına yazmak tek başına işlev sayılmaz.
- */
-
-/**
- * Sunucuya giden satırlar — `PatchSettingsSchema`'nın kabul ettiği alanlar.
- *
- * F2'den önce burada yalnız dört giriş vardı ve kalan yirmi bir kontrol yazma yolunda sessizce
- * düşüyordu; kutu yazmayı başarılı sayıp `Kaydedildi` gösteriyordu. Kolonların on dokuzu
- * `UserSettings`'te zaten mevcuttu — eksik olan tek şey PATCH şemasıydı.
- *
- * Değeri doğrudan geçen satırlar burada; dizinden değere çevrilmesi gerekenler (`m1`, `m3`,
- * `v6`) ve kabuğun kutusuna da yazılanlar (`y1`…`y5`) `writeAppearancePatch` içindeki kendi
- * dallarında durur.
- */
-export const APPEARANCE_SERVER_ROWS = {
-  m1: "messageFont",
-  m2: "messageSizePx",
-  m3: "interfaceDensity",
-  m4: "messageDisplayCompact",
-  v1: "inlineAttachmentMedia",
-  v2: "linkPreviews",
-  v3: "renderEmbeds",
-  v4: "renderReactions",
-  v5: "animateEmoji",
-  v6: "animateStickers",
-  v8: "enableTTS",
-  reduceMotion: "reduceMotion",
-  x2: "highContrast",
-  x3: "strongFocusRings",
-  x4: "uiTextScale",
-  x6: "screenReaderDescriptions",
-  x7: "followSystemA11y",
-  n1: "appIcon",
-  y1: "serverRailWidth",
-  y2: "serverIconSize",
-  y3: "channelSidebarWidth",
-  y4: "mainContentWidth",
-  y5: "showMemberPanelByDefault",
-} as const;
-
-/**
- * Kalıcılık tek başına işlev değildir. Bu tercihler veritabanına yazılıyor olsa da Web/Tauri
- * çalışma zamanında değerlerini okuyan bir mesaj/medya/TTS consumer'ı henüz yok. Kullanıcıya
- * başarılı kayıt gösterip görünür davranışı değiştirmemek yerine kontroller kapalıdır.
- */
-/** `v6` — `AnimateStickers` enum'unun referanstaki sırası: Her zaman · Etkileşim · Asla. */
-export const STICKER_ANIMATION_BY_INDEX = ["ALWAYS", "INTERACTION", "NEVER"] as const;
-
-/** `n1` — uygulama simgesi kimlikleri, referanstaki sırayla (Whispr · Wave 5…0). */
-export const APP_ICON_BY_INDEX = [
-  "whispr",
-  "wave-5",
-  "wave-4",
-  "wave-3",
-  "wave-2",
-  "wave-1",
-  "wave-0",
-] as const;
+import {
+  APPEARANCE_SERVER_ROWS,
+  appearancePatchToSettings,
+  mainPanelWidthToPercent,
+  applyAppearanceDocumentEffects,
+} from "@/lib/settings/appearance-runtime";
+export {
+  APPEARANCE_SERVER_ROWS,
+  appearancePatchToSettings,
+  mainPanelPercentToWidth,
+  mainPanelWidthToPercent,
+  applyAppearanceDocumentEffects,
+  FOCUS_RINGS_ATTRIBUTE,
+  HIGH_CONTRAST_ATTRIBUTE,
+  REDUCE_MOTION_ATTRIBUTE,
+  type AppearanceDocumentRoot,
+} from "@/lib/settings/appearance-runtime";
 
 export type AppearanceAppSnapshot = {
   readonly channelSidebarWidth: number;
@@ -120,21 +69,6 @@ export type AppearanceAppSnapshot = {
   readonly serverRailIconSize: number;
   readonly serverRailWidth: number;
 };
-
-/** `y4` yüzdesi ile piksel genişliği arasındaki **tek** dönüşüm. */
-export function mainPanelPercentToWidth(percent: number): number {
-  const span = MAX_MAIN_PANEL_WIDTH - MIN_MAIN_PANEL_WIDTH;
-  const ratio = (Math.min(100, Math.max(70, percent)) - 70) / 30;
-
-  return clampMainPanelWidth(Math.round(MIN_MAIN_PANEL_WIDTH + ratio * span));
-}
-
-export function mainPanelWidthToPercent(width: number): number {
-  const span = MAX_MAIN_PANEL_WIDTH - MIN_MAIN_PANEL_WIDTH;
-  const ratio = (clampMainPanelWidth(width) - MIN_MAIN_PANEL_WIDTH) / span;
-
-  return Math.round(70 + ratio * 30);
-}
 
 export function readAppearanceSettingsValues(app: AppearanceAppSnapshot): SettingsPatch {
   return {
@@ -152,85 +86,8 @@ export function readAppearanceSettingsValues(app: AppearanceAppSnapshot): Settin
   };
 }
 
-export type AppearanceDocumentRoot = TextScaleRoot & {
-  setAttribute(name: string, value: string): void;
-  readonly style: { fontSize: string; setProperty?: (name: string, value: string) => void };
-};
-
-/** Belge nitelikleri — CSS bunları okur; JavaScript ikinci bir yerde saklamaz. */
-export const REDUCE_MOTION_ATTRIBUTE = "data-reduce-motion";
-export const HIGH_CONTRAST_ATTRIBUTE = "data-high-contrast";
-export const FOCUS_RINGS_ATTRIBUTE = "data-strong-focus";
-
-/**
- * Yamanın belge tarafı.
- *
- * Saf: kök bir arayüz, ölçek adımı bir argüman. `x4` çarpanı `applyTextScaleToDocument` ile
- * yazılır ve ölçek adımının **üstüne** biner (Ş8 §B.9) — bu fonksiyon adım hesaplamaz, verileni
- * kullanır.
- */
-export function applyAppearanceDocumentEffects(
-  patch: SettingsPatch,
-  root: AppearanceDocumentRoot,
-  stepPx: number,
-): void {
-  for (const [key, value] of Object.entries(patch)) {
-    switch (key) {
-      case "m1": {
-        const fontId = MESSAGE_FONT_OPTIONS[Number(value)]?.id;
-
-        if (fontId) {
-          applyMessageFontToDocument(fontId);
-        }
-
-        break;
-      }
-
-      case "x4":
-        applyTextScaleToDocument(root, Number(value), stepPx);
-        break;
-
-      case "reduceMotion":
-        root.setAttribute(REDUCE_MOTION_ATTRIBUTE, value ? "true" : "false");
-        break;
-
-      case "x2":
-        root.setAttribute(HIGH_CONTRAST_ATTRIBUTE, value ? "true" : "false");
-        break;
-
-      case "x3":
-        root.setAttribute(FOCUS_RINGS_ATTRIBUTE, value ? "true" : "false");
-        break;
-
-      default:
-        break;
-    }
-  }
-}
-
-export type SystemAccessibilityPreferences = {
-  readonly prefersContrast: boolean;
-  readonly prefersReducedMotion: boolean;
-};
-
-/**
- * `Sistem erişilebilirlik tercihlerini takip et` (`x7`) açıkken sistem **kazanır**.
- *
- * Dönen sözlük satır anahtarına göre yazılır; boş dönerse kullanıcının seçimi geçerlidir.
- * Kilitleme kararı da buradan okunur: `x7` açıkken `x1`/`v7` ve `x2` satırları `disabled`.
- */
-export function resolveSystemAccessibilityOverrides(
-  followSystem: boolean,
-  system: SystemAccessibilityPreferences,
-): SettingsPatch {
-  if (!followSystem) {
-    return {};
-  }
-
-  return { reduceMotion: system.prefersReducedMotion, x2: system.prefersContrast };
-}
-
 export type AppearanceSettingsBridge = {
+  readonly readState?: SettingsReadState;
   readonly runtime: SettingsRowRuntime;
   readonly store: SettingsValueStore;
 };
@@ -248,162 +105,74 @@ function readAppSnapshot(): AppearanceAppSnapshot {
   };
 }
 
-/** Yamayı üç hedefe dağıtır; hangi anahtarın nereye gittiğini **yalnız** bu fonksiyon bilir. */
-async function writeAppearancePatch(patch: SettingsPatch): Promise<void> {
-  const app = useAppStore.getState();
-  const server: Record<string, boolean | number | string> = {};
-
-  for (const [key, value] of Object.entries(patch)) {
-    switch (key) {
-      case "m1": {
-        const fontId = MESSAGE_FONT_OPTIONS[Number(value)]?.id;
-
-        if (fontId) {
-          app.setMessageFont(fontId);
-          server[APPEARANCE_SERVER_ROWS.m1] = fontId;
-        }
-
-        break;
-      }
-
-      case "m3":
-        server[APPEARANCE_SERVER_ROWS.m3] = Number(value) === 1 ? "COMPACT" : "COMFORTABLE";
-        break;
-
-      case "y1": {
-        const width = clampServerRailWidth(Number(value));
-        app.setServerRailWidth(width);
-        server[APPEARANCE_SERVER_ROWS.y1] = width;
-        break;
-      }
-
-      case "y2":
-        app.setServerRailIconSize(clampServerRailIconSize(Number(value)));
-        break;
-
-      case "y3": {
-        const width = clampChannelSidebarWidth(Number(value));
-        app.setChannelSidebarWidth(width);
-        server[APPEARANCE_SERVER_ROWS.y3] = width;
-        break;
-      }
-
-      case "y4": {
-        const percent = Math.min(100, Math.max(70, Math.round(Number(value))));
-        app.setMainPanelWidth(mainPanelPercentToWidth(percent));
-        server[APPEARANCE_SERVER_ROWS.y4] = percent;
-        break;
-      }
-
-      case "y5":
-        app.setMemberPanelCollapsed(!value);
-        server[APPEARANCE_SERVER_ROWS.y5] = value === true;
-        break;
-
-      case "v6": {
-        const mode = STICKER_ANIMATION_BY_INDEX[Number(value)];
-
-        if (mode) {
-          server[APPEARANCE_SERVER_ROWS.v6] = mode;
-        }
-
-        break;
-      }
-
-      case "n1": {
-        const icon = APP_ICON_BY_INDEX[Number(value)];
-
-        if (icon) {
-          server[APPEARANCE_SERVER_ROWS.n1] = icon;
-        }
-
-        break;
-      }
-
-      // Kalan on bir satır değeri olduğu gibi taşır; dizin çevirisi yok.
-      case "m2":
-      case "m4":
-      case "v1":
-      case "v2":
-      case "v3":
-      case "v4":
-      case "v5":
-      case "v8":
-      case "reduceMotion":
-      case "x2":
-      case "x3":
-      case "x4":
-      case "x6":
-      case "x7":
-        server[APPEARANCE_SERVER_ROWS[key]] = typeof value === "boolean" ? value : Number(value);
-        break;
-
-      default:
-        // F2 — sessiz `break` yasak. Yazılmayan bir anahtarda kutu yazmayı başarılı sayar ve
-        // başlık `Kaydedildi` çizer; sayfa yenilenince değer kaybolur (tuzak #14).
-        throw new Error(`SETTINGS_WRITE_UNSUPPORTED:${key}`);
-    }
-  }
-
-  if (Object.keys(server).length > 0) {
-    await patchLayoutSettings(server);
-  }
+async function writeAppearancePatch(patch: SettingsPatch) {
+  if (Object.keys(patch).length) return patchLayoutSettings(appearancePatchToSettings(patch));
 }
 
-/**
- * Beş sekme **tek** kutuyu paylaşır.
- *
- * Sekme başına bir kutu kurmak ilk bakışta daha temiz görünüyor, ama `Yazı boyutu`'nu %130 yapıp
- * `Medya`ya geçen kullanıcı geri döndüğünde %100 bulurdu: kutu sökülür, değer ölür ve belge
- * etkisi de geri alınır. Kutu modül seviyesinde bir kez kuruluyor ve pencere kapansa da yaşıyor.
- *
- * Kutunun açılış değeri uygulama kutusundan gelir; sunucunun bildiği değerler
- * `applyRemote` ile üstüne yazılır (F2). Sayfa yenilendiğinde tercih artık kaybolmuyor.
- */
-let sharedAppearanceStore: SettingsValueStore | null = null;
+const appearanceStores = new WeakMap<QueryClient, SettingsValueStore>();
 
-function getAppearanceStore(): SettingsValueStore {
-  sharedAppearanceStore ??= new SettingsValueStore({
-    values: readAppearanceSettingsValues(readAppSnapshot()),
-    write: writeAppearancePatch,
+/** Keep rollback connected while a save finishes after the Settings window closes. */
+export function subscribeAppearanceStoreToQuery(store: SettingsValueStore, client: QueryClient) {
+  return store.subscribe(() => {
+    client.setQueryData<UserLayoutSettings>(settingsQueryKeys.layout, (previous) => {
+      if (!previous) return previous;
+      const values: SettingsPatch = {};
+      for (const key of Object.keys(APPEARANCE_SERVER_ROWS)) {
+        const value = store.getValue(key);
+        if (value !== undefined) values[key] = value;
+      }
+      const projected = appearancePatchToSettings(values);
+      if (
+        Object.entries(projected).every(
+          ([key, value]) => previous[key as keyof UserLayoutSettings] === value,
+        )
+      )
+        return previous;
+      return { ...previous, ...projected };
+    });
+  });
+}
+
+function getAppearanceStore(client: QueryClient): SettingsValueStore {
+  const existing = appearanceStores.get(client);
+  if (existing) return existing;
+  const cached = client.getQueryData<UserLayoutSettings>(settingsQueryKeys.layout);
+  const store = new SettingsValueStore({
+    values: {
+      ...readAppearanceSettingsValues(readAppSnapshot()),
+      ...(cached ? readAppearanceServerValues(cached) : {}),
+    },
+    write: async (patch) => {
+      await writeAppearancePatch(patch);
+    },
   });
 
-  return sharedAppearanceStore;
+  subscribeAppearanceStoreToQuery(store, client);
+  appearanceStores.set(client, store);
+  return store;
 }
 
-/**
- * Sunucu yanıtını satır değerlerine çevirir — F2.
- *
- * `readAppearanceSettingsValues` uygulama kutusunu okur ve kabuğun ölçülerini bilir; bu ikizi
- * `UserSettings` yanıtını okur ve kalan yirmi bir satırı doldurur. İkisi ayrı çünkü kaynakları
- * ayrı: biri yeniden yüklemede localStorage'dan, diğeri sunucudan gelir.
- */
+/** Hydrate controls from the saved account preferences, including every layout dimension. */
 export function readAppearanceServerValues(settings: UserLayoutSettings): SettingsPatch {
-  const stickerIndex = STICKER_ANIMATION_BY_INDEX.indexOf(
-    settings.animateStickers as (typeof STICKER_ANIMATION_BY_INDEX)[number],
-  );
-  const iconIndex = APP_ICON_BY_INDEX.indexOf(
-    settings.appIcon as (typeof APP_ICON_BY_INDEX)[number],
-  );
-
   return {
+    m1: Math.max(
+      0,
+      MESSAGE_FONT_OPTIONS.findIndex((font) => font.id === settings.messageFont),
+    ),
     m2: settings.messageSizePx,
+    m3: settings.interfaceDensity === "COMPACT" ? 1 : 0,
     m4: settings.messageDisplayCompact,
-    n1: iconIndex < 0 ? 0 : iconIndex,
     reduceMotion: settings.reduceMotion,
     v1: settings.inlineAttachmentMedia,
     v2: settings.linkPreviews,
     v3: settings.renderEmbeds,
     v4: settings.renderReactions,
-    v5: settings.animateEmoji,
-    v6: stickerIndex < 0 ? 1 : stickerIndex,
-    v8: settings.enableTTS,
     x2: settings.highContrast,
     x3: settings.strongFocusRings,
     x4: settings.uiTextScale,
-    x6: settings.screenReaderDescriptions,
-    x7: settings.followSystemA11y,
-    y2: settings.serverIconSize,
+    y1: normalizeStoredServerRailWidth(settings.serverRailWidth),
+    y2: clampServerRailIconSize(settings.serverIconSize),
+    y3: clampChannelSidebarWidth(settings.channelSidebarWidth),
     y4: settings.mainContentWidth,
     y5: settings.showMemberPanelByDefault,
   };
@@ -412,7 +181,35 @@ export function readAppearanceServerValues(settings: UserLayoutSettings): Settin
 export function useAppearanceSettingsBridge(
   overrides: Partial<SettingsRowRuntime> = {},
 ): AppearanceSettingsBridge {
-  const store = useMemo(() => getAppearanceStore(), []);
+  const queryClient = useQueryClient();
+  const store = useMemo(() => getAppearanceStore(queryClient), [queryClient]);
+  const { locale, setLocale } = useI18n();
+  useEffect(() => {
+    store.setWrite(async (patch) => {
+      const appearance: SettingsPatch = {};
+      const regional: SettingsPatch = {};
+      for (const [key, value] of Object.entries(patch)) {
+        if (["l1", "l2", "l3", "l4"].includes(key)) regional[key] = value;
+        else appearance[key] = value;
+      }
+      const split = splitAccountPatch(regional);
+      if (split.localeIndex !== null) {
+        const result = await updateLocalePreferenceAction(
+          LOCALE_BY_INDEX[split.localeIndex] ?? "tr",
+        );
+        if (!result.success) throw new Error(result.error ?? "appearance.language.savingError");
+        setLocale(result.locale ?? LOCALE_BY_INDEX[split.localeIndex] ?? "tr");
+      }
+      if (Object.keys(split.layout).length) {
+        queryClient.setQueryData(settingsQueryKeys.layout, await patchLayoutSettings(split.layout));
+      }
+      const saved = await writeAppearancePatch(appearance);
+      if (saved) {
+        store.applyRemote(readAppearanceServerValues(saved));
+        queryClient.setQueryData(settingsQueryKeys.layout, saved);
+      }
+    });
+  }, [queryClient, setLocale, store]);
 
   // F1 — kutunun durumu kabuğun başlığına ve kirli şeridine buradan gider.
   useReportSettingsStore(store);
@@ -427,28 +224,45 @@ export function useAppearanceSettingsBridge(
 
   const layoutSettings = layoutQuery.data;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!layoutSettings) return;
 
     store.applyRemote(readAppearanceServerValues(layoutSettings));
-  }, [layoutSettings, store]);
+    store.applyRemote({
+      l1: LOCALE_BY_INDEX.indexOf(locale),
+      l2: Math.max(
+        0,
+        TIME_ZONE_BY_INDEX.findIndex((value) => value === layoutSettings.timeZone),
+      ),
+      l3: Math.max(0, DATE_FORMAT_BY_INDEX.indexOf(layoutSettings.dateFormat)),
+      l4: Math.max(0, TIME_FORMAT_BY_INDEX.indexOf(layoutSettings.timeFormat)),
+    });
+  }, [layoutSettings, locale, store]);
 
   // Sökülürken bekleyen yama gönderilir; kutu **kapatılmaz** (sekme değişimi onu öldürmemeli).
   useEffect(() => () => store.flush(), [store]);
 
   // Belge etkileri kutunun **yanında** koşar: kutu değerin sahibidir, belge onun görünür yüzü.
   useEffect(() => {
+    if (!layoutSettings) return;
     const root = document.documentElement;
-    const step = selectUiScale({ height: window.innerHeight, width: window.innerWidth });
+    const step = selectUiScale(
+      { height: window.innerHeight, width: window.innerWidth },
+      isWhisprDesktopRuntime() ? "desktop" : "web",
+    );
 
     const sync = () => {
+      applyMessageAppearance(root, {
+        messageSizePx: Number(store.getValue("m2") ?? 15),
+        messageDisplayCompact: Boolean(store.getValue("m4")),
+      });
       applyAppearanceDocumentEffects(
         {
           m1: Number(store.getValue("m1") ?? 0),
           reduceMotion: Boolean(store.getValue("reduceMotion")),
           x2: Boolean(store.getValue("x2")),
           x3: Boolean(store.getValue("x3")),
-          x4: Number(store.getValue("x4") ?? DEFAULT_TEXT_SCALE_PERCENT),
+          x4: Number(store.getValue("x4") ?? 100),
         },
         root,
         step.rootFontSizePx,
@@ -458,7 +272,7 @@ export function useAppearanceSettingsBridge(
     sync();
 
     return store.subscribe(sync);
-  }, [store]);
+  }, [layoutSettings, store]);
 
   const ladder = useSettingsLadderOverrides();
 
@@ -468,7 +282,17 @@ export function useAppearanceSettingsBridge(
     disabledRows: { ...APPEARANCE_UNAVAILABLE_ROWS, ...overrides.disabledRows },
   });
 
-  return { runtime, store };
+  return {
+    runtime,
+    store,
+    readState: {
+      pending: !layoutSettings,
+      failed: !layoutSettings && layoutQuery.isError,
+      retry: () => {
+        void layoutQuery.refetch();
+      },
+    },
+  };
 }
 
 export function AppearanceSettingsProvider({
@@ -481,7 +305,11 @@ export function AppearanceSettingsProvider({
   return (
     <SettingsValueContext.Provider value={bridge.store}>
       <SettingsRowRuntimeContext.Provider value={bridge.runtime}>
-        {children}
+        {bridge.readState ? (
+          <SettingsDataBoundary {...bridge.readState}>{children}</SettingsDataBoundary>
+        ) : (
+          children
+        )}
       </SettingsRowRuntimeContext.Provider>
     </SettingsValueContext.Provider>
   );

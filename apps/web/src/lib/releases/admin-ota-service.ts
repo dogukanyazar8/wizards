@@ -6,7 +6,7 @@ import { ApiError } from "@/lib/api";
 
 export type AdminOtaBundleInput = {
   bundleKey: string;
-  channel: "STABLE" | "BETA" | "UAT";
+  channel: "STABLE" | "UAT";
   enabled: boolean;
   id: string;
   manifestBody: string;
@@ -45,7 +45,7 @@ export type AdminOtaServiceDependencies = {
   ): Promise<AdminOtaBundleSummary>;
   findBundleByKey(bundleKey: string): Promise<{ id: string } | null>;
   findRelease(releaseId: string): Promise<{
-    channel: "STABLE" | "BETA" | "UAT";
+    channel: "STABLE" | "UAT";
     id: string;
     publishedAt: Date | null;
   } | null>;

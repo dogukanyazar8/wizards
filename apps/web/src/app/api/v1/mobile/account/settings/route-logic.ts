@@ -1,4 +1,6 @@
 import {
+  MOBILE_ACCOUNT_SETTINGS_FIELDS_HEADER,
+  MOBILE_ACCOUNT_SETTINGS_READ_RECEIPTS_FIELD,
   MobileAccountAppearanceSchema,
   MobileAccountSettingsResponseSchema,
   MobileAccountSettingsUpdateSchema,
@@ -8,12 +10,32 @@ import {
 } from "@wizards/types";
 import { prisma } from "@wizards/db";
 
-import { getNextUsernameChangeAt, resolveVisibleCustomStatus } from "@/lib/account/service";
+import { resolveVisibleCustomStatus } from "@/lib/account/service";
 import { enforceApiRateLimit, type ApiRateLimitAction } from "@/lib/api-rate-limit";
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
 import { requireMobileApiUserId } from "@/lib/auth/api";
+import { mobileProfileEmoji } from "@/lib/mobile/profile-compatibility";
 
 const NO_STORE_HEADERS = { "Cache-Control": "no-store, no-cache, must-revalidate" } as const;
+
+export function serializeMobileAccountSettings(
+  request: Request,
+  settings: MobileAccountSettingsRecord,
+) {
+  const payload = MobileAccountSettingsResponseSchema.parse(settings);
+  payload.account.customStatusEmoji = mobileProfileEmoji(
+    request,
+    payload.account.customStatusEmoji,
+  );
+  // Released mobile clients parse privacy strictly. New fields are opt-in, not version guesses.
+  if (
+    request.headers.get(MOBILE_ACCOUNT_SETTINGS_FIELDS_HEADER) !==
+    MOBILE_ACCOUNT_SETTINGS_READ_RECEIPTS_FIELD
+  ) {
+    delete payload.privacy.readReceipts;
+  }
+  return payload;
+}
 
 function withNoStore(response: Response) {
   response.headers.set("Cache-Control", NO_STORE_HEADERS["Cache-Control"]);
@@ -34,13 +56,13 @@ export type MobileAccountSettingsRecord = {
     email: string;
     emailVerified: boolean;
     nextUsernameChangeAt: string | null;
-    pronouns: string | null;
     twoFactorEnabled: boolean;
   };
   privacy: {
     dmPermission: MobileAccountSettingsResponse["privacy"]["dmPermission"];
     friendRequests: MobileAccountSettingsResponse["privacy"]["friendRequests"];
     groupInvites: boolean;
+    readReceipts?: boolean;
   };
 };
 
@@ -69,12 +91,12 @@ async function loadMobileAccountSettings(userId: string): Promise<MobileAccountS
       customStatusExpiresAt: true,
       email: true,
       emailVerified: true,
-      pronouns: true,
       twoFactorEnabled: true,
       usernameChangedAt: true,
       settings: {
         select: {
           allowGroupInvites: true,
+          showReadReceipts: true,
           dmPolicy: true,
           friendRequestPolicy: true,
           messageBodyCompact: true,
@@ -106,8 +128,7 @@ async function loadMobileAccountSettings(userId: string): Promise<MobileAccountS
       ...resolveVisibleCustomStatus(user),
       email: user.email,
       emailVerified: user.emailVerified,
-      nextUsernameChangeAt: getNextUsernameChangeAt(user.usernameChangedAt)?.toISOString() ?? null,
-      pronouns: user.pronouns,
+      nextUsernameChangeAt: null,
       twoFactorEnabled: user.twoFactorEnabled,
     },
     privacy: {
@@ -116,11 +137,12 @@ async function loadMobileAccountSettings(userId: string): Promise<MobileAccountS
       // 2b §7's other side: the switch a member flips on themselves, which the
       // picker on somebody else's phone reads through the friends payload.
       groupInvites: user.settings.allowGroupInvites,
+      readReceipts: user.settings.showReadReceipts,
     },
   };
 }
 
-async function updateMobileAccountSettings(
+export async function updateMobileAccountSettings(
   userId: string,
   input: MobileAccountSettingsUpdate,
 ): Promise<Pick<MobileAccountSettingsRecord, "appearance" | "privacy">> {
@@ -130,6 +152,7 @@ async function updateMobileAccountSettings(
       ...(input.dmPermission !== undefined ? { dmPolicy: input.dmPermission } : {}),
       ...(input.friendRequests !== undefined ? { friendRequestPolicy: input.friendRequests } : {}),
       ...(input.groupInvites !== undefined ? { allowGroupInvites: input.groupInvites } : {}),
+      ...(input.readReceipts !== undefined ? { showReadReceipts: input.readReceipts } : {}),
       ...(input.messageCompact !== undefined ? { messageBodyCompact: input.messageCompact } : {}),
       ...(input.messageFollowSystemFont !== undefined
         ? { messageBodyFollowSystemFont: input.messageFollowSystemFont }
@@ -138,6 +161,7 @@ async function updateMobileAccountSettings(
     },
     select: {
       allowGroupInvites: true,
+      showReadReceipts: true,
       dmPolicy: true,
       friendRequestPolicy: true,
       messageBodyCompact: true,
@@ -156,6 +180,7 @@ async function updateMobileAccountSettings(
       dmPermission: settings.dmPolicy,
       friendRequests: settings.friendRequestPolicy,
       groupInvites: settings.allowGroupInvites,
+      readReceipts: settings.showReadReceipts,
     },
   };
 }
@@ -177,7 +202,7 @@ export async function mobileAccountSettingsGetRoute(
     await dependencies.enforceRateLimit(userId, "mobile:account:settings");
     const settings = await dependencies.loadSettings(userId);
 
-    return Response.json(MobileAccountSettingsResponseSchema.parse(settings), {
+    return Response.json(serializeMobileAccountSettings(request, settings), {
       headers: NO_STORE_HEADERS,
     });
   } catch (error) {
@@ -196,7 +221,7 @@ export async function mobileAccountSettingsUpdateRoute(
     const written = await dependencies.updateSettings(userId, input);
     const settings = await dependencies.loadSettings(userId);
 
-    return Response.json(MobileAccountSettingsResponseSchema.parse({ ...settings, ...written }), {
+    return Response.json(serializeMobileAccountSettings(request, { ...settings, ...written }), {
       headers: NO_STORE_HEADERS,
     });
   } catch (error) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState, useSyncExternalStore } from "react";
 import { ChevronDown, RefreshCw, Sparkles, X } from "lucide-react";
 import {
   WHISPR_BUILD_ID,
@@ -11,23 +11,15 @@ import {
 } from "@/lib/app-version";
 import { useI18n } from "@/components/providers/locale-provider";
 
-const CHECK_INTERVAL_MS = 60_000;
+import { useAppUpdate } from "@/hooks/use-app-update";
+import { useVoiceStore } from "@/store/voice-store";
+import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 const DISMISSED_UPDATE_STORAGE_KEY = "whispr.dismissedUpdateBuildId";
 
-async function fetchLatestVersion() {
-  const response = await fetch("/api/v1/app/version", {
-    cache: "no-store",
-    headers: {
-      "x-whispr-client-build": WHISPR_BUILD_ID,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Unable to check Whispr version.");
-  }
-
-  return (await response.json()) as WhisprVersionPayload;
-}
+const subscribeRuntime = () => () => {};
+const getUpdateSurface = () => (isWhisprDesktopRuntime() ? "desktop" : "web");
+// Do not render a web banner during hydration before the native marker is known.
+const getServerUpdateSurface = () => null;
 
 function formatBuildId(buildId: string) {
   return buildId.trim() || "unknown";
@@ -58,8 +50,16 @@ function translateUpdateText(
 }
 
 export function AppUpdateNotifier() {
+  const surface = useSyncExternalStore(subscribeRuntime, getUpdateSurface, getServerUpdateSurface);
+  // Native update state is still shared with Desktop Control and the title bar.
+  useAppUpdate(true, "desktop");
+  return surface === "web" ? <WebAppUpdateNotifier /> : null;
+}
+
+function WebAppUpdateNotifier() {
   const { t } = useI18n();
-  const [latestVersion, setLatestVersion] = useState<WhisprVersionPayload | null>(null);
+  const update = useAppUpdate(true, "web");
+  const latestVersion = update.query.data?.webVersion;
   const [isExpanded, setIsExpanded] = useState(false);
   const [dismissedBuildId, setDismissedBuildId] = useState<string | null>(() =>
     typeof window === "undefined"
@@ -79,41 +79,6 @@ export function AppUpdateNotifier() {
     [],
   );
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const checkForUpdates = () => {
-      void fetchLatestVersion()
-        .then((payload) => {
-          if (!cancelled) {
-            setLatestVersion(payload);
-          }
-        })
-        .catch(() => {
-          // Update checks are best-effort and must never interrupt the app.
-        });
-    };
-
-    checkForUpdates();
-    const interval = window.setInterval(() => {
-      void checkForUpdates();
-    }, CHECK_INTERVAL_MS);
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        void checkForUpdates();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, []);
-
   const hasUpdate =
     Boolean(latestVersion?.buildId) && latestVersion?.buildId !== currentVersion.buildId;
   const isDismissed = isUpdateDismissed(latestVersion?.buildId, dismissedBuildId);
@@ -128,6 +93,11 @@ export function AppUpdateNotifier() {
   };
 
   const reloadApp = () => {
+    if (
+      useVoiceStore.getState().activeChannelId !== null ||
+      useVoiceStore.getState().activeConversationId !== null
+    )
+      return;
     window.location.reload();
   };
 
@@ -168,6 +138,8 @@ export function AppUpdateNotifier() {
             </button>
             <button
               className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[hsl(var(--primary)/0.42)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.98),hsl(var(--surface-soft)/0.9))] px-3.5 text-sm font-black text-app-foreground shadow-[0_16px_38px_hsl(var(--primary)/0.18),inset_0_1px_0_hsl(var(--background)/0.42)] transition hover:translate-y-[-1px] hover:border-[hsl(var(--primary)/0.62)] hover:bg-[linear-gradient(135deg,hsl(var(--primary)/0.14),hsl(var(--surface-card)/0.96))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              disabled={update.voiceActive}
+              title={update.voiceActive ? t("settings.update.endCall") : undefined}
               onClick={reloadApp}
               type="button"
             >

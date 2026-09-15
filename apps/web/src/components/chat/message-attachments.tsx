@@ -2,7 +2,8 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
+import { useAppearancePreferences } from "@/components/providers/appearance-preference-provider";
 import { Download, ExternalLink, FileText, ImageIcon, Play } from "lucide-react";
 import { isVoiceMessageAttachment, type MessageAttachment } from "@wizards/types";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -68,6 +69,7 @@ function scanStatusLabelKey(attachment: MessageAttachment) {
 
 export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
   const { t } = useI18n();
+  const { inlineAttachmentMedia } = useAppearancePreferences();
   const [selectedImage, setSelectedImage] = useState<VisibleMessageAttachment | null>(null);
   const visibleAttachments = useMemo(() => attachments.filter(hasAttachmentUrl), [attachments]);
   const unavailableAttachments = useMemo(
@@ -76,8 +78,12 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
   );
   const imageAttachments = useMemo(
     () =>
-      visibleAttachments.filter((attachment) => isMessageImageContentType(attachment.contentType)),
-    [visibleAttachments],
+      inlineAttachmentMedia
+        ? visibleAttachments.filter((attachment) =>
+            isMessageImageContentType(attachment.contentType),
+          )
+        : [],
+    [inlineAttachmentMedia, visibleAttachments],
   );
   /**
    * Mesajlar karar #5. Kayıttan gelen ses, eklenmiş bir ses **dosyasından**
@@ -93,16 +99,21 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
     () =>
       visibleAttachments.filter(
         (attachment) =>
-          !isMessageImageContentType(attachment.contentType) &&
-          !isMessageVideoContentType(attachment.contentType) &&
+          (!inlineAttachmentMedia ||
+            (!isMessageImageContentType(attachment.contentType) &&
+              !isMessageVideoContentType(attachment.contentType))) &&
           !isVoiceMessageAttachment(attachment),
       ),
-    [visibleAttachments],
+    [inlineAttachmentMedia, visibleAttachments],
   );
   const videoAttachments = useMemo(
     () =>
-      visibleAttachments.filter((attachment) => isMessageVideoContentType(attachment.contentType)),
-    [visibleAttachments],
+      inlineAttachmentMedia
+        ? visibleAttachments.filter((attachment) =>
+            isMessageVideoContentType(attachment.contentType),
+          )
+        : [],
+    [inlineAttachmentMedia, visibleAttachments],
   );
 
   if (attachments.length === 0) {
@@ -277,7 +288,10 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
         </div>
       ) : null}
 
-      <ImageLightbox image={selectedImage} onClose={() => setSelectedImage(null)} />
+      <ImageLightbox
+        image={inlineAttachmentMedia ? selectedImage : null}
+        onClose={() => setSelectedImage(null)}
+      />
     </>
   );
 }

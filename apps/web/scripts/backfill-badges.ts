@@ -169,7 +169,7 @@ async function collectFacts(userIds: readonly string[]): Promise<Map<string, Bad
 
   const betaSessions = await prisma.appSession.groupBy({
     by: ["userId"],
-    where: { user: { preferredReleaseChannel: "BETA" }, userId: { in: [...userIds] } },
+    where: { user: { preferredReleaseChannel: "UAT" }, userId: { in: [...userIds] } },
     _count: { _all: true },
   });
   for (const row of betaSessions) {

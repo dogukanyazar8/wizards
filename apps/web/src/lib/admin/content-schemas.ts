@@ -6,7 +6,7 @@ const nullableTrimmedText = (maximum: number) =>
 export const AdminReleaseInputSchema = z
   .object({
     buildNumber: z.number().int().nonnegative().nullable().optional(),
-    channel: z.enum(["STABLE", "BETA", "UAT"]),
+    channel: z.enum(["STABLE", "UAT"]),
     codename: nullableTrimmedText(48),
     highlight: nullableTrimmedText(160),
     mandatory: z.boolean(),
@@ -103,7 +103,7 @@ export const AdminOtaBundleInputSchema = z
       .min(1)
       .max(128)
       .regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/),
-    channel: z.enum(["STABLE", "BETA", "UAT"]),
+    channel: z.enum(["STABLE", "UAT"]),
     enabled: z.boolean(),
     id: z.string().uuid(),
     manifestBody: z.string().min(2).max(900_000),

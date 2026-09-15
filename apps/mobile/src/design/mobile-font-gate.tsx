@@ -2,7 +2,11 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useColorScheme } from "react-native";
 import { formatSplashVersionLine, resolveSplashEnvironment } from "@wizards/types";
 
-import { getMobileAppReleaseChannel, getMobileAppVersion } from "../about/mobile-app-identity";
+import {
+  getMobileAppCodename,
+  getMobileAppReleaseChannel,
+  getMobileAppVersion,
+} from "../about/mobile-app-identity";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import { MobileSplashScreen } from "../app/screens/splash/mobile-splash-screen";
 import { getMobileTheme } from "./mobile-theme-runtime";
@@ -72,6 +76,7 @@ export function MobileFontGate({ children }: { readonly children: ReactNode }) {
 
 function MobileFontGateSplash() {
   const colorScheme = useColorScheme();
+  const version = getMobileAppVersion();
   const environment = resolveSplashEnvironment(getMobileAppReleaseChannel());
 
   return (
@@ -82,7 +87,7 @@ function MobileFontGateSplash() {
       environmentTone={environment}
       step="connecting"
       theme={getMobileTheme("system", colorScheme)}
-      versionLine={formatSplashVersionLine({ version: getMobileAppVersion() })}
+      versionLine={formatSplashVersionLine({ version, codename: getMobileAppCodename(version) })}
     />
   );
 }

@@ -6,6 +6,11 @@ import { prisma, type User as PrismaUser } from "@wizards/db";
 import { LoginCredentialsSchema } from "@wizards/types";
 import NextAuth, { type NextAuthConfig, type NextAuthResult } from "next-auth";
 import { cookies, headers } from "next/headers";
+import { isEmailChangeGoogleCallback } from "@/lib/account/email-change-policy";
+import {
+  EMAIL_CHANGE_GOOGLE_COOKIE,
+  completeGoogleEmailReauth,
+} from "@/lib/account/email-change-service";
 import type { Adapter, AdapterAccount, AdapterUser } from "next-auth/adapters";
 import { decode as decodeJwt, encode as encodeJwt } from "next-auth/jwt";
 import Credentials from "next-auth/providers/credentials";
@@ -836,6 +841,22 @@ const authConfig = {
   ],
   callbacks: {
     async signIn({ account, profile, user }) {
+      if (account?.type === "oauth") {
+        const cookieStore = await cookies();
+        const reauthToken = cookieStore.get(EMAIL_CHANGE_GOOGLE_COOKIE)?.value;
+        if (reauthToken) {
+          cookieStore.delete(EMAIL_CHANGE_GOOGLE_COOKIE);
+          if (isEmailChangeGoogleCallback(cookieStore.get(getAuthJsCallbackCookieName())?.value)) {
+            const verified =
+              account.provider === "google" &&
+              isGoogleEmailVerified(profile) &&
+              (await completeGoogleEmailReauth(reauthToken, account.providerAccountId));
+            // Returning a URL stops normal sign-in/account linking. A cancelled reauth
+            // cookie must never intercept a later ordinary login in this browser.
+            return `/settings/email-change/google?result=${verified ? "success" : "failed"}`;
+          }
+        }
+      }
       if (account?.type === "oauth") {
         return canOAuthUserAccessWhispr({
           account,

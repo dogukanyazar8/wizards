@@ -157,13 +157,6 @@ export const createMobileProfilePageStyles = (theme: MobileTheme) =>
       fontSize: 12.5,
       lineHeight: 17,
     },
-    identityPronouns: {
-      color: theme.text.visualFaint,
-      fontFamily: theme.typography.fontFamilyMedium,
-      fontSize: 12,
-      lineHeight: 16,
-      marginTop: 6,
-    },
 
     roleChipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 },
     roleChip: {

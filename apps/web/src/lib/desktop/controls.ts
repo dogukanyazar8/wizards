@@ -154,6 +154,13 @@ export async function getDesktopForegroundProcessName() {
   return invokeDesktopCommand<string | null>("get_desktop_foreground_process_name");
 }
 
+export async function getDesktopDetectedGame() {
+  if (!isWhisprDesktopRuntime()) return { enabled: false, gameId: null };
+  return invokeDesktopCommand<{ enabled: boolean; gameId: string | null }>(
+    "get_desktop_detected_game",
+  );
+}
+
 function buildDesktopOverlayTestSnapshot(
   label: "game-overlay" | "voice-mini",
   overlayPreferences?: VoiceOverlayPreferences,
@@ -345,12 +352,15 @@ export async function hideDesktopGameOverlaySurface() {
   return setDesktopGameOverlayVisible(false);
 }
 
-export async function setDesktopActivityStatus(status: DesktopActivityStatus) {
+export async function setDesktopActivityStatus(
+  status: DesktopActivityStatus,
+  tray?: { locale: "tr" | "en"; voiceActive: boolean; muted: boolean; deafened: boolean },
+) {
   if (!isWhisprDesktopRuntime()) {
     return false;
   }
 
-  return invokeDesktopCommand<boolean>("set_desktop_activity_status", { status });
+  return invokeDesktopCommand<boolean>("set_desktop_activity_status", { status, tray });
 }
 
 export async function setDesktopVoiceMiniVisible(visible: boolean) {

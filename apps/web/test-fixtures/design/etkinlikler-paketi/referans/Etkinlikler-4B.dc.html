@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="_ds/whispr-design-system-77f68311-2c86-4e6e-903e-427eb617e7e9/styles.css">
+<script src="_ds/whispr-design-system-77f68311-2c86-4e6e-903e-427eb617e7e9/_ds_bundle.js"></script>
+<style>
+:root{--w-display:'Outfit',system-ui,sans-serif;--w-body:'Figtree',system-ui,sans-serif;--w-track:-.02em;--e-min:280px;--hov:0;--act:1}
+body{margin:0;font-family:var(--w-body)}
+a{color:hsl(var(--primary));text-decoration:none}
+a:hover{color:hsl(var(--primary)/.75)}
+input,textarea{font-family:inherit}
+input::placeholder,textarea::placeholder{color:hsl(var(--text-muted))}
+</style>
+</helmet>
+<section style="display:flex;flex-direction:column;gap:26px;padding:52px 60px;background:hsl(var(--background))">
+
+  <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:24px 32px;max-width:1360px">
+    <div style="flex:1 1 520px;min-width:min(100%,480px)">
+      <div style="font:600 11px/1.2 var(--w-display);letter-spacing:.18em;text-transform:uppercase;color:hsl(var(--primary))">Tur 4 · Etkinlikler</div>
+      <h1 style="margin:8px 0 0;font:600 32px/1.15 var(--w-display);letter-spacing:var(--w-track);color:hsl(var(--foreground))">Etkinlikler ekranı</h1>
+      <p style="margin:10px 0 0;font-size:14.5px;line-height:1.6;color:hsl(var(--text-secondary));max-width:720px;text-wrap:pretty">Bu dosya <strong>4b · Takvim şeridi</strong> yönünü gösterir ve Claude Code’a verilen pakete giren referanstır. Sunucu rayı, gezinme paneli ve kullanıcı çubuğu <strong>hazır ve bu görevin dışındadır</strong> — yalnızca bağlam olsun diye burada duruyorlar. Geliştirilecek kısım: üstteki hafta şeridi, etkinlik ızgarası, sağdaki 300 px “Bugün” ajandası, 326 px etkinlik detay paneli ve etkinlik oluşturma modalı. Üstteki çiplerle 10 durum, düğmelerle tema ve çözünürlük arasında geçebilirsin.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:9px;flex:none">
+      <div style="display:flex;align-items:center;gap:8px;padding:6px;border-radius:14px;background:hsl(var(--surface-secondary));border:1px solid hsl(var(--border)/.6)">
+        <button onClick="{{ setLight }}" style="display:flex;align-items:center;gap:7px;padding:8px 14px;border:0;border-radius:10px;background:transparent;color:hsl(var(--text-secondary));font:600 13px/1 var(--w-body);cursor:pointer;transition:background .16s,color .16s" style-hover="background:hsl(var(--surface-card));color:hsl(var(--foreground))">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>Aydınlık</button>
+        <button onClick="{{ setDark }}" style="display:flex;align-items:center;gap:7px;padding:8px 14px;border:0;border-radius:10px;background:transparent;color:hsl(var(--text-secondary));font:600 13px/1 var(--w-body);cursor:pointer;transition:background .16s,color .16s" style-hover="background:hsl(var(--surface-card));color:hsl(var(--foreground))">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>Koyu</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:9px">
+        <span style="font:600 10px/1 var(--w-display);letter-spacing:.15em;text-transform:uppercase;color:hsl(var(--text-muted))">Çözünürlük</span>
+        <div style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px;padding:5px;border-radius:12px;background:hsl(var(--surface-secondary));border:1px solid hsl(var(--border)/.6)">
+          <sc-for list="{{ res }}" as="r" hint-placeholder-count="5">
+            <button onClick="{{ r.pick }}" title="{{ r.title }}" style="padding:7px 11px;border:0;border-radius:8px;background:{{ r.bg }};color:{{ r.fg }};font:600 12px/1 var(--w-body);white-space:nowrap;cursor:pointer;transition:background .16s,color .16s">{{ r.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="font:500 11.5px/1 var(--w-body);color:hsl(var(--text-muted))">{{ resNote }}</div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:7px;max-width:1360px">
+    <sc-for list="{{ chips }}" as="c" hint-placeholder-count="9">
+      <button onClick="{{ c.go }}" style="padding:8px 14px;border-radius:11px;border:1px solid {{ c.bd }};background:{{ c.bg }};color:{{ c.fg }};font:600 12.5px/1 var(--w-body);cursor:pointer;transition:transform .14s" style-hover="transform:translateY(-1px)">{{ c.label }}</button>
+    </sc-for>
+  </div>
+
+  <div id="{{ dirId }}" style="display:flex;align-items:center;gap:11px;max-width:1360px">
+    <span style="display:grid;place-items:center;min-width:30px;height:26px;padding:0 8px;border-radius:9px;background:hsl(var(--primary));color:#fff;font:600 12px/1 var(--w-display)">{{ dirId }}</span>
+    <span style="font:600 15px/1.2 var(--w-display);letter-spacing:var(--w-track);color:hsl(var(--foreground))">{{ dirName }}</span>
+    <span style="flex:1;height:1px;background:hsl(var(--border)/.55)"></span>
+  </div>
+
+  <div data-screen-label="Etkinlikler" style="position:relative;display:flex;zoom:{{ resZoom }};width:{{ resW }};height:{{ resH }};overflow:hidden;border-radius:26px;border:1px solid hsl(var(--border)/.55);background:hsl(var(--surface-base));color:hsl(var(--foreground));box-shadow:0 40px 100px -55px hsl(var(--shadow-color)/.85)">
+
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;width:74px;padding:14px 0 12px;background:hsl(var(--surface-rail));border-right:1px solid hsl(var(--border)/.4)">
+      <div style="display:grid;place-items:center;width:44px;height:44px"><x-import component-from-global-scope="WhisprDS.BrandLogo" animated="{{ false }}" interactive="{{ false }}" class-name="[&_.whispr-logo-icon]:h-10 [&_.whispr-logo-icon]:w-10 [&_.whispr-logo-icon]:rounded-[14px] [&_.whispr-logo-icon]:shadow-[0_11px_24px_hsl(var(--primary)/0.17)] [&_.whispr-logo-wordmark]:hidden" hint-size="40px,40px"></x-import></div>
+      <div style="width:22px;height:1px;background:hsl(var(--border)/.9);margin:9px 0"></div>
+      <div style="position:relative;display:grid;place-items:center;width:100%;padding:3px 0">
+        <div style="position:absolute;left:0;top:50%;transform:translateY(-50%);width:4.5px;height:34px;border-radius:0 5px 5px 0;background:hsl(var(--primary))"></div>
+        <div style="display:grid;place-items:center;width:44px;height:44px;border-radius:15px;background:hsl(var(--primary));color:#fff;font:600 15px/1 var(--w-display);box-shadow:0 8px 18px -10px hsl(var(--primary))">W</div>
+      </div>
+      <div style="position:relative;display:grid;place-items:center;width:100%;padding:3px 0">
+        <div style="display:grid;place-items:center;width:44px;height:44px;border-radius:15px;background:hsl(var(--warning)/.16);color:hsl(var(--warning));font:600 15px/1 var(--w-display);transition:transform .16s" style-hover="transform:translateY(-2px)">O</div>
+      </div>
+      <div style="position:relative;display:grid;place-items:center;width:100%;padding:3px 0">
+        <div style="display:grid;place-items:center;width:44px;height:44px;border-radius:15px;background:hsl(var(--success)/.16);color:hsl(var(--success));font:600 15px/1 var(--w-display);transition:transform .16s" style-hover="transform:translateY(-2px)">P</div>
+        <span style="position:absolute;top:1px;right:12px;display:grid;place-items:center;min-width:17px;height:17px;padding:0 4px;border-radius:6px;background:hsl(var(--danger));color:#fff;font:600 10px/1 var(--w-display);border:2px solid hsl(var(--surface-rail))">2</span>
+      </div>
+      <div style="position:relative;display:grid;place-items:center;width:100%;padding:3px 0">
+        <div style="display:grid;place-items:center;width:44px;height:44px;border-radius:15px;background:hsl(var(--danger)/.14);color:hsl(var(--danger));font:600 15px/1 var(--w-display);transition:transform .16s" style-hover="transform:translateY(-2px)">T</div>
+      </div>
+      <div style="position:relative;display:grid;place-items:center;width:100%;padding:3px 0">
+        <div style="display:grid;place-items:center;width:44px;height:44px;border-radius:15px;background:hsl(var(--surface-tertiary));color:hsl(var(--text-secondary));font:600 15px/1 var(--w-display);transition:transform .16s" style-hover="transform:translateY(-2px)">G</div>
+      </div>
+      <div style="width:22px;height:1px;background:hsl(var(--border)/.9);margin:9px 0"></div>
+      <div style="display:grid;place-items:center;width:44px;height:44px;border-radius:15px;background:hsl(var(--primary)/.16);border:1.5px solid hsl(var(--primary)/.45);color:hsl(var(--primary));box-shadow:0 6px 16px -9px hsl(var(--primary));transition:background .16s,transform .16s" style-hover="background:hsl(var(--primary)/.26);transform:translateY(-2px)">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+      </div>
+      <div style="margin-top:auto;display:grid;place-items:center;width:41px;height:41px;border-radius:14px;background:hsl(var(--success)/.2);border:1.5px solid hsl(var(--success)/.4);color:hsl(var(--success));box-shadow:0 6px 16px -10px hsl(var(--success))">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16"></path></svg>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;width:228px;background:hsl(var(--surface-panel));border-right:1px solid hsl(var(--border)/.4)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 14px 14px">
+        <span style="font:700 22px/1 var(--w-display);letter-spacing:var(--w-track);color:hsl(var(--foreground))">Whispr</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:2px;padding:0 9px">
+        <div style="display:flex;align-items:center;gap:11px;padding:10px 11px;border-radius:13px;color:hsl(var(--text-secondary));font:500 14px/1 var(--w-body);transition:background .16s,color .16s" style-hover="background:hsl(var(--surface-soft));color:hsl(var(--foreground))">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.6 12 3l9 6.6V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"></path></svg>Ana Sayfa
+        </div>
+        <div style="display:flex;align-items:center;gap:11px;padding:10px 11px;border-radius:13px;color:hsl(var(--text-secondary));font:500 14px/1 var(--w-body);transition:background .16s,color .16s" style-hover="background:hsl(var(--surface-soft));color:hsl(var(--foreground))">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>Mesajlar
+          <span style="margin-left:auto;display:grid;place-items:center;min-width:22px;height:20px;padding:0 6px;border-radius:7px;background:hsl(var(--danger));color:#fff;font:600 11px/1 var(--w-display)">3</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:11px;padding:10px 11px;border-radius:13px;color:hsl(var(--text-secondary));font:500 14px/1 var(--w-body);transition:background .16s,color .16s" style-hover="background:hsl(var(--surface-soft));color:hsl(var(--foreground))">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 12a4 4 0 1 0-8 0 4 4 0 0 0 8 0zm0 0v1.6a2.4 2.4 0 0 0 4.8 0V12a8.8 8.8 0 1 0-5.3 8.1"></path></svg>Bahsedilmeler
+          <span style="margin-left:auto;display:grid;place-items:center;min-width:22px;height:20px;padding:0 6px;border-radius:7px;background:hsl(var(--primary));color:#fff;font:600 11px/1 var(--w-display)">2</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:11px;padding:10px 11px;border-radius:13px;background:hsl(var(--primary)/.13);color:hsl(var(--primary));font:600 14px/1 var(--w-body)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path></svg>Etkinlikler
+          <sc-if value="{{ navHint }}" hint-placeholder-val="{{ true }}">
+            <span style="margin-left:auto;display:flex;align-items:center;gap:5px;flex:none;font:600 11.5px/1 var(--w-display);color:hsl(var(--primary))"><span style="width:6px;height:6px;border-radius:50%;background:hsl(var(--danger))"></span>{{ navHint }}</span>
+          </sc-if>
+        </div>
+        <div style="display:flex;align-items:center;gap:11px;padding:10px 11px;border-radius:13px;color:hsl(var(--text-secondary));font:500 14px/1 var(--w-body);transition:background .16s,color .16s" style-hover="background:hsl(var(--surface-soft));color:hsl(var(--foreground))">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="m16.2 7.8-2.1 6.4-6.4 2.1 2.1-6.4z"></path></svg>Keşfet
+        </div>
+      </div>
+      <div style="height:1px;background:hsl(var(--border)/.5);margin:14px 14px 12px"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px 8px">
+        <span style="font:600 10.5px/1 var(--w-display);letter-spacing:.15em;text-transform:uppercase;white-space:nowrap;color:hsl(var(--text-muted))">Sunucularım</span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--text-muted))" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:1px;padding:0 9px">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:12px;background:hsl(var(--surface-soft)/.6);transition:background .16s" style-hover="background:hsl(var(--surface-soft))">
+          <div style="display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:hsl(var(--primary));color:#fff;font:600 12px/1 var(--w-display);flex:none">W</div>
+          <span style="flex:1;min-width:0;font:600 13px/1.2 var(--w-body);color:hsl(var(--foreground));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Whispr Topluluğu</span>
+          <span style="display:flex;align-items:center;gap:4px;flex:none;font:500 11px/1 var(--w-body);color:hsl(var(--success))"><span style="width:6px;height:6px;border-radius:50%;background:hsl(var(--success))"></span>12</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:12px;transition:background .16s" style-hover="background:hsl(var(--surface-soft)/.7)">
+          <div style="display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:hsl(var(--warning)/.18);color:hsl(var(--warning));font:600 12px/1 var(--w-display);flex:none">O</div>
+          <span style="flex:1;min-width:0;font:500 13px/1.2 var(--w-body);color:hsl(var(--text-secondary));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Oyun Kulübü</span>
+          <span style="display:flex;align-items:center;gap:4px;flex:none;font:500 11px/1 var(--w-body);color:hsl(var(--success))"><span style="width:6px;height:6px;border-radius:50%;background:hsl(var(--success))"></span>4</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:12px;transition:background .16s" style-hover="background:hsl(var(--surface-soft)/.7)">
+          <div style="display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:hsl(var(--success)/.18);color:hsl(var(--success));font:600 12px/1 var(--w-display);flex:none">P</div>
+          <span style="flex:1;min-width:0;font:600 13px/1.2 var(--w-body);color:hsl(var(--foreground));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Product Team</span>
+          <span style="display:grid;place-items:center;min-width:19px;height:19px;padding:0 5px;border-radius:6px;background:hsl(var(--danger));color:#fff;font:600 10.5px/1 var(--w-display);flex:none">2</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:12px;transition:background .16s" style-hover="background:hsl(var(--surface-soft)/.7)">
+          <div style="display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:hsl(var(--danger)/.16);color:hsl(var(--danger));font:600 12px/1 var(--w-display);flex:none">T</div>
+          <span style="flex:1;min-width:0;font:500 13px/1.2 var(--w-body);color:hsl(var(--text-secondary));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Tasarım</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:12px;transition:background .16s" style-hover="background:hsl(var(--surface-soft)/.7)">
+          <div style="display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:hsl(var(--surface-tertiary));color:hsl(var(--text-secondary));font:600 12px/1 var(--w-display);flex:none">G</div>
+          <span style="flex:1;min-width:0;font:500 13px/1.2 var(--w-body);color:hsl(var(--text-secondary));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Geliştiriciler</span>
+        </div>
+      </div>
+      <div style="margin-top:auto;display:flex;align-items:center;gap:8px;padding:14px 9px;border-top:1px solid hsl(var(--border));background:hsl(var(--surface-card))">
+        <div style="position:relative;flex:none">
+          <span style="display:inline-flex;border-radius:50%;box-shadow:0 0 0 2.5px hsl(var(--warning)),0 0 0 6px hsl(var(--warning)/.2)"><x-import component-from-global-scope="WhisprDS.Avatar" alt="Doğukan Yazar" fallback="DY" class-name="h-9 w-9 text-xs" hint-size="36px,36px"></x-import></span>
+          <span style="position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;background:hsl(var(--warning));border:2.5px solid hsl(var(--surface-card))"></span>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font:600 13.5px/1.2 var(--w-body);color:hsl(var(--foreground));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Doğukan Yazar</div>
+          <div style="display:flex;align-items:center;gap:5px;margin-top:4px;font:600 11px/1.2 var(--w-body);color:hsl(var(--warning));white-space:nowrap"><span style="width:6px;height:6px;border-radius:50%;background:hsl(var(--warning))"></span>Odak modu · 25 dk</div>
+        </div>
+        <div style="display:flex;gap:1px;flex:none;color:hsl(var(--text-muted))">
+          <div title="Mikrofon" style="display:grid;place-items:center;width:26px;height:26px;border-radius:9px;transition:background .16s,color .16s" style-hover="background:hsl(var(--surface-soft));color:hsl(var(--foreground))"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></svg></div>
+          <div title="Kulaklık" style="display:grid;place-items:center;width:26px;height:26px;border-radius:9px;transition:background .16s,color .16s" style-hover="background:hsl(var(--surface-soft));color:hsl(var(--foreground))"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 17v-5a8 8 0 0 1 16 0v5M20 18a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2zM4 18a2 2 0 0 0 2 2h1v-6H6a2 2 0 0 0-2 2z"></path></svg></div>
+          <div title="Ayarlar" style="display:grid;place-items:center;width:26px;height:26px;border-radius:9px;transition:background .16s,color .16s" style-hover="background:hsl(var(--surface-soft));color:hsl(var(--foreground))"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.4-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.4l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 11a2 2 0 1 1 0 4z"></path></svg></div>
+        </div>
+      </div>
+    </div>
+
+    <sc-if value="{{ dirA }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;width:276px;flex:none;background:hsl(var(--surface-panel));border-right:1px solid hsl(var(--border)/.4)">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px">
+          <span style="font:700 22px/1 var(--w-display);letter-spacing:var(--w-track);color:hsl(var(--foreground))">Etkinlikler</span>
+          <span style="display:grid;place-items:center;min-width:22px;height:20px;padding:0 6px;border-radius:7px;background:hsl(var(--surface-soft));color:hsl(var(--text-muted));font:600 11px/1 var(--w-display)">{{ totalCount }}</span>
+        </div>
+        <div style="display:flex;gap:7px;padding:0 14px 12px">
+          <button onClick="{{ openCreate }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;height:36px;border:0;border-radius:11px;background:hsl(var(--primary));color:#fff;font:600 12.5px/1 var(--w-body);cursor:pointer;box-shadow:0 8px 18px -12px hsl(var(--primary));transition:filter .16s" style-hover="filter:brightness(1.08)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>Etkinlik oluştur</button>
+          <button onClick="{{ toggleSync }}" title="Takvimi bağla" style="display:grid;place-items:center;width:36px;height:36px;border:1px solid hsl(var(--border));border-radius:11px;background:{{ syncBg }};color:{{ syncFg }};cursor:pointer;transition:background .16s,color .16s" style-hover="background:hsl(var(--surface-soft));color:hsl(var(--foreground))">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2M3 19v-5h5M21 5v5h-5"></path></svg></button>
+        </div>
+        <div style="padding:0 14px 12px">
+          <div style="display:flex;align-items:center;gap:9px;height:36px;padding:0 11px;border-radius:11px;background:hsl(var(--surface-soft)/.7);border:1px solid {{ searchBd }}">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--text-muted))" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.6-3.6"></path></svg>
+            <input placeholder="Etkinliklerde ara" value="{{ q }}" style="flex:1;min-width:0;border:0;background:transparent;outline:none;font-size:13px;color:hsl(var(--foreground))">
+            <sc-if value="{{ hasQ }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ clearQ }}" title="Temizle" style="display:grid;place-items:center;width:20px;height:20px;border:0;border-radius:6px;background:hsl(var(--surface-tertiary));color:hsl(var(--text-muted));cursor:pointer;flex:none">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+            </sc-if>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:7px;padding:0 18px 7px">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--text-muted))" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5V12l3 2"></path></svg>
+          <span style="font:600 10.5px/1 var(--w-display);letter-spacing:.15em;text-transform:uppercase;color:hsl(var(--text-muted))">Zamana göre</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:1px;padding:0 10px">
+          <sc-for list="{{ times }}" as="t" hint-placeholder-count="4">
+            <div onClick="{{ t.go }}" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;background:{{ t.bg }};cursor:pointer;transition:background .16s" style-hover="background:hsl(var(--surface-soft)/.75)">
+              <div style="display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:{{ t.iconBg }};color:{{ t.iconFg }};flex:none;font:600 11.5px/1 var(--w-display)">{{ t.glyph }}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font:{{ t.weight }} 13.5px/1.2 var(--w-body);color:{{ t.fg }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.label }}</div>
+                <div style="margin-top:4px;font-size:11.5px;line-height:1.2;color:hsl(var(--text-muted));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.sub }}</div>
+              </div>
+              <sc-if value="{{ t.count }}" hint-placeholder-val="{{ true }}">
+                <span style="display:grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:7px;background:{{ t.pillBg }};color:{{ t.pillFg }};font:600 11px/1 var(--w-display);flex:none">{{ t.count }}</span>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="height:1px;background:hsl(var(--border)/.5);margin:13px 16px 11px"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0 18px 7px">
+          <span style="font:600 10.5px/1 var(--w-display);letter-spacing:.15em;text-transform:uppercase;color:hsl(var(--text-muted))">Kaynağa göre</span>
+          <span style="font:600 10.5px/1 var(--w-display);color:hsl(var(--text-muted)/.8)">4</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:1px;padding:0 10px">
+          <sc-for list="{{ sources }}" as="s" hint-placeholder-count="4">
+            <div onClick="{{ s.go }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;background:{{ s.bg }};cursor:pointer;transition:background .16s" style-hover="background:hsl(var(--surface-soft)/.75)">
+              <div style="display:grid;place-items:center;width:28px;height:28px;border-radius:{{ s.radius }};background:{{ s.tileBg }};color:{{ s.tileFg }};font:600 12px/1 var(--w-display);flex:none">{{ s.i }}</div>
+              <span style="flex:1;min-width:0;font:{{ s.weight }} 13px/1.2 var(--w-body);color:{{ s.fg }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.n }}</span>
+              <sc-if value="{{ s.count }}" hint-placeholder-val="{{ true }}">
+                <span style="font:600 11.5px/1 var(--w-display);color:hsl(var(--text-muted));flex:none">{{ s.count }}</span>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="height:1px;background:hsl(var(--border)/.5);margin:13px 16px 11px"></div>
+        <div style="display:flex;align-items:center;gap:7px;padding:0 18px 7px">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--text-muted))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9.5 7a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM22 21v-2a4 4 0 0 0-3-3.9"></path></svg>
+          <span style="font:600 10.5px/1 var(--w-display);letter-spacing:.15em;text-transform:uppercase;color:hsl(var(--text-muted))">Katılımım</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:1px;padding:0 10px 14px">
+          <sc-for list="{{ mine }}" as="m" hint-placeholder-count="3">
+            <div onClick="{{ m.go }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;background:{{ m.bg }};cursor:pointer;transition:background .16s" style-hover="background:hsl(var(--surface-soft)/.75)">
+              <span style="width:8px;height:8px;border-radius:50%;background:{{ m.dot }};flex:none;margin:0 10px"></span>
+              <span style="flex:1;min-width:0;font:{{ m.weight }} 13px/1.2 var(--w-body);color:{{ m.fg }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.label }}</span>
+              <sc-if value="{{ m.count }}" hint-placeholder-val="{{ true }}">
+                <span style="font:600 11.5px/1 var(--w-display);color:hsl(var(--text-muted));flex:none">{{ m.count }}</span>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <div style="flex:1;display:flex;min-width:0">
+      <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+
+        <div style="display:flex;flex-wrap:nowrap;align-items:center;gap:14px;padding:15px 24px;border-bottom:1px solid hsl(var(--border)/.45);background:hsl(var(--surface-base))">
+          <div style="flex:1 1 170px;min-width:0">
+            <div style="display:flex;align-items:center;gap:10px;min-width:0">
+              <span style="min-width:0;font:600 16.5px/1.2 var(--w-display);letter-spacing:var(--w-track);color:hsl(var(--foreground));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ feedTitle }}</span>
+            </div>
+            <div style="margin-top:5px;font:500 12px/1 var(--w-body);color:hsl(var(--text-muted));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ feedCount }} · {{ feedSub }}</div>
+          </div>
+          <div style="margin-left:auto;display:{{ tabsDisp }};flex:none;gap:4px;padding:4px;border-radius:13px;background:hsl(var(--surface-secondary));border:1px solid hsl(var(--border)/.55)">
+            <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+              <button onClick="{{ t.go }}" style="display:flex;align-items:center;gap:6px;height:33px;padding:0 13px;border:0;border-radius:10px;background:{{ t.bg }};color:{{ t.fg }};font:600 12.5px/1 var(--w-body);white-space:nowrap;cursor:pointer;transition:background .16s,color .16s">{{ t.label }}<sc-if value="{{ t.count }}" hint-placeholder-val="{{ true }}"><span style="display:grid;place-items:center;min-width:17px;height:17px;padding:0 4px;border-radius:6px;background:{{ t.pillBg }};color:{{ t.pillFg }};font:600 10px/1 var(--w-display)">{{ t.count }}</span></sc-if></button>
+            </sc-for>
+          </div>
+          <div style="display:{{ hdrIcons }};align-items:center;flex:none;gap:5px;color:hsl(var(--text-muted))">
+            <sc-if value="{{ dirB }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ openCreate }}" title="Etkinlik oluştur" style="display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:11px;background:hsl(var(--primary));color:#fff;cursor:pointer;box-shadow:0 8px 18px -12px hsl(var(--primary));transition:filter .16s" style-hover="filter:brightness(1.08)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></button>
+            </sc-if>
+            <button onClick="{{ toggleDensity }}" title="Kart boyutu" style="display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:11px;background:transparent;color:inherit;cursor:pointer;transition:background .16s,color .16s" style-hover="background:hsl(var(--surface-soft));color:hsl(var(--foreground))">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 5h7v7H4zM13 5h7v4h-7zM13 11h7v8h-7zM4 14h7v5H4z"></path></svg></button>
+            <button onClick="{{ toggleSync }}" title="Etkinlik bildirimleri" style="display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:11px;background:{{ syncBg }};color:{{ syncFg }};cursor:pointer;transition:background .16s,color .16s" style-hover="background:hsl(var(--surface-soft));color:hsl(var(--foreground))">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8.5a6 6 0 1 0-12 0c0 6-2.5 7.5-2.5 7.5h17S18 14.5 18 8.5M10 20a2.2 2.2 0 0 0 4 0"></path></svg></button>
+          </div>
+        </div>
+
+        <sc-if value="{{ showWeek }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:12px;padding:13px 24px;border-bottom:1px solid hsl(var(--border)/.45);background:hsl(var(--surface-panel)/.5)">
+            <div style="display:flex;align-items:center;gap:6px;flex:none">
+              <button title="Önceki hafta" style="display:grid;place-items:center;width:28px;height:28px;border:1px solid hsl(var(--border)/.7);border-radius:9px;background:transparent;color:hsl(var(--text-muted));cursor:pointer;transition:background .16s" style-hover="background:hsl(var(--surface-soft))">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"></path></svg></button>
+              <span style="min-width:112px;text-align:center;font:600 13px/1 var(--w-display);letter-spacing:var(--w-track);color:hsl(var(--foreground))">Ağustos 2026</span>
+              <button title="Sonraki hafta" style="display:grid;place-items:center;width:28px;height:28px;border:1px solid hsl(var(--border)/.7);border-radius:9px;background:transparent;color:hsl(var(--text-muted));cursor:pointer;transition:background .16s" style-hover="background:hsl(var(--surface-soft))">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"></path></svg></button>
+            </div>
+            <div style="flex:1;display:grid;grid-template-columns:repeat(7,1fr);gap:6px;min-width:0">
+              <sc-for list="{{ week }}" as="w" hint-placeholder-count="7">
+                <button onClick="{{ w.go }}" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 4px 7px;border:1px solid {{ w.bd }};border-radius:13px;background:{{ w.bg }};cursor:pointer;transition:background .16s,border-color .16s" style-hover="background:hsl(var(--surface-soft))">
+                  <span style="font:600 9.5px/1 var(--w-display);letter-spacing:.12em;text-transform:uppercase;color:{{ w.dowFg }}">{{ w.dow }}</span>
+                  <span style="font:600 17px/1 var(--w-display);color:{{ w.numFg }}">{{ w.num }}</span>
+                  <span style="display:flex;align-items:center;gap:3px;height:6px">
+                    <sc-for list="{{ w.dots }}" as="d" hint-placeholder-count="2">
+                      <span style="width:5px;height:5px;border-radius:50%;background:{{ d.c }}"></span>
+                    </sc-for>
+                  </span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ filterBar }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:11px 24px;border-bottom:1px solid hsl(var(--border)/.45);background:hsl(var(--primary)/.06)">
+            <span style="font:600 10.5px/1 var(--w-display);letter-spacing:.14em;text-transform:uppercase;color:hsl(var(--primary))">Aktif filtreler</span>
+            <sc-for list="{{ activeFilters }}" as="f" hint-placeholder-count="2">
+              <span style="display:flex;align-items:center;gap:7px;padding:5px 8px 5px 11px;border-radius:999px;background:hsl(var(--surface-card));border:1px solid hsl(var(--primary)/.4);font:600 11.5px/1 var(--w-body);color:hsl(var(--foreground))">{{ f.label }}
+                <button onClick="{{ f.clear }}" title="Kaldır" style="display:grid;place-items:center;width:16px;height:16px;border:0;border-radius:5px;background:hsl(var(--surface-tertiary));color:hsl(var(--text-muted));cursor:pointer">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+              </span>
+            </sc-for>
+            <button onClick="{{ clearAll }}" style="margin-left:auto;border:0;background:transparent;font:600 11.5px/1 var(--w-body);color:hsl(var(--primary));cursor:pointer">Tümünü temizle</button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ rsvpBanner }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:12px;margin:14px 24px 0;padding:12px 14px;border-radius:14px;background:hsl(var(--success)/.12);border:1px solid hsl(var(--success)/.35)">
+            <div style="display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:hsl(var(--success)/.2);color:hsl(var(--success));flex:none">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 12.5 5 5L20 7"></path></svg>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font:600 13px/1.3 var(--w-body);color:hsl(var(--foreground))">Tasarım Kritiği etkinliğine katılıyorsun</div>
+              <div style="margin-top:3px;font-size:11.5px;color:hsl(var(--text-muted))">Bugün 15:00 · başlamadan 10 dk önce hatırlatma gönderilecek</div>
+            </div>
+            <button style="height:32px;padding:0 13px;border:1px solid hsl(var(--border));border-radius:10px;background:hsl(var(--surface-card));color:hsl(var(--text-secondary));font:600 11.5px/1 var(--w-body);cursor:pointer;flex:none;transition:background .16s" style-hover="background:hsl(var(--surface-soft))">Takvime ekle</button>
+            <button onClick="{{ clearAll }}" title="Kapat" style="display:grid;place-items:center;width:28px;height:28px;border:0;border-radius:9px;background:transparent;color:hsl(var(--text-muted));cursor:pointer;flex:none" style-hover="background:hsl(var(--surface-soft))">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isFeed }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:1;display:flex;flex-direction:column;gap:4px;min-height:0;overflow-y:auto;overflow-x:hidden;padding:16px 24px 20px">
+            <sc-for list="{{ groups }}" as="g" hint-placeholder-count="2">
+              <div style="display:flex;align-items:center;gap:11px;padding:6px 2px 10px">
+                <span style="font:600 10.5px/1 var(--w-display);letter-spacing:.14em;text-transform:uppercase;color:hsl(var(--text-muted))">{{ g.label }}</span>
+                <span style="font:600 10.5px/1 var(--w-display);color:hsl(var(--text-muted)/.75)">{{ g.n }}</span>
+                <span style="font:500 10.5px/1 var(--w-body);color:hsl(var(--text-muted)/.75)">{{ g.date }}</span>
+                <span style="flex:1;height:1px;background:hsl(var(--border)/.5)"></span>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--e-min),1fr));gap:12px;padding-bottom:16px">
+                <sc-for list="{{ g.items }}" as="e" hint-placeholder-count="3">
+                  <div onClick="{{ e.open }}" style="position:relative;display:flex;flex-direction:column;border-radius:18px;background:{{ e.bg }};border:1px solid {{ e.bd }};overflow:hidden;cursor:pointer;transition:background .14s,border-color .14s,transform .14s" style-hover="border-color:hsl(var(--primary)/.45);transform:translateY(-2px);--hov:1">
+                    <div style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px 0">
+                      <div style="display:grid;place-items:center;width:42px;height:42px;border-radius:14px;background:{{ e.kindBg }};color:{{ e.kindFg }};flex:none">
+                        <span style="font:600 15px/1 var(--w-display)">{{ e.glyph }}</span>
+                      </div>
+                      <div style="flex:1;min-width:0">
+                        <div style="display:flex;align-items:center;gap:7px;min-width:0">
+                          <span style="padding:3px 8px;border-radius:999px;background:{{ e.kindBg }};font:600 10px/1 var(--w-body);color:{{ e.kindFg }};flex:none">{{ e.kind }}</span>
+                          <sc-if value="{{ e.live }}" hint-placeholder-val="{{ false }}">
+                            <span style="display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;background:hsl(var(--danger)/.16);font:600 10px/1 var(--w-body);color:hsl(var(--danger));flex:none"><span style="width:5px;height:5px;border-radius:50%;background:hsl(var(--danger))"></span>Canlı</span>
+                          </sc-if>
+                          <sc-if value="{{ e.repeat }}" hint-placeholder-val="{{ false }}">
+                            <span style="font:500 10.5px/1 var(--w-body);color:hsl(var(--text-muted));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.repeat }}</span>
+                          </sc-if>
+                        </div>
+                        <div style="margin-top:7px;font:600 15px/1.3 var(--w-display);letter-spacing:var(--w-track);color:hsl(var(--foreground));text-wrap:pretty">{{ e.title }}</div>
+                      </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px;padding:10px 14px 0">
+                      <div style="display:flex;align-items:center;gap:7px;min-width:0;font:600 12px/1.3 var(--w-body);color:hsl(var(--foreground))">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--text-muted))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5V12l3 2"></path></svg>{{ e.when }}
+                        <span style="font-weight:500;color:hsl(var(--text-muted))">{{ e.dur }}</span>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:7px;min-width:0">
+                        <span style="display:grid;place-items:center;width:16px;height:16px;border-radius:5px;background:{{ e.srcBg }};color:{{ e.srcFg }};font:600 8.5px/1 var(--w-display);flex:none">{{ e.srcI }}</span>
+                        <span style="flex:1;min-width:0;font:500 11.5px/1.3 var(--w-body);color:hsl(var(--text-secondary));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.where }}</span>
+                      </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:9px;padding:11px 14px 0;min-width:0">
+                      <div style="display:flex;flex:none">
+                        <sc-for list="{{ e.avs }}" as="a" hint-placeholder-count="3">
+                          <span style="display:inline-flex;margin-left:{{ a.ml }};border-radius:50%;box-shadow:0 0 0 2px hsl(var(--surface-card))"><x-import component-from-global-scope="WhisprDS.Avatar" alt="{{ a.i }}" fallback="{{ a.i }}" class-name="h-6 w-6 text-[8px]" hint-size="24px,24px"></x-import></span>
+                        </sc-for>
+                      </div>
+                      <span style="flex:1;min-width:0;font:500 11.5px/1.3 var(--w-body);color:hsl(var(--text-muted));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.attText }}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:7px;margin-top:12px;padding:11px 14px 13px;border-top:1px solid hsl(var(--border)/.5);background:hsl(var(--surface-soft)/.35)">
+                      <button onClick="{{ e.goingClick }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:32px;border:1px solid {{ e.goingBd }};border-radius:10px;background:{{ e.goingBg }};color:{{ e.goingFg }};font:600 11.5px/1 var(--w-body);cursor:pointer;transition:background .16s,color .16s" style-hover="background:hsl(var(--primary)/.16);color:hsl(var(--primary))">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 12.5 5 5L20 7"></path></svg>{{ e.goingLabel }}</button>
+                      <button onClick="{{ e.maybeClick }}" style="height:32px;padding:0 12px;border:1px solid {{ e.maybeBd }};border-radius:10px;background:{{ e.maybeBg }};color:{{ e.maybeFg }};font:600 11.5px/1 var(--w-body);cursor:pointer;transition:background .16s,color .16s" style-hover="background:hsl(var(--surface-soft));color:hsl(var(--foreground))">Belki</button>
+                    </div>
+                    <sc-if value="{{ e.selected }}" hint-placeholder-val="{{ false }}">
+                      <span style="position:absolute;left:0;top:16px;bottom:16px;width:3px;border-radius:0 4px 4px 0;background:hsl(var(--primary))"></span>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-for>
+            <div style="display:flex;align-items:center;justify-content:center;gap:9px;padding:4px 0 0;font-size:12px;color:hsl(var(--text-muted))">
+              <span style="flex:1;height:1px;background:hsl(var(--border)/.4)"></span>Geçmiş etkinlikler 30 gün arşivde tutulur<span style="flex:1;height:1px;background:hsl(var(--border)/.4)"></span>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px">
+            <div style="display:grid;place-items:center;width:78px;height:78px;border-radius:26px;background:hsl(var(--primary)/.13);border:1px solid hsl(var(--primary)/.3);color:hsl(var(--primary))">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path><path d="M12 13v4M10 15h4"></path></svg>
+            </div>
+            <div style="text-align:center;max-width:420px">
+              <div style="font:600 20px/1.25 var(--w-display);letter-spacing:var(--w-track);color:hsl(var(--foreground))">Planlanmış etkinlik yok</div>
+              <p style="margin:9px 0 0;font-size:13.5px;line-height:1.6;color:hsl(var(--text-muted));text-wrap:pretty">Bu filtrede yaklaşan etkinlik bulunmuyor. Sunucularından biri için etkinlik oluşturabilir ya da herkese açık topluluk etkinliklerine göz atabilirsin.</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px">
+              <button onClick="{{ openCreate }}" style="height:38px;padding:0 17px;border:0;border-radius:12px;background:hsl(var(--primary));color:#fff;font:600 13px/1 var(--w-body);cursor:pointer;box-shadow:0 10px 22px -14px hsl(var(--primary));transition:filter .16s" style-hover="filter:brightness(1.08)">Etkinlik oluştur</button>
+              <button onClick="{{ clearAll }}" style="height:38px;padding:0 17px;border:1px solid hsl(var(--border));border-radius:12px;background:hsl(var(--surface-card));color:hsl(var(--text-secondary));font:600 13px/1 var(--w-body);cursor:pointer;transition:background .16s" style-hover="background:hsl(var(--surface-soft))">Filtreleri temizle</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px">
+            <div style="display:grid;place-items:center;width:78px;height:78px;border-radius:26px;background:hsl(var(--danger)/.13);border:1px solid hsl(var(--danger)/.3);color:hsl(var(--danger))">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v5M12 16.5h.01"></path><path d="M10.3 3.9 2.5 17.4A2 2 0 0 0 4.2 20.5h15.6a2 2 0 0 0 1.7-3.1L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg>
+            </div>
+            <div style="text-align:center;max-width:440px">
+              <div style="font:600 20px/1.25 var(--w-display);letter-spacing:var(--w-track);color:hsl(var(--foreground))">Etkinlikler yüklenemedi</div>
+              <p style="margin:9px 0 0;font-size:13.5px;line-height:1.6;color:hsl(var(--text-muted));text-wrap:pretty">Sunucuyla bağlantı kurulamadı. Yeniden denerken kaydedilmiş katılım yanıtların korunur; yerel hatırlatmalar çalışmaya devam eder.</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px">
+              <button onClick="{{ clearAll }}" style="display:flex;align-items:center;gap:8px;height:38px;padding:0 17px;border:0;border-radius:12px;background:hsl(var(--primary));color:#fff;font:600 13px/1 var(--w-body);cursor:pointer;box-shadow:0 10px 22px -14px hsl(var(--primary));transition:filter .16s" style-hover="filter:brightness(1.08)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2M3 19v-5h5M21 5v5h-5"></path></svg>Yeniden dene</button>
+              <button style="height:38px;padding:0 17px;border:1px solid hsl(var(--border));border-radius:12px;background:hsl(var(--surface-card));color:hsl(var(--text-secondary));font:600 13px/1 var(--w-body);cursor:pointer;transition:background .16s" style-hover="background:hsl(var(--surface-soft))">Durum sayfası</button>
+            </div>
+            <div style="font-size:11.5px;color:hsl(var(--text-muted)/.85)">Hata kodu: EVT-503 · son deneme 09:41</div>
+          </div>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{ railOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;width:300px;flex:none;background:hsl(var(--surface-panel));border-left:1px solid hsl(var(--border)/.45)">
+          <div style="display:flex;align-items:center;gap:10px;padding:15px 16px 13px;border-bottom:1px solid hsl(var(--border)/.45)">
+            <div style="min-width:0">
+              <div style="font:600 14.5px/1.2 var(--w-display);color:hsl(var(--foreground))">Bugün</div>
+              <div style="margin-top:5px;font:500 11.5px/1 var(--w-body);color:hsl(var(--text-muted))">27 Ağustos · 4 etkinlik · 1 canlı</div>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;min-height:0;overflow-y:auto;padding:14px 16px">
+            <div style="display:flex;flex-direction:column;gap:0">
+              <sc-for list="{{ agenda }}" as="a" hint-placeholder-count="4">
+                <div onClick="{{ a.open }}" style="display:flex;gap:11px;cursor:pointer">
+                  <div style="display:flex;flex-direction:column;align-items:center;flex:none;width:44px">
+                    <span style="font:600 11.5px/1 var(--w-display);color:{{ a.tFg }}">{{ a.t }}</span>
+                    <span style="flex:1;width:1.5px;margin:6px 0;background:hsl(var(--border)/.7)"></span>
+                  </div>
+                  <div style="flex:1;min-width:0;padding-bottom:14px">
+                    <div style="display:flex;gap:9px;padding:10px 11px;border-radius:13px;background:{{ a.bg }};border:1px solid {{ a.bd }};transition:background .16s" style-hover="background:hsl(var(--surface-soft))">
+                      <span style="width:3px;border-radius:3px;background:{{ a.tone }};flex:none"></span>
+                      <div style="flex:1;min-width:0">
+                        <div style="font:600 12.5px/1.3 var(--w-body);color:hsl(var(--foreground));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ a.title }}</div>
+                        <div style="margin-top:4px;font-size:11px;line-height:1.3;color:hsl(var(--text-muted));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ a.where }}</div>
+                      </div>
+                      <sc-if value="{{ a.live }}" hint-placeholder-val="{{ false }}">
+                        <span style="width:6px;height:6px;border-radius:50%;background:hsl(var(--danger));flex:none;margin-top:3px"></span>
+                      </sc-if>
+                    </div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="height:1px;background:hsl(var(--border)/.5);margin:2px 0 14px"></div>
+            <div style="display:flex;align-items:center;gap:8px;padding-bottom:10px">
+              <span style="font:600 10.5px/1 var(--w-display);letter-spacing:.15em;text-transform:uppercase;color:hsl(var(--text-muted))">Katılacağım</span>
+              <span style="font:600 10.5px/1 var(--w-display);color:hsl(var(--text-muted)/.75)">{{ goingCount }}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <sc-for list="{{ going }}" as="g" hint-placeholder-count="2">
+                <div onClick="{{ g.open }}" style="display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:13px;background:hsl(var(--surface-card));border:1px solid hsl(var(--border)/.6);cursor:pointer;transition:background .16s" style-hover="background:hsl(var(--surface-soft))">
+                  <div style="display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:{{ g.kindBg }};color:{{ g.kindFg }};font:600 12px/1 var(--w-display);flex:none">{{ g.glyph }}</div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font:600 12.5px/1.3 var(--w-body);color:hsl(var(--foreground));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ g.title }}</div>
+                    <div style="margin-top:4px;font-size:11px;line-height:1.3;color:hsl(var(--text-muted));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ g.when }}</div>
+                  </div>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--text-muted))" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m10 6 6 6-6 6"></path></svg>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="padding:13px 16px;border-top:1px solid hsl(var(--border)/.5)">
+            <button onClick="{{ openCreate }}" style="width:100%;display:flex;align-items:center;justify-content:center;gap:7px;height:36px;border:1px solid hsl(var(--border));border-radius:11px;background:hsl(var(--surface-card));color:hsl(var(--text-secondary));font:600 12.5px/1 var(--w-body);cursor:pointer;transition:background .16s" style-hover="background:hsl(var(--surface-soft))">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>Etkinlik oluştur</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ detOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;width:326px;flex:none;background:hsl(var(--surface-panel));border-left:1px solid hsl(var(--border)/.45)">
+          <div style="display:flex;align-items:flex-start;gap:10px;padding:15px 16px 13px;border-bottom:1px solid hsl(var(--border)/.45)">
+            <div style="display:grid;place-items:center;width:38px;height:38px;border-radius:13px;background:{{ det.kindBg }};color:{{ det.kindFg }};flex:none;font:600 14px/1 var(--w-display)">{{ det.glyph }}</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:7px">
+                <span style="padding:3px 8px;border-radius:999px;background:{{ det.kindBg }};font:600 10px/1 var(--w-body);color:{{ det.kindFg }}">{{ det.kind }}</span>
+                <span style="font:500 11px/1 var(--w-body);color:hsl(var(--text-muted))">{{ det.dur }}</span>
+              </div>
+              <div style="margin-top:7px;font:600 15.5px/1.25 var(--w-display);letter-spacing:var(--w-track);color:hsl(var(--foreground));text-wrap:pretty">{{ det.title }}</div>
+            </div>
+            <button onClick="{{ closeDet }}" title="Kapat" style="display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:10px;background:transparent;color:hsl(var(--text-muted));cursor:pointer;flex:none;transition:background .16s,color .16s" style-hover="background:hsl(var(--surface-soft));color:hsl(var(--foreground))">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:15px;min-height:0;overflow-y:auto;padding:15px 16px">
+            <div style="display:flex;flex-direction:column;gap:10px;padding:12px 13px;border-radius:14px;background:hsl(var(--surface-card));border:1px solid hsl(var(--border)/.6)">
+              <div style="display:flex;align-items:center;gap:10px">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--primary))" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path></svg>
+                <span style="flex:1;min-width:0;font:600 12.5px/1.3 var(--w-body);color:hsl(var(--foreground))">{{ det.when }}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="display:grid;place-items:center;width:15px;height:15px;border-radius:5px;background:{{ det.srcBg }};color:{{ det.srcFg }};font:600 8px/1 var(--w-display);flex:none">{{ det.srcI }}</span>
+                <span style="flex:1;min-width:0;font:500 12px/1.4 var(--w-body);color:hsl(var(--text-secondary))">{{ det.where }}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <x-import component-from-global-scope="WhisprDS.Avatar" alt="{{ det.host }}" fallback="{{ det.hostI }}" class-name="h-5 w-5 text-[8px] shrink-0" hint-size="20px,20px"></x-import>
+                <span style="flex:1;min-width:0;font:500 12px/1.4 var(--w-body);color:hsl(var(--text-secondary))">{{ det.host }} düzenliyor</span>
+              </div>
+            </div>
+            <div>
+              <div style="font:600 10.5px/1 var(--w-display);letter-spacing:.15em;text-transform:uppercase;color:hsl(var(--text-muted))">Açıklama</div>
+              <p style="margin:9px 0 0;font-size:12.5px;line-height:1.6;color:hsl(var(--text-secondary));text-wrap:pretty">{{ det.desc }}</p>
+            </div>
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;padding-bottom:10px">
+                <span style="font:600 10.5px/1 var(--w-display);letter-spacing:.15em;text-transform:uppercase;color:hsl(var(--text-muted))">Katılımcılar</span>
+                <span style="font:600 10.5px/1 var(--w-display);color:hsl(var(--text-muted)/.75)">{{ det.att }}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <sc-for list="{{ det.people }}" as="p" hint-placeholder-count="4">
+                  <div style="display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:11px;transition:background .16s" style-hover="background:hsl(var(--surface-soft)/.7)">
+                    <x-import component-from-global-scope="WhisprDS.Avatar" alt="{{ p.n }}" fallback="{{ p.i }}" class-name="h-7 w-7 text-[9px] shrink-0" hint-size="28px,28px"></x-import>
+                    <span style="flex:1;min-width:0;font:500 12.5px/1.3 var(--w-body);color:hsl(var(--foreground));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.n }}</span>
+                    <span style="padding:3px 8px;border-radius:999px;background:{{ p.bg }};font:600 10px/1 var(--w-body);color:{{ p.fg }};flex:none">{{ p.role }}</span>
+                  </div>
+                </sc-for>
+                <button style="margin-top:5px;align-self:flex-start;border:0;background:transparent;font:600 11.5px/1 var(--w-body);color:hsl(var(--primary));cursor:pointer;padding:6px 8px">{{ det.more }}</button>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:14px;background:hsl(var(--surface-secondary)/.8);border:1px solid hsl(var(--border)/.6)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--warning))" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M18 8.5a6 6 0 1 0-12 0c0 6-2.5 7.5-2.5 7.5h17S18 14.5 18 8.5M10 20a2.2 2.2 0 0 0 4 0"></path></svg>
+              <div style="flex:1;min-width:0">
+                <div style="font:600 12px/1.3 var(--w-body);color:hsl(var(--foreground))">Hatırlatma açık</div>
+                <div style="margin-top:3px;font-size:11px;color:hsl(var(--text-muted))">Başlamadan 10 dk önce</div>
+              </div>
+              <button style="border:0;background:transparent;font:600 11.5px/1 var(--w-body);color:hsl(var(--primary));cursor:pointer;flex:none">Değiştir</button>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:13px 16px;border-top:1px solid hsl(var(--border)/.5)">
+            <button onClick="{{ det.goingClick }}" style="flex:1;height:36px;border:0;border-radius:11px;background:{{ det.ctaBg }};color:{{ det.ctaFg }};font:600 12.5px/1 var(--w-body);cursor:pointer;box-shadow:0 8px 18px -12px hsl(var(--primary));transition:filter .16s" style-hover="filter:brightness(1.08)">{{ det.cta }}</button>
+            <button style="height:36px;padding:0 13px;border:1px solid hsl(var(--border));border-radius:11px;background:hsl(var(--surface-card));color:hsl(var(--text-secondary));font:600 12.5px/1 var(--w-body);cursor:pointer;transition:background .16s" style-hover="background:hsl(var(--surface-soft))">Paylaş</button>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+
+    <sc-if value="{{ createOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;inset:0;display:grid;place-items:center;padding:40px;background:hsl(var(--backdrop)/.62)">
+        <div style="width:560px;max-width:100%;border-radius:22px;background:hsl(var(--surface-card));border:1px solid hsl(var(--border));box-shadow:0 40px 90px -40px hsl(var(--shadow-color))">
+          <div style="display:flex;align-items:center;gap:12px;padding:20px 24px 16px;border-bottom:1px solid hsl(var(--border)/.6)">
+            <div style="display:grid;place-items:center;width:38px;height:38px;border-radius:13px;background:hsl(var(--primary)/.15);color:hsl(var(--primary));flex:none">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path><path d="M12 13v4M10 15h4"></path></svg>
+            </div>
+            <div style="min-width:0">
+              <div style="font:600 17px/1.2 var(--w-display);letter-spacing:var(--w-track);color:hsl(var(--foreground))">Etkinlik oluştur</div>
+              <div style="margin-top:5px;font-size:12.5px;color:hsl(var(--text-muted))">Sunucu üyelerine bildirim gider, katılım yanıtları sayılır</div>
+            </div>
+            <button onClick="{{ closeCreate }}" title="Kapat" style="margin-left:auto;display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:11px;background:transparent;color:hsl(var(--text-muted));cursor:pointer;flex:none;transition:background .16s,color .16s" style-hover="background:hsl(var(--surface-soft));color:hsl(var(--foreground))">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:15px;padding:19px 24px">
+            <div>
+              <div style="font:600 11px/1 var(--w-display);letter-spacing:.13em;text-transform:uppercase;color:hsl(var(--text-muted));padding-bottom:8px">Etkinlik türü</div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px">
+                <sc-for list="{{ kindOpts }}" as="k" hint-placeholder-count="6">
+                  <button onClick="{{ k.pick }}" style="display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:10px 11px;border:1px solid {{ k.bd }};border-radius:13px;background:{{ k.bg }};cursor:pointer;text-align:left;transition:background .16s,border-color .16s" style-hover="background:hsl(var(--surface-soft))">
+                    <span style="display:grid;place-items:center;width:26px;height:26px;border-radius:9px;background:{{ k.tileBg }};color:{{ k.tileFg }};font:600 11px/1 var(--w-display)">{{ k.glyph }}</span>
+                    <span style="font:600 12px/1.2 var(--w-body);color:{{ k.fg }}">{{ k.label }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+            <div>
+              <div style="font:600 11px/1 var(--w-display);letter-spacing:.13em;text-transform:uppercase;color:hsl(var(--text-muted));padding-bottom:8px">Başlık</div>
+              <div style="display:flex;align-items:center;height:40px;padding:0 13px;border-radius:12px;background:hsl(var(--surface-base));border:1px solid hsl(var(--border)/.7)">
+                <input placeholder="Örn. Tasarım Kritiği" style="flex:1;min-width:0;border:0;background:transparent;outline:none;font-size:13.5px;color:hsl(var(--foreground))">
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
+              <div>
+                <div style="font:600 11px/1 var(--w-display);letter-spacing:.13em;text-transform:uppercase;color:hsl(var(--text-muted));padding-bottom:8px">Tarih ve saat</div>
+                <div style="display:flex;align-items:center;gap:9px;height:40px;padding:0 13px;border-radius:12px;background:hsl(var(--surface-base));border:1px solid hsl(var(--border)/.7)">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--text-muted))" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path></svg>
+                  <span style="flex:1;min-width:0;font:500 13px/1 var(--w-body);color:hsl(var(--foreground))">27 Ağustos · 15:00</span>
+                </div>
+              </div>
+              <div>
+                <div style="font:600 11px/1 var(--w-display);letter-spacing:.13em;text-transform:uppercase;color:hsl(var(--text-muted));padding-bottom:8px">Süre</div>
+                <div style="display:flex;gap:3px;padding:3px;border-radius:12px;background:hsl(var(--surface-soft));border:1px solid hsl(var(--border)/.6);height:40px;box-sizing:border-box">
+                  <sc-for list="{{ durOpts }}" as="d" hint-placeholder-count="3">
+                    <button onClick="{{ d.pick }}" style="flex:1;border:0;border-radius:9px;background:{{ d.bg }};color:{{ d.fg }};font:600 11.5px/1 var(--w-body);white-space:nowrap;cursor:pointer;transition:background .16s,color .16s">{{ d.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div style="font:600 11px/1 var(--w-display);letter-spacing:.13em;text-transform:uppercase;color:hsl(var(--text-muted));padding-bottom:8px">Yer</div>
+              <div style="display:flex;align-items:center;gap:9px;height:40px;padding:0 13px;border-radius:12px;background:hsl(var(--surface-base));border:1px solid hsl(var(--border)/.7)">
+                <span style="display:grid;place-items:center;width:18px;height:18px;border-radius:6px;background:hsl(var(--primary));color:#fff;font:600 9px/1 var(--w-display);flex:none">W</span>
+                <span style="flex:1;min-width:0;font:500 13px/1 var(--w-body);color:hsl(var(--foreground))">Whispr Topluluğu › #tasarım-kritiği</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--text-muted))" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m6 10 6 6 6-6"></path></svg>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;padding:11px 13px;border-radius:13px;background:hsl(var(--surface-secondary)/.8);border:1px solid hsl(var(--border)/.6)">
+              <div style="flex:1;min-width:0">
+                <div style="font:600 12.5px/1.3 var(--w-body);color:hsl(var(--foreground))">Topluluk keşfetinde listele</div>
+                <div style="margin-top:3px;font-size:11.5px;color:hsl(var(--text-muted))">Sunucu dışındaki kullanıcılar da görebilir ve katılabilir</div>
+              </div>
+              <button onClick="{{ togglePublic }}" style="position:relative;width:44px;height:26px;border:0;border-radius:999px;background:{{ pubBg }};cursor:pointer;flex:none;transition:background .18s">
+                <span style="position:absolute;top:3px;left:{{ pubX }};width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 6px hsl(var(--shadow-color)/.6);transition:left .18s"></span>
+              </button>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:16px 24px 20px;border-top:1px solid hsl(var(--border)/.6)">
+            <span style="flex:1;font-size:12px;color:hsl(var(--text-muted))">Tekrar eden etkinlikler oluşturulduktan sonra ayarlanır</span>
+            <button onClick="{{ closeCreate }}" style="height:38px;padding:0 16px;border:1px solid hsl(var(--border));border-radius:12px;background:hsl(var(--surface-card));color:hsl(var(--text-secondary));font:600 13px/1 var(--w-body);cursor:pointer;transition:background .16s" style-hover="background:hsl(var(--surface-soft))">İptal</button>
+            <button onClick="{{ closeCreate }}" style="height:38px;padding:0 18px;border:0;border-radius:12px;background:hsl(var(--primary));color:#fff;font:600 13px/1 var(--w-body);cursor:pointer;box-shadow:0 10px 22px -14px hsl(var(--primary));transition:filter .16s" style-hover="filter:brightness(1.08)">Oluştur</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</section>
+
+<template id="__bundler_thumbnail" data-bg-color="#2b2f36">
+  <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="200" rx="28" fill="#5b62ff"></rect><g fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"><path d="M60 46v22M140 46v22M44 92h112"></path><rect x="44" y="60" width="112" height="96" rx="14"></rect><path d="M100 112v24M88 124h24"></path></g></svg>
+</template>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;theme-dark&quot;,&quot;theme-light&quot;],&quot;default&quot;:&quot;theme-dark&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Görünüm&quot;},&quot;cardSize&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Orta&quot;,&quot;Büyük&quot;],&quot;default&quot;:&quot;Orta&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Görünüm&quot;},&quot;fontPairing&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Outfit + Figtree&quot;,&quot;Space Grotesk + Plus Jakarta Sans&quot;,&quot;Sora + DM Sans&quot;,&quot;Bricolage Grotesque + Public Sans&quot;,&quot;Instrument Sans + IBM Plex Sans&quot;,&quot;Archivo + Be Vietnam Pro&quot;,&quot;Manrope (tek aile)&quot;],&quot;default&quot;:&quot;Outfit + Figtree&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Tipografi&quot;}}">
+const H = (t, a) => a ? 'hsl(var(--' + t + ')/' + a + ')' : 'hsl(var(--' + t + '))';
+const PAIRINGS = {
+  'Space Grotesk + Plus Jakarta Sans': ['Space Grotesk', 'Plus Jakarta Sans'],
+  'Sora + DM Sans': ['Sora', 'DM Sans'],
+  'Outfit + Figtree': ['Outfit', 'Figtree'],
+  'Bricolage Grotesque + Public Sans': ['Bricolage Grotesque', 'Public Sans'],
+  'Instrument Sans + IBM Plex Sans': ['Instrument Sans', 'IBM Plex Sans'],
+  'Archivo + Be Vietnam Pro': ['Archivo', 'Be Vietnam Pro'],
+  'Manrope (tek aile)': ['Manrope', 'Manrope']
+};
+const RES = [
+  { k: 'base', label: '1360×920', mult: '×1', z: '1', w: '1360px', h: '920px', note: 'Yerleşim alanı 1360×920 CSS px · kök ölçek ×1 (asgari pencere)' },
+  { k: 'fhd', label: '1920×1080', mult: '×1.15', z: '1.15', w: 'calc(1920px / 1.15)', h: 'calc(1080px / 1.15)', note: 'Yerleşim alanı 1670×939 CSS px · kök ölçek ×1.15' },
+  { k: '2k', label: '2560×1440', mult: '×1.5', z: '1.5', w: 'calc(2560px / 1.5)', h: 'calc(1440px / 1.5)', note: 'Yerleşim alanı 1707×960 CSS px · kök ölçek ×1.5' },
+  { k: '4k', label: '3840×2160', mult: '×2', z: '2', w: 'calc(3840px / 2)', h: 'calc(2160px / 2)', note: 'Yerleşim alanı 1920×1080 CSS px · kök ölçek ×2' },
+  { k: 'win', label: 'Pencere', mult: '', z: '1', w: 'max(1360px, calc(100vw - 200px))', h: 'max(920px, calc(100dvh - 150px))', note: 'Pencereyi doldurur · asgari 1360×920 CSS px' }
+];
+const TONE = { primary: H('primary'), info: 'hsl(199 89% 48%)', warning: H('warning'), success: H('success'), danger: H('danger') };
+const SOFT = { primary: H('primary', '.14'), info: 'hsl(199 89% 48% / .14)', warning: H('warning', '.14'), success: H('success', '.14'), danger: H('danger', '.14') };
+const KIND = {
+  voice: { label: 'Sesli buluşma', glyph: 'S', tone: 'primary' },
+  meeting: { label: 'Toplantı', glyph: 'T', tone: 'info' },
+  game: { label: 'Oyun gecesi', glyph: 'O', tone: 'warning' },
+  live: { label: 'Canlı yayın', glyph: 'C', tone: 'danger' },
+  community: { label: 'Topluluk', glyph: 'K', tone: 'success' },
+  workshop: { label: 'Atölye', glyph: 'A', tone: 'info' }
+};
+const SRC = {
+  whispr: { i: 'W', label: 'Whispr Topluluğu', bg: H('primary'), fg: '#fff' },
+  product: { i: 'P', label: 'Product Team', bg: H('success', '.2'), fg: H('success') },
+  oyun: { i: 'O', label: 'Oyun Kulübü', bg: H('warning', '.2'), fg: H('warning') },
+  topluluk: { i: 'TK', label: 'Topluluk', bg: H('surface-tertiary'), fg: H('text-secondary') }
+};
+const EVENTS = [
+  { id: 'e4', title: 'Token mimarisi: yüzeyler ve tema geçişi', kind: 'live', src: 'whispr', ch: '#geliştirme', day: 'Bugün', t: 'Şu an', sort: 0, dur: '1 sa 20 dk geçti', host: 'Emre Şahin', hostI: 'ES', att: 19, avs: ['SA', 'MK', 'DY'], rsvp: null, live: true,
+    desc: 'Yüzey tokenlarının surface-* altında toplanmasını ve tema geçişinin ThemeProvider üzerinden nasıl aktığını ekranda birlikte gezeceğiz. Soruları sohbete yazabilirsin.' },
+  { id: 'e1', title: 'Tasarım Kritiği', kind: 'voice', src: 'whispr', ch: '#tasarım-kritiği', day: 'Bugün', t: '15:00', sort: 1, dur: '45 dk', host: 'Selin Aksoy', hostI: 'SA', att: 8, avs: ['MK', 'ZA', 'CÖ'], rsvp: null, soon: 'Başlamasına 12 dk',
+    desc: 'Kart yoğunluğu kararını ve ölçek adımlarını ele alacağız. Selin iki alternatif hazırladı; ekran görüntüleri panoda. Katılım yanıtın kritik odasının kapasitesini belirliyor.' },
+  { id: 'e2', title: 'Sürüm 2.4 yayın provası', kind: 'meeting', src: 'product', ch: '#sürüm-2-4', day: 'Bugün', t: '17:30', sort: 2, dur: '30 dk', host: 'Mert Kaya', hostI: 'MK', att: 12, avs: ['AN', 'DY', 'ES'], rsvp: 'going',
+    desc: 'Yayın kontrol listesini baştan sona geçiyoruz. Tasarımda bekleyen iki madde ve sürüm notlarındaki ekran görselleri gündemde.' },
+  { id: 'e3', title: 'Perşembe oyun gecesi', kind: 'game', src: 'oyun', ch: 'Sahne · sesli oda', day: 'Bugün', t: '21:00', sort: 3, dur: '3 sa', host: 'Can Öztürk', hostI: 'CÖ', att: 34, avs: ['ZA', 'ES', 'AN'], rsvp: 'maybe',
+    desc: 'Haftalık oyun gecesi. Sahne kanalı 21:00\'de açılır, eşleşmeler sırayla yapılır. Kayıt gerekmez, gelen oynar.' },
+  { id: 'e5', title: 'Topluluk sohbeti: Whispr yol haritası', kind: 'community', src: 'topluluk', ch: 'Topluluk sahnesi', day: 'Yarın', t: '20:00', sort: 4, dur: '1 sa', host: 'Whispr Ekibi', hostI: 'WE', att: 128, avs: ['SA', 'CÖ', 'ZA'], rsvp: null,
+    desc: 'Sonraki iki sürümün yol haritasını anlatıp soruları yanıtlıyoruz. Herkese açık; sunucu üyeliği gerekmez.' },
+  { id: 'e6', title: 'Haftalık ürün sync', kind: 'meeting', src: 'product', ch: '#genel', day: 'Bu hafta', t: 'Çar 11:00', sort: 5, dur: '45 dk', host: 'Alice Nowak', hostI: 'AN', att: 9, avs: ['MK', 'DY'], rsvp: 'going', repeat: 'Her çarşamba',
+    desc: 'Haftalık özet dokümanı üzerinden gidiyoruz. Yorumlar çarşambaya kadar bekleniyor.' },
+  { id: 'e7', title: 'Turnuva finali', kind: 'game', src: 'oyun', ch: '#duyurular', day: 'Bu hafta', t: 'Cum 20:00', sort: 6, dur: '2 sa', host: 'Can Öztürk', hostI: 'CÖ', att: 62, avs: ['ES', 'ZA', 'AN'], rsvp: null,
+    desc: 'Turnuva eşleşmeleri yayında, kayıtlar gece yarısı kapanıyor. Final maçı sahne kanalından yayınlanacak.' },
+  { id: 'e8', title: 'Tasarım sistemi atölyesi', kind: 'workshop', src: 'topluluk', ch: 'Topluluk sahnesi', day: 'Bu hafta', t: 'Cmt 14:00', sort: 7, dur: '2 sa', host: 'Zeynep Arı', hostI: 'ZA', att: 45, avs: ['SA', 'MK', 'CÖ'], rsvp: null,
+    desc: 'Token setinden bileşen kütüphanesine kadar uygulamalı bir atölye. Kendi ekranını getirip birlikte kurabilirsin.' }
+];
+const PEOPLE = {
+  e1: [['Selin Aksoy', 'SA', 'Sahibi'], ['Mert Kaya', 'MK', 'Katılıyor'], ['Zeynep Arı', 'ZA', 'Katılıyor'], ['Can Öztürk', 'CÖ', 'Belki']],
+  e4: [['Emre Şahin', 'ES', 'Sahibi'], ['Selin Aksoy', 'SA', 'Dinliyor'], ['Mert Kaya', 'MK', 'Dinliyor'], ['Doğukan Yazar', 'DY', 'Dinliyor']]
+};
+const DAYS = { 'Bugün': '27 Ağustos', 'Yarın': '28 Ağustos', 'Bu hafta': '29 Ağustos – 2 Eylül' };
+const WEEK = [
+  { dow: 'Pzt', num: '25', kinds: ['meeting'] },
+  { dow: 'Sal', num: '26', kinds: ['voice', 'game'] },
+  { dow: 'Çar', num: '27', kinds: ['danger', 'primary', 'info', 'warning'], today: true },
+  { dow: 'Per', num: '28', kinds: ['community'] },
+  { dow: 'Cum', num: '29', kinds: ['game'] },
+  { dow: 'Cmt', num: '30', kinds: ['workshop'] },
+  { dow: 'Paz', num: '31', kinds: [] }
+];
+const DUR = ['30 dk', '45 dk', '1 sa'];
+
+class Component extends DCLogic {
+  state = {
+    dir: null, view: 'feed', tab: 'all', time: null, source: null, mine: null, q: '',
+    det: null, create: false, menu: null, res: 'base', pickedTheme: null,
+    rsvp: {}, hidden: {}, sync: true, pub: true, kind: 'voice', dur: '45 dk', big: false, banner: false
+  };
+  componentDidMount() {
+    this.propTheme = this.props.theme ?? 'theme-dark';
+    this.apply(this.propTheme);
+    this.applyVars();
+  }
+  componentDidUpdate() {
+    const p = this.props.theme ?? 'theme-dark';
+    if (p !== this.propTheme) {
+      this.propTheme = p;
+      this.apply(p);
+      if (this.state.pickedTheme) this.setState({ pickedTheme: null });
+    } else {
+      const want = this.state.pickedTheme || p;
+      if (want !== this.lastTheme) this.apply(want);
+    }
+    this.applyVars();
+  }
+  apply(t) {
+    this.lastTheme = t;
+    document.documentElement.classList.remove('theme-dark', 'theme-light');
+    document.documentElement.classList.add(t);
+  }
+  applyVars() {
+    const pair = PAIRINGS[this.props.fontPairing] || PAIRINGS['Outfit + Figtree'];
+    const d = pair[0], b = pair[1];
+    const big = this.state.big || (this.props.cardSize ?? 'Orta') === 'Büyük';
+    const act = (this.props.rowActions ?? 'Her zaman görünür') === 'Her zaman görünür' ? 1 : 0;
+    const sig = d + '|' + b + '|' + big + '|' + act;
+    if (sig === this.sig) return;
+    this.sig = sig;
+    const families = [...new Set([d, b])];
+    const href = 'https://fonts.googleapis.com/css2?' + families.map(n => 'family=' + n.replace(/ /g, '+') + ':wght@400;500;600;700').join('&') + '&display=swap';
+    let link = document.getElementById('w-font-link');
+    if (!link) {
+      link = document.createElement('link');
+      link.id = 'w-font-link';
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
+    }
+    if (link.href !== href) link.href = href;
+    const r = document.documentElement.style;
+    r.setProperty('--w-display', "'" + d + "', system-ui, sans-serif");
+    r.setProperty('--w-body', "'" + b + "', system-ui, sans-serif");
+    r.setProperty('--e-min', big ? '340px' : '280px');
+    r.setProperty('--act', String(act));
+  }
+  dirKey() {
+    return 'b';
+  }
+  rsvpOf(e) {
+    const r = this.state.rsvp[e.id];
+    return r === undefined ? e.rsvp : r;
+  }
+  visible() {
+    const s = this.state;
+    const q = s.q.trim().toLowerCase();
+    return EVENTS.filter(e => {
+      if (s.hidden[e.id]) return false;
+      if (q) {
+        const hay = (e.title + ' ' + e.ch + ' ' + SRC[e.src].label + ' ' + KIND[e.kind].label).toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      if (s.source && e.src !== s.source) return false;
+      if (s.mine === 'going' && this.rsvpOf(e) !== 'going') return false;
+      if (s.mine === 'maybe' && this.rsvpOf(e) !== 'maybe') return false;
+      if (s.mine === 'host' && e.host !== 'Doğukan Yazar') return false;
+      if (s.time === 'today' && e.day !== 'Bugün') return false;
+      if (s.time === 'week' && e.day === 'Geçmiş') return false;
+      if (s.time === 'past') return false;
+      if (s.tab === 'live' && !e.live) return false;
+      if (s.tab === 'going' && this.rsvpOf(e) !== 'going') return false;
+      if (s.tab === 'upcoming' && e.live) return false;
+      return true;
+    });
+  }
+  setRsvp(e, v) {
+    const cur = this.rsvpOf(e);
+    const next = cur === v ? null : v;
+    this.setState({ rsvp: Object.assign({}, this.state.rsvp, { [e.id]: next }), menu: null, banner: next === 'going' && e.id === 'e1' });
+  }
+  card(e) {
+    const k = KIND[e.kind], src = SRC[e.src], tone = TONE[k.tone], soft = SOFT[k.tone];
+    const r = this.rsvpOf(e);
+    const going = r === 'going', maybe = r === 'maybe';
+    const sel = this.state.det === e.id;
+    return {
+      title: e.title, kind: k.label, glyph: k.glyph, kindBg: soft, kindFg: tone,
+      live: e.live || false, repeat: e.repeat || e.soon || false,
+      when: e.t, dur: e.dur, where: src.label + ' › ' + e.ch, srcI: src.i, srcBg: src.bg, srcFg: src.fg,
+      avs: e.avs.map((a, n) => ({ i: a, ml: n === 0 ? '0' : '-8px' })),
+      attText: e.att + ' kişi katılıyor · ' + e.host + ' düzenliyor',
+      bg: going ? H('surface-card') : H('surface-card', '.6'),
+      bd: sel ? H('primary', '.5') : (going ? H('success', '.4') : H('border', '.6')),
+      selected: sel,
+      goingLabel: going ? 'Katılıyorsun' : 'Katıl',
+      goingBg: going ? H('success', '.16') : 'transparent',
+      goingBd: going ? H('success', '.45') : H('border', '.7'),
+      goingFg: going ? H('success') : H('text-secondary'),
+      maybeBg: maybe ? H('warning', '.16') : 'transparent',
+      maybeBd: maybe ? H('warning', '.45') : H('border', '.7'),
+      maybeFg: maybe ? H('warning') : H('text-secondary'),
+      open: () => this.setState({ det: e.id, view: 'feed', menu: null }),
+      goingClick: () => this.setRsvp(e, 'going'),
+      maybeClick: () => this.setRsvp(e, 'maybe')
+    };
+  }
+  tab(id, label, count) {
+    const on = this.state.tab === id && this.state.view === 'feed';
+    return {
+      label, count,
+      bg: on ? H('primary') : 'transparent',
+      fg: on ? '#fff' : H('text-secondary'),
+      pillBg: on ? 'hsl(0 0% 100% / .22)' : H('surface-soft'),
+      pillFg: on ? '#fff' : H('text-muted'),
+      go: () => this.setState({ view: 'feed', tab: id, create: false, menu: null })
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const dir = this.dirKey(), dirA = dir === 'a', dirB = dir === 'b';
+    const isFeed = s.view === 'feed', isEmpty = s.view === 'empty', isError = s.view === 'error';
+    const items = isFeed ? this.visible() : [];
+    const order = ['Bugün', 'Yarın', 'Bu hafta'];
+    let n = 0;
+    const groups = order.map(key => {
+      const list = items.filter(e => e.day === key).sort((a, b) => a.sort - b.sort);
+      return { label: key, date: DAYS[key], n: list.length, items: list.map(e => this.card(e)) };
+    }).filter(g => g.n > 0);
+    const liveCount = EVENTS.filter(e => e.live).length;
+    const goingList = EVENTS.filter(e => this.rsvpOf(e) === 'going');
+    const maybeCount = EVENTS.filter(e => this.rsvpOf(e) === 'maybe').length;
+    const srcCounts = { whispr: 0, product: 0, oyun: 0, topluluk: 0 };
+    EVENTS.forEach(e => { srcCounts[e.src] += 1; });
+    const timeDef = [
+      ['today', 'Bugün', '4 etkinlik · 1 canlı', 'B', 'primary', EVENTS.filter(e => e.day === 'Bugün').length],
+      ['week', 'Bu hafta', '27 Ağustos – 2 Eylül', 'H', 'info', EVENTS.length],
+      ['month', 'Bu ay', 'Ağustos 2026', 'A', 'success', EVENTS.length],
+      ['past', 'Geçmiş', 'Son 30 gün arşivi', 'G', 'warning', 0]
+    ];
+    const detEvent = EVENTS.find(e => e.id === s.det);
+    const detOpen = !!detEvent && isFeed;
+    const chipDef = [
+      ['Tüm etkinlikler', { view: 'feed', tab: 'all', time: null, source: null, mine: null, q: '', det: null, create: false, menu: null, banner: false }, isFeed && s.tab === 'all' && !s.time && !s.source && !s.mine && !s.q && !s.det && !s.create && !s.menu && !s.banner],
+      ['Canlı', { view: 'feed', tab: 'live', time: null, source: null, mine: null, q: '', det: null, create: false, banner: false }, isFeed && s.tab === 'live'],
+      ['Filtre aktif', { view: 'feed', tab: 'all', time: 'week', source: 'oyun', mine: null, q: '', det: null, create: false, banner: false }, isFeed && !!s.time && !!s.source],
+      ['Arama sonuçları', { view: 'feed', tab: 'all', time: null, source: null, mine: null, q: 'oyun', det: null, create: false, banner: false }, isFeed && !!s.q],
+      ['Katılacağım', { view: 'feed', tab: 'going', time: null, source: null, mine: null, q: '', det: null, create: false, banner: false }, isFeed && s.tab === 'going'],
+      ['RSVP verildi', { view: 'feed', tab: 'all', time: null, source: null, mine: null, q: '', det: null, create: false, banner: true, rsvp: Object.assign({}, s.rsvp, { e1: 'going' }) }, s.banner],
+      ['Detay paneli', { view: 'feed', tab: 'all', time: null, source: null, mine: null, q: '', det: 'e1', create: false, menu: null, banner: false }, detOpen],
+      ['Etkinlik oluştur', { create: true, view: 'feed', det: null, menu: null }, s.create],
+      ['Boş durum', { view: 'empty', det: null, create: false, menu: null, banner: false }, isEmpty],
+      ['Hata durumu', { view: 'error', det: null, create: false, menu: null, banner: false }, isError]
+    ];
+    const r = RES.find(x => x.k === s.res) || RES[0];
+    const dirDef = [
+      ['a', '4a', 'Ajanda ızgarası', 'Filtre öncelikli: 276 px daraltma kolonu (zaman · kaynak · katılımım) + gün başlıklı kart ızgarası. Bahsedilmeler ve Mesajlar ile aynı iki kolon dili.'],
+      ['b', '4b', 'Takvim şeridi', 'Zaman öncelikli: sol daraltma kolonu yok, üstte gezinilebilir hafta şeridi, sağda 300 px "Bugün" ajandası ve katılacağın etkinlikler. Detay paneli açıldığında sağ ray onun yerini alır.']
+    ];
+    const dirRow = dirDef.find(d => d[0] === dir);
+    const activeFilters = [];
+    if (s.time) activeFilters.push({ label: (timeDef.find(t => t[0] === s.time) || [, 'Zaman'])[1], clear: () => this.setState({ time: null }) });
+    if (s.source) activeFilters.push({ label: SRC[s.source].label, clear: () => this.setState({ source: null }) });
+    if (s.mine) activeFilters.push({ label: s.mine === 'going' ? 'Katılacağım' : s.mine === 'maybe' ? 'Belki' : 'Sahibi olduğum', clear: () => this.setState({ mine: null }) });
+    if (s.q) activeFilters.push({ label: '“' + s.q + '”', clear: () => this.setState({ q: '' }) });
+    const det = detEvent ? (() => {
+      const k = KIND[detEvent.kind], src = SRC[detEvent.src];
+      const going = this.rsvpOf(detEvent) === 'going';
+      const people = (PEOPLE[detEvent.id] || PEOPLE.e1).map(([nm, ini, role]) => ({
+        n: nm, i: ini, role,
+        bg: role === 'Sahibi' ? H('primary', '.16') : role === 'Belki' ? H('warning', '.16') : H('success', '.16'),
+        fg: role === 'Sahibi' ? H('primary') : role === 'Belki' ? H('warning') : H('success')
+      }));
+      return {
+        title: detEvent.title, kind: k.label, glyph: k.glyph, dur: detEvent.dur,
+        kindBg: SOFT[k.tone], kindFg: TONE[k.tone],
+        when: detEvent.day + ' · ' + detEvent.t + ' · ' + detEvent.dur,
+        where: src.label + ' › ' + detEvent.ch, srcI: src.i, srcBg: src.bg, srcFg: src.fg,
+        host: detEvent.host, hostI: detEvent.hostI, desc: detEvent.desc,
+        att: detEvent.att, people, more: (detEvent.att - people.length) + ' kişi daha',
+        cta: going ? 'Katılımı geri al' : detEvent.live ? 'Yayına katıl' : 'Katıl',
+        ctaBg: going ? H('surface-tertiary') : H('primary'),
+        ctaFg: going ? H('text-secondary') : '#fff',
+        goingClick: () => this.setRsvp(detEvent, 'going')
+      };
+    })() : { people: [] };
+    return {
+      res: RES.map(x => ({
+        label: x.mult ? x.label + ' · ' + x.mult : x.label,
+        title: x.note,
+        bg: s.res === x.k ? H('primary') : 'transparent',
+        fg: s.res === x.k ? '#fff' : H('text-secondary'),
+        pick: () => this.setState({ res: x.k })
+      })),
+      resZoom: r.z, resW: r.w, resH: r.h, resNote: r.note,
+      setLight: () => this.setState({ pickedTheme: 'theme-light' }),
+      setDark: () => this.setState({ pickedTheme: 'theme-dark' }),
+      dirs: dirDef.map(([k, id, label]) => ({
+        id, label,
+        bg: dir === k ? H('primary') : 'transparent',
+        fg: dir === k ? '#fff' : H('text-secondary'),
+        badgeBg: dir === k ? 'hsl(0 0% 100% / .22)' : H('surface-soft'),
+        badgeFg: dir === k ? '#fff' : H('text-muted'),
+        pick: () => this.setState({ dir: k, det: null, menu: null })
+      })),
+      dirId: dirRow[1], dirName: dirRow[2], dirNote: dirRow[3],
+      dirA, dirB,
+      chips: chipDef.map(([label, patch, on]) => ({
+        label,
+        go: () => this.setState(patch),
+        bg: on ? H('primary') : H('surface-card'),
+        bd: on ? H('primary') : H('border'),
+        fg: on ? '#fff' : H('text-secondary')
+      })),
+      navHint: isError ? '' : '15:00',
+      totalCount: EVENTS.length,
+      isFeed, isEmpty, isError, groups,
+      showWeek: dirB && isFeed,
+      railOpen: dirB && isFeed && !detOpen,
+      detOpen, det,
+      filterBar: isFeed && activeFilters.length > 0,
+      activeFilters,
+      rsvpBanner: s.banner && isFeed,
+      q: s.q, hasQ: !!s.q,
+      searchBd: s.q ? H('primary', '.5') : H('border', '.5'),
+      clearQ: () => this.setState({ q: '' }),
+      clearAll: () => this.setState({ view: 'feed', tab: 'all', time: null, source: null, mine: null, q: '', banner: false }),
+      feedTitle: s.q ? 'Arama sonuçları' : s.source ? SRC[s.source].label : s.tab === 'live' ? 'Canlı' : s.tab === 'going' ? 'Katılacağım' : s.time === 'today' ? 'Bugün' : 'Etkinlikler',
+      feedCount: isError ? 'Bağlantı yok' : isEmpty ? '0 etkinlik' : items.length + ' etkinlik',
+      feedSub: isError
+        ? 'Son eşitleme 09:41 · yerel hatırlatmalar çalışıyor'
+        : isEmpty
+          ? 'Yaklaşan etkinlik yok · filtreleri temizleyebilirsin'
+          : (s.q ? '“' + s.q + '” için ' + items.length + ' sonuç' : 'Güne göre gruplu') + ' · ' + liveCount + ' canlı · ' + goingList.length + ' katılım · takvim ' + (s.sync ? 'bağlı' : 'bağlı değil'),
+      tabs: [
+        this.tab('all', 'Tümü', detOpen ? 0 : EVENTS.length),
+        this.tab('upcoming', 'Yaklaşan', detOpen ? 0 : EVENTS.length - liveCount),
+        this.tab('live', 'Canlı', detOpen ? 0 : liveCount),
+        this.tab('going', 'Katılacağım', detOpen ? 0 : goingList.length)
+      ],
+      hdrIcons: detOpen ? 'none' : 'flex',
+      tabsDisp: detOpen ? 'none' : 'flex',
+      times: timeDef.map(([id, label, sub, glyph, tone, count]) => {
+        const on = s.time === id && isFeed;
+        return {
+          label, sub, glyph, count: isEmpty || isError ? 0 : count,
+          bg: on ? H('surface-soft') : 'transparent',
+          fg: on ? H('foreground') : H('text-secondary'),
+          weight: on ? 600 : 500,
+          iconBg: on ? SOFT[tone] : H('surface-soft'),
+          iconFg: on ? TONE[tone] : H('text-muted'),
+          pillBg: id === 'today' ? H('primary') : H('surface-soft'),
+          pillFg: id === 'today' ? '#fff' : H('text-muted'),
+          go: () => this.setState({ view: 'feed', time: s.time === id ? null : id, create: false, menu: null })
+        };
+      }),
+      sources: ['whispr', 'product', 'oyun', 'topluluk'].map(k => {
+        const on = s.source === k;
+        return {
+          n: SRC[k].label, i: SRC[k].i, count: isEmpty || isError ? 0 : srcCounts[k],
+          radius: k === 'topluluk' ? '50%' : '9px',
+          tileBg: SRC[k].bg, tileFg: SRC[k].fg,
+          bg: on ? H('surface-soft') : 'transparent',
+          fg: on ? H('foreground') : H('text-secondary'),
+          weight: on ? 600 : 500,
+          go: () => this.setState({ view: 'feed', source: on ? null : k, create: false, menu: null })
+        };
+      }),
+      mine: [
+        ['going', 'Katılacağım', H('success'), goingList.length],
+        ['maybe', 'Belki', H('warning'), maybeCount],
+        ['host', 'Sahibi olduğum', H('primary'), 0]
+      ].map(([id, label, dot, count]) => {
+        const on = s.mine === id;
+        return {
+          label, dot, count: isEmpty || isError ? 0 : count,
+          bg: on ? H('surface-soft') : 'transparent',
+          fg: on ? H('foreground') : H('text-secondary'),
+          weight: on ? 600 : 500,
+          go: () => this.setState({ view: 'feed', mine: on ? null : id, create: false, menu: null })
+        };
+      }),
+      week: WEEK.map(w => ({
+        dow: w.dow, num: w.num,
+        dots: w.kinds.slice(0, 4).map(k => ({ c: TONE[KIND[k] ? KIND[k].tone : k] || TONE.primary })),
+        bg: w.today ? H('primary', '.14') : 'transparent',
+        bd: w.today ? H('primary', '.45') : H('border', '.55'),
+        dowFg: w.today ? H('primary') : H('text-muted'),
+        numFg: w.today ? H('primary') : H('foreground'),
+        go: () => this.setState({ view: 'feed', time: w.today ? 'today' : null, create: false, menu: null })
+      })),
+      agenda: EVENTS.filter(e => e.day === 'Bugün').sort((a, b) => a.sort - b.sort).map(e => ({
+        t: e.live ? 'Canlı' : e.t, title: e.title, where: SRC[e.src].label + ' › ' + e.ch,
+        live: e.live || false, tone: TONE[KIND[e.kind].tone],
+        tFg: e.live ? H('danger') : H('text-muted'),
+        bg: this.state.det === e.id ? H('primary', '.1') : H('surface-card'),
+        bd: this.state.det === e.id ? H('primary', '.35') : H('border', '.6'),
+        open: () => this.setState({ det: e.id })
+      })),
+      going: goingList.map(e => ({
+        title: e.title, when: e.day + ' · ' + e.t, glyph: KIND[e.kind].glyph,
+        kindBg: SOFT[KIND[e.kind].tone], kindFg: TONE[KIND[e.kind].tone],
+        open: () => this.setState({ det: e.id })
+      })),
+      goingCount: goingList.length,
+      closeDet: () => this.setState({ det: null }),
+      openCreate: () => this.setState({ create: true, menu: null, det: null, view: 'feed' }),
+      closeCreate: () => this.setState({ create: false }),
+      createOpen: s.create,
+      toggleSync: () => this.setState({ sync: !s.sync }),
+      syncBg: s.sync ? H('primary', '.15') : 'transparent',
+      syncFg: s.sync ? H('primary') : H('text-muted'),
+      toggleDensity: () => this.setState({ big: !s.big }),
+      togglePublic: () => this.setState({ pub: !s.pub }),
+      pubBg: s.pub ? H('primary') : H('surface-tertiary'),
+      pubX: s.pub ? '21px' : '3px',
+      kindOpts: Object.keys(KIND).map(k => {
+        const on = s.kind === k;
+        return {
+          label: KIND[k].label, glyph: KIND[k].glyph,
+          bg: on ? H('primary', '.1') : 'transparent',
+          bd: on ? H('primary', '.45') : H('border', '.7'),
+          fg: on ? H('foreground') : H('text-secondary'),
+          tileBg: on ? SOFT[KIND[k].tone] : H('surface-soft'),
+          tileFg: on ? TONE[KIND[k].tone] : H('text-muted'),
+          pick: () => this.setState({ kind: k })
+        };
+      }),
+      durOpts: DUR.map(label => ({
+        label,
+        bg: s.dur === label ? H('primary') : 'transparent',
+        fg: s.dur === label ? '#fff' : H('text-secondary'),
+        pick: () => this.setState({ dur: label })
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

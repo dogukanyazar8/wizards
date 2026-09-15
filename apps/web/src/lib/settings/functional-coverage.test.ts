@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  ABOUT_UNAVAILABLE_ROWS,
+  UPDATES_UNAVAILABLE_ROWS,
   ACCOUNT_UNAVAILABLE_ROWS,
   APPEARANCE_UNAVAILABLE_ROWS,
   AV_UNAVAILABLE_ROWS,
@@ -30,11 +30,10 @@ function register(scope: string, kind: EvidenceKind, probe: string, keys: string
 
 // Hesabım — gerçek action/service/consumer, read-only blok veya açık unavailable.
 register("account/profile", "runtime", "account-profile", "hero pn pu pp");
-register("account/profile", "unavailable", "account-disabled", "pz pbio ps pe px");
-register("account/account", "unavailable", "account-disabled", "ae ae2 ap");
+register("account/profile", "runtime", "profile-details-action", "pbio ps px");
+register("account/account", "runtime", "account-contact", "ae ap");
 register("account/account", "runtime", "account-security", "apw cn");
-register("account/privacy", "runtime", "account-bridge", "g1 g2 g3 g4 g5 g9 l1 l2 l3 l4");
-register("account/privacy", "unavailable", "account-disabled", "g6 g7 g8");
+register("account/privacy", "runtime", "account-bridge", "g1 g2 g3 g4 g5 g6 g7 g9");
 register("account/security", "runtime", "account-security", "s1 s4 o2");
 register("account/security", "unavailable", "account-disabled", "s2");
 register("account/security", "informational", "account-read-model", "s3 o1");
@@ -44,24 +43,25 @@ register("account/data", "runtime", "account-data", "d1 d3");
 // Ses ve Video — cihaz API'si, voice-store consumer'ı veya açık unavailable.
 register("av/audio", "platform", "media-device", "i1 u1");
 register("av/audio", "informational", "media-meter", "i3");
-register("av/audio", "unavailable", "av-disabled", "i4 u3");
-register("av/audio", "runtime", "av-bridge", "i5 i6 u2 p1 p2 p3 p4 p5 p6 p7 p9");
+register("av/audio", "runtime", "self-monitor", "i4");
+register("av/audio", "runtime", "master-output-livekit", "u3");
+register("av/audio", "runtime", "av-bridge", "i5 i6 u2 p4 p5 p7");
 register("av/camera", "platform", "media-device", "k1 k4");
 register("av/camera", "runtime", "camera-preview", "k2");
 register("av/camera", "unavailable", "av-disabled", "k3");
 register("av/screen-share", "runtime", "screen-share", "e1 e2 e3");
-register("av/screen-share", "unavailable", "av-disabled", "e4 e5");
+register("av/screen-share", "platform", "screen-share-capture", "e4 e5");
 register("av/screen-share", "platform", "screen-share-session", "e7");
 
 // Görünüm — uygulama kabuğu/tema consumer'ı, read-only önizleme veya açık unavailable.
 register("appearance/theme", "runtime", "theme-selection", "t1 t2");
-register("appearance/text", "runtime", "appearance-consumer", "m1 m3");
-register("appearance/text", "unavailable", "appearance-disabled", "m2 m4");
+register("appearance/text", "runtime", "appearance-consumer", "m1 m2 m3 m4");
+register("appearance/language", "runtime", "appearance-bridge", "l1 l2 l3 l4");
 register("appearance/text", "informational", "appearance-preview", "m5");
-register("appearance/media", "unavailable", "appearance-disabled", "v1 v2 v3 v4 v5 v6 v7 v8");
-register("appearance/layout", "runtime", "appearance-layout", "y1 y2 y3 y4 y5 y6 n1");
+register("appearance/media", "runtime", "message-media-preferences", "v1 v2 v3 v4 v7");
+register("appearance/layout", "runtime", "appearance-layout", "y1 y2 y3 y4 y5 y6");
 register("appearance/accessibility", "runtime", "text-scale", "x4");
-register("appearance/accessibility", "unavailable", "appearance-disabled", "x1 x2 x3 x5 x6 x7");
+register("appearance/accessibility", "runtime", "appearance-document", "x2 x3");
 
 // Bildirimler — merkezi policy/producer, browser izni, read model veya açık unavailable.
 register("notifications/general", "runtime", "notification-policy", "b1 nd2 na6 nq1 nqx");
@@ -84,25 +84,26 @@ register("notifications/exceptions", "runtime", "notification-exceptions", "ne0"
 register("notifications/exceptions", "unavailable", "notification-disabled", "ne1");
 
 // Desktop/Tauri — native runtime consumer'ı, durum bloğu veya açık unavailable.
-register("desktop/app", "platform", "desktop-control", "w1 w2");
+register("desktop/app", "platform", "desktop-control", "w1 w2 w8");
 register("desktop/app", "platform", "desktop-runtime", "w4 w5 w6 w7");
-register("desktop/shortcuts", "unavailable", "desktop-disabled", "q1");
-register("desktop/shortcuts", "platform", "desktop-shortcuts", "q2 q3");
+register("desktop/shortcuts", "platform", "desktop-shortcuts", "q1 q2");
 register("desktop/overlay", "platform", "desktop-runtime", "z1 z2 z3 z4 z5 z6");
 register("desktop/overlay", "unavailable", "desktop-disabled", "z7 z8");
 register("desktop/permissions", "platform", "desktop-permissions", "j1");
-register("desktop/updates", "unavailable", "desktop-disabled", "h1 h4 n4");
-register("desktop/updates", "runtime", "release-channel", "h2");
-register("desktop/updates", "informational", "desktop-diagnostics", "n3");
+register("updates/updates", "unavailable", "desktop-disabled", "h4");
+register("updates/updates", "platform", "desktop-control", "h1 n4");
+register("updates/updates", "runtime", "release-channel", "h2");
+register("updates/updates", "informational", "desktop-diagnostics", "n3");
 
 // Hakkında — salt okunur build bilgisi/bağlantılar veya açık unavailable.
-register("about/about", "informational", "about-blocks", "o1 o2 o4 o6");
-register("about/about", "unavailable", "about-disabled", "o3 o5");
+register("about/about", "informational", "about-blocks", "o1 o6");
+register("updates/updates", "informational", "about-blocks", "o2 o4");
+register("updates/updates", "runtime", "release-history", "o5");
 
 const TREE_ROWS = [...walkSettingsRows()];
 
 describe("Ayarlar — exhaustive fonksiyonel kanıt", () => {
-  it("169 ürün satırı ve g9 kanıtsız kalmıyor", () => {
+  it("ürün satırları ve g9 kanıtsız kalmıyor", () => {
     const actual = [
       ...TREE_ROWS.map(({ section, tab, row }) => `${section.key}/${tab.key}/${row.key}`),
       "account/privacy/g9",
@@ -121,7 +122,7 @@ describe("Ayarlar — exhaustive fonksiyonel kanıt", () => {
 
   it("unavailable sınıfı production disabled sözleşmeleriyle birebir", () => {
     const fixedBySection: Readonly<Record<string, Readonly<Record<string, true>>>> = {
-      about: ABOUT_UNAVAILABLE_ROWS,
+      updates: UPDATES_UNAVAILABLE_ROWS,
       account: ACCOUNT_UNAVAILABLE_ROWS,
       appearance: APPEARANCE_UNAVAILABLE_ROWS,
       av: AV_UNAVAILABLE_ROWS,

@@ -26,6 +26,7 @@ import {
   MIN_NOTIFICATION_LIMIT,
   clampChannelSidebarWidth,
   clampServerRailWidth,
+  normalizeStoredServerRailWidth,
 } from "@/lib/appearance";
 import { normalizeMessageFontId, type MessageFontId } from "@/lib/message-fonts";
 import {
@@ -198,6 +199,7 @@ function mapSettingsResponse(input: SettingsPersistenceRecord): UserSettingsResp
   return {
     ...input.settings,
     ...preferences,
+    serverRailWidth: normalizeStoredServerRailWidth(input.settings.serverRailWidth),
     messageFont: normalizeMessageFontId(input.settings.messageFont),
     desktopNotifications:
       input.notificationSettings?.desktopNotifications ??

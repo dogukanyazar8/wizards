@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { CameraPreviewBlock } from "@/components/settings/blocks/camera-preview-block";
 import { getMessagesForLocale } from "@/lib/locale";
-import { SETTINGS_METRICS, pxToRem } from "@/lib/settings/metrics";
+import { pxToRem } from "@/lib/settings/metrics";
 
 /** Ş8 §A.3 — `k2` önizleme çerçevesi. */
 
@@ -17,11 +17,11 @@ const markup = renderToStaticMarkup(
 );
 
 describe("CameraPreviewBlock", () => {
-  it("220 px 16:9 çerçeve sözlükten", () => {
-    const { cameraPreview } = SETTINGS_METRICS.blocks;
-
-    assert.equal(cameraPreview.width, 220);
-    assert.ok(markup.includes(`width:${pxToRem(cameraPreview.width)}`));
+  it("responsive 16:9 preview and quality controls", () => {
+    assert.ok(markup.includes("width:100%"));
+    assert.ok(markup.includes(`max-width:${pxToRem(520)}`));
+    assert.ok(markup.includes("Çözünürlük"));
+    assert.ok(markup.includes("Kare hızı"));
     assert.ok(markup.includes("aspect-ratio:16 / 9"));
   });
 

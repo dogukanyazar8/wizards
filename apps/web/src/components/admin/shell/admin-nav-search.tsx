@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Command, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
+import {
+  useAppShortcutAriaKeyShortcuts,
+  useAppShortcutLabel,
+} from "@/hooks/use-app-shortcut-label";
 
 export type AdminNavSearchItem = {
   href: string;
@@ -21,6 +25,8 @@ export function findAdminNavMatches(query: string, items: readonly AdminNavSearc
 }
 
 export function AdminNavSearch({ items }: { items: AdminNavSearchItem[] }) {
+  const shortcut = useAppShortcutLabel("commandPalette.toggle");
+  const ariaShortcut = useAppShortcutAriaKeyShortcuts("commandPalette.toggle");
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -57,6 +63,7 @@ export function AdminNavSearch({ items }: { items: AdminNavSearchItem[] }) {
         <Search className="text-app-soft shrink-0" size={16} />
         <input
           aria-controls="admin-module-results"
+          aria-keyshortcuts={ariaShortcut}
           aria-expanded={open}
           className="min-w-0 flex-1 bg-transparent text-[13px] text-app-foreground outline-hidden placeholder:text-app-soft"
           onChange={(event) => {
@@ -75,7 +82,7 @@ export function AdminNavSearch({ items }: { items: AdminNavSearchItem[] }) {
           value={query}
         />
         <span className="text-app-soft inline-flex items-center gap-1 text-[11px] font-semibold">
-          <Command size={12} />K
+          {shortcut}
         </span>
       </label>
       {open ? (

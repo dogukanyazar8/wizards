@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, it } from "node:test";
+import { after, describe, it } from "node:test";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
@@ -10,12 +11,13 @@ const execFileAsync = promisify(execFile);
 const scriptPath = fileURLToPath(import.meta.url);
 const desktopRoot = path.resolve(path.dirname(scriptPath), "..");
 const runTauriScript = path.join(desktopRoot, "scripts", "run-tauri.mjs");
-const generatedConfigPath = path.join(
-  desktopRoot,
-  ".tauri",
-  "generated",
-  "tauri.conf.generated.json",
-);
+const generatedDirectory = await mkdtemp(path.join(tmpdir(), "whispr-tauri-config-test-"));
+after(() => {
+  assert.equal(path.dirname(path.resolve(generatedDirectory)), path.resolve(tmpdir()));
+  assert.ok(path.basename(generatedDirectory).startsWith("whispr-tauri-config-test-"));
+  return rm(generatedDirectory, { recursive: true, force: true });
+});
+const generatedConfigPath = path.join(generatedDirectory, "tauri.conf.generated.json");
 const isolatedDesktopEnvKeys = [
   "TAURI_APP_NAME",
   "TAURI_DEV_WEB_URL",
@@ -99,13 +101,13 @@ describe("desktop Tauri config generation", () => {
       undefined,
       "Updater artifacts must not be produced until updater signing is explicitly enabled.",
     );
-    assert.ok(!capability.permissions.includes("allow-configure-desktop-voice-shortcuts"));
-    assert.ok(!capability.permissions.includes("allow-export-desktop-diagnostics-bundle"));
+    assert.ok(capability.permissions.includes("allow-configure-desktop-voice-shortcuts"));
+    assert.ok(capability.permissions.includes("allow-export-desktop-diagnostics-bundle"));
     assert.ok(
-      desktopControlCapability.permissions.includes("allow-configure-desktop-voice-shortcuts"),
+      !desktopControlCapability.permissions.includes("allow-configure-desktop-voice-shortcuts"),
     );
     assert.ok(
-      desktopControlCapability.permissions.includes("allow-export-desktop-diagnostics-bundle"),
+      !desktopControlCapability.permissions.includes("allow-export-desktop-diagnostics-bundle"),
     );
     assert.ok(
       capability.permissions.includes("allow-record-desktop-update-failure"),
@@ -257,12 +259,8 @@ describe("desktop Tauri config generation", () => {
     assert.ok(!mainCapability.permissions.some((permission) => permission.startsWith("updater:")));
     assert.ok(!mainCapability.permissions.includes("process:allow-restart"));
     assert.ok(!mainCapability.permissions.includes("notification:allow-request-permission"));
-    assert.ok(
-      desktopControlCapability.permissions.includes("allow-desktop-control-check-for-updates"),
-    );
-    assert.ok(
-      desktopControlCapability.permissions.includes("allow-desktop-control-install-update"),
-    );
+    assert.ok(mainCapability.permissions.includes("allow-desktop-control-check-for-updates"));
+    assert.ok(mainCapability.permissions.includes("allow-desktop-control-install-update"));
     assert.ok(!desktopControlCapability.permissions.includes("updater:allow-check"));
     assert.ok(!desktopControlCapability.permissions.includes("updater:allow-download-and-install"));
     assert.ok(!desktopControlCapability.permissions.includes("process:allow-restart"));
@@ -325,8 +323,8 @@ describe("desktop Tauri config generation", () => {
     assert.ok(generatedGameOverlayCapability, "Expected generated game overlay capability");
     assert.ok(generatedDesktopControlCapability, "Expected generated Desktop Control capability");
     assert.deepEqual(
-      generatedCapability.permissions,
-      staticCapability.permissions,
+      [...generatedCapability.permissions].sort(),
+      [...staticCapability.permissions].sort(),
       "Generated builds must not silently widen or narrow the checked-in main capability permissions.",
     );
     assert.deepEqual(
@@ -503,6 +501,23 @@ describe("desktop Tauri config generation", () => {
   });
 });
 
+it("preserves fixed IPC transports in generated dev and build configurations", async () => {
+  for (const mode of ["dev", "build"]) {
+    await execFileAsync(process.execPath, [runTauriScript, mode, "--write-config-only"], {
+      cwd: desktopRoot,
+      env: testDesktopEnv(),
+    });
+    const config = JSON.parse(await readFile(generatedConfigPath, "utf8"));
+    const sources = getCspDirective(config.app.security.csp, "connect-src");
+    for (const source of ["ipc:", "http://ipc.localhost", "https://ipc.localhost"]) {
+      assert.ok(sources.includes(source), `${mode}: missing ${source}`);
+    }
+    assert.ok(!sources.includes("*"));
+    assert.ok(!sources.includes("http:"));
+    assert.ok(!sources.includes("https:"));
+  }
+});
+
 function testDesktopEnv(overrides = {}) {
   const env = { ...process.env };
 
@@ -513,6 +528,7 @@ function testDesktopEnv(overrides = {}) {
   return {
     ...env,
     ...overrides,
+    WHISPR_DESKTOP_CONFIG_OUTPUT_DIR: generatedDirectory,
   };
 }
 

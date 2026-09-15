@@ -2,7 +2,22 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type Redis from "ioredis";
 
-import { readPresenceMap, readPresenceState, type PresenceFallback } from "./presence";
+import {
+  parsePresenceRecord,
+  readPresenceMap,
+  readPresenceState,
+  type PresenceFallback,
+} from "./presence";
+
+it("expires cached status text without changing online presence", () => {
+  assert.deepEqual(
+    parsePresenceRecord(
+      { status: "ONLINE", customStatus: "Release", customStatusExpiresAt: "2000-01-01T00:00:00Z" },
+      { status: "OFFLINE", customStatus: null },
+    ),
+    { status: "ONLINE", customStatus: null },
+  );
+});
 
 type StoredPresence = {
   /** How many sockets the presence set reports for this user. */

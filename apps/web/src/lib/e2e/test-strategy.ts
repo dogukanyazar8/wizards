@@ -181,10 +181,10 @@ export const testStrategySuites = [
   {
     automated: false,
     cadences: ["production-monitoring"],
-    id: "canary-production-monitoring",
+    id: "production-monitoring",
     layers: ["performance", "security"],
     purpose:
-      "Canary/ring monitoring for crash rate, message delivery, websocket disconnects, media QoE, latency, and rollback signals.",
+      "Production monitoring for crash rate, message delivery, websocket disconnects, media QoE, latency, and rollback signals.",
     riskAreas: ["performance", "release-operations", "realtime", "voice-video"],
   },
 ] as const satisfies readonly TestStrategySuite[];

@@ -22,6 +22,7 @@ export type SettingInputProps = {
   readonly describedById?: string | undefined;
   readonly disabled?: boolean;
   readonly labelledById?: string | undefined;
+  readonly maxLength?: number | undefined;
   readonly onChange: (next: string) => void;
   readonly prefix?: string | undefined;
   readonly testId?: string;
@@ -32,6 +33,7 @@ export function SettingInput({
   describedById,
   disabled = false,
   labelledById,
+  maxLength,
   onChange,
   prefix,
   testId,
@@ -68,6 +70,7 @@ export function SettingInput({
         className="min-w-0 flex-1 bg-transparent text-[hsl(var(--foreground))] outline-hidden"
         data-testid={testId}
         disabled={disabled}
+        maxLength={maxLength}
         onChange={(event) => onChange(event.target.value)}
         style={{
           fontSize: pxToRem(input.fontSize),

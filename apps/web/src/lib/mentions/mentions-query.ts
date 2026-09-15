@@ -224,7 +224,7 @@ export type MentionQueryRow = {
 // ---------------------------------------------------------------------------
 
 function mentionStateJoin(userId: string, source: MentionStateSource, ref: Prisma.Sql): Prisma.Sql {
-  const label = Prisma.raw(`'${STATE_SOURCE_ENUM[source]}'`);
+  const label = STATE_SOURCE_ENUM[source];
 
   return Prisma.sql`
     LEFT JOIN "MentionState" ms

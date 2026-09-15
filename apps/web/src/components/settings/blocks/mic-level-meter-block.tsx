@@ -46,7 +46,7 @@ export function MicLevelMeterBlock({ row: rowDef }: SettingsBlockProps) {
       : t("settings.block.mic.idle");
 
   return (
-    <div className="flex items-center" data-block="mic" style={{ gap: pxToRem(14) }}>
+    <div className="flex flex-wrap items-center" data-block="mic" style={{ gap: pxToRem(14) }}>
       <span
         className="flex-none"
         style={{
@@ -65,7 +65,7 @@ export function MicLevelMeterBlock({ row: rowDef }: SettingsBlockProps) {
         aria-valuemin={0}
         aria-valuenow={percent}
         aria-valuetext={statusText}
-        className="flex min-w-0 flex-1"
+        className="flex min-w-20 flex-1"
         data-testid="settings-mic-meter"
         role="meter"
         style={{ gap: pxToRem(micMeter.segmentGap) }}
@@ -89,14 +89,14 @@ export function MicLevelMeterBlock({ row: rowDef }: SettingsBlockProps) {
       </span>
 
       <button
-        className="flex-none whitespace-nowrap"
+        className="ml-auto flex-none whitespace-nowrap transition-[filter] hover:brightness-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
         data-testid={`setting-actions-${rowDef.key}`}
         onClick={toggle}
         style={{
-          background: "hsl(var(--surface-base))",
+          background: "hsl(var(--primary))",
           border: `${hairline()} solid hsl(var(--border) / ${action.borderAlpha})`,
           borderRadius: pxToRem(action.radius),
-          color: "hsl(var(--text-secondary))",
+          color: "hsl(var(--primary-foreground))",
           fontSize: pxToRem(action.fontSize),
           fontWeight: action.weight,
           height: pxToRem(action.height),

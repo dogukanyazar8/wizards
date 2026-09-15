@@ -556,6 +556,22 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
     });
   }, []);
 
+  const switchScreenShareSource = useCallback(async () => {
+    const store = useVoiceStore.getState();
+    if (!store.isScreenSharing || !store.screenShareAllowSourceSwitch) return;
+    if (getE2EFlag(E2E_SCREEN_SHARE_DENIED_KEY)) return;
+    setScreenShares((current) =>
+      current.map((share) =>
+        share.isLocal
+          ? {
+              ...share,
+              trackSid: `${share.trackSid}:switched`,
+            }
+          : share,
+      ),
+    );
+  }, []);
+
   const setScreenShareQuality = useCallback(async (qualityId: ScreenShareQualityId) => {
     setIsApplyingScreenShareQuality(true);
     try {
@@ -780,6 +796,8 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
       toggleCamera,
       toggleMute,
       toggleScreenShare,
+      screenShareStatus: "idle",
+      switchScreenShareSource,
     }),
     [
       activeChannelId,
@@ -816,6 +834,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
       toggleDeafen,
       toggleMute,
       toggleScreenShare,
+      switchScreenShareSource,
     ],
   );
 

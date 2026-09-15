@@ -199,6 +199,7 @@ export type NotifPanelRow = {
   readonly type: NotificationType;
   readonly title: string;
   readonly body: string;
+  readonly actionUrl: string | null;
   readonly read: boolean;
   readonly createdAt: Date;
   readonly metadata: unknown;
@@ -227,7 +228,7 @@ export function buildNotifPanelPageQuery(query: NotifPanelPageQuery): Prisma.Sql
   }
 
   return Prisma.sql`
-    SELECT "id", "type", "title", "body", "read", "createdAt", "metadata"
+    SELECT "id", "type", "title", "body", "actionUrl", "read", "createdAt", "metadata"
     FROM "Notification"
     WHERE ${Prisma.join(conditions, " AND ")}
     ORDER BY "createdAt" DESC, "id" DESC

@@ -6,7 +6,7 @@ const scriptPath = fileURLToPath(import.meta.url);
 const desktopRoot = path.resolve(path.dirname(scriptPath), "..");
 const repoRoot = path.resolve(desktopRoot, "..", "..");
 
-export const DESKTOP_RELEASE_RINGS = Object.freeze(["dev", "uat", "canary", "stable"]);
+export const DESKTOP_RELEASE_RINGS = Object.freeze(["dev", "uat", "stable"]);
 
 export const DESKTOP_REQUIRED_SMOKE_TESTS = Object.freeze([
   {
@@ -119,24 +119,12 @@ export const DESKTOP_RELEASE_PROMOTION_RULES = Object.freeze([
     ],
   },
   {
-    ring: "canary",
-    rollout: "small monitored production cohort",
-    entryCriteria: [
-      "UAT evidence is attached",
-      "rollback manifest is ready",
-      "support owner is assigned",
-    ],
-    exitCriteria: [
-      "canary update health is clean",
-      "crash and install failure signals stay within budget",
-      "support feedback has no release blockers",
-    ],
-  },
-  {
     ring: "stable",
     rollout: "broad production release",
     entryCriteria: [
-      "canary health is clean",
+      "UAT evidence is attached and release health is clean",
+      "rollback manifest is ready",
+      "support owner is assigned",
       "stable dispatch guard is confirmed from main",
       "real OV/EV Windows signing configuration is present",
     ],
@@ -220,15 +208,15 @@ export function getDesktopReleaseOpsContract() {
     safetyRules: DESKTOP_RELEASE_SAFETY_RULES.map((rule) => ({ ...rule })),
     versionContract: getDesktopVersionContract(),
     platformMatrix: {
-      windows: "disabled-no-local-runner",
-      macos: "disabled-no-local-runner",
-      linux: "automatic-self-hosted",
+      windows: "automatic-github-hosted",
+      macos: "disabled",
+      linux: "automatic-github-hosted",
     },
   };
 }
 
 export function assertDesktopReleaseOpsContract(contract = getDesktopReleaseOpsContract()) {
-  assertArrayEquals(contract.releaseRings, ["dev", "uat", "canary", "stable"], "release rings");
+  assertArrayEquals(contract.releaseRings, ["dev", "uat", "stable"], "release rings");
 
   const smokeIds = new Set(contract.smokeTests.map((test) => test.id));
   for (const requiredId of DESKTOP_REQUIRED_SMOKE_TESTS.map((test) => test.id)) {
@@ -272,7 +260,7 @@ export function assertDesktopReleaseOpsContract(contract = getDesktopReleaseOpsC
   }
 
   const promotionRings = contract.promotionRules.map((rule) => rule.ring);
-  assertArrayEquals(promotionRings, ["uat", "canary", "stable"], "promotion rings");
+  assertArrayEquals(promotionRings, ["uat", "stable"], "promotion rings");
   for (const rule of contract.promotionRules) {
     assertCondition(
       rule.entryCriteria.length > 0,
@@ -297,16 +285,16 @@ export function assertDesktopReleaseOpsContract(contract = getDesktopReleaseOpsC
   }
 
   assertCondition(
-    contract.platformMatrix.windows === "disabled-no-local-runner",
-    "Windows desktop CI must remain disabled until a local Windows runner is registered.",
+    contract.platformMatrix.windows === "automatic-github-hosted",
+    "Windows desktop CI must run automatically on GitHub-hosted runners.",
   );
   assertCondition(
-    contract.platformMatrix.macos === "disabled-no-local-runner",
-    "macOS desktop CI must remain disabled until a local macOS runner is registered.",
+    contract.platformMatrix.macos === "disabled",
+    "macOS desktop CI is outside the Windows-only release scope.",
   );
   assertCondition(
-    contract.platformMatrix.linux === "automatic-self-hosted",
-    "Linux desktop CI must run automatically on the self-hosted runner.",
+    contract.platformMatrix.linux === "automatic-github-hosted",
+    "Linux desktop CI must run automatically on GitHub-hosted runners.",
   );
   assertDesktopVersionContract(contract.versionContract);
 

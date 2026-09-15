@@ -18,21 +18,35 @@ describe("settings bootstrap", () => {
   it("memoizes process-static package and contributor reads", async () => {
     let contributorReads = 0;
     let packageReads = 0;
+    let preferenceReads = 0;
+    const staticRead = Promise.withResolvers<string[]>();
     const dependencies = {
       readContributors: async () => {
         contributorReads += 1;
-        return ["Grace", "Ada"];
+        return staticRead.promise;
       },
       readPackageVersion: async () => {
         packageReads += 1;
         return "1.2.3";
       },
-      readPreferredReleaseChannel: async () => null,
+      readPreferredReleaseChannel: async () => {
+        preferenceReads += 1;
+        return null;
+      },
     };
 
-    await getSettingsBootstrapPayload({ locale: "en", user }, dependencies);
+    const first = getSettingsBootstrapPayload({ locale: "en", user }, dependencies);
+    const readsWhileStaticPending = preferenceReads;
+    staticRead.resolve(["Grace", "Ada"]);
+    await first;
     await getSettingsBootstrapPayload({ locale: "tr", user }, dependencies);
 
+    assert.equal(
+      readsWhileStaticPending,
+      1,
+      "user preferences must start before static data resolves",
+    );
+    assert.equal(preferenceReads, 2, "user preferences must not enter the process-static cache");
     assert.equal(contributorReads, 1);
     assert.equal(packageReads, 1);
   });

@@ -5,11 +5,13 @@ import { fileURLToPath } from "node:url";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { ProfileHeroCard } from "@/components/settings/blocks/profile-hero-card";
 import { AccountSurfaceContext } from "@/components/settings/sections/account/account-context";
 import type { AccountSettingsState } from "@/lib/account/actions";
+import type { AccountBanner } from "@/lib/account/banner";
 import { getMessagesForLocale } from "@/lib/locale";
 import { createQueryClient } from "@/lib/query-client";
 import { SETTINGS_METRICS, pxToRem } from "@/lib/settings/metrics";
@@ -36,28 +38,46 @@ function render(
   values: SettingsPatch = {},
   data: Record<string, string> = {},
   account: AccountSettingsState | null = null,
+  banner?: AccountBanner,
 ): string {
   const store = new SettingsValueStore({ values, write: async () => {} });
   const queryClient = createQueryClient();
+  if (account && banner) {
+    queryClient.setQueryData(["account-banner", account.id], banner);
+  }
 
-  return renderToStaticMarkup(
-    <LocaleProvider initialLocale="tr" initialMessages={MESSAGES}>
-      <QueryClientProvider client={queryClient}>
-        <AccountSurfaceContext.Provider
-          value={{ account, onAccountUpdated: () => undefined, uploadthingEnabled: false }}
-        >
-          <SettingsValueContext.Provider value={store}>
-            <ProfileHeroCard data={data} row={HERO_ROW} />
-          </SettingsValueContext.Provider>
-        </AccountSurfaceContext.Provider>
-      </QueryClientProvider>
-    </LocaleProvider>,
+  const markup = renderToStaticMarkup(
+    <AppRouterContext.Provider
+      value={{
+        bfcacheId: "profile-hero-test",
+        back() {},
+        forward() {},
+        refresh() {},
+        push() {},
+        replace() {},
+        prefetch() {},
+      }}
+    >
+      <LocaleProvider initialLocale="tr" initialMessages={MESSAGES}>
+        <QueryClientProvider client={queryClient}>
+          <AccountSurfaceContext.Provider
+            value={{ account, onAccountUpdated: () => undefined, uploadthingEnabled: false }}
+          >
+            <SettingsValueContext.Provider value={store}>
+              <ProfileHeroCard data={data} row={HERO_ROW} />
+            </SettingsValueContext.Provider>
+          </AccountSurfaceContext.Provider>
+        </QueryClientProvider>
+      </LocaleProvider>
+    </AppRouterContext.Provider>,
   );
+  queryClient.clear();
+  return markup;
 }
 
 describe("ProfileHeroCard — geometri", () => {
   it("kartı kırpar ve yalnız avatarı banner üzerine taşır", () => {
-    assert.match(SOURCE, /overflow-hidden rounded-\[1\.5rem\] border/u);
+    assert.match(SOURCE, /overflow-hidden rounded-\[inherit\] bg-/u);
     assert.match(SOURCE, /data-testid="settings-hero-avatar-row"/u);
     assert.match(SOURCE, /mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between/u);
   });
@@ -122,9 +142,10 @@ describe("ProfileHeroCard — canlı değer", () => {
   it("özel durum boşken şerit çizilmiyor, doluyken temizle düğmesi geliyor", () => {
     assert.ok(!render({ ps: "" }).includes("settings-hero-custom-status"));
 
-    const markup = render({ pe: 0, ps: "Tasarım kritiğinde", px: 1 });
+    const markup = render({ pe: "🎨", ps: "Tasarım kritiğinde", px: 1 });
 
     assert.ok(markup.includes("Tasarım kritiğinde"));
+    assert.ok(markup.includes("🎨"));
     assert.ok(markup.includes("4 saat sonra"));
     assert.ok(markup.includes("settings-hero-clear-status"));
   });
@@ -145,13 +166,35 @@ describe("ProfileHeroCard — PROMPT §5", () => {
     }
   });
 
-  it("banner düğmeleri `disabled` ve kaynak `TODO(api)` taşıyor", () => {
+  it("hesap yüklenmeden banner işlemlerine izin vermiyor", () => {
     const markup = render();
 
     assert.ok(markup.includes('data-testid="settings-hero-change-banner"'));
     assert.match(markup, /settings-hero-change-banner"[^>]*disabled/u);
     assert.match(markup, /settings-hero-remove-banner"[^>]*disabled/u);
-    assert.ok(SOURCE.includes("TODO(api)"), "banner yolu için not bırakılmalı");
+  });
+
+  it("kayıtlı banner odak noktalarını gösterir; yükleme kapalıyken kaldırmaya izin verir", () => {
+    const account: AccountSettingsState = {
+      avatarUrl: null,
+      displayName: "Test",
+      email: "test@example.com",
+      emailVerified: false,
+      id: "banner-owner",
+      status: "ONLINE",
+      twoFactorEnabled: false,
+      username: "test",
+    };
+    const markup = render({}, {}, account, {
+      bannerUrl: "https://cdn.example.com/banner.png",
+      bannerColor: "#22A366",
+      bannerOffsetX: 0,
+      bannerOffsetY: 1,
+    });
+    assert.match(markup, /banner\.png/u);
+    assert.match(markup, /0% 100% \/ cover/u);
+    assert.doesNotMatch(markup, /settings-hero-remove-banner"[^>]*disabled/u);
+    assert.doesNotMatch(markup, /settings-hero-change-banner"[^>]*disabled/u);
   });
 
   it("token dışı renk yok (tek istisna ters metin `#fff`)", () => {

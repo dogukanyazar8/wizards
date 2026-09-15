@@ -57,7 +57,6 @@ const baseProfile: MobileUserProfile = {
   },
   note: null,
   presence: { customStatus: "Test ediyor", status: "ONLINE" },
-  pronouns: null,
   registeredAt: "2025-04-02T09:00:00.000Z",
   relationship: "friend",
   self: false,
@@ -98,6 +97,7 @@ const baseBadges: readonly EarnedBadge[] = [
 function renderCard(
   profile: MobileUserProfile,
   options: {
+    gameActivityLabel?: string;
     badges?: readonly EarnedBadge[];
     badgesLoading?: boolean;
     handlers?: ReturnType<typeof createHandlers>;
@@ -111,6 +111,7 @@ function renderCard(
       badges={options.badges ?? baseBadges}
       badgesLoading={options.badgesLoading ?? false}
       busy={false}
+      gameActivityLabel={options.gameActivityLabel}
       menu={null}
       onOpenMenu={options.onOpenMenu === undefined ? jest.fn() : options.onOpenMenu}
       profile={profile}
@@ -118,6 +119,21 @@ function renderCard(
     />,
   );
 }
+
+it("shows a shared game only on a visible, unblocked profile", async () => {
+  const label = "Counter-Strike 2 oynuyor";
+  const visible = await renderCard(baseProfile, { gameActivityLabel: label });
+  expect(visible.getByText(label)).toBeTruthy();
+  await visible.unmount();
+  for (const profile of [
+    { ...baseProfile, presence: { ...baseProfile.presence, status: "OFFLINE" as const } },
+    { ...baseProfile, blocked: true, relationship: "blocked" as const },
+  ]) {
+    const hidden = await renderCard(profile, { gameActivityLabel: label });
+    expect(hidden.queryByTestId("mobile-profile-game-activity")).toBeNull();
+    await hidden.unmount();
+  }
+});
 
 /**
  * A banner is the same image cropped `cover`, so two frames only show the same

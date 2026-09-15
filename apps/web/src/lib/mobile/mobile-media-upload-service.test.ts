@@ -910,6 +910,40 @@ describe("mobile media upload service", { concurrency: false }, () => {
   });
 
   describe("claim mobile media", () => {
+    it("rejects a different expected purpose before consuming or changing a valid claim", async () => {
+      const { dependencies, operations, state } = createClaimHarness();
+      const before = structuredClone(state);
+      await assert.rejects(
+        () =>
+          claimMobileMediaUpload(
+            "user-1",
+            {
+              claimId: "claim-1",
+              expectedPurpose: "profile-banner",
+            },
+            dependencies as never,
+          ),
+        (error) => error instanceof ApiError && error.code === "UPLOAD_CLAIM_UNAVAILABLE",
+      );
+      assert.deepEqual(state, before);
+      assert.ok(!operations.includes("tx.upload.cas"));
+      assert.ok(!operations.includes("tx.user.updateMany"));
+      // The valid avatar claim remains available to its original caller.
+      assert.equal(
+        (
+          await claimMobileMediaUpload(
+            "user-1",
+            {
+              claimId: "claim-1",
+              expectedPurpose: "profile-avatar",
+            },
+            dependencies as never,
+          )
+        ).purpose,
+        "profile-avatar",
+      );
+    });
+
     it("rejects claims with invalid owner or lifecycle state", async (context) => {
       const cases: Array<[string, Partial<StoredUpload>, string]> = [
         ["wrong owner", { ownerId: "user-2" }, "user-1"],

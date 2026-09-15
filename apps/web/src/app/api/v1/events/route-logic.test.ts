@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import { API_RATE_LIMITS } from "@/lib/api-rate-limit";
 import type { EventsListQuery } from "@/lib/events/events-service";
+import type { EventWriteResponse } from "@/lib/events/mutations";
 import { UNAUTHENTICATED, readJson, recordRateLimit } from "@/lib/home/home-test-doubles";
 
 import { ApiError } from "@/lib/api";
@@ -160,7 +161,7 @@ describe("GET /api/v1/events", () => {
   });
 
   it("imlec opak tasinir; yon kuralini ne rota ne istemci tekrar eder", async () => {
-    const token = "YXNjfDIwMjYtMDgtMjZUMTM6MDA6MDAuMDAwWnxldi0x";
+    const token = "YXNjfDIwMjYtMDgtMjZUMTM6MDA6MDAuMDAwWnxldi0x"; // gitleaks:allow -- Public deterministic fixture, not a credential.
     const query = await capture(`https://whispr.test/api/v1/events?cursor=${token}`);
 
     assert.equal(query.cursor, token);
@@ -192,9 +193,9 @@ const CREATE_COUNTS = {
 
 const CREATE_RESPONSE = {
   counts: CREATE_COUNTS,
-  event: { id: "evt-1" },
+  event: { id: "evt-1", serverId: "srv-1", isPublic: false },
   scheduled: false,
-} as never;
+} as unknown as EventWriteResponse;
 
 function createRequest(body: unknown): Request {
   return new Request("https://whispr.test/api/v1/events", {
@@ -219,6 +220,7 @@ function createDependencies(overrides: Partial<EventCreateRouteDependencies> = {
 
   return {
     deps: {
+      publishCreated: () => {},
       authenticate: () => Promise.resolve("u1"),
       createEvent: (_userId: string, input: unknown) => {
         seen.push(input);
@@ -235,6 +237,45 @@ function createDependencies(overrides: Partial<EventCreateRouteDependencies> = {
 }
 
 describe("POST /api/v1/events", () => {
+  it("yer olmadan açıklama ve uzun süreyi kabul eder; başarılı kayıttan sonra yayınlar", async () => {
+    const published: unknown[] = [];
+    const { deps, seen } = createDependencies({
+      publishCreated: (payload) => {
+        published.push(payload);
+      },
+    });
+    const response = await eventCreateRoute(
+      createRequest({
+        ...VALID_CREATE_BODY,
+        channelId: undefined,
+        durationMinutes: 120,
+        description: "Arkadaş buluşması",
+      }),
+      deps,
+    );
+    assert.equal(response.status, 201);
+    assert.equal((seen[0] as { description: string }).description, "Arkadaş buluşması");
+    assert.equal((seen[0] as { channelId?: string }).channelId, undefined);
+    assert.deepEqual(published, [
+      {
+        eventId: CREATE_RESPONSE.event.id,
+        serverId: CREATE_RESPONSE.event.serverId,
+        isPublic: CREATE_RESPONSE.event.isPublic,
+      },
+    ]);
+  });
+
+  it("kayıt reddedilince etkinlik yayınlamaz", async () => {
+    const published: unknown[] = [];
+    const { deps } = createDependencies({
+      createEvent: () => Promise.reject(new ApiError("Forbidden", 403, "FORBIDDEN")),
+      publishCreated: (payload) => {
+        published.push(payload);
+      },
+    });
+    assert.equal((await eventCreateRoute(createRequest(VALID_CREATE_BODY), deps)).status, 403);
+    assert.deepEqual(published, []);
+  });
   it("201 ile etkinliği ve güncel sayaçları döner", async () => {
     const { deps, rateActions, seen } = createDependencies();
 

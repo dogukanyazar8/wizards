@@ -92,7 +92,9 @@ export async function createDesktopReleasePromotionBundle(options = {}) {
 
 export async function writeDesktopReleasePromotionBundle(options = {}) {
   const bundle = await createDesktopReleasePromotionBundle(options);
-  const outputDir = path.resolve(options.outputDir || path.dirname(path.resolve(options.artifactPath)));
+  const outputDir = path.resolve(
+    options.outputDir || path.dirname(path.resolve(options.artifactPath)),
+  );
   const baseName = `desktop-release-promotion-${bundle.release.version}-${bundle.release.ring}`;
   const jsonPath = path.join(outputDir, `${baseName}.json`);
   const markdownPath = path.join(outputDir, `${baseName}.md`);
@@ -199,7 +201,9 @@ function assertReadyAudit(audit) {
   }
 
   if (!audit.updaterFeed.signatureVerified) {
-    throw new Error("Release promotion requires the updater manifest signature to match the .sig file.");
+    throw new Error(
+      "Release promotion requires the updater manifest signature to match the .sig file.",
+    );
   }
 }
 
@@ -225,9 +229,9 @@ function buildManualQaSteps(ring) {
   ];
 
   if (ring === "stable") {
-    steps.push("Confirm canary health and support signals are clean before broad stable rollout.");
-  } else if (ring === "canary") {
-    steps.push("Limit rollout to the monitored canary cohort and keep the previous stable manifest ready.");
+    steps.push(
+      "Confirm UAT evidence, release health, and support signals are clean before stable rollout.",
+    );
   } else {
     steps.push("Keep UAT release marked as non-production until manual QA is complete.");
   }
@@ -239,7 +243,7 @@ function buildRollbackPlan(ring) {
   return [
     `Restore command: aws --endpoint-url <r2-endpoint> s3 cp <previous-latest.json> s3://<R2_BUCKET>/desktop/${ring}/latest.json --content-type application/json --cache-control "no-cache, no-store, must-revalidate".`,
     `Replace the ${ring} latest.json with the previous signed manifest if update installation regresses.`,
-    "Keep the previous installer available until the new release has passed UAT/canary observation.",
+    "Keep the previous installer available until the new release has passed UAT observation.",
     "Do not delete the previous artifact until update metrics and manual smoke tests are clean.",
     "If signature verification fails, rotate the updater manifest back before building a new signed artifact.",
   ];
@@ -305,7 +309,9 @@ function renderPromotionMarkdown(bundle) {
     "",
     "## Performance Evidence",
     "",
-    ...bundle.performanceEvidence.map((item) => `- [ ] \`${item.id}\` - ${item.description} Budget: ${item.budget}.`),
+    ...bundle.performanceEvidence.map(
+      (item) => `- [ ] \`${item.id}\` - ${item.description} Budget: ${item.budget}.`,
+    ),
     "",
     "## Operator Checklist",
     "",

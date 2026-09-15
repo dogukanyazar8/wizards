@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useSyncExternalStore,
+} from "react";
 
 import { createVoiceAudioLevelMonitor } from "@/lib/voice/provider-lifecycle";
 
@@ -261,6 +268,9 @@ export type UseMicLevelResult = MicLevelSnapshot & {
   readonly toggle: () => void;
 };
 
+/** A settings tab can expose the test lifecycle to its dependent controls. */
+export const MicLevelSessionContext = createContext<MicLevelSession | null>(null);
+
 /**
  * Ölçerin React kapısı.
  *
@@ -269,7 +279,8 @@ export type UseMicLevelResult = MicLevelSnapshot & {
  * ortasında cihaz değiştirmek, eski cihazı açık bırakırdı.
  */
 export function useMicLevel(deviceId?: string): UseMicLevelResult {
-  const session = useMemo(() => new MicLevelSession(), []);
+  const sharedSession = useContext(MicLevelSessionContext);
+  const session = useMemo(() => sharedSession ?? new MicLevelSession(), [sharedSession]);
 
   useEffect(() => () => session.dispose(), [session]);
   useEffect(() => () => session.stop(), [deviceId, session]);

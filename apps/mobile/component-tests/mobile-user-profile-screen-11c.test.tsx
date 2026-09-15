@@ -83,7 +83,6 @@ const baseProfile = {
   },
   note: null,
   presence: { customStatus: "Yeni tepki sistemini test ediyor", status: "ONLINE" },
-  pronouns: null,
   registeredAt: "2024-05-18T09:00:00.000Z",
   relationship: "friend",
   self: false,

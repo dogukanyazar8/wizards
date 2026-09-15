@@ -6,8 +6,7 @@ Run this checklist against a fresh Windows install after a production desktop bu
 
 - `dev`: local/internal validation only.
 - `uat`: signed UAT validation with full smoke, voice, overlay, close-to-tray, and updater mock checks.
-- `canary`: small monitored production rollout after UAT passes.
-- `stable`: broad production rollout after canary health is acceptable.
+- `stable`: broad production rollout after UAT evidence and release health are acceptable.
 
 ## Mandatory Desktop Smoke Gates
 
@@ -38,8 +37,7 @@ If a budget regresses, attach the diagnostics export and the exact build ring be
 ## Ring Promotion Rules
 
 - `uat`: rollout is manual QA users only. Enter after release contract, Windows build, local manifest validation, R2 upload, and remote manifest validation pass. Exit only after the manual QA checklist and updater smoke from the previous installed version pass with no blocker diagnostics, crash, voice, overlay, or auth regressions.
-- `canary`: rollout is a small monitored production cohort. Enter after UAT evidence is attached, rollback manifest is ready, and a support owner is assigned. Exit only when canary update health, crash, install failure, and support feedback are clean.
-- `stable`: rollout is a broad production release. Enter after canary health is clean, the stable dispatch guard is confirmed from `main`, and real OV/EV Windows signing configuration is present. Keep the rollback window open until stable update metrics remain healthy.
+- `stable`: rollout is a broad production release. Enter after UAT evidence and release health are clean, the stable dispatch guard is confirmed from `main`, and real OV/EV Windows signing configuration is present. Keep the rollback window open until stable update metrics remain healthy.
 
 ## Rollback Evidence
 
@@ -59,12 +57,12 @@ If a budget regresses, attach the diagnostics export and the exact build ring be
 
 ## Overlay And Game Matrix
 
-| Platform | Windowed game | Borderless game | Exclusive fullscreen | Notes |
-| --- | --- | --- | --- | --- |
-| Windows | Supported | Supported | Research only | Compositor overlay only; no native game hook. |
-| macOS | Staged | Best effort | Research only | Requires platform QA around Spaces, focus, and capture permissions. |
-| Linux X11 | Staged | Best effort | Research only | Window manager behavior varies. |
-| Linux Wayland | Staged | Best effort | Research only | Compositor protocol support varies. |
+| Platform      | Windowed game | Borderless game | Exclusive fullscreen | Notes                                                               |
+| ------------- | ------------- | --------------- | -------------------- | ------------------------------------------------------------------- |
+| Windows       | Supported     | Supported       | Research only        | Compositor overlay only; no native game hook.                       |
+| macOS         | Staged        | Best effort     | Research only        | Requires platform QA around Spaces, focus, and capture permissions. |
+| Linux X11     | Staged        | Best effort     | Research only        | Window manager behavior varies.                                     |
+| Linux Wayland | Staged        | Best effort     | Research only        | Compositor protocol support varies.                                 |
 
 Overlay must remain click-through, show only sanitized voice participant data, and never expose chat, DM, invite, email, or file content.
 

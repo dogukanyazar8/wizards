@@ -1,10 +1,11 @@
 import {
   isMicrophoneConstraintError,
   isMicrophoneDeviceUnavailable,
+  getMicrophoneConstraintName,
 } from "@/lib/voice/error-classification";
 import { DEFAULT_AUDIO_DEVICE_ID, type VoiceAudioPreferences } from "@/store/voice-store";
 
-export type MicrophoneCaptureRetryReason = "bare-capture" | "default-device" | "stable-processing";
+export type MicrophoneCaptureRetryReason = "default-device" | "stable-processing";
 
 export type MicrophoneCaptureRetry = {
   persistDeviceFallback: boolean;
@@ -21,7 +22,21 @@ export function resolveMicrophoneCaptureRetry(
   preferences: VoiceAudioPreferences,
   error: unknown,
 ): MicrophoneCaptureRetry | null {
-  if (isMicrophoneDeviceUnavailable(error)) {
+  const constraint = getMicrophoneConstraintName(error);
+  if (
+    preferences.voiceIsolation &&
+    isMicrophoneConstraintError(error) &&
+    (constraint === "voiceIsolation" ||
+      (!constraint && preferences.inputDeviceId === DEFAULT_AUDIO_DEVICE_ID))
+  ) {
+    return {
+      persistDeviceFallback: false,
+      persistProcessingFallback: true,
+      preferences: { ...preferences, voiceIsolation: false },
+      reason: "stable-processing",
+    };
+  }
+  if (isMicrophoneDeviceUnavailable(error) && (!constraint || constraint === "deviceId")) {
     if (preferences.inputDeviceId !== DEFAULT_AUDIO_DEVICE_ID) {
       return {
         persistDeviceFallback: true,
@@ -30,30 +45,7 @@ export function resolveMicrophoneCaptureRetry(
         reason: "default-device",
       };
     }
-
-    // The system default device fails too while it is momentarily held by another application or
-    // by a parallel capture attempt. Retry once with the plainest constraints instead of leaving
-    // the user with a dead microphone and no fallback.
-    return {
-      persistDeviceFallback: false,
-      persistProcessingFallback: false,
-      preferences: {
-        ...preferences,
-        inputDeviceId: DEFAULT_AUDIO_DEVICE_ID,
-        voiceIsolation: false,
-      },
-      reason: "bare-capture",
-    };
   }
-
-  if (preferences.voiceIsolation && isMicrophoneConstraintError(error)) {
-    return {
-      persistDeviceFallback: false,
-      persistProcessingFallback: true,
-      preferences: { ...preferences, voiceIsolation: false },
-      reason: "stable-processing",
-    };
-  }
-
+  // No changed capture condition means no useful immediate retry.
   return null;
 }

@@ -37,11 +37,10 @@ export const DESKTOP_OVERLAY_ROW_KEYS = {
   gameOverlaySize: "z4",
   perGameSettings: "z7",
   voiceMiniEnabled: "z1",
-  voiceMiniSpeakingOnly: "z5",
+  gameOverlaySpeakingOnly: "z5",
 } as const;
 
 export const DESKTOP_SHORTCUT_ROW_KEYS = {
-  assignments: "q3",
   block: "q2",
   enabled: "q1",
 } as const;
@@ -121,7 +120,7 @@ export type DesktopBridgeState = {
   readonly streamerModeDetection: boolean;
   readonly updaterAutoCheck: boolean;
   readonly voiceMiniEnabled: boolean;
-  readonly voiceMiniSpeakingOnly: boolean;
+  readonly gameOverlaySpeakingOnly: boolean;
 };
 
 /** Köprü durumu → satır motorunun okuduğu değerler. */
@@ -140,7 +139,7 @@ export function toDesktopSettingsValues(
     [DESKTOP_OVERLAY_ROW_KEYS.gameOverlayProcessDetection]: state.gameOverlayProcessDetection,
     [DESKTOP_OVERLAY_ROW_KEYS.gameOverlaySize]: fromOverlaySize(state.gameOverlaySize),
     [DESKTOP_OVERLAY_ROW_KEYS.voiceMiniEnabled]: state.voiceMiniEnabled,
-    [DESKTOP_OVERLAY_ROW_KEYS.voiceMiniSpeakingOnly]: state.voiceMiniSpeakingOnly,
+    [DESKTOP_OVERLAY_ROW_KEYS.gameOverlaySpeakingOnly]: state.gameOverlaySpeakingOnly,
     [DESKTOP_SHORTCUT_ROW_KEYS.enabled]: state.shortcutsEnabled,
     [DESKTOP_UPDATE_ROW_KEYS.autoUpdate]: state.updaterAutoCheck,
     [DESKTOP_UPDATE_ROW_KEYS.channel]: fromReleaseChannel(state.preferredReleaseChannel),
@@ -148,7 +147,7 @@ export function toDesktopSettingsValues(
 }
 
 /**
- * `h2` segmenti — sıra `settings.option.h2.1…3`: Kararlı · Beta · Canary.
+ * `h2` segmenti — sıra `settings.option.h2.1…2`: Kararlı · Beta.
  *
  * Çipin adı tasarımdan, saklanan değer kolondan gelir (`lib/desktop/release-channel.ts`).
  */

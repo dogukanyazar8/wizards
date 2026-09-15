@@ -38,12 +38,17 @@ function notification(overrides: Partial<AppNotification> = {}): AppNotification
 function render(entry: AppNotification, timeZone = "Europe/Istanbul"): string {
   return renderToStaticMarkup(
     <LocaleProvider initialLocale="tr" initialMessages={MESSAGES}>
-      <NotificationItem notification={entry} onToggleRead={() => undefined} timeZone={timeZone} />
+      <NotificationItem notification={entry} onOpen={() => undefined} timeZone={timeZone} />
     </LocaleProvider>,
   );
 }
 
 describe("NotificationItem — okunmamış durumu", () => {
+  it("links an earned badge notification directly to the badges settings tab", () => {
+    const markup = render(notification({ kind: "system", actionUrl: "/settings/badges" }));
+    assert.match(markup, /href="\/settings\/account\/badges"/u);
+    assert.doesNotMatch(markup, /href="\/settings\/badges"/u);
+  });
   it("okunmamış satırın `aria-label`'ı `Okunmadı` taşır", () => {
     const markup = render(notification());
 
@@ -145,5 +150,25 @@ describe("formatNotificationTime", () => {
 
   it("ayrıştırılamayan damga boş dize verir", () => {
     assert.equal(formatNotificationTime("tr", "değil-bir-tarih"), "");
+  });
+});
+
+describe("NotificationItem — navigation", () => {
+  it("renders the real destination as a link", () => {
+    const markup = render(notification({ actionUrl: "/channels/s/c?message=m" }));
+    assert.match(markup, /<a[^>]*href="\/channels\/s\/c\?message=m"/u);
+    assert.doesNotMatch(markup, /target="_blank"/u);
+  });
+  it("opens external destinations outside the app", () => {
+    const markup = render(notification({ actionUrl: "https://whispr.team/news" }));
+    assert.match(markup, /target="_blank"/u);
+    assert.match(markup, /rel="noopener noreferrer"/u);
+  });
+  it("offers full-text expansion when the notice has no safe destination", () => {
+    for (const actionUrl of [null, "javascript:alert(1)"]) {
+      const markup = render(notification({ actionUrl }));
+      assert.match(markup, /<button[^>]*aria-expanded="false"/u);
+      assert.doesNotMatch(markup, /<a[ >]/u);
+    }
   });
 });

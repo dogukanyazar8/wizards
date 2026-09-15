@@ -31,7 +31,7 @@ import {
 } from "./about-primitives";
 import { useMobileAboutChannelStyles } from "./about-channel-screen.styles";
 
-const CHANNELS: readonly MobileReleaseChannel[] = ["stable", "beta", "uat"];
+const CHANNELS: readonly MobileReleaseChannel[] = ["stable", "beta"];
 const INITIAL_FOOTER_BUTTON_HEIGHT = 48;
 
 interface ChannelOptionCopy {
@@ -173,26 +173,12 @@ export function MobileAboutUpdateChannelScreen({
             : copy.channelStableMeta,
         title: copy.channelStable,
       },
-      uat: {
-        chip: copy.channelUatInternal,
-        description: copy.channelUatDesc,
-        meta:
-          savedChannel === "uat"
-            ? `${copy.channelUatMeta} · ${copy.channelCurrentSuffix}`
-            : copy.channelUatMeta,
-        title: copy.channelUat,
-      },
     }),
     [copy, savedChannel],
   );
 
   const saveDisabled = !preferencesLoaded || isSaving || selectedChannel === savedChannel;
-  const warning =
-    selectedChannel === "beta"
-      ? copy.channelBetaWarning
-      : selectedChannel === "uat"
-        ? copy.channelWarning
-        : null;
+  const warning = selectedChannel === "beta" ? copy.channelBetaWarning : null;
   const secondEffect = requiresRestart ? copy.channelEffectsRestart : copy.channelEffectsNextBuild;
 
   const showEffectiveFromToast = (response: MobileAppChannelResponse) => {
@@ -212,10 +198,7 @@ export function MobileAboutUpdateChannelScreen({
 
     setIsSaving(true);
     try {
-      if (
-        (selectedChannel === "beta" || selectedChannel === "uat") &&
-        !(await requestBetaConsent())
-      ) {
+      if (selectedChannel === "beta" && !(await requestBetaConsent())) {
         setSelectedChannel(savedChannel);
         return;
       }

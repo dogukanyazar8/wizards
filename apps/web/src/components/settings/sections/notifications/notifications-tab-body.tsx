@@ -2,6 +2,7 @@
 
 import React from "react";
 
+import { PermissionSettingsRow } from "@/components/settings/permission-settings-row";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
   SettingsTreeRow,
@@ -70,7 +71,15 @@ export function NotificationsTabBody({ disabledRowKeys = [], tab }: Notification
             title={rendered.title}
           >
             {rendered.rows.map((row, rowIndex) =>
-              disabled.has(row.key) ? (
+              row.key === "na5" ? (
+                <PermissionSettingsRow
+                  key={row.key}
+                  permissionKey="notifications"
+                  rowKey={row.key}
+                  divider={rowIndex > 0}
+                  title={t(row.titleKey ?? "settings.block.perms.label.notifications")}
+                />
+              ) : disabled.has(row.key) ? (
                 <div
                   aria-disabled="true"
                   data-setting-row-gate={row.key}

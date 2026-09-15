@@ -131,7 +131,7 @@ export function SettingsRow({
         )}
         style={{ gap: pxToRem(row.headGap) }}
       >
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
           {title ? (
             <div
               className="flex min-w-0 flex-wrap items-center"
@@ -175,7 +175,10 @@ export function SettingsRow({
 
         {/* Tek kontrol ekseni: yuva satırın sonundadır ve büyümez. */}
         {control ? (
-          <div className="flex shrink-0 items-center justify-end" data-setting-control={rowKey}>
+          <div
+            className="flex min-w-0 max-w-full shrink-0 items-center justify-end [&>*]:max-w-full"
+            data-setting-control={rowKey}
+          >
             {control(ids)}
           </div>
         ) : null}

@@ -8,6 +8,7 @@ import {
   Mic,
   Monitor,
   Palette,
+  RefreshCw,
   Search,
   User,
   X,
@@ -37,6 +38,7 @@ const SECTION_ICON: Readonly<Record<string, LucideIcon>> = {
   mic: Mic,
   monitor: Monitor,
   palette: Palette,
+  refresh: RefreshCw,
   user: User,
 };
 
@@ -155,8 +157,11 @@ export function SettingsNav({
           {t("settings.title")}
         </p>
 
-        <div
-          className="flex items-center"
+        <form
+          autoComplete="off"
+          role="search"
+          onSubmit={(event) => event.preventDefault()}
+          className="flex items-center focus-within:ring-2 focus-within:ring-[hsl(var(--ring))]"
           style={{
             background: `hsl(var(--surface-soft)/${nav.searchSurfaceAlpha})`,
             border: `${hairline()} solid ${
@@ -182,9 +187,18 @@ export function SettingsNav({
           />
           <input
             aria-label={t("settings.search")}
+            autoComplete="off"
             className="min-w-0 flex-1 bg-transparent text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--text-muted))] focus-visible:outline-hidden"
             data-testid="settings-search-input"
-            onChange={(event) => onQueryChange(event.target.value)}
+            onChange={(event) => {
+              // Background credential autofill must not replace the active
+              // settings form with search results. Deliberate search has focus.
+              if (document.activeElement !== event.currentTarget) {
+                event.currentTarget.value = query;
+                return;
+              }
+              onQueryChange(event.currentTarget.value);
+            }}
             placeholder={t("settings.search")}
             style={{ fontSize: pxToRem(nav.searchFontSize) }}
             type="search"
@@ -213,7 +227,7 @@ export function SettingsNav({
               />
             </button>
           ) : null}
-        </div>
+        </form>
       </div>
 
       <div
@@ -318,6 +332,7 @@ export function SettingsNav({
         className="settings-window-nav-footer flex shrink-0 items-center"
         data-testid="settings-nav-footer"
         style={{
+          height: pxToRem(SETTINGS_METRICS.footerHeight),
           background: "hsl(var(--surface-card))",
           borderTop: `${hairline()} solid hsl(var(--border)/${nav.footerBorderTopAlpha})`,
           gap: pxToRem(nav.footerGap),

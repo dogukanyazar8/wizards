@@ -1,21 +1,23 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import { RemoteAudioTrack, type Room, Track } from "livekit-client";
-import { DEFAULT_AUDIO_DEVICE_ID } from "@/store/voice-store";
-
-type AudioElementWithSinkId = HTMLAudioElement & {
-  setSinkId?: (sinkId: string) => Promise<void>;
-};
+import { DEFAULT_AUDIO_DEVICE_ID, useVoiceStore } from "@/store/voice-store";
+import { createAudioOutputRouter } from "@/lib/voice/audio-output-router";
+import { logWarning } from "@/lib/logger";
 
 function RemoteAudioElement({
   outputDeviceId,
   track,
+  onOutputError,
 }: {
   outputDeviceId: string;
   track: RemoteAudioTrack;
+  onOutputError: () => void;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const routerRef = useRef<ReturnType<typeof createAudioOutputRouter> | null>(null);
+  const reportOutputError = useEffectEvent(onOutputError);
 
   useEffect(() => {
     const element = audioRef.current;
@@ -30,16 +32,28 @@ function RemoteAudioElement({
   }, [track]);
 
   useEffect(() => {
-    const element = audioRef.current as AudioElementWithSinkId | null;
-    if (!element?.setSinkId) {
-      return;
-    }
+    const element = audioRef.current;
+    if (!element) return;
+    const router = createAudioOutputRouter(element, (result, requestedDeviceId) => {
+      if (result.status === "applied") return;
+      logWarning("[voice] Audio output routing failed", result.error);
+      const store = useVoiceStore.getState();
+      if (store.audioPreferences.outputDeviceId !== requestedDeviceId) return;
+      if (result.status === "fallback") {
+        store.setAudioPreference("outputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
+      } else {
+        reportOutputError();
+      }
+    });
+    routerRef.current = router;
+    return () => {
+      router.dispose();
+      routerRef.current = null;
+    };
+  }, []);
 
-    void element
-      .setSinkId(
-        outputDeviceId === DEFAULT_AUDIO_DEVICE_ID ? DEFAULT_AUDIO_DEVICE_ID : outputDeviceId,
-      )
-      .catch(() => undefined);
+  useEffect(() => {
+    void routerRef.current?.select(outputDeviceId);
   }, [outputDeviceId]);
 
   return <audio autoPlay hidden playsInline ref={audioRef} />;
@@ -48,9 +62,11 @@ function RemoteAudioElement({
 export function VoiceAudioRenderer({
   outputDeviceId,
   room,
+  onOutputError,
 }: {
   outputDeviceId: string;
   room: Room | null;
+  onOutputError: () => void;
 }) {
   const audioTracks: Array<{ id: string; track: RemoteAudioTrack }> = [];
 
@@ -77,7 +93,12 @@ export function VoiceAudioRenderer({
   return (
     <div aria-hidden="true" className="hidden">
       {audioTracks.map((entry) => (
-        <RemoteAudioElement key={entry.id} outputDeviceId={outputDeviceId} track={entry.track} />
+        <RemoteAudioElement
+          key={entry.id}
+          outputDeviceId={outputDeviceId}
+          track={entry.track}
+          onOutputError={onOutputError}
+        />
       ))}
     </div>
   );

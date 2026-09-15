@@ -28,6 +28,7 @@ import { resolveLastSeenAtByUserId } from "@/lib/friends/last-seen";
 import { getRedis } from "@/lib/redis";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import { mapAttachmentsForViewer } from "@/lib/messages/attachment-visibility";
+import { canPublishReadReceipt } from "@/lib/messages/typing-visibility";
 import { readPresenceState, type PresenceFields } from "@/lib/presence";
 import { getSocketServer } from "@/lib/socket/runtime";
 import {
@@ -1560,6 +1561,7 @@ export async function listDMThreadMessages(
 
 export async function markDirectMessageRead(userId: string, conversationId: string) {
   await requireDMParticipant(userId, conversationId);
+  const publishRead = await canPublishReadReceipt(userId);
 
   await prisma.dMParticipant.update({
     where: {
@@ -1569,7 +1571,9 @@ export async function markDirectMessageRead(userId: string, conversationId: stri
       },
     },
     data: {
-      lastReadAt: new Date(),
+      // This watermark is public receipt progress. Advancing it while opted
+      // out would disclose private reads when the preference is enabled again.
+      ...(publishRead ? { lastReadAt: new Date() } : {}),
       // Opening the conversation acknowledges both badge sources; clearing
       // unreadCount alone left group mentions permanently visible.
       mentionCount: 0,
@@ -1579,11 +1583,21 @@ export async function markDirectMessageRead(userId: string, conversationId: stri
 }
 
 export async function getDirectMessageParticipantReadStates(conversationId: string) {
-  return prisma.dMParticipant.findMany({
+  const participants = await prisma.dMParticipant.findMany({
     where: { conversationId },
     orderBy: { userId: "asc" },
-    select: { lastDeliveredAt: true, lastReadAt: true, userId: true },
+    select: {
+      lastDeliveredAt: true,
+      lastReadAt: true,
+      userId: true,
+      user: { select: { settings: { select: { showReadReceipts: true } } } },
+    },
   });
+  return participants.map(({ user, userId, lastDeliveredAt, lastReadAt }) => ({
+    userId,
+    lastDeliveredAt,
+    lastReadAt: user?.settings?.showReadReceipts === false ? null : lastReadAt,
+  }));
 }
 
 export type DirectMessageDeliveryMark = {

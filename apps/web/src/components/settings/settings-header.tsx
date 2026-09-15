@@ -79,7 +79,10 @@ export function SettingsHeader({
         </p>
       </div>
 
-      <div className="flex shrink-0 items-center" style={{ gap: pxToRem(header.gap) }}>
+      <div
+        className="flex min-w-0 max-w-[70%] shrink-0 items-center"
+        style={{ gap: pxToRem(header.gap) }}
+      >
         <SettingsSaveIndicator onRetry={onRetrySave} state={saveState} />
 
         <WindowCloseButton

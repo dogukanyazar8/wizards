@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAvailableMediaDevices } from "./use-available-media-devices";
 
 /**
  * Cihaz listeleri ve izin durumu — Ş8 §A.1.
@@ -113,15 +114,13 @@ type AudioDevicesState = {
   supportsOutputSelection: boolean;
 };
 
-function canEnumerateDevices() {
-  return typeof navigator !== "undefined" && Boolean(navigator.mediaDevices?.enumerateDevices);
-}
-
 function canSelectAudioOutput() {
   return typeof HTMLMediaElement !== "undefined" && "setSinkId" in HTMLMediaElement.prototype;
 }
 
-function toAudioDeviceOption(device: MediaDeviceInfo): AudioDeviceOption | null {
+function toAudioDeviceOption(
+  device: Pick<MediaDeviceInfo, "deviceId" | "groupId" | "kind" | "label">,
+): AudioDeviceOption | null {
   if (device.kind !== "audioinput" && device.kind !== "audiooutput") {
     return null;
   }
@@ -139,106 +138,46 @@ function toAudioDeviceOption(device: MediaDeviceInfo): AudioDeviceOption | null 
 }
 
 export function useAudioDevices(): AudioDevicesState {
-  const [inputDevices, setInputDevices] = useState<AudioDeviceOption[]>([]);
-  const [outputDevices, setOutputDevices] = useState<AudioDeviceOption[]>([]);
-  const [enumerationStatus, setEnumerationStatus] = useState<AudioDeviceEnumerationStatus>(() =>
-    canEnumerateDevices() ? "loading" : "unsupported",
-  );
+  const { query, supported, refresh: refreshDevices } = useAvailableMediaDevices();
   const microphone = useMediaPermission("microphone");
-  const isLoading = enumerationStatus === "loading";
-  const supportsDeviceEnumeration = canEnumerateDevices();
-  const supportsOutputSelection = canSelectAudioOutput();
-
-  const refreshDevices = useCallback(async () => {
-    if (!canEnumerateDevices()) {
-      setInputDevices([]);
-      setOutputDevices([]);
-      setEnumerationStatus("unsupported");
-      return;
-    }
-
-    setEnumerationStatus("loading");
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const audioDevices = devices.flatMap((device) => {
+  const audioDevices = useMemo(
+    () =>
+      (query.data ?? []).flatMap((device) => {
         const option = toAudioDeviceOption(device);
         return option ? [option] : [];
-      });
-
-      setInputDevices(audioDevices.filter((device) => device.kind === "audioinput"));
-      setOutputDevices(audioDevices.filter((device) => device.kind === "audiooutput"));
-      setEnumerationStatus("ready");
-    } catch {
-      setInputDevices([]);
-      setOutputDevices([]);
-      setEnumerationStatus("error");
-    }
-  }, []);
+      }),
+    [query.data],
+  );
+  const enumerationStatus: AudioDeviceEnumerationStatus = !supported
+    ? "unsupported"
+    : query.isError
+      ? "error"
+      : query.data
+        ? "ready"
+        : "loading";
 
   const requestMicrophoneLabels = useCallback(async () => {
-    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      await refreshDevices();
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      for (const track of stream.getTracks()) {
-        track.stop();
+    if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        for (const track of stream.getTracks()) track.stop();
+      } catch {
+        // Explicit permission refusal still permits generic device labels.
       }
-    } catch {
-      // The picker still works with browser-provided fallback labels.
     }
-
     await refreshDevices();
-  }, [refreshDevices]);
-
-  useEffect(() => {
-    if (!canEnumerateDevices()) {
-      return;
-    }
-
-    let cancelled = false;
-    void navigator.mediaDevices
-      .enumerateDevices()
-      .then((devices) => {
-        if (cancelled) {
-          return;
-        }
-
-        const audioDevices = devices.flatMap((device) => {
-          const option = toAudioDeviceOption(device);
-          return option ? [option] : [];
-        });
-        setInputDevices(audioDevices.filter((device) => device.kind === "audioinput"));
-        setOutputDevices(audioDevices.filter((device) => device.kind === "audiooutput"));
-        setEnumerationStatus("ready");
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setInputDevices([]);
-          setOutputDevices([]);
-          setEnumerationStatus("error");
-        }
-      });
-
-    navigator.mediaDevices.addEventListener("devicechange", refreshDevices);
-    return () => {
-      cancelled = true;
-      navigator.mediaDevices.removeEventListener("devicechange", refreshDevices);
-    };
   }, [refreshDevices]);
 
   return {
     enumerationStatus,
-    inputDevices,
-    isLoading,
+    inputDevices: audioDevices.filter((device) => device.kind === "audioinput"),
+    outputDevices: audioDevices.filter((device) => device.kind === "audiooutput"),
+    isLoading: enumerationStatus === "loading",
     microphonePermission: microphone.status,
-    outputDevices,
     recheckMicrophonePermission: microphone.recheck,
     refreshDevices,
     requestMicrophoneLabels,
-    supportsDeviceEnumeration,
-    supportsOutputSelection,
+    supportsDeviceEnumeration: supported,
+    supportsOutputSelection: canSelectAudioOutput(),
   };
 }

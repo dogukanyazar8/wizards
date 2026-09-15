@@ -121,7 +121,9 @@ export function createDesktopReleaseTimingReport({ jobs, ring, now = new Date() 
     (job.steps || []).map((step) => normalizeTimingStep(job, step)),
   );
   const importantSteps = steps.filter((step) => step.category !== "other");
-  const cacheSteps = steps.filter((step) => step.category === "Rust setup/cache restore" || /cache/i.test(step.name));
+  const cacheSteps = steps.filter(
+    (step) => step.category === "Rust setup/cache restore" || /cache/i.test(step.name),
+  );
   const topSlowSteps = [...importantSteps]
     .filter((step) => Number.isFinite(step.durationMs))
     .sort((left, right) => right.durationMs - left.durationMs)
@@ -320,13 +322,14 @@ function buildBudgetRows({ importantSteps, jobRows, ring, totalMs }) {
   const hasCargoAuditTiming = importantSteps.some(
     (step) => step.category.startsWith("cargo-audit") && Number.isFinite(step.durationMs),
   );
-  const targetTotalMs = ring === "stable" ? DEFAULT_BUDGETS.stableTotalMs : DEFAULT_BUDGETS.uatTotalMs;
+  const targetTotalMs =
+    ring === "stable" ? DEFAULT_BUDGETS.stableTotalMs : DEFAULT_BUDGETS.uatTotalMs;
 
   return [
     {
       actualMs: totalMs,
       budgetMs: targetTotalMs,
-      label: ring === "stable" ? "Stable total wall time" : "UAT/canary total wall time",
+      label: ring === "stable" ? "Stable total wall time" : "UAT total wall time",
     },
     {
       actualMs: windowsJob?.durationMs ?? null,
@@ -379,8 +382,13 @@ function buildCategoryRows({ importantSteps, totalMs }) {
       category,
       durationMs,
       importantShare:
-        measuredImportantTotalMs > 0 ? Number(((durationMs / measuredImportantTotalMs) * 100).toFixed(1)) : null,
-      wallShare: Number.isFinite(totalMs) && totalMs > 0 ? Number(((durationMs / totalMs) * 100).toFixed(1)) : null,
+        measuredImportantTotalMs > 0
+          ? Number(((durationMs / measuredImportantTotalMs) * 100).toFixed(1))
+          : null,
+      wallShare:
+        Number.isFinite(totalMs) && totalMs > 0
+          ? Number(((durationMs / totalMs) * 100).toFixed(1))
+          : null,
     }))
     .sort((left, right) => right.durationMs - left.durationMs);
 }
@@ -566,7 +574,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     });
 
     if (options.outputPath) {
-      await writeFile(path.resolve(options.outputPath), `${JSON.stringify(report, null, 2)}\n`, "utf8");
+      await writeFile(
+        path.resolve(options.outputPath),
+        `${JSON.stringify(report, null, 2)}\n`,
+        "utf8",
+      );
     }
 
     const summaryPath = options.summaryOutputPath || process.env.GITHUB_STEP_SUMMARY;

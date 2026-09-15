@@ -1,12 +1,9 @@
 import { appendFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import {
-  assertDesktopVersionContract,
-  getDesktopVersionContract,
-} from "./release-ops.mjs";
+import { assertDesktopVersionContract, getDesktopVersionContract } from "./release-ops.mjs";
 
-export const DESKTOP_RELEASE_WORKFLOW_RINGS = Object.freeze(["uat", "canary", "stable"]);
+export const DESKTOP_RELEASE_WORKFLOW_RINGS = Object.freeze(["uat", "stable"]);
 
 const DEFAULT_UAT_WEB_URL = "https://wizardsweb-uat.up.railway.app/";
 const STABLE_WEB_URL = "https://whispr.team/";
@@ -35,14 +32,19 @@ export function createDesktopReleaseWorkflowContract(options = {}) {
   );
   const refName = String(options.refName || "").trim();
   const releaseSequence = normalizeReleaseSequence(options.releaseSequence, ring);
-  const versionContract = assertDesktopVersionContract(getDesktopVersionContract(options.projectRoot));
+  const versionContract = assertDesktopVersionContract(
+    getDesktopVersionContract(options.projectRoot),
+  );
   const tagName = buildDesktopReleaseTag({
     releaseSequence,
     ring,
     version,
   });
   const updaterFeedBaseUrl = enableUpdater
-    ? normalizeUpdaterBaseUrl(options.updaterBaseUrl || defaultUpdaterFeedBaseUrlForRing(ring), ring)
+    ? normalizeUpdaterBaseUrl(
+        options.updaterBaseUrl || defaultUpdaterFeedBaseUrlForRing(ring),
+        ring,
+      )
     : null;
   const updaterArtifactBaseUrl = updaterFeedBaseUrl
     ? buildReleaseArtifactBaseUrl(updaterFeedBaseUrl, tagName)
@@ -64,15 +66,21 @@ export function createDesktopReleaseWorkflowContract(options = {}) {
   }
 
   if (publishR2 && !enableUpdater) {
-    throw new Error("Desktop R2 publishing requires enable_updater=true so signed manifest evidence exists.");
+    throw new Error(
+      "Desktop R2 publishing requires enable_updater=true so signed manifest evidence exists.",
+    );
   }
 
   if (publishGithubRelease && !publishR2) {
-    throw new Error("Desktop GitHub Release publishing requires publish_r2=true so remote updater evidence exists.");
+    throw new Error(
+      "Desktop GitHub Release publishing requires publish_r2=true so remote updater evidence exists.",
+    );
   }
 
   if (publishGithubRelease && !enableUpdater) {
-    throw new Error("Desktop GitHub Release publishing requires enable_updater=true so signed manifest evidence exists.");
+    throw new Error(
+      "Desktop GitHub Release publishing requires enable_updater=true so signed manifest evidence exists.",
+    );
   }
 
   return {
@@ -158,9 +166,7 @@ export function parseDesktopReleaseWorkflowCliArgs(argv) {
     confirmStableRelease: values.get("confirm-stable-release"),
     enableUpdater: values.get("enable-updater"),
     outputPath: values.get("out"),
-    projectRoot: values.get("project-root")
-      ? path.resolve(values.get("project-root"))
-      : undefined,
+    projectRoot: values.get("project-root") ? path.resolve(values.get("project-root")) : undefined,
     publishGithubRelease: values.get("publish-github-release"),
     publishR2: values.get("publish-r2"),
     refName: values.get("ref-name"),
@@ -173,6 +179,7 @@ export function parseDesktopReleaseWorkflowCliArgs(argv) {
 }
 
 export function buildDesktopReleaseTag({ releaseSequence, ring, version }) {
+  normalizeRing(ring);
   if (ring === "stable") {
     return `v${version}`;
   }
@@ -251,12 +258,16 @@ function normalizeUpdaterBaseUrl(value, ring) {
   }
 
   if (url.pathname.endsWith(".json")) {
-    throw new Error("Desktop updater_base_url must be the updater feed directory, not latest.json.");
+    throw new Error(
+      "Desktop updater_base_url must be the updater feed directory, not latest.json.",
+    );
   }
 
   const pathSegments = url.pathname.split("/").filter(Boolean);
   if (!pathSegments.includes(ring)) {
-    throw new Error(`Desktop updater_base_url path must include the release ring segment (${ring}).`);
+    throw new Error(
+      `Desktop updater_base_url path must include the release ring segment (${ring}).`,
+    );
   }
 
   url.hash = "";
@@ -374,7 +385,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const contract = createDesktopReleaseWorkflowContract(options);
 
     if (options.outputPath) {
-      await writeFile(path.resolve(options.outputPath), `${JSON.stringify(contract, null, 2)}\n`, "utf8");
+      await writeFile(
+        path.resolve(options.outputPath),
+        `${JSON.stringify(contract, null, 2)}\n`,
+        "utf8",
+      );
     }
 
     await writeGithubOutputs(contract);

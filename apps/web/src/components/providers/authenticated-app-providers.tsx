@@ -4,6 +4,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import { AppUpdateNotifier } from "@/components/app/app-update-notifier";
 import { UiScaleBoundary } from "@/components/app/ui-scale-boundary";
 import { DesktopExperience } from "@/components/desktop/desktop-experience";
+import { DesktopGameActivity } from "@/components/desktop/desktop-game-activity";
 import { DesktopNavigationBridge } from "@/components/desktop/desktop-navigation-bridge";
 import { DMCallProvider } from "@/components/providers/dm-call-provider";
 import { SocketProvider } from "@/components/providers/socket-provider";
@@ -50,6 +51,7 @@ export function AuthenticatedAppProviders({
   const content = (
     <>
       <DesktopNavigationBridge />
+      <DesktopGameActivity userId={currentUser.id} />
       <UiScaleBoundary />
       <AppUpdateNotifier />
       {children}

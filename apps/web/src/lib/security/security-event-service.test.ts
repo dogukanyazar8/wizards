@@ -1,3 +1,4 @@
+import { setSocketServer, type AppSocketServer } from "@/lib/socket/runtime";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -213,4 +214,59 @@ describe("security event service", () => {
       true,
     );
   });
+});
+
+it("records native app identity in security activity instead of an Edge user agent", async () => {
+  const { created, dependencies } = createDependencies();
+  await recordSecurityEventFromHeaders(
+    headersOf({
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0) Chrome/140.0 Edg/140.0 WhisprDesktop/0.8.15",
+    }),
+    { kind: "LOGIN_NEW_DEVICE", userId: "user-1" },
+    dependencies,
+  );
+  assert.equal(created[0]?.userAgent, "Whispr Desktop · 0.8.15 · Windows");
+});
+
+it("notifies the account after a persisted event without publishing its private details", async () => {
+  const sent: unknown[] = [];
+  const { dependencies } = createDependencies();
+  setSocketServer({
+    to: (room: string) => ({
+      emit: (event: string, payload: unknown) => sent.push({ room, event, payload }),
+    }),
+  } as unknown as AppSocketServer);
+  try {
+    await recordSecurityEvent(
+      {
+        userId: "user-1",
+        kind: "FAILED_LOGIN",
+        userAgent: "Private device",
+        location: "Private location",
+      },
+      dependencies,
+    );
+    assert.deepEqual(sent, [
+      {
+        room: "user:user-1",
+        event: "account:security:changed",
+        payload: { sessionsChanged: false },
+      },
+    ]);
+    await recordSecurityEvent(
+      { userId: "user-1", kind: "FAILED_LOGIN" },
+      {
+        ...dependencies,
+        store: {
+          ...dependencies.store,
+          create: async () => {
+            throw new Error("offline");
+          },
+        },
+      },
+    );
+    assert.equal(sent.length, 1);
+  } finally {
+    setSocketServer(null);
+  }
 });

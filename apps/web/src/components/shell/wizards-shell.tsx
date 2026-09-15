@@ -1,8 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, UserPlus, Users } from "lucide-react";
+import { AnimatePresence, motion, MotionConfig } from "framer-motion";
+import { ArrowLeft, Link, LogOut, Settings2, UserPlus, Users } from "lucide-react";
 import React, { type CSSProperties } from "react";
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { WorkspaceServerDetail, WorkspaceServerSummary } from "@wizards/types";
@@ -20,6 +20,12 @@ import { AppNavPanel } from "@/components/shell/app-nav-panel";
 import { ChannelSidebar } from "@/components/shell/channel-sidebar";
 import { useI18n } from "@/components/providers/locale-provider";
 import { AccountPreferenceProvider } from "@/components/providers/account-preference-provider";
+import { AppearancePreferenceProvider } from "@/components/providers/appearance-preference-provider";
+import {
+  applyPersistedAppearanceDocument,
+  mainPanelPercentToWidth,
+} from "@/lib/settings/appearance-runtime";
+import { selectUiScale } from "@/lib/home/scale";
 import { getInterfaceDensityMetrics } from "@wizards/types";
 import { CommandPaletteProvider } from "@/components/command/command-palette-provider";
 import { AppShortcutController } from "@/components/shortcuts/app-shortcut-controller";
@@ -31,7 +37,7 @@ import { ServerSettingsOverlay } from "@/components/shell/server-settings/server
 import { ServerMemberPanel } from "@/components/shell/server-member-panel";
 import { WorkspaceModals } from "@/components/shell/workspace-modals";
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
-import { Input } from "@/components/ui/input";
+import { ServerAddMemberModal } from "@/components/servers/modals/server-add-member-modal";
 import { Modal } from "@/components/ui/modal";
 import { useSocket } from "@/hooks/use-socket";
 import { useShellReadiness } from "@/hooks/use-shell-readiness";
@@ -57,7 +63,6 @@ import {
 } from "@/lib/workspace/client";
 import { fetchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
 import { dmQueryKeys, type DMConversationsInfiniteData } from "@/lib/dm/client";
-import { SERVER_RAIL_WIDTH } from "@/lib/appearance";
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import { HOME_METRICS, pxToRem } from "@/lib/home/metrics";
 import {
@@ -563,6 +568,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     closeServerContextMenu,
     closeServerSettings,
     channelSidebarWidth,
+    serverRailWidth,
     forgetServerState,
     lastChannelByServerId,
     mobileSidebarOpen,
@@ -585,6 +591,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       closeServerContextMenu: state.closeServerContextMenu,
       closeServerSettings: state.closeServerSettings,
       channelSidebarWidth: state.channelSidebarWidth,
+      serverRailWidth: state.serverRailWidth,
       forgetServerState: state.forgetServerState,
       lastChannelByServerId: state.lastChannelByServerId,
       mobileSidebarOpen: state.mobileSidebarOpen,
@@ -644,8 +651,33 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   useEffect(() => {
     if (layoutSettings) {
       applyPersistedSettings(layoutSettings);
+      const step = selectUiScale(
+        { width: window.innerWidth, height: window.innerHeight },
+        isWhisprDesktopRuntime() ? "desktop" : "web",
+      );
+      applyPersistedAppearanceDocument(
+        layoutSettings,
+        document.documentElement,
+        step.rootFontSizePx,
+      );
     }
   }, [layoutSettings, applyPersistedSettings]);
+
+  // Depend on individual preferences so unrelated saves do not reopen a manually closed panel.
+  useEffect(() => {
+    if (layoutSettings?.serverIconSize !== undefined)
+      useAppStore.getState().setServerRailIconSize(layoutSettings.serverIconSize);
+  }, [layoutSettings?.serverIconSize]);
+  useEffect(() => {
+    if (layoutSettings?.mainContentWidth !== undefined)
+      useAppStore
+        .getState()
+        .setMainPanelWidth(mainPanelPercentToWidth(layoutSettings.mainContentWidth));
+  }, [layoutSettings?.mainContentWidth]);
+  useEffect(() => {
+    if (layoutSettings?.showMemberPanelByDefault !== undefined)
+      useAppStore.getState().setMemberPanelCollapsed(!layoutSettings.showMemberPanelByDefault);
+  }, [layoutSettings?.showMemberPanelByDefault]);
 
   const rawServerId =
     typeof params.serverId === "string" ? decodeURIComponent(params.serverId) : null;
@@ -693,7 +725,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
           : "other";
   // Kabuk sütunları rem: ölçek adımı yükselince içerideki rem tabanlı ikon ve metinlerle birlikte
   // büyürler. px bırakılsaydı kap sabit kalır, içerik büyür ve ayak satırı kırpılırdı (SPEC §8.2.1).
-  const displayServerRailWidth = pxToRem(SERVER_RAIL_WIDTH);
+  const displayServerRailWidth = pxToRem(serverRailWidth);
   // Faz 2 §3, Mesajlar karar #2: 3. sütun rotadan seçilir; tek seçici, kopyalanmış
   // kabuk yok. Gezinme paneli artık her rotada ve sabit genişlikte.
   const thirdColumn = selectThirdColumn(shellPathname);
@@ -941,6 +973,8 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     };
 
     const applyUserProfileUpdate = (data: UserProfileUpdatedPayload) => {
+      void queryClient.invalidateQueries({ queryKey: ["user-profile", data.userId] });
+      void queryClient.invalidateQueries({ queryKey: ["account-profile-details", data.userId] });
       if (data.userId === currentUser.id) {
         setCurrentUserSnapshot((current) => ({
           ...current,
@@ -1603,7 +1637,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     }
   };
 
-  return (
+  const shell = (
     <AccountPreferenceProvider locale={locale} preferences={layoutSettings ?? null}>
       {/*
         Faz 5 §3.3 ve §5.1: odak katmanı ile komut paleti kabuğun içinde, çünkü
@@ -1688,7 +1722,10 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
               {shouldShowMobileWorkspaceDrawer ? (
                 <motion.div
                   animate={{ opacity: 1 }}
-                  className={cn("fixed inset-0 z-[70]", navCollapsed ? "" : "md:hidden")}
+                  className={cn(
+                    "fixed inset-x-0 bottom-0 top-[var(--app-viewport-top,0px)] z-[70]",
+                    navCollapsed ? "" : "md:hidden",
+                  )}
                   data-server-drawer={sidebarInDrawer ? "sidebar" : undefined}
                   exit={{ opacity: 0 }}
                   initial={{ opacity: 0 }}
@@ -1777,27 +1814,43 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
             </div>
 
             <ContextMenu
+              className="w-64 rounded-[18px] border-[hsl(var(--border)/0.75)] bg-[hsl(var(--surface-card))] [&_[role=menuitem]]:gap-3 [&_[role=menuitem]]:px-3 [&_[role=menuitem]]:py-2.5 [&_[role=menuitem]]:text-[0.8125rem] [&_[role=menuitem]]:font-medium"
+              label={contextServer?.name ?? ""}
+              testId="server-context-menu"
               onClose={closeServerContextMenu}
               open={serverContextMenu.open}
               position={serverContextMenu}
             >
+              <div className="flex min-w-0 items-center gap-2.5 border-b border-[hsl(var(--border)/0.6)] px-3 py-3 mb-1.5">
+                <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-[hsl(var(--primary)/0.12)] text-[var(--primary-readable)]">
+                  <Users aria-hidden="true" className="size-4" />
+                </span>
+                <span
+                  className="truncate text-sm font-semibold text-app-foreground"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  {contextServer?.name}
+                </span>
+              </div>
               {canAddUserFromContextMenu ? (
                 <ContextMenuItem
                   data-testid="server-context-add-user"
                   onClick={() => {
                     closeServerContextMenu();
                     if (contextServer) {
+                      addMemberMutation.reset();
                       setAddMemberServer(contextServer);
                       setAddMemberUsername("");
                       setAddMemberSuccess(null);
                     }
                   }}
                 >
+                  <UserPlus
+                    aria-hidden="true"
+                    className="size-4 shrink-0 text-[var(--primary-readable)]"
+                  />
                   {t("shell.context.addUser")}
                 </ContextMenuItem>
-              ) : null}
-              {canAddUserFromContextMenu && canManageContextServer ? (
-                <ContextMenuSeparator />
               ) : null}
               {canManageContextServer ? (
                 <ContextMenuItem
@@ -1810,10 +1863,13 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
                     }
                   }}
                 >
+                  <Link
+                    aria-hidden="true"
+                    className="size-4 shrink-0 text-[var(--primary-readable)]"
+                  />
                   {t("shell.context.invite")}
                 </ContextMenuItem>
               ) : null}
-              {canManageContextServer ? <ContextMenuSeparator /> : null}
               {canManageContextServer ? (
                 <ContextMenuItem
                   data-testid="server-context-settings"
@@ -1825,6 +1881,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
                     }
                   }}
                 >
+                  <Settings2 aria-hidden="true" className="size-4 shrink-0 text-app-muted" />
                   {t("shell.context.settings")}
                 </ContextMenuItem>
               ) : null}
@@ -1842,98 +1899,34 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
                     setLeaveServerCandidate(contextServer);
                   }}
                 >
+                  <LogOut aria-hidden="true" className="size-4 shrink-0" />
                   {t("shell.context.leaveServer")}
                 </ContextMenuItem>
               ) : null}
             </ContextMenu>
 
-            <Modal
-              description={t("workspace.modal.addMemberDescription", {
-                server: addMemberServer?.name ?? "",
-              })}
+            <ServerAddMemberModal
+              error={
+                addMemberMutation.error ? t(getAddMemberErrorKey(addMemberMutation.error)) : null
+              }
+              onChange={(username) => {
+                setAddMemberUsername(username);
+                setAddMemberSuccess(null);
+                if (addMemberMutation.error) addMemberMutation.reset();
+              }}
               onClose={() => {
                 setAddMemberServer(null);
                 setAddMemberUsername("");
                 setAddMemberSuccess(null);
                 addMemberMutation.reset();
               }}
+              onSubmit={() => addMemberMutation.mutate()}
               open={Boolean(addMemberServer)}
-              title={t("workspace.modal.addMemberTitle")}
-            >
-              <form
-                className="space-y-4"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  addMemberMutation.mutate();
-                }}
-              >
-                <div className="space-y-2">
-                  <label className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
-                    {t("workspace.modal.addMemberUsername")}
-                  </label>
-                  <Input
-                    autoComplete="off"
-                    data-testid="add-server-member-input"
-                    maxLength={32}
-                    onChange={(event) => {
-                      setAddMemberUsername(event.target.value);
-                      if (addMemberSuccess) {
-                        setAddMemberSuccess(null);
-                      }
-                    }}
-                    placeholder={t("workspace.modal.addMemberPlaceholder")}
-                    value={addMemberUsername}
-                  />
-                </div>
-
-                {addMemberSuccess ? (
-                  <div
-                    className="app-success rounded-[24px] border p-4"
-                    data-testid="add-server-member-success"
-                  >
-                    <p className="text-app-success text-xs font-semibold uppercase tracking-[0.2em]">
-                      {t("workspace.modal.addMemberSuccessTitle")}
-                    </p>
-                    <p className="text-app-foreground mt-2 text-sm font-medium">
-                      {addMemberSuccess}
-                    </p>
-                  </div>
-                ) : null}
-
-                {addMemberMutation.error ? (
-                  <div className="app-danger rounded-[24px] border p-4 text-sm font-medium">
-                    {t(getAddMemberErrorKey(addMemberMutation.error))}
-                  </div>
-                ) : null}
-
-                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                  <Button
-                    className="w-full sm:w-auto"
-                    onClick={() => {
-                      setAddMemberServer(null);
-                      setAddMemberUsername("");
-                      setAddMemberSuccess(null);
-                      addMemberMutation.reset();
-                    }}
-                    type="button"
-                    variant="outline"
-                  >
-                    {t("common.cancel")}
-                  </Button>
-                  <Button
-                    className="w-full sm:w-auto"
-                    data-testid="add-server-member-submit"
-                    disabled={addMemberMutation.isPending || addMemberUsername.trim().length < 2}
-                    type="submit"
-                  >
-                    <UserPlus className="h-4 w-4" />
-                    {addMemberMutation.isPending
-                      ? t("workspace.modal.addMemberAdding")
-                      : t("workspace.modal.addMemberAction")}
-                  </Button>
-                </div>
-              </form>
-            </Modal>
+              pending={addMemberMutation.isPending}
+              serverName={addMemberServer?.name ?? ""}
+              success={addMemberSuccess}
+              username={addMemberUsername}
+            />
 
             <Modal
               className="max-w-md"
@@ -2017,5 +2010,12 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
         </CommandPaletteProvider>
       </FocusControlsProvider>
     </AccountPreferenceProvider>
+  );
+  return (
+    <AppearancePreferenceProvider preferences={layoutSettings ?? null}>
+      <MotionConfig reducedMotion={layoutSettings?.reduceMotion ? "always" : "user"}>
+        {shell}
+      </MotionConfig>
+    </AppearancePreferenceProvider>
   );
 }

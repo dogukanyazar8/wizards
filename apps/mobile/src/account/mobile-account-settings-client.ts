@@ -1,10 +1,16 @@
 import {
+  MOBILE_ACCOUNT_SETTINGS_FIELDS_HEADER,
+  MOBILE_ACCOUNT_SETTINGS_READ_RECEIPTS_FIELD,
   MobileAccountSettingsResponseSchema,
   MobileAccountSettingsUpdateSchema,
   type MobileAccountSettingsUpdate,
 } from "@wizards/types";
 
 import type { MobileApiClient } from "../api/mobile-api-client";
+
+export const MOBILE_ACCOUNT_SETTINGS_HEADERS = {
+  [MOBILE_ACCOUNT_SETTINGS_FIELDS_HEADER]: MOBILE_ACCOUNT_SETTINGS_READ_RECEIPTS_FIELD,
+};
 
 export const MOBILE_ACCOUNT_VISIBILITY_PREFERENCE_KEYS = Object.freeze({
   presence: "whispr.mobile.privacy-visibility.presence",
@@ -36,7 +42,9 @@ function normalizeLocalVisibility(value: string | null): MobileAccountLocalVisib
 
 export async function fetchMobileAccountSettings(client: MobileApiClient) {
   return MobileAccountSettingsResponseSchema.parse(
-    await client.requestJson("/api/v1/mobile/account/settings"),
+    await client.requestJson("/api/v1/mobile/account/settings", {
+      headers: MOBILE_ACCOUNT_SETTINGS_HEADERS,
+    }),
   );
 }
 
@@ -48,6 +56,7 @@ export async function updateMobileAccountSettings(
   return MobileAccountSettingsResponseSchema.parse(
     await client.requestJson("/api/v1/mobile/account/settings", {
       body,
+      headers: MOBILE_ACCOUNT_SETTINGS_HEADERS,
       method: "PATCH",
     }),
   );

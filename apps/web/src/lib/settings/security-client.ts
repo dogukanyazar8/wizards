@@ -65,8 +65,12 @@ const SecurityEventsResponseSchema = z.object({ events: z.array(SecurityEventSch
 
 export async function fetchSecurityEvents(
   fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<SecurityEvent[]> {
-  const response = await fetchImpl(SECURITY_EVENTS_ENDPOINT, { cache: "no-store" });
+  const response = await fetchImpl(SECURITY_EVENTS_ENDPOINT, {
+    cache: "no-store",
+    signal: signal ?? null,
+  });
   return SecurityEventsResponseSchema.parse(await readJson(response)).events;
 }
 
@@ -101,14 +105,23 @@ export function toAccountSessionPlatform(
  * never from a raw user agent, which the endpoint deliberately does not send.
  */
 export function toAccountSessionDevice(session: AuthSession): string {
-  return [session.browser, session.os].filter(Boolean).join(" · ") || session.deviceType;
+  return (
+    [
+      session.clientType === "DESKTOP" ? "Whispr Desktop" : session.browser,
+      session.clientType === "DESKTOP" ? session.appVersion : null,
+      session.os,
+    ]
+      .filter(Boolean)
+      .join(" · ") || session.deviceType
+  );
 }
 
 export function toAccountSession(session: AuthSession): AccountSession {
   return AccountSessionSchema.parse({
-    browser: session.browser,
+    browser: session.clientType === "DESKTOP" ? "Whispr Desktop" : session.browser,
     current: session.current,
     device: toAccountSessionDevice(session),
+    deviceType: session.deviceType,
     id: session.id,
     lastActive: session.lastSeenAt,
     location: session.countryCode,
@@ -119,8 +132,12 @@ export function toAccountSession(session: AuthSession): AccountSession {
 
 export async function fetchAccountSessions(
   fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<AccountSession[]> {
-  const response = await fetchImpl(SESSIONS_ENDPOINT, { cache: "no-store" });
+  const response = await fetchImpl(SESSIONS_ENDPOINT, {
+    cache: "no-store",
+    signal: signal ?? null,
+  });
   const payload = AuthSessionsResponseShape.parse(await readJson(response));
   return payload.sessions.map((session) => toAccountSession(session as AuthSession));
 }

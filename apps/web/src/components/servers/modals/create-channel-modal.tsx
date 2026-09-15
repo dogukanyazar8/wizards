@@ -71,7 +71,7 @@ export function channelModalBodyStyle(): React.CSSProperties {
   )}))`;
 
   return {
-    flex: `0 0 ${height}`,
+    flex: `0 1 ${height}`,
     height,
   };
 }

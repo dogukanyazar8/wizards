@@ -33,7 +33,7 @@ test("externalized Prisma server runtime dependencies belong to the web package"
     readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
   );
 
-  assert.equal(packageJson.dependencies["@prisma/adapter-pg"], "7.9.1");
-  assert.equal(packageJson.dependencies["@prisma/client"], "7.9.1");
-  assert.equal(packageJson.dependencies.pg, "^8.22.0");
+  assert.equal(packageJson.dependencies["@prisma/adapter-pg"], "7.10.0");
+  assert.equal(packageJson.dependencies["@prisma/client"], "7.10.0");
+  assert.equal(packageJson.dependencies.pg, "^8.23.0");
 });

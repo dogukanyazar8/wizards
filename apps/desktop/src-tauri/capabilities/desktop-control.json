@@ -1,17 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "desktop-control",
-  "description": "Whispr's local Desktop Control window owns privileged desktop mutations and never loads a remote URL.",
+  "description": "Local, network-free microphone and camera consent. Desktop settings are in the guarded main application.",
   "windows": ["desktop-control"],
-  "permissions": [
-    "allow-configure-desktop-voice-shortcuts",
-    "allow-desktop-control-check-for-updates",
-    "allow-desktop-control-install-update",
-    "allow-desktop-control-recover",
-    "allow-desktop-control-request-notification-permission",
-    "allow-desktop-control-set-app-settings",
-    "allow-export-desktop-diagnostics-bundle",
-    "allow-get-desktop-control-state",
-    "allow-resolve-desktop-media-permission"
-  ]
+  "permissions": ["allow-get-desktop-control-state", "allow-resolve-desktop-media-permission"]
 }

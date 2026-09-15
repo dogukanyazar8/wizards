@@ -180,7 +180,7 @@ function createProps(
     onOpenLicenses: jest.fn(),
     onOpenPrivacy: jest.fn(),
     onOpenTerms: jest.fn(),
-    releaseChannel: "uat",
+    releaseChannel: "beta",
     serviceOnline: true,
     ...overrides,
   } satisfies React.ComponentProps<typeof MobileAboutSettingsScreen>;
@@ -227,6 +227,43 @@ describe("1a + 1b About screen", () => {
     });
   });
 
+  it("shows Resonance for the installed 0.9.0 binary when release details are unavailable", async () => {
+    const nativeVersion = jest.replaceProperty(
+      require("expo-application"),
+      "nativeApplicationVersion",
+      "0.9.0",
+    );
+    const apiClient = createApiClient();
+    const requestJson = apiClient.requestJson.getMockImplementation()!;
+    apiClient.requestJson.mockImplementation(async (path: string) => {
+      if (path.startsWith("/api/v1/mobile/app/releases/0.9.0")) {
+        throw new Error("Release detail unavailable");
+      }
+      return requestJson(path);
+    });
+    mockUseMobileAuth.mockReturnValue({
+      apiClient,
+      session: { user: { id: "usr_0123456789abcdef" } },
+      status: "signed-in",
+    });
+
+    try {
+      const view = await renderScreen();
+      const metadata = view.getByTestId("mobile-about-version-metadata");
+      expect(within(metadata).getByText("0.9.0")).toBeTruthy();
+      expect(within(metadata).getByText("“Resonance”")).toBeTruthy();
+      await waitFor(() =>
+        expect(apiClient.requestJson).toHaveBeenCalledWith(
+          expect.stringContaining("/api/v1/mobile/app/releases/0.9.0"),
+          { method: "GET" },
+        ),
+      );
+      view.unmount();
+    } finally {
+      nativeVersion.restore();
+    }
+  });
+
   it("renders the login brand mark at the handoff 60px size with one-line metadata", async () => {
     const view = await renderScreen();
 
@@ -265,7 +302,7 @@ describe("1a + 1b About screen", () => {
     const metadata = view.getByTestId("mobile-about-version-metadata");
     expect(within(metadata).getByText("0.8.15")).toBeTruthy();
     expect(within(metadata).getByText("“Echo”")).toBeTruthy();
-    expect(within(metadata).getByText("UAT")).toBeTruthy();
+    expect(within(metadata).getByText("BETA")).toBeTruthy();
     const metadataStyle = Array.isArray(metadata.props.style)
       ? metadata.props.style.flat()
       : [metadata.props.style];

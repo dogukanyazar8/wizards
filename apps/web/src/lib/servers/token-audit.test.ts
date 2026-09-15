@@ -69,7 +69,6 @@ describe("sunucu ekranı token denetimi", () => {
         "components/shell/channel-item.tsx",
         "components/shell/channel-search-popover.tsx",
         "components/shell/channel-sidebar.tsx",
-        "components/shell/connected-voice-strip.tsx",
         "components/shell/server-member-panel.tsx",
         "components/shell/server-menu.tsx",
         "components/shell/server-settings",

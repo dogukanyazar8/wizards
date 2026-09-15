@@ -1,8 +1,9 @@
 import React from "react";
+import { Animated } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, waitFor, within } from "@testing-library/react-native";
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import * as Clipboard from "expo-clipboard";
 
 const mockUseMobileAuth = jest.fn();
@@ -32,7 +33,10 @@ import { ToastProvider } from "../src/app/components/kit/toast";
 import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provider";
 import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
 import { mobileQueryKeys } from "../src/query/mobile-query-keys";
-import { MOBILE_ACCOUNT_VISIBILITY_PREFERENCE_KEYS } from "../src/account/mobile-account-settings-client";
+import {
+  MOBILE_ACCOUNT_VISIBILITY_PREFERENCE_KEYS,
+  MOBILE_ACCOUNT_SETTINGS_HEADERS,
+} from "../src/account/mobile-account-settings-client";
 
 const accountSettings = {
   appearance: {
@@ -52,7 +56,6 @@ const accountSettings = {
     email: "ada@example.com",
     emailVerified: true,
     nextUsernameChangeAt: null,
-    pronouns: null,
     twoFactorEnabled: false,
   },
   privacy: {
@@ -61,6 +64,7 @@ const accountSettings = {
     // 2b §7's switch. Defaulted open by the schema, so the parsed payload
     // carries it even when the fixture predates the field.
     groupInvites: true,
+    readReceipts: true,
   },
 };
 const sessionUser = {
@@ -106,6 +110,11 @@ function authenticatedApi(options: {
   rejectPreferences?: boolean;
   rejectPrivacy?: boolean;
 }) {
+  let readReceipts = true;
+  const currentSettings = () => ({
+    ...accountSettings,
+    privacy: { ...accountSettings.privacy, readReceipts },
+  });
   return {
     requestJson: jest.fn(async (path: string, request?: { body?: unknown; method?: string }) => {
       if (path === "/api/v1/mobile/account/preferences" && request?.method === "PATCH") {
@@ -115,9 +124,11 @@ function authenticatedApi(options: {
       if (path === "/api/v1/mobile/account/preferences") return accountPreferences;
       if (path === "/api/v1/mobile/account/settings" && request?.method === "PATCH") {
         if (options.rejectPrivacy) throw new Error("privacy unavailable");
-        return accountSettings;
+        const body = request.body as { readReceipts?: boolean };
+        if (body.readReceipts !== undefined) readReceipts = body.readReceipts;
+        return currentSettings();
       }
-      if (path === "/api/v1/mobile/account/settings") return accountSettings;
+      if (path === "/api/v1/mobile/account/settings") return currentSettings();
       if (path === "/api/v1/mobile/account/profile") return options.profileResponse;
       throw new Error(`Unexpected integration request: ${path}`);
     }),
@@ -125,13 +136,67 @@ function authenticatedApi(options: {
 }
 
 describe("production mobile account settings integration", () => {
+  it("saves read receipts from the real account toggle and keeps the canonical result", async () => {
+    const apiClient = authenticatedApi({});
+    mockUseMobileAuth.mockReturnValue({
+      apiClient,
+      replaceSessionUser: jest.fn(async () => true),
+      session: { user: sessionUser },
+      status: "signed-in",
+    });
+    const queryClient = createQueryClient();
+    const view = await renderScreen(queryClient);
+    const toggle = await view.findByTestId("mobile-account-read-receipts-toggle");
+    await fireEvent.press(toggle);
+    await waitFor(() =>
+      expect(apiClient.requestJson).toHaveBeenCalledWith("/api/v1/mobile/account/settings", {
+        body: { readReceipts: false },
+        headers: MOBILE_ACCOUNT_SETTINGS_HEADERS,
+        method: "PATCH",
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        view.getByTestId("mobile-account-read-receipts-toggle").props.accessibilityState.checked,
+      ).toBe(false),
+    );
+  });
+
+  it("restores read receipts and reports a failed save", async () => {
+    const apiClient = authenticatedApi({ rejectPrivacy: true });
+    mockUseMobileAuth.mockReturnValue({
+      apiClient,
+      replaceSessionUser: jest.fn(async () => true),
+      session: { user: sessionUser },
+      status: "signed-in",
+    });
+    const queryClient = createQueryClient();
+    const view = await renderScreen(queryClient);
+    await fireEvent.press(await view.findByTestId("mobile-account-read-receipts-toggle"));
+    await waitFor(() =>
+      expect(
+        view.getByText("Hesap ayarı güncellenemedi. Önceki değer geri yüklendi."),
+      ).toBeTruthy(),
+    );
+    expect(
+      view.getByTestId("mobile-account-read-receipts-toggle").props.accessibilityState.checked,
+    ).toBe(true);
+  });
   beforeEach(() => {
     jest.clearAllMocks();
+    // This renderer has no native view handles. Keep real toast state and JS animation.
+    const timing = Animated.timing;
+    jest
+      .spyOn(Animated, "timing")
+      .mockImplementation((value, config) =>
+        timing(value, { ...config, duration: 0, useNativeDriver: false }),
+      );
     jest.mocked(AsyncStorage.getItem).mockResolvedValue(null);
     jest.mocked(AsyncStorage.removeItem).mockResolvedValue(undefined);
     jest.mocked(AsyncStorage.setItem).mockResolvedValue(undefined);
     jest.mocked(Clipboard.setStringAsync).mockResolvedValue(undefined);
   });
+  afterEach(() => jest.restoreAllMocks());
 
   it("uses the authenticated query and rolls failed privacy mutations back", async () => {
     const apiClient = authenticatedApi({ rejectPrivacy: true });
@@ -231,7 +296,6 @@ describe("production mobile account settings integration", () => {
         displayName: "Ada Byron",
         id: "user-1",
         nextUsernameChangeAt: null,
-        pronouns: null,
         status: "ONLINE",
         twoFactorEnabled: false,
         username: "ada_byron",

@@ -417,7 +417,7 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
   {
     area: "release",
     id: "release-environment",
-    label: "The build displays the intended UAT/canary/production environment endpoints.",
+    label: "The build displays the intended UAT/production environment endpoints.",
     required: true,
     risk: "high",
   },
@@ -433,7 +433,7 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
     area: "release",
     id: "production-readiness-evidence",
     label:
-      "Profile diagnostics shows UAT, canary, store-candidate, and production readiness gates without exposing PII or secrets.",
+      "Profile diagnostics shows UAT, store-candidate, and production readiness gates without exposing PII or secrets.",
     required: true,
     risk: "critical",
   },

@@ -5,6 +5,7 @@ import { dirname, extname, join, relative, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import { pnpmInvocation } from "./pnpm-invocation.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const packageContracts = [
@@ -43,7 +44,8 @@ function readJson(path) {
 
 function runPnpm(args) {
   assert.ok(process.env.npm_execpath, "Run this contract through pnpm test:toolchain");
-  const result = spawnSync(process.execPath, [process.env.npm_execpath, ...args], {
+  const invocation = pnpmInvocation(process.env.npm_execpath, args);
+  const result = spawnSync(invocation.command, invocation.args, {
     cwd: root,
     encoding: "utf8",
     shell: false,

@@ -227,6 +227,7 @@ describe("mobile profile presence read", () => {
     assert.deepEqual(invisible, {
       customStatus: null,
       customStatusEmoji: null,
+      customStatusExpiresAt: null,
       status: "OFFLINE",
     });
     assert.deepEqual(
@@ -254,7 +255,12 @@ describe("mobile profile presence read", () => {
         },
         now,
       ),
-      { customStatus: "Shipping 11a", customStatusEmoji: "🚀", status: "ONLINE" },
+      {
+        customStatus: "Shipping 11a",
+        customStatusEmoji: "🚀",
+        customStatusExpiresAt: "2026-07-23T18:00:00.000Z",
+        status: "ONLINE",
+      },
     );
     // An expired message takes its emoji with it; a lone emoji would render as a
     // status line with no text behind it.
@@ -268,7 +274,7 @@ describe("mobile profile presence read", () => {
         },
         now,
       ),
-      { customStatus: null, customStatusEmoji: null, status: "DND" },
+      { customStatus: null, customStatusEmoji: null, customStatusExpiresAt: null, status: "DND" },
     );
   });
 });

@@ -6,10 +6,7 @@ import type { DownloadEnvironment } from "@wizards/types";
 
 import { useI18n } from "@/components/providers/locale-provider";
 import { Modal } from "@/components/ui/modal";
-import {
-  DownloadCompareTable,
-  DownloadSectionCard,
-} from "@/components/downloads/download-section-card";
+import { DownloadSectionCard } from "@/components/downloads/download-section-card";
 import {
   CheckIcon,
   CloseIcon,
@@ -475,8 +472,6 @@ export function DownloadModal({ onClose, onNavigate, open }: DownloadModalProps)
               />
             </>
           )}
-
-          <DownloadCompareTable environment={environment} translate={t} />
         </div>
 
         <div

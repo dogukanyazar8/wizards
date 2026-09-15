@@ -260,16 +260,6 @@ function AppNavPanelComponent({
                     style={iconStyle}
                   />
                   {t(row.labelKey)}
-                  {row.id === "home" && active ? (
-                    <span
-                      aria-hidden="true"
-                      className="ml-auto rounded-full bg-[hsl(var(--primary))]"
-                      style={{
-                        height: pxToRem(panel.activeDotSize),
-                        width: pxToRem(panel.activeDotSize),
-                      }}
-                    />
-                  ) : null}
                   {row.id === "messages" && dmUnreadCount > 0 ? (
                     <HomeCountBadge
                       className="ml-auto"

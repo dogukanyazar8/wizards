@@ -58,7 +58,7 @@ export async function loadMobileDMConversationContext(
       lastReadAt: true,
       mentionCount: true,
       userId: true,
-      user: { select: { isBot: true } },
+      user: { select: { isBot: true, settings: { select: { showReadReceipts: true } } } },
     },
   });
 
@@ -98,6 +98,7 @@ export async function loadMobileDMConversationContext(
     }
 
     if (
+      participant.user.settings?.showReadReceipts !== false &&
       participant.lastReadAt &&
       (!context.othersLastReadAt || participant.lastReadAt > context.othersLastReadAt)
     ) {

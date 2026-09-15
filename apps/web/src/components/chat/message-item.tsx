@@ -30,6 +30,7 @@ import { Modal } from "@/components/ui/modal";
 import { UserProfilePopover } from "@/components/shared/user-profile-popover";
 import { MessageEditor } from "./message-editor";
 import { MessageAttachments } from "./message-attachments";
+import { useAppearancePreferences } from "@/components/providers/appearance-preference-provider";
 import { MessageToolbar } from "./message-toolbar";
 import { LinkPreviewCard } from "./link-preview-card";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -362,8 +363,29 @@ function formatMessageContentForMarkdown(content: string) {
 
 function createMarkdownComponents(
   t: (key: string, values?: Record<string, string | number>) => string,
+  renderEmbeds: boolean,
 ) {
   return {
+    img({ src, alt, title }) {
+      const href = typeof src === "string" ? src : undefined;
+      if (!renderEmbeds)
+        return (
+          <a href={href} target="_blank" rel="noopener noreferrer nofollow">
+            {alt || href}
+          </a>
+        );
+      return (
+        // eslint-disable-next-line @next/next/no-img-element -- User markdown retains its original URL.
+        <img
+          src={href}
+          alt={alt ?? ""}
+          title={title}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          className="max-h-[22rem] max-w-full rounded-lg object-contain"
+        />
+      );
+    },
     a({ children, href, title }) {
       if (href?.startsWith(underlineHrefPrefix)) {
         return (
@@ -746,6 +768,8 @@ export const MessageItem = React.memo(
   }: MessageItemProps) {
     const { t } = useI18n();
     const { formatDate, formatTime } = useAccountPreferenceRuntime();
+    const { renderEmbeds, renderReactions, linkPreviews, reduceMotion } =
+      useAppearancePreferences();
     const socket = useSocket();
     const queryClient = useQueryClient();
     const [isEditing, setIsEditing] = useState(false);
@@ -778,7 +802,10 @@ export const MessageItem = React.memo(
           return replyDate.toDateString() === today.toDateString() ? time : formatDate(replyDate);
         })()
       : null;
-    const markdownComponents = React.useMemo(() => createMarkdownComponents(t), [t]);
+    const markdownComponents = React.useMemo(
+      () => createMarkdownComponents(t, renderEmbeds),
+      [t, renderEmbeds],
+    );
     const parsedPoll = React.useMemo(() => parsePollBlock(message.content), [message.content]);
     // Satır sanallaştırılıyor: liste her kaydırmada satırı yeniden monte eder.
     // Türetim burada ve memolu, listede değil — listede olsaydı her kaydırma
@@ -797,9 +824,11 @@ export const MessageItem = React.memo(
         ),
       [parsedPoll],
     );
-    const visibleReactions = parsedPoll
-      ? message.reactions.filter((reaction) => !pollReactionEmojis.has(reaction.emoji))
-      : message.reactions;
+    const visibleReactions = !renderReactions
+      ? []
+      : parsedPoll
+        ? message.reactions.filter((reaction) => !pollReactionEmojis.has(reaction.emoji))
+        : message.reactions;
 
     const handleEdit = (newContent: string) => {
       if (newContent.trim()) {
@@ -1164,11 +1193,13 @@ export const MessageItem = React.memo(
           <div
             className={cn(
               "grid min-w-0 items-start gap-2.5 rounded-[1rem] px-1.5 transition sm:gap-3 sm:rounded-[1.125rem] sm:px-[var(--m-row-pad-x,0.75rem)]",
-              "grid-cols-[2.05rem_minmax(0,1fr)] sm:grid-cols-[2.25rem_minmax(0,1fr)]",
+              "grid-cols-[var(--message-avatar-size,2.05rem)_minmax(0,1fr)] sm:grid-cols-[var(--message-avatar-size,2.25rem)_minmax(0,1fr)]",
               // Dikey boşluk yoğunluk tercihinden (`--m-pad`); ardışık satır onu
               // yarılar, yoksa aynı yazarın üst üste iki cümlesi arasında ayrı
               // iki mesaj kadar boşluk kalırdı.
-              isGrouped ? "py-[calc(var(--m-pad,0.5rem)/2)]" : "py-[var(--m-pad,0.5rem)]",
+              isGrouped
+                ? "py-[calc(var(--message-compact-padding,var(--m-pad,0.5rem))/2)]"
+                : "py-[var(--message-compact-padding,var(--m-pad,0.5rem))]",
               "hover:bg-[hsl(var(--surface-soft)/0.45)]",
             )}
           >
@@ -1189,7 +1220,7 @@ export const MessageItem = React.memo(
                     <Avatar
                       src={message.author.avatarUrl}
                       alt={message.author.displayName}
-                      className="h-8 w-8 flex-shrink-0 rounded-full shadow-[0_6px_16px_hsl(var(--shadow-color)/0.055)] sm:h-9 sm:w-9"
+                      className="h-[var(--message-avatar-size,2rem)] w-[var(--message-avatar-size,2rem)] flex-shrink-0 rounded-full shadow-[0_6px_16px_hsl(var(--shadow-color)/0.055)] sm:h-[var(--message-avatar-size,2.25rem)] sm:w-[var(--message-avatar-size,2.25rem)]"
                       style={{ fontSize: pxToRem(MESSAGES_METRICS.messageList.avatarFontSize) }}
                       fallback={message.author.displayName[0] || "?"}
                     />
@@ -1255,7 +1286,10 @@ export const MessageItem = React.memo(
                       `[data-message-id="${message.replyTo?.id}"]`,
                     );
                     if (target instanceof HTMLElement) {
-                      target.scrollIntoView({ behavior: "smooth", block: "center" });
+                      target.scrollIntoView({
+                        behavior: reduceMotion ? "instant" : "smooth",
+                        block: "center",
+                      });
                       target.dataset.jumpHighlight = "true";
                       window.setTimeout(() => {
                         delete target.dataset.jumpHighlight;
@@ -1283,8 +1317,8 @@ export const MessageItem = React.memo(
                 <div
                   className="message-font-scope max-w-full break-words text-app-foreground [overflow-wrap:anywhere]"
                   style={{
-                    fontSize: pxToRem(MESSAGES_METRICS.messageList.bodyFontSize),
-                    lineHeight: MESSAGES_METRICS.messageList.bodyLineHeight,
+                    fontSize: `var(--message-body-size, ${pxToRem(MESSAGES_METRICS.messageList.bodyFontSize)})`,
+                    lineHeight: "var(--message-body-line-height, 1.55)",
                     marginTop: pxToRem(MESSAGES_METRICS.messageList.bodyMarginTop),
                   }}
                 >
@@ -1324,7 +1358,7 @@ export const MessageItem = React.memo(
               ) : null}
 
               {!isEditing ? <MessageAttachments attachments={message.attachments} /> : null}
-              {!isEditing ? <LinkPreviewCard content={markdownContent} /> : null}
+              {!isEditing && linkPreviews ? <LinkPreviewCard content={markdownContent} /> : null}
 
               {copyFeedback ? (
                 <div className="mt-1 inline-flex rounded-full border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.85)] px-3 py-1 text-[0.6875rem] font-semibold text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">

@@ -15,6 +15,80 @@ import {
 } from "@/lib/settings/use-setting-value";
 import { SETTINGS_SHARED_ROW_KEYS, walkSettingsRows } from "@/lib/settings/tree";
 
+it("serializes overlapping slider saves so an older response cannot overwrite the latest value", async () => {
+  const releases: Array<() => void> = [];
+  const writes: SettingsPatch[] = [];
+  const store = new SettingsValueStore({
+    values: { m2: 15 },
+    write: async (patch) => {
+      writes.push(patch);
+      await new Promise<void>((resolve) => releases.push(resolve));
+    },
+  });
+  store.setValue("m2", 16);
+  const first = store.flushPending();
+  store.setValue("m2", 20);
+  const second = store.flushPending();
+  try {
+    assert.equal(writes.length, 1);
+    releases[0]?.();
+    for (let turn = 0; turn < 8; turn += 1) await Promise.resolve();
+    assert.deepEqual(writes, [{ m2: 16 }, { m2: 20 }]);
+    releases[1]?.();
+    await Promise.all([first, second]);
+    assert.equal(store.getValue("m2"), 20);
+    assert.equal(store.getKeyStatus("m2"), "saved");
+  } finally {
+    releases.forEach((release) => release());
+    store.dispose();
+  }
+});
+
+it("rolls a failed second slider save back to the first successful save", async () => {
+  let release!: () => void;
+  let calls = 0;
+  const store = new SettingsValueStore({
+    values: { m2: 15 },
+    write: async () => {
+      calls += 1;
+      if (calls === 1)
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      else throw new Error("offline");
+    },
+  });
+  store.setValue("m2", 16);
+  const saved = store.flushPending();
+  store.setValue("m2", 20);
+  release();
+  await assert.rejects(saved);
+  assert.equal(store.getValue("m2"), 16);
+  store.dispose();
+});
+
+it("keeps a profile edit made during saving editable and resettable to the saved name", async () => {
+  let release!: () => void;
+  const store = new SettingsValueStore({
+    values: { pn: "Original" },
+    write: () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+  });
+  store.setValue("pn", "First");
+  const saved = store.commitDirtyAndFlush();
+  store.setValue("pn", "Second");
+  release();
+  await saved;
+  assert.equal(store.getValue("pn"), "Second");
+  assert.equal(store.isDirty(), true);
+  assert.equal(store.getStatus(), "saved");
+  store.resetDirty();
+  assert.equal(store.getValue("pn"), "First");
+  store.dispose();
+});
+
 /**
  * Ş6 §5 — okuma/yazma köprüsü.
  *
@@ -92,9 +166,7 @@ describe("resolveSettingStateKey — paylaşılan durum", () => {
 
   it("sapma #4'ün iki çifti tek duruma bağlanıyor", () => {
     assert.equal(resolveSettingStateKey("v7"), "reduceMotion");
-    assert.equal(resolveSettingStateKey("x1"), "reduceMotion");
-    assert.equal(resolveSettingStateKey("v8"), "enableTTS");
-    assert.equal(resolveSettingStateKey("x5"), "enableTTS");
+    for (const key of ["x1", "v8", "x5"]) assert.equal(resolveSettingStateKey(key), key);
   });
 
   it("`np4` paylaşılan anahtarlardan ayrı kalıyor", () => {
@@ -125,6 +197,8 @@ describe("buildSettingsDefaults", () => {
   it("metin alanları boş dizeyle başlıyor", () => {
     assert.equal(defaults["pn"], "");
     assert.equal(defaults["pbio"], "");
+    assert.equal(defaults.ps, "");
+    assert.equal(defaults.pe, "");
   });
 
   it("kaydırıcı ve menü varsayılanları ağaçtan geliyor", () => {
@@ -135,6 +209,13 @@ describe("buildSettingsDefaults", () => {
 });
 
 describe("SettingsValueStore — kuyruk", () => {
+  it("combined status emoji changes can be discarded before their first save", () => {
+    const store = new SettingsValueStore({ write: async () => {} });
+    store.setValue("pe", "😀😂");
+    store.resetDirty();
+    assert.equal(store.getValue("pe"), "");
+    store.dispose();
+  });
   it("store yeniden kurulmadan güncel writer kullanılıyor", async () => {
     const scheduler = fakeScheduler();
     const first: SettingsPatch[] = [];
@@ -221,7 +302,7 @@ describe("SettingsValueStore — durum ve geri alma", () => {
     assert.equal(store.getStatus(), "saving");
 
     scheduler.run();
-    await Promise.resolve();
+    await store.flushPending();
 
     assert.equal(store.getKeyStatus("u3"), "saved");
     assert.equal(store.getStatus(), "saved");
@@ -229,7 +310,7 @@ describe("SettingsValueStore — durum ve geri alma", () => {
     setFail(true);
     store.setValue("u3", 55);
     scheduler.run();
-    await Promise.resolve();
+    await assert.rejects(store.flushPending());
 
     assert.equal(store.getKeyStatus("u3"), "error");
     assert.equal(store.getStatus(), "error");
@@ -273,7 +354,7 @@ describe("SettingsValueStore — durum ve geri alma", () => {
     setFail(false);
     store.retry();
     scheduler.run();
-    await Promise.resolve();
+    await store.flushPending();
 
     assert.deepEqual(patches, [{ u3: 12 }, { u3: 12 }]);
     assert.equal(store.getValue("u3"), 12);
@@ -316,11 +397,11 @@ describe("SettingsValueStore — kirli profil alanları", () => {
     const { patches, store } = makeStore({ scheduler });
 
     store.setValue("pn", "Doğukan");
-    store.setValue("pz", "o/onun");
+    store.setValue("pbio", "o/onun");
     store.commitDirty();
     scheduler.run();
 
-    assert.deepEqual(patches, [{ pn: "Doğukan", pz: "o/onun" }]);
+    assert.deepEqual(patches, [{ pn: "Doğukan", pbio: "o/onun" }]);
     assert.equal(store.isDirty(), false);
   });
 
@@ -382,7 +463,7 @@ describe("SettingsValueStore — `settings.updated`", () => {
 
     store.applyRemote({ v7: true });
 
-    assert.equal(store.getValue("x1"), true);
+    assert.equal(store.getValue("reduceMotion"), true);
   });
 });
 

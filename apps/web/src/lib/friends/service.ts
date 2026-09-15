@@ -430,6 +430,7 @@ export async function getUserPresenceBroadcast(userId: string): Promise<FriendPr
     where: { id: userId },
     select: {
       customStatus: true,
+      customStatusExpiresAt: true,
       status: true,
     },
   });
@@ -437,7 +438,10 @@ export async function getUserPresenceBroadcast(userId: string): Promise<FriendPr
   return {
     userId,
     status: mapStoredPresenceStatus(user?.status),
-    customStatus: user?.customStatus ?? null,
+    customStatus:
+      user?.customStatusExpiresAt && user.customStatusExpiresAt.getTime() <= Date.now()
+        ? null
+        : (user?.customStatus ?? null),
   };
 }
 
@@ -446,28 +450,28 @@ export async function cacheUserPresence(
   status: FriendPresenceStatus,
   customStatus?: string | null,
 ): Promise<FriendPresenceUpdateDto | null> {
-  let nextCustomStatus = customStatus ?? null;
-
-  if (customStatus === undefined) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { customStatus: true },
-    });
-
-    if (!user) {
-      await getRedis().del(getPresenceRedisKey(userId));
-      return null;
-    }
-
-    nextCustomStatus = user.customStatus ?? null;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { customStatus: true, customStatusExpiresAt: true },
+  });
+  if (!user) {
+    await getRedis().del(getPresenceRedisKey(userId));
+    return null;
   }
-
+  const expired =
+    user.customStatusExpiresAt !== null && user.customStatusExpiresAt.getTime() <= Date.now();
+  const nextCustomStatus = expired
+    ? null
+    : customStatus === undefined
+      ? user.customStatus
+      : customStatus;
   const redis = getRedis();
   const key = getPresenceRedisKey(userId);
   await redis
     .pipeline()
     .hset(key, {
       customStatus: nextCustomStatus ?? "",
+      customStatusExpiresAt: user.customStatusExpiresAt?.toISOString() ?? "",
       status,
     })
     .expire(key, PRESENCE_CACHE_TTL_SECONDS)

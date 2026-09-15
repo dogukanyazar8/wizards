@@ -41,7 +41,7 @@ describe("içerik ağacı — hacim", () => {
     assert.equal(SETTINGS_TREE.length, SETTINGS_TREE_COUNTS.sections);
     assert.deepEqual(
       SETTINGS_TREE.map((section) => section.key),
-      ["account", "av", "appearance", "notifications", "desktop", "about"],
+      ["account", "av", "appearance", "notifications", "desktop", "updates", "about"],
     );
   });
 
@@ -57,7 +57,7 @@ describe("içerik ağacı — hacim", () => {
     }
   });
 
-  it("58 grup ve 169 satır çizer", () => {
+  it("güncel grup ve satır sayılarıyla eşleşir", () => {
     assert.equal(groups.length, SETTINGS_TREE_COUNTS.groups);
     assert.equal(rows.length, SETTINGS_TREE_COUNTS.rows);
   });
@@ -92,12 +92,13 @@ describe("içerik ağacı — hacim", () => {
     }));
 
     assert.deepEqual(perSection, [
-      { key: "account", tabs: 6, groups: 15, rows: 35 },
-      { key: "av", tabs: 3, groups: 7, rows: 26 },
-      { key: "appearance", tabs: 5, groups: 10, rows: 29 },
+      { key: "account", tabs: 6, groups: 13, rows: 27 },
+      { key: "av", tabs: 3, groups: 7, rows: 21 },
+      { key: "appearance", tabs: 6, groups: 9, rows: 25 },
       { key: "notifications", tabs: 7, groups: 14, rows: 50 },
-      { key: "desktop", tabs: 5, groups: 8, rows: 23 },
-      { key: "about", tabs: 1, groups: 4, rows: 6 },
+      { key: "desktop", tabs: 4, groups: 6, rows: 18 },
+      { key: "updates", tabs: 1, groups: 4, rows: 8 },
+      { key: "about", tabs: 1, groups: 2, rows: 2 },
     ]);
   });
 });
@@ -147,7 +148,7 @@ describe("içerik ağacı — rota çözücüsüyle aynı sekmeler", () => {
     assert.deepEqual([...byGroup.keys()], ["user", "app", "info"]);
     assert.deepEqual(byGroup.get("user"), ["account"]);
     assert.deepEqual(byGroup.get("app"), ["av", "appearance", "notifications", "desktop"]);
-    assert.deepEqual(byGroup.get("info"), ["about"]);
+    assert.deepEqual(byGroup.get("info"), ["updates", "about"]);
   });
 });
 
@@ -235,15 +236,14 @@ describe("içerik ağacı — sapmaların ağaçtaki karşılığı", () => {
     const stateKeyOf = (key: string) => byKey.get(key)?.[0]?.row.stateKey;
 
     assert.equal(stateKeyOf("v7"), "reduceMotion");
-    assert.equal(stateKeyOf("x1"), "reduceMotion");
-    assert.equal(stateKeyOf("v8"), "enableTTS");
-    assert.equal(stateKeyOf("x5"), "enableTTS");
+    for (const key of ["x1", "v8", "x5", "x6", "x7", "v5", "v6"])
+      assert.equal(byKey.has(key), false);
   });
 
   it("#4 — `stateKey` taşıyan başka satır yok", () => {
     const carriers = rows.filter(({ row }) => row.stateKey).map(({ row }) => row.key);
 
-    assert.deepEqual(carriers.sort(), ["v7", "v8", "x1", "x5"]);
+    assert.deepEqual(carriers, ["v7"]);
   });
 
   it("#8 — başlıksız grup render edilebilir", () => {
@@ -265,8 +265,7 @@ describe("içerik ağacı — sapmaların ağaçtaki karşılığı", () => {
       ne1.row.ownGroupTitleKey,
       "settings.group.notifications.exceptions.defaults.title",
     );
-    // Grup sayısı 58'de kalır: ağaç `SET` ile birebir, ayrı başlık çizim katmanındadır.
-    assert.equal(groups.length, 58);
+    assert.equal(groups.length, SETTINGS_TREE_COUNTS.groups);
   });
 });
 
@@ -276,7 +275,8 @@ describe("içerik ağacı — satır sözleşmesi", () => {
       if (row.type !== "custom") continue;
 
       assert.ok(row.block, `${row.key} blok anahtarı yok`);
-      assert.equal(row.titleKey, undefined, `${row.key} başlık taşıyor`);
+      if (row.block === "profileEmoji") assert.equal(row.titleKey, "settings.row.ps.title");
+      else assert.equal(row.titleKey, undefined, `${row.key} başlık taşıyor`);
     }
   });
 
@@ -356,20 +356,7 @@ describe("içerik ağacı — satır sözleşmesi", () => {
       .map(({ row }) => row.key)
       .sort();
 
-    assert.deepEqual(dataRows, [
-      "ae",
-      "ae2",
-      "ap",
-      "apw",
-      "d1",
-      "e7",
-      "h1",
-      "o3",
-      "p9",
-      "q3",
-      "s2",
-      "z7",
-    ]);
+    assert.deepEqual(dataRows, ["ae", "ap", "apw", "d1", "e7", "h1", "s2", "z7"]);
 
     for (const { row } of rows) {
       assert.ok(

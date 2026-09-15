@@ -113,10 +113,10 @@ export function ServerRailReportButton({
     <RailSupportButton
       borderWidth={rail.reportBorderWidth}
       hoverBorderAlpha={rail.reportHoverBorderAlpha}
-      hoverSurfaceAlpha={rail.reportHoverSurfaceAlpha}
-      idleBackground="hsl(var(--surface-tertiary))"
-      idleBorderColor={`hsl(var(--border) / ${rail.reportBorderAlpha})`}
-      idleColor="hsl(var(--text-secondary))"
+      hoverSurfaceAlpha={Math.min(1, rail.reportHoverSurfaceAlpha + 0.1)}
+      idleBackground={`hsl(var(--warning) / ${rail.reportHoverSurfaceAlpha})`}
+      idleBorderColor={`hsl(var(--warning) / ${rail.reportHoverBorderAlpha})`}
+      idleColor="hsl(var(--warning))"
       label={label}
       onClick={onClick}
       testId="server-rail-report-button"

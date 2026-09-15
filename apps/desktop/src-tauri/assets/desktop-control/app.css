@@ -1,18 +1,25 @@
+@font-face {
+  font-family: Outfit;
+  src: url("/font.woff2") format("woff2");
+  font-weight: 400 900;
+  font-display: swap;
+}
+
 :root {
   color-scheme: dark;
-  --bg: #0a0d14;
-  --panel: #121722;
-  --panel-strong: #181f2d;
-  --text: #f4f7fb;
-  --muted: #9da9ba;
-  --border: #2a3445;
-  --accent: #8b7cff;
-  --accent-strong: #7463f3;
+  --bg: hsl(220 8% 19%);
+  --panel: hsl(220 8% 22%);
+  --panel-strong: hsl(220 9% 26%);
+  --text: hsl(220 20% 96%);
+  --muted: hsl(220 11% 74%);
+  --border: hsl(220 9% 33%);
+  --accent: hsl(235 86% 65%);
+  --accent-strong: hsl(235 86% 60%);
   --accent-text: #ffffff;
   --success: #65d6a5;
   --danger: #ff8e9b;
   font-family:
-    Inter,
+    Outfit,
     ui-sans-serif,
     system-ui,
     -apple-system,
@@ -28,7 +35,7 @@ html {
   scroll-behavior: smooth;
 }
 body {
-  background: radial-gradient(circle at top right, #171a38 0, var(--bg) 34rem);
+  background: var(--bg);
   color: var(--text);
   margin: 0 auto;
   max-width: 940px;
@@ -36,9 +43,7 @@ body {
   padding: 28px;
 }
 
-button,
-input,
-select {
+button {
   font: inherit;
 }
 button {
@@ -47,15 +52,14 @@ button {
   border-radius: 10px;
   color: var(--accent-text);
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 600;
   min-height: 40px;
   padding: 8px 14px;
 }
 button:hover:not(:disabled) {
   background: var(--accent-strong);
 }
-button.secondary,
-.section-nav button {
+button.secondary {
   background: var(--panel-strong);
   border-color: var(--border);
   color: var(--text);
@@ -64,210 +68,39 @@ button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
+button:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--accent) 65%, transparent);
   outline-offset: 2px;
 }
 
-.shell-header,
-.section-heading,
-.actions,
-.toggle-row {
-  align-items: center;
-  display: flex;
-}
-.shell-header,
-.section-heading {
-  justify-content: space-between;
-}
-.shell-header {
-  gap: 20px;
-}
-h1,
 h2,
 p {
   margin-top: 0;
 }
-h1 {
-  font-size: clamp(1.8rem, 5vw, 2.7rem);
-  margin-bottom: 4px;
-}
 h2 {
   font-size: 1.2rem;
-  margin-bottom: 0;
 }
-.subtitle,
-section > p,
-.hint {
-  color: var(--muted);
+p {
   line-height: 1.55;
 }
 .eyebrow {
   color: var(--accent);
   font-size: 0.72rem;
   font-weight: 800;
-  letter-spacing: 0.13em;
-  margin-bottom: 5px;
-  text-transform: uppercase;
-}
-.trust-badge {
-  background: color-mix(in srgb, var(--success) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--success) 45%, transparent);
-  border-radius: 999px;
-  color: var(--success);
-  font-size: 0.78rem;
-  font-weight: 800;
-  padding: 7px 11px;
-  white-space: nowrap;
-}
-.section-nav {
-  display: flex;
-  gap: 7px;
-  margin: 24px 0 14px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-.section-nav button {
-  min-height: 34px;
-  padding: 6px 10px;
-  white-space: nowrap;
-}
-.global-status {
-  border-left: 3px solid var(--accent);
-  color: var(--muted);
-  min-height: 24px;
-  padding-left: 10px;
-}
-.global-status[data-tone="error"] {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-.global-status[data-tone="success"] {
-  border-color: var(--success);
-  color: var(--success);
-}
-main {
-  display: grid;
-  gap: 14px;
-}
-section {
-  background: color-mix(in srgb, var(--panel) 94%, transparent);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: 0 20px 45px rgb(0 0 0 / 18%);
-  padding: 20px;
-  scroll-margin-top: 12px;
-}
-.section-heading {
-  gap: 14px;
-  margin-bottom: 15px;
-}
-.status-grid,
-.form-grid {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.status-grid {
-  margin: 0;
-}
-.status-grid div {
-  background: var(--panel-strong);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px;
-}
-dt {
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-dd {
-  font-weight: 750;
-  margin: 5px 0 0;
-  overflow-wrap: anywhere;
-}
-label {
-  color: var(--muted);
-  display: grid;
-  font-size: 0.8rem;
-  gap: 6px;
-}
-input[type="text"] {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  color: var(--text);
-  min-height: 40px;
-  padding: 8px 10px;
-}
-input[type="text"][readonly] {
-  cursor: pointer;
-}
-.shortcut-status {
-  color: var(--muted);
-  font-size: 0.72rem;
-  min-height: 1rem;
-}
-.shortcut-status[data-tone="error"] {
-  color: var(--danger);
-}
-.shortcut-status[data-tone="success"] {
-  color: var(--success);
-}
-select {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  color: var(--text);
-  min-height: 40px;
-  padding: 8px 10px;
-}
-.toggle-row {
-  display: flex;
-  gap: 9px;
-  margin-bottom: 13px;
-}
-.toggle-row input {
-  height: 18px;
-  width: 18px;
 }
 .actions {
+  display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 14px;
 }
-.hint {
-  font-size: 0.78rem;
-  margin: 11px 0 0;
-}
-code {
-  color: var(--success);
-}
 .result {
-  color: var(--success);
+  color: var(--muted);
   display: block;
   font-size: 0.82rem;
   margin-top: 11px;
   overflow-wrap: anywhere;
 }
-.permission-card {
-  background: var(--panel-strong);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  margin-top: 9px;
-  padding: 12px;
-}
-.permission-card strong {
-  display: block;
-  margin-bottom: 4px;
-}
-.permission-card p {
-  color: var(--muted);
-  margin: 0;
-}
-
 dialog {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -310,23 +143,14 @@ dialog::backdrop {
   min-width: 108px;
 }
 
-@media (max-width: 640px) {
-  body {
-    padding: 18px;
-  }
-  .shell-header {
-    align-items: flex-start;
-  }
-  .status-grid,
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-  section {
-    padding: 16px;
-  }
-}
-
 @media (prefers-color-scheme: light) {
+  @font-face {
+    font-family: Outfit;
+    src: url("/font.woff2") format("woff2");
+    font-weight: 400 900;
+    font-display: swap;
+  }
+
   :root {
     color-scheme: light;
     --bg: #f5f6fa;
@@ -341,10 +165,7 @@ dialog::backdrop {
     --danger: #b4233b;
   }
   body {
-    background: radial-gradient(circle at top right, #e7e3ff 0, var(--bg) 34rem);
-  }
-  section {
-    box-shadow: 0 18px 38px rgb(57 48 116 / 8%);
+    background: var(--bg);
   }
 }
 
@@ -352,4 +173,8 @@ dialog::backdrop {
   html {
     scroll-behavior: auto;
   }
+}
+
+[hidden] {
+  display: none !important;
 }

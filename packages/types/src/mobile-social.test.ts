@@ -46,7 +46,6 @@ describe("mobile social and account schemas", () => {
         bannerUrl: null,
         customStatusEmoji: "🎧",
         customStatusExpiresAt: "2026-07-23T18:00:00.000Z",
-        pronouns: "  o/onu  ",
       }),
       {
         bannerColor: "#22A366",
@@ -55,10 +54,9 @@ describe("mobile social and account schemas", () => {
         bannerUrl: null,
         customStatusEmoji: "🎧",
         customStatusExpiresAt: "2026-07-23T18:00:00.000Z",
-        pronouns: "o/onu",
       },
     );
-    assert.equal(MOBILE_PROFILE_BIO_MAX_LENGTH, 500);
+    assert.equal(MOBILE_PROFILE_BIO_MAX_LENGTH, 250);
     assert.equal(MobileProfileUpdateSchema.safeParse({ bannerColor: "indigo" }).success, false);
     assert.equal(MobileProfileUpdateSchema.safeParse({ bannerOffsetX: -0.01 }).success, false);
     assert.equal(MobileProfileUpdateSchema.safeParse({ bannerOffsetY: 1.01 }).success, false);
@@ -95,7 +93,6 @@ describe("mobile social and account schemas", () => {
     assert.equal(legacy.user.customStatusEmoji, null);
     assert.equal(legacy.user.customStatusExpiresAt, null);
     assert.equal(legacy.user.nextUsernameChangeAt, null);
-    assert.equal(legacy.user.pronouns, null);
   });
 
   it("shapes the account settings contract around real privacy enums", async () => {
@@ -631,7 +628,6 @@ describe("mobile peer profile schemas", () => {
     },
     note: null,
     presence: { customStatus: "Test", customStatusEmoji: "🧪", status: "ONLINE" },
-    pronouns: null,
     registeredAt: "2025-04-02T09:00:00.000Z",
     relationship: "friend",
     self: false,

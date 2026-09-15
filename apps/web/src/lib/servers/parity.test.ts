@@ -891,6 +891,17 @@ describe("sunucu parity — sözlüğün sözleşmesi", () => {
     );
   });
 
+  it("kanal başlığını ve sunucu panelini ortak yüksekliğe hizalar", () => {
+    assert.equal(SERVER_METRICS.headerHeight, 70);
+    for (const path of [
+      "../../components/chat/server-channel-header.tsx",
+      "../../components/shell/channel-sidebar.tsx",
+    ]) {
+      const source = readFileSync(new URL(path, import.meta.url), "utf8");
+      assert.match(source, /height: pxToRem\(SERVER_METRICS\.headerHeight\)/u);
+    }
+  });
+
   it("sözlüğün her grubu bu dosyada geçiyor", () => {
     /*
       "Tam kapsar" bir iddia değil, bir kapı: `SERVER_METRICS`e yeni bir grup eklenip parity

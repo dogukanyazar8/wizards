@@ -90,6 +90,7 @@ describe("web user settings route", () => {
     assert.deepEqual(await response.json(), {
       ...baseRecord.notificationSettings,
       ...baseRecord.settings,
+      serverRailWidth: 74,
       timeZone: "AUTO",
     });
   });

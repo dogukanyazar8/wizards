@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { ReleaseNotesRow } from "../sections/desktop/release-notes-dialog";
 
 import { useI18n } from "@/components/providers/locale-provider";
 import type { SettingsSection, SettingsTab } from "@/lib/settings/navigation";
@@ -22,7 +23,11 @@ import { SettingCustomBlock } from "./setting-custom-block";
 import { SettingInput } from "./setting-input";
 import { SettingJump } from "./setting-jump";
 import { SettingNav } from "./setting-nav";
-import { SettingRiskyBlockBody, SettingRiskyBlockTrigger } from "./setting-risky-block";
+import {
+  SettingRiskyBlockBody,
+  SettingRiskyBlockTrigger,
+  settingRiskyPanelId,
+} from "./setting-risky-block";
 import { SettingSegment } from "./setting-segment";
 import { SettingSelect } from "./setting-select";
 import { SettingSlider } from "./setting-slider";
@@ -169,6 +174,10 @@ export function SettingsTreeRow({
 }) {
   const runtime = useSettingsRowRuntime();
 
+  if (row.key === "o5") {
+    return <ReleaseNotesRow divider={divider} disabled={runtime.disabledRows?.o5 ?? false} />;
+  }
+
   // Satır dolgusunu ve kırpmayı blok kendisi yönetir (`isFullWidthSettingsBlock`); inline iki
   // blok (mikrofon ölçeri, kamera önizlemesi) normal satır dolgusuyla çizilir.
   if (row.type === "custom") {
@@ -239,7 +248,19 @@ function SettingsControlRow({
       );
 
     case "action":
-      return <SettingsRow {...shared} control={(ids) => <ActionsControl ids={ids} row={row} />} />;
+      return (
+        <SettingsRow
+          {...shared}
+          control={(ids) => <ActionsControl ids={ids} row={row} />}
+          below={
+            row.riskyBlock && runtime.openRisky === row.riskyBlock ? (
+              <SettingRiskyBlockBody rowKey={row.key} testId={`setting-risky-body-${row.key}`}>
+                {runtime.riskyBodies[row.key] ?? null}
+              </SettingRiskyBlockBody>
+            ) : null
+          }
+        />
+      );
 
     case "jump":
       return <SettingsRow {...shared} control={(ids) => <JumpControl ids={ids} row={row} />} />;
@@ -348,6 +369,7 @@ function InputControl({ ids, row }: ControlProps) {
 
   return (
     <SettingInput
+      maxLength={row.maxLength}
       describedById={ids.describedById}
       disabled={runtime.disabledRows?.[row.key] ?? false}
       labelledById={ids.labelledById}
@@ -384,12 +406,29 @@ function ActionsControl({ ids, row }: ControlProps) {
     <SettingActions
       actions={(row.actions ?? []).map((action, index) => ({
         ...(action.kind ? { kind: action.kind } : {}),
+        ...(index === 0 && row.riskyBlock
+          ? {
+              expanded: runtime.openRisky === row.riskyBlock,
+              controlsId:
+                runtime.openRisky === row.riskyBlock ? settingRiskyPanelId(row.key) : undefined,
+            }
+          : {}),
         // K5 — karşılığı olmayan satırın düğmesi çizilir ama basılmaz.
-        disabled: runtime.disabledRows?.[row.key] ?? false,
-        label: t(action.labelKey),
+        disabled: action.disabled || (runtime.disabledRows?.[row.key] ?? false),
+        label: t(
+          index === 0 && row.riskyBlock && runtime.openRisky === row.riskyBlock
+            ? "settings.control.risky.close"
+            : action.labelKey,
+        ),
         // Eylemin ne yaptığını bölüm şeridi bilir; motor yalnız düğmeyi çizer ve **hangi**
         // düğmeye basıldığını satır anahtarıyla birlikte yukarı verir.
-        onClick: () => runtime.onAction(row.key, index),
+        onClick: () => {
+          if (index === 0 && row.riskyBlock) {
+            runtime.setOpenRisky(runtime.openRisky === row.riskyBlock ? null : row.riskyBlock);
+          } else {
+            runtime.onAction(row.key, index);
+          }
+        },
       }))}
       describedById={ids.describedById}
       labelledById={ids.labelledById}
@@ -490,7 +529,7 @@ function RiskyRowShell({ row, shared }: RowShellProps) {
     return null;
   }
 
-  const open = runtime.openRisky === row.key;
+  const open = runtime.openRisky === blockKey;
 
   return (
     <SettingsRow
@@ -506,7 +545,7 @@ function RiskyRowShell({ row, shared }: RowShellProps) {
         <SettingRiskyBlockTrigger
           blockKey={blockKey}
           describedById={ids.describedById}
-          onOpenChange={(next) => runtime.setOpenRisky(next ? row.key : null)}
+          onOpenChange={(next) => runtime.setOpenRisky(next ? blockKey : null)}
           open={open}
           rowKey={row.key}
           testId={`setting-risky-${row.key}`}

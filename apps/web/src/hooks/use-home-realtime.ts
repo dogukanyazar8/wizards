@@ -134,6 +134,7 @@ export function useHomeRealtime({ viewerId }: UseHomeRealtimeInput) {
 
     // Membership of a room changed — that is a shape change, not a value change.
     const onVoiceState = () => invalidate(["home", "live"]);
+    const onEventChanged = () => invalidate(homeQueryKeys.upcomingPrefix);
     const onFriendsVoice = (data: { userId: string; voiceRoom: FriendVoiceRoomDto | null }) => {
       patchEveryMatchingQuery<FriendDto[]>(queryClient, friendsQueryKeys.list, (current) =>
         applyFriendVoiceRoom(current, data),
@@ -164,6 +165,10 @@ export function useHomeRealtime({ viewerId }: UseHomeRealtimeInput) {
     };
 
     socket.on("presence:update", onPresence);
+    socket.on("event:created", onEventChanged);
+    socket.on("event:updated", onEventChanged);
+    socket.on("event:live:started", onEventChanged);
+    socket.on("event:live:ended", onEventChanged);
     socket.on("friends:updated", onFriendsUpdated);
     socket.on("friends:voice:update", onFriendsVoice);
     socket.on("voice:state:update", onVoiceState);
@@ -174,6 +179,10 @@ export function useHomeRealtime({ viewerId }: UseHomeRealtimeInput) {
 
     return () => {
       socket.off("presence:update", onPresence);
+      socket.off("event:created", onEventChanged);
+      socket.off("event:updated", onEventChanged);
+      socket.off("event:live:started", onEventChanged);
+      socket.off("event:live:ended", onEventChanged);
       socket.off("friends:updated", onFriendsUpdated);
       socket.off("friends:voice:update", onFriendsVoice);
       socket.off("voice:state:update", onVoiceState);

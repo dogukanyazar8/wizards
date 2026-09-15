@@ -13,8 +13,8 @@ import { SETTINGS_METRICS, hairline, pxToRem } from "@/lib/settings/metrics";
  * kendisine düşer — sayaç kırmızıya dönmekle yetinseydi rengi görmeyen kullanıcı sınırı hiç
  * duymazdı (kalite çıtası: renk tek başına anlam taşımaz).
  *
- * `maxLength` niteliği **verilmiyor**: tarayıcı fazla karakteri sessizce yutar ve kullanıcı
- * neden yazamadığını anlamaz. Sınır görünür, uyarı duyulur; kesme sunucunun işi.
+ * Giriş sınırı mobil ile aynıdır. Sayaç sınırı gösterir; eski uzun kayıtlar kesilmez,
+ * düzenlenip kaydedilirken sunucuda da doğrulanır.
  */
 
 const { textarea } = SETTINGS_METRICS.controls;
@@ -50,6 +50,7 @@ export function SettingTextarea({
         className="block w-full resize-none bg-[hsl(var(--surface-base))] text-[hsl(var(--foreground))] outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
         data-testid={testId}
         disabled={disabled}
+        maxLength={maxLength}
         onChange={(event) => onChange(event.target.value)}
         rows={textarea.rows}
         style={{

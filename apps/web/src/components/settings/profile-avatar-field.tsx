@@ -440,7 +440,7 @@ export function ProfileAvatarField({
         />
 
         <button
-          className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-xl border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.12)] px-3 text-xs font-semibold text-[hsl(var(--primary-text-emphasis,var(--primary)))] transition hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-3 text-xs font-semibold text-white transition-[filter] hover:brightness-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
           data-testid="profile-avatar-choose"
           disabled={isBusy || !uploadthingEnabled}
           onClick={() => inputRef.current?.click()}
@@ -455,7 +455,7 @@ export function ProfileAvatarField({
         </button>
 
         <button
-          className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.58)] px-3 text-xs font-semibold text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.86)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
+          className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-3 text-xs font-semibold text-white transition-[filter] hover:brightness-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
           data-testid="profile-avatar-clear"
           disabled={isBusy || !account.avatarUrl}
           onClick={() => {

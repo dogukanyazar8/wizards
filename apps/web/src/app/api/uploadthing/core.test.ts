@@ -155,6 +155,7 @@ describe("UploadThing route contracts", () => {
       "messageImageUploader",
       "mobileMediaUploader",
       "profileAvatarUploader",
+      "profileBannerUploader",
       "serverIconUploader",
     ]);
   });

@@ -8,7 +8,10 @@ import { DISPLAY_FONT } from "@/components/home/home-primitives";
 import { useOptionalFocusControls } from "@/components/providers/focus-controls-provider";
 import { useI18n } from "@/components/providers/locale-provider";
 import { NotificationBell } from "@/components/shared/notification-bell";
-import { useAppShortcutLabel } from "@/hooks/use-app-shortcut-label";
+import {
+  useAppShortcutAriaKeyShortcuts,
+  useAppShortcutLabel,
+} from "@/hooks/use-app-shortcut-label";
 import { HOME_METRICS, HOME_TYPE_SCALE, hairline, pxToEm, pxToRem } from "@/lib/home/metrics";
 import { cn } from "@/lib/utils";
 
@@ -78,6 +81,7 @@ function AppScreenTopBarComponent({
 }: AppScreenTopBarProps) {
   const { t } = useI18n();
   const shortcut = useAppShortcutLabel("commandPalette.toggle");
+  const ariaShortcut = useAppShortcutAriaKeyShortcuts("commandPalette.toggle");
   const palette = useCommandPalette();
 
   return (
@@ -123,7 +127,7 @@ function AppScreenTopBarComponent({
         {/* §5.1 — arama alanına tıklamak da paleti açar; kısayolun tek dinleyicisi kabukta. */}
         <button
           aria-haspopup="dialog"
-          aria-keyshortcuts="Meta+K Control+K"
+          aria-keyshortcuts={ariaShortcut}
           aria-label={t("home.search.placeholder")}
           onClick={() => palette?.open()}
           className="flex items-center border-solid border-[hsl(var(--border)/0.6)] bg-[hsl(var(--surface-card))] text-left outline-hidden transition-[border-color] hover:border-[hsl(var(--primary)/0.6)] focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"

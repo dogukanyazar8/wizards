@@ -15,6 +15,10 @@ import {
 } from "lucide-react";
 
 import { useI18n } from "@/components/providers/locale-provider";
+import {
+  useAppShortcutAriaKeyShortcuts,
+  useAppShortcutLabel,
+} from "@/hooks/use-app-shortcut-label";
 import { MESSAGES_METRICS, pxToRem } from "@/lib/messages/metrics";
 import { cn } from "@/lib/utils";
 
@@ -61,6 +65,12 @@ export function ComposerFormattingBar({
   onOpenPoll,
 }: ComposerFormattingBarProps) {
   const { t } = useI18n();
+  const boldShortcut = useAppShortcutLabel("composer.bold");
+  const italicShortcut = useAppShortcutLabel("composer.italic");
+  const underlineShortcut = useAppShortcutLabel("composer.underline");
+  const boldAriaShortcut = useAppShortcutAriaKeyShortcuts("composer.bold");
+  const italicAriaShortcut = useAppShortcutAriaKeyShortcuts("composer.italic");
+  const underlineAriaShortcut = useAppShortcutAriaKeyShortcuts("composer.underline");
   const formattingActionButtonClass = cn(
     TOOL_BUTTON_CLASS,
     referenceComposer &&
@@ -81,8 +91,9 @@ export function ComposerFormattingBar({
     >
       <button
         aria-label={t("chat.input.bold")}
+        aria-keyshortcuts={boldAriaShortcut}
         className={formattingActionButtonClass}
-        title={`${t("chat.input.bold")} · ${t("messages.composer.tool.boldHint")}`}
+        title={`${t("chat.input.bold")} · ${boldShortcut}`}
         onClick={() => onInsertWrap("**", "**", t("chat.input.boldFallback"))}
         onMouseDown={(event) => event.preventDefault()}
         type="button"
@@ -94,8 +105,9 @@ export function ComposerFormattingBar({
       </button>
       <button
         aria-label={t("chat.input.italic")}
+        aria-keyshortcuts={italicAriaShortcut}
         className={formattingActionButtonClass}
-        title={`${t("chat.input.italic")} · ${t("messages.composer.tool.italicHint")}`}
+        title={`${t("chat.input.italic")} · ${italicShortcut}`}
         onClick={() => onInsertWrap("_", "_", t("chat.input.italicFallback"))}
         onMouseDown={(event) => event.preventDefault()}
         type="button"
@@ -107,8 +119,9 @@ export function ComposerFormattingBar({
       </button>
       <button
         aria-label={t("chat.input.underline")}
+        aria-keyshortcuts={underlineAriaShortcut}
         className={formattingActionButtonClass}
-        title={`${t("chat.input.underline")} · ${t("messages.composer.tool.underlineHint")}`}
+        title={`${t("chat.input.underline")} · ${underlineShortcut}`}
         onClick={() => onInsertWrap("++", "++", t("chat.input.underlineFallback"))}
         onMouseDown={(event) => event.preventDefault()}
         type="button"

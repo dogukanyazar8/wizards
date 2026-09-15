@@ -94,6 +94,19 @@ function dependencies(
 const BASE_QUERY = { limit: 24, tab: "all" as const, weekStart: "2026-08-24" };
 
 describe("events service — projeksiyon", () => {
+  it("kanalsız ve harici bağlantısız etkinlik listede kalır", async () => {
+    const { database } = fakeEventsDatabase({
+      page: [
+        eventRow({ channelId: null, channelName: null, channelType: null, externalLocation: null }),
+      ],
+    });
+    const payload = EventsListResponseSchema.parse(
+      await listEvents("u1", BASE_QUERY, dependencies(database)),
+    );
+    assert.equal(payload.items.length, 1);
+    assert.equal(payload.items[0]?.channelId, null);
+    assert.equal(payload.items[0]?.serverId, "s1");
+  });
   it("satiri ekranin sozlesmesine cevirir; kanal basligi sunucudan gelir, istemci uretmez", async () => {
     const { database } = fakeEventsDatabase({ page: [eventRow()] });
 

@@ -19,7 +19,7 @@ export type SettingsDirtyBarProps = {
 /**
  * Kirli şerit — SPEC §4.5, Ş5 §7.
  *
- * Yalnız sekiz profil alanı (`pn`, `pu`, `pz`, `pbio`, `pp`, `ps`, `pe`, `px`) bu şeridi
+ * Yalnız yedi profil alanı (`pn`, `pu`, `pbio`, `pp`, `ps`, `pe`, `px`) bu şeridi
  * çıkarır; kararı `isSettingsDirtyKey` verir (sapma #5). Diğer tercihler dokununca kaydedilir
  * ve durumlarını başlıktaki göstergeden bildirir.
  *
@@ -36,6 +36,7 @@ export function SettingsDirtyBar({ onDiscard, onSave, pending = false }: Setting
       data-testid="settings-dirty-bar"
       style={{
         background: "hsl(var(--surface-card))",
+        height: pxToRem(SETTINGS_METRICS.footerHeight),
         borderTop: `${hairline()} solid hsl(var(--border)/${saveBar.borderTopAlpha})`,
         gap: pxToRem(saveBar.gap),
         padding: `${pxToRem(saveBar.paddingY)} ${pxToRem(saveBar.paddingX)}`,
@@ -78,9 +79,7 @@ export function SettingsDirtyBar({ onDiscard, onSave, pending = false }: Setting
           disabled={pending}
           onClick={onSave}
           style={{
-            // Tasarımın yeşil kaydet düğmesi; ters metin tasarımda `#fff` verildi ve token
-            // dışı tek istisna odur (§6).
-            background: "hsl(var(--success))",
+            background: "hsl(var(--primary))",
             borderRadius: pxToRem(saveBar.saveRadius),
             color: "#fff",
             fontSize: pxToRem(saveBar.saveFontSize),

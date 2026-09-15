@@ -1,6 +1,9 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
+import { buildSettingsHref } from "@/lib/settings/navigation";
+import { calculateVoiceGrid, type VoiceLayout } from "@/lib/servers/voice-layout";
 
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -9,7 +12,6 @@ import type { VoiceParticipantViewModel } from "@/components/providers/voice-pro
 import { DISPLAY_FONT, DISPLAY_TRACKING } from "@/components/servers/shared/typography";
 import { SERVER_METRICS, hairline, pxToEm, pxToRem } from "@/lib/servers/metrics";
 import {
-  selectVoiceGridColumns,
   selectVoiceLatencyBarsForTier,
   selectVoiceTileStatus,
   type VoiceLatencyTier,
@@ -20,8 +22,8 @@ import {
  * SPEC-SUNUCU §5 — sunucu ses kanalının **sunum** katmanı.
  *
  * **K5.** LiveKit bağlantısı, katılımcı eşlemesi, cihaz seçimi, abonelik ve codec/bitrate
- * mantığı `lib/voice/*` altında ve bu şeritte **hiç değişmedi**. Buradaki her bileşen saf
- * sunumdur: veriyi prop olarak alır, hiçbir hook'a bağlanmaz, hiçbir track'e dokunmaz.
+ * mantığı `lib/voice/*` altında. Bu bileşenler katılımcı verisini prop olarak alır;
+ * yerel durum yalnız görünüm ve menü içindir, medya track'lerine dokunmaz.
  *
  * **Neden yeni dosya, neden `voice-room-primitives.tsx` değil.** O dosyanın `VoiceParticipantTile`,
  * `VoiceControlBar` ve `ScreenShareStage` bileşenlerini **`dm-call-view.tsx` de kullanıyor** ve
@@ -119,6 +121,7 @@ function stripeBackground(size: number, cycle: number, alpha: number): string {
 /* ------------------------------------------------------------------ §5.1 başlık */
 
 export type ServerVoiceHeaderProps = {
+  readonly layoutControl?: React.ReactNode;
   readonly channelName: string;
   readonly categoryName: string | null;
   readonly krispActive: boolean;
@@ -135,6 +138,7 @@ export type ServerVoiceHeaderProps = {
 };
 
 export function ServerVoiceHeader({
+  layoutControl,
   channelName,
   categoryName,
   krispActive,
@@ -171,6 +175,7 @@ export function ServerVoiceHeader({
       className="flex min-w-0 flex-none items-center"
       data-testid="server-voice-channel"
       style={{
+        height: pxToRem(SERVER_METRICS.headerHeight),
         borderBottom: `${hairline()} solid hsl(var(--border)/${textHeader.borderBottomAlpha})`,
         gap: pxToRem(textHeader.gap),
         padding: `${pxToRem(textHeader.paddingY)} ${pxToRem(textHeader.paddingX)}`,
@@ -227,6 +232,7 @@ export function ServerVoiceHeader({
       </div>
 
       <div className="flex flex-none items-center" style={{ gap: pxToRem(voiceHeader.chipsGap) }}>
+        {layoutControl}
         <span
           className="flex items-center font-semibold whitespace-nowrap"
           data-krisp-active={krispActive ? "true" : "false"}
@@ -252,7 +258,7 @@ export function ServerVoiceHeader({
           }}
         >
           <Glyph base={voiceHeader.krispChipFontSize} path={SHIELD_PATH} size={13} />
-          {krispLabel}
+          <span className="sr-only md:not-sr-only">{krispLabel}</span>
         </span>
 
         {/*
@@ -297,12 +303,14 @@ export function ServerVoiceHeader({
                 />
               ))}
             </span>
-            {latency.ms === null
-              ? t(`server.voice.latency.${latency.tier}`)
-              : t("server.voice.header.latency", {
-                  ms: latency.ms,
-                  quality: t(`server.voice.latency.${latency.tier}`),
-                })}
+            <span className="sr-only md:not-sr-only">
+              {latency.ms === null
+                ? t(`server.voice.latency.${latency.tier}`)
+                : t("server.voice.header.latency", {
+                    ms: latency.ms,
+                    quality: t(`server.voice.latency.${latency.tier}`),
+                  })}
+            </span>
           </span>
         ) : null}
 
@@ -342,7 +350,7 @@ export function ServerVoiceHeader({
             path={USERS_PATH}
             size={textHeader.actionIconSize}
           />
-          {t("server.channel.header.members")}
+          <span className="sr-only md:not-sr-only">{t("server.channel.header.members")}</span>
         </button>
       </div>
     </header>
@@ -353,6 +361,7 @@ export function ServerVoiceHeader({
 
 export type ServerVoiceTileProps = {
   /** Gerçek kamera akışı; `null` iken **boş `<video>` mount edilmez** (PROMPT §11). */
+  readonly fill?: boolean;
   readonly cameraSlot: React.ReactNode | null;
   readonly participant: VoiceParticipantViewModel;
   readonly roleBadge: "admin" | "owner" | null;
@@ -371,6 +380,7 @@ export type ServerVoiceTileProps = {
 };
 
 export function ServerVoiceTile({
+  fill = false,
   cameraSlot,
   participant,
   roleBadge,
@@ -384,7 +394,9 @@ export function ServerVoiceTile({
   const cameraVariant = participant.isCameraEnabled;
 
   const cardStyle: React.CSSProperties = {
-    aspectRatio: `${voiceGrid.cardAspectWidth} / ${voiceGrid.cardAspectHeight}`,
+    aspectRatio: fill ? undefined : `${voiceGrid.cardAspectWidth} / ${voiceGrid.cardAspectHeight}`,
+    height: fill ? "100%" : undefined,
+    width: fill ? "100%" : undefined,
     background: cameraVariant
       ? stripeBackground(
           voiceGrid.cameraStripeSize,
@@ -527,7 +539,7 @@ export function ServerVoiceTile({
               fontSize: pxToRem(voiceGrid.cameraBadgeNameFontSize),
               gap: pxToRem(voiceGrid.cameraBadgeGap),
               left: pxToRem(voiceGrid.cameraBadgeLeft),
-              lineHeight: 1,
+              lineHeight: 1.4,
               padding: `${pxToRem(voiceGrid.cameraBadgePaddingY)} ${pxToRem(
                 voiceGrid.cameraBadgePaddingX,
               )}`,
@@ -579,7 +591,7 @@ export function ServerVoiceTile({
               data-testid="server-voice-tile-name"
               style={{
                 fontSize: pxToRem(voiceGrid.nameFontSize),
-                lineHeight: 1,
+                lineHeight: 1.4,
               }}
             >
               {displayName}
@@ -628,25 +640,95 @@ export function ServerVoiceTile({
 export function ServerVoiceGrid({
   children,
   participantCount,
+  layout = "fit",
+  featuredIndex = 0,
 }: {
   children: React.ReactNode;
   participantCount: number;
+  layout?: VoiceLayout;
+  featuredIndex?: number;
 }) {
+  const host = React.useRef<HTMLDivElement>(null);
+  const [size, setSize] = React.useState<{ width: number; height: number; gap: number }>({
+    width: 960,
+    height: 600,
+    gap: voiceGrid.gap,
+  });
+  React.useLayoutEffect(() => {
+    const node = host.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry || entry.contentRect.width <= 0 || entry.contentRect.height <= 0) return;
+      const { width, height } = entry.contentRect;
+      const gap = Number.parseFloat(getComputedStyle(node).rowGap) || voiceGrid.gap;
+      setSize((previous) =>
+        previous.width === width && previous.height === height && previous.gap === gap
+          ? previous
+          : { width, height, gap },
+      );
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  const grid = calculateVoiceGrid(
+    participantCount,
+    size.width,
+    size.height,
+    layout === "compact",
+    size.gap,
+  );
+  const speaker = layout === "speaker" && participantCount > 1;
+  const rows = Math.max(1, participantCount - 1);
+  const stacked = speaker && size.width < 600;
+  const featured = Math.max(0, Math.min(participantCount - 1, featuredIndex));
   return (
     <div
-      className="grid min-h-0 w-full flex-1 overflow-y-auto"
-      data-columns={selectVoiceGridColumns(participantCount)}
+      ref={host}
+      className="grid min-h-0 w-full flex-1 overflow-auto"
+      data-columns={speaker ? (stacked ? 1 : 2) : grid.columns}
+      data-layout={layout}
       data-testid="server-voice-grid"
       style={{
-        alignContent: "start",
+        alignContent: layout === "compact" || speaker ? "start" : "center",
+        justifyContent: layout === "compact" ? "start" : "center",
         gap: pxToRem(voiceGrid.gap),
-        gridTemplateColumns: `repeat(${selectVoiceGridColumns(participantCount)}, minmax(0, 1fr))`,
-        padding: `${pxToRem(voiceGrid.paddingTop)} ${pxToRem(voiceGrid.paddingX)} ${pxToRem(
-          voiceGrid.paddingBottom,
-        )}`,
+        gridTemplateColumns: speaker
+          ? stacked
+            ? "minmax(0, 1fr)"
+            : "minmax(0, 3fr) minmax(0, 1fr)"
+          : `repeat(${grid.columns}, ${grid.tileWidth}px)`,
+        gridTemplateRows: speaker
+          ? stacked
+            ? `${Math.max(180, size.height * 0.6)}px repeat(${rows}, 150px)`
+            : `repeat(${rows}, minmax(96px, 1fr))`
+          : `repeat(${grid.rows}, ${grid.tileHeight}px)`,
+        padding: `${pxToRem(voiceGrid.paddingTop)} ${pxToRem(voiceGrid.paddingX)} ${pxToRem(voiceGrid.paddingBottom)}`,
       }}
     >
-      {children}
+      {React.Children.map(children, (child, index) => {
+        const primary = speaker && index === featured;
+        const secondaryRow = index < featured ? index + 1 : index;
+        return (
+          <div
+            className="min-h-0 min-w-0"
+            data-featured={primary || undefined}
+            style={
+              speaker
+                ? {
+                    gridColumn: stacked ? 1 : primary ? 1 : 2,
+                    gridRow: primary
+                      ? stacked
+                        ? "1"
+                        : `1 / span ${rows}`
+                      : String(secondaryRow + (stacked ? 1 : 0)),
+                  }
+                : undefined
+            }
+          >
+            {child}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -807,7 +889,7 @@ export function ServerScreenShareStage({
             style={{
               fontFamily: DISPLAY_FONT,
               fontSize: pxToRem(screenShare.presenterNameFontSize),
-              lineHeight: 1,
+              lineHeight: 1.4,
             }}
           >
             {t("server.voice.share.presenter", { name: sharerName })}
@@ -962,7 +1044,7 @@ export function ServerScreenShareStripCard({
       />
       <span
         className="min-w-0 flex-1 truncate font-semibold text-[hsl(var(--foreground))]"
-        style={{ fontSize: pxToRem(screenShare.stripNameFontSize), lineHeight: 1 }}
+        style={{ fontSize: pxToRem(screenShare.stripNameFontSize), lineHeight: 1.4 }}
       >
         {displayName}
       </span>
@@ -1041,7 +1123,6 @@ export type ServerVoiceControlsProps = {
   readonly isMuted: boolean;
   readonly isScreenSharing: boolean;
   readonly onLeave: () => void;
-  readonly onOpenSettings: () => void;
   readonly onToggleCamera: () => void;
   readonly onToggleDeafen: () => void;
   readonly onToggleMute: () => void;
@@ -1055,7 +1136,6 @@ export function ServerVoiceControls({
   isMuted,
   isScreenSharing,
   onLeave,
-  onOpenSettings,
   onToggleCamera,
   onToggleDeafen,
   onToggleMute,
@@ -1114,11 +1194,12 @@ export function ServerVoiceControls({
         tone={isCameraEnabled ? "primary" : "neutral"}
       />
 
-      <button
+      <Link
         aria-label={t("server.voice.controls.settings")}
         className="grid cursor-pointer place-items-center transition-colors hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
         data-testid="server-voice-control-settings"
-        onClick={onOpenSettings}
+        href={buildSettingsHref("av", "audio")}
+        prefetch={true}
         style={{
           background: "hsl(var(--surface-card))",
           border: `${pxToRem(voiceControls.buttonBorderWidth)} solid hsl(var(--border))`,
@@ -1127,10 +1208,9 @@ export function ServerVoiceControls({
           height: pxToRem(voiceControls.settingsSize),
           width: pxToRem(voiceControls.settingsSize),
         }}
-        type="button"
       >
         <Glyph path={SETTINGS_PATH} size={18} />
-      </button>
+      </Link>
 
       <span
         aria-hidden="true"
@@ -1210,6 +1290,50 @@ export function ServerVoiceEmptyState() {
       >
         {t("server.voice.empty.description")}
       </p>
+    </div>
+  );
+}
+
+export function ServerVoiceDisconnectedState({ onReconnect }: { onReconnect: () => void }) {
+  const { t } = useI18n();
+  return (
+    <div
+      className="flex h-full items-center justify-center p-6"
+      data-testid="voice-disconnected-state"
+    >
+      <section
+        className="flex w-full max-w-sm flex-col items-center border bg-[hsl(var(--surface-card))] p-8 text-center"
+        style={{
+          borderColor: "hsl(var(--border))",
+          borderRadius: pxToRem(voiceGrid.cardRadius),
+          gap: pxToRem(voiceGrid.cardContentGap),
+        }}
+      >
+        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[hsl(var(--surface-soft))] text-[hsl(var(--text-muted))]">
+          <Glyph path={SPEAKER_PATH} size={24} />
+        </span>
+        <h2
+          className="font-semibold text-[hsl(var(--foreground))]"
+          style={{
+            fontFamily: DISPLAY_FONT,
+            fontSize: pxToRem(18),
+            letterSpacing: DISPLAY_TRACKING,
+          }}
+        >
+          {t("voice.view.disconnectedTitle")}
+        </h2>
+        <p className="text-sm leading-relaxed text-[hsl(var(--text-muted))]">
+          {t("voice.view.disconnectedDescription")}
+        </p>
+        <button
+          className="mt-3 rounded-xl bg-[hsl(var(--primary))] px-4 py-2.5 text-sm font-semibold text-[hsl(var(--primary-foreground))] transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[hsl(var(--primary))]"
+          style={{ fontFamily: DISPLAY_FONT }}
+          type="button"
+          onClick={onReconnect}
+        >
+          {t("voice.view.reconnectAction")}
+        </button>
+      </section>
     </div>
   );
 }

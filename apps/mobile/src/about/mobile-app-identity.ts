@@ -4,24 +4,28 @@ import packageJson from "../../package.json";
 import { getMobileRuntimeConfig } from "../config/environment";
 import { readMobileUpdateRuntimeIdentity } from "./mobile-update-controller-factory";
 
+export const MOBILE_RELEASE_CODENAME = "Resonance";
+
+/** Do not label an older installed binary with this bundle's release name. */
+export function getMobileAppCodename(version: string): string | undefined {
+  return normalizeMobileAppVersion(version) === packageJson.version
+    ? MOBILE_RELEASE_CODENAME
+    : undefined;
+}
+
 /**
  * "Which build is this?" — version and channel, both read from the binary.
  *
- * The bootstrap payload also carries `app.version` and `app.releaseChannel`,
- * but those describe the *web* deployment that answered the request: its
- * channel falls back to "beta" whenever `NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL`
- * is unset. Reading them made a UAT build call itself Beta on one surface and
- * UAT on another. Every surface that names this app's build reads here.
+ * Identity comes from the installed binary, not the responding web deployment.
+ * UAT builds are labeled Beta; production builds are labeled Stable.
  */
 
 export function resolveMobileAppReleaseChannel(value: string): MobileReleaseChannel {
   switch (value) {
     case "beta":
-    case "canary":
-      return "beta";
     case "development":
     case "uat":
-      return "uat";
+      return "beta";
     case "production":
     case "stable":
     default:

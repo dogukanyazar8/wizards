@@ -1,3 +1,4 @@
+import { masterOutputGain } from "@/lib/voice/output-volume";
 /**
  * `Test sesi çal` (`u2`) — çıkışın gerçekten çaldığını duyuran kısa ton.
  *
@@ -59,6 +60,7 @@ function createDefaultContext(): TestTonePlayer | null {
 export async function playTestTone(
   outputDeviceId: string,
   createContext: () => TestTonePlayer | null = createDefaultContext,
+  masterOutputVolume = 100,
 ): Promise<boolean> {
   const context = createContext();
 
@@ -75,7 +77,7 @@ export async function playTestTone(
     const gain = context.createGain();
 
     oscillator.frequency.value = TEST_TONE_FREQUENCY_HZ;
-    gain.gain.value = TEST_TONE_PEAK_GAIN;
+    gain.gain.value = TEST_TONE_PEAK_GAIN * masterOutputGain(masterOutputVolume);
 
     oscillator.connect(gain);
     gain.connect(context.destination);

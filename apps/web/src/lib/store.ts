@@ -12,11 +12,11 @@ import {
   MIN_NOTIFICATION_LIMIT,
   clampChannelSidebarWidth,
   clampExpandedServerRailWidth,
+  normalizeStoredServerRailWidth,
   clampMainPanelWidth,
   clampNotificationPopupTimeoutSeconds,
   clampServerRailIconSize,
 } from "@/lib/appearance";
-import { DEFAULT_APP_ICON_ID, isAppIconId, type AppIconId } from "@/lib/app-icons";
 import {
   DEFAULT_DESKTOP_RICH_PRESENCE_AUDIENCE,
   sanitizeDesktopRichPresenceAudience,
@@ -160,7 +160,6 @@ type ActiveRouteUpdate = Pick<
 
 interface AppState extends PersistedRouteState {
   appearanceHydrated: boolean;
-  appIconId: AppIconId;
   categoryModal: CategoryModalState;
   channelNotificationsModal: ChannelNotificationsModalState;
   channelSidebarWidth: number;
@@ -252,7 +251,6 @@ interface AppState extends PersistedRouteState {
   resetSessionUiState: () => void;
   setActiveRoute: (route: ActiveRouteUpdate) => void;
   setAppearanceHydrated: (hydrated: boolean) => void;
-  setAppIconId: (iconId: AppIconId) => void;
   setChannelSidebarWidth: (width: number) => void;
   setDesktopNotificationPreviews: (enabled: boolean) => void;
   setDesktopRichPresenceAudience: (audience: DesktopRichPresenceAudience) => void;
@@ -281,7 +279,6 @@ type PersistedAppState = Pick<
   | "activeArea"
   | "activeChannelId"
   | "activeServerId"
-  | "appIconId"
   | "channelSidebarWidth"
   | "collapsedCategories"
   | "desktopNotificationPreviews"
@@ -350,7 +347,6 @@ function createInitialState(): Omit<
   | "resetSessionUiState"
   | "setActiveRoute"
   | "setAppearanceHydrated"
-  | "setAppIconId"
   | "setChannelSidebarWidth"
   | "setDesktopNotificationPreviews"
   | "setDesktopRichPresenceAudience"
@@ -378,7 +374,6 @@ function createInitialState(): Omit<
     activeChannelId: null,
     activeServerId: null,
     appearanceHydrated: false,
-    appIconId: DEFAULT_APP_ICON_ID,
     categoryModal: {
       categoryId: null,
       mode: "create",
@@ -505,7 +500,6 @@ function sanitizePersistedState(value: unknown): Partial<PersistedAppState> {
         : "friends",
     activeChannelId: typeof value.activeChannelId === "string" ? value.activeChannelId : null,
     activeServerId: typeof value.activeServerId === "string" ? value.activeServerId : null,
-    appIconId: isAppIconId(value.appIconId) ? value.appIconId : DEFAULT_APP_ICON_ID,
     channelSidebarWidth: clampChannelSidebarWidth(
       typeof value.channelSidebarWidth === "number"
         ? value.channelSidebarWidth
@@ -558,7 +552,7 @@ function sanitizePersistedState(value: unknown): Partial<PersistedAppState> {
         ? value.serverRailIconSize
         : DEFAULT_SERVER_RAIL_ICON_SIZE,
     ),
-    serverRailWidth: clampExpandedServerRailWidth(
+    serverRailWidth: normalizeStoredServerRailWidth(
       typeof value.serverRailWidth === "number" ? value.serverRailWidth : DEFAULT_SERVER_RAIL_WIDTH,
     ),
   };
@@ -575,7 +569,7 @@ export const useAppStore = create<AppState>()(
           messageFont: normalizeMessageFontId(settings.messageFont),
           notificationAutoClose: settings.notificationAutoClose,
           notificationLimit: clampNotificationLimit(settings.notificationLimit),
-          serverRailWidth: clampExpandedServerRailWidth(settings.serverRailWidth),
+          serverRailWidth: normalizeStoredServerRailWidth(settings.serverRailWidth),
         }),
       closeCategoryModal: () =>
         set({
@@ -832,16 +826,6 @@ export const useAppStore = create<AppState>()(
         set({
           appearanceHydrated: hydrated,
         }),
-      setAppIconId: (iconId) =>
-        set((state) => {
-          if (state.appIconId === iconId) {
-            return state;
-          }
-
-          return {
-            appIconId: iconId,
-          };
-        }),
       setChannelSidebarWidth: (width) =>
         set((state) => {
           const nextWidth = clampChannelSidebarWidth(width);
@@ -1070,7 +1054,7 @@ export const useAppStore = create<AppState>()(
               typeof nextPersistedState.serverRailIconSize === "number"
                 ? nextPersistedState.serverRailIconSize
                 : DEFAULT_SERVER_RAIL_ICON_SIZE,
-            serverRailWidth: clampExpandedServerRailWidth(
+            serverRailWidth: normalizeStoredServerRailWidth(
               typeof nextPersistedState.serverRailWidth === "number"
                 ? nextPersistedState.serverRailWidth
                 : DEFAULT_SERVER_RAIL_WIDTH,
@@ -1162,7 +1146,6 @@ export const useAppStore = create<AppState>()(
         activeArea: state.activeArea,
         activeChannelId: state.activeChannelId,
         activeServerId: state.activeServerId,
-        appIconId: state.appIconId,
         channelSidebarWidth: state.channelSidebarWidth,
         collapsedCategories: state.collapsedCategories,
         desktopNotificationPreviews: state.desktopNotificationPreviews,

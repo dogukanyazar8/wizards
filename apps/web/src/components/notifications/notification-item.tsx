@@ -1,6 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
+import Link from "next/link";
+
+import { resolveNotificationTarget } from "@/lib/notifications/target";
 
 import { useI18n } from "@/components/providers/locale-provider";
 import { NOTIF_KIND_GLYPH, NOTIF_KIND_TONE } from "@/lib/notifications/panel-state";
@@ -10,8 +13,7 @@ import type { AppNotification } from "@wizards/types";
 /**
  * Bildirimler paneli — SPEC §1 satırı (Ş11 §A.4).
  *
- * **Satıra tıklamak okundu/okunmadı durumunu çevirir** — okumaz, çevirir. Yanlışlıkla okunan
- * bir bildirimi geri almanın başka yolu yok.
+ * Satır hedefi açar; hedefi olmayan duyurunun tam metnini genişletir.
  *
  * Okunmamış durumu **renkle yetinmez**: 7 px nokta bir ekran okuyucuya görünmez, o yüzden
  * durum `aria-label`'da metin olarak da geçer (`Okunmadı` / `Okundu`). Etiket satırın tamamını
@@ -29,105 +31,127 @@ function iconSurface(tone: string): string {
 
 export type NotificationItemProps = {
   readonly notification: AppNotification;
-  readonly onToggleRead: (notification: AppNotification) => void;
+  readonly onOpen: (notification: AppNotification) => void;
   readonly timeZone?: string | undefined;
 };
 
-export function NotificationItem({ notification, onToggleRead, timeZone }: NotificationItemProps) {
+export function NotificationItem({ notification, onOpen, timeZone }: NotificationItemProps) {
   const { locale, t } = useI18n();
 
+  const [expanded, setExpanded] = useState(false);
+  const href = resolveNotificationTarget(notification.actionUrl);
+  const external = href?.startsWith("http");
   const unread = !notification.read;
   const tone = NOTIF_KIND_TONE[notification.kind];
   const time = formatNotificationTime(locale, notification.createdAt, timeZone);
   const stateLabel = t(unread ? "notif.panel.unreadState" : "notif.panel.readState");
 
-  return (
-    <div role="listitem">
-      <button
-        aria-label={[notification.title, notification.body, time, stateLabel]
-          .filter((part) => part.length > 0)
-          .join(" · ")}
-        className="flex w-full items-start text-left transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
-        data-notification-id={notification.id}
-        data-testid="notification-panel-row"
-        data-unread={unread || undefined}
-        onClick={() => onToggleRead(notification)}
+  const rowProps = {
+    "aria-label": [notification.title, notification.body, time, stateLabel]
+      .filter(Boolean)
+      .join(" · "),
+    className:
+      "flex w-full items-start text-left transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
+    "data-notification-id": notification.id,
+    "data-testid": "notification-panel-row",
+    "data-unread": unread || undefined,
+    onClick: () => {
+      onOpen({ ...notification, actionUrl: href });
+      if (!href) setExpanded((value) => !value);
+    },
+    style: {
+      background: unread ? `hsl(var(--surface-soft) / ${row.unreadSurfaceAlpha})` : "transparent",
+      borderRadius: pxToRem(row.radius),
+      gap: pxToRem(row.gap),
+      padding: `${pxToRem(row.paddingY)} ${pxToRem(row.paddingX)}`,
+      transitionDuration: `${SETTINGS_METRICS.motion.transitionSeconds}s`,
+    },
+  };
+  const content = (
+    <>
+      <span
+        aria-hidden="true"
+        className="font-display grid shrink-0 place-items-center"
+        data-notification-kind={notification.kind}
         style={{
-          background: unread
-            ? `hsl(var(--surface-soft) / ${row.unreadSurfaceAlpha})`
-            : "transparent",
-          borderRadius: pxToRem(row.radius),
-          gap: pxToRem(row.gap),
-          padding: `${pxToRem(row.paddingY)} ${pxToRem(row.paddingX)}`,
-          transitionDuration: `${SETTINGS_METRICS.motion.transitionSeconds}s`,
+          background: iconSurface(tone),
+          borderRadius: pxToRem(row.iconRadius),
+          color: `hsl(var(${tone}))`,
+          fontSize: pxToRem(row.iconFontSize),
+          fontWeight: row.unreadWeight,
+          height: pxToRem(row.iconSize),
+          width: pxToRem(row.iconSize),
         }}
-        type="button"
       >
-        <span
-          aria-hidden="true"
-          className="font-display grid shrink-0 place-items-center"
-          data-notification-kind={notification.kind}
-          style={{
-            background: iconSurface(tone),
-            borderRadius: pxToRem(row.iconRadius),
-            color: `hsl(var(${tone}))`,
-            fontSize: pxToRem(row.iconFontSize),
-            fontWeight: row.unreadWeight,
-            height: pxToRem(row.iconSize),
-            width: pxToRem(row.iconSize),
-          }}
-        >
-          {NOTIF_KIND_GLYPH[notification.kind]}
-        </span>
+        {NOTIF_KIND_GLYPH[notification.kind]}
+      </span>
 
-        <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-baseline" style={{ gap: pxToRem(row.titleTimeGap) }}>
-            <span
-              className="min-w-0 flex-1 text-pretty text-[hsl(var(--foreground))]"
-              style={{
-                fontSize: pxToRem(row.titleFontSize),
-                fontWeight: unread ? row.unreadWeight : row.readWeight,
-                lineHeight: row.titleLineHeight,
-              }}
-            >
-              {notification.title}
-            </span>
-            <span
-              className="shrink-0 text-[hsl(var(--text-muted))]"
-              style={{
-                fontSize: pxToRem(row.timeFontSize),
-                fontWeight: row.timeWeight,
-                lineHeight: row.titleLineHeight,
-              }}
-            >
-              {time}
-            </span>
-          </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex min-w-0 items-baseline" style={{ gap: pxToRem(row.titleTimeGap) }}>
           <span
-            className="block truncate text-[hsl(var(--text-muted))]"
+            className="min-w-0 flex-1 text-pretty text-[hsl(var(--foreground))]"
             style={{
-              fontSize: pxToRem(row.subFontSize),
-              lineHeight: row.subLineHeight,
-              marginTop: pxToRem(row.subMarginTop),
+              fontSize: pxToRem(row.titleFontSize),
+              fontWeight: unread ? row.unreadWeight : row.readWeight,
+              lineHeight: row.titleLineHeight,
             }}
           >
-            {notification.body}
+            {notification.title}
+          </span>
+          <span
+            className="shrink-0 text-[hsl(var(--text-muted))]"
+            style={{
+              fontSize: pxToRem(row.timeFontSize),
+              fontWeight: row.timeWeight,
+              lineHeight: row.titleLineHeight,
+            }}
+          >
+            {time}
           </span>
         </span>
+        <span
+          className={`${expanded ? "whitespace-pre-wrap break-words" : "truncate"} block text-[hsl(var(--text-muted))]`}
+          style={{
+            fontSize: pxToRem(row.subFontSize),
+            lineHeight: row.subLineHeight,
+            marginTop: pxToRem(row.subMarginTop),
+          }}
+        >
+          {notification.body}
+        </span>
+      </span>
 
-        {unread ? (
-          <span
-            aria-hidden="true"
-            className="shrink-0 rounded-full bg-[hsl(var(--primary))]"
-            data-testid="notification-panel-row-dot"
-            style={{
-              height: pxToRem(row.unreadDotSize),
-              marginTop: pxToRem(row.unreadDotMarginTop),
-              width: pxToRem(row.unreadDotSize),
-            }}
-          />
-        ) : null}
-      </button>
+      {unread ? (
+        <span
+          aria-hidden="true"
+          className="shrink-0 rounded-full bg-[hsl(var(--primary))]"
+          data-testid="notification-panel-row-dot"
+          style={{
+            height: pxToRem(row.unreadDotSize),
+            marginTop: pxToRem(row.unreadDotMarginTop),
+            width: pxToRem(row.unreadDotSize),
+          }}
+        />
+      ) : null}
+    </>
+  );
+  return (
+    <div role="listitem">
+      {href ? (
+        <Link
+          {...rowProps}
+          href={href}
+          prefetch={false}
+          target={external ? "_blank" : undefined}
+          rel={external ? "noopener noreferrer" : undefined}
+        >
+          {content}
+        </Link>
+      ) : (
+        <button {...rowProps} type="button" aria-expanded={expanded}>
+          {content}
+        </button>
+      )}
     </div>
   );
 }

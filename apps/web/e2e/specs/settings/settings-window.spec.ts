@@ -16,7 +16,7 @@ import { gotoAppRoute, visibleTestId } from "../../helpers/navigation";
 import { e2eUserPassword } from "../../helpers/test-data";
 import { generateTotpCode } from "../../../src/lib/auth/totp";
 import {
-  ABOUT_UNAVAILABLE_ROWS,
+  UPDATES_UNAVAILABLE_ROWS,
   ACCOUNT_UNAVAILABLE_ROWS,
   APPEARANCE_UNAVAILABLE_ROWS,
   AV_UNAVAILABLE_ROWS,
@@ -40,7 +40,8 @@ import { walkSettingsRows } from "../../../src/lib/settings/tree";
 const E2E_TOTP_SECRET = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
 
 const UNAVAILABLE_ROWS_BY_SECTION = {
-  about: ABOUT_UNAVAILABLE_ROWS,
+  about: {},
+  updates: UPDATES_UNAVAILABLE_ROWS,
   account: ACCOUNT_UNAVAILABLE_ROWS,
   appearance: APPEARANCE_UNAVAILABLE_ROWS,
   av: AV_UNAVAILABLE_ROWS,
@@ -51,7 +52,11 @@ const UNAVAILABLE_ROWS_BY_SECTION = {
 const WEB_UNAVAILABLE_ROUTES = new Map<string, Set<string>>();
 
 for (const { row, section, tab } of walkSettingsRows()) {
-  if (section.desktopOnly || !Object.hasOwn(UNAVAILABLE_ROWS_BY_SECTION[section.key], row.key)) {
+  if (
+    section.desktopOnly ||
+    row.desktopOnly ||
+    !Object.hasOwn(UNAVAILABLE_ROWS_BY_SECTION[section.key], row.key)
+  ) {
     continue;
   }
 
@@ -100,6 +105,137 @@ test.describe("Ayarlar penceresi", () => {
     await expect(page).toHaveURL(/\/settings\/account\/profile$/);
     // Kabuk yerinde: intercepting route modal olarak biniyor (K2).
     await expect(page.getByTestId("app-nav-panel")).toBeVisible();
+  });
+
+  test("durum emojisi hizalıdır; CDN olmadan seçim, odak ve kaldırma çalışır", async ({ page }) => {
+    await page.route("https://cdn.jsdelivr.net/npm/@emoji-mart/**", (route) => route.abort());
+    await loginAs(page, "alice");
+    await gotoAppRoute(page, "/home", { readyTestId: "home-command-center" });
+    await visibleTestId(page, "user-settings-button").click();
+    await visibleTestId(page, "user-appearance-settings-button").click();
+    const trigger = visibleTestId(page, "profile-status-emoji");
+    await expect(trigger).toBeEnabled();
+    await expect(settingRow(page, "pe")).toHaveCount(0);
+    const emojiRect = await settingRow(page, "ps")
+      .locator('[data-setting-control="ps"]')
+      .boundingBox();
+    const durationRect = await visibleTestId(page, "setting-select-px").boundingBox();
+    expect(emojiRect).not.toBeNull();
+    expect(durationRect).not.toBeNull();
+    expect(
+      Math.abs(emojiRect!.x + emojiRect!.width - durationRect!.x - durationRect!.width),
+    ).toBeLessThan(1);
+
+    await trigger.click();
+    const picker = page.getByTestId("profile-status-emoji-picker");
+    const dialog = page.getByRole("dialog").filter({ has: picker });
+    const search = picker.getByRole("searchbox");
+    await expect(search).toBeVisible();
+    const close = dialog.getByRole("button", { name: "Kapat", exact: true });
+    await close.focus();
+    await page.keyboard.press("Tab");
+    await expect
+      .poll(() => picker.evaluate((element) => element.contains(document.activeElement)))
+      .toBe(true);
+    await page.keyboard.press("Shift+Tab");
+    await expect(close).toBeFocused();
+
+    const clearEmojis = page.getByTestId("profile-status-emoji-remove");
+    if (await clearEmojis.isVisible()) await clearEmojis.click();
+    await search.fill("grinning");
+    await picker.getByRole("button", { name: "😀", exact: true }).click();
+    await picker.getByRole("button", { name: "😀", exact: true }).click();
+    await expect(dialog).toBeVisible();
+    expect(
+      await page.getByTestId("profile-status-emoji-grid").getByRole("button").count(),
+    ).toBeLessThanOrEqual(72);
+    await page.getByTestId("profile-status-emoji-done").click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByTestId("profile-status-emojis")).toHaveText("😀😀");
+    await expect(trigger).toBeFocused();
+    const saveRect = await visibleTestId(page, "settings-dirty-bar").boundingBox();
+    const footerRect = await visibleTestId(page, "settings-nav-footer").boundingBox();
+    expect(saveRect).not.toBeNull();
+    expect(footerRect).not.toBeNull();
+    expect(Math.abs(saveRect!.y - footerRect!.y)).toBeLessThan(1);
+    await trigger.click();
+    await page.getByTestId("profile-status-emoji-remove").click();
+    await page.getByTestId("profile-status-emoji-done").click();
+    await expect(page.getByTestId("profile-status-emojis")).toHaveCount(0);
+    await trigger.click();
+    await expect(search).toBeVisible();
+    await search.focus();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(visibleTestId(page, "settings-window")).toBeVisible();
+    await expect(trigger).toBeFocused();
+  });
+
+  test("banner penceresi ayarların üstünde açılır; Tab ve Escape yalnız bu pencereyi yönetir", async ({
+    page,
+  }) => {
+    await loginAs(page, "alice");
+    await gotoAppRoute(page, "/home", { readyTestId: "home-command-center" });
+    await visibleTestId(page, "user-settings-button").click();
+    await visibleTestId(page, "user-appearance-settings-button").click();
+
+    const settings = visibleTestId(page, "settings-window");
+    await expect(settings).toHaveAttribute("data-mode", "modal");
+    const avatarAnchor = visibleTestId(page, "settings-hero-avatar-anchor");
+    const avatar = avatarAnchor.getByRole("img");
+    const avatarRect = await avatar.boundingBox();
+    const anchorRect = await avatarAnchor.boundingBox();
+    const dotRect = await visibleTestId(page, "settings-hero-status-dot").boundingBox();
+    expect(avatarRect).not.toBeNull();
+    expect(anchorRect).not.toBeNull();
+    expect(dotRect).not.toBeNull();
+    expect(Math.abs(anchorRect!.width - avatarRect!.width)).toBeLessThan(2);
+    expect(dotRect!.x + dotRect!.width / 2).toBeGreaterThan(avatarRect!.x + avatarRect!.width / 2);
+    expect(dotRect!.x).toBeLessThan(avatarRect!.x + avatarRect!.width);
+    const background = await avatar.evaluate(
+      (element) => getComputedStyle(element).backgroundColor,
+    );
+    expect(background).not.toBe("transparent");
+    const alpha = background.match(/^rgba\(.+,\s*([\d.]+)\)$/)?.[1];
+    expect(alpha === undefined || Number(alpha) === 1).toBe(true);
+    const trigger = visibleTestId(page, "settings-hero-change-banner");
+    await expect(trigger).toBeEnabled();
+    await trigger.click();
+
+    const dialog = page
+      .getByRole("dialog")
+      .filter({ has: page.getByTestId("profile-banner-editor") });
+    await expect(dialog).toBeVisible();
+    // Visibility alone also passes when an opaque settings overlay covers the dialog.
+    await expect
+      .poll(() =>
+        dialog.evaluate((element) => {
+          const rect = element.getBoundingClientRect();
+          return element.contains(
+            document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2),
+          );
+        }),
+      )
+      .toBe(true);
+
+    const controls = dialog.locator(
+      'button:enabled, input:enabled:not([type="file"]), [tabindex="0"]',
+    );
+    const first = controls.first();
+    const last = controls.last();
+    await last.focus();
+    await page.keyboard.press("Tab");
+    await expect(first).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(last).toBeFocused();
+
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(settings).toBeVisible();
+    await expect(page).toHaveURL(/\/settings\/account\/profile$/);
+    await expect(trigger).toBeFocused();
+    await trigger.click();
+    await expect(dialog).toBeVisible();
   });
 
   test("sol nav bölümü, alt sekme şeridi sekmeyi adrese yazıyor", async ({ page }) => {

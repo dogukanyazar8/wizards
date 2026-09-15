@@ -6,9 +6,9 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const workflowPath = join(root, ".github", "workflows", "ci.yml");
-const expectedCheckoutPin = "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0";
+const expectedCheckoutPin = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1";
 const expectedSemgrepImage =
-  "semgrep/semgrep:1.164.0-nonroot@sha256:936bf4db37f44ac1948c8cb0ade539d990f2b9e17481bd76970067e0d6dfc403";
+  "semgrep/semgrep:1.177.0-nonroot@sha256:012c8fe81c14da2d7691b90fcd826ce07f460a3301442b16c460575c87d3efb6";
 
 function readWorkflowJob(source, jobName) {
   const lines = source.split(/\r?\n/u);
@@ -43,7 +43,7 @@ function readIndentedBlock(source, header, indent) {
   return blockLines.join("\n");
 }
 
-test("Semgrep CE is immutable, least-privilege, and trusted-runner-only", () => {
+test("Semgrep CE is immutable, least-privilege, and hosted PR-capable", () => {
   const workflow = readFileSync(workflowPath, "utf8");
   const semgrepJob = readWorkflowJob(workflow, "semgrep");
   const permissions = readIndentedBlock(semgrepJob, "permissions", 4);
@@ -51,8 +51,8 @@ test("Semgrep CE is immutable, least-privilege, and trusted-runner-only", () => 
 
   assert.match(workflow, /^  pull_request:\s*$/mu);
   assert.match(readIndentedBlock(workflow, "push", 2), /^      - uat$/mu);
-  assert.match(semgrepJob, /^    runs-on: \[self-hosted, linux, x64, wizards-ci\]$/mu);
-  assert.match(semgrepJob, /^    if: github\.event_name != 'pull_request'$/mu);
+  assert.match(semgrepJob, /^    runs-on: ubuntu-24\.04$/mu);
+  assert.doesNotMatch(semgrepJob, /^    if: github\.event_name != 'pull_request'$/mu);
   assert.deepEqual(
     permissions
       .split(/\r?\n/u)

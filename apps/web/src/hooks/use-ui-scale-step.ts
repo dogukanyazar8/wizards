@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { selectUiScale, type UiScaleValue } from "@/lib/home/scale";
+import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 
 /**
  * Ölçek adımını **okuyan** hook — Ana Sayfa'nın içerik yoğunluğu (SPEC §8.3) buna bağlı.
@@ -24,7 +25,10 @@ export function useUiScaleStep(): UiScaleValue {
     let frame = 0;
 
     const sync = () => {
-      const next = selectUiScale({ height: window.innerHeight, width: window.innerWidth }).scale;
+      const next = selectUiScale(
+        { height: window.innerHeight, width: window.innerWidth },
+        isWhisprDesktopRuntime() ? "desktop" : "web",
+      ).scale;
       setScale((current) => (current === next ? current : next));
     };
 

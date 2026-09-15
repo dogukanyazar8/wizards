@@ -181,10 +181,10 @@ export function AccountDataControls({ t }: { t: Translate }) {
         <div
           aria-labelledby="account-delete-title"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4"
+          className="fixed inset-x-0 bottom-0 top-[var(--app-viewport-top,0px)] z-50 flex items-center justify-center bg-black/55 p-4"
           role="dialog"
         >
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-[hsl(var(--surface))] p-5 shadow-2xl">
+          <div className="max-h-full w-full max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-[hsl(var(--surface))] p-5 shadow-2xl">
             <div className="flex gap-3">
               <ShieldAlert className="h-5 w-5 text-rose-600" />
               <div>
@@ -272,10 +272,10 @@ export function AccountDataControls({ t }: { t: Translate }) {
         <div
           aria-label={t("settings.account.data.delete.finalTitle")}
           aria-modal="true"
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/65 p-4"
+          className="fixed inset-x-0 bottom-0 top-[var(--app-viewport-top,0px)] z-[60] flex items-center justify-center bg-black/65 p-4"
           role="alertdialog"
         >
-          <div className="w-full max-w-sm rounded-2xl bg-[hsl(var(--surface))] p-5">
+          <div className="max-h-full w-full max-w-sm overflow-y-auto overscroll-contain rounded-2xl bg-[hsl(var(--surface))] p-5">
             <h2 className="font-extrabold">{t("settings.account.data.delete.finalTitle")}</h2>
             <p className="mt-2 text-xs">{t("settings.account.data.delete.finalDescription")}</p>
             <div className="mt-4 flex justify-end gap-2">

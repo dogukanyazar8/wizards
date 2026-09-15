@@ -48,7 +48,7 @@ const TRIGGERS: ReadonlyArray<{
   {
     name: "onAppSessionStarted",
     run: (dependencies) =>
-      onAppSessionStarted({ releaseChannel: "BETA", userId: "user-1" }, dependencies),
+      onAppSessionStarted({ releaseChannel: "UAT", userId: "user-1" }, dependencies),
   },
   {
     name: "onMessageCreated",

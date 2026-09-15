@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  PROFILE_BIO_MAX_LENGTH,
+  PROFILE_STATUS_MAX_LENGTH,
+  PROFILE_STATUS_EMOJI_MAX_LENGTH,
+  ProfileDetailsUpdateSchema,
+} from "./profile";
 
 import { MessageAttachmentSchema } from "./messages";
 import { isBcryptPasswordWithinLimit } from "./password";
@@ -227,11 +233,10 @@ export const MobilePresenceResponseSchema = z
   .strict();
 
 /** Contract limits the 2a editor renders its counters and `maxLength` guards from. */
-export const MOBILE_PROFILE_BIO_MAX_LENGTH = 500;
-export const MOBILE_PROFILE_CUSTOM_STATUS_MAX_LENGTH = 128;
-export const MOBILE_PROFILE_CUSTOM_STATUS_EMOJI_MAX_LENGTH = 16;
+export const MOBILE_PROFILE_BIO_MAX_LENGTH = PROFILE_BIO_MAX_LENGTH;
+export const MOBILE_PROFILE_CUSTOM_STATUS_MAX_LENGTH = PROFILE_STATUS_MAX_LENGTH;
+export const MOBILE_PROFILE_CUSTOM_STATUS_EMOJI_MAX_LENGTH = PROFILE_STATUS_EMOJI_MAX_LENGTH;
 export const MOBILE_PROFILE_DISPLAY_NAME_MAX_LENGTH = 60;
-export const MOBILE_PROFILE_PRONOUNS_MAX_LENGTH = 40;
 /** 2a offers exactly these five banner swatches; stored values stay free-form hex. */
 export const MOBILE_PROFILE_BANNER_COLORS = [
   "#4F46E5",
@@ -262,27 +267,13 @@ export const MobileProfileUpdateSchema = z
     bannerOffsetX: MobileBannerOffsetSchema.nullable().optional(),
     bannerOffsetY: MobileBannerOffsetSchema.nullable().optional(),
     bannerUrl: MobileHttpsUrlSchema.nullable().optional(),
-    bio: z.string().trim().max(MOBILE_PROFILE_BIO_MAX_LENGTH).nullable().optional(),
-    customStatus: z
-      .string()
-      .trim()
-      .max(MOBILE_PROFILE_CUSTOM_STATUS_MAX_LENGTH)
-      .nullable()
-      .optional(),
-    customStatusEmoji: z
-      .string()
-      .trim()
-      .max(MOBILE_PROFILE_CUSTOM_STATUS_EMOJI_MAX_LENGTH)
-      .nullable()
-      .optional(),
-    customStatusExpiresAt: z.string().datetime().nullable().optional(),
+    ...ProfileDetailsUpdateSchema.shape,
     displayName: z
       .string()
       .trim()
       .max(MOBILE_PROFILE_DISPLAY_NAME_MAX_LENGTH)
       .nullable()
       .optional(),
-    pronouns: z.string().trim().max(MOBILE_PROFILE_PRONOUNS_MAX_LENGTH).nullable().optional(),
     username: z
       .string()
       .trim()
@@ -311,7 +302,6 @@ const MobileProfileDecorationShape = {
     .nullable()
     .default(null),
   customStatusExpiresAt: z.string().datetime().nullable().default(null),
-  pronouns: z.string().max(MOBILE_PROFILE_PRONOUNS_MAX_LENGTH).nullable().default(null),
 } as const;
 
 export const MobileProfileUserSchema = MobileFriendUserSchema.extend({
@@ -325,7 +315,7 @@ export const MobileProfileResponseSchema = z
     // the username cooldown; peer-facing payloads keep the narrower user shape.
     user: MobileProfileUserSchema.extend({
       ...MobileProfileDecorationShape,
-      bio: z.string().max(MOBILE_PROFILE_BIO_MAX_LENGTH).nullable().default(null),
+      bio: z.string().max(500).nullable().default(null),
       /** When the 30-day username cooldown lifts; null while a change is allowed. */
       nextUsernameChangeAt: z.string().datetime().nullable().default(null),
     }),
@@ -449,15 +439,21 @@ export const MobileAccountSettingsResponseSchema = z
          * open state, so an older server keeps behaving exactly as before.
          */
         groupInvites: z.boolean().default(true),
+        /** Absent on older servers; clients must not offer a non-persisting toggle. */
+        readReceipts: z.boolean().optional(),
       })
       .strict(),
   })
   .strict();
+export const MOBILE_ACCOUNT_SETTINGS_FIELDS_HEADER = "x-whispr-account-fields";
+export const MOBILE_ACCOUNT_SETTINGS_READ_RECEIPTS_FIELD = "read-receipts";
+
 export const MobileAccountSettingsUpdateSchema = z
   .object({
     dmPermission: MobileAccountDmPolicySchema.optional(),
     friendRequests: MobileAccountFriendRequestPolicySchema.optional(),
     groupInvites: z.boolean().optional(),
+    readReceipts: z.boolean().optional(),
     // The appearance slider writes on its own, without touching privacy, so
     // every field here is independently optional.
     messageCompact: z.boolean().optional(),
@@ -674,6 +670,7 @@ export const MobileUserProfileServerContextSchema = z
  * Defaulted so an un-redeployed server still parses.
  */
 export const MobileUserProfilePresenceSchema = MobileFriendPresenceSchema.extend({
+  customStatusExpiresAt: z.string().datetime().nullable().optional(),
   customStatusEmoji: z
     .string()
     .max(MOBILE_PROFILE_CUSTOM_STATUS_EMOJI_MAX_LENGTH)
@@ -720,7 +717,6 @@ export const MobileUserProfileSchema = z
     /** Viewer-private note (11e writes it); always null for your own card. */
     note: z.string().max(256).nullable(),
     presence: MobileUserProfilePresenceSchema,
-    pronouns: z.string().max(40).nullable(),
     registeredAt: z.string().datetime(),
     relationship: MobileFriendRelationshipSchema,
     /** True when the requested id is the signed-in user, which selects the 1d card. */

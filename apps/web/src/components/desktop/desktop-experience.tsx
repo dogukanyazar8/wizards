@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useShallow } from "zustand/react/shallow";
+import { DesktopConnectionHealth } from "./desktop-connection-health";
 import { useSocket } from "@/hooks/use-socket";
 import { fetchUnreadCount, notificationsQueryKeys } from "@/lib/notifications/client";
 import { shouldDeliverDesktopNotification } from "@/lib/notifications/desktop-mention-policy";
@@ -17,7 +18,6 @@ import { MENTION_SETTINGS_DEFAULTS } from "@wizards/types";
 import { buildSettingsHref, DEFAULT_SETTINGS_ROUTE } from "@/lib/settings/navigation";
 import {
   getWhisprDesktopBeforeCloseRequestId,
-  isSafeDesktopInternalPath,
   isWhisprDesktopRuntime,
   type WhisprDesktopCommandDetail,
   WHISPR_DESKTOP_BEFORE_CLOSE_EVENT,
@@ -149,54 +149,16 @@ function getNotificationCopy(payload: NotificationSocketPayload, showPreviews: b
   };
 }
 
-async function getNotificationApi() {
-  try {
-    return await import("@tauri-apps/plugin-notification");
-  } catch {
-    return null;
-  }
-}
-
 async function sendNativeNotification(payload: NotificationSocketPayload, showPreviews: boolean) {
-  const api = await getNotificationApi();
-
-  if (!api || !(await api.isPermissionGranted().catch(() => false))) {
+  try {
+    const { nativeSettingsClient } = await import("@/lib/desktop/settings-client");
+    if ((await nativeSettingsClient.notificationPermission()) !== "granted") return false;
+    const copy = getNotificationCopy(payload, showPreviews);
+    await nativeSettingsClient.sendNotification(copy.title, copy.body);
+    return true;
+  } catch {
     return false;
   }
-
-  const copy = getNotificationCopy(payload, showPreviews);
-  api.sendNotification({
-    body: copy.body,
-    title: copy.title,
-  });
-
-  return true;
-}
-
-function sendWebNotificationFallback(
-  payload: NotificationSocketPayload,
-  showPreviews: boolean,
-  onNavigate: (path: string) => void,
-) {
-  if (!("Notification" in window) || Notification.permission !== "granted") {
-    return;
-  }
-
-  const copy = getNotificationCopy(payload, showPreviews);
-  const notification = new Notification(copy.title, {
-    body: copy.body,
-    icon: "/app-icons/whispr.png",
-    tag: payload.id,
-  });
-
-  notification.onclick = () => {
-    window.focus();
-    const actionUrl = payload.actionUrl;
-    if (isSafeDesktopInternalPath(actionUrl)) {
-      onNavigate(actionUrl);
-    }
-    notification.close();
-  };
 }
 
 function applyAppBadge(unreadCount: number) {
@@ -210,39 +172,6 @@ function applyAppBadge(unreadCount: number) {
   if (badgeNavigator.clearAppBadge) {
     void badgeNavigator.clearAppBadge().catch(() => undefined);
   }
-}
-
-function DesktopConnectionHealth({
-  isOnline,
-  socketConnected,
-  t,
-}: {
-  isOnline: boolean;
-  socketConnected: boolean;
-  t: (key: string) => string;
-}) {
-  if (isOnline && socketConnected) {
-    return null;
-  }
-
-  const title = isOnline ? t("desktop.health.socket.title") : t("desktop.health.offline.title");
-  const description = isOnline
-    ? t("desktop.health.socket.description")
-    : t("desktop.health.offline.description");
-
-  return (
-    <div className="pointer-events-none fixed left-1/2 top-4 z-[90] w-[min(92vw,520px)] -translate-x-1/2">
-      <div className="pointer-events-auto rounded-[24px] border border-amber-200/80 bg-white/95 px-4 py-3 text-sm text-slate-700 shadow-[0_20px_60px_rgba(148,163,184,0.28)] backdrop-blur-xl">
-        <div className="flex items-start gap-3">
-          <span className="mt-1 inline-flex size-2.5 shrink-0 rounded-full bg-amber-400 shadow-[0_0_0_6px_rgba(251,191,36,0.16)]" />
-          <span className="min-w-0">
-            <span className="block font-semibold text-slate-900">{title}</span>
-            <span className="mt-1 block text-xs leading-5 text-slate-500">{description}</span>
-          </span>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function isDesktopVoiceMiniCommand(value: unknown): value is DesktopVoiceMiniCommand {
@@ -283,7 +212,7 @@ export function DesktopExperience() {
     toggleDeafen,
     toggleMute,
   } = useVoiceConnection();
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const desktopNotificationPreviews = useAppStore((state) => state.desktopNotificationPreviews);
   const desktopRichPresenceAudience = useAppStore((state) => state.desktopRichPresenceAudience);
   const desktopRichPresenceEnabled = useAppStore((state) => state.desktopRichPresenceEnabled);
@@ -825,7 +754,12 @@ export function DesktopExperience() {
       return;
     }
 
-    void setDesktopActivityStatus(desktopActivityStatus)
+    void setDesktopActivityStatus(desktopActivityStatus, {
+      locale,
+      voiceActive: Boolean(activeChannelId) && connectionState === "connected",
+      muted: isMuted,
+      deafened: isDeafened,
+    })
       .then((updated) => {
         recordDesktopPerformanceMetric({
           operation: "desktop_activity_status_updated",
@@ -838,7 +772,15 @@ export function DesktopExperience() {
           result: "failure",
         });
       });
-  }, [desktopActivityStatus, isDesktop]);
+  }, [
+    activeChannelId,
+    connectionState,
+    desktopActivityStatus,
+    isDeafened,
+    isDesktop,
+    isMuted,
+    locale,
+  ]);
 
   useEffect(
     () => () => {
@@ -1172,7 +1114,7 @@ export function DesktopExperience() {
           // Ş13 — eski `?section=&panel=` adresi 308 ile yönleniyor ama kabuk artık gerçek
           // yolu biliyor; bir yönlendirme turu daha atmasının nedeni yok. Tanılama bloğu
           // Masaüstü › Güncellemeler sekmesinde (`n3`).
-          router.push(buildSettingsHref("desktop", "updates"));
+          router.push(buildSettingsHref("updates"));
           break;
         case "open-settings":
           router.push(
@@ -1321,13 +1263,7 @@ export function DesktopExperience() {
       }
 
       if (DESKTOP_NOTIFICATION_TYPES.has(payload.type)) {
-        void sendNativeNotification(payload, desktopNotificationPreviews).then((sent) => {
-          if (!sent) {
-            sendWebNotificationFallback(payload, desktopNotificationPreviews, (path) =>
-              router.push(path),
-            );
-          }
-        });
+        void sendNativeNotification(payload, desktopNotificationPreviews);
       }
     };
 

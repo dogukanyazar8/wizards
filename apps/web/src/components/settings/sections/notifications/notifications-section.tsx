@@ -1,8 +1,18 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useVoiceStore } from "@/store/voice-store";
+import { masterOutputGain } from "@/lib/voice/output-volume";
+import { SettingsDataBoundary } from "@/components/settings/settings-data-boundary";
 
 import { useI18n } from "@/components/providers/locale-provider";
 import {
@@ -46,10 +56,7 @@ import {
   summarizeNotificationPrefs,
   NotificationPrefsWriter,
 } from "./notification-prefs-bridge";
-import {
-  notificationPermissionStore,
-  refreshNotificationPermission,
-} from "./notification-permission";
+import { notificationPermissionStore } from "./notification-permission";
 import {
   NOTIFICATIONS_SECTION_FALLBACK,
   NotificationsSectionContext,
@@ -134,7 +141,15 @@ export function NotificationsSection({ tab }: NotificationsSectionProps) {
       queryClient.setQueryData(notificationPrefsQueryKeys.root, next);
     });
 
-    return { store: new SettingsValueStore({ write: prefsWriter.write }), writer: prefsWriter };
+    const context = prefsQuery.data ? buildValuesContext(prefsQuery.data) : null;
+    if (context) prefsWriter.setContext(context);
+    return {
+      store: new SettingsValueStore({
+        values: prefsQuery.data && context ? toSettingsValues(prefsQuery.data, context) : {},
+        write: prefsWriter.write,
+      }),
+      writer: prefsWriter,
+    };
   });
 
   // F1 — kutunun durumu kabuğun başlığına buradan gider.
@@ -152,7 +167,7 @@ export function NotificationsSection({ tab }: NotificationsSectionProps) {
 
   const prefs = prefsQuery.data;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!prefs) return;
 
     const context = buildValuesContext(prefs);
@@ -251,7 +266,7 @@ export function NotificationsSection({ tab }: NotificationsSectionProps) {
   }, [quietHours, t]);
 
   const onAction = useCallback(
-    (rowKey: string, actionIndex: number) => {
+    (rowKey: string) => {
       if (rowKey === "ns5") {
         for (const [key, value] of Object.entries(buildSoundResetPatch())) {
           store.setValue(key, value);
@@ -259,23 +274,6 @@ export function NotificationsSection({ tab }: NotificationsSectionProps) {
 
         return;
       }
-
-      if (rowKey !== "na5") return;
-
-      // `Kontrol et` yalnız okur. `Sistem ayarlarını aç` izin **ister**: tarayıcıda işletim
-      // sistemi ayarlarını açan bir API yok ve reddedilmiş bir izinde istek anında `denied`
-      // ile döner — kullanıcıyı yanıltmayan tek davranış budur.
-      // TODO(api): masaüstünde Tauri köprüsü sistem ayarlarını açabilir; Ş10'un izin bloğu
-      // bu köprüyü kurduğunda burası ona bağlanır.
-      if (actionIndex === 0 && typeof Notification !== "undefined") {
-        void Promise.resolve(Notification.requestPermission())
-          .then(() => refreshNotificationPermission())
-          .catch(() => refreshNotificationPermission());
-
-        return;
-      }
-
-      refreshNotificationPermission();
     },
     [store],
   );
@@ -288,7 +286,11 @@ export function NotificationsSection({ tab }: NotificationsSectionProps) {
 
       if (!source) return;
 
-      settingsSoundPreview.play(source, typeof volume === "number" ? volume : 0);
+      settingsSoundPreview.play(
+        source,
+        (typeof volume === "number" ? volume : 0) *
+          masterOutputGain(useVoiceStore.getState().masterOutputVolume),
+      );
     },
     [store],
   );
@@ -322,7 +324,15 @@ export function NotificationsSection({ tab }: NotificationsSectionProps) {
     <SettingsValueContext.Provider value={store}>
       <SettingsRowRuntimeContext.Provider value={runtime}>
         <NotificationsSectionContext.Provider value={sectionValue}>
-          {TabComponent ? <TabComponent /> : null}
+          <SettingsDataBoundary
+            pending={!prefsQuery.data}
+            failed={!prefsQuery.data && prefsQuery.isError}
+            retry={() => {
+              void prefsQuery.refetch();
+            }}
+          >
+            {TabComponent ? <TabComponent /> : null}
+          </SettingsDataBoundary>
         </NotificationsSectionContext.Provider>
       </SettingsRowRuntimeContext.Provider>
     </SettingsValueContext.Provider>

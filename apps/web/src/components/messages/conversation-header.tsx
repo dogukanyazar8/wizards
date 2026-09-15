@@ -243,6 +243,7 @@ export function ConversationHeader({
       data-testid="conversation-header"
       style={{
         borderBottom: `${hairline()} solid hsl(var(--border)/0.45)`,
+        height: pxToRem(conversation.headerHeight),
         gap: pxToRem(conversation.headerGap),
         padding: `${pxToRem(conversation.headerPaddingY)} ${pxToRem(conversation.headerPaddingX)}`,
       }}

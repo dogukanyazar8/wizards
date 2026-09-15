@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 
 import {
   getAudioCaptureProcessingProfile,
+  getNoiseSuppressionChoice,
+  getNoiseSuppressionPreset,
   getBrowserNoiseFilterEnabled,
   getKrispNoiseFilterTier,
   isEnhancedNoiseFilterMode,
@@ -26,6 +28,22 @@ const basePreferences: VoiceAudioPreferences = {
 };
 
 describe("noise filter helpers", () => {
+  it("three settings choices round trip without changing echo, gain or device selection", () => {
+    for (const choice of [0, 1, 2]) {
+      const preset = getNoiseSuppressionPreset(choice);
+      const next = { ...basePreferences, ...preset };
+      assert.equal(getNoiseSuppressionChoice(next), choice);
+      assert.equal(next.echoCancellation, basePreferences.echoCancellation);
+      assert.equal(next.autoGainControl, basePreferences.autoGainControl);
+      assert.equal(next.inputDeviceId, basePreferences.inputDeviceId);
+      assert.equal(shouldUseKrispNoiseFilter(next, true), choice === 0);
+      assert.equal(getBrowserNoiseFilterEnabled(next, true), choice !== 2);
+    }
+    assert.throws(() => getNoiseSuppressionPreset(99), /INVALID_NOISE_SUPPRESSION_CHOICE/);
+    const krisp = { ...basePreferences, ...getNoiseSuppressionPreset(0) };
+    assert.equal(getAudioCaptureProcessingProfile(krisp, false), "native");
+    assert.equal(getAudioCaptureProcessingProfile(krisp, true), "enhanced");
+  });
   it("normalizes the supported enhanced noise filter experiment modes", () => {
     assert.equal(isEnhancedNoiseFilterMode("layered"), true);
     assert.equal(isEnhancedNoiseFilterMode("krisp_only"), true);

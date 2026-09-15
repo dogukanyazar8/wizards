@@ -11,7 +11,11 @@ import {
 
 import type { SettingsSection, SettingsTab } from "@/lib/settings/navigation";
 import { SETTINGS_DIRTY_PROFILE_KEYS } from "@/lib/settings/metrics";
-import { SETTINGS_LOCKED_ROW_KEYS, walkSettingsRows } from "@/lib/settings/tree";
+import {
+  SETTINGS_LOCKED_ROW_KEYS,
+  walkSettingsRows,
+  type SettingsRiskyBlockKey,
+} from "@/lib/settings/tree";
 
 /**
  * Satır motorunun okuma/yazma köprüsü — Ş6 §5.
@@ -101,6 +105,8 @@ export function buildSettingsDefaults(): SettingsPatch {
 
   for (const { row } of walkSettingsRows()) {
     const key = resolveSettingStateKey(row.key);
+    // The combined status row owns text plus a separately persisted emoji value.
+    if (row.block === "profileEmoji") values.pe = "";
 
     if (row.type === "input" || row.type === "textarea") {
       values[key] = "";
@@ -176,6 +182,7 @@ export class SettingsValueStore {
   private lastFailedPatch: SettingsPatch | null = null;
 
   private timer: TimerHandle = null;
+  private sending: Promise<void> | null = null;
 
   constructor(options: SettingsValueStoreOptions) {
     this.writeFn = options.write;
@@ -411,6 +418,21 @@ export class SettingsValueStore {
   }
 
   private async send(): Promise<void> {
+    if (this.sending) {
+      await this.sending;
+      return this.send();
+    }
+    if (this.pending.size === 0) return;
+    this.sending = this.sendBatch();
+    try {
+      await this.sending;
+    } finally {
+      this.sending = null;
+    }
+    if (this.pending.size > 0) await this.send();
+  }
+
+  private async sendBatch(): Promise<void> {
     if (this.pending.size === 0) {
       return;
     }
@@ -441,7 +463,9 @@ export class SettingsValueStore {
 
       // Yama uçarken kullanıcı aynı anahtarı yeniden değiştirdiyse yeni değer kazanır:
       // eski yanıtın onu ezmesi, kullanıcının son dokunuşunu geri almak olurdu.
-      if (this.pending.has(key)) {
+      if (this.pending.has(key) || this.dirty.has(key)) {
+        if (status === "saved" && patch[key] !== undefined) this.baseline.set(key, patch[key]);
+        if (!this.pending.has(key)) this.statuses.set(key, status);
         continue;
       }
 
@@ -489,11 +513,11 @@ export type SettingsRowRuntime = {
   onJump: (target: { section: SettingsSection; tab: SettingsTab }) => void;
   onNavigate: (rowKey: string) => void;
   onSoundPreview: (rowKey: string) => void;
-  openRisky: string | null;
+  openRisky: SettingsRiskyBlockKey | null;
   openSelect: string | null;
   /** Ş7'nin yazdığı üç riskli blok gövdesi; satır anahtarına göre çözülür. */
   riskyBodies: Readonly<Record<string, ReactNode>>;
-  setOpenRisky: (key: string | null) => void;
+  setOpenRisky: (key: SettingsRiskyBlockKey | null) => void;
   setOpenSelect: (key: string | null) => void;
 };
 
@@ -528,7 +552,7 @@ export function useSettingsRowRuntime(): SettingsRowRuntime {
 /**
  * Merdivenin **tek** uygulaması (tuzak #12).
  *
- * `openSelect` ve `openRisky` birer `string | null`; ikinci bir menü açmak birincisini
+ * `openSelect` satır, `openRisky` riskli blok anahtarını taşır; ikinci bir menü açmak birincisini
  * kapatmayı ayrıca kodlamayı gerektirmez — durumun kendisi tekliği taşır. Ş5 kabuğun reducer'ı
  * bu iki değeri `overrides` ile devralır (bölüm/sekme değişiminde ikisini de kapatması gerekir);
  * devralmadığında merdiven burada yaşar ve hiçbir çağrı yerinde tekrarlanmaz.
@@ -537,7 +561,7 @@ export function useSettingsRowRuntimeState(
   overrides: Partial<SettingsRowRuntime> = {},
 ): SettingsRowRuntime {
   const [openSelect, setOpenSelect] = useState<string | null>(null);
-  const [openRisky, setOpenRisky] = useState<string | null>(null);
+  const [openRisky, setOpenRisky] = useState<SettingsRiskyBlockKey | null>(null);
 
   return {
     data: overrides.data ?? NOOP_RUNTIME.data,

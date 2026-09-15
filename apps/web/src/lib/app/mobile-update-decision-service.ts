@@ -7,7 +7,7 @@ import type {
 
 import { compareReleaseVersions } from "@/lib/releases/release-service";
 
-type DatabaseReleaseChannel = "BETA" | "STABLE" | "UAT";
+type DatabaseReleaseChannel = "STABLE" | "UAT";
 type DatabasePlatform = "ANDROID" | "IOS";
 
 export type MobileUpdateReleaseRecord = {
@@ -41,9 +41,8 @@ export type MobileUpdateDecisionDependencies = {
 };
 
 const CHANNEL_TO_DATABASE: Record<MobileReleaseChannel, DatabaseReleaseChannel> = {
-  beta: "BETA",
+  beta: "UAT",
   stable: "STABLE",
-  uat: "UAT",
 };
 
 const defaultDependencies: MobileUpdateDecisionDependencies = {
@@ -101,9 +100,7 @@ function environmentMatchesInternalChannel(
   environment: MobileAppUpdateQuery["buildEnvironment"],
   channel: DatabaseReleaseChannel,
 ): boolean {
-  return (
-    (environment === "uat" && channel === "UAT") || (environment === "canary" && channel === "BETA")
-  );
+  return environment === "uat" && channel === "UAT";
 }
 
 type MobileUpdateDecision = Omit<MobileAppUpdateResponse, "lastCheckedAt">;
@@ -159,7 +156,10 @@ export async function decideMobileUpdate(
 
   // A disabled compatible row still selects the OTA adapter: the anonymous
   // Expo manifest endpoint uses that row to send a signed rollback directive.
-  if (compatibleOta) {
+  const matchingEnvironment =
+    (input.buildEnvironment === "uat" && release.channel === "UAT") ||
+    (input.buildEnvironment === "production" && release.channel === "STABLE");
+  if (compatibleOta && matchingEnvironment) {
     return {
       ...latest,
       ...minimumPayload,

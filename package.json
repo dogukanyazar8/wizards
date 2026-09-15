@@ -1,11 +1,11 @@
 {
   "name": "wizards",
   "private": true,
-  "version": "0.8.15",
+  "version": "0.9.0",
   "engines": {
-    "node": ">=24.18.0 <25"
+    "node": ">=24.21.0 <25"
   },
-  "packageManager": "pnpm@11.22.0",
+  "packageManager": "pnpm@12.4.2",
   "scripts": {
     "dev": "turbo dev",
     "dev:clear-auth-rate-limits": "pnpm --filter @wizards/web dev:clear-auth-rate-limits",
@@ -37,7 +37,7 @@
   "devDependencies": {
     "@typescript/native": "catalog:",
     "prettier": "3.9.6",
-    "turbo": "2.10.6",
+    "turbo": "2.10.13",
     "typescript": "catalog:"
   }
 }

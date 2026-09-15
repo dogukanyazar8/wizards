@@ -36,8 +36,8 @@ describe("bug report contract", () => {
       },
       DesktopReleaseRingSchema: {
         schema: DesktopReleaseRingSchema,
-        valid: "production-small",
-        invalid: "stable",
+        valid: "stable",
+        invalid: "canary",
       },
       WebBugReportRequestSchema: {
         schema: WebBugReportRequestSchema,
@@ -65,8 +65,8 @@ describe("bug report contract", () => {
 
   it("maps every desktop release ring onto a contract channel", () => {
     assert.equal(resolveBugReportReleaseChannel("production"), "stable");
-    assert.equal(resolveBugReportReleaseChannel("production-small"), "stable");
-    assert.equal(resolveBugReportReleaseChannel("uat"), "uat");
+    assert.equal(resolveBugReportReleaseChannel("stable"), "stable");
+    assert.equal(resolveBugReportReleaseChannel("uat"), "beta");
   });
 
   it("falls back to stable for an unknown or missing ring", () => {

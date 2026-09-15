@@ -49,7 +49,7 @@ describe("AccountPrivacyTab — K9", () => {
     assert.deepEqual(record, { field: "privacy.visibility.rowCount", html: 3, spec: 4 });
   });
 
-  it("diğer üç grup dokunulmadan kalıyor", () => {
+  it("mesaj ve istekler grubu dokunulmadan kalıyor", () => {
     const base = findSettingsTab("account", "privacy");
 
     assert.ok(base);
@@ -77,11 +77,14 @@ describe("AccountPrivacyTab — K9", () => {
     );
   });
 
-  it("dört ağaç grubu da çiziliyor", () => {
+  it("aktif gruplar çiziliyor; kaldırılan içerik filtresi sunulmuyor", () => {
     const markup = render();
 
-    for (const title of ["Görünürlük", "Mesaj ve istekler", "İçerik", "Dil ve bölge"]) {
+    for (const title of ["Görünürlük", "Mesaj ve istekler"]) {
       assert.ok(markup.includes(title), `${title} grubu yok`);
     }
+    assert.ok(!markup.includes("Dil ve bölge"));
+    assert.ok(!markup.includes("Hassas içerik filtresi"));
+    assert.ok(!markup.includes("setting-select-g8"));
   });
 });

@@ -57,8 +57,7 @@ const RELEASE_CHANGE_TYPE_TO_WIRE: Record<ReleaseChangeType, MobileReleaseChange
 
 const RELEASE_CHANNEL_FROM_WIRE: Record<MobileReleaseChannel, ReleaseChannel> = {
   stable: "STABLE",
-  beta: "BETA",
-  uat: "UAT",
+  beta: "UAT",
 };
 
 export function toReleaseChannelColumn(channel: MobileReleaseChannel): ReleaseChannel {

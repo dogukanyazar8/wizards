@@ -164,7 +164,7 @@ describe("AppNavPanel", () => {
     assert.doesNotMatch(html, /<div[^>]*onclick/i);
   });
 
-  it("marks the active row with aria-current and the primary dot", () => {
+  it("marks the active row with aria-current and background, without a decorative dot", () => {
     const html = renderPanel({ pathname: "/home" });
 
     assert.match(
@@ -172,6 +172,9 @@ describe("AppNavPanel", () => {
       /<a[^>]*href="\/home"[^>]*aria-current="page"|aria-current="page"[^>]*href="\/home"/,
     );
     assert.match(html, /hsl\(var\(--primary\)\/0\.13\)/);
+    const homeRow = html.split("<li>").find((row) => row.includes('data-testid="app-nav-home"'));
+    assert.ok(homeRow);
+    assert.doesNotMatch(homeRow, /rounded-full/);
   });
 
   it("moves aria-current with the route", () => {

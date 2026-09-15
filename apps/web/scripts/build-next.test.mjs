@@ -5,11 +5,11 @@ import { buildPnpmInvocation } from "./build-next.mjs";
 test("production build launches a native pnpm executable directly", () => {
   assert.deepEqual(
     buildPnpmInvocation(
-      { npm_execpath: "/mise/installs/pnpm/11.22.0/pnpm" },
-      "/mise/installs/node/24.18.0/bin/node",
+      { npm_execpath: "/mise/installs/pnpm/12.4.2/pnpm" },
+      "/mise/installs/node/24.21.0/bin/node",
     ),
     {
-      command: "/mise/installs/pnpm/11.22.0/pnpm",
+      command: "/mise/installs/pnpm/12.4.2/pnpm",
       args: ["exec", "next", "build"],
     },
   );

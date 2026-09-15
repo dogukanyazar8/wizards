@@ -1142,8 +1142,11 @@ export const MOBILE_HELP_ARTICLE_MAX_COUNT = 50;
 const MobileVersionSchema = z.string().min(1).max(32);
 
 export const MobileReleaseChangeTypeSchema = z.enum(["new", "improved", "fixed"]);
-export const MobileReleaseChannelSchema = z.enum(["stable", "beta", "uat"]);
-export const MobileBuildEnvironmentSchema = z.enum(["development", "uat", "canary", "production"]);
+export const MobileReleaseChannelSchema = z.preprocess(
+  (value) => (value === "uat" ? "beta" : value),
+  z.enum(["stable", "beta"]),
+);
+export const MobileBuildEnvironmentSchema = z.enum(["development", "uat", "production"]);
 export const MobileUpdatePlatformSchema = z.enum(["android", "ios"]);
 export const MobileUpdateKindSchema = z.enum(["ota", "apk", "store", "none"]);
 export const MobileAndroidArtifactSchema = z

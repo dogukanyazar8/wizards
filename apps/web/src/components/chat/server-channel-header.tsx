@@ -139,6 +139,7 @@ export function ServerChannelHeader({
       data-testid="server-text-channel"
       style={{
         borderBottom: `${hairline()} solid hsl(var(--border)/${textHeader.borderBottomAlpha})`,
+        height: pxToRem(SERVER_METRICS.headerHeight),
         gap: pxToRem(textHeader.gap),
         padding: `${pxToRem(textHeader.paddingY)} ${pxToRem(textHeader.paddingX)}`,
       }}

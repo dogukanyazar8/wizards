@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-test-desktop-screen-capture"
+description = "Enables the test_desktop_screen_capture command without any pre-configured scope."
+commands.allow = ["test_desktop_screen_capture"]
+
+[[permission]]
+identifier = "deny-test-desktop-screen-capture"
+description = "Denies the test_desktop_screen_capture command without any pre-configured scope."
+commands.deny = ["test_desktop_screen_capture"]

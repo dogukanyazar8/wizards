@@ -15,7 +15,7 @@ outside the repository and enter CI through environment-scoped secrets.
   `%USERPROFILE%\.secrets\whispr-mobile-ota\uat\private-key.pem`
 - GitHub `mobile-uat` environment secret: `WHISPR_MOBILE_OTA_PRIVATE_KEY`
 
-Canary and production OTA must receive separate key pairs, certificates, and
+Production OTA must receive separate key pairs, certificates, and
 environment-scoped secrets before OTA is enabled for those profiles. Never copy
 the UAT certificate into another profile as a fallback.
 

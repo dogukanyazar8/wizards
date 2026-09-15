@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowUpRight,
@@ -19,47 +19,7 @@ import { useVoiceParticipants, useVoiceState } from "@/components/providers/voic
 import { cn } from "@/lib/utils";
 import { fetchWorkspaceServer, workspaceQueryKeys } from "@/lib/workspace/client";
 
-type RouteContext =
-  | {
-      kind: "channels";
-      channelId: string | null;
-      serverId: string | null;
-    }
-  | {
-      kind: "settings";
-    }
-  | {
-      kind: "other";
-    };
-
-function safeDecodePathSegment(segment: string | undefined) {
-  if (!segment) {
-    return null;
-  }
-
-  try {
-    return decodeURIComponent(segment);
-  } catch {
-    return segment;
-  }
-}
-
-function getRouteContext(pathname: string): RouteContext {
-  if (pathname === "/settings" || pathname.startsWith("/settings/")) {
-    return { kind: "settings" };
-  }
-
-  const [, root, rawServerId, rawChannelId] = pathname.split("/");
-  if (root !== "channels") {
-    return { kind: "other" };
-  }
-
-  return {
-    kind: "channels",
-    channelId: safeDecodePathSegment(rawChannelId),
-    serverId: safeDecodePathSegment(rawServerId),
-  };
-}
+import { shouldShowVoiceReminder } from "@/lib/voice/active-voice-route";
 
 function findVoiceChannel(detail: WorkspaceServerDetail | null | undefined, channelId: string) {
   if (!detail) {
@@ -72,31 +32,6 @@ function findVoiceChannel(detail: WorkspaceServerDetail | null | undefined, chan
       ...detail.categories.flatMap((category) => category.channels),
     ].find((channel) => channel.id === channelId) ?? null
   );
-}
-
-function shouldShowVoiceReminder(
-  route: RouteContext,
-  voiceRoute: { channelId: string | null; serverId: string | null },
-) {
-  if (!voiceRoute.channelId || !voiceRoute.serverId) {
-    return false;
-  }
-
-  if (route.kind === "settings") {
-    return true;
-  }
-
-  if (route.kind !== "channels") {
-    return false;
-  }
-
-  const isActiveVoiceRoute =
-    route.serverId === voiceRoute.serverId && route.channelId === voiceRoute.channelId;
-  if (isActiveVoiceRoute) {
-    return false;
-  }
-
-  return route.serverId === "@me" || route.serverId !== voiceRoute.serverId;
 }
 
 export function ActiveVoiceReminder() {
@@ -114,8 +49,7 @@ export function ActiveVoiceReminder() {
   } = useVoiceState();
   const { participants } = useVoiceParticipants();
   const [isLeaving, setIsLeaving] = useState(false);
-  const route = useMemo(() => getRouteContext(pathname ?? ""), [pathname]);
-  const shouldShow = shouldShowVoiceReminder(route, {
+  const shouldShow = shouldShowVoiceReminder(pathname ?? "", {
     channelId: activeChannelId,
     serverId,
   });

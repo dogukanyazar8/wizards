@@ -18,7 +18,7 @@ import {
 
 const OtaRequestHeadersSchema = z
   .object({
-    channel: z.enum(["uat", "canary", "production"]),
+    channel: z.enum(["uat", "production"]),
     currentUpdateId: z.string().uuid().optional(),
     expectSignature: z.string().min(1).max(512).optional(),
     installationId: z.string().trim().min(1).max(256).optional(),

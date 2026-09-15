@@ -28,7 +28,6 @@ const PLATFORM_LABELS: Record<AdminDownloadArtifact["platform"], string> = {
 };
 
 const CHANNEL_LABELS: Record<AdminDownloadArtifact["channel"], string> = {
-  BETA: "BETA",
   STABLE: "PROD",
   UAT: "UAT",
 };

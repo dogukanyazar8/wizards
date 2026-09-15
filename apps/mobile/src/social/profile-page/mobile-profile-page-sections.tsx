@@ -242,11 +242,6 @@ export function ProfileIdentityCard({
           {statusLine}
         </Text>
       </View>
-      {profile.pronouns ? (
-        <Text numberOfLines={1} style={styles.identityPronouns}>
-          {profile.pronouns}
-        </Text>
-      ) : null}
       {sections.roles.visible ? (
         <View style={styles.roleChipRow} testID="mobile-user-profile-roles">
           {sections.roles.items.map((role) => (

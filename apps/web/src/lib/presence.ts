@@ -80,14 +80,20 @@ export function parsePresenceRecord(
 ): PresenceFields {
   const customStatus = normalizeNullableString(record.customStatus);
   const customStatusSnake = normalizeNullableString(record.custom_status);
+  const expiry =
+    typeof record.customStatusExpiresAt === "string"
+      ? Date.parse(record.customStatusExpiresAt)
+      : NaN;
 
   return {
     customStatus:
-      customStatus !== undefined
-        ? customStatus
-        : customStatusSnake !== undefined
-          ? customStatusSnake
-          : fallback.customStatus,
+      Number.isFinite(expiry) && expiry <= Date.now()
+        ? null
+        : customStatus !== undefined
+          ? customStatus
+          : customStatusSnake !== undefined
+            ? customStatusSnake
+            : fallback.customStatus,
     status:
       normalizePresenceStatus(record.status) ??
       normalizePresenceStatus(record.presence) ??

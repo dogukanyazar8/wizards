@@ -11,7 +11,7 @@ const storeContractData = require("./src/release/mobile-store-contract-data.json
 const GOOGLE_SERVICES_FILE = path.join(__dirname, "google-services.json");
 
 const EAS_PROJECT_ID = "3b8b3f68-dd6c-4c9c-84e7-10ed8f4b2aad";
-const MOBILE_ENVIRONMENTS = ["development", "uat", "canary", "production"];
+const MOBILE_ENVIRONMENTS = ["development", "uat", "production"];
 const DEFAULT_COMMUNITY_INVITE_SLUG = "whispr-community";
 const OTA_SIGNING_PROFILES = {
   uat: {
@@ -33,11 +33,6 @@ const DEFAULT_PUBLIC_ENV = {
     apiUrl: "https://wizardsweb-uat.up.railway.app",
     socketUrl: "https://wizardsweb-uat.up.railway.app",
     webUrl: "https://wizardsweb-uat.up.railway.app",
-  },
-  canary: {
-    apiUrl: "https://whispr.team",
-    socketUrl: "https://whispr.team",
-    webUrl: "https://whispr.team",
   },
   production: {
     apiUrl: "https://whispr.team",
@@ -65,7 +60,11 @@ function getWhisprMobileIosInfoPlistUsageDescriptions() {
 function readEnvironmentName() {
   const value = process.env.WHISPR_MOBILE_ENV;
 
-  return MOBILE_ENVIRONMENTS.includes(value) ? value : "development";
+  if (value === undefined || value === "") return "development";
+  if (!MOBILE_ENVIRONMENTS.includes(value)) {
+    throw new Error(`Unsupported WHISPR_MOBILE_ENV: ${value}`);
+  }
+  return value;
 }
 
 const BUILD_ID_PATTERN = /^[0-9a-f]{12,40}$/i;
@@ -259,7 +258,7 @@ module.exports = ({ config }) => {
         foregroundImage: WHISPR_MOBILE_ICON.adaptiveForegroundImage,
       },
       permissions: getWhisprMobileAndroidPermissions({
-        includeStoreBlockers: environment === "uat" || environment === "canary",
+        includeStoreBlockers: environment === "uat",
       }),
       predictiveBackGestureEnabled: true,
       ...(fs.existsSync(GOOGLE_SERVICES_FILE)

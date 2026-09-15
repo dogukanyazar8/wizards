@@ -100,6 +100,8 @@ export function buildServerSingleColumnCss(): string {
 @media (max-width:${modalSingleColumnBelow - 1}px){
   [${SERVER_SINGLE_COLUMN_ATTRIBUTE}="shell"]{flex-direction:column}
   [${SERVER_SINGLE_COLUMN_ATTRIBUTE}="shell"] > [${SERVER_SINGLE_COLUMN_ATTRIBUTE}="aside"]{order:-1;width:100%;height:auto;flex:none;border-right-width:0;border-bottom-width:var(--server-single-column-hairline)}
+  [${SERVER_SINGLE_COLUMN_ATTRIBUTE}="shell"] > [${SERVER_SINGLE_COLUMN_ATTRIBUTE}="aside"] nav{display:flex;overflow-x:auto;overscroll-behavior:contain}
+  [${SERVER_SINGLE_COLUMN_ATTRIBUTE}="shell"] > [${SERVER_SINGLE_COLUMN_ATTRIBUTE}="aside"] nav > button{flex:none;width:auto;white-space:nowrap}
   [${SERVER_SINGLE_COLUMN_ATTRIBUTE}="shell"] > [${SERVER_SINGLE_COLUMN_ATTRIBUTE}="main"]{order:0;min-height:0}
   [${SERVER_SINGLE_COLUMN_ATTRIBUTE}="grid"]{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
   [${SERVER_SINGLE_COLUMN_ATTRIBUTE}="grid"] > [${SERVER_SINGLE_COLUMN_ATTRIBUTE}="aside"]{order:-1;border-left-width:0;border-bottom-width:var(--server-single-column-hairline)}

@@ -8,5 +8,5 @@ import { redirect } from "next/navigation";
 export default async function RootRoute() {
   const session = await auth();
 
-  redirect(session ? "/home" : "/login");
+  redirect(session?.user?.id ? "/home" : "/login");
 }

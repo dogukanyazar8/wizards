@@ -174,7 +174,7 @@ export function DiagnosticsBlock({ row: rowDef }: SettingsBlockProps) {
     >
       {rows.map((row, index) => (
         <div
-          className="flex items-center"
+          className="grid min-w-0 items-start"
           data-diagnostic={row.key}
           key={row.key}
           role="listitem"
@@ -189,6 +189,7 @@ export function DiagnosticsBlock({ row: rowDef }: SettingsBlockProps) {
                   borderLeft: `${hairline()} solid hsl(var(--border) / ${SETTINGS_METRICS.row.dividerAlpha})`,
                 }
               : {}),
+            gridTemplateColumns: "auto minmax(0, 1fr)",
             gap: pxToRem(diagnostics.cellGap),
             padding: `${pxToRem(diagnostics.cellPaddingY)} ${pxToRem(diagnostics.cellPaddingX)}`,
           }}
@@ -203,7 +204,7 @@ export function DiagnosticsBlock({ row: rowDef }: SettingsBlockProps) {
             }}
           />
           <span
-            className="min-w-0 flex-1 truncate text-[hsl(var(--text-muted))]"
+            className="min-w-0 [overflow-wrap:anywhere] text-[hsl(var(--text-muted))]"
             style={{
               fontSize: pxToRem(diagnostics.labelFontSize),
               fontWeight: diagnostics.labelWeight,
@@ -213,11 +214,12 @@ export function DiagnosticsBlock({ row: rowDef }: SettingsBlockProps) {
             {t(row.labelKey)}
           </span>
           <span
-            className="font-display flex-none text-[hsl(var(--foreground))]"
+            className="font-display min-w-0 [overflow-wrap:anywhere] text-[hsl(var(--foreground))]"
             style={{
+              gridColumn: "2",
               fontSize: pxToRem(diagnostics.valueFontSize),
               fontWeight: diagnostics.valueWeight,
-              lineHeight: 1,
+              lineHeight: 1.4,
             }}
           >
             {desktop.loading ? t("settings.block.diag.value.unknown") : row.value}

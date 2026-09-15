@@ -154,7 +154,8 @@ export function collectReportDiagnostics(
 function normalizeReleaseChannel(value: string): MobileReleaseChannel {
   const normalized = value.trim().toLowerCase();
 
-  if (normalized === "uat" || normalized === "beta" || normalized === "stable") {
+  if (normalized === "uat") return "beta";
+  if (normalized === "beta" || normalized === "stable") {
     return normalized;
   }
 

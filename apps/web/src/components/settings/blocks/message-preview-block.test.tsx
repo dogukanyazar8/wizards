@@ -30,6 +30,16 @@ function render(values: SettingsPatch) {
 }
 
 describe("MessagePreviewBlock", () => {
+  it("updates spacing when interface density changes independently of compact messages", () => {
+    const comfortable = render({ m3: 0, m4: false });
+    const dense = render({ m3: 1, m4: false });
+    assert.notEqual(comfortable, dense);
+    assert.ok(dense.includes('data-density="compact"'));
+    assert.ok(dense.includes('data-compact="false"'));
+    const compactComfortable = render({ m3: 0, m4: true }).replace(/data-density="[^"]+"/u, "");
+    const compactDense = render({ m3: 1, m4: true }).replace(/data-density="[^"]+"/u, "");
+    assert.notEqual(compactComfortable, compactDense);
+  });
   it("iki örnek mesaj referanstakiyle birebir", () => {
     const markup = render({});
 

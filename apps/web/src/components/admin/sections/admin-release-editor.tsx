@@ -1,5 +1,7 @@
 "use client";
 
+import { confirmAction } from "@/lib/confirmation";
+
 import React, { useState } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowLeft, ArrowUp, Loader2, Plus, Rocket, Save, Trash2 } from "lucide-react";
@@ -92,7 +94,7 @@ export function AdminReleaseEditor({
   }
 
   async function removeRelease() {
-    if (!window.confirm(`${release.version} sürümünü silmek istiyor musun?`)) {
+    if (!(await confirmAction(`${release.version} sürümünü silmek istiyor musun?`, true))) {
       return;
     }
 
@@ -228,8 +230,7 @@ export function AdminReleaseEditor({
                 value={form.channel}
               >
                 <option value="STABLE">Stable</option>
-                <option value="BETA">Beta</option>
-                <option value="UAT">UAT</option>
+                <option value="UAT">Beta (UAT)</option>
               </select>
             </label>
             <label className="grid gap-1.5 text-sm">

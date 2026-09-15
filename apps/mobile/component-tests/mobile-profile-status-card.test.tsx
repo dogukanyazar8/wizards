@@ -41,7 +41,6 @@ const account = {
   email: "ada@example.com",
   emailVerified: true,
   nextUsernameChangeAt: null,
-  pronouns: null,
   twoFactorEnabled: false,
 };
 
@@ -56,7 +55,6 @@ const savedProfile = {
   displayName: "Ada Lovelace",
   id: "user-1",
   nextUsernameChangeAt: null,
-  pronouns: null,
   status: "ONLINE" as const,
   twoFactorEnabled: false,
   username: "ada",
@@ -156,6 +154,32 @@ describe("mobile profile status card", () => {
     expect(
       view.getByTestId("mobile-profile-status-expiry-open").props.accessibilityValue,
     ).toMatchObject({ text: "1 saat" });
+  });
+
+  it("keeps the emoji picker open and saves multiple selections with the status text", async () => {
+    const requestJson = profilePatchApi();
+    authenticatedApi(requestJson);
+    const view = await renderCard(createQueryClient());
+    await fireEvent.changeText(view.getByTestId("mobile-profile-status-input"), "Release");
+    await fireEvent.press(view.getByTestId("mobile-profile-status-emoji"));
+    await fireEvent.press(view.getByTestId("mobile-message-emoji-😀"));
+    await fireEvent.press(view.getByTestId("mobile-message-emoji-😂"));
+    expect(view.getByTestId("mobile-message-emoji-picker-panel")).toBeTruthy();
+    await fireEvent.press(view.getByText("Kapat"));
+    await fireEvent.press(view.getByTestId("mobile-profile-status-save"));
+    await waitFor(() =>
+      expect(
+        requestJson.mock.calls.some(
+          ([path, request]) =>
+            path === "/api/v1/mobile/account/profile" && request?.method === "PATCH",
+        ),
+      ).toBe(true),
+    );
+    const patch = requestJson.mock.calls.find(
+      ([path, request]) => path === "/api/v1/mobile/account/profile" && request?.method === "PATCH",
+    )?.[1] as { body: { customStatus: string; customStatusEmoji: string } };
+    expect(patch.body.customStatus).toBe("Release");
+    expect(patch.body.customStatusEmoji).toBe("😀😂");
   });
 
   // The hub has no header chip, so the card grows one only once the draft moved.

@@ -137,8 +137,13 @@ export function ActiveSessionsCard({ t }: { t: Translate }) {
                     ) : null}
                   </div>
                   <p className="mt-1 text-[0.6875rem] leading-4 text-app-muted">
-                    {[session.browser, session.countryCode].filter(Boolean).join(" · ") ||
-                      t("settings.account.security.sessions.unknown")}
+                    {[
+                      session.clientType === "DESKTOP" ? "Whispr Desktop" : session.browser,
+                      session.appVersion,
+                      session.countryCode,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || t("settings.account.security.sessions.unknown")}
                   </p>
                   <p className="mt-1 text-[0.6875rem] text-app-soft">
                     {t("settings.account.security.sessions.lastSeen", {

@@ -135,8 +135,8 @@ describe("Esc ladder", () => {
 });
 
 describe("dirty flag (SPEC_DEVIATIONS #5)", () => {
-  it("marks dirty for each of the eight profile keys", () => {
-    assert.equal(SETTINGS_DIRTY_PROFILE_KEYS.length, 8);
+  it("marks dirty for each of the seven profile keys", () => {
+    assert.equal(SETTINGS_DIRTY_PROFILE_KEYS.length, 7);
 
     for (const key of SETTINGS_DIRTY_PROFILE_KEYS) {
       assert.equal(isSettingsDirtyKey(key), true, `${key} must set the dirty flag`);

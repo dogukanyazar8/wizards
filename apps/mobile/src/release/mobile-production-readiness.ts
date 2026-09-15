@@ -5,14 +5,9 @@ import {
 import { validateMobileStoreReadiness } from "./mobile-store-contract";
 
 export type MobileProductionReadinessArea =
-  | "auth"
-  | "native"
-  | "performance"
-  | "privacy"
-  | "release"
-  | "store";
+  "auth" | "native" | "performance" | "privacy" | "release" | "store";
 
-export type MobileProductionReadinessStage = "canary" | "production" | "store-candidate" | "uat";
+export type MobileProductionReadinessStage = "production" | "store-candidate" | "uat";
 
 export type MobileProductionReadinessRisk = "critical" | "high" | "medium";
 
@@ -27,7 +22,6 @@ export type MobileProductionReadinessGate = {
 
 export type MobileProductionReadinessSummary = {
   automatedGateCount: number;
-  canaryGateCount: number;
   criticalGateCount: number;
   evidenceCount: number;
   productionGateCount: number;
@@ -80,7 +74,7 @@ export const MOBILE_PRODUCTION_READINESS_GATES: readonly MobileProductionReadine
       "Unfinished native features stay marked as server-contract, native-module, or research gated.",
     id: "native-capability-honesty",
     risk: "critical",
-    stage: "canary",
+    stage: "uat",
   },
   {
     area: "performance",
@@ -89,7 +83,7 @@ export const MOBILE_PRODUCTION_READINESS_GATES: readonly MobileProductionReadine
       "Startup, resume, composer latency, and idle memory budgets are recorded before promotion.",
     id: "mobile-performance-budget-evidence",
     risk: "high",
-    stage: "canary",
+    stage: "uat",
   },
   {
     area: "store",
@@ -128,7 +122,6 @@ export function summarizeMobileProductionReadiness(
 
   return {
     automatedGateCount: automatedGates.size,
-    canaryGateCount: gates.filter((gate) => gate.stage === "canary").length,
     criticalGateCount: gates.filter((gate) => gate.risk === "critical").length,
     evidenceCount: gates.filter((gate) => gate.evidence.trim().length > 0).length,
     productionGateCount: gates.filter((gate) => gate.stage === "production").length,
@@ -145,9 +138,9 @@ export function validateMobileProductionReadiness(): string[] {
   const storeReadiness = validateMobileStoreReadiness();
   const capabilityIds = new Set(MOBILE_NATIVE_CAPABILITIES.map((capability) => capability.id));
 
-  if (summary.stageCount !== 4) {
+  if (summary.stageCount !== 3) {
     issues.push(
-      "Mobile production readiness must cover uat, canary, store-candidate, and production stages.",
+      "Mobile production readiness must cover uat, store-candidate, and production stages.",
     );
   }
 

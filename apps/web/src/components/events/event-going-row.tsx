@@ -58,7 +58,7 @@ export function EventGoingRow({ event, locale, onOpen, timeZone }: EventGoingRow
     time,
   });
   const place = t("events.card.place", {
-    channel: event.channelLabel,
+    channel: event.channelLabel || t("events.create.placeNone"),
     server: event.serverName,
   });
 

@@ -29,8 +29,8 @@ Yerel başarı; remote CI, Railway deployment, EAS teslimi, Windows imzalama, up
 | ----------------- | -------------------- | ------------------------------------- | -------------------------- |
 | Web/API/Socket.IO | `apps/web`           | Next.js custom HTTP server            | `3000`                     |
 | Outbox worker     | `apps/web`           | Web içinde veya ayrı headless worker  | Port açmaz                 |
-| PostgreSQL        | `docker-compose.yml` | `postgres:18.4-alpine` (digest pinli) | `5432`                     |
-| Redis             | `docker-compose.yml` | `redis:8.8.0-alpine` (digest pinli)   | `6379`                     |
+| PostgreSQL        | `docker-compose.yml` | `postgres:18.6-alpine` (digest pinli) | `5432`                     |
+| Redis             | `docker-compose.yml` | `redis:8.10.1-alpine` (digest pinli)  | `6379`                     |
 | ClamAV            | `docker-compose.yml` | Attachment malware scanner            | `3310`                     |
 | LiveKit           | `docker-compose.yml` | Voice/video server                    | `7880`, `7881`, `7882/udp` |
 | Mobile Metro      | `apps/mobile`        | Expo dev server                       | `8081`                     |
@@ -86,11 +86,11 @@ Kurulumdan sonra yeni terminal açın. Git Credential Manager'ı etkin bırakın
 
 Repository sürümü:
 
-- `.nvmrc`: `24.18.0`
-- `package.json` engine: `>=24.18.0 <25`
-- `package.json` packageManager: `pnpm@11.22.0`
+- `.nvmrc`: `24.21.0`
+- `package.json` engine: `>=24.21.0 <25`
+- `package.json` packageManager: `pnpm@12.4.2`
 
-Tam sürümü [Node.js 24.18.0 resmi release sayfasından](https://nodejs.org/en/blog/release/v24.18.0) kurun. Winget'in güncel LTS sürümünü körlemesine kullanmayın; zamanla repository aralığının dışına çıkabilir.
+Tam sürümü [Node.js 24.21.0 resmi release sayfasından](https://nodejs.org/en/blog/release/v24.21.0) kurun. Winget'in güncel LTS sürümünü körlemesine kullanmayın; zamanla repository aralığının dışına çıkabilir.
 
 ```powershell
 node --version
@@ -101,8 +101,8 @@ corepack pnpm --version
 Beklenen:
 
 ```text
-v24.18.0
-11.22.0
+v24.21.0
+12.4.2
 ```
 
 `corepack enable` için erişim reddedilirse yalnız bu adımı yönetici PowerShell'de bir kez çalıştırın; günlük geliştirmeyi yönetici terminalinde yapmayın.
@@ -700,7 +700,6 @@ Profiller:
 | ------------- | ----------------------------------------- |
 | `development` | Development client, local endpoint izinli |
 | `uat`         | Railway UAT internal build                |
-| `canary`      | Sınırlı production-origin dogfood         |
 | `production`  | Store distribution                        |
 
 UAT Android cloud build:
@@ -925,11 +924,11 @@ Branch mapping, automatic deploy trigger, approval ve Railway project/service ki
 
 ## 17. Desktop release CD (currently disabled)
 
-`.github/workflows/desktop-release.yml` kaldırıldı. Kayıtlı local Windows runner yok; GitHub-hosted runner da kullanılmıyor. Windows desktop build, imza, updater ve yayın kanıtı **NOT RUN** durumunda. Aşağıdaki eski manual-dispatch sözleşmesi, yalnız local Windows runner kaydedilip workflow geri getirildiğinde kullanılabilir.
+`.github/workflows/desktop-release.yml` Windows yayın girişidir. Beta/UAT `uat`, Kararlı/PROD `main` dalından başlatılır. Başarılı CI, korumalı ortam ve PROD imzalama/onay kontrolleri zorunludur. Güncel sözleşme: [Yayın kanalları](../operations/release-channels.md).
 
 Input'lar:
 
-- `ring`: `uat`, `canary`, `stable`
+- `ring`: `uat` (Beta) veya `stable` (Kararlı/PROD)
 - `version`: başında `v` olmayan native version
 - `web_url`: build içine gömülecek HTTPS origin
 - `enable_updater`
@@ -969,8 +968,6 @@ Stable ek korumaları:
 - Clean semver.
 - Gerçek OV/EV Windows signing.
 
-Canary dispatch default web URL'sine güvenmeyin; input default'u UAT origin olabilir. Canary için production origin'i açıkça kontrol edin.
-
 Rollback mutable ring manifest'ini önceki imzalı artifact'e geri yönlendirir. İmzalı immutable release artifact'i üzerine yazılmaz.
 
 ## 18. Mobile release CD
@@ -987,7 +984,7 @@ Operatör kanıt zinciri:
 6. EAS profile/env doğrulaması.
 7. EAS build artifact.
 8. Internal UAT install.
-9. Canary rollout ve telemetry.
+9. PROD rollout ve telemetry.
 10. Store submit ve staged rollout.
 
 `release:evidence` gerçek test veya cihaz sonucu üretmez; mevcut gate/checklist sözleşmesini serialize eder. Bunu cihaz kanıtı gibi sunmayın.
@@ -1025,7 +1022,7 @@ Get-Content .nvmrc
 (Get-Content package.json -Raw | ConvertFrom-Json).packageManager
 ```
 
-Beklenen: Node `24.18.0`, pnpm `11.22.0`.
+Beklenen: Node `24.21.0`, pnpm `12.4.2`.
 
 ### Docker çalışmıyor
 
@@ -1190,8 +1187,7 @@ Bunlar onboarding'de gizlenmemelidir:
 8. Mobile CI APK/Maestro çalıştırmaz.
 9. Nightly mobile visual job gerçek emulator capture yapmaz; committed evidence doğrular.
 10. Railway worker HTTP healthcheck taşımaz.
-11. Desktop canary workflow input default'u UAT web origin olabilir.
-12. Yerel mobile release build debug keystore kullanabilir; store artifact'i değildir.
+11. Yerel mobile release build debug keystore kullanabilir; store artifact'i değildir.
 
 Bu boşlukları geçici özel komutlarla saklamayın. Ayrı engineering task ile kalıcılaştırın.
 
@@ -1200,8 +1196,8 @@ Bu boşlukları geçici özel komutlarla saklamayın. Ayrı engineering task ile
 ### Makine
 
 - [ ] Git erişimi ve GitHub SSO çalışıyor.
-- [ ] Node `24.18.0`.
-- [ ] pnpm `11.22.0`.
+- [ ] Node `24.21.0`.
+- [ ] pnpm `12.4.2`.
 - [ ] Docker + WSL 2 çalışıyor.
 - [ ] JDK 17.
 - [ ] Android SDK/adb/emulator çalışıyor.
@@ -1269,7 +1265,7 @@ Repository içi:
 
 Resmi platform kaynakları:
 
-- [Node.js 24.18.0](https://nodejs.org/en/blog/release/v24.18.0)
+- [Node.js 24.21.0](https://nodejs.org/en/blog/release/v24.21.0)
 - [Git for Windows](https://git-scm.com/install/windows.html)
 - [Docker Desktop on Windows](https://docs.docker.com/desktop/setup/install/windows-install/)
 - [Android Studio installation](https://developer.android.com/studio/install)

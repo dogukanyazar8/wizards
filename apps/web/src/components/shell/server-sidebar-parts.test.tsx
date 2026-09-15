@@ -12,7 +12,6 @@ import {
   ChannelSearchTrigger,
   type ChannelSearchHit,
 } from "./channel-search-popover";
-import { ConnectedVoiceStrip, resolveVoiceStripLitBars } from "./connected-voice-strip";
 import { ServerMenu, SERVER_MENU_ROWS, buildServerMenuRows } from "./server-menu";
 
 /**
@@ -230,78 +229,6 @@ describe("Kanal arama — SPEC §2.3", () => {
     );
 
     assert.ok(html.includes('data-testid="channel-search-empty"'));
-  });
-});
-
-describe("Bağlı ses şeridi — SPEC §2.5", () => {
-  it("ölçüsünü sözlükten alır — 10×11, yarıçap 14, ayrılma 26", () => {
-    const { voiceStrip } = SERVER_METRICS;
-    const html = render(
-      <ConnectedVoiceStrip
-        channelName="Genel Sohbet"
-        latencyMs={32}
-        level={0.7}
-        onLeave={() => undefined}
-        serverName="Mobile Test"
-      />,
-    );
-
-    assert.ok(
-      html.includes(`padding:${pxToRem(voiceStrip.paddingY)} ${pxToRem(voiceStrip.paddingX)}`),
-    );
-    assert.ok(html.includes(`border-radius:${pxToRem(voiceStrip.radius)}`));
-    assert.ok(html.includes(`width:${pxToRem(voiceStrip.leaveButtonSize)}`));
-  });
-
-  it("gecikme varsa `sunucu · N ms`, yoksa yalnız sunucu adı", () => {
-    const withLatency = render(
-      <ConnectedVoiceStrip
-        channelName="Genel Sohbet"
-        latencyMs={32}
-        level={0.7}
-        onLeave={() => undefined}
-        serverName="Mobile Test"
-      />,
-    );
-    const withoutLatency = render(
-      <ConnectedVoiceStrip
-        channelName="Genel Sohbet"
-        latencyMs={null}
-        level={0.7}
-        onLeave={() => undefined}
-        serverName="Mobile Test"
-      />,
-    );
-
-    assert.ok(withLatency.includes("Mobile Test · 32 ms"));
-    assert.ok(!withoutLatency.includes("Mobile Test ·"));
-    assert.ok(withoutLatency.includes("Mobile Test"));
-  });
-
-  it("dört çubuk çizilir ve sönük olanı düşük opaklıkta", () => {
-    const { voiceStrip } = SERVER_METRICS;
-    const html = render(
-      <ConnectedVoiceStrip
-        channelName="Genel Sohbet"
-        latencyMs={null}
-        level={0.6}
-        onLeave={() => undefined}
-        serverName="Mobile Test"
-      />,
-    );
-
-    for (const barHeight of voiceStrip.barHeights) {
-      assert.ok(html.includes(`height:${pxToRem(barHeight)}`), `${barHeight} yok`);
-    }
-
-    assert.ok(html.includes(`hsl(var(--success) / ${voiceStrip.barIdleAlpha})`));
-  });
-
-  it("`prefers-reduced-motion` altında çubuk sayısı seviyeden bağımsız donar", () => {
-    assert.equal(resolveVoiceStripLitBars(0.05, true), 3);
-    assert.equal(resolveVoiceStripLitBars(1, true), 3);
-    assert.equal(resolveVoiceStripLitBars(0, false), 1);
-    assert.equal(resolveVoiceStripLitBars(1, false), 4);
   });
 });
 

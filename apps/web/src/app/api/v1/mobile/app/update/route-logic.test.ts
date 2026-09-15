@@ -144,7 +144,7 @@ describe("mobile app update route", () => {
     assert.deepEqual(asked, [
       JSON.stringify({
         buildEnvironment: "uat",
-        channel: "uat",
+        channel: "beta",
         installed: "0.8.15",
         platform: "android",
         runtimeVersion: "fingerprint-1",

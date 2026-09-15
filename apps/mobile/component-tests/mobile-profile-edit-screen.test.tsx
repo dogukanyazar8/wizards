@@ -60,7 +60,6 @@ const account = {
   email: "ada@example.com",
   emailVerified: true,
   nextUsernameChangeAt: null,
-  pronouns: null,
   twoFactorEnabled: false,
 };
 
@@ -75,7 +74,6 @@ const savedProfile = {
   displayName: "Ada Lovelace",
   id: "user-1",
   nextUsernameChangeAt: null,
-  pronouns: null,
   status: "DND" as const,
   twoFactorEnabled: false,
   username: "ada",
@@ -222,7 +220,7 @@ describe("mobile profile edit screen (2a)", () => {
 
     await fireEvent.changeText(view.getByTestId("mobile-profile-edit-bio-input"), "Mobil ekip");
 
-    expect(view.getByTestId("mobile-profile-edit-bio-counter").props.children).toBe("10/500");
+    expect(view.getByTestId("mobile-profile-edit-bio-counter").props.children).toBe("10/250");
   });
 
   it("locks the username field while the 30-day cooldown is running", async () => {

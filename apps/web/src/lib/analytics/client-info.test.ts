@@ -5,6 +5,50 @@ import { getAnalyticsClientInfo, hashAnalyticsValue } from "@/lib/analytics/clie
 process.env.TRUSTED_PROXY_HOPS = "1";
 
 describe("analytics client info", () => {
+  it("distinguishes Android tablets, phones and ChromeOS while preserving explicit web clients", () => {
+    for (const [userAgent, deviceType, os] of [
+      [
+        "Mozilla/5.0 (Linux; Android 14; Pixel Tablet) Chrome/140.0 Safari/537.36",
+        "TABLET",
+        "Android",
+      ],
+      ["Mozilla/5.0 (Linux; Android 14; SM-X700) Chrome/140.0 Safari/537.36", "TABLET", "Android"],
+      [
+        "Mozilla/5.0 (Linux; Android 14; Pixel 8) Chrome/140.0 Mobile Safari/537.36",
+        "MOBILE",
+        "Android",
+      ],
+      [
+        "Mozilla/5.0 (X11; CrOS x86_64 16093.0.0) Chrome/140.0 Safari/537.36",
+        "DESKTOP",
+        "ChromeOS",
+      ],
+      ["Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) Mobile/15E148 Safari/604.1", "TABLET", "iOS"],
+    ] as const) {
+      const info = getAnalyticsClientInfo({ "user-agent": userAgent, "x-whispr-client": "web" });
+      assert.equal(info.deviceType, deviceType);
+      assert.equal(info.os, os);
+      assert.equal(info.clientType, "WEB");
+    }
+  });
+
+  it("recognizes mobile Edge and Firefox before their compatible Chrome/Safari tokens", () => {
+    for (const [userAgent, browser] of [
+      ["Mozilla/5.0 (Linux; Android 14) Chrome/140.0 Mobile Safari/537.36 EdgA/140.0", "Edge"],
+      [
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile/15E148 Safari/605.1.15 EdgiOS/140.0",
+        "Edge",
+      ],
+      [
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) FxiOS/140.0 Mobile/15E148 Safari/605.1.15",
+        "Firefox",
+      ],
+    ] as const) {
+      assert.equal(getAnalyticsClientInfo({ "user-agent": userAgent }).browser, browser);
+    }
+    assert.equal(getAnalyticsClientInfo({}).deviceType, "UNKNOWN");
+  });
+
   it("detects mobile browsers without storing raw IP or user-agent", () => {
     process.env.ANALYTICS_HASH_SECRET = "analytics-test";
 
@@ -48,6 +92,18 @@ describe("analytics client info", () => {
     assert.equal(info.clientType, "DESKTOP");
     assert.equal(info.deviceType, "DESKTOP");
     assert.equal(info.os, "Windows");
-    assert.equal(info.browser, "Chrome");
+    assert.equal(info.browser, "Whispr Desktop");
   });
+});
+
+it("native user agent marks every request without replacing engine compatibility tokens", () => {
+  const info = getAnalyticsClientInfo({
+    "user-agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/140.0 Edg/140.0 WhisprDesktop/0.8.15",
+  });
+  assert.equal(info.clientType, "DESKTOP");
+  assert.equal(info.browser, "Whispr Desktop");
+  assert.equal(info.appVersion, "0.8.15");
+  assert.equal(info.os, "Windows");
+  assert.equal(info.attributionVerified, false, "UA metadata is not an authorization signal");
 });

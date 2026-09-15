@@ -17,7 +17,7 @@
  */
 
 export type SettingsSection =
-  "account" | "av" | "appearance" | "notifications" | "desktop" | "about";
+  "account" | "av" | "appearance" | "notifications" | "desktop" | "updates" | "about";
 
 /** 27 sekme. Sıra, sol navigasyondaki ve alt şeritteki sırayla aynıdır. */
 export type SettingsTab =
@@ -33,6 +33,7 @@ export type SettingsTab =
   | "camera"
   | "screen-share"
   // Görünüm
+  | "language"
   | "theme"
   | "text"
   | "media"
@@ -51,6 +52,7 @@ export type SettingsTab =
   | "shortcuts"
   | "overlay"
   | "permissions"
+  // Güncelleme
   | "updates"
   // Hakkında
   | "about";
@@ -61,7 +63,7 @@ export type SettingsRoute = {
 };
 
 /**
- * Bölüm başına sekme sırası — `6 / 3 / 5 / 7 / 5 / 1`.
+ * Bölüm başına sekme sırası — `6 / 3 / 6 / 7 / 4 / 1 / 1`.
  *
  * Rota çözücüsü ağacı **okumaz**: `tree.ts` bu dosyanın tiplerini içeri alır, tersi bir döngü
  * olurdu. `tree.test.ts` iki listenin aynı kaldığını doğrular.
@@ -71,9 +73,10 @@ export const SETTINGS_TABS_BY_SECTION: Readonly<
 > = {
   account: ["profile", "account", "privacy", "security", "badges", "data"],
   av: ["audio", "camera", "screen-share"],
-  appearance: ["theme", "text", "media", "layout", "accessibility"],
+  appearance: ["theme", "text", "media", "layout", "accessibility", "language"],
   notifications: ["general", "surfaces", "types", "quiet-hours", "sounds", "panel", "exceptions"],
-  desktop: ["app", "shortcuts", "overlay", "permissions", "updates"],
+  desktop: ["app", "shortcuts", "overlay", "permissions"],
+  updates: ["updates"],
   about: ["about"],
 };
 
@@ -88,6 +91,7 @@ function isSettingsSection(value: string | null | undefined): value is SettingsS
 
 /** `/settings/account/profile`. Sekme verilmezse bölümün ilk sekmesi kullanılır. */
 export function buildSettingsHref(section: SettingsSection, tab?: SettingsTab): string {
+  if (section === "desktop" && tab === "updates") return buildSettingsHref("updates");
   const tabs = SETTINGS_TABS_BY_SECTION[section];
   const resolved = tab && tabs.includes(tab) ? tab : tabs[0];
 
@@ -100,6 +104,9 @@ export function buildSettingsHref(section: SettingsSection, tab?: SettingsTab): 
  * bellidir ve boş bir pencere göstermenin kimseye faydası yok.
  */
 export function resolveSettingsRoute(section?: string | null, tab?: string | null): SettingsRoute {
+  // Existing badge notification links predate the section/tab settings routes.
+  if (section === "badges" && !tab) return { section: "account", tab: "badges" };
+  if (section === "desktop" && tab === "updates") return { section: "updates", tab: "updates" };
   if (!isSettingsSection(section)) return DEFAULT_SETTINGS_ROUTE;
 
   const tabs = SETTINGS_TABS_BY_SECTION[section];
@@ -166,7 +173,7 @@ const LEGACY_PANEL_ROUTES: Readonly<Record<SettingsPanelKey, SettingsRoute>> = {
   audio: { section: "av", tab: "audio" },
   camera: { section: "av", tab: "camera" },
   screenShare: { section: "av", tab: "screen-share" },
-  language: { section: "account", tab: "privacy" },
+  language: { section: "appearance", tab: "language" },
   theme: { section: "appearance", tab: "theme" },
   messageFont: { section: "appearance", tab: "text" },
   advanced: { section: "appearance", tab: "layout" },
@@ -176,12 +183,12 @@ const LEGACY_PANEL_ROUTES: Readonly<Record<SettingsPanelKey, SettingsRoute>> = {
   desktopBehavior: { section: "desktop", tab: "app" },
   /** `settings.desktop.voice.title` = "Kısayollar ve overlay"; ilki Kısayollar sekmesidir. */
   desktopVoice: { section: "desktop", tab: "shortcuts" },
-  desktopDiagnostics: { section: "desktop", tab: "updates" },
+  desktopDiagnostics: { section: "updates", tab: "updates" },
   overview: { section: "about", tab: "about" },
-  build: { section: "about", tab: "about" },
-  whatsNew: { section: "about", tab: "about" },
+  build: { section: "updates", tab: "updates" },
+  whatsNew: { section: "updates", tab: "updates" },
   /** Eski özel dal: `?section=about&panel=desktop`. */
-  desktop: { section: "desktop", tab: "updates" },
+  desktop: { section: "updates", tab: "updates" },
   developer: { section: "about", tab: "about" },
 };
 

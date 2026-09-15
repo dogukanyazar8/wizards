@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { KeyRound, LogIn, LogOut, Mail, ShieldAlert, ShieldCheck } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import type { SecurityEvent, SecurityEventKind } from "@wizards/types";
 
 import { useI18n } from "@/components/providers/locale-provider";
 import type { SettingsBlockProps } from "@/components/settings/rows/setting-custom-block";
 import { SETTINGS_METRICS, hairline, pxToRem } from "@/lib/settings/metrics";
-import { fetchSecurityEvents } from "@/lib/settings/security-client";
+import { fetchSecurityEvents, securityQueryKeys } from "@/lib/settings/security-client";
 
 /**
  * Son güvenlik etkinlikleri (`s3`) — SPEC-AYARLAR §5.1, K5.
@@ -55,24 +57,16 @@ export function formatSecurityEventTitle(
 
 export function SecurityEventsBlock({ row: rowDef }: SettingsBlockProps) {
   const { locale, t } = useI18n();
-  const [events, setEvents] = useState<readonly SecurityEvent[] | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-
-    fetchSecurityEvents()
-      .then((next) => {
-        if (active) setEvents(next);
-      })
-      .catch(() => {
-        if (active) setFailed(true);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+  const query = useQuery({
+    queryKey: securityQueryKeys.events,
+    queryFn: ({ signal }) => fetchSecurityEvents(fetch, signal),
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: "always",
+  });
+  const events = query.data ?? null;
+  const failed = query.isError && events === null;
 
   if (failed) {
     return (
@@ -125,58 +119,78 @@ export function SecurityEventsBlock({ row: rowDef }: SettingsBlockProps) {
     );
   }
 
+  const dateFormat = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" });
+  const icons = {
+    emailChanged: Mail,
+    failedLogin: ShieldAlert,
+    loginNewDevice: LogIn,
+    passwordChanged: KeyRound,
+    recoveryCodesRegenerated: KeyRound,
+    sessionRevoked: LogOut,
+    twoFactorDisabled: ShieldAlert,
+    twoFactorEnabled: ShieldCheck,
+  };
+  const sessionMetrics = SETTINGS_METRICS.blocks.sessions;
   return (
     <ul data-block="secEvents" data-testid={`settings-block-${rowDef.key}`}>
-      {events.slice(0, SECURITY_EVENT_ROW_LIMIT).map((event, index) => (
-        <li
-          className="flex items-center"
-          data-testid={`settings-security-event-${event.id}`}
-          key={event.id}
-          style={{
-            borderTop: index
-              ? `${hairline()} solid hsl(var(--border) / ${SETTINGS_METRICS.row.dividerAlpha})`
-              : undefined,
-            gap: pxToRem(securityEvents.rowGap),
-            padding: `${pxToRem(securityEvents.rowPaddingY)} ${pxToRem(
-              securityEvents.rowPaddingX,
-            )}`,
-          }}
-        >
-          <span
-            aria-hidden="true"
-            className="shrink-0 rounded-full"
+      {events.slice(0, SECURITY_EVENT_ROW_LIMIT).map((event, index) => {
+        const Icon = icons[event.kind];
+        const details = [event.userAgent, event.location].filter(Boolean).join(" · ");
+        return (
+          <li
+            className="flex items-start"
+            data-testid={`settings-security-event-${event.id}`}
+            key={event.id}
+            title={formatSecurityEventTitle(event, t)}
             style={{
-              background: `hsl(var(${KIND_TONE_TOKEN[event.kind]}))`,
-              height: pxToRem(securityEvents.dotSize),
-              width: pxToRem(securityEvents.dotSize),
-            }}
-          />
-          <span
-            className="min-w-0 flex-1 truncate"
-            style={{
-              color: "hsl(var(--text-secondary))",
-              fontSize: pxToRem(12),
-              fontWeight: 500,
-              lineHeight: 1.35,
+              borderTop: index
+                ? `${hairline()} solid hsl(var(--border) / ${SETTINGS_METRICS.row.dividerAlpha})`
+                : undefined,
+              gap: pxToRem(sessionMetrics.rowGap),
+              padding: `${pxToRem(sessionMetrics.rowPaddingY)} ${pxToRem(sessionMetrics.rowPaddingX)}`,
             }}
           >
-            {formatSecurityEventTitle(event, t)}
-          </span>
-          <span
-            className="shrink-0"
-            style={{
-              color: "hsl(var(--text-muted))",
-              fontSize: pxToRem(10.5),
-              fontWeight: 500,
-              lineHeight: 1,
-            }}
-          >
-            {new Intl.DateTimeFormat(locale, { day: "numeric", month: "long" }).format(
-              new Date(event.createdAt),
-            )}
-          </span>
-        </li>
-      ))}
+            <span
+              aria-hidden="true"
+              className="grid shrink-0 place-items-center"
+              style={{
+                background: `hsl(var(${KIND_TONE_TOKEN[event.kind]}) / 0.12)`,
+                color: "hsl(var(--text-secondary))",
+                borderRadius: pxToRem(sessionMetrics.iconRadius),
+                width: pxToRem(sessionMetrics.iconSize),
+                height: pxToRem(sessionMetrics.iconSize),
+              }}
+            >
+              <Icon className="size-4" />
+            </span>
+            <div className="min-w-0 flex-1 space-y-1 [overflow-wrap:anywhere]">
+              <p
+                data-security-event-title
+                style={{ fontSize: pxToRem(12.5) }}
+                className="font-semibold leading-snug text-[hsl(var(--foreground))]"
+              >
+                {t(KIND_LABEL_KEY[event.kind])}
+              </p>
+              {details && (
+                <p
+                  data-security-event-details
+                  style={{ fontSize: pxToRem(11) }}
+                  className="leading-relaxed text-[hsl(var(--text-secondary))]"
+                >
+                  {details}
+                </p>
+              )}
+              <time
+                dateTime={event.createdAt}
+                style={{ fontSize: pxToRem(11) }}
+                className="block leading-relaxed text-[hsl(var(--text-muted))]"
+              >
+                {dateFormat.format(new Date(event.createdAt))}
+              </time>
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }

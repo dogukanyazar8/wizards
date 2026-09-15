@@ -76,7 +76,7 @@ function getIpAddress(headers: HeaderSource | null | undefined) {
 }
 
 function detectBrowser(userAgent: string) {
-  if (/Edg\//.test(userAgent)) {
+  if (/Edg(?:A|iOS)?\//i.test(userAgent)) {
     return "Edge";
   }
 
@@ -84,7 +84,7 @@ function detectBrowser(userAgent: string) {
     return "Opera";
   }
 
-  if (/Firefox\//.test(userAgent)) {
+  if (/(?:Firefox|FxiOS)\//i.test(userAgent)) {
     return "Firefox";
   }
 
@@ -100,6 +100,10 @@ function detectBrowser(userAgent: string) {
 }
 
 function detectOs(userAgent: string) {
+  if (/CrOS/i.test(userAgent)) {
+    return "ChromeOS";
+  }
+
   if (/Windows NT/i.test(userAgent)) {
     return "Windows";
   }
@@ -124,7 +128,7 @@ function detectOs(userAgent: string) {
 }
 
 function detectDeviceType(userAgent: string): AnalyticsClientInfo["deviceType"] {
-  if (/iPad|Tablet/i.test(userAgent)) {
+  if (/iPad|Tablet/i.test(userAgent) || (/Android/i.test(userAgent) && !/Mobi/i.test(userAgent))) {
     return "TABLET";
   }
 
@@ -168,7 +172,11 @@ function detectClientType(
 }
 
 function detectAppVersion(headers: HeaderSource | null | undefined) {
-  const value = readHeader(headers, "x-whispr-client-version")?.trim();
+  const value =
+    readHeader(headers, "x-whispr-client-version")?.trim() ??
+    /(?:^|\s)WhisprDesktop\/([0-9A-Za-z.+-]{1,32})(?:\s|$)/i.exec(
+      readHeader(headers, "user-agent") ?? "",
+    )?.[1];
 
   return value && APP_VERSION_PATTERN.test(value) ? value : null;
 }
@@ -178,6 +186,7 @@ export function getAnalyticsClientInfo(
 ): AnalyticsClientInfo {
   const userAgent = readHeader(headers, "user-agent") ?? "";
   const deviceType = detectDeviceType(userAgent);
+  const clientType = detectClientType(headers, userAgent, deviceType);
   const countryCode = normalizeCountryCode(
     readHeader(headers, "cf-ipcountry") ??
       readHeader(headers, "x-vercel-ip-country") ??
@@ -188,8 +197,8 @@ export function getAnalyticsClientInfo(
   return {
     appVersion: detectAppVersion(headers),
     attributionVerified: readDeclaredClient(headers) !== null,
-    browser: detectBrowser(userAgent),
-    clientType: detectClientType(headers, userAgent, deviceType),
+    browser: clientType === "DESKTOP" ? "Whispr Desktop" : detectBrowser(userAgent),
+    clientType,
     countryCode,
     deviceType,
     ipHash: hashAnalyticsValue(getIpAddress(headers)),

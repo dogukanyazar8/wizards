@@ -9,7 +9,7 @@ import {
   type MobileProductionReadinessSummary,
 } from "./mobile-production-readiness";
 
-export const MOBILE_RELEASE_PROFILES = ["development", "uat", "canary", "production"] as const;
+export const MOBILE_RELEASE_PROFILES = ["development", "uat", "production"] as const;
 
 export type MobileReleaseProfileName = (typeof MOBILE_RELEASE_PROFILES)[number];
 export type MobileReleasePlatform = "android" | "ios";
@@ -158,6 +158,11 @@ export function validateMobileReleaseContract({
 }: MobileReleaseContractInput): MobileReleaseContractResult {
   const blockers: string[] = [];
   const warnings: string[] = [];
+  for (const name of Object.keys(easBuildProfiles)) {
+    if (!(MOBILE_RELEASE_PROFILES as readonly string[]).includes(name)) {
+      blockers.push(`Unsupported EAS release profile: ${name}.`);
+    }
+  }
   const storeReadiness = validateMobileStoreReadiness();
   const productionReadiness = summarizeMobileProductionReadiness();
 
@@ -202,27 +207,18 @@ export function validateMobileReleaseContract({
   }
 
   const uat = easBuildProfiles.uat;
-  const canary = easBuildProfiles.canary;
   const production = easBuildProfiles.production;
 
   if (uat?.distribution !== "internal") {
     blockers.push("uat profile must use internal distribution.");
   }
 
-  if (canary?.distribution !== "internal") {
-    blockers.push("canary profile must use internal distribution until store rollout is enabled.");
-  }
-
   if (production?.distribution !== "store") {
     blockers.push("production profile must use store distribution.");
   }
 
-  if (
-    uat?.autoIncrement !== true ||
-    canary?.autoIncrement !== true ||
-    production?.autoIncrement !== true
-  ) {
-    blockers.push("uat, canary, and production profiles must auto-increment native build numbers.");
+  if (uat?.autoIncrement !== true || production?.autoIncrement !== true) {
+    blockers.push("uat and production profiles must auto-increment native build numbers.");
   }
 
   return {

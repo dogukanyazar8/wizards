@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { QueryClient } from "@tanstack/react-query";
+import { SETTINGS_TEST_LAYOUT } from "@/lib/settings/read-test-fixtures";
+import { settingsQueryKeys } from "@/lib/settings/client";
+import { SettingsValueStore } from "@/lib/settings/use-setting-value";
 
 import {
   APPEARANCE_SERVER_ROWS,
@@ -9,15 +13,109 @@ import {
   mainPanelPercentToWidth,
   mainPanelWidthToPercent,
   readAppearanceSettingsValues,
+  readAppearanceServerValues,
   REDUCE_MOTION_ATTRIBUTE,
-  resolveSystemAccessibilityOverrides,
   type AppearanceDocumentRoot,
+  subscribeAppearanceStoreToQuery,
 } from "@/components/settings/sections/appearance/appearance-settings-bridge";
+
+it("updates the shared query immediately and rolls back a failed save without a mounted tab", async () => {
+  const client = new QueryClient();
+  client.setQueryData(settingsQueryKeys.layout, SETTINGS_TEST_LAYOUT);
+  const store = new SettingsValueStore({
+    values: readAppearanceServerValues(SETTINGS_TEST_LAYOUT),
+    write: async () => {
+      throw new Error("offline");
+    },
+  });
+  const stop = subscribeAppearanceStoreToQuery(store, client);
+  store.setValue("v1", false);
+  store.setValue("y2", 56);
+  store.setValue("x2", true);
+  assert.equal(
+    client.getQueryData<UserLayoutSettings>(settingsQueryKeys.layout)?.inlineAttachmentMedia,
+    false,
+  );
+  assert.equal(
+    client.getQueryData<UserLayoutSettings>(settingsQueryKeys.layout)?.serverIconSize,
+    56,
+  );
+  assert.equal(
+    client.getQueryData<UserLayoutSettings>(settingsQueryKeys.layout)?.highContrast,
+    true,
+  );
+  await assert.rejects(store.flushPending());
+  assert.equal(
+    client.getQueryData<UserLayoutSettings>(settingsQueryKeys.layout)?.inlineAttachmentMedia,
+    SETTINGS_TEST_LAYOUT.inlineAttachmentMedia,
+  );
+  assert.equal(
+    client.getQueryData<UserLayoutSettings>(settingsQueryKeys.layout)?.serverIconSize,
+    SETTINGS_TEST_LAYOUT.serverIconSize,
+  );
+  assert.equal(
+    client.getQueryData<UserLayoutSettings>(settingsQueryKeys.layout)?.highContrast,
+    SETTINGS_TEST_LAYOUT.highContrast,
+  );
+  stop();
+  store.dispose();
+  client.clear();
+});
 import { MAX_MAIN_PANEL_WIDTH, MIN_MAIN_PANEL_WIDTH } from "@/lib/appearance";
 import { UI_SCALE_STEPS } from "@/lib/home/scale";
 import { MESSAGE_FONT_OPTIONS } from "@/lib/message-fonts";
 import { TEXT_SCALE_ATTRIBUTE } from "@/lib/settings/text-scale";
 import { resolveSettingStateKey } from "@/lib/settings/use-setting-value";
+import { ACCOUNT_PREFERENCES_DEFAULT } from "@wizards/types";
+import type { UserLayoutSettings } from "@/app/api/v1/users/me/settings/route";
+
+it("restores all four text controls from persisted settings when reopening appearance", () => {
+  const settings: UserLayoutSettings = {
+    ...ACCOUNT_PREFERENCES_DEFAULT,
+    allowGroupInvites: true,
+    channelSidebarWidth: 288,
+    dmPolicy: "FRIENDS",
+    friendRequestPolicy: "EVERYONE",
+    idleTimeoutMinutes: 15,
+    interfaceDensity: "COMPACT",
+    messageFont: "inter",
+    messageSizePx: 20,
+    messageDisplayCompact: true,
+    animateEmoji: true,
+    animateStickers: "INTERACTION",
+    appIcon: "whispr",
+    enableTTS: true,
+    followSystemA11y: true,
+    highContrast: false,
+    inlineAttachmentMedia: true,
+    linkPreviews: true,
+    mainContentWidth: 100,
+    reduceMotion: false,
+    renderEmbeds: true,
+    renderReactions: true,
+    screenReaderDescriptions: true,
+    serverIconSize: 44,
+    showMemberPanelByDefault: true,
+    strongFocusRings: true,
+    uiTextScale: 100,
+    notificationAutoClose: true,
+    notificationLimit: 5,
+    serverRailWidth: 136,
+    desktopNotifications: true,
+    mobileNotifications: true,
+    emailNotifications: false,
+    notificationSound: true,
+    notificationSoundFile: "default",
+  };
+  const values = readAppearanceServerValues(settings);
+  assert.equal(
+    values.m1,
+    MESSAGE_FONT_OPTIONS.findIndex((font) => font.id === "inter"),
+  );
+  assert.equal(values.m2, 20);
+  assert.equal(values.m3, 1);
+  assert.equal(values.m4, true);
+});
 
 /** Ş8 §B — görünüm satırlarının üç hedefi ve belge etkileri. */
 
@@ -50,20 +148,14 @@ describe("Görünüm köprüsü — hedefler", () => {
       m2: "messageSizePx",
       m3: "interfaceDensity",
       m4: "messageDisplayCompact",
-      n1: "appIcon",
       reduceMotion: "reduceMotion",
       v1: "inlineAttachmentMedia",
       v2: "linkPreviews",
       v3: "renderEmbeds",
       v4: "renderReactions",
-      v5: "animateEmoji",
-      v6: "animateStickers",
-      v8: "enableTTS",
       x2: "highContrast",
       x3: "strongFocusRings",
       x4: "uiTextScale",
-      x6: "screenReaderDescriptions",
-      x7: "followSystemA11y",
       y1: "serverRailWidth",
       y2: "serverIconSize",
       y3: "channelSidebarWidth",
@@ -74,9 +166,9 @@ describe("Görünüm köprüsü — hedefler", () => {
 
   it("F2 — kalıcılık şemasındaki Görünüm satırları sunucu alanına gidiyor", () => {
     // Consumer'ı olmayanlar UI'da kapalıdır; bu liste yalnız persistence sözleşmesini ölçer.
-    assert.equal(Object.keys(APPEARANCE_SERVER_ROWS).length, 23);
+    assert.equal(Object.keys(APPEARANCE_SERVER_ROWS).length, 17);
 
-    for (const row of ["m2", "m4", "v1", "v5", "x2", "x4", "n1", "y4", "y5"]) {
+    for (const row of ["m2", "m4", "v1", "v4", "x2", "x4", "y4", "y5"]) {
       assert.ok(row in APPEARANCE_SERVER_ROWS, `${row} sunucu alanı yok`);
     }
   });
@@ -134,42 +226,10 @@ describe("Görünüm köprüsü — belge etkileri", () => {
   });
 });
 
-describe("SPEC_DEVIATIONS #4 — tek anahtar, iki sekme", () => {
-  it("`Hareketi azalt` Medya ve Erişilebilirlik'te aynı durumu yazıyor", () => {
-    assert.equal(resolveSettingStateKey("v7"), "reduceMotion");
-    assert.equal(resolveSettingStateKey("x1"), "reduceMotion");
-    assert.equal(resolveSettingStateKey("v7"), resolveSettingStateKey("x1"));
-  });
-
-  it("`Text-to-speech` de tek anahtar", () => {
-    assert.equal(resolveSettingStateKey("v8"), "enableTTS");
-    assert.equal(resolveSettingStateKey("x5"), "enableTTS");
-  });
-
-  it("bağımsız satırlar bağlanmadı", () => {
-    assert.equal(resolveSettingStateKey("x2"), "x2");
-    assert.equal(resolveSettingStateKey("v5"), "v5");
-  });
-});
-
-describe("`Sistem tercihlerini takip et` (x7)", () => {
-  it("kapalıyken sistem hiçbir şeyi ezmiyor", () => {
-    assert.deepEqual(
-      resolveSystemAccessibilityOverrides(false, {
-        prefersContrast: true,
-        prefersReducedMotion: true,
-      }),
-      {},
-    );
-  });
-
-  it("açıkken sistem kazanıyor", () => {
-    assert.deepEqual(
-      resolveSystemAccessibilityOverrides(true, {
-        prefersContrast: false,
-        prefersReducedMotion: true,
-      }),
-      { reduceMotion: true, x2: false },
-    );
-  });
+it("reduce motion has one control and removed aliases are no longer mapped", () => {
+  assert.equal(resolveSettingStateKey("v7"), "reduceMotion");
+  for (const key of ["v5", "v6", "v8", "x1", "x5", "x6", "x7"]) {
+    assert.equal(resolveSettingStateKey(key), key);
+    assert.equal(key in APPEARANCE_SERVER_ROWS, false);
+  }
 });

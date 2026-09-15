@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
+import { Room } from "livekit-client";
 
 import {
   buildAudioCaptureOptions,
@@ -14,6 +15,7 @@ import {
 
 import {
   DEFAULT_AUDIO_DEVICE_ID,
+  DEFAULT_VOICE_AUDIO_PREFERENCES,
   DEFAULT_CAMERA_DEVICE_ID,
   DEFAULT_VOICE_CAMERA_PREFERENCES,
   type VoiceAudioPreferences,
@@ -26,6 +28,34 @@ type NavigatorGlobal = typeof globalThis & {
 
 const navigatorGlobal = globalThis as NavigatorGlobal;
 const originalNavigator = navigatorGlobal.navigator;
+
+it("replaces stale room defaults at the real LiveKit capture boundary", async () => {
+  const selected = { ...DEFAULT_VOICE_AUDIO_PREFERENCES, inputDeviceId: "disconnected-mic" };
+  const captured: MediaStreamConstraints[] = [];
+  const stopAtCapture = new Error("capture boundary reached");
+  setNavigator({
+    mediaDevices: {
+      getUserMedia: async (constraints: MediaStreamConstraints) => {
+        captured.push(constraints);
+        throw stopAtCapture;
+      },
+    } as unknown as MediaDevices,
+  });
+  const room = new Room({ audioCaptureDefaults: buildAudioCaptureOptions(selected) });
+  for (const inputDeviceId of ["disconnected-mic", DEFAULT_AUDIO_DEVICE_ID, "replacement-mic"]) {
+    await assert.rejects(
+      room.localParticipant.createTracks({
+        audio: buildAudioCaptureOptions({ ...selected, inputDeviceId }),
+        video: false,
+      }),
+      (error) => error === stopAtCapture,
+    );
+  }
+  assert.deepEqual(
+    captured.map((item) => (item.audio as MediaTrackConstraints).deviceId),
+    [{ exact: "disconnected-mic" }, { ideal: "default" }, { exact: "replacement-mic" }],
+  );
+});
 
 afterEach(() => {
   if (originalNavigator === undefined) {
@@ -100,6 +130,7 @@ describe("voice media capability helpers", () => {
     assert.deepEqual(buildAudioCaptureOptions(preferences), {
       autoGainControl: true,
       channelCount: { ideal: 1 },
+      deviceId: { ideal: "default" },
       echoCancellation: true,
       noiseSuppression: true,
       voiceIsolation: false,
@@ -159,6 +190,7 @@ describe("voice media capability helpers", () => {
     assert.deepEqual(buildAudioCaptureOptions(preferences, { enhancedNoiseFilterActive: true }), {
       autoGainControl: true,
       channelCount: { ideal: 1 },
+      deviceId: { ideal: "default" },
       echoCancellation: true,
       noiseSuppression: false,
       voiceIsolation: false,
@@ -224,4 +256,19 @@ describe("voice media capability helpers", () => {
       max: 30,
     });
   });
+});
+
+it("saved camera quality drives live capture resolution and frame rate", () => {
+  for (const quality of ["h720", "h1080"] as const) {
+    for (const frameRate of [15, 30] as const) {
+      const options = buildCameraCaptureOptions({
+        ...DEFAULT_VOICE_CAMERA_PREFERENCES,
+        quality,
+        frameRate,
+      });
+      assert.equal(options.resolution?.height, quality === "h720" ? 720 : 1080);
+      assert.deepEqual(options.frameRate, { ideal: frameRate, max: frameRate });
+      assert.equal(options.resolution?.frameRate, frameRate);
+    }
+  }
 });

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import React from "react";
+import { settingsQueryKeys } from "@/lib/settings/client";
+import { SETTINGS_TEST_LAYOUT } from "@/lib/settings/read-test-fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -11,6 +13,7 @@ import { AppearanceLayoutTab } from "@/components/settings/sections/appearance/l
 import { AppearanceMediaTab } from "@/components/settings/sections/appearance/media-tab";
 import { AppearanceTextTab } from "@/components/settings/sections/appearance/text-tab";
 import { AppearanceThemeTab } from "@/components/settings/sections/appearance/theme-tab";
+import { AppearanceLanguageTab } from "@/components/settings/sections/appearance/language-tab";
 import { AvAudioTab } from "@/components/settings/sections/av/audio-tab";
 import { AvCameraTab } from "@/components/settings/sections/av/camera-tab";
 import { AvScreenShareTab } from "@/components/settings/sections/av/screen-share-tab";
@@ -87,6 +90,7 @@ function renderNode(node: React.ReactNode) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
   });
+  queryClient.setQueryData(settingsQueryKeys.layout, SETTINGS_TEST_LAYOUT);
 
   return renderToStaticMarkup(
     <QueryClientProvider client={queryClient}>
@@ -117,8 +121,8 @@ describe("renderSettingsSection — defter", () => {
       });
     }
 
-    assert.equal(SETTINGS_TREE.length, 6);
-    assert.equal(checked, 27);
+    assert.equal(SETTINGS_TREE.length, 7);
+    assert.equal(checked, 28);
   });
 
   it("çizilebilen beş bölüm gerçekten içerik basıyor, yer tutucu değil", () => {
@@ -149,6 +153,7 @@ describe("renderSettingsSection — defter", () => {
       "screen-share": AvScreenShareTab,
       text: AppearanceTextTab,
       theme: AppearanceThemeTab,
+      language: AppearanceLanguageTab,
     };
 
     for (const sectionKey of ["av", "appearance"] as const) {
@@ -176,15 +181,21 @@ describe("renderSettingsSection — defter", () => {
     }
   });
 
-  it("runtime consumer'ı olmayan Ses ve Video tercihleri kullanılamaz", () => {
+  it("Ses ve Video kontrolleri gerçek consumer ve cihaz yeteneğine göre açılır", () => {
     const audio = renderNode(<AvAudioTab />);
     const camera = renderNode(<AvCameraTab />);
     const screenShare = renderNode(<AvScreenShareTab />);
 
-    assertControlDisabled(audio, "setting-toggle-i4");
-    assertControlDisabled(audio, "setting-slider-u3");
+    assertControlDisabled(audio, "setting-toggle-i4"); // SSR has no microphone API.
+    for (const [markup, id] of [
+      [audio, "setting-slider-u3"],
+      [screenShare, "setting-toggle-e4"],
+      [screenShare, "setting-toggle-e5"],
+    ] as const) {
+      const tag = markup.match(new RegExp(`<[^>]*data-testid="${id}"[^>]*>`, "u"))?.[0];
+      assert.ok(tag, id);
+      assert.doesNotMatch(tag, /(?:aria-disabled="true"|disabled="")/u, `${id} must be usable`);
+    }
     assertControlDisabled(camera, "setting-toggle-k3");
-    assertControlDisabled(screenShare, "setting-toggle-e4");
-    assertControlDisabled(screenShare, "setting-toggle-e5");
   });
 });

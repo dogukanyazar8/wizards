@@ -92,7 +92,6 @@ export async function getSettingsBootstrapPayload(
   },
   dependencies: SettingsBootstrapStaticDependencies = defaultStaticDependencies,
 ): Promise<SettingsBootstrapPayload> {
-  const { contributors, packageVersion } = await getStaticBuildInfo(dependencies);
   /**
    * Ş10 — `h2` (Masaüstü › Güncelleme › Release kanalı) satırının ilk değeri.
    *
@@ -100,7 +99,11 @@ export async function getSettingsBootstrapPayload(
    * üç sayfanın ortak yükü ve dört şerit aynı anda çalışıyor. Kolon boşsa `null` döner —
    * "tercih edilmemiş" ile "Kararlı" aynı şey değil.
    */
-  const releasePreference = await dependencies.readPreferredReleaseChannel(user.id);
+  // Independent reads must not add serial DB latency to the first settings navigation.
+  const [{ contributors, packageVersion }, releasePreference] = await Promise.all([
+    getStaticBuildInfo(dependencies),
+    dependencies.readPreferredReleaseChannel(user.id),
+  ]);
   const versionPayload = getWhisprVersionPayload();
   const formatterLocale = locale ?? "en";
   const lastUpdated = new Intl.DateTimeFormat(formatterLocale, {

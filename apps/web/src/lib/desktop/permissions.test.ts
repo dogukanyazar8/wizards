@@ -1,14 +1,15 @@
 import assert from "node:assert/strict";
+import { nativeSettingsClient } from "./settings-client";
 import { describe, it } from "node:test";
 
 import {
   DESKTOP_PERMISSION_KEYS,
   DESKTOP_PERMISSION_TONE_TOKENS,
   UNKNOWN_DESKTOP_PERMISSIONS,
-  isPrimaryDesktopPermissionAction,
   readDesktopPermissions,
+  readDesktopPermission,
+  resolvePermissionControl,
   requestDesktopPermission,
-  resolveDesktopPermissionActions,
   toDesktopPermissionTone,
   toNotifPermission,
 } from "./permissions";
@@ -42,50 +43,6 @@ describe("izin satırları", () => {
     assert.equal(toNotifPermission(undefined), "unknown");
     assert.equal(toNotifPermission("default"), "unknown");
     assert.equal(toNotifPermission("denied"), "denied");
-  });
-});
-
-describe("duruma göre düğmeler (SPEC §5.5 tablosu)", () => {
-  it("mikrofon ve kamera durumları izin veya sistem ayarlarına gider", () => {
-    assert.deepEqual(resolveDesktopPermissionActions("microphone", "granted"), ["openSystem"]);
-    assert.deepEqual(resolveDesktopPermissionActions("camera", "denied"), [
-      "openSystem",
-      "recheck",
-    ]);
-    assert.deepEqual(resolveDesktopPermissionActions("camera", "unknown"), ["request", "recheck"]);
-    assert.equal(isPrimaryDesktopPermissionAction("granted", 0), false);
-    assert.equal(isPrimaryDesktopPermissionAction("denied", 0), true);
-    assert.equal(isPrimaryDesktopPermissionAction("denied", 1), false);
-    assert.equal(isPrimaryDesktopPermissionAction("unknown", 0), true);
-  });
-
-  it("bildirim satırı gerçek test bildirimi ve sistem ayarları sunar", () => {
-    assert.deepEqual(resolveDesktopPermissionActions("notifications", "granted"), [
-      "testNotification",
-      "openSystem",
-    ]);
-    assert.deepEqual(resolveDesktopPermissionActions("notifications", "unknown"), [
-      "testNotification",
-      "openSystem",
-      "recheck",
-    ]);
-  });
-
-  it("ekran paylaşımı kalıcı izin iddiası yerine gerçek seçiciyi test eder", () => {
-    assert.deepEqual(resolveDesktopPermissionActions("screenShare", "prompt"), [
-      "testScreenShare",
-      "recheck",
-    ]);
-  });
-
-  it("global kısayol satırı izin istemek yerine gerçek yöneticiyi açar", () => {
-    assert.deepEqual(resolveDesktopPermissionActions("globalShortcuts", "unknown"), [
-      "manageShortcuts",
-      "recheck",
-    ]);
-    assert.deepEqual(resolveDesktopPermissionActions("globalShortcuts", "granted"), [
-      "manageShortcuts",
-    ]);
   });
 });
 
@@ -141,4 +98,185 @@ describe("köprüsüz çalışma zamanı", () => {
     assert.equal(permissions.notifications, "unknown");
     assert.equal(permissions.globalShortcuts, "unknown");
   });
+});
+
+it("desktop notifications use guarded native submission and never ask the browser", async () => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const notification = nativeSettingsClient.notification;
+  let nativeCalls = 0;
+  let browserCalls = 0;
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      __WHISPR_DESKTOP__: { shell: "desktop" },
+      Notification: {
+        requestPermission: () => {
+          browserCalls++;
+          return Promise.resolve("granted");
+        },
+      },
+    },
+  });
+  nativeSettingsClient.notification = async () => {
+    nativeCalls++;
+    return { message: "submitted" };
+  };
+  try {
+    assert.equal(await requestDesktopPermission("notifications"), "unknown");
+    assert.equal(nativeCalls, 1);
+    assert.equal(browserCalls, 0);
+    nativeSettingsClient.notification = async () => {
+      throw new Error("native unavailable");
+    };
+    await assert.rejects(requestDesktopPermission("notifications"), /native unavailable/);
+    assert.equal(browserCalls, 0, "native failure must not fall back to browser permission");
+  } finally {
+    nativeSettingsClient.notification = notification;
+    if (previous) Object.defineProperty(globalThis, "window", previous);
+    else Reflect.deleteProperty(globalThis, "window");
+  }
+});
+
+it("web notification permission uses the actual browser answer", async () => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "window");
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      Notification: { requestPermission: async () => "denied" },
+    },
+  });
+  try {
+    assert.equal(await requestDesktopPermission("notifications"), "denied");
+  } finally {
+    if (previous) Object.defineProperty(globalThis, "window", previous);
+    else Reflect.deleteProperty(globalThis, "window");
+  }
+});
+
+it("camera and microphone permission tests stop every captured track", async () => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  const constraints: MediaStreamConstraints[] = [];
+  let stopped = 0;
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: {
+      mediaDevices: {
+        getUserMedia: async (value: MediaStreamConstraints) => {
+          constraints.push(value);
+          return { getTracks: () => [{ stop: () => stopped++ }, { stop: () => stopped++ }] };
+        },
+      },
+    },
+  });
+  try {
+    assert.equal(await requestDesktopPermission("camera"), "granted");
+    assert.equal(await requestDesktopPermission("microphone"), "granted");
+    assert.deepEqual(constraints, [{ video: true }, { audio: true }]);
+    assert.equal(stopped, 4);
+  } finally {
+    if (previous) Object.defineProperty(globalThis, "navigator", previous);
+    else Reflect.deleteProperty(globalThis, "navigator");
+  }
+});
+
+it("native notification state never reads the WebView permission", async () => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const read = nativeSettingsClient.notificationPermission;
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      __WHISPR_DESKTOP__: { shell: "desktop" },
+      get Notification() {
+        throw new Error("WebView permission is not native permission");
+      },
+    },
+  });
+  try {
+    for (const permission of ["granted", "denied", "unknown"] as const) {
+      nativeSettingsClient.notificationPermission = async () => permission;
+      assert.equal(await readDesktopPermission("notifications"), permission);
+    }
+    nativeSettingsClient.notificationPermission = async () => {
+      throw new Error("unavailable");
+    };
+    assert.equal(await readDesktopPermission("notifications"), "unknown");
+  } finally {
+    nativeSettingsClient.notificationPermission = read;
+    if (previous) Object.defineProperty(globalThis, "window", previous);
+    else Reflect.deleteProperty(globalThis, "window");
+  }
+});
+
+it("confirmed permissions are completed; ephemeral screen capture always asks for a source", () => {
+  for (const desktop of [true, false]) {
+    for (const key of ["camera", "microphone", "notifications", "globalShortcuts"] as const) {
+      assert.deepEqual(resolvePermissionControl(key, "granted", desktop), {
+        action: "done",
+        labelKey: "settings.permission.granted",
+      });
+    }
+    assert.equal(resolvePermissionControl("screenShare", "granted", desktop).action, "request");
+    assert.equal(resolvePermissionControl("camera", "prompt", desktop).action, "request");
+    assert.equal(
+      resolvePermissionControl("camera", "denied", desktop).action,
+      desktop ? "system" : "recheck",
+    );
+  }
+  assert.equal(resolvePermissionControl("notifications", "unknown", true).action, "recheck");
+  assert.equal(resolvePermissionControl("notifications", "denied", true).action, "system");
+});
+
+it("initial native notification activation reads the actual result after submission", async () => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const originalRead = nativeSettingsClient.notificationPermission;
+  const originalSend = nativeSettingsClient.notification;
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: { __WHISPR_DESKTOP__: { shell: "desktop" } },
+  });
+  const order: string[] = [];
+  nativeSettingsClient.notification = async () => {
+    order.push("send");
+    return { message: "submitted" };
+  };
+  nativeSettingsClient.notificationPermission = async () => {
+    order.push("read");
+    return "granted";
+  };
+  try {
+    assert.equal(resolvePermissionControl("notifications", "prompt", true).action, "request");
+    assert.equal(await requestDesktopPermission("notifications"), "granted");
+    assert.deepEqual(order, ["send", "read"]);
+  } finally {
+    nativeSettingsClient.notification = originalSend;
+    nativeSettingsClient.notificationPermission = originalRead;
+    if (previous) Object.defineProperty(globalThis, "window", previous);
+    else Reflect.deleteProperty(globalThis, "window");
+  }
+});
+
+it("native screen consent never invokes the browser chooser or claims permanent access", async () => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const original = nativeSettingsClient.screenCaptureTest;
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: { __WHISPR_DESKTOP__: { shell: "desktop" } },
+  });
+  let calls = 0;
+  nativeSettingsClient.screenCaptureTest = async () => {
+    calls++;
+    return true;
+  };
+  try {
+    assert.equal(await requestDesktopPermission("screenShare"), "prompt");
+    assert.equal(calls, 1);
+    nativeSettingsClient.screenCaptureTest = async () => {
+      throw new Error("native unavailable");
+    };
+    await assert.rejects(requestDesktopPermission("screenShare"), /native unavailable/);
+  } finally {
+    nativeSettingsClient.screenCaptureTest = original;
+    if (previous) Object.defineProperty(globalThis, "window", previous);
+    else Reflect.deleteProperty(globalThis, "window");
+  }
 });

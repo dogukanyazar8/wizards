@@ -1,9 +1,14 @@
 "use client";
 
+import { nativeSettingsClient } from "@/lib/desktop/settings-client";
+import { NativeDesktopSettingsProvider, useNativeDesktopSettings } from "./native-settings-context";
+import { useAppUpdate } from "@/hooks/use-app-update";
+
 import React, {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   useSyncExternalStore,
@@ -13,6 +18,9 @@ import { useShallow } from "zustand/react/shallow";
 import type { DesktopPermissions, DesktopShortcut } from "@wizards/types";
 
 import { useI18n } from "@/components/providers/locale-provider";
+import { readClientPlatform, useClientPlatform } from "@/hooks/use-client-platform";
+import { useDesktopControlLaunch } from "@/components/desktop/use-desktop-control-launch";
+import { desktopControlSectionForSettingsAction } from "@/components/desktop/desktop-control-launch";
 import {
   useReportSettingsStore,
   useSettingsLadderOverrides,
@@ -22,7 +30,6 @@ import {
   getDesktopAppInfo,
   getDesktopCompanionSurfacesStatus,
   getDesktopPlatformCapabilities,
-  openDesktopControl,
   type DesktopAppInfo,
   type DesktopCompanionSurfacesStatus,
 } from "@/lib/desktop/controls";
@@ -35,7 +42,6 @@ import {
   type DesktopPermissionKey,
 } from "@/lib/desktop/permissions";
 import type { DesktopReleaseChannel } from "@/lib/desktop/release-channel";
-import { isWhisprDesktopUpdaterEnabled } from "@/lib/desktop/runtime";
 import {
   DEFAULT_DESKTOP_SHORTCUT_ASSIGNMENTS,
   countDesktopShortcutConflicts,
@@ -43,7 +49,7 @@ import {
   readDesktopShortcutStatus,
 } from "@/lib/desktop/shortcuts";
 import type { SettingsBootstrapPayload } from "@/lib/settings/bootstrap-types";
-import { DESKTOP_UNAVAILABLE_ROWS } from "@/lib/settings/availability";
+import { DESKTOP_UNAVAILABLE_ROWS, UPDATES_UNAVAILABLE_ROWS } from "@/lib/settings/availability";
 import type { SettingsTab } from "@/lib/settings/navigation";
 import {
   SettingsRowRuntimeContext,
@@ -58,7 +64,6 @@ import {
   DESKTOP_APP_ROW_KEYS,
   DESKTOP_OVERLAY_ROW_KEYS,
   DESKTOP_ROW_DATA_FIELDS,
-  DESKTOP_SHORTCUT_ROW_KEYS,
   DESKTOP_UPDATE_ROW_KEYS,
   toDesktopSettingsValues,
   toOverlayAnchor,
@@ -132,18 +137,12 @@ export async function readDesktopRuntimeSnapshot(): Promise<DesktopRuntimeSnapsh
       DEFAULT_DESKTOP_SHORTCUT_ASSIGNMENTS,
       shortcutStatus?.entries ?? null,
       enabled,
-      platform,
+      platform ?? readClientPlatform(),
     ),
     shortcutsEnabled: enabled,
     surfaces,
   };
 }
-
-const UNREGISTERED_SHORTCUTS = mergeDesktopShortcutStatus(
-  DEFAULT_DESKTOP_SHORTCUT_ASSIGNMENTS,
-  null,
-  false,
-);
 
 function subscribeOnline(onChange: () => void): () => void {
   window.addEventListener("online", onChange);
@@ -177,8 +176,20 @@ const TAB_COMPONENTS: Readonly<Partial<Record<SettingsTab, () => React.JSX.Eleme
   updates: DesktopUpdatesTab,
 };
 
-export function DesktopSection({ bootstrap, tab }: DesktopSectionProps) {
+export function DesktopSection(props: DesktopSectionProps) {
+  return (
+    <NativeDesktopSettingsProvider>
+      <DesktopSectionContent {...props} />
+    </NativeDesktopSettingsProvider>
+  );
+}
+
+function DesktopSectionContent({ bootstrap, tab }: DesktopSectionProps) {
+  const native = useNativeDesktopSettings();
+  const nativeData = native?.data;
+  const update = useAppUpdate();
   const { t } = useI18n();
+  const clientPlatform = useClientPlatform();
   const queryClient = useQueryClient();
 
   const app = useAppStore(
@@ -205,7 +216,7 @@ export function DesktopSection({ bootstrap, tab }: DesktopSectionProps) {
       overlaySize: state.desktopGameOverlaySize,
       shortcutsEnabled: state.desktopGlobalShortcutsEnabled,
       voiceMiniEnabled: state.desktopVoiceMiniEnabled,
-      voiceMiniSpeakingOnly: state.desktopGameOverlaySpeakingOnly,
+      gameOverlaySpeakingOnly: state.desktopGameOverlaySpeakingOnly,
     })),
   );
   const setOverlayAnchor = useVoiceStore((state) => state.setDesktopGameOverlayAnchor);
@@ -228,11 +239,23 @@ export function DesktopSection({ bootstrap, tab }: DesktopSectionProps) {
     staleTime: DESKTOP_RUNTIME_STALE_MS,
   });
 
-  const [checking, setChecking] = useState(false);
+  const { launch, pending, feedback } = useDesktopControlLaunch();
 
   const snapshot = runtimeQuery.data ?? null;
   const permissions = snapshot?.permissions ?? UNKNOWN_DESKTOP_PERMISSIONS;
-  const shortcuts = snapshot?.shortcuts ?? UNREGISTERED_SHORTCUTS;
+  const shortcuts = useMemo(
+    () =>
+      (nativeData
+        ? mergeDesktopShortcutStatus(
+            DEFAULT_DESKTOP_SHORTCUT_ASSIGNMENTS,
+            nativeData.shortcuts.entries,
+            nativeData.shortcuts.enabled,
+            nativeData.platform.os,
+          )
+        : snapshot?.shortcuts) ??
+      mergeDesktopShortcutStatus(DEFAULT_DESKTOP_SHORTCUT_ASSIGNMENTS, null, false, clientPlatform),
+    [nativeData, snapshot?.shortcuts, clientPlatform],
+  );
 
   /** Tek satırın yeniden sorgu sonucu anlık görüntünün kendisine yazılır. */
   const patchSnapshot = useCallback(
@@ -246,15 +269,14 @@ export function DesktopSection({ bootstrap, tab }: DesktopSectionProps) {
 
   const updater = useMemo<DesktopUpdaterState>(
     () => ({
-      checking,
-      enabled: snapshot?.appInfo?.updaterEnabled ?? isWhisprDesktopUpdaterEnabled(),
-      lastCheckedAt: null,
-      // Güncelleyicinin "yeni sürüm var" cevabı bu pakette okunmuyor; pil ancak gerçek bir
-      // kontrol sonucuyla düşmeli.
-      // TODO(api): `desktop_control_check_for_updates` sonucu bağlandığında buradan gelir.
-      upToDate: true,
+      checking: update.query.isFetching,
+      enabled: update.enabled,
+      lastCheckedAt: update.query.data?.checkedAt
+        ? new Date(update.query.data.checkedAt).toLocaleString()
+        : null,
+      upToDate: update.query.data ? !update.query.data.available : null,
     }),
-    [checking, snapshot],
+    [update.enabled, update.query.data, update.query.isFetching],
   );
 
   const online = useSyncExternalStore(subscribeOnline, readOnline, readOnlineServerSnapshot);
@@ -289,17 +311,39 @@ export function DesktopSection({ bootstrap, tab }: DesktopSectionProps) {
    * neyse odur, seçim yalnız hangi akışın önerileceğini belirler.
    */
   const writeReleaseChannel = useCallback(async (channel: DesktopReleaseChannel) => {
-    await fetch("/api/v1/users/me/release-channel", {
+    const response = await fetch("/api/v1/users/me/release-channel", {
       body: JSON.stringify({ channel }),
       headers: { "content-type": "application/json" },
       method: "PATCH",
     });
+    if (!response.ok) throw new Error("Release channel could not be saved.");
   }, []);
 
-  // F1 — kutu aşağıda kuruluyor; raporu kurulduktan hemen sonra bağlanır.
+  const values = useMemo(
+    () =>
+      toDesktopSettingsValues({
+        gameOverlayAnchor: overlay.overlayAnchor,
+        gameOverlayEnabled: overlay.overlayEnabled,
+        gameOverlayProcessDetection: overlay.overlayProcessDetection,
+        gameOverlaySize: overlay.overlaySize,
+        preferredReleaseChannel: bootstrap?.preferredReleaseChannel ?? null,
+        richPresence: app.richPresence,
+        richPresenceAudience: app.richPresenceAudience,
+        shortcutsEnabled: overlay.shortcutsEnabled,
+        streamerMode: app.streamerMode,
+        streamerModeDetection: app.streamerModeDetection,
+        updaterAutoCheck: updater.enabled,
+        voiceMiniEnabled: overlay.voiceMiniEnabled,
+        gameOverlaySpeakingOnly: overlay.gameOverlaySpeakingOnly,
+      }),
+    [app, bootstrap, overlay, updater.enabled],
+  );
+
+  // Seed from the device snapshot, never display tree defaults before saved values.
   const [store] = useState(
     () =>
       new SettingsValueStore({
+        values,
         write: async (patch) => {
           for (const [key, value] of Object.entries(patch)) {
             switch (key) {
@@ -330,7 +374,7 @@ export function DesktopSection({ bootstrap, tab }: DesktopSectionProps) {
               case DESKTOP_OVERLAY_ROW_KEYS.voiceMiniEnabled:
                 setVoiceMiniEnabled(value === true);
                 break;
-              case DESKTOP_OVERLAY_ROW_KEYS.voiceMiniSpeakingOnly:
+              case DESKTOP_OVERLAY_ROW_KEYS.gameOverlaySpeakingOnly:
                 setOverlaySpeakingOnly(value === true);
                 break;
               case DESKTOP_UPDATE_ROW_KEYS.channel:
@@ -351,33 +395,9 @@ export function DesktopSection({ bootstrap, tab }: DesktopSectionProps) {
   useEffect(() => () => store.dispose(), [store]);
   useEffect(() => () => store.flush(), [store]);
 
-  // Kutu her zaman köprünün üstüne yazılır: ağacın varsayılanı ekranın ilk boyası, köprü
-  // kullanıcının gerçek tercihi.
-  useEffect(() => {
-    store.applyRemote(
-      toDesktopSettingsValues({
-        gameOverlayAnchor: overlay.overlayAnchor,
-        gameOverlayEnabled: overlay.overlayEnabled,
-        gameOverlayProcessDetection: overlay.overlayProcessDetection,
-        gameOverlaySize: overlay.overlaySize,
-        preferredReleaseChannel: bootstrap?.preferredReleaseChannel ?? null,
-        richPresence: app.richPresence,
-        richPresenceAudience: app.richPresenceAudience,
-        shortcutsEnabled: overlay.shortcutsEnabled,
-        streamerMode: app.streamerMode,
-        streamerModeDetection: app.streamerModeDetection,
-        updaterAutoCheck: updater.enabled,
-        voiceMiniEnabled: overlay.voiceMiniEnabled,
-        voiceMiniSpeakingOnly: overlay.voiceMiniSpeakingOnly,
-      }),
-    );
-  }, [app, bootstrap, overlay, store, updater.enabled]);
-
-  /** `Kontrol et` / `Yenile` / kurtarma — hepsi aynı anlık görüntüyü yeniden sorar. */
-  const refreshRuntime = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: DESKTOP_RUNTIME_QUERY_KEY }),
-    [queryClient],
-  );
+  useLayoutEffect(() => {
+    store.applyRemote(values);
+  }, [values, store]);
 
   const readPermissions = useCallback(
     () =>
@@ -399,11 +419,19 @@ export function DesktopSection({ bootstrap, tab }: DesktopSectionProps) {
 
   const onRequestPermission = useCallback(
     async (key: DesktopPermissionKey) => {
-      const next = await requestDesktopPermission(key);
-
-      patchSnapshot({ permissions: { ...readPermissions(), [key]: next } });
+      if (!native) return;
+      await native.run(async () => {
+        if (key === "notifications") {
+          await nativeSettingsClient.notification();
+          patchSnapshot({ permissions: { ...readPermissions(), notifications: "unknown" } });
+          return t("settings.native.notification.sent");
+        }
+        const next = await requestDesktopPermission(key);
+        patchSnapshot({ permissions: { ...readPermissions(), [key]: next } });
+        return t("settings.native.permission.checked");
+      });
     },
-    [patchSnapshot, readPermissions],
+    [native, patchSnapshot, readPermissions, t],
   );
 
   const onOpenSystemSettings = useCallback((key: DesktopPermissionKey) => {
@@ -417,10 +445,10 @@ export function DesktopSection({ bootstrap, tab }: DesktopSectionProps) {
       appInfo: snapshot?.appInfo ?? null,
       buildInfo: bootstrap?.buildInfo ?? null,
       conflictCount,
-      desktopRuntime: true,
+      desktopRuntime: update.desktop,
       featuredContributor: bootstrap?.buildInfo?.featuredContributor ?? null,
       loading: runtimeQuery.isPending,
-      onOpenShortcutsManager: () => void openDesktopControl("shortcuts"),
+      onOpenShortcutsManager: () => launch("shortcuts"),
       onOpenSystemSettings,
       onRecheckPermission: (key) => void onRecheckPermission(key),
       onRequestPermission: (key) => void onRequestPermission(key),
@@ -429,7 +457,7 @@ export function DesktopSection({ bootstrap, tab }: DesktopSectionProps) {
       permissions,
       platform: snapshot?.platform ?? null,
       shortcuts,
-      shortcutsEnabled: snapshot?.shortcutsEnabled ?? false,
+      shortcutsEnabled: nativeData?.shortcuts.enabled ?? snapshot?.shortcutsEnabled ?? false,
       socketConnected,
       surfaces: snapshot?.surfaces ?? null,
       updater,
@@ -437,7 +465,10 @@ export function DesktopSection({ bootstrap, tab }: DesktopSectionProps) {
     }),
     [
       bootstrap,
+      nativeData?.shortcuts.enabled,
+      update.desktop,
       conflictCount,
+      launch,
       onOpenSystemSettings,
       onRecheckPermission,
       onRequestPermission,
@@ -478,29 +509,10 @@ export function DesktopSection({ bootstrap, tab }: DesktopSectionProps) {
 
   const onAction = useCallback(
     (rowKey: string, actionIndex: number) => {
-      if ((rowKey === "w1" || rowKey === "w2") && actionIndex === 0) {
-        void openDesktopControl("app");
-        return;
-      }
-
-      if (rowKey === DESKTOP_SHORTCUT_ROW_KEYS.assignments) {
-        if (actionIndex === 0) void openDesktopControl("shortcuts");
-        return;
-      }
-
-      if (rowKey === DESKTOP_UPDATE_ROW_KEYS.version) {
-        setChecking(true);
-        void refreshRuntime().finally(() => setChecking(false));
-
-        return;
-      }
-
-      if (rowKey === "z8" || rowKey === DESKTOP_UPDATE_ROW_KEYS.recovery) {
-        // Yüzey testi ve kurtarma aynı okumayı tazeler; ikisi de sonucu ızgarada gösterir.
-        void refreshRuntime();
-      }
+      const section = desktopControlSectionForSettingsAction(rowKey, actionIndex);
+      if (section && (section !== "updates" || updater.enabled)) launch(section);
     },
-    [refreshRuntime],
+    [launch, updater.enabled],
   );
 
   const ladder = useSettingsLadderOverrides();
@@ -508,7 +520,16 @@ export function DesktopSection({ bootstrap, tab }: DesktopSectionProps) {
   const runtime = useSettingsRowRuntimeState({
     ...ladder,
     data: runtimeData,
-    disabledRows: { ...DESKTOP_UNAVAILABLE_ROWS, ...ladder.disabledRows },
+    disabledRows: {
+      ...DESKTOP_UNAVAILABLE_ROWS,
+      ...UPDATES_UNAVAILABLE_ROWS,
+      ...ladder.disabledRows,
+      h1: pending || !updater.enabled || Boolean(ladder.disabledRows?.h1),
+      n4: pending || Boolean(ladder.disabledRows?.n4),
+      w1: pending || Boolean(ladder.disabledRows?.w1),
+      w2: pending || Boolean(ladder.disabledRows?.w2),
+      w8: pending || Boolean(ladder.disabledRows?.w8),
+    },
     onAction,
   });
 
@@ -518,6 +539,7 @@ export function DesktopSection({ bootstrap, tab }: DesktopSectionProps) {
     <SettingsValueContext.Provider value={store}>
       <SettingsRowRuntimeContext.Provider value={runtime}>
         <DesktopSettingsContext.Provider value={sectionValue}>
+          {feedback}
           {TabComponent ? <TabComponent /> : null}
         </DesktopSettingsContext.Provider>
       </SettingsRowRuntimeContext.Provider>

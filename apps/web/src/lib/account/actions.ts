@@ -268,6 +268,12 @@ export async function updateAccountSettingsAction(
   try {
     updatedUser = await updateAccountProfile(session.user.id, parsed.data);
   } catch (error) {
+    if (error instanceof ApiError && error.code === "EMAIL_CHANGE_REQUIRED") {
+      return {
+        success: false,
+        fieldErrors: { email: "settings.contact.error.EMAIL_CHANGE_REQUIRED" },
+      };
+    }
     if (error instanceof ApiError && error.code === "EMAIL_TAKEN") {
       return {
         fieldErrors: { email: "settings.account.errors.emailTaken" },

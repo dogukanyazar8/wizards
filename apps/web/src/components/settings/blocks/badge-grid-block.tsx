@@ -1,13 +1,7 @@
 "use client";
 
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import React, { createContext, useContext, useMemo, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Star, type LucideIcon } from "lucide-react";
 import {
   BADGE_CATALOG,
@@ -21,7 +15,7 @@ import {
 
 import { useI18n } from "@/components/providers/locale-provider";
 import type { SettingsBlockProps } from "@/components/settings/rows/setting-custom-block";
-import { fetchOwnBadges } from "@/lib/badges/client";
+import { fetchOwnBadges, badgeQueryKeys, BADGE_QUERY_STALE_TIME_MS } from "@/lib/badges/client";
 import { MESSAGES_METRICS } from "@/lib/messages/metrics";
 import { SETTINGS_METRICS, hairline, pxToRem } from "@/lib/settings/metrics";
 
@@ -62,25 +56,13 @@ export function useOwnBadges(): OwnBadgesValue {
 }
 
 export function useOwnBadgesState(): OwnBadgesValue {
-  const [data, setData] = useState<OwnBadgesResponse | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-
-    fetchOwnBadges()
-      .then((next) => {
-        if (active) setData(next);
-      })
-      .catch(() => {
-        if (active) setFailed(true);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
+  const query = useQuery({
+    queryKey: badgeQueryKeys.own(),
+    queryFn: fetchOwnBadges,
+    staleTime: BADGE_QUERY_STALE_TIME_MS,
+  });
+  const data = query.data ?? null;
+  const failed = query.isError && data === null;
   return useMemo(() => ({ data, failed }), [data, failed]);
 }
 

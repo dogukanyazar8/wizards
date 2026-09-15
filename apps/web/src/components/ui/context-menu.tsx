@@ -1,7 +1,7 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
-import React, { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, type MotionStyle } from "framer-motion";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
@@ -70,6 +70,34 @@ export function ContextMenu({
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
+
+  // Measure the actual menu: translations, text scaling and permissions change its size.
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    if (!open || placement !== "viewport" || !menu) return;
+    if (isMobileViewport) {
+      menu.style.removeProperty("left");
+      menu.style.removeProperty("top");
+      return;
+    }
+
+    const positionMenu = () => {
+      const topInset =
+        parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue("--app-viewport-top"),
+        ) || 0;
+      menu.style.left = `${Math.max(12, Math.min(position.x, window.innerWidth - menu.offsetWidth - 12))}px`;
+      menu.style.top = `${Math.max(topInset + 12, Math.min(position.y, window.innerHeight - menu.offsetHeight - 12))}px`;
+    };
+    positionMenu();
+    const observer = new ResizeObserver(positionMenu);
+    observer.observe(menu);
+    window.addEventListener("resize", positionMenu);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", positionMenu);
+    };
+  }, [open, placement, position.x, position.y, isMobileViewport]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 767px)");
@@ -202,11 +230,14 @@ export function ContextMenu({
           <motion.div
             animate={{ opacity: 1, scale: 1, y: 0 }}
             className={cn(
-              "app-overlay fixed z-[90] p-1.5 shadow-[0_20px_46px_hsl(var(--shadow-color)/0.16)] backdrop-blur-xl",
+              "app-overlay fixed z-[90] max-h-[calc(100dvh-var(--app-viewport-top,0px)-24px)] max-w-[calc(100vw-24px)] overflow-y-auto overscroll-contain p-1.5 shadow-[0_20px_46px_hsl(var(--shadow-color)/0.16)] backdrop-blur-xl",
               isMobileViewport
                 ? "inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] rounded-[26px]"
                 : "min-w-52 rounded-2xl",
+              className,
             )}
+            aria-label={label}
+            data-testid={testId}
             exit={
               isMobileViewport
                 ? { opacity: 0, scale: 1, y: 18 }
@@ -222,14 +253,7 @@ export function ContextMenu({
             onKeyDown={handleMenuKeyDown}
             ref={menuRef}
             role="menu"
-            {...(isMobileViewport
-              ? {}
-              : {
-                  style: {
-                    left: Math.max(12, Math.min(position.x, window.innerWidth - 292)),
-                    top: Math.max(12, Math.min(position.y, window.innerHeight - 360)),
-                  },
-                })}
+            style={style as MotionStyle}
             transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
           >
             {children}

@@ -101,6 +101,7 @@ describe("security client — sessions", () => {
 
     assert.equal(mapped.current, true);
     assert.equal(mapped.platform, "web");
+    assert.equal(mapped.deviceType, "DESKTOP");
     assert.equal(mapped.device, "Chrome 140 · Windows 11");
     assert.equal(mapped.location, "TR");
     assert.equal(mapped.lastActive, "2026-08-24T09:00:00.000Z");
@@ -111,10 +112,18 @@ describe("security client — sessions", () => {
       authSession({ browser: null, current: false, os: null, clientType: "DESKTOP" }),
     );
 
-    assert.equal(mapped.device, "DESKTOP");
+    assert.equal(mapped.device, "Whispr Desktop");
     assert.equal(mapped.os, "DESKTOP");
     assert.equal(mapped.current, false);
     assert.equal(mapped.platform, "desktop");
+  });
+
+  it("preserves device classification independently of the application client", () => {
+    for (const deviceType of ["MOBILE", "TABLET", "DESKTOP", "UNKNOWN"] as const) {
+      const mapped = toAccountSession(authSession({ clientType: "WEB", deviceType }));
+      assert.equal(mapped.platform, "web");
+      assert.equal(mapped.deviceType, deviceType);
+    }
   });
 
   it("maps the whole list and reports the revoked count", async () => {
@@ -217,4 +226,12 @@ describe("security client — connections (K5)", () => {
     assert.equal(STATIC_CONNECTIONS[0]?.connected, false);
     assert.equal((await fetchConnections())[0]?.connected, false);
   });
+});
+
+it("desktop sessions never display their embedded engine as the application", () => {
+  const mapped = toAccountSession(
+    authSession({ clientType: "DESKTOP", browser: "Edge", appVersion: "0.8.15" }),
+  );
+  assert.equal(mapped.browser, "Whispr Desktop");
+  assert.equal(mapped.device, "Whispr Desktop · 0.8.15 · Windows 11");
 });

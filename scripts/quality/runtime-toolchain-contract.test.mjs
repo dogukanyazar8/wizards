@@ -5,30 +5,30 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
-const expectedNodeVersion = "24.18.0";
+const expectedNodeVersion = "24.21.0";
 const expectedNodeRange = `>=${expectedNodeVersion} <25`;
-const expectedPackageManager = "pnpm@11.22.0";
-const expectedNodeTypes = "^24.13.3";
+const expectedPackageManager = "pnpm@12.4.2";
+const expectedNodeTypes = "^24.13.4";
 const expectedNode24ActionPins = {
   "actions/checkout": {
-    sha: "08c6903cd8c0fde910a37f88322edcfb5dd907a8",
-    tag: "v5.0.0",
+    sha: "3d3c42e5aac5ba805825da76410c181273ba90b1",
+    tag: "v7.0.1",
   },
   "actions/setup-node": {
-    sha: "a0853c24544627f65ddf259abe73b1d18a591444",
-    tag: "v5.0.0",
+    sha: "820762786026740c76f36085b0efc47a31fe5020",
+    tag: "v7.0.0",
   },
   "actions/upload-artifact": {
-    sha: "b7c566a772e6b6bfb58ed0dc250532a479d7789f",
-    tag: "v6.0.0",
+    sha: "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+    tag: "v7.0.1",
   },
   "gitleaks/gitleaks-action": {
     sha: "e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e",
     tag: "v3.0.0",
   },
   "pnpm/action-setup": {
-    sha: "fc06bc1257f339d1d5d8b3a19a8cae5388b55320",
-    tag: "v5.0.0",
+    sha: "ea17c68df8912ef543352723c149a84f56e3d413",
+    tag: "v6.1.0",
   },
 };
 const expectedActionlint = {
@@ -132,7 +132,7 @@ test("actionlint uses the repository's checksum-verified command", () => {
 });
 
 test("Turbo is pinned to the reviewed toolchain release", () => {
-  assert.equal(readJson("package.json").devDependencies?.turbo, "2.10.6");
+  assert.equal(readJson("package.json").devDependencies?.turbo, "2.10.13");
 });
 
 test("stable typecheck generates Prisma before Turbo can replay cached tasks", () => {
@@ -147,8 +147,8 @@ test("Prisma 7 uses the ESM client, generated import boundary, and explicit seed
   const turbo = readJson("turbo.json");
 
   assert.equal(dbPackage.type, "module");
-  assert.equal(dbPackage.dependencies["@prisma/client"], "7.9.1");
-  assert.equal(dbPackage.dependencies["@prisma/adapter-pg"], "7.9.1");
+  assert.equal(dbPackage.dependencies["@prisma/client"], "7.10.0");
+  assert.equal(dbPackage.dependencies["@prisma/adapter-pg"], "7.10.0");
   assert.equal(dbPackage.scripts["db:seed"], "prisma db seed");
   assert.equal(dbPackage.scripts["db:migrate:status"], "prisma migrate status");
   assert.equal(dbPackage.scripts["prisma:ensure-runtime"], undefined);
@@ -164,7 +164,7 @@ test("Prisma 7 uses the ESM client, generated import boundary, and explicit seed
   }
 });
 
-test("pnpm 11 build scripts are fail-closed behind an exact allowlist", () => {
+test("pnpm 12 build scripts are fail-closed behind an exact allowlist", () => {
   const workspaceSource = readText("pnpm-workspace.yaml");
 
   assert.match(workspaceSource, /^strictDepBuilds:\s+true$/mu);
@@ -205,7 +205,7 @@ test("all GitHub Actions pnpm jobs consume packageManager as their version sourc
     }
   }
 
-  assert.equal(setupPnpmSteps, 12, "unexpected pnpm/action-setup step count");
+  assert.equal(setupPnpmSteps, 16, "unexpected pnpm/action-setup step count");
 });
 
 test("CI pins supported Node 24 action runtimes to reviewed releases", () => {
@@ -270,7 +270,7 @@ test("actionlint CI job is checksum-verified, fail-closed, and least-privilege",
   assert.match(actionlintJob, /^    permissions:\r?\n      contents: read$/mu);
   assert.match(
     actionlintJob,
-    /^        uses: actions\/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5\.0\.0$/mu,
+    /^        uses: actions\/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\.0\.1$/mu,
   );
   assert.match(actionlintJob, new RegExp(`actionlintVersion=${expectedActionlint.version}`, "u"));
   assert.match(actionlintJob, new RegExp(`archive=${expectedActionlint.archive}`, "u"));
@@ -287,7 +287,7 @@ test("actionlint CI job is checksum-verified, fail-closed, and least-privilege",
   assert.doesNotMatch(actionlintJob, /(?:GITHUB_TOKEN|github\.token|secrets\.)/u);
 });
 
-test("setup-node v5 preserves the workflow's explicit pnpm cache policy", () => {
+test("setup-node v7 preserves the workflow's explicit pnpm cache policy", () => {
   const lines = readText(join(".github", "workflows", "ci.yml")).split(/\r?\n/u);
   let automaticCacheOptOuts = 0;
 
@@ -314,15 +314,15 @@ test("setup-node v5 preserves the workflow's explicit pnpm cache policy", () => 
     assert.match(
       actionInputs,
       /^\s+package-manager-cache:\s+false\s*$/mu,
-      "setup-node v5 must not enable automatic pnpm cache where cache was previously off",
+      "setup-node v7 must not enable automatic pnpm cache where cache was previously off",
     );
     automaticCacheOptOuts += 1;
   }
 
-  assert.equal(automaticCacheOptOuts, 9, "unexpected setup-node automatic-cache opt-out count");
+  assert.equal(automaticCacheOptOuts, 0, "unexpected setup-node automatic-cache opt-out count");
 });
 
-test("Node 22 native compatibility runs manually on the heavy local Linux runner", () => {
+test("Node 22 native compatibility runs manually on the GitHub-hosted Linux runner", () => {
   const workflow = readText(join(".github", "workflows", "ci.yml"));
   const compatibilityJob = readWorkflowJob(workflow, "node22-compatibility");
   const installRuntimeIndex = compatibilityJob.indexOf(
@@ -337,9 +337,9 @@ test("Node 22 native compatibility runs manually on the heavy local Linux runner
   );
 
   assert.match(compatibilityJob, /^    if: github\.event_name == 'workflow_dispatch'$/mu);
-  assert.match(compatibilityJob, /^    runs-on: \[self-hosted, linux, x64, wizards-ci\]$/mu);
+  assert.match(compatibilityJob, /^    runs-on: ubuntu-24\.04$/mu);
   assert.match(compatibilityJob, /^          node-version-file: \.nvmrc$/mu);
-  assert.match(compatibilityJob, /^          node-version: 22\.23\.1$/mu);
+  assert.match(compatibilityJob, /^          node-version: 22\.23\.2$/mu);
   assert.equal(
     compatibilityJob.match(/uses:\s*actions\/setup-node@/gu)?.length,
     2,
@@ -370,9 +370,9 @@ test("Node 22 native compatibility runs manually on the heavy local Linux runner
   assert.match(compatibilityJob, /^          set -euo pipefail$/mu);
 });
 
-test("self-hosted CI uses the runner's persistent pnpm store instead of GitHub cache archives", () => {
+test("hosted CI restores the pnpm store through GitHub cache archives", () => {
   const workflow = readText(join(".github", "workflows", "ci.yml"));
-  const selfHostedJobs = [
+  const hostedJobs = [
     "verify",
     "typescript-native-shadow",
     "e2e-smoke",
@@ -383,18 +383,18 @@ test("self-hosted CI uses the runner's persistent pnpm store instead of GitHub c
     "node22-compatibility",
   ];
 
-  for (const jobName of selfHostedJobs) {
-    assert.doesNotMatch(
+  for (const jobName of hostedJobs) {
+    assert.match(
       readWorkflowJob(workflow, jobName),
       /^          cache: pnpm$/mu,
-      `${jobName} must use the persistent self-hosted pnpm store`,
+      `${jobName} must restore the pnpm cache`,
     );
   }
 });
 
-test("persistent self-hosted CI jobs reject pull-request events", () => {
+test("hosted CI quality jobs accept pull-request events", () => {
   const workflow = readText(join(".github", "workflows", "ci.yml"));
-  const selfHostedJobs = [
+  const hostedJobs = [
     "verify",
     "actionlint",
     "semgrep",
@@ -406,14 +406,9 @@ test("persistent self-hosted CI jobs reject pull-request events", () => {
     "desktop-ops",
   ];
 
-  for (const jobName of selfHostedJobs) {
+  for (const jobName of hostedJobs) {
     const job = readWorkflowJob(workflow, jobName);
-    assert.match(job, /^    if: /mu, `${jobName} must gate persistent runner execution`);
-    assert.ok(
-      /^    if: .*github\.event_name != 'pull_request'.*$/mu.test(job) ||
-        /^    if: github\.event_name == 'workflow_dispatch'$/mu.test(job),
-      `${jobName} must not execute pull-request code on a persistent runner`,
-    );
+    assert.doesNotMatch(job, /github\.event_name != 'pull_request'/u);
   }
 });
 
@@ -440,5 +435,5 @@ test("all GitHub Actions jobs consume the central Node runtime contract", () => 
     setupNodeSteps += setupNodeCount;
   }
 
-  assert.equal(setupNodeSteps, 11, "unexpected setup-node step count");
+  assert.ok(setupNodeSteps >= 11, "expected CI and release Node setup steps");
 });

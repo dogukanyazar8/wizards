@@ -27,6 +27,13 @@ describe("mobile API client", () => {
     assert.deepEqual(result, { ok: true });
     assert.equal(requests[0]?.url, "https://whispr.team/api/v1/mobile/bootstrap");
     assert.equal(requests[0]?.headers.get("authorization"), "Bearer access-token-1234567890");
+    assert.ok(
+      requests[0]?.headers
+        .get("x-whispr-capabilities")
+        ?.split(",")
+        .map((value) => value.trim())
+        .includes("profile-details-v2"),
+    );
   });
 
   it("creates an authenticated native download descriptor without fetching into JS memory", async () => {
@@ -41,7 +48,7 @@ describe("mobile API client", () => {
     assert.equal(headers.get("accept"), "application/json");
     assert.equal(headers.get("authorization"), "Bearer access-token-1234567890");
     assert.equal(headers.get("x-whispr-client"), "mobile");
-    assert.equal(headers.get("x-whispr-client-version"), "0.8.15");
+    assert.equal(headers.get("x-whispr-client-version"), "0.9.0");
   });
 
   it("rejects absolute, protocol-relative, and traversal paths", async () => {

@@ -38,6 +38,11 @@ function renderNav(sections: typeof SETTINGS_TREE = WEB_SECTIONS, query = "") {
 }
 
 describe("SettingsNav", () => {
+  it("arama ayrı bir formdur ve kimlik bilgisi otomatik doldurmasını istemez", () => {
+    const html = renderNav().toLowerCase();
+    assert.match(html, /<form[^>]*autocomplete="off"[^>]*role="search"/u);
+    assert.match(html, /<input[^>]*autocomplete="off"[^>]*data-testid="settings-search-input"/u);
+  });
   // Etiket sözlükte cümle düzeninde durur; büyütme `text-transform` ile CSS'te yapılır, metin
   // iki kez yazılmaz.
   it("draws the three group labels in order", () => {

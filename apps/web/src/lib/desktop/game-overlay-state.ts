@@ -1,5 +1,19 @@
 "use client";
 
+import type { VoiceMiniSnapshot } from "@wizards/types";
+import { DEFAULT_DESKTOP_GAME_OVERLAY_PREFERENCES } from "./voice-mini";
+export { subscribeGameOverlaySnapshots } from "./voice-mini-snapshots";
+
+export function getVisibleGameOverlayParticipants(snapshot: VoiceMiniSnapshot | null) {
+  if (!snapshot?.active) return [];
+  const overlay = snapshot.overlay ?? DEFAULT_DESKTOP_GAME_OVERLAY_PREFERENCES;
+  const limit = overlay.size === "large" ? 8 : overlay.size === "compact" ? 3 : 6;
+  const participants = overlay.speakingOnly
+    ? snapshot.participants.filter((participant) => participant.isSpeaking)
+    : snapshot.participants;
+  return participants.slice(0, limit);
+}
+
 export type DesktopGameOverlayState = "failed" | "hidden" | "preparing" | "repairing" | "visible";
 
 export type DesktopGameOverlayEvent =

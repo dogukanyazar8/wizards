@@ -49,17 +49,6 @@ describe("mobile release contract", () => {
     const result = validateMobileReleaseContract({
       appVersionSource: "local",
       easBuildProfiles: {
-        canary: {
-          autoIncrement: true,
-          channel: "canary",
-          distribution: "internal",
-          env: {
-            EXPO_PUBLIC_WHISPR_API_URL: "https://whispr.team",
-            EXPO_PUBLIC_WHISPR_SOCKET_URL: "https://whispr.team",
-            EXPO_PUBLIC_WHISPR_WEB_URL: "https://whispr.team",
-            WHISPR_MOBILE_ENV: "canary",
-          },
-        },
         development: {
           channel: "development",
           developmentClient: true,
@@ -107,9 +96,19 @@ describe("mobile release contract", () => {
     );
     assert.equal(
       result.blockers.some((blocker) =>
-        blocker.includes("uat, canary, and production profiles must auto-increment"),
+        blocker.includes("uat and production profiles must auto-increment"),
       ),
       true,
     );
   });
+});
+
+it("rejects extra EAS publishing profiles", () => {
+  const result = validateMobileReleaseContract({
+    appVersionSource: "remote",
+    easBuildProfiles: { canary: { channel: "canary" } },
+    packageVersion: "0.9.0",
+    rootVersion: "0.9.0",
+  });
+  assert.ok(result.blockers.includes("Unsupported EAS release profile: canary."));
 });

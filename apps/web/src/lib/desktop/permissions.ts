@@ -7,7 +7,7 @@ import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 /**
  * Beş izin satırının okuma katmanı — Ayarlar paketi Dalga 3 / Ş10, SPEC §5.5 İzinler.
  *
- * Mikrofon ve kamera WebView izin kaydından; bildirim Tauri bildirim eklentisinden; ekran
+ * Mikrofon ve kamera WebView izin kaydından; bildirim yerel işletim sistemi sorgusundan; ekran
  * paylaşımı platform yeteneğinden; global kısayol gerçek kayıt sonucundan gelir.
  *
  * **`unknown` bir eşanlamlı değildir.** `prompt` "kullanıcı henüz sorulmadı", `unknown`
@@ -107,11 +107,8 @@ function readNotificationPermission(): NotifPermission {
 
 async function readNativeNotificationPermission(): Promise<NotifPermission> {
   try {
-    const { isPermissionGranted } = await import("@tauri-apps/plugin-notification");
-
-    // Tauri'nin masaüstü uygulaması Windows'un bildirim teslim/Focus Assist durumunu okumaz;
-    // eklenti API kullanılabilirliğini `granted` sayar. Bunu OS izni diye göstermeyiz.
-    return (await isPermissionGranted()) ? "unknown" : "denied";
+    const { nativeSettingsClient } = await import("@/lib/desktop/settings-client");
+    return toNotifPermission(await nativeSettingsClient.notificationPermission());
   } catch {
     return "unknown";
   }
@@ -212,24 +209,10 @@ export async function requestDesktopPermission(
 ): Promise<NotifPermission> {
   if (key === "notifications") {
     if (isWhisprDesktopRuntime()) {
-      try {
-        const { isPermissionGranted, sendNotification } =
-          await import("@tauri-apps/plugin-notification");
-
-        if (!(await isPermissionGranted())) {
-          return "denied";
-        }
-
-        await Promise.resolve(
-          sendNotification({
-            body: "Whispr desktop notifications are working.",
-            title: "Whispr",
-          }),
-        );
-        return "unknown";
-      } catch {
-        return "unknown";
-      }
+      const { nativeSettingsClient } = await import("@/lib/desktop/settings-client");
+      await nativeSettingsClient.notification();
+      // Read the OS again; submission alone is not proof of permission.
+      return readNativeNotificationPermission();
     }
 
     if (typeof window === "undefined" || !("Notification" in window)) {
@@ -265,6 +248,11 @@ export async function requestDesktopPermission(
   }
 
   if (key === "screenShare") {
+    if (isWhisprDesktopRuntime()) {
+      const { nativeSettingsClient } = await import("@/lib/desktop/settings-client");
+      await nativeSettingsClient.screenCaptureTest();
+      return "prompt"; // A selection never grants permanent capture access.
+    }
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getDisplayMedia) {
       return "unknown";
     }
@@ -315,45 +303,42 @@ export async function openDesktopSystemSettings(key: DesktopPermissionKey): Prom
   }
 }
 
-/** SPEC §5.5 — hangi durumda hangi düğmeler çizilir. */
-export type DesktopPermissionActionKind =
-  "manageShortcuts" | "openSystem" | "recheck" | "request" | "testNotification" | "testScreenShare";
-
-export function resolveDesktopPermissionActions(
+/** A single direct action. Ephemeral capture access must never appear permanently granted. */
+export function resolvePermissionControl(
   key: DesktopPermissionKey,
   permission: NotifPermission,
-): readonly DesktopPermissionActionKind[] {
-  const tone = toDesktopPermissionTone(permission);
-
-  if (key === "notifications") {
-    return tone === "granted"
-      ? ["testNotification", "openSystem"]
-      : ["testNotification", "openSystem", "recheck"];
-  }
-
-  if (key === "screenShare") {
-    return ["testScreenShare", "recheck"];
-  }
-
-  if (key === "globalShortcuts") {
-    return tone === "granted" ? ["manageShortcuts"] : ["manageShortcuts", "recheck"];
-  }
-
-  if (tone === "granted") {
-    return ["openSystem"];
-  }
-
-  if (tone === "blocked") {
-    return ["openSystem", "recheck"];
-  }
-
-  return ["request", "recheck"];
-}
-
-/** Birinci düğme `primary`; `İzin verildi` satırında tek düğme nötr kalır. */
-export function isPrimaryDesktopPermissionAction(
-  permission: NotifPermission,
-  index: number,
-): boolean {
-  return index === 0 && toDesktopPermissionTone(permission) !== "granted";
+  desktop: boolean,
+): {
+  action: "done" | "request" | "system" | "recheck";
+  labelKey: string;
+} {
+  if (permission === "granted" && key !== "screenShare")
+    return { action: "done", labelKey: "settings.permission.granted" };
+  if (key === "globalShortcuts")
+    return {
+      action: desktop ? "system" : "recheck",
+      labelKey: desktop
+        ? "settings.block.perms.action.manageShortcuts"
+        : "settings.block.perms.action.recheck",
+    };
+  if (key === "screenShare" && desktop)
+    return { action: "request", labelKey: "settings.permission.chooseScreen" };
+  if (permission === "denied")
+    return {
+      action: desktop ? "system" : "recheck",
+      labelKey: desktop
+        ? "settings.block.perms.action.openSystem"
+        : "settings.block.perms.action.recheck",
+    };
+  if (key === "notifications" && desktop)
+    return permission === "prompt"
+      ? { action: "request", labelKey: "settings.permission.enableNotifications" }
+      : { action: "recheck", labelKey: "settings.block.perms.action.recheck" };
+  return {
+    action: "request",
+    labelKey:
+      key === "screenShare"
+        ? "settings.permission.chooseScreen"
+        : "settings.block.perms.action.request",
+  };
 }

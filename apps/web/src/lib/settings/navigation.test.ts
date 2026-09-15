@@ -15,13 +15,20 @@ import {
 } from "./navigation";
 
 describe("adres kurucu (K2)", () => {
+  it("resolves legacy badge notification paths to the badges tab", () => {
+    for (const tab of [undefined, null]) {
+      const route = resolveSettingsRoute("badges", tab);
+      assert.deepEqual(route, { section: "account", tab: "badges" });
+      assert.equal(buildSettingsHref(route.section, route.tab), "/settings/account/badges");
+    }
+  });
   it("bölüm ve sekmeyi yol segmenti olarak yazar", () => {
     assert.equal(buildSettingsHref("account", "profile"), "/settings/account/profile");
     assert.equal(
       buildSettingsHref("notifications", "quiet-hours"),
       "/settings/notifications/quiet-hours",
     );
-    assert.equal(buildSettingsHref("desktop", "updates"), "/settings/desktop/updates");
+    assert.equal(buildSettingsHref("desktop", "updates"), "/settings/updates/updates");
   });
 
   it("sekme verilmezse bölümün ilk sekmesine düşer", () => {
@@ -39,6 +46,15 @@ describe("adres kurucu (K2)", () => {
 });
 
 describe("rota çözücü", () => {
+  it("eski masaüstü güncelleme rotasını yeni kategoriye taşır", () => {
+    assert.deepEqual(resolveSettingsRoute("desktop", "updates"), {
+      section: "updates",
+      tab: "updates",
+    });
+    assert.equal(buildSettingsHref("updates"), "/settings/updates/updates");
+    assert.deepEqual(SETTINGS_SECTIONS.slice(-2), ["updates", "about"]);
+    assert.equal(SETTINGS_TABS_BY_SECTION.desktop.includes("updates"), false);
+  });
   it("27 sekmenin hepsini kendi bölümünde çözer", () => {
     let resolved = 0;
 
@@ -49,7 +65,7 @@ describe("rota çözücü", () => {
       }
     }
 
-    assert.equal(resolved, 27);
+    assert.equal(resolved, 28);
   });
 
   it("geçersiz bölüm varsayılana düşer", () => {
@@ -77,7 +93,7 @@ describe("eski sorgu göçü", () => {
     audio: "/settings/av/audio",
     camera: "/settings/av/camera",
     screenShare: "/settings/av/screen-share",
-    language: "/settings/account/privacy",
+    language: "/settings/appearance/language",
     theme: "/settings/appearance/theme",
     messageFont: "/settings/appearance/text",
     advanced: "/settings/appearance/layout",
@@ -86,11 +102,11 @@ describe("eski sorgu göçü", () => {
     sounds: "/settings/notifications/sounds",
     desktopBehavior: "/settings/desktop/app",
     desktopVoice: "/settings/desktop/shortcuts",
-    desktopDiagnostics: "/settings/desktop/updates",
+    desktopDiagnostics: "/settings/updates/updates",
     overview: "/settings/about/about",
-    build: "/settings/about/about",
-    whatsNew: "/settings/about/about",
-    desktop: "/settings/desktop/updates",
+    build: "/settings/updates/updates",
+    whatsNew: "/settings/updates/updates",
+    desktop: "/settings/updates/updates",
     developer: "/settings/about/about",
   };
 
@@ -111,7 +127,7 @@ describe("eski sorgu göçü", () => {
     // çeviri onu sessizce Hakkında'ya yollardı.
     assert.equal(
       migrateLegacySettingsQuery(new URLSearchParams({ panel: "desktop", section: "about" })),
-      "/settings/desktop/updates",
+      "/settings/updates/updates",
     );
   });
 

@@ -1,15 +1,9 @@
 "use client";
 
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
-import { Monitor, Smartphone, X } from "lucide-react";
+import React, { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { Monitor, MonitorSmartphone, Smartphone, Tablet, X } from "lucide-react";
+import { useAccountSecurityRefresh } from "@/hooks/use-account-security-refresh";
 import type { AccountSession } from "@wizards/types";
 
 import { useI18n } from "@/components/providers/locale-provider";
@@ -19,6 +13,7 @@ import {
   fetchAccountSessions,
   revokeAccountSession,
   revokeOtherAccountSessions,
+  securityQueryKeys,
 } from "@/lib/settings/security-client";
 
 /**
@@ -36,12 +31,19 @@ import {
 
 const { sessions: sessionMetrics } = SETTINGS_METRICS.blocks;
 
+const SESSION_DEVICE_ICONS = {
+  DESKTOP: Monitor,
+  MOBILE: Smartphone,
+  TABLET: Tablet,
+  UNKNOWN: MonitorSmartphone,
+} as const;
+
 export type AccountSessionsValue = {
   readonly failed: boolean;
   readonly pending: boolean;
   readonly refresh: () => void;
   readonly revoke: (sessionId: string) => void;
-  readonly revokeOthers: () => void;
+  readonly revokeOthers: () => void | Promise<void>;
   readonly sessions: readonly AccountSession[] | null;
 };
 
@@ -60,74 +62,60 @@ export function useAccountSessions(): AccountSessionsValue {
   return useContext(AccountSessionsContext);
 }
 
-export function useAccountSessionsState(): AccountSessionsValue {
-  const [sessions, setSessions] = useState<readonly AccountSession[] | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [pending, setPending] = useState(false);
-  /**
-   * Yeniden okuma bir **sayaçla** tetiklenir.
-   *
-   * Efektin gövdesinde `setState` çağırmak (yükleniyor bayrağını kaldırmak için) React'in
-   * "efekt içinde senkron setState" kuralını çiğniyor ve zincirleme render üretiyor; sayaç
-   * efektin dışında, kullanıcının dokunuşuyla artıyor ve durum yalnız **yanıt geldiğinde**
-   * değişiyor.
-   */
-  const [reloadToken, setReloadToken] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-
-    fetchAccountSessions()
-      .then((next) => {
-        if (!active) return;
-
-        setSessions(next);
-        setFailed(false);
-        setPending(false);
-      })
-      .catch(() => {
-        if (!active) return;
-
-        setFailed(true);
-        setPending(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [reloadToken]);
-
-  const reload = useCallback(() => {
-    setPending(true);
-    setReloadToken((token) => token + 1);
-  }, []);
+export function useAccountSessionsState(live = true): AccountSessionsValue {
+  useAccountSecurityRefresh(live);
+  const client = useQueryClient();
+  const query = useQuery({
+    queryKey: securityQueryKeys.sessions,
+    queryFn: ({ signal }) => fetchAccountSessions(fetch, signal),
+    staleTime: 30_000,
+    refetchInterval: live ? 30_000 : false,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: "always",
+  });
+  const refresh = useCallback(
+    () => client.invalidateQueries({ queryKey: securityQueryKeys.sessions }),
+    [client],
+  );
+  const mutation = useMutation({
+    mutationFn: async (sessionId: string | null) => {
+      if (sessionId === null) await revokeOtherAccountSessions();
+      else await revokeAccountSession(sessionId);
+    },
+    onSuccess: async (_result, sessionId) => {
+      await client.cancelQueries({ queryKey: securityQueryKeys.sessions });
+      client.setQueryData<readonly AccountSession[]>(securityQueryKeys.sessions, (previous) =>
+        previous?.filter((session) =>
+          sessionId === null ? session.current : session.id !== sessionId,
+        ),
+      );
+      await Promise.all([
+        refresh(),
+        client.invalidateQueries({ queryKey: securityQueryKeys.events }),
+      ]);
+    },
+  });
+  const sessions = query.data ?? null;
+  const failed = query.isError || mutation.isError;
+  const pending = query.isPending || mutation.isPending;
+  const mutateAsync = mutation.mutateAsync;
 
   return useMemo(
     () => ({
       failed,
       pending,
-      refresh: reload,
+      refresh: () => {
+        void refresh();
+      },
       revoke: (sessionId: string) => {
-        setPending(true);
-        void revokeAccountSession(sessionId)
-          .then(reload)
-          .catch(() => {
-            setFailed(true);
-            setPending(false);
-          });
+        void mutateAsync(sessionId).catch(() => {
+          /* Mutation error is rendered with the list. */
+        });
       },
-      revokeOthers: () => {
-        setPending(true);
-        void revokeOtherAccountSessions()
-          .then(reload)
-          .catch(() => {
-            setFailed(true);
-            setPending(false);
-          });
-      },
+      revokeOthers: () => mutateAsync(null),
       sessions,
     }),
-    [failed, pending, reload, sessions],
+    [failed, pending, refresh, sessions, mutateAsync],
   );
 }
 
@@ -147,7 +135,7 @@ export function ActiveSessionsBlock({ row: rowDef }: SettingsBlockProps) {
   const { locale, t } = useI18n();
   const { failed, pending, revoke, sessions } = useAccountSessions();
 
-  if (failed) {
+  if (failed && sessions === null) {
     return (
       <p
         data-block="sessions"
@@ -200,8 +188,14 @@ export function ActiveSessionsBlock({ row: rowDef }: SettingsBlockProps) {
 
   return (
     <ul data-block="sessions" data-testid={`settings-block-${rowDef.key}`}>
+      {failed ? (
+        <li role="alert" className="px-4 py-2 text-xs text-app-muted">
+          {t("settings.block.sessions.error")}
+        </li>
+      ) : null}
       {sessions.map((session, index) => {
-        const PlatformIcon = session.platform === "mobile" ? Smartphone : Monitor;
+        // The icon describes this session's device, independent of the viewer or client type.
+        const PlatformIcon = SESSION_DEVICE_ICONS[session.deviceType ?? "UNKNOWN"];
         const detail = [
           session.os,
           session.location,

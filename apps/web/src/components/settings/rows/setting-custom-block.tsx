@@ -1,10 +1,11 @@
 "use client";
 
 import React, { type ComponentType, useRef } from "react";
+import { useI18n } from "@/components/providers/locale-provider";
+import { SettingsRow } from "./settings-row";
 
 import { AboutCardBlock } from "@/components/settings/blocks/about-card-block";
 import { ActiveSessionsBlock } from "@/components/settings/blocks/active-sessions-block";
-import { AppIconGridBlock } from "@/components/settings/blocks/app-icon-grid-block";
 import { BadgeGridBlock } from "@/components/settings/blocks/badge-grid-block";
 import { CameraPreviewBlock } from "@/components/settings/blocks/camera-preview-block";
 import { ContributorsBlock } from "@/components/settings/blocks/contributors-block";
@@ -14,6 +15,7 @@ import { MessagePreviewBlock } from "@/components/settings/blocks/message-previe
 import { ConnectionsBlock } from "@/components/settings/blocks/connections-block";
 import { MicLevelMeterBlock } from "@/components/settings/blocks/mic-level-meter-block";
 import { ProfileHeroCard } from "@/components/settings/blocks/profile-hero-card";
+import { ProfileEmojiBlock } from "@/components/settings/blocks/profile-emoji-block";
 import { SecurityEventsBlock } from "@/components/settings/blocks/security-events-block";
 import { PermissionsBlock } from "@/components/settings/blocks/permissions-block";
 import { ShortcutsBlock } from "@/components/settings/blocks/shortcuts-block";
@@ -60,7 +62,11 @@ export type SettingsBlockProps = {
  * `mic` (96 px etiket + 14 segmentli ölçer) ve `camera` (220 px önizleme) ise tek bir kontrol
  * gibi davranır ve satırın sağ ekseninde durur.
  */
-export const SETTINGS_INLINE_BLOCKS: readonly SettingsBlockKey[] = ["camera", "mic"];
+export const SETTINGS_INLINE_BLOCKS: readonly SettingsBlockKey[] = [
+  "camera",
+  "mic",
+  "profileEmoji",
+];
 
 export function isFullWidthSettingsBlock(key: SettingsBlockKey): boolean {
   return !SETTINGS_INLINE_BLOCKS.includes(key);
@@ -78,7 +84,6 @@ export const SETTINGS_BLOCKS: Readonly<
   Record<SettingsBlockKey, ComponentType<SettingsBlockProps>>
 > = {
   about: AboutCardBlock,
-  appIcons: AppIconGridBlock,
   badges: BadgeGridBlock,
   camera: CameraPreviewBlock,
   connections: ConnectionsBlock,
@@ -86,6 +91,7 @@ export const SETTINGS_BLOCKS: Readonly<
   diag: DiagnosticsBlock,
   exceptions: ExceptionsBlock,
   hero: ProfileHeroCard,
+  profileEmoji: () => <ProfileEmojiBlock />,
   mic: MicLevelMeterBlock,
   msgPreview: MessagePreviewBlock,
   notifSummary: NotifSummaryBlock,
@@ -114,6 +120,7 @@ export function SettingCustomBlock({
   divider = false,
   row: rowDef,
 }: SettingCustomBlockProps) {
+  const { t } = useI18n();
   const rowRef = useRef<HTMLDivElement>(null);
   const highlighted = useSettingsSearchHighlight(rowDef.key, rowRef);
   const key = rowDef.block;
@@ -124,6 +131,18 @@ export function SettingCustomBlock({
 
   const Block = SETTINGS_BLOCKS[key];
   const fullWidth = isFullWidthSettingsBlock(key);
+
+  if (key === "profileEmoji") {
+    return (
+      <SettingsRow
+        divider={divider}
+        rowKey={rowDef.key}
+        title={rowDef.titleKey ? t(rowDef.titleKey) : undefined}
+        description={rowDef.descriptionKey ? t(rowDef.descriptionKey) : undefined}
+        control={(ids) => <ProfileEmojiBlock {...ids} />}
+      />
+    );
+  }
 
   return (
     <div

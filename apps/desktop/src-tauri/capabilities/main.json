@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main",
-  "description": "Whispr's remote primary window receives read-oriented desktop integration permissions; privileged local mutations live in Desktop Control.",
+  "description": "Whispr primary window: app-specific settings commands are guarded by exact window and configured origin; raw system APIs and media consent resolution remain unavailable.",
   "windows": ["main"],
   "remote": {
     "urls": [
@@ -20,6 +20,7 @@
     "allow-get-desktop-app-info",
     "allow-get-desktop-companion-surfaces-status",
     "allow-get-desktop-foreground-process-name",
+    "allow-get-desktop-detected-game",
     "allow-get-desktop-main-window-focused",
     "allow-get-desktop-platform-capabilities",
     "allow-get-desktop-voice-shortcut-status",
@@ -34,8 +35,6 @@
     "allow-set-desktop-game-overlay-visible",
     "allow-set-desktop-voice-mini-visible",
     "allow-show-desktop-control",
-    "notification:allow-is-permission-granted",
-    "notification:allow-notify",
     "core:window:allow-close",
     "core:window:allow-center",
     "core:event:allow-listen",
@@ -49,6 +48,18 @@
     "core:window:allow-show",
     "core:window:allow-start-dragging",
     "core:window:allow-toggle-maximize",
-    "window-state:default"
+    "window-state:default",
+    "allow-configure-desktop-voice-shortcuts",
+    "allow-export-desktop-diagnostics-bundle",
+    "allow-get-desktop-control-state",
+    "allow-desktop-control-set-app-settings",
+    "allow-desktop-control-check-for-updates",
+    "allow-desktop-control-install-update",
+    "allow-desktop-control-request-notification-permission",
+    "allow-desktop-control-recover",
+    "allow-get-desktop-notification-permission",
+    "allow-test-desktop-screen-capture",
+    "allow-read-desktop-clipboard-text",
+    "allow-send-desktop-notification"
   ]
 }

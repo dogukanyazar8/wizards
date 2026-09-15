@@ -35,29 +35,31 @@ permissions:
 jobs:
   verify:
     name: Verify
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, linux, x64, wizards-ci]
-    timeout-minutes: 20
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma Client
         run: pnpm db:generate
+
+      - name: Test toolchain and workflow contracts
+        run: pnpm test:toolchain
 
       - name: Check E2E password guard
         run: node scripts/quality/e2e-password-guard.mjs
@@ -66,7 +68,7 @@ jobs:
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Avoid root-owned or stale host /tmp files on self-hosted runners.
+          # Keep scanner temporary files inside the job directory.
           TMPDIR: ${{ runner.temp }}
 
       - name: Dependency audit
@@ -113,15 +115,14 @@ jobs:
 
   actionlint:
     name: actionlint
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, linux, x64, ci-fast]
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download checksum-verified actionlint
         shell: bash
@@ -152,19 +153,18 @@ jobs:
 
   semgrep:
     name: Semgrep CE SAST
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, linux, x64, wizards-ci]
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
     env:
-      # Semgrep CE 1.164.0, non-root multi-platform image. Digest upgrades require
+      # Semgrep CE 1.177.0, non-root multi-platform image. Digest upgrades require
       # repository rule tests plus a full scan; tag documents the reviewed CLI release.
-      SEMGREP_IMAGE: semgrep/semgrep:1.164.0-nonroot@sha256:936bf4db37f44ac1948c8cb0ade539d990f2b9e17481bd76970067e0d6dfc403
+      SEMGREP_IMAGE: semgrep/semgrep:1.177.0-nonroot@sha256:012c8fe81c14da2d7691b90fcd826ce07f460a3301442b16c460575c87d3efb6
 
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Test repository Semgrep rules
         shell: bash
@@ -211,22 +211,21 @@ jobs:
 
   typescript-native-shadow:
     name: TypeScript Compiler Compatibility
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, linux, x64, ci-fast]
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
 
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -244,7 +243,7 @@ jobs:
 
       - name: Upload TypeScript compiler reports
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: typescript-compiler-${{ github.run_id }}
           path: artifacts/typescript/*.json
@@ -256,35 +255,45 @@ jobs:
     # Keep this explicit: it validates the previous supported Node runtime without
     # running on scheduled CI or untrusted pull-request code.
     if: github.event_name == 'workflow_dispatch'
-    runs-on: [self-hosted, linux, x64, wizards-ci]
-    timeout-minutes: 35
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: Setup Node.js 24 dependency installation runtime
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: pnpm
+
+      - name: Install Tauri Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
-          toolchain: stable
+          toolchain: 1.98.1
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: apps/desktop/src-tauri
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Setup Node.js 22 compatibility runtime
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22.23.1
-          package-manager-cache: false
+          node-version: 22.23.2
+          cache: pnpm
       - name: Verify Node.js native dependencies
         shell: bash
         run: |
@@ -304,14 +313,13 @@ jobs:
 
   e2e-smoke:
     name: Playwright E2E
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, linux, x64, wizards-ci]
+    runs-on: ubuntu-24.04
     needs: verify
-    timeout-minutes: 35
+    timeout-minutes: 60
 
     services:
       postgres:
-        image: postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+        image: postgres:18.6-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
         env:
           POSTGRES_DB: whispr_e2e
           POSTGRES_PASSWORD: wizards
@@ -324,7 +332,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       redis:
-        image: redis:8.8.0-alpine@sha256:9d317178eceac8454a2284a9e6df2466b93c745529947f0cd42a0fa9609d7005
+        image: redis:8.10.1-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
         ports:
           - 6379:6379
         options: >-
@@ -354,16 +362,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: pnpm
       - name: Generate E2E test password
         shell: bash
         run: |
@@ -404,7 +412,7 @@ jobs:
 
       - name: Upload Playwright report
         if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           if-no-files-found: ignore
           name: playwright-report
@@ -415,14 +423,13 @@ jobs:
 
   e2e-cross-browser:
     name: Playwright Firefox/WebKit Smoke
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, linux, x64, wizards-ci]
+    runs-on: ubuntu-24.04
     needs: verify
-    timeout-minutes: 35
+    timeout-minutes: 60
 
     services:
       postgres:
-        image: postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+        image: postgres:18.6-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
         env:
           POSTGRES_DB: whispr_e2e
           POSTGRES_PASSWORD: wizards
@@ -435,7 +442,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       redis:
-        image: redis:8.8.0-alpine@sha256:9d317178eceac8454a2284a9e6df2466b93c745529947f0cd42a0fa9609d7005
+        image: redis:8.10.1-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
         ports:
           - 6379:6379
         options: >-
@@ -465,16 +472,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: pnpm
       - name: Generate E2E test password
         shell: bash
         run: |
@@ -502,7 +509,7 @@ jobs:
 
       - name: Upload cross-browser Playwright report
         if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           if-no-files-found: ignore
           name: playwright-cross-browser-report
@@ -513,14 +520,13 @@ jobs:
 
   e2e-a11y:
     name: Playwright Accessibility Scan
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, linux, x64, wizards-ci]
+    runs-on: ubuntu-24.04
     needs: verify
-    timeout-minutes: 35
+    timeout-minutes: 60
 
     services:
       postgres:
-        image: postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+        image: postgres:18.6-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
         env:
           POSTGRES_DB: whispr_e2e
           POSTGRES_PASSWORD: wizards
@@ -533,7 +539,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       redis:
-        image: redis:8.8.0-alpine@sha256:9d317178eceac8454a2284a9e6df2466b93c745529947f0cd42a0fa9609d7005
+        image: redis:8.10.1-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
         ports:
           - 6379:6379
         options: >-
@@ -563,16 +569,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: pnpm
       - name: Generate E2E test password
         shell: bash
         run: |
@@ -600,7 +606,7 @@ jobs:
 
       - name: Upload accessibility Playwright report
         if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           if-no-files-found: ignore
           name: playwright-a11y-report
@@ -611,14 +617,13 @@ jobs:
 
   e2e-visual:
     name: Playwright Visual Regression
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, linux, x64, wizards-ci]
+    runs-on: ubuntu-24.04
     needs: verify
-    timeout-minutes: 35
+    timeout-minutes: 60
 
     services:
       postgres:
-        image: postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+        image: postgres:18.6-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
         env:
           POSTGRES_DB: whispr_e2e
           POSTGRES_PASSWORD: wizards
@@ -631,7 +636,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       redis:
-        image: redis:8.8.0-alpine@sha256:9d317178eceac8454a2284a9e6df2466b93c745529947f0cd42a0fa9609d7005
+        image: redis:8.10.1-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
         ports:
           - 6379:6379
         options: >-
@@ -661,16 +666,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: pnpm
       - name: Generate E2E test password
         shell: bash
         run: |
@@ -698,7 +703,7 @@ jobs:
 
       - name: Upload visual regression report
         if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           if-no-files-found: ignore
           name: playwright-visual-report
@@ -709,10 +714,9 @@ jobs:
 
   desktop-ops:
     name: Desktop Ops (Linux)
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, linux, x64, ci-fast]
+    runs-on: ubuntu-24.04
     needs: verify
-    timeout-minutes: 20
+    timeout-minutes: 60
 
     env:
       TAURI_WEB_URL: https://whispr.team
@@ -722,29 +726,39 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: pnpm
+
+      - name: Install Tauri Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
-          toolchain: stable
+          toolchain: 1.98.1
           components: rustfmt, clippy
 
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: apps/desktop/src-tauri
+
       - name: Audit Rust dependencies
-        # This job runs on the local Linux runner; keep the command POSIX-compatible.
+        # Keep the Linux audit command POSIX-compatible.
         shell: bash
         working-directory: apps/desktop/src-tauri
         env:
-          CARGO_AUDIT_VERSION: 0.22.1
+          CARGO_AUDIT_VERSION: 0.22.2
         run: |
           expected_version="cargo-audit $CARGO_AUDIT_VERSION"
           current_version=""
@@ -763,10 +777,6 @@ jobs:
       - name: Check Rust formatting
         working-directory: apps/desktop/src-tauri
         run: cargo fmt -- --check
-
-      - name: Lint Rust
-        working-directory: apps/desktop/src-tauri
-        run: cargo clippy --locked --all-targets -- -D warnings
 
       - name: Test Rust
         working-directory: apps/desktop/src-tauri

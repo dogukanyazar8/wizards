@@ -32,6 +32,7 @@ export type MobileProfileEditDraft = {
   readonly displayName: string;
   /** The picked duration, not an instant: "4 hours" means 4h from the save, not from load. */
   readonly statusExpiry: MobileStatusExpiryChoice;
+  readonly initialStatusExpiry?: MobileStatusExpiryChoice;
   readonly username: string;
 };
 
@@ -49,6 +50,7 @@ export function createMobileProfileEditDraft(
     customStatusEmoji: baseline.customStatusEmoji,
     displayName: baseline.displayName ?? "",
     statusExpiry: inferMobileStatusExpiryChoice(baseline.customStatusExpiresAt, now),
+    initialStatusExpiry: inferMobileStatusExpiryChoice(baseline.customStatusExpiresAt, now),
     username: baseline.username,
   };
 }
@@ -102,7 +104,9 @@ export function buildMobileProfileEditPatch(input: {
   const statusTextChanged = customStatus !== (baseline.customStatus ?? "");
   const statusEmojiChanged = draft.customStatusEmoji !== baseline.customStatusEmoji;
   const statusExpiryChanged =
-    draft.statusExpiry !== inferMobileStatusExpiryChoice(baseline.customStatusExpiresAt, now);
+    draft.statusExpiry !==
+    (draft.initialStatusExpiry ??
+      inferMobileStatusExpiryChoice(baseline.customStatusExpiresAt, now));
 
   if (statusTextChanged) {
     patch.customStatus = customStatus || null;
@@ -113,7 +117,7 @@ export function buildMobileProfileEditPatch(input: {
     patch.customStatusEmoji = customStatus ? draft.customStatusEmoji : null;
   }
 
-  if (statusExpiryChanged || statusTextChanged) {
+  if (statusExpiryChanged || (statusTextChanged && (!customStatus || !baseline.customStatus))) {
     patch.customStatusExpiresAt = customStatus
       ? resolveMobileStatusExpiresAt(draft.statusExpiry, now)
       : null;

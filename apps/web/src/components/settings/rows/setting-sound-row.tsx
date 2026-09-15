@@ -87,7 +87,7 @@ export function SettingSoundRow({
   return (
     <div
       aria-disabled={disabled || undefined}
-      className="flex items-center"
+      className="flex flex-wrap items-center"
       data-testid={testId}
       style={{
         borderTop: `${hairline()} solid hsl(var(--border) / ${sound.borderTopAlpha})`,
@@ -141,81 +141,85 @@ export function SettingSoundRow({
         })}
       </div>
 
-      <span
-        className="shrink-0 whitespace-nowrap text-[hsl(var(--text-muted))]"
-        id={levelLabelId}
-        style={{
-          fontSize: pxToRem(sound.levelLabelFontSize),
-          fontWeight: 500,
-          lineHeight: 1,
-        }}
-      >
-        {t("settings.control.sound.level")}
-      </span>
-
-      <SoundStepButton
-        disabled={disabled}
-        label={t("settings.control.slider.decrease")}
-        onClick={() => onVolumeChange(clamp(volume - SETTING_SOUND_VOLUME_STEP))}
-        symbol="−"
-        testId={testId ? `${testId}-decrease` : undefined}
-      />
-
       <div
-        aria-labelledby={levelLabelId}
-        aria-disabled={disabled || undefined}
-        aria-valuemax={100}
-        aria-valuemin={0}
-        aria-valuenow={volume}
-        aria-valuetext={`${volume}%`}
-        className="relative flex-1 rounded-full bg-[hsl(var(--surface-tertiary))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
-        data-testid={testId ? `${testId}-level` : undefined}
-        onKeyDown={(event) => {
-          if (!disabled) handleKeyDown(event);
-        }}
-        role="slider"
-        style={{ height: pxToRem(sound.trackHeight), minWidth: pxToRem(sound.trackMinWidth) }}
-        tabIndex={disabled ? -1 : 0}
+        className="flex min-w-0 max-w-full flex-1 items-center"
+        style={{ gap: pxToRem(sound.gap), flexBasis: pxToRem(240) }}
       >
         <span
-          aria-hidden="true"
-          className="absolute inset-y-0 left-0 rounded-full bg-[hsl(var(--primary))]"
-          style={{ width: `${volume}%` }}
-        />
-        <span
-          aria-hidden="true"
-          className="absolute rounded-full bg-white"
+          className="shrink-0 whitespace-nowrap text-[hsl(var(--text-muted))]"
+          id={levelLabelId}
           style={{
-            border: `${hairline(sound.knobBorderWidth)} solid hsl(var(--primary))`,
-            height: pxToRem(sound.knob),
-            left: `calc(${volume}% - ${pxToRem(sound.knob / 2)})`,
-            top: pxToRem(sound.knobOffsetTop),
-            width: pxToRem(sound.knob),
+            fontSize: pxToRem(sound.levelLabelFontSize),
+            fontWeight: 500,
+            lineHeight: 1,
           }}
+        >
+          {t("settings.control.sound.level")}
+        </span>
+
+        <SoundStepButton
+          disabled={disabled}
+          label={t("settings.control.slider.decrease")}
+          onClick={() => onVolumeChange(clamp(volume - SETTING_SOUND_VOLUME_STEP))}
+          symbol="−"
+          testId={testId ? `${testId}-decrease` : undefined}
         />
+
+        <div
+          aria-labelledby={levelLabelId}
+          aria-disabled={disabled || undefined}
+          aria-valuemax={100}
+          aria-valuemin={0}
+          aria-valuenow={volume}
+          aria-valuetext={`${volume}%`}
+          className="relative flex-1 rounded-full bg-[hsl(var(--surface-tertiary))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          data-testid={testId ? `${testId}-level` : undefined}
+          onKeyDown={(event) => {
+            if (!disabled) handleKeyDown(event);
+          }}
+          role="slider"
+          style={{ height: pxToRem(sound.trackHeight), minWidth: 0 }}
+          tabIndex={disabled ? -1 : 0}
+        >
+          <span
+            aria-hidden="true"
+            className="absolute inset-y-0 left-0 rounded-full bg-[hsl(var(--primary))]"
+            style={{ width: `${volume}%` }}
+          />
+          <span
+            aria-hidden="true"
+            className="absolute rounded-full bg-white"
+            style={{
+              border: `${hairline(sound.knobBorderWidth)} solid hsl(var(--primary))`,
+              height: pxToRem(sound.knob),
+              left: `calc(${volume}% - ${pxToRem(sound.knob / 2)})`,
+              top: pxToRem(sound.knobOffsetTop),
+              width: pxToRem(sound.knob),
+            }}
+          />
+        </div>
+
+        <SoundStepButton
+          disabled={disabled}
+          label={t("settings.control.slider.increase")}
+          onClick={() => onVolumeChange(clamp(volume + SETTING_SOUND_VOLUME_STEP))}
+          symbol="+"
+          testId={testId ? `${testId}-increase` : undefined}
+        />
+
+        <span
+          aria-hidden="true"
+          className="font-display shrink-0 text-right text-[hsl(var(--foreground))]"
+          style={{
+            fontSize: pxToRem(sound.valueFontSize),
+            fontWeight: 600,
+            lineHeight: 1,
+            width: pxToRem(sound.valueWidth),
+          }}
+        >
+          {volume}
+        </span>
       </div>
-
-      <SoundStepButton
-        disabled={disabled}
-        label={t("settings.control.slider.increase")}
-        onClick={() => onVolumeChange(clamp(volume + SETTING_SOUND_VOLUME_STEP))}
-        symbol="+"
-        testId={testId ? `${testId}-increase` : undefined}
-      />
-
-      <span
-        aria-hidden="true"
-        className="font-display shrink-0 text-right text-[hsl(var(--foreground))]"
-        style={{
-          fontSize: pxToRem(sound.valueFontSize),
-          fontWeight: 600,
-          lineHeight: 1,
-          width: pxToRem(sound.valueWidth),
-        }}
-      >
-        {volume}
-      </span>
-
       <button
         aria-describedby={labelledById}
         className="flex shrink-0 items-center bg-[hsl(var(--surface-base))] text-[hsl(var(--text-secondary))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"

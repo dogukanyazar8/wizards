@@ -48,11 +48,11 @@ describe("biçimlendirme şeridi — dokuz araç", () => {
     }
   });
 
-  it("her aracın ipucu SPEC'in kısayolunu taşıyor", () => {
+  it("biçimlendirme kısayollarını platform kataloğundan, Markdown ipuçlarını sözlükten alır", () => {
+    for (const id of ["composer.bold", "composer.italic", "composer.underline"]) {
+      assert.ok(SOURCE.includes(`useAppShortcutLabel("${id}")`), id);
+    }
     const HINTS = [
-      "messages.composer.tool.boldHint",
-      "messages.composer.tool.italicHint",
-      "messages.composer.tool.underlineHint",
       "messages.composer.tool.strikethroughHint",
       "messages.composer.tool.bulletListHint",
       "messages.composer.tool.orderedListHint",

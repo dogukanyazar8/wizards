@@ -24,8 +24,8 @@ export const EVENT_CREATE_KINDS = EventKindSchema.options;
 /** Referans HTML `KIND` haritasının ilk anahtarı; ızgaranın da ilk kutusu. */
 export const EVENT_CREATE_DEFAULT_KIND: EventKind = "voice";
 
-/** SPEC §6 segment: `30 dk / 45 dk / 1 sa`. */
-export const EVENT_CREATE_DURATIONS = [30, 45, 60] as const;
+/** Horizontally scrollable duration presets, in minutes. */
+export const EVENT_CREATE_DURATIONS = [30, 45, 60, 90, 120] as const;
 export type EventCreateDuration = (typeof EVENT_CREATE_DURATIONS)[number];
 
 /** Referans HTML `DUR` dizisinin seçili değeri. */
@@ -33,6 +33,7 @@ export const EVENT_CREATE_DEFAULT_DURATION: EventCreateDuration = 45;
 
 /** `CreateEventInputSchema` ile aynı sınırlar; form ağ isteğinden **önce** aynı kapıyı kurar. */
 export const EVENT_CREATE_TITLE_MAX = 120;
+export const EVENT_CREATE_DESCRIPTION_MAX = 180;
 export const EVENT_EXTERNAL_LOCATION_MAX = 255;
 
 const HALF_HOUR_MS = 30 * 60 * 1000;
@@ -80,6 +81,7 @@ export type EventPlaceServer = {
 };
 
 export type EventCreateFormState = {
+  readonly description: string;
   readonly channel: EventPlaceChannel | null;
   /** K10 uyarısı: tür değişimi seçili kanalı düşürdü. */
   readonly channelCleared: boolean;
@@ -95,6 +97,8 @@ export type EventCreateFormState = {
 };
 
 export type EventCreateFormAction =
+  | { readonly type: "setDescription"; readonly value: string }
+  | { readonly type: "clearPlace" }
   | { readonly channel: EventPlaceChannel; readonly type: "selectChannel" }
   | { readonly duration: EventCreateDuration; readonly type: "setDuration" }
   | { readonly kind: EventKind; readonly type: "setKind" }
@@ -189,7 +193,10 @@ export function parseLocalDateTimeValue(value: string): string | null {
 
   const instant = new Date(value);
 
-  return Number.isNaN(instant.getTime()) ? null : instant.toISOString();
+  // Reject normalized dates (31 February) and nonexistent local times during DST.
+  return Number.isNaN(instant.getTime()) || toLocalDateTimeValue(instant) !== value
+    ? null
+    : instant.toISOString();
 }
 
 /**
@@ -227,6 +234,7 @@ export function createEventFormInitialState(input: {
   readonly server?: EventPlaceServer | null;
 }): EventCreateFormState {
   return {
+    description: "",
     channel: null,
     channelCleared: false,
     duration: EVENT_CREATE_DEFAULT_DURATION,
@@ -247,6 +255,16 @@ export function eventCreateFormReducer(
   action: EventCreateFormAction,
 ): EventCreateFormState {
   switch (action.type) {
+    case "setDescription":
+      return { ...state, description: action.value };
+    case "clearPlace":
+      return {
+        ...state,
+        channel: null,
+        channelCleared: false,
+        externalLocation: "",
+        placeMode: "channel",
+      };
     case "setKind": {
       // K10 — sessizce geçersiz bir kanalla `POST` atmak 422 döndürür ve kullanıcı nedenini
       // görmez. Kanal düşürülür ve alan **uyarı gösterir**.
@@ -332,7 +350,7 @@ export function withEventServerType(
 }
 
 export type EventCreateFormErrorCode =
-  "externalLocation" | "place" | "server" | "startsAt" | "title";
+  "description" | "externalLocation" | "place" | "server" | "startsAt" | "title";
 
 export type EventCreateFormValidation =
   | { readonly errors: readonly EventCreateFormErrorCode[]; readonly ok: false }
@@ -342,6 +360,10 @@ export function validateEventCreateForm(state: EventCreateFormState): EventCreat
   const errors: EventCreateFormErrorCode[] = [];
   const title = state.title.trim();
   const startsAt = parseLocalDateTimeValue(state.startsAtLocal);
+
+  if (state.description.trim().length > EVENT_CREATE_DESCRIPTION_MAX) {
+    errors.push("description");
+  }
 
   if (title.length === 0 || title.length > EVENT_CREATE_TITLE_MAX) {
     errors.push("title");
@@ -359,7 +381,7 @@ export function validateEventCreateForm(state: EventCreateFormState): EventCreat
     if (!isValidEventExternalLocation(state.externalLocation)) {
       errors.push("externalLocation");
     }
-  } else if (state.channel === null || !eventKindAcceptsChannel(state.kind, state.channel.type)) {
+  } else if (state.channel !== null && !eventKindAcceptsChannel(state.kind, state.channel.type)) {
     errors.push("place");
   }
 
@@ -370,9 +392,12 @@ export function validateEventCreateForm(state: EventCreateFormState): EventCreat
   return {
     errors: [],
     input: {
+      ...(state.description.trim() ? { description: state.description.trim() } : {}),
       ...(state.placeMode === "channel" && state.channel
         ? { channelId: state.channel.id }
-        : { externalLocation: state.externalLocation.trim() }),
+        : state.placeMode === "external"
+          ? { externalLocation: state.externalLocation.trim() }
+          : {}),
       durationMinutes: state.duration,
       isPublic: state.isPublic,
       kind: state.kind,

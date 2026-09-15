@@ -1,3 +1,4 @@
+import { ConfirmationHost } from "@/components/providers/confirmation-host";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { headers } from "next/headers";
@@ -18,7 +19,7 @@ import { getRequestLocale } from "@/lib/locale/server";
 import { isDesktopStartPathname, WHISPR_REQUEST_PATHNAME_HEADER } from "@/lib/request-context";
 
 const bodyFont = localFont({
-  src: "./fonts/figtree-latin.woff2",
+  src: "./fonts/outfit-latin.woff2",
   variable: "--font-sans",
   // SPEC §1 tip ölçeği 400–700 kullanıyor; aralık 900'e kadar bildiriliyor çünkü mevcut ekranlarda
   // 800/900 isteyen 129 bildirim var ve daraltılmış bir aralık hepsini sessizce inceltirdi.
@@ -65,8 +66,8 @@ export const metadata: Metadata = {
   description: "Whispr collaboration workspace",
   icons: {
     apple: "/app-icons/whispr.png",
-    icon: "/app-icons/whispr.png",
-    shortcut: "/app-icons/whispr.png",
+    icon: { url: "/favicon.svg", type: "image/svg+xml" },
+    shortcut: "/favicon.svg",
   },
 };
 
@@ -93,6 +94,8 @@ export default async function RootLayout({
          * Betik kök düzende duruyor: rota grubu düzeninde `next/script` uyarı veriyordu ve
          * istemci geçişlerinde hiç koşmuyordu. Kök düzen yalnız belge isteğinde render edilir.
          */}
+        {/* Static module-owned bootstrap; no request or stored text is interpolated. */}
+        {/* nosemgrep: typescript.react.security.no-dangerously-set-inner-html */}
         <script dangerouslySetInnerHTML={{ __html: AUTH_THEME_BOOTSTRAP_SCRIPT }} />
       </head>
       <body
@@ -103,9 +106,14 @@ export default async function RootLayout({
           defaultTheme={theme ?? DEFAULT_WIZARDS_THEME}
           attribute="class"
         >
-          <LocaleProvider initialLocale={locale} initialMessages={localeMessages}>
+          <LocaleProvider
+            initialLocale={locale}
+            initialMessages={localeMessages}
+            initialDesktop={/\bWhisprDesktop\//i.test(headerStore.get("user-agent") ?? "")}
+          >
             <AppIconProvider>
               <QueryProvider>
+                <ConfirmationHost />
                 <MessageFontSync />
                 <WebHealthReporter />
                 <DesktopContextMenuGuard />

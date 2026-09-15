@@ -212,7 +212,10 @@ export function NotificationPrefsDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-[85]" data-testid="notification-prefs-overlay">
+    <div
+      className="fixed inset-x-0 bottom-0 top-[var(--app-viewport-top,0px)] z-[85]"
+      data-testid="notification-prefs-overlay"
+    >
       {/* Örtü kartın **kardeşidir** (00 tuzak #11): ayrı bir katman, kartın atası değil. */}
       <button
         aria-label={t("notif.prefs.close")}
@@ -223,7 +226,7 @@ export function NotificationPrefsDialog({
         type="button"
       />
       <div
-        className="absolute inset-0 grid place-items-center"
+        className="absolute inset-0 grid grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] place-items-center"
         style={{ padding: pxToRem(VIEWPORT_PADDING), pointerEvents: "none" }}
       >
         <div

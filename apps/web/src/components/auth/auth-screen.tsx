@@ -69,9 +69,8 @@ export function AuthScreenLayout({
 
   return (
     /*
-     * Referans kabuğu 1280×720 **sabit bir kart** ve sayfada ortalı; kenarlığı, köşesi ve
-     * gölgesi ancak öyle görünür. Kabuk görüntü alanını kaplayınca marka paneli 512'de kalıp
-     * form sütunu büyüyor ve aradaki boşluk açılıyordu.
+     * Reference width and minimum height stay centered. Longer real forms (validation,
+     * security checks, translations) may grow and scroll without clipping their controls.
      */
     <div
       className="auth-page"

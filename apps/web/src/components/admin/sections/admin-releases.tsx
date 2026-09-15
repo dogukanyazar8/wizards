@@ -117,8 +117,7 @@ export function AdminReleases({
               <span className="text-app-muted text-xs font-semibold">Kanal</span>
               <select className="app-input h-11 rounded-[12px] border px-3" name="channel">
                 <option value="STABLE">Stable</option>
-                <option value="BETA">Beta</option>
-                <option value="UAT">UAT</option>
+                <option value="UAT">Beta (UAT)</option>
               </select>
             </label>
             <label className="grid gap-1.5 text-sm">

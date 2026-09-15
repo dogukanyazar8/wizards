@@ -8,8 +8,8 @@
  * release builds.
  */
 export const MOBILE_CLIENT_NAME = "mobile";
-export const MOBILE_CLIENT_VERSION = "0.8.15";
-export const MOBILE_CLIENT_CAPABILITIES = "badge-notifications-v1";
+export const MOBILE_CLIENT_VERSION = "0.9.0";
+export const MOBILE_CLIENT_CAPABILITIES = "badge-notifications-v1,profile-details-v2";
 
 export const MOBILE_CLIENT_HEADERS: Readonly<Record<string, string>> = Object.freeze({
   "x-whispr-client": MOBILE_CLIENT_NAME,

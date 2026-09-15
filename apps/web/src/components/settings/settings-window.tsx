@@ -1,9 +1,13 @@
 "use client";
 
+import { confirmAction } from "@/lib/confirmation";
+
 import React, {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
+  startTransition,
   useId,
   useMemo,
   useReducer,
@@ -11,7 +15,8 @@ import React, {
   useState,
   useSyncExternalStore,
 } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { settingsRouteFromPathname, writeSettingsHistory } from "@/lib/settings/window-navigation";
 
 import { useI18n } from "@/components/providers/locale-provider";
 import { SettingsDirtyBar } from "@/components/settings/settings-dirty-bar";
@@ -38,7 +43,7 @@ import type { SettingsBootstrapPayload } from "@/lib/settings/bootstrap-types";
 import { toSettingsWindowIdentity } from "@/lib/settings/client";
 import { SETTINGS_METRICS, hairline, pxToRem } from "@/lib/settings/metrics";
 import {
-  buildSettingsHref,
+  resolveSettingsRoute,
   type SettingsRoute,
   type SettingsSection,
   type SettingsTab,
@@ -151,6 +156,8 @@ export function SettingsWindow({
 }: SettingsWindowProps) {
   const { t } = useI18n();
   const router = useRouter();
+  const pathname = usePathname();
+  const activeRoute = settingsRouteFromPathname(pathname, route);
   const searchParams = useSearchParams();
   const titleId = useId();
 
@@ -202,9 +209,9 @@ export function SettingsWindow({
 
   // Adres dışarıdan da değişir (geri tuşu, paylaşılan bağlantı, arama sonucu). İndirgeyici
   // adresin **aynasıdır**; tek başına onun arkasından gitmez.
-  useEffect(() => {
-    dispatch({ section: route.section, tab: route.tab, type: "syncRoute" });
-  }, [route.section, route.tab]);
+  useLayoutEffect(() => {
+    dispatch({ section: activeRoute.section, tab: activeRoute.tab, type: "syncRoute" });
+  }, [activeRoute.section, activeRoute.tab]);
 
   useEffect(() => {
     dispatch({ query: debouncedQuery, type: "search" });
@@ -216,8 +223,8 @@ export function SettingsWindow({
     scrollRef.current?.scrollTo({ top: 0 });
   }, [state.section, state.tab]);
 
-  const closeWindow = useCallback(() => {
-    if (state.dirty && !window.confirm(t("settings.dirtyCloseConfirm"))) {
+  const closeWindow = useCallback(async () => {
+    if (state.dirty && !(await confirmAction(t("settings.dirtyCloseConfirm")))) {
       return;
     }
 
@@ -234,20 +241,24 @@ export function SettingsWindow({
   const selectSection = useCallback(
     (section: SettingsSection) => {
       setHighlightedRowKey(null);
-      dispatch({ section, type: "selectSection" });
-      router[navigationMethod](buildSettingsHref(section));
+      startTransition(() => {
+        dispatch({ section, type: "selectSection" });
+        writeSettingsHistory(window.history, navigationMethod, resolveSettingsRoute(section));
+      });
     },
-    [navigationMethod, router],
+    [navigationMethod],
   );
 
   /** Tam ekran kipinde `push`; modal kipinde çarpının tek adımda kapatması için `replace`. */
   const selectTab = useCallback(
     (tab: SettingsTab) => {
       setHighlightedRowKey(null);
-      dispatch({ tab, type: "selectTab" });
-      router[navigationMethod](buildSettingsHref(state.section, tab));
+      startTransition(() => {
+        dispatch({ tab, type: "selectTab" });
+        writeSettingsHistory(window.history, navigationMethod, { section: state.section, tab });
+      });
     },
-    [navigationMethod, router, state.section],
+    [navigationMethod, state.section],
   );
 
   const goToSearchHit = useCallback(
@@ -255,12 +266,12 @@ export function SettingsWindow({
       setDraftQuery("");
       setHighlightedRowKey(target.rowKey);
       dispatch({ query: "", type: "search" });
-      dispatch({ section: target.section, tab: target.tab, type: "syncRoute" });
-      router[navigationMethod](
-        `${buildSettingsHref(target.section, target.tab)}?highlight=${encodeURIComponent(target.rowKey)}`,
-      );
+      startTransition(() => {
+        dispatch({ section: target.section, tab: target.tab, type: "syncRoute" });
+        writeSettingsHistory(window.history, navigationMethod, target, target.rowKey);
+      });
     },
-    [navigationMethod, router],
+    [navigationMethod],
   );
 
   const runSave = useCallback(async (patch: () => Promise<unknown>) => {
@@ -320,7 +331,11 @@ export function SettingsWindow({
   // basamağı indirgeyici değil bu kapanış yürütür.
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+
+      const targetDialog =
+        event.target instanceof Element ? event.target.closest('[role="dialog"]') : null;
+      if (targetDialog && targetDialog !== cardRef.current) return;
 
       event.preventDefault();
 
@@ -346,10 +361,15 @@ export function SettingsWindow({
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
     const card = cardRef.current;
-    card?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)?.focus();
+    // Announce the dialog without selecting a field or opening the on-screen keyboard.
+    card?.focus({ preventScroll: true });
 
     const handleTab = (event: KeyboardEvent) => {
-      if (event.key !== "Tab" || !card) return;
+      if (event.key !== "Tab" || event.defaultPrevented || !card) return;
+
+      const targetDialog =
+        event.target instanceof Element ? event.target.closest('[role="dialog"]') : null;
+      if (targetDialog && targetDialog !== card) return;
 
       const focusable = card.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
 
@@ -362,7 +382,7 @@ export function SettingsWindow({
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
 
-      if (event.shiftKey && document.activeElement === first) {
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === card)) {
         event.preventDefault();
         last?.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -467,7 +487,7 @@ export function SettingsWindow({
           id="settings-window-panel"
           ref={scrollRef}
           role="tabpanel"
-          style={{ background: "hsl(var(--surface-base))" }}
+          style={{ background: "hsl(var(--surface-base))", scrollbarGutter: "stable" }}
         >
           <div
             className="mx-auto w-full"
@@ -529,7 +549,10 @@ export function SettingsWindow({
   }
 
   return (
-    <div className="fixed inset-0 z-[90]" data-testid="in-app-settings-overlay">
+    <div
+      className="fixed inset-x-0 bottom-0 top-[var(--app-viewport-top,0px)] z-[90]"
+      data-testid="in-app-settings-overlay"
+    >
       {/* Örtü kartın **kardeşidir** (tuzak #11): ayrı bir katman, kartın atası değil. */}
       <button
         aria-label={t("settings.close")}

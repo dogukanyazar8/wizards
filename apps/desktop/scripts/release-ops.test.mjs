@@ -22,7 +22,7 @@ const repoRoot = path.resolve(desktopRoot, "../..");
 
 describe("desktop release operations contract", () => {
   it("keeps release rings explicit and ordered from safest to broadest", () => {
-    assert.deepEqual(DESKTOP_RELEASE_RINGS, ["dev", "uat", "canary", "stable"]);
+    assert.deepEqual(DESKTOP_RELEASE_RINGS, ["dev", "uat", "stable"]);
     assert.equal(DESKTOP_RELEASE_RINGS.at(0), "dev");
     assert.equal(DESKTOP_RELEASE_RINGS.at(-1), "stable");
   });
@@ -61,7 +61,7 @@ describe("desktop release operations contract", () => {
   it("keeps ring promotion rules explicit", () => {
     const promotionRings = DESKTOP_RELEASE_PROMOTION_RULES.map((rule) => rule.ring);
 
-    assert.deepEqual(promotionRings, ["uat", "canary", "stable"]);
+    assert.deepEqual(promotionRings, ["uat", "stable"]);
     assert.ok(DESKTOP_RELEASE_PROMOTION_RULES.every((rule) => rule.entryCriteria.length > 0));
     assert.ok(DESKTOP_RELEASE_PROMOTION_RULES.every((rule) => rule.exitCriteria.length > 0));
   });
@@ -124,14 +124,14 @@ describe("desktop release operations contract", () => {
     );
   });
 
-  it("keeps desktop CI local-only while native release runners are unavailable", async () => {
+  it("keeps Windows and Linux CI hosted with macOS disabled", async () => {
     const contract = assertDesktopReleaseOpsContract(getDesktopReleaseOpsContract());
     const workflow = await readFile(path.join(repoRoot, ".github/workflows/ci.yml"), "utf8");
 
     assert.deepEqual(contract.platformMatrix, {
-      windows: "disabled-no-local-runner",
-      macos: "disabled-no-local-runner",
-      linux: "automatic-self-hosted",
+      windows: "automatic-github-hosted",
+      macos: "disabled",
+      linux: "automatic-github-hosted",
     });
     const desktopOpsStart = workflow.indexOf("\n  desktop-ops:");
     const desktopBuildStart = workflow.indexOf("\n  desktop-build:");
@@ -143,7 +143,7 @@ describe("desktop release operations contract", () => {
     assert.notEqual(desktopOpsStart, -1);
     assert.equal(desktopBuildStart, -1);
     assert.doesNotMatch(desktopOpsJob, /continue-on-error:/);
-    assert.match(desktopOpsJob, /^    runs-on: \[self-hosted, linux, x64, ci-fast\]$/mu);
+    assert.match(desktopOpsJob, /^    runs-on: ubuntu-24\.04$/mu);
     assert.doesNotMatch(workflow, /desktop_hosted|windows-latest|macos-latest/u);
   });
 
@@ -154,9 +154,9 @@ describe("desktop release operations contract", () => {
     assert.match(releaseGuide, /`e2e_scope`: `full`/);
     assert.match(releaseGuide, /`e2e_scope`: `smoke`/);
     assert.match(releaseGuide, /`playwright-report`/);
-    assert.match(releaseGuide, /Desktop native GitHub Actions workflows are disabled/i);
-    assert.match(releaseGuide, /local Linux runner/i);
-    assert.match(releaseGuide, /Windows and macOS native artifact.*NOT RUN/i);
+    assert.match(releaseGuide, /Desktop native builds run on GitHub-hosted Windows runners/i);
+    assert.match(releaseGuide, /GitHub-hosted Linux runner/i);
+    assert.match(releaseGuide, /macOS builds and releases remain disabled/i);
     assert.match(releaseGuide, /Linux `desktop-ops`.*not Windows release artifact evidence/i);
     assert.match(releaseGuide, /schedule.*does not prove UAT runtime/i);
     assert.doesNotMatch(

@@ -86,7 +86,6 @@ const ACCOUNT_SETTINGS = {
     email: "ada@example.com",
     emailVerified: true,
     nextUsernameChangeAt: null,
-    pronouns: null,
     twoFactorEnabled: false,
   },
   privacy: { dmPermission: "FRIENDS" as const, friendRequests: "EVERYONE" as const },

@@ -1,3 +1,4 @@
+import { masterOutputGain } from "./output-volume";
 import { LocalAudioTrack, LocalTrack, LocalVideoTrack, type Room, Track } from "livekit-client";
 
 import { logError } from "@/lib/logger";
@@ -187,14 +188,17 @@ export function applyRemoteAudioState(
   participantVolumes: Record<string, number>,
   defaultParticipantVolume: number,
   screenShareVolume: number = FULL_SCREEN_SHARE_VOLUME,
+  masterOutputVolume = 100,
 ) {
   for (const participant of room.remoteParticipants.values()) {
-    const participantVolume = resolveParticipantVolume(
-      participant.identity,
-      isDeafened,
-      participantVolumes,
-      defaultParticipantVolume,
-    );
+    const participantVolume =
+      masterOutputGain(masterOutputVolume) *
+      resolveParticipantVolume(
+        participant.identity,
+        isDeafened,
+        participantVolumes,
+        defaultParticipantVolume,
+      );
 
     // Per source, not per participant: one source throwing must not leave the
     // other one carrying a stale volume — least of all an un-deafened one.

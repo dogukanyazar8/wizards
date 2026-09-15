@@ -58,6 +58,7 @@ export const homeQueryKeys = {
   root: ["home"] as const,
   summary: ["home", "summary"] as const,
   upcoming: (limit: number) => ["home", "upcoming", limit] as const,
+  upcomingPrefix: ["home", "upcoming"] as const,
 };
 
 /** §5. Socket events do the refreshing; these only bound a re-focus refetch. */

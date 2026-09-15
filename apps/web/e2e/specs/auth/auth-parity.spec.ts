@@ -29,7 +29,7 @@ const PUBLIC_SCREENS = [
 
 async function readShellOrder(page: Page) {
   return page.evaluate(() => {
-    const root = document.querySelector("[data-auth-surface]");
+    const root = document.querySelector("[data-auth-surface] .auth-window");
 
     return {
       brandBackground: root?.querySelector(".auth-brand")
@@ -81,6 +81,48 @@ test.describe("SPEC-GIRIS-KAYIT — kimlik akışı parity", () => {
 
     expect(after.root).toBe("dark");
     expect(after.surface).not.toBe(before);
+  });
+
+  test("giriş formu geniş pencerede kendi kolonunda ortalanır", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await gotoAppRoute(page, "/login");
+    await expect(page.getByTestId("login-form")).toBeVisible();
+    const geometry = await page.evaluate(() => {
+      const window = document.querySelector(".auth-window")!.getBoundingClientRect();
+      const column = document.querySelector(".auth-form-column")!.getBoundingClientRect();
+      const form = document.querySelector(".auth-form")!.getBoundingClientRect();
+      return {
+        frameX: window.x + window.width / 2 - innerWidth / 2,
+        frameY: window.y + window.height / 2 - innerHeight / 2,
+        formX: form.x + form.width / 2 - (column.x + column.width / 2),
+        formY: form.y + form.height / 2 - (column.y + column.height / 2),
+      };
+    });
+    for (const offset of Object.values(geometry)) expect(Math.abs(offset)).toBeLessThan(1);
+  });
+
+  test("kısa dar pencerede kayıt başlığı ve son işlem kaydırılarak erişilebilir", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 600 });
+    await gotoAppRoute(page, "/register");
+    await expect(page.locator(".auth-title")).toBeInViewport();
+    const form = page.getByTestId("register-form");
+    await expect(form).toBeVisible();
+    const geometry = await page.evaluate(() => {
+      const form = document.querySelector(".auth-form")!.getBoundingClientRect();
+      const controls = document.querySelector(".auth-controls")!.getBoundingClientRect();
+      const surface = document.querySelector(".auth-page")!;
+      return {
+        topGap: form.top - controls.bottom,
+        overflowsX: surface.scrollWidth > surface.clientWidth,
+      };
+    });
+    expect(geometry.topGap).toBeGreaterThan(0);
+    expect(geometry.overflowsX).toBe(false);
+    const submit = form.locator('button[type="submit"]');
+    await submit.scrollIntoViewIfNeeded();
+    await expect(submit).toBeInViewport();
   });
 
   test("dil menüsü klavyeyle gezilir, Esc kapatır ve odak tetikleyiciye döner", async ({

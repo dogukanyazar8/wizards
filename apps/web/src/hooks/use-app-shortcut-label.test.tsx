@@ -6,11 +6,11 @@ import { renderToString } from "react-dom/server";
 import { useAppShortcutLabel } from "./use-app-shortcut-label";
 
 describe("useAppShortcutLabel", () => {
-  it("uses the Windows/Linux label for the server snapshot", () => {
+  it("uses a neutral label for the server snapshot", () => {
     function Harness() {
       return <span>{useAppShortcutLabel("chat.search")}</span>;
     }
 
-    assert.equal(renderToString(<Harness />), "<span>Ctrl+F</span>");
+    assert.equal(renderToString(<Harness />), "<span>Ctrl/Cmd+F</span>");
   });
 });

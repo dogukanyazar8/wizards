@@ -48,7 +48,7 @@ export function EventAgendaTimeline({
         // taşımasın diye metnin kendisi de değişir.
         const time = event.isLive ? t("events.card.live") : clock;
         const place = t("events.card.place", {
-          channel: event.channelLabel,
+          channel: event.channelLabel || t("events.create.placeNone"),
           server: event.serverName,
         });
 

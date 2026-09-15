@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import {
   MOBILE_PROFILE_CUSTOM_STATUS_MAX_LENGTH,
+  PROFILE_STATUS_EMOJI_MAX_LENGTH,
+  appendProfileStatusEmoji,
   type MobileFriendPresenceStatus,
 } from "@wizards/types";
 
@@ -223,7 +225,9 @@ export function MobileProfileStatusCard({
             testID="mobile-profile-status-emoji"
           >
             {draft.customStatusEmoji ? (
-              <Text style={styles.statusEmoji}>{draft.customStatusEmoji}</Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.statusEmoji}>
+                {draft.customStatusEmoji}
+              </Text>
             ) : (
               <MobileLineIcon color={theme.text.placeholder} name="emoji" size={16} />
             )}
@@ -327,11 +331,19 @@ export function MobileProfileStatusCard({
       </View>
 
       <MessageEmojiPicker
+        closeOnSelect={false}
+        selectedEmojis={draft.customStatusEmoji ?? ""}
+        onClearSelection={() => setDraft((current) => ({ ...current, customStatusEmoji: null }))}
+        canSelect={(emoji) =>
+          (draft.customStatusEmoji?.length ?? 0) + emoji.length <= PROFILE_STATUS_EMOJI_MAX_LENGTH
+        }
         isOpen={isEmojiPickerOpen}
         onClose={() => setEmojiPickerOpen(false)}
         onSelect={(emoji) => {
-          setDraft((current) => ({ ...current, customStatusEmoji: emoji }));
-          setEmojiPickerOpen(false);
+          setDraft((current) => ({
+            ...current,
+            customStatusEmoji: appendProfileStatusEmoji(current.customStatusEmoji, emoji),
+          }));
         }}
       />
 

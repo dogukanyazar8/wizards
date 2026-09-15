@@ -341,7 +341,7 @@ export function EventDetailPanel({ eventId, onClose }: EventDetailPanelProps) {
                   }}
                 >
                   {t("events.card.place", {
-                    channel: detail.channelLabel,
+                    channel: detail.channelLabel || t("events.create.placeNone"),
                     server: detail.serverName,
                   })}
                 </span>

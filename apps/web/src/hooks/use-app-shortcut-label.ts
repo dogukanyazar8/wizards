@@ -1,25 +1,28 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { keyboardPlatform } from "@wizards/ui/platform-keyboard.mjs";
+import { useClientPlatform } from "@/hooks/use-client-platform";
 
 import {
   getAppShortcutLabels,
+  getAppShortcutAccessibleLabels,
+  getAppShortcutAriaKeyShortcuts,
   type AppShortcutId,
-  type AppShortcutPlatform,
 } from "@/lib/shortcuts/catalog";
 
-const NEVER_CHANGES = () => () => undefined;
-const readServerPlatform = (): AppShortcutPlatform => "windows";
-
-function readBrowserPlatform(): AppShortcutPlatform {
-  return /mac/i.test(window.navigator.platform || window.navigator.userAgent) ? "macos" : "windows";
-}
-
 export function useAppShortcutLabels(id: AppShortcutId): string[] {
-  const platform = useSyncExternalStore(NEVER_CHANGES, readBrowserPlatform, readServerPlatform);
+  const platform = keyboardPlatform(useClientPlatform());
   return getAppShortcutLabels(id, platform);
 }
 
 export function useAppShortcutLabel(id: AppShortcutId): string {
   return useAppShortcutLabels(id)[0] ?? "";
+}
+
+export function useAppShortcutAccessibleLabels(id: AppShortcutId): string[] {
+  return getAppShortcutAccessibleLabels(id, keyboardPlatform(useClientPlatform()));
+}
+
+export function useAppShortcutAriaKeyShortcuts(id: AppShortcutId): string {
+  return getAppShortcutAriaKeyShortcuts(id, keyboardPlatform(useClientPlatform()));
 }

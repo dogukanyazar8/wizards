@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import React from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { DesktopPermissions } from "@wizards/types";
 
@@ -52,12 +53,17 @@ function renderBlock(
 ): string {
   const value: DesktopSettingsValue = { ...UNKNOWN_DESKTOP_SETTINGS, ...overrides };
 
+  const client = new QueryClient();
+  for (const [key, permission] of Object.entries(value.permissions))
+    client.setQueryData(["settings", "permission", key], permission);
   return renderToStaticMarkup(
-    <LocaleProvider initialLocale="tr" initialMessages={messages}>
-      <DesktopSettingsContext.Provider value={value}>
-        <Block data={{}} row={ROW} />
-      </DesktopSettingsContext.Provider>
-    </LocaleProvider>,
+    <QueryClientProvider client={client}>
+      <LocaleProvider initialLocale="tr" initialMessages={messages}>
+        <DesktopSettingsContext.Provider value={value}>
+          <Block data={{}} row={ROW} />
+        </DesktopSettingsContext.Provider>
+      </LocaleProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -69,82 +75,27 @@ const PERMISSIONS: DesktopPermissions = {
   screenShare: "prompt",
 };
 
-describe("PermissionsBlock — beş satır, üç durum", () => {
-  it("beş izin satırının hepsi çizilir", () => {
+describe("PermissionsBlock — shared permission management", () => {
+  it("shows four permissions and omits global shortcut access", () => {
     const markup = renderBlock(PermissionsBlock, { permissions: PERMISSIONS });
-
-    for (const key of ["notifications", "microphone", "camera", "screenShare", "globalShortcuts"]) {
-      assert.ok(markup.includes(`data-permission="${key}"`), `${key} satırı yok`);
+    for (const [key, state] of Object.entries(PERMISSIONS)) {
+      if (key === "globalShortcuts") continue;
+      assert.ok(markup.includes(`data-permission="${key}" data-permission-state="${state}"`));
     }
-  });
-
-  it("durum renkle değil metinle de yazılır", () => {
-    const markup = renderBlock(PermissionsBlock, { permissions: PERMISSIONS });
-
+    assert.doesNotMatch(markup, /data-permission="globalShortcuts"|Global kısayol erişimi/);
     assert.ok(markup.includes("İzin verildi"));
     assert.ok(markup.includes("Engellendi"));
-    assert.ok(markup.includes("Doğrulanamadı"));
-  });
-
-  it("sorgulanamayan global kısayol izni `Doğrulanamadı` çizer", () => {
-    const markup = renderBlock(PermissionsBlock, { permissions: PERMISSIONS });
-    const row = markup.slice(markup.indexOf('data-permission="globalShortcuts"'));
-
-    assert.ok(row.includes("Doğrulanamadı"));
-    assert.ok(row.includes("settings-permission-globalShortcuts-manageShortcuts"));
-    assert.ok(row.includes("settings-permission-globalShortcuts-recheck"));
-  });
-
-  it("ekran paylaşımı sahte izin isteği yerine seçici testi sunar", () => {
-    const markup = renderBlock(PermissionsBlock, { permissions: PERMISSIONS });
-    const row = markup.slice(
-      markup.indexOf('data-permission="screenShare"'),
-      markup.indexOf('data-permission="globalShortcuts"'),
-    );
-
-    assert.ok(row.includes("settings-permission-screenShare-testScreenShare"));
-    assert.equal(row.includes("settings-permission-screenShare-request"), false);
-  });
-
-  it("engellenen satır sistem ayarları ile kontrol düğmesini birlikte çizer", () => {
-    const markup = renderBlock(PermissionsBlock, { permissions: PERMISSIONS });
-    const row = markup.slice(markup.indexOf('data-permission="notifications"'));
-
-    assert.ok(row.includes("settings-permission-notifications-openSystem"));
-    assert.ok(row.includes("settings-permission-notifications-recheck"));
-  });
-
-  it("izin verilmiş satırda `Kontrol et` yok", () => {
-    const markup = renderBlock(PermissionsBlock, { permissions: PERMISSIONS });
-    const row = markup.slice(
+    assert.doesNotMatch(markup, /Erişimi yönet/);
+    const granted = markup.slice(
       markup.indexOf('data-permission="microphone"'),
       markup.indexOf('data-permission="camera"'),
     );
-
-    assert.ok(row.includes("settings-permission-microphone-openSystem"));
-    assert.equal(row.includes("settings-permission-microphone-recheck"), false);
-  });
-
-  it("ekran paylaşımı yardım metni macOS dışında değişir", () => {
-    const mac = renderBlock(PermissionsBlock, { permissions: PERMISSIONS, platform: "macos" });
-    const windows = renderBlock(PermissionsBlock, {
-      permissions: PERMISSIONS,
-      platform: "windows",
-    });
-
-    assert.ok(mac.includes("macOS ekran kaydı izni açık."));
-    assert.equal(windows.includes("macOS ekran kaydı izni açık."), false);
-  });
-
-  it("Windows global kısayol satırı olmayan erişilebilirlik iznini istemez", () => {
-    const markup = renderBlock(PermissionsBlock, {
-      permissions: PERMISSIONS,
-      platform: "windows",
-    });
-    const row = markup.slice(markup.indexOf('data-permission="globalShortcuts"'));
-
-    assert.ok(row.includes("Windows’ta ayrı bir izin gerekmez"));
-    assert.equal(row.includes("Erişilebilirlik izni verilmemiş olabilir"), false);
+    assert.match(granted, /disabled=""/);
+    assert.match(granted, /cursor:default/);
+    assert.match(granted, /hsl\(var\(--success\)/);
+    assert.match(markup, /Ekran seç/);
+    assert.doesNotMatch(markup, /macOS ekran kaydı izni açık/);
+    assert.doesNotMatch(markup, /role="dialog"/);
   });
 });
 
@@ -210,7 +161,7 @@ describe("ShortcutsBlock — beş eylem", () => {
 
     assert.ok(markup.includes('data-testid="settings-shortcut-help"'));
     assert.ok(markup.includes("Uygulama içi kısayollar"));
-    assert.ok(markup.includes("Ctrl+/"));
+    assert.ok(markup.includes("Ctrl/Cmd+/"), "SSR must not guess the user platform");
   });
 });
 
@@ -293,22 +244,25 @@ describe("VersionGridBlock — sekiz satır", () => {
   });
 });
 
-describe("AboutCardBlock — dört bağlantı", () => {
-  it("gerçek hedeflere gider", () => {
+describe("AboutCardBlock — dış tarayıcı bağlantıları", () => {
+  it("whispr.team hedeflerini uygulamadan ayrı açar", () => {
     const markup = renderBlock(AboutCardBlock);
 
-    assert.ok(markup.includes('href="/privacy"'));
-    assert.ok(markup.includes('href="/terms"'));
-    assert.ok(markup.includes('href="/"'));
+    for (const path of ["", "privacy", "terms"]) {
+      const link = markup.match(
+        new RegExp(`<a[^>]*href="https://whispr\\.team/${path}"[^>]*>`),
+      )?.[0];
+      assert.ok(link, path);
+      assert.match(link, /target="_blank"/);
+      assert.match(link, /rel="noopener noreferrer"/);
+    }
   });
 
-  it("karşılığı olmayan bağlantı uydurulmaz", () => {
+  it("sabit logoyu gösterir, lisanslar bağlantısını göstermez", () => {
     const markup = renderBlock(AboutCardBlock);
 
-    // Tek bağlantı hedefsiz; `href` taşımayan bir `<a>` hiç çizilmez.
-    assert.equal(markup.split('data-unavailable="true"').length - 1, 1);
-    assert.ok(markup.includes('aria-disabled="true"'));
-    assert.equal(markup.includes('<a href="/licenses"'), false);
+    assert.match(markup, /<img[^>]+src="\/favicon\.svg"/);
+    assert.doesNotMatch(markup, /settings-about-link-licenses|data-unavailable|animated/);
   });
 });
 

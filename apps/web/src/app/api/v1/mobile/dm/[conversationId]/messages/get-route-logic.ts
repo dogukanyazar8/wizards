@@ -1,10 +1,13 @@
 import { MobileDMMessagesResponseSchema, type MobileDMMessagesResponse } from "@wizards/types";
-import { prisma } from "@wizards/db";
 
 import { jsonError } from "@/lib/api";
 import { enforceApiRateLimit, type ApiRateLimitAction } from "@/lib/api-rate-limit";
 import { requireMobileApiUserId } from "@/lib/auth/api";
-import { getDirectMessageConversationForUser, listDMMessages } from "@/lib/dm/service";
+import {
+  getDirectMessageConversationForUser,
+  getDirectMessageParticipantReadStates,
+  listDMMessages,
+} from "@/lib/dm/service";
 import { DMConversationParamsSchema, DMMessagesQuerySchema } from "@/lib/dm/types";
 
 const MOBILE_DM_MESSAGE_LIMIT = 30;
@@ -42,11 +45,7 @@ const defaultDependencies: MobileDMMessagesGetRouteDependencies = {
   enforceRateLimit: enforceApiRateLimit,
   listMessages: ({ conversationId, cursor, limit, userId }) =>
     listDMMessages(userId, conversationId, cursor, limit),
-  listParticipantReadStates: (conversationId) =>
-    prisma.dMParticipant.findMany({
-      where: { conversationId },
-      select: { lastDeliveredAt: true, lastReadAt: true, userId: true },
-    }),
+  listParticipantReadStates: getDirectMessageParticipantReadStates,
 };
 
 export async function mobileDMMessagesGetRoute(

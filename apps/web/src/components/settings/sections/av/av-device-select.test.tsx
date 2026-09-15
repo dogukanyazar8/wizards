@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import React from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { LocaleProvider } from "@/components/providers/locale-provider";
@@ -18,9 +19,11 @@ import { findSettingsTab, walkSettingsRows } from "@/lib/settings/tree";
 
 function render(node: React.ReactNode) {
   return renderToStaticMarkup(
-    <LocaleProvider initialLocale="tr" initialMessages={getMessagesForLocale("tr")}>
-      {node}
-    </LocaleProvider>,
+    <QueryClientProvider client={new QueryClient()}>
+      <LocaleProvider initialLocale="tr" initialMessages={getMessagesForLocale("tr")}>
+        {node}
+      </LocaleProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -110,13 +113,20 @@ describe("Ses ve Video sekmeleri", () => {
     }
   });
 
-  it("kamera izni pili gerçek durumdan; sunucuda `Bilinmiyor`", () => {
-    // SSR'da `navigator.permissions` yok — sabit `Engellendi` yerine bilinmeyen durum yazılır.
-    assert.ok(rendered.camera.includes("Bilinmiyor"));
+  it("kamera izni sunucuda bilinmeyen durumla izin eylemini sunar", () => {
+    assert.ok(rendered.camera.includes('data-permission-state="unknown"'));
+    assert.ok(rendered.camera.includes("settings-permission-action-camera"));
     assert.ok(!rendered.camera.includes("Engellendi"));
   });
 
   it("aktif paylaşım satırı gerçek durumdan", () => {
-    assert.ok(rendered["screen-share"].includes("Şu anda paylaşım yok"));
+    assert.ok(
+      rendered["screen-share"].includes("Paylaşım başlatmak için bir sesli görüşmeye katıl."),
+    );
+    const button = rendered["screen-share"].match(
+      /<button[^>]*data-testid="setting-actions-e7-0"[^>]*>/,
+    )?.[0];
+    assert.ok(button);
+    assert.match(button, /(?:aria-disabled="true"|disabled="")/);
   });
 });

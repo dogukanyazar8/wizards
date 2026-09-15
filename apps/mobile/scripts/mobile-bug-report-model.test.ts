@@ -133,7 +133,7 @@ describe("mobile bug report model", () => {
         "fault kind=network reference=N-481",
       ],
       platform: "ios",
-      releaseChannel: "uat",
+      releaseChannel: "beta",
       // `MobileMediaUpload.id` is `@default(uuid())`, and the request schema
       // pins that shape so the admin console never renders an attacker-chosen
       // string as a link. The fixture has to be a real claim id.
@@ -174,7 +174,7 @@ describe("mobile bug report diagnostics", () => {
         appBuild: "8150",
         appVersion: "0.8.15",
         locale: "tr",
-        releaseChannel: "uat",
+        releaseChannel: "beta",
       },
       {
         deviceModel: "iPhone 15",
@@ -194,7 +194,7 @@ describe("mobile bug report diagnostics", () => {
         osVersion: "18.2",
       },
       platform: "ios",
-      releaseChannel: "uat",
+      releaseChannel: "beta",
     });
     assert.equal("userId" in diagnostics, false);
   });

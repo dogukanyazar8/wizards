@@ -120,8 +120,7 @@ export function selectMobileUpdateController({
     return disabledSelection("store");
   }
 
-  const internalAndroid =
-    platform === "android" && (buildEnvironment === "uat" || buildEnvironment === "canary");
+  const internalAndroid = platform === "android" && buildEnvironment === "uat";
   if (
     decision.updateKind === "apk" &&
     internalAndroid &&

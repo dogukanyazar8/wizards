@@ -13,7 +13,8 @@ Keep these versions aligned for each release:
 - Tauri package version: `apps/desktop/src-tauri/Cargo.toml`
 - Tauri app version: `apps/desktop/src-tauri/tauri.conf.json`
 
-The current desktop version is `0.8.15`.
+The current desktop version is `0.9.0`.
+The release codename is Resonance.
 
 ## Build Commands
 
@@ -153,24 +154,22 @@ pnpm --filter @wizards/desktop release:promotion -- `
   --out-dir .\src-tauri\target\release\bundle\nsis\release-evidence
 ```
 
-The promotion bundle is the handoff artifact for UAT, canary, and stable movement. It includes the release ring, version, web URL, artifact filename, artifact size, artifact SHA-256, updater artifact URL, automated check results, mandatory smoke gates, performance budgets, operator checklist, rollback plan, and desktop safety rules.
+The promotion bundle is the handoff artifact for UAT and stable movement. It includes the release ring, version, web URL, artifact filename, artifact size, artifact SHA-256, updater artifact URL, automated check results, mandatory smoke gates, performance budgets, operator checklist, rollback plan, and desktop safety rules.
 
 It intentionally does not include updater signatures, local absolute paths, private keys, signing passwords, PFX files, session tokens, or app secrets.
 
-Recommended rollout rings:
+`WHISPR_DESKTOP_RELEASE_RING=dev` is local validation only.
+The [channel contract](../../docs/operations/release-channels.md) defines two publishing rings:
 
-1. `WHISPR_DESKTOP_RELEASE_RING=dev` for local/internal release validation. Do not use this ring for broad distribution.
-2. `WHISPR_DESKTOP_RELEASE_RING=uat` for signed UAT smoke, voice, overlay, and updater QA.
-3. `WHISPR_DESKTOP_RELEASE_RING=canary` for a small monitored production rollout with the same signed artifact.
-4. `WHISPR_DESKTOP_RELEASE_RING=stable` only after update check, download, install, relaunch, crash, and support metrics look healthy.
+1. `WHISPR_DESKTOP_RELEASE_RING=uat` for signed UAT smoke, voice, overlay, and updater QA.
+2. `WHISPR_DESKTOP_RELEASE_RING=stable` only after update check, download, install, relaunch, crash, and support metrics look healthy.
 
-Each ring should point to a distinct HTTPS manifest endpoint so rollback is controlled by the manifest, not by changing already-installed clients.
+Each publishing ring should point to a distinct HTTPS manifest endpoint so rollback is controlled by the manifest, not by changing already-installed clients.
 
 Promotion rules:
 
 - `uat`: rollout is manual QA users only. It requires release contract, Windows build, local manifest validation, R2 upload, and remote manifest validation to pass before manual testing starts. It exits only after the manual QA checklist, updater smoke from the previous installed version, and blocker review are clean.
-- `canary`: rollout is a small monitored production cohort. It requires UAT evidence, a ready rollback manifest, and an assigned support owner. It exits only when canary update health, install failures, crashes, and support feedback are within budget.
-- `stable`: rollout is a broad production release. It requires clean canary health, `main` branch dispatch, explicit stable confirmation, and real OV/EV Windows signing. It remains reversible until the rollback window is complete.
+- `stable`: rollout is a broad production release. It requires UAT evidence, a ready rollback manifest, an assigned support owner and clean release health, `main` branch dispatch, explicit stable confirmation, and real OV/EV Windows signing. It remains reversible until the rollback window is complete.
 
 ## macOS And Linux Readiness
 
@@ -184,29 +183,29 @@ macOS and Linux bundle targets are not enabled in Phase 5. Before enabling them,
 
 ## Required Manual CI Evidence Before Release
 
-Desktop native GitHub Actions workflows are disabled. Registered self-hosted capacity is Linux-only; neither a Windows nor macOS runner is registered. Windows and macOS native artifact production is **NOT RUN** until matching local runners are registered and the workflows are restored. GitHub-hosted runners are intentionally not used.
+Desktop native builds run on GitHub-hosted Windows runners. Signed Windows releases use the protected manual `Desktop Release` workflow after successful push CI for the exact commit. macOS builds and releases remain disabled. A workflow definition is not release evidence: retain the successful run URL and its signed artifacts.
 
-The default UAT `push` path and all remaining manual CI use local Linux runners. `e2e_scope` is the only `CI` workflow-dispatch input; select the candidate branch or tag in **Use workflow from**. Do not treat a scheduled run as release evidence: the schedule does not prove UAT runtime.
+The default UAT `push` path and all remaining manual CI use GitHub-hosted Linux runners. `e2e_scope` is the only `CI` workflow-dispatch input; select the candidate branch or tag in **Use workflow from**. Do not treat a scheduled run as release evidence: the schedule does not prove UAT runtime.
 
-| Required evidence            | Exact dispatch                     | Expected result and success criterion                                                                                                                                                                                    | Failure triage and retained evidence                                                                                                                                                                                                                   |
-| ---------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Full web E2E                 | `e2e_scope`: `full`                | `Playwright E2E` runs `Run Playwright full suite` on the local Linux runner and is green. Full E2E runs only with this input or on the `17 2 * * *` schedule. A successful full suite has no uploaded workflow artifact. | Start with the failed step log. On failure, download `playwright-report` (contains `apps/web/playwright-report` and `apps/web/test-results`; 7-day retention). Record the Actions run URL and `Playwright E2E` job URL in the release evidence record. |
-| Node 22 compatibility        | `e2e_scope`: `smoke`               | `Node 22 Compatibility` is green on the local Linux runner, including Prisma generation, `sharp`, `esbuild`, `tauri --version`, and `cargo check --locked`. It produces no package artifact.                             | Inspect the named failed command and preserve the Actions run URL. A Linux result is not Windows release evidence.                                                                                                                                     |
-| Windows/macOS native release | No GitHub Actions dispatch exists. | **NOT RUN**; local Windows/macOS runner registration and workflow restoration are required before signing, artifact, updater, R2, or GitHub Release evidence can exist.                                                  | Do not substitute Linux CI or local docs for native release evidence.                                                                                                                                                                                  |
+| Required evidence            | Exact dispatch                     | Expected result and success criterion                                                                                                                                                                                            | Failure triage and retained evidence                                                                                                                                                                                                                   |
+| ---------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Full web E2E                 | `e2e_scope`: `full`                | `Playwright E2E` runs `Run Playwright full suite` on the GitHub-hosted Linux runner and is green. Full E2E runs only with this input or on the `17 2 * * *` schedule. A successful full suite has no uploaded workflow artifact. | Start with the failed step log. On failure, download `playwright-report` (contains `apps/web/playwright-report` and `apps/web/test-results`; 7-day retention). Record the Actions run URL and `Playwright E2E` job URL in the release evidence record. |
+| Node 22 compatibility        | `e2e_scope`: `smoke`               | `Node 22 Compatibility` is green on the GitHub-hosted Linux runner, including Prisma generation, `sharp`, `esbuild`, `tauri --version`, and `cargo check --locked`. It produces no package artifact.                             | Inspect the named failed command and preserve the Actions run URL. A Linux result is not Windows release evidence.                                                                                                                                     |
+| Windows/macOS native release | No GitHub Actions dispatch exists. | **NOT RUN**; local Windows/macOS runner registration and workflow restoration are required before signing, artifact, updater, R2, or GitHub Release evidence can exist.                                                          | Do not substitute Linux CI or local docs for native release evidence.                                                                                                                                                                                  |
 
-Linux `desktop-ops` runs the locked Rust audit, formatting, lint, tests, script tests, and an unsigned no-bundle Tauri build; it is not Windows release artifact evidence. Do not create or push a tag as part of this checklist. A remote workflow dispatch is evidence only for the local Linux job that actually ran.
+Linux `desktop-ops` runs the locked Rust audit, formatting, lint, tests, script tests, and an unsigned no-bundle Tauri build; it is not Windows release artifact evidence. Do not create or push a tag as part of this checklist. A remote workflow dispatch is evidence only for the GitHub-hosted Linux job that actually ran.
 
 ## CI Plan
 
-The GitHub Actions workflow has two local Linux desktop layers:
+The GitHub Actions workflow has the following desktop layers:
 
-- Default `desktop-ops` runs on the local Linux `ci-fast` runner and validates a lockfile-fixed Rust audit, Rust formatting/lint/tests, release operations, scripts, generated config, and an unsigned no-bundle Tauri build.
-- Manual `Node 22 Compatibility` runs on the local Linux `wizards-ci` runner. It validates Node 22 native dependencies and the Linux Tauri toolchain without producing a native package.
-- Windows/macOS native build, signed artifact, updater publication, R2 publication, and GitHub Release workflows are disabled until equivalent local runners are registered.
+- Default `desktop-ops` runs on the GitHub-hosted `ubuntu-24.04` runner and validates a lockfile-fixed Rust audit, Rust formatting/lint/tests, release operations, scripts, generated config, and an unsigned no-bundle Tauri build.
+- Manual `Node 22 Compatibility` runs on the GitHub-hosted `ubuntu-24.04` runner. It validates Node 22 native dependencies and the Linux Tauri toolchain without producing a native package.
+- `Desktop Native Build` checks Windows changes on `windows-2025`. `Desktop Release` manually builds signed Windows installers, validates updater evidence, and optionally publishes to R2 and GitHub Releases. macOS remains disabled.
 
-## Archived GitHub Actions Desktop Release Contract
+## GitHub Actions Desktop Release Contract
 
-The former `.github/workflows/desktop-release.yml` workflow is disabled because no Windows self-hosted runner exists. The following contract material is retained for a future local Windows runner restoration; it is not an executable CI procedure and does not produce current release evidence.
+`.github/workflows/desktop-release.yml` is the Windows release entry point. Dispatch UAT from `uat`; stable from `main`. The exact commit must have successful push CI. Configure protected `desktop-uat` and `desktop-stable` environments with matching branch restrictions. Stable also requires its existing confirmation and OV/EV certificate guards. See [hosted CI/CD setup](../../docs/operations/github-hosted-ci-cd.md) for activation and secrets.
 
 ```text
 .github/workflows/desktop-release.yml
@@ -216,7 +215,7 @@ This workflow validates the release ring, version, web origin, tag strategy, sta
 
 Manual dispatch inputs:
 
-- `ring`: `uat`, `canary`, or `stable`.
+- `ring`: `uat` (Beta) or `stable` (PROD).
 - `version`: desktop native version without a leading `v`.
 - `web_url`: HTTPS Whispr web origin embedded into the desktop build.
 - `publish_github_release`: create a GitHub Release after the R2 updater feed is published and validated.
@@ -227,7 +226,6 @@ Manual dispatch inputs:
 Release tag strategy:
 
 - UAT: `v<version>-uat.<run-number>`
-- Canary: `v<version>-canary.<run-number>`
 - Stable: `v<version>`
 
 Stable dispatches are rejected unless all of these are true:
@@ -300,7 +298,7 @@ R2 publishing uses these keys:
 
 The installer and `.sig` are uploaded with immutable cache headers and never overwritten by later releases. `latest.json` is uploaded with no-cache headers because rollback is manifest-based. To roll back a bad release, publish the previously validated signed `latest.json` back to the same `desktop/<ring>/latest.json` key. Do not mutate or delete already-distributed installer objects during rollback.
 
-R2 is the canonical public download and updater source. GitHub Release publishing is optional and attaches the installer, manifest, `.sig`, build metadata, release audit, promotion evidence, and publish plan. UAT and canary releases are created as GitHub pre-releases; stable releases are normal releases. Because the repository is private, GitHub Release assets are not a public distribution channel.
+R2 is the canonical public download and updater source. GitHub Release publishing is optional and attaches the installer, manifest, `.sig`, build metadata, release audit, promotion evidence, and publish plan. UAT releases are created as GitHub pre-releases; stable releases are normal releases. Because the repository is private, GitHub Release assets are not a public distribution channel.
 
 Required R2 secrets:
 

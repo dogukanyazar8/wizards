@@ -1,3 +1,4 @@
+import { logError } from "@/lib/logger";
 import type { Server } from "socket.io";
 import type {
   ClientToServerEvents,
@@ -53,4 +54,18 @@ export function disconnectUserSockets(
   if (!server || !normalizedUserId) return;
 
   server.in(`user:${normalizedUserId}`).disconnectSockets(true);
+}
+
+/** A notification failure must never roll back a completed authentication operation. */
+export function notifyAccountSecurityChanged(
+  userId: string,
+  sessionsChanged: boolean,
+  server: AppSocketServer | null = getSocketServer(),
+) {
+  if (!server || !userId.trim()) return;
+  try {
+    server.to(`user:${userId.trim()}`).emit("account:security:changed", { sessionsChanged });
+  } catch (error) {
+    logError("[auth] Failed to notify account security change", error);
+  }
 }

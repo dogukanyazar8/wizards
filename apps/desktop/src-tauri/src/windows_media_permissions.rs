@@ -11,19 +11,20 @@ use webview2_com::{
     take_pwstr,
     Microsoft::Web::WebView2::Win32::{
         ICoreWebView2PermissionRequestedEventArgs, ICoreWebView2PermissionRequestedEventArgs2,
-        ICoreWebView2PermissionRequestedEventArgs3, COREWEBVIEW2_PERMISSION_KIND,
-        COREWEBVIEW2_PERMISSION_KIND_CAMERA, COREWEBVIEW2_PERMISSION_KIND_MICROPHONE,
-        COREWEBVIEW2_PERMISSION_STATE_ALLOW, COREWEBVIEW2_PERMISSION_STATE_DEFAULT,
-        COREWEBVIEW2_PERMISSION_STATE_DENY,
+        ICoreWebView2PermissionRequestedEventArgs3, ICoreWebView2Settings2, ICoreWebView2Settings4,
+        COREWEBVIEW2_PERMISSION_KIND, COREWEBVIEW2_PERMISSION_KIND_CAMERA,
+        COREWEBVIEW2_PERMISSION_KIND_MICROPHONE, COREWEBVIEW2_PERMISSION_STATE_ALLOW,
+        COREWEBVIEW2_PERMISSION_STATE_DEFAULT, COREWEBVIEW2_PERMISSION_STATE_DENY,
     },
     PermissionRequestedEventHandler,
 };
-use windows::core::{Interface, PWSTR};
+use windows::core::{Interface, HSTRING, PWSTR};
 
 pub(crate) fn install_webview2_media_permission_handler(
     window: &WebviewWindow,
-    broker: DesktopMediaPermissionBroker,
+    broker: Option<DesktopMediaPermissionBroker>,
     allowed_origin: Url,
+    initial_url: Url,
 ) -> Result<(), String> {
     window
         .with_webview(move |webview| unsafe {
@@ -31,6 +32,7 @@ pub(crate) fn install_webview2_media_permission_handler(
                 webview.controller().CoreWebView2(),
                 broker,
                 allowed_origin,
+                initial_url,
             );
 
             if let Err(error) = registration {
@@ -42,19 +44,44 @@ pub(crate) fn install_webview2_media_permission_handler(
 
 unsafe fn register_webview2_media_permission_handler(
     webview: windows::core::Result<webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2>,
-    broker: DesktopMediaPermissionBroker,
+    broker: Option<DesktopMediaPermissionBroker>,
     allowed_origin: Url,
+    initial_url: Url,
 ) -> windows::core::Result<()> {
     let webview = webview?;
+    let settings = webview.Settings()?;
+    let settings2 = settings.cast::<ICoreWebView2Settings2>()?;
+    let mut agent = PWSTR::null();
+    settings2.UserAgent(&mut agent)?;
+    let agent = take_pwstr(agent);
+    settings2.SetUserAgent(&HSTRING::from(format!(
+        "{agent} WhisprDesktop/{}",
+        env!("CARGO_PKG_VERSION")
+    )))?;
+    settings.SetIsStatusBarEnabled(false)?;
+    settings.SetAreDefaultScriptDialogsEnabled(false)?;
+    settings.SetAreDefaultContextMenusEnabled(false)?;
+    if let Ok(settings4) = settings.cast::<ICoreWebView2Settings4>() {
+        settings4.SetIsPasswordAutosaveEnabled(false)?;
+        settings4.SetIsGeneralAutofillEnabled(false)?;
+    }
+
     let handler = PermissionRequestedEventHandler::create(Box::new(move |_, args| {
         let Some(args) = args else {
             return Ok(());
         };
 
-        handle_media_permission_request(&args, &broker, &allowed_origin)
+        match &broker {
+            Some(broker) => handle_media_permission_request(&args, broker, &allowed_origin),
+            None => apply_webview_media_permission_decision(
+                &args,
+                WebviewMediaPermissionDecision::DenyEphemeral,
+            ),
+        }
     }));
     let mut token = 0;
-    webview.add_PermissionRequested(&handler, &mut token)
+    webview.add_PermissionRequested(&handler, &mut token)?;
+    webview.Navigate(&HSTRING::from(initial_url.as_str()))
 }
 
 unsafe fn handle_media_permission_request(
@@ -72,7 +99,10 @@ unsafe fn handle_media_permission_request(
     };
 
     if kind.is_none() {
-        return Ok(());
+        return apply_webview_media_permission_decision(
+            args,
+            WebviewMediaPermissionDecision::DenyEphemeral,
+        );
     }
 
     let mut uri = PWSTR::null();

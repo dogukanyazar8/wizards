@@ -6,7 +6,7 @@ import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "r
 import {
   ChartNoAxesColumnIncreasing,
   Code2,
-  Command,
+  Slash,
   FileText,
   ImageIcon,
   ImagePlus,
@@ -288,7 +288,7 @@ const AutoResizeTextarea = forwardRef<HTMLTextAreaElement, AutoResizeTextareaPro
       <textarea
         ref={ref}
         className={cn(
-          "message-font-scope max-h-[32dvh] min-h-11 w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-[0.9375rem] leading-6 text-app-foreground shadow-none placeholder-app-muted focus-visible:outline-hidden focus-visible:ring-0 md:max-h-40 md:px-3 md:py-2.5",
+          "message-composer-textarea message-font-scope max-h-[32dvh] min-h-11 w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-[0.9375rem] leading-6 text-app-foreground shadow-none placeholder-app-muted focus-visible:outline-hidden focus-visible:ring-0 md:max-h-40 md:px-3 md:py-2.5",
           formattingOpen ? "rounded-b-[1.375rem] rounded-t-none" : "rounded-[1.375rem]",
           isThreadComposer ? "max-h-[8.5rem]" : "",
           className,
@@ -1522,7 +1522,7 @@ export function ChatComposer({
 
           <div
             className={cn(
-              "relative flex-1",
+              "message-composer-field relative flex-1",
               referenceComposer &&
                 "flex flex-wrap items-center gap-1.5 border border-[hsl(var(--border))] bg-[hsl(var(--surface-card))] px-2.5 py-2 shadow-[0_4px_14px_hsl(var(--shadow-color)/0.035)]",
               referenceComposer &&
@@ -2059,7 +2059,7 @@ export function ChatComposer({
                 onClick={insertSlashCommand}
                 type="button"
               >
-                <Command className="h-5 w-5" />
+                <Slash className="h-5 w-5" />
                 <span>{t("chat.input.slashCommands")}</span>
               </button>
               <button

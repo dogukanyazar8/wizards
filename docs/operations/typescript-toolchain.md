@@ -101,7 +101,7 @@ declarations. DB, types, and UI pass with dependency checking enabled.
 
 ## Troubleshooting
 
-- If `tsc6` or TS7 `tsc` is missing, select Node 24.18.0, run
+- If `tsc6` or TS7 `tsc` is missing, select Node 24.21.0, run
   `pnpm install --frozen-lockfile`, then run `pnpm test:toolchain`. Do not add a package-local
   compiler.
 - Invoke the aggregate gate as `pnpm run ci`. Bare `pnpm ci` is pnpm's reserved, unimplemented

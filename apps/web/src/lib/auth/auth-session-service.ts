@@ -6,7 +6,7 @@ import {
   recordSecurityEvent,
   type RecordSecurityEventInput,
 } from "@/lib/security/security-event-service";
-import { disconnectAuthSessionSockets } from "@/lib/socket/runtime";
+import { disconnectAuthSessionSockets, notifyAccountSecurityChanged } from "@/lib/socket/runtime";
 
 export type AuthSessionClientType = "WEB" | "DESKTOP" | "MOBILE" | "UNKNOWN";
 export type AuthSessionDeviceType = "DESKTOP" | "MOBILE" | "TABLET" | "UNKNOWN";
@@ -138,6 +138,10 @@ export const prismaAuthSessionStore: AuthSessionStore = {
     }),
 };
 
+function sessionApplicationName(session: Pick<AuthSessionRecord, "clientType" | "browser">) {
+  return session.clientType === "DESKTOP" ? "Whispr Desktop" : session.browser;
+}
+
 function safeText(value: string | null | undefined, maxLength: number): string | null {
   const normalized = value?.trim();
   return normalized ? normalized.slice(0, maxLength) : null;
@@ -192,7 +196,7 @@ async function recordNewDeviceLogin(
   await recordEvent({
     kind: "LOGIN_NEW_DEVICE",
     location: record.countryCode,
-    userAgent: record.browser,
+    userAgent: sessionApplicationName(record),
     userId: record.userId,
   });
 }
@@ -223,6 +227,7 @@ export async function ensureAuthSession(
   // original instant, a create echoes back the one passed in. Cheaper than a read before write
   // on a path the JWT callback runs on every request.
   if (record.createdAt.getTime() === now.getTime()) {
+    notifyAccountSecurityChanged(input.userId, true);
     try {
       await recordNewDeviceLogin(record, store, input.recordEvent ?? recordSecurityEvent);
     } catch (error) {
@@ -246,7 +251,7 @@ export async function listAuthSessions(
   return {
     sessions: rows.map((row) => ({
       appVersion: row.appVersion,
-      browser: row.browser,
+      browser: sessionApplicationName(row),
       clientType: row.clientType,
       countryCode: row.countryCode,
       createdAt: row.createdAt.toISOString(),
@@ -308,6 +313,7 @@ export async function revokeAuthSession(
     options.now ?? new Date(),
   );
   if (revokedSession) {
+    notifyAccountSecurityChanged(userId, true);
     await notifyRevokedAuthSessions(
       [revokedSession],
       options.disconnectSockets ?? disconnectAuthSessionSockets,
@@ -316,7 +322,7 @@ export async function revokeAuthSession(
       kind: "SESSION_REVOKED",
       location: revokedSession.countryCode,
       metadata: { revokedCount: 1, scope: "single" },
-      userAgent: revokedSession.browser,
+      userAgent: sessionApplicationName(revokedSession),
       userId,
     });
   }
@@ -343,6 +349,7 @@ export async function revokeOtherAuthSessions(
     options.disconnectSockets ?? disconnectAuthSessionSockets,
   );
   if (revokedSessions.length > 0) {
+    notifyAccountSecurityChanged(userId, true);
     await (options.recordEvent ?? recordSecurityEvent)({
       kind: "SESSION_REVOKED",
       metadata: { revokedCount: revokedSessions.length, scope: "others" },

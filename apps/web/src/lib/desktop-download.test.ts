@@ -6,7 +6,7 @@ import {
   resolveDesktopDownloadUrlFromManifest,
 } from "./desktop-download";
 
-const canaryManifestUrl = new URL("https://updates.whispr.team/desktop/canary/latest.json");
+const stableManifestUrl = new URL("https://updates.whispr.team/desktop/stable/latest.json");
 
 describe("desktop download routing", () => {
   it("defaults the public web download CTA to the safe app redirect endpoint", () => {
@@ -14,9 +14,9 @@ describe("desktop download routing", () => {
     assert.equal(getSafeDesktopDownloadUrl(""), "/api/v1/desktop/download");
     assert.equal(
       getSafeDesktopDownloadUrl(
-        "https://updates.whispr.team/desktop/canary/releases/v0.8.15-canary.22/Whispr_0.8.15_x64-setup.exe",
+        "https://updates.whispr.team/desktop/stable/releases/v0.8.15/Whispr_0.8.15_x64-setup.exe",
       ),
-      "https://updates.whispr.team/desktop/canary/releases/v0.8.15-canary.22/Whispr_0.8.15_x64-setup.exe",
+      "https://updates.whispr.team/desktop/stable/releases/v0.8.15/Whispr_0.8.15_x64-setup.exe",
     );
     assert.equal(
       getSafeDesktopDownloadUrl("http://localhost:3000/download.exe"),
@@ -24,30 +24,30 @@ describe("desktop download routing", () => {
     );
   });
 
-  it("uses the canary updater manifest as the default desktop download source", () => {
+  it("uses the stable updater manifest as the default desktop download source", () => {
     assert.equal(
       getDesktopDownloadManifestUrl(undefined).href,
-      "https://updates.whispr.team/desktop/canary/latest.json",
+      "https://updates.whispr.team/desktop/stable/latest.json",
     );
   });
 
-  it("resolves the Windows installer from a signed canary manifest", () => {
+  it("resolves the Windows installer from a signed stable manifest", () => {
     const downloadUrl = resolveDesktopDownloadUrlFromManifest(
       {
         version: "0.8.15",
         platforms: {
           "windows-x86_64": {
             signature: "trusted-updater-signature",
-            url: "https://updates.whispr.team/desktop/canary/releases/v0.8.15-canary.22/Whispr_0.8.15_x64-setup.exe",
+            url: "https://updates.whispr.team/desktop/stable/releases/v0.8.15/Whispr_0.8.15_x64-setup.exe",
           },
         },
       },
-      canaryManifestUrl,
+      stableManifestUrl,
     );
 
     assert.equal(
       downloadUrl.href,
-      "https://updates.whispr.team/desktop/canary/releases/v0.8.15-canary.22/Whispr_0.8.15_x64-setup.exe",
+      "https://updates.whispr.team/desktop/stable/releases/v0.8.15/Whispr_0.8.15_x64-setup.exe",
     );
   });
 
@@ -60,11 +60,11 @@ describe("desktop download routing", () => {
             platforms: {
               "windows-x86_64": {
                 signature: "trusted-updater-signature",
-                url: "https://updates.whispr.team/desktop/canary/Whispr_0.8.15_x64-setup.exe",
+                url: "https://updates.whispr.team/desktop/stable/Whispr_0.8.15_x64-setup.exe",
               },
             },
           },
-          canaryManifestUrl,
+          stableManifestUrl,
         ),
       /artifact URL does not match/,
     );
@@ -72,7 +72,7 @@ describe("desktop download routing", () => {
 
   it("rejects unsafe manifest and artifact origins", () => {
     assert.throws(
-      () => getDesktopDownloadManifestUrl("https://example.com/desktop/canary/latest.json"),
+      () => getDesktopDownloadManifestUrl("https://example.com/desktop/stable/latest.json"),
       /Whispr HTTPS latest\.json/,
     );
 
@@ -84,11 +84,11 @@ describe("desktop download routing", () => {
             platforms: {
               "windows-x86_64": {
                 signature: "trusted-updater-signature",
-                url: "https://example.com/desktop/canary/releases/v0.8.15-canary.22/Whispr_0.8.15_x64-setup.exe",
+                url: "https://example.com/desktop/stable/releases/v0.8.15/Whispr_0.8.15_x64-setup.exe",
               },
             },
           },
-          canaryManifestUrl,
+          stableManifestUrl,
         ),
       /artifact URL must be a Whispr HTTPS URL/,
     );

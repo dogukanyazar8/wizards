@@ -8,6 +8,7 @@ import {
   fetchMobileAccountSettings,
   getMobileAccountProfileCompletion,
   MOBILE_ACCOUNT_VISIBILITY_PREFERENCE_KEYS,
+  MOBILE_ACCOUNT_SETTINGS_HEADERS,
   persistMobileAccountVisibilityPreference,
   readMobileAccountVisibilityPreferences,
   updateMobileAccountSettings,
@@ -36,7 +37,6 @@ const accountSettings = {
     email: "ada@example.com",
     emailVerified: true,
     nextUsernameChangeAt: null,
-    pronouns: null,
     twoFactorEnabled: false,
   },
   privacy: {
@@ -55,6 +55,25 @@ function client(handler: (path: string, options?: unknown) => unknown): MobileAp
 }
 
 describe("mobile account settings client", () => {
+  it("persists an explicit read-receipt opt-out without changing other privacy choices", async () => {
+    const calls: Array<[string, unknown]> = [];
+    const api = client((path, options) => {
+      calls.push([path, options]);
+      return { ...accountSettings, privacy: { ...accountSettings.privacy, readReceipts: false } };
+    });
+    const result = await updateMobileAccountSettings(api, { readReceipts: false });
+    assert.equal(result.privacy.readReceipts, false);
+    assert.deepEqual(calls, [
+      [
+        "/api/v1/mobile/account/settings",
+        {
+          body: { readReceipts: false },
+          headers: MOBILE_ACCOUNT_SETTINGS_HEADERS,
+          method: "PATCH",
+        },
+      ],
+    ]);
+  });
   it("loads and updates strict authenticated account settings", async () => {
     const calls: Array<[string, unknown]> = [];
     const api = client((path, options) => {
@@ -70,7 +89,11 @@ describe("mobile account settings client", () => {
     assert.equal(calls[0]?.[0], "/api/v1/mobile/account/settings");
     assert.deepEqual(calls[1], [
       "/api/v1/mobile/account/settings",
-      { body: { friendRequests: "MUTUAL_FRIENDS" }, method: "PATCH" },
+      {
+        body: { friendRequests: "MUTUAL_FRIENDS" },
+        headers: MOBILE_ACCOUNT_SETTINGS_HEADERS,
+        method: "PATCH",
+      },
     ]);
 
     await assert.rejects(() =>
@@ -174,7 +197,11 @@ describe("mobile account settings client", () => {
     assert.deepEqual(calls, [
       [
         "/api/v1/mobile/account/settings",
-        { body: { messageCompact: true, messageFontSize: "large" }, method: "PATCH" },
+        {
+          body: { messageCompact: true, messageFontSize: "large" },
+          headers: MOBILE_ACCOUNT_SETTINGS_HEADERS,
+          method: "PATCH",
+        },
       ],
     ]);
   });

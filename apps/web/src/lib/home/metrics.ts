@@ -111,7 +111,6 @@ export const HOME_METRICS = {
     rowGap: 12,
     iconSize: 18,
     iconStrokeWidth: 1.8,
-    activeDotSize: 6,
     /** "Etkinlikler" satırının sağındaki saat. */
     trailingTimeFontSize: 11.5,
     dividerHeight: 1,

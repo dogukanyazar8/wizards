@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { ConnectionQuality, RoomEvent, type Participant } from "livekit-client";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
+import { ServerVoiceLayoutMenu } from "@/components/voice/server/server-voice-layout-menu";
+import { useVoiceLayout } from "@/lib/servers/voice-layout-store";
+import { selectFeaturedVoiceParticipant } from "@/lib/servers/voice-layout";
 import { useI18n } from "@/components/providers/locale-provider";
 import { useVoiceParticipants, useVoiceState } from "@/components/providers/voice-provider";
 import { getSocket } from "@/lib/socket/client";
@@ -19,6 +21,7 @@ import {
   ServerScreenShareStage,
   ServerScreenShareStripCard,
   ServerVoiceControls,
+  ServerVoiceDisconnectedState,
   ServerVoiceEmptyState,
   ServerVoiceGrid,
   ServerVoiceHeader,
@@ -41,7 +44,6 @@ import {
   SCREEN_SHARE_QUALITY_OPTIONS,
   getScreenShareQualityPreset,
 } from "@/lib/voice/screen-share";
-import { buildSettingsHref } from "@/lib/settings/navigation";
 import { fetchWorkspaceServer, workspaceQueryKeys } from "@/lib/workspace/client";
 
 type VoiceChannelViewProps = {
@@ -74,7 +76,7 @@ export function VoiceChannelView(props: VoiceChannelViewProps) {
 
 function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps) {
   const { t } = useI18n();
-  const router = useRouter();
+  const layout = useVoiceLayout((state) => state.layout);
   const {
     activeChannelId,
     activeScreenShareId,
@@ -201,6 +203,8 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
     [participants, room],
   );
 
+  const featuredParticipantId = selectFeaturedVoiceParticipant(orderedParticipants);
+
   /* §5.1 — kanal adı ve kategori çipi. Sorgu kabuğun zaten doldurduğu önbelleği paylaşıyor. */
   const serverDetailQuery = useQuery({
     enabled: Boolean(serverId),
@@ -311,28 +315,13 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
 
   if (!room && !errorMessage && activeChannelId !== channelId) {
     return (
-      <div
-        className="flex h-full items-center justify-center bg-transparent p-6"
-        data-testid="voice-disconnected-state"
-      >
-        <div className="app-panel max-w-md rounded-[28px] border p-8 text-center">
-          <p className="text-base font-semibold text-app-foreground">
-            {t("voice.view.disconnectedTitle")}
-          </p>
-          <p className="mt-2 text-sm text-app-muted">{t("voice.view.disconnectedDescription")}</p>
-          <button
-            className="mt-5 rounded-2xl border border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary)/0.14)] px-4 py-2 text-sm font-semibold text-app-foreground transition hover:opacity-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-            onClick={() => {
-              void joinChannel({ channelId, serverId }).catch(() => {
-                // The provider exposes the error message for inline rendering.
-              });
-            }}
-            type="button"
-          >
-            {t("voice.view.reconnectAction")}
-          </button>
-        </div>
-      </div>
+      <ServerVoiceDisconnectedState
+        onReconnect={() => {
+          void joinChannel({ channelId, serverId }).catch(() => {
+            // The provider exposes the error message for inline rendering.
+          });
+        }}
+      />
     );
   }
 
@@ -412,6 +401,7 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
 
       {/* §5.1 — hoparlör ikonu, ad, kategori çipi, durum satırı, Krisp + gecikme çipleri. */}
       <ServerVoiceHeader
+        layoutControl={<ServerVoiceLayoutMenu sharing={screenShares.length > 0} />}
         categoryName={categoryName}
         channelName={channelName}
         krispActive={isKrispNoiseCancellationActive}
@@ -484,9 +474,16 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
         />
       ) : participantCount > 0 ? (
         /* §5.2 — katılımcı ızgarası; kolon sayısı `selectVoiceGridColumns`ten. */
-        <ServerVoiceGrid participantCount={participantCount}>
+        <ServerVoiceGrid
+          participantCount={participantCount}
+          layout={layout}
+          featuredIndex={orderedParticipants.findIndex(
+            (participant) => participant.userId === featuredParticipantId,
+          )}
+        >
           {orderedParticipants.map((participant) => (
             <ServerVoiceTile
+              fill
               {...(participant.isLocal
                 ? {}
                 : {
@@ -524,7 +521,6 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
         onLeave={() => {
           void leaveChannel();
         }}
-        onOpenSettings={() => router.push(buildSettingsHref("av", "audio"))}
         onToggleCamera={() => {
           void toggleCamera();
         }}

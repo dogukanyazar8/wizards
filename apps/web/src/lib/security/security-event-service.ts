@@ -1,3 +1,4 @@
+import { notifyAccountSecurityChanged } from "@/lib/socket/runtime";
 import { prisma, type Prisma } from "@wizards/db";
 import type { SecurityEvent as SecurityEventDto } from "@wizards/types";
 
@@ -157,6 +158,7 @@ export async function recordSecurityEvent(
       userAgent: boundedText(input.userAgent, MAX_USER_AGENT_LENGTH),
       userId,
     });
+    notifyAccountSecurityChanged(userId, false);
   } catch (error) {
     dependencies.logError(`[security] Failed to record ${input.kind} security event`, error);
   }
@@ -184,7 +186,10 @@ export async function recordSecurityEventFromHeaders(
       const info = getAnalyticsClientInfo(headers);
       ipHash = info.ipHash;
       location = info.countryCode;
-      userAgent = headers.get("user-agent") ?? null;
+      userAgent =
+        info.clientType === "DESKTOP"
+          ? ["Whispr Desktop", info.appVersion, info.os].filter(Boolean).join(" · ")
+          : (headers.get("user-agent") ?? null);
     }
   } catch (error) {
     dependencies.logError("[security] Failed to read security event client info", error);

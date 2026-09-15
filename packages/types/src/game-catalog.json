@@ -1,0 +1,19 @@
+[
+  { "id": "cs2", "name": "Counter-Strike 2", "executables": ["cs2.exe", "cs2"] },
+  { "id": "valorant", "name": "VALORANT", "executables": ["valorant-win64-shipping.exe"] },
+  {
+    "id": "league-of-legends",
+    "name": "League of Legends",
+    "executables": ["league of legends.exe", "leagueoflegends"]
+  },
+  { "id": "dota-2", "name": "Dota 2", "executables": ["dota2.exe", "dota2"] },
+  { "id": "fortnite", "name": "Fortnite", "executables": ["fortniteclient-win64-shipping.exe"] },
+  { "id": "pubg", "name": "PUBG: BATTLEGROUNDS", "executables": ["tslgame.exe"] },
+  {
+    "id": "minecraft",
+    "name": "Minecraft",
+    "executables": ["minecraft.windows.exe", "minecraftpe"]
+  },
+  { "id": "gta-v", "name": "Grand Theft Auto V", "executables": ["gta5.exe", "gta5_enhanced.exe"] },
+  { "id": "apex-legends", "name": "Apex Legends", "executables": ["r5apex.exe", "r5apex_dx12.exe"] }
+]

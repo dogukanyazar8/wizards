@@ -50,7 +50,6 @@ const profileUserSelect = {
   displayName: true,
   id: true,
   premiumType: true,
-  pronouns: true,
   registeredAt: true,
   status: true,
   settings: { select: { presenceVisibility: true, profileVisibility: true } },
@@ -256,6 +255,8 @@ export function readProfilePresence(
     customStatus,
     // The emoji only ever renders next to the message, so it follows it exactly.
     customStatusEmoji: customStatus === null ? null : user.customStatusEmoji,
+    customStatusExpiresAt:
+      customStatus === null ? null : (user.customStatusExpiresAt?.toISOString() ?? null),
     status,
   };
 }
@@ -408,7 +409,6 @@ export async function getMobileUserProfile(
       mutualServers: { count: 0, preview: [] },
       note: null,
       presence: { customStatus: null, customStatusEmoji: null, status: "OFFLINE" },
-      pronouns: null,
       registeredAt: "1970-01-01T00:00:00.000Z",
       relationship,
       self: false,
@@ -484,7 +484,6 @@ export async function getMobileUserProfile(
         ? resolveMobileProfilePresenceStatus({ livePresence, self, storedStatus: user.status })
         : "OFFLINE",
     }),
-    pronouns: user.pronouns,
     registeredAt: user.registeredAt.toISOString(),
     relationship,
     self,

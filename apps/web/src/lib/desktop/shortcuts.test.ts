@@ -84,6 +84,14 @@ describe("masaüstü kısayol sözleşmesi", () => {
     }
   });
 
+  it("CmdOrCtrl on macOS means Command while literal Control stays Control", () => {
+    assert.deepEqual(toDesktopShortcutCapsules("CmdOrCtrl+Alt+1", "macos"), ["⌘", "⌥", "1"]);
+    assert.deepEqual(toDesktopShortcutCapsules("Control+Alt+1", "macos"), ["⌃", "⌥", "1"]);
+    assert.deepEqual(toDesktopShortcutCapsules("CmdOrCtrl+Alt+1", "windows"), ["Ctrl", "Alt", "1"]);
+    assert.deepEqual(toDesktopShortcutCapsules("Alt+Shift+K"), ["Alt", "Shift", "K"]);
+    assert.deepEqual(toDesktopShortcutCapsules("Meta+1", null), ["Meta", "1"]);
+  });
+
   it("tanınmayan parça olduğu gibi kalır", () => {
     assert.deepEqual(toDesktopShortcutCapsules("Hyper+K"), ["Hyper", "K"]);
   });

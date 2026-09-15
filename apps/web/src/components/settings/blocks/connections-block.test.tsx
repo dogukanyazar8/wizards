@@ -52,6 +52,9 @@ describe("ConnectionsBlock — içerik", () => {
 });
 
 describe("ConnectionsBlock — K5", () => {
+  it("labels unavailable connection actions as coming soon", () => {
+    assert.equal((render().match(/>Yakında<\/button>/gu) ?? []).length, 4);
+  });
   it("adapter dört servisi de `available: false` veriyor", () => {
     assert.deepEqual(
       STATIC_CONNECTIONS.map((connection) => connection.available),

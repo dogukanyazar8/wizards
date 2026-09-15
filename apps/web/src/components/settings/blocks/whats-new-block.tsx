@@ -56,7 +56,7 @@ export function WhatsNewBlock({ row: rowDef }: SettingsBlockProps) {
             }}
           >
             <span
-              className="h-fit flex-none rounded-full"
+              className="flex h-fit flex-none items-center justify-center rounded-full text-center"
               style={{
                 background: `hsl(var(${toneToken}) / ${whatsNew.tagSurfaceAlpha})`,
                 color: `hsl(var(${toneToken}))`,

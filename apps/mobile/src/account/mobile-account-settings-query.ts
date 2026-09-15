@@ -5,10 +5,11 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
-import type {
-  MobileAccountSettingsResponse,
-  MobileAccountSettingsUpdate,
-  MobilePasswordChangeRequest,
+import {
+  profileStatusRefetchInterval,
+  type MobileAccountSettingsResponse,
+  type MobileAccountSettingsUpdate,
+  type MobilePasswordChangeRequest,
 } from "@wizards/types";
 
 import type { MobileApiClient } from "../api/mobile-api-client";
@@ -29,6 +30,8 @@ export function getMobileAccountSettingsQueryOptions(client: MobileApiClient, en
     enabled,
     queryFn: () => fetchMobileAccountSettings(client),
     queryKey: mobileQueryKeys.accountSettings(),
+    refetchInterval: (query) =>
+      profileStatusRefetchInterval(query.state.data?.account.customStatusExpiresAt),
     staleTime: 30_000,
   });
 }
@@ -52,6 +55,7 @@ export function optimisticallyPatchMobileAccountSettings(
             ...current.privacy,
             ...(input.dmPermission !== undefined ? { dmPermission: input.dmPermission } : {}),
             ...(input.friendRequests !== undefined ? { friendRequests: input.friendRequests } : {}),
+            ...(input.readReceipts !== undefined ? { readReceipts: input.readReceipts } : {}),
           },
         }
       : current,
@@ -73,8 +77,7 @@ export function useMobileChangePasswordMutation(client: MobileApiClient) {
 
   return useMutation({
     mutationFn: (input: MobilePasswordChangeRequest) => changeMobilePassword(client, input),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: mobileQueryKeys.accountSettings() }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: mobileQueryKeys.accountSettings() }),
   });
 }
 

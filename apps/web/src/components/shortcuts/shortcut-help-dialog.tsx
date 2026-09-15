@@ -3,7 +3,10 @@
 import React from "react";
 
 import { Modal } from "@/components/ui/modal";
-import { useAppShortcutLabels } from "@/hooks/use-app-shortcut-label";
+import {
+  useAppShortcutAccessibleLabels,
+  useAppShortcutLabels,
+} from "@/hooks/use-app-shortcut-label";
 import {
   APP_SHORTCUT_CATALOG,
   APP_SHORTCUT_IDS,
@@ -32,15 +35,17 @@ const CATEGORY_LABEL_KEYS = {
 function ShortcutRow({ id }: { id: AppShortcutId }) {
   const { t } = useI18n();
   const labels = useAppShortcutLabels(id);
+  const accessibleLabels = useAppShortcutAccessibleLabels(id);
   const shortcut = APP_SHORTCUT_CATALOG[id];
 
   return (
     <li className="flex items-center justify-between gap-4 py-2.5">
       <span className="text-sm text-app-foreground">{t(shortcut.labelKey)}</span>
       <span className="flex shrink-0 flex-wrap justify-end gap-1.5">
-        {labels.map((label) => (
+        {labels.map((label, index) => (
           <kbd
-            className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.7)] px-2 py-1 font-mono text-xs text-app-muted shadow-sm"
+            aria-label={accessibleLabels[index]}
+            className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.7)] px-2 py-1 [font-family:inherit] text-xs font-semibold text-app-foreground shadow-sm"
             key={label}
           >
             {label}

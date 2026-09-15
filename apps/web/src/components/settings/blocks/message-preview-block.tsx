@@ -5,6 +5,7 @@ import React from "react";
 import { useI18n } from "@/components/providers/locale-provider";
 import type { SettingsBlockProps } from "@/components/settings/rows/setting-custom-block";
 import { getMessageFontFamily, MESSAGE_FONT_OPTIONS } from "@/lib/message-fonts";
+import { selectMessageDensityVariables } from "@/lib/messages/density";
 import { SETTINGS_METRICS, pxToRem } from "@/lib/settings/metrics";
 import { useSettingValue } from "@/lib/settings/use-setting-value";
 
@@ -33,21 +34,26 @@ export function MessagePreviewBlock({ row: rowDef }: SettingsBlockProps) {
   const fontIndex = useSettingValue<number>("m1");
   const fontSize = useSettingValue<number>("m2");
   const compact = useSettingValue<boolean>("m4");
+  const density = useSettingValue<number>("m3");
 
   const fontId = MESSAGE_FONT_OPTIONS[fontIndex.value]?.id ?? MESSAGE_FONT_OPTIONS[0]?.id;
   const fontFamily = getMessageFontFamily(fontId);
   const dense = compact.value;
+  const densityScale =
+    selectMessageDensityVariables(density.value === 1 ? "COMPACT" : "COMFORTABLE").rowGap /
+    selectMessageDensityVariables("COMFORTABLE").rowGap;
 
   return (
     <div
       className="flex flex-col"
       data-block="msgPreview"
       data-compact={dense ? "true" : "false"}
+      data-density={density.value === 1 ? "compact" : "comfortable"}
       data-font={fontId}
       data-size={fontSize.value}
       data-testid={`settings-block-${rowDef.key}`}
       style={{
-        gap: pxToRem(dense ? messagePreview.gap / 2 : messagePreview.gap),
+        gap: pxToRem((dense ? messagePreview.gap / 2 : messagePreview.gap) * densityScale),
         padding: `${pxToRem(messagePreview.paddingY)} ${pxToRem(messagePreview.paddingX)}`,
       }}
     >
@@ -61,8 +67,8 @@ export function MessagePreviewBlock({ row: rowDef }: SettingsBlockProps) {
               color: "hsl(var(--primary))",
               fontSize: pxToRem(10),
               fontWeight: 600,
-              height: pxToRem(messagePreview.avatarSize),
-              width: pxToRem(messagePreview.avatarSize),
+              height: pxToRem(dense ? 24 : messagePreview.avatarSize),
+              width: pxToRem(dense ? 24 : messagePreview.avatarSize),
             }}
           >
             {t(message.avatarKey)}

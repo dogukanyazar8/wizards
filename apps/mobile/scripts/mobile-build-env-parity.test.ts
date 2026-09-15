@@ -19,7 +19,7 @@ const RUNTIME_REQUIRED_PUBLIC_ENV = [
   "EXPO_PUBLIC_WHISPR_SOCKET_URL",
   "EXPO_PUBLIC_WHISPR_WEB_URL",
 ] as const;
-const RELEASE_EAS_PROFILES = ["uat", "canary", "production"] as const;
+const RELEASE_EAS_PROFILES = ["uat", "production"] as const;
 
 function readMobileFile(relativePath: string) {
   return readFileSync(path.join(MOBILE_ROOT, relativePath), "utf8");

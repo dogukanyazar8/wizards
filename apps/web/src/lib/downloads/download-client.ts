@@ -25,5 +25,5 @@ export async function fetchAppDownloads(
   return AppDownloadsResponseSchema.parse(await response.json());
 }
 
-/** Alt bardaki "Sürüm notları" düğmesinin hedefi: Ayarlar › Hakkında › Yenilikler. */
-export const RELEASE_NOTES_ROUTE = "/settings/about/about";
+/** Alt bardaki "Sürüm notları" düğmesinin hedefi: Ayarlar › Güncellemeler. */
+export const RELEASE_NOTES_ROUTE = "/settings/updates/updates";

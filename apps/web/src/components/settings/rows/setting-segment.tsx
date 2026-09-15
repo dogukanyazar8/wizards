@@ -73,7 +73,7 @@ export function SettingSegment({
       aria-describedby={describedById}
       aria-disabled={disabled || undefined}
       aria-labelledby={labelledById}
-      className="inline-flex shrink-0 items-center bg-[hsl(var(--surface-secondary))]"
+      className="inline-flex max-w-full shrink-0 flex-wrap items-center bg-[hsl(var(--surface-secondary))]"
       data-testid={testId}
       role="radiogroup"
       style={{

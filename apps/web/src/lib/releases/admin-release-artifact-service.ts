@@ -21,20 +21,20 @@ export type AdminReleaseArtifactSummary = AdminReleaseArtifactInput & {
 export type AdminReleaseArtifactServiceDependencies = {
   createArtifactAndSyncRelease(
     releaseId: string,
-    channel: "BETA" | "STABLE" | "UAT",
+    channel: "STABLE" | "UAT",
     input: AdminReleaseArtifactInput,
     publishedAt: Date,
   ): Promise<AdminReleaseArtifactSummary>;
   findArtifact(
-    channel: "BETA" | "STABLE" | "UAT",
+    channel: "STABLE" | "UAT",
     input: Pick<AdminReleaseArtifactInput, "kind" | "platform" | "versionCode">,
   ): Promise<{ id: string } | null>;
   findLatestVersionCode(
-    channel: "BETA" | "STABLE" | "UAT",
+    channel: "STABLE" | "UAT",
     input: Pick<AdminReleaseArtifactInput, "kind" | "platform">,
   ): Promise<number | null>;
   findRelease(releaseId: string): Promise<{
-    channel: "BETA" | "STABLE" | "UAT";
+    channel: "STABLE" | "UAT";
     id: string;
     publishedAt: Date | null;
   } | null>;
@@ -109,17 +109,14 @@ const defaultDependencies: AdminReleaseArtifactServiceDependencies = {
   now: () => new Date(),
 };
 
-function validateImmutableArtifactUrl(
-  input: AdminReleaseArtifactInput,
-  channel: "BETA" | "STABLE" | "UAT",
-) {
+function validateImmutableArtifactUrl(input: AdminReleaseArtifactInput, channel: "STABLE" | "UAT") {
   let url: URL;
   try {
     url = new URL(input.url);
   } catch {
     throw new ApiError("Artifact URL is invalid", 400, "ARTIFACT_URL_INVALID");
   }
-  const ring = channel === "UAT" ? "uat" : channel === "BETA" ? "canary" : "production";
+  const ring = channel === "UAT" ? "uat" : "production";
   const extension = input.kind.toLowerCase();
   const immutablePath = new RegExp(`^/mobile/${ring}/releases/[^/]+/[^/]+\\.${extension}$`, "u");
   if (

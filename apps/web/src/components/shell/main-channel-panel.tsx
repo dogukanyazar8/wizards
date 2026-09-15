@@ -6,6 +6,7 @@ import type { WorkspaceChannel } from "@wizards/types";
 import { useShallow } from "zustand/react/shallow";
 import { useI18n } from "@/components/providers/locale-provider";
 import { useAppStore } from "@/lib/store";
+import { mainPanelWidthToPercent } from "@/lib/settings/appearance-runtime";
 
 type MainChannelPanelProps = {
   channel?: WorkspaceChannel | null;
@@ -115,10 +116,10 @@ export function MainChannelPanel({
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-0 pb-0 pt-0">
         <div
-          className="whispr-surface-pane mx-auto flex min-h-0 w-full flex-1 overflow-hidden rounded-[18px] border-0 shadow-none"
+          className="whispr-surface-pane mx-auto flex min-h-0 w-full flex-1 overflow-hidden rounded-none border-0 shadow-none"
           data-main-panel-frame="true"
           data-surface-layer="pane"
-          style={{ maxWidth: children ? "100%" : `${mainPanelWidth}px` }}
+          style={{ maxWidth: `${mainPanelWidthToPercent(mainPanelWidth)}%` }}
         >
           {children ? (
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>

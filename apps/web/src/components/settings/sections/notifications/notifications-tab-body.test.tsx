@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import React from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { LocaleProvider } from "@/components/providers/locale-provider";
@@ -90,17 +91,19 @@ function render(
   };
 
   return renderToStaticMarkup(
-    <LocaleProvider initialLocale="tr" initialMessages={MESSAGES}>
-      <SettingsValueContext.Provider value={store}>
-        <SettingsRowRuntimeContext.Provider value={runtime}>
-          <NotificationsSectionContext.Provider
-            value={{ ...NOTIFICATIONS_SECTION_FALLBACK, ...options.section }}
-          >
-            <Tab />
-          </NotificationsSectionContext.Provider>
-        </SettingsRowRuntimeContext.Provider>
-      </SettingsValueContext.Provider>
-    </LocaleProvider>,
+    <QueryClientProvider client={new QueryClient()}>
+      <LocaleProvider initialLocale="tr" initialMessages={MESSAGES}>
+        <SettingsValueContext.Provider value={store}>
+          <SettingsRowRuntimeContext.Provider value={runtime}>
+            <NotificationsSectionContext.Provider
+              value={{ ...NOTIFICATIONS_SECTION_FALLBACK, ...options.section }}
+            >
+              <Tab />
+            </NotificationsSectionContext.Provider>
+          </SettingsRowRuntimeContext.Provider>
+        </SettingsValueContext.Provider>
+      </LocaleProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -364,15 +367,17 @@ describe("Bildirimler bölümü — paylaşılan beş anahtar (tuzak #4)", () =>
 
     const draw = (Tab: () => React.JSX.Element | null) =>
       renderToStaticMarkup(
-        <LocaleProvider initialLocale="tr" initialMessages={MESSAGES}>
-          <SettingsValueContext.Provider value={store}>
-            <SettingsRowRuntimeContext.Provider value={runtime}>
-              <NotificationsSectionContext.Provider value={NOTIFICATIONS_SECTION_FALLBACK}>
-                <Tab />
-              </NotificationsSectionContext.Provider>
-            </SettingsRowRuntimeContext.Provider>
-          </SettingsValueContext.Provider>
-        </LocaleProvider>,
+        <QueryClientProvider client={new QueryClient()}>
+          <LocaleProvider initialLocale="tr" initialMessages={MESSAGES}>
+            <SettingsValueContext.Provider value={store}>
+              <SettingsRowRuntimeContext.Provider value={runtime}>
+                <NotificationsSectionContext.Provider value={NOTIFICATIONS_SECTION_FALLBACK}>
+                  <Tab />
+                </NotificationsSectionContext.Provider>
+              </SettingsRowRuntimeContext.Provider>
+            </SettingsValueContext.Provider>
+          </LocaleProvider>
+        </QueryClientProvider>,
       );
 
     const general = draw(NotificationsGeneralTab);

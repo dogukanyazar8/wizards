@@ -130,8 +130,8 @@ export function isScreenShareAudioSupported(
  * When it is on the browser is asked for the surface's audio, told to offer
  * system audio as a source, and told to stop playing the captured audio out of
  * the sharer's own speakers — otherwise the sharer hears their own tab twice.
- * `selfBrowserSurface: "exclude"` still keeps the Whispr tab itself out of the
- * picker, so the call can never capture itself.
+ * The behavior preferences are picker hints. Self exclusion covers the current
+ * browser tab, not every application window or a full-monitor capture.
  *
  * None of this is a requirement: a browser without the feature, or a user who
  * leaves the picker's audio checkbox unticked, simply produces a video-only
@@ -139,7 +139,15 @@ export function isScreenShareAudioSupported(
  */
 export function getScreenShareCaptureOptions(
   qualityId: ScreenShareQualityId,
-  { shareSystemAudio = false }: { shareSystemAudio?: boolean } = {},
+  {
+    shareSystemAudio = false,
+    excludeSelfWindow = true,
+    allowSourceSwitch = true,
+  }: {
+    shareSystemAudio?: boolean;
+    excludeSelfWindow?: boolean;
+    allowSourceSwitch?: boolean;
+  } = {},
 ): ScreenShareCaptureOptions {
   const preset = getScreenShareQualityPreset(qualityId);
 
@@ -148,8 +156,8 @@ export function getScreenShareCaptureOptions(
       audio: false,
       contentHint: "detail",
       resolution: preset.resolution,
-      selfBrowserSurface: "exclude",
-      surfaceSwitching: "include",
+      selfBrowserSurface: excludeSelfWindow ? "exclude" : "include",
+      surfaceSwitching: allowSourceSwitch ? "include" : "exclude",
     };
   }
 
@@ -157,9 +165,9 @@ export function getScreenShareCaptureOptions(
     audio: true,
     contentHint: "detail",
     resolution: preset.resolution,
-    selfBrowserSurface: "exclude",
+    selfBrowserSurface: excludeSelfWindow ? "exclude" : "include",
     suppressLocalAudioPlayback: true,
-    surfaceSwitching: "include",
+    surfaceSwitching: allowSourceSwitch ? "include" : "exclude",
     systemAudio: "include",
   };
 }

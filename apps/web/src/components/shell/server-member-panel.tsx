@@ -360,7 +360,7 @@ export function ServerMemberPanelView({
   voiceParticipantCount,
 }: ServerMemberPanelViewProps) {
   const { t } = useI18n();
-  const { layout, rightPanel, textHeader } = SERVER_METRICS;
+  const { layout, rightPanel } = SERVER_METRICS;
   const isDrawer = variant === "drawer";
   const isOverlay = overlay && !isDrawer;
   const isVoice = content === "voice";
@@ -392,27 +392,20 @@ export function ServerMemberPanelView({
         boxShadow: isOverlay
           ? `0 ${pxToRem(24)} ${pxToRem(60)} ${pxToRem(-30)} hsl(var(--shadow-color))`
           : undefined,
-        top: isOverlay
-          ? pxToRem(
-              textHeader.paddingY * 2 +
-                textHeader.nameFontSize * textHeader.nameLineHeight +
-                textHeader.subtitleMarginTop +
-                textHeader.subtitleFontSize * textHeader.subtitleLineHeight,
-            )
-          : undefined,
+        top: isOverlay ? pxToRem(SERVER_METRICS.headerHeight) : undefined,
         width: isDrawer ? undefined : pxToRem(layout.rightPanelWidth),
         zIndex: isOverlay ? layout.rightPanelOverlayZIndex : undefined,
       }}
       suppressHydrationWarning
     >
       <div
-        className="flex items-center"
+        className="flex shrink-0 items-center"
+        data-testid="server-member-panel-header"
         style={{
+          height: pxToRem(SERVER_METRICS.headerHeight),
           borderBottom: `${hairline()} solid hsl(var(--border)/${rightPanel.headerBorderBottomAlpha})`,
           gap: pxToRem(rightPanel.headerGap),
-          padding: `${pxToRem(rightPanel.headerPaddingTop)} ${pxToRem(
-            rightPanel.headerPaddingX,
-          )} ${pxToRem(rightPanel.headerPaddingBottom)}`,
+          padding: `0 ${pxToRem(rightPanel.headerPaddingX)}`,
         }}
       >
         {isSearch ? (

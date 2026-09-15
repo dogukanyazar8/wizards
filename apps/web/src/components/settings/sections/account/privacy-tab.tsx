@@ -6,7 +6,7 @@ import { SettingsTabBody } from "@/components/settings/rows/render-settings-tab"
 import { findSettingsTab, type SettingsRowDef, type SettingsTabDef } from "@/lib/settings/tree";
 
 /**
- * Hesabım › Gizlilik — Görünürlük · Mesaj ve istekler · İçerik · Dil ve bölge.
+ * Hesabım › Gizlilik — Görünürlük · Mesaj ve istekler · İçerik.
  *
  * ## K9 — `Boşta sayılma süresi`
  *

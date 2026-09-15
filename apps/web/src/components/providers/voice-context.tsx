@@ -3,6 +3,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { type ConnectionState, type Room } from "livekit-client";
 import type { ScreenShareQualityId } from "@/lib/voice/screen-share";
+import type { ScreenShareOperationStatus } from "@/lib/voice/screen-share-session";
 import type { NoiseFilterTier } from "@/lib/voice/noise-filter";
 import type { VoiceScreenShareViewModel } from "@/lib/voice/participant-mapping";
 import type { VoiceParticipantViewModel } from "@/lib/voice/participant-view-model";
@@ -62,6 +63,8 @@ export type VoiceContextValue = {
   resetParticipantVolume: (userId: string) => void;
   room: Room | null;
   screenShareError: string | null;
+  screenShareStatus: ScreenShareOperationStatus;
+  switchScreenShareSource: () => Promise<void>;
   screenShares: VoiceScreenShareViewModel[];
   screenShareAudioEnabled: boolean;
   screenShareQuality: ScreenShareQualityId;

@@ -73,7 +73,7 @@ export function SettingsTabStrip({ activeTab, onSelect, tabs }: SettingsTabStrip
 
   return (
     <div
-      className="settings-window-tabs flex shrink-0 items-center"
+      className="settings-window-tabs flex min-w-0 shrink-0 items-center overflow-x-auto overflow-y-hidden"
       data-testid="settings-tab-strip"
       onKeyDown={handleKeyDown}
       ref={listRef}
@@ -92,7 +92,7 @@ export function SettingsTabStrip({ activeTab, onSelect, tabs }: SettingsTabStrip
           <button
             aria-selected={active}
             className={cn(
-              "settings-window-tab relative inline-flex items-center whitespace-nowrap transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+              "settings-window-tab relative inline-grid shrink-0 items-center whitespace-nowrap transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
               DISPLAY_FONT,
             )}
             data-active={active ? "true" : undefined}
@@ -110,7 +110,15 @@ export function SettingsTabStrip({ activeTab, onSelect, tabs }: SettingsTabStrip
             tabIndex={active ? 0 : -1}
             type="button"
           >
-            {t(tab.labelKey)}
+            {/* Reserve the heavier label's width so selection cannot move adjacent tabs. */}
+            <span
+              aria-hidden="true"
+              className="invisible col-start-1 row-start-1"
+              style={{ fontWeight: metrics.tabActiveWeight }}
+            >
+              {t(tab.labelKey)}
+            </span>
+            <span className="col-start-1 row-start-1">{t(tab.labelKey)}</span>
             {active ? (
               <span
                 aria-hidden="true"

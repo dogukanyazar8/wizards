@@ -16,7 +16,6 @@ const currentUser = {
   customStatus: null,
   customStatusEmoji: null,
   customStatusExpiresAt: null,
-  pronouns: null,
   usernameChangedAt: null,
   displayName: "Old Name",
   email: "dogukan@example.com",
@@ -49,6 +48,73 @@ function dependencies(overrides: Record<string, unknown> = {}) {
 }
 
 describe("account service", () => {
+  it("rejects email changes through the profile path before any write", async () => {
+    const { updateAccountProfile } = await service;
+    let writes = 0;
+    await assert.rejects(
+      updateAccountProfile(
+        "user-1",
+        { email: "new@example.com" },
+        dependencies({
+          updateUser: async () => {
+            writes += 1;
+            return currentUser;
+          },
+        }),
+      ),
+      (error: unknown) => error instanceof ApiError && error.code === "EMAIL_CHANGE_REQUIRED",
+    );
+    assert.equal(writes, 0);
+  });
+  it("clears the status trio in one write without rewriting the rest of the profile", async () => {
+    const { updateAccountProfile } = await service;
+    let saved: Record<string, unknown> | undefined;
+    let refreshed = 0;
+    await updateAccountProfile(
+      "user-1",
+      { customStatus: "  " },
+      dependencies({
+        findUser: async () => ({
+          ...currentUser,
+          customStatus: "Release",
+          customStatusEmoji: "🚀",
+          customStatusExpiresAt: new Date("2099-01-01"),
+        }),
+        updateUser: async (_id: string, patch: Record<string, unknown>) => {
+          saved = patch;
+          return { ...currentUser, ...patch };
+        },
+        refreshPresence: async () => {
+          refreshed += 1;
+        },
+      }),
+    );
+    assert.deepEqual(saved, {
+      customStatus: null,
+      customStatusEmoji: null,
+      customStatusExpiresAt: null,
+    });
+    assert.equal(refreshed, 1);
+  });
+
+  it("rejects oversized biographies before persistence", async () => {
+    const { updateAccountProfile } = await service;
+    await assert.rejects(
+      updateAccountProfile(
+        "user-1",
+        { bio: "x".repeat(251) },
+        dependencies({
+          updateUser: async () => {
+            throw new Error("must not write");
+          },
+        }),
+      ),
+      (error: unknown) =>
+        error instanceof ApiError &&
+        error.status === 400 &&
+        error.code === "INVALID_PROFILE_DETAILS",
+    );
+  });
   it("updates only supplied profile fields and broadcasts the normalized profile", async () => {
     const { updateAccountProfile } = await service;
     const calls: unknown[] = [];
@@ -70,22 +136,11 @@ describe("account service", () => {
       "update",
       "user-1",
       {
-        bannerColor: currentUser.bannerColor,
-        bannerOffsetX: currentUser.bannerOffsetX,
-        bannerOffsetY: currentUser.bannerOffsetY,
-        bannerUrl: currentUser.bannerUrl,
-        bio: currentUser.bio,
-        customStatus: currentUser.customStatus,
-        customStatusEmoji: currentUser.customStatusEmoji,
-        customStatusExpiresAt: currentUser.customStatusExpiresAt,
         displayName: "Ada",
-        email: currentUser.email,
-        pronouns: currentUser.pronouns,
-        status: currentUser.status,
-        username: currentUser.username,
       },
     ]);
-    assert.deepEqual(calls[2], [
+    assert.equal(calls.length, 2);
+    assert.deepEqual(calls[1], [
       "profile",
       {
         avatarUrl: null,
@@ -98,47 +153,27 @@ describe("account service", () => {
     ]);
   });
 
-  it("stamps the username change and blocks the next one for 30 days", async () => {
-    const { getNextUsernameChangeAt, updateAccountProfile } = await service;
-    const now = new Date("2026-07-23T12:00:00.000Z");
-    let persisted: Record<string, unknown> | null = null;
-
+  it("allows consecutive valid username and display name changes without a cooldown", async () => {
+    const { updateAccountProfile } = await service;
+    const now = new Date("2026-09-11T12:00:00.000Z");
+    let stored = { ...currentUser, usernameChangedAt: null as Date | null };
+    const deps = dependencies({
+      now: () => now,
+      findUser: async () => stored,
+      updateUser: async (_userId: string, input: Record<string, unknown>) => {
+        stored = { ...stored, ...input };
+        return stored;
+      },
+    });
+    await updateAccountProfile("user-1", { username: "ada", displayName: "Ada" }, deps);
     await updateAccountProfile(
       "user-1",
-      { username: "ada" },
-      dependencies({
-        now: () => now,
-        updateUser: async (_userId: string, input: Record<string, unknown>) => {
-          persisted = input;
-          return { ...currentUser, ...input };
-        },
-      }),
+      { username: "ada_lovelace", displayName: "Ada Lovelace" },
+      deps,
     );
-    assert.equal((persisted as unknown as { usernameChangedAt: Date }).usernameChangedAt, now);
-
-    const blockedUntil = getNextUsernameChangeAt(now, now);
-    assert.equal(blockedUntil?.toISOString(), "2026-08-22T12:00:00.000Z");
-    assert.equal(getNextUsernameChangeAt(now, new Date("2026-08-23T12:00:00.000Z")), null);
-    assert.equal(getNextUsernameChangeAt(null, now), null);
-
-    await assert.rejects(
-      () =>
-        updateAccountProfile(
-          "user-1",
-          { username: "ada_lovelace" },
-          dependencies({
-            findUser: async () => ({ ...currentUser, usernameChangedAt: now }),
-            now: () => new Date("2026-07-30T12:00:00.000Z"),
-            updateUser: async () => {
-              throw new Error("must not run");
-            },
-          }),
-        ),
-      (error: unknown) =>
-        error instanceof ApiError &&
-        error.status === 429 &&
-        error.code === "USERNAME_CHANGE_COOLDOWN",
-    );
+    assert.equal(stored.username, "ada_lovelace");
+    assert.equal(stored.displayName, "Ada Lovelace");
+    assert.equal(stored.usernameChangedAt, now);
   });
 
   it("takes a banner only from an upload this account owns", async () => {
@@ -297,23 +332,21 @@ describe("account service", () => {
         error instanceof ApiError && error.status === 503 && error.code === "PRESENCE_UNAVAILABLE",
     );
   });
-  it("logs EMAIL_CHANGED only when the address actually moved", async () => {
+  it("never rewrites an email from a stale profile payload", async () => {
     const { updateAccountProfile } = await service;
-    const events: Array<Record<string, unknown>> = [];
-    const recorder = {
-      recordSecurityEvent: async (input: Record<string, unknown>) => {
-        events.push(input);
-      },
-    };
-
-    await updateAccountProfile("user-1", { displayName: "Ada" }, dependencies(recorder));
-    assert.deepEqual(events, []);
-
-    await updateAccountProfile("user-1", { email: "ada@example.com" }, dependencies(recorder));
-
-    assert.deepEqual(events, [{ kind: "EMAIL_CHANGED", userId: "user-1" }]);
-    // The row says the address moved; it does not carry the address itself.
-    assert.equal(JSON.stringify(events).includes("ada@example.com"), false);
+    let saved: Record<string, unknown> = {};
+    await updateAccountProfile(
+      "user-1",
+      { email: currentUser.email, displayName: "Ada" },
+      dependencies({
+        updateUser: async (_id: string, patch: Record<string, unknown>) => {
+          saved = patch;
+          return { ...currentUser, ...patch };
+        },
+      }),
+    );
+    assert.equal(Object.hasOwn(saved, "email"), false);
+    assert.equal(saved.displayName, "Ada");
   });
 
   it("masks a stored phone number and never returns the raw digits", async () => {

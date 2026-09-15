@@ -31,7 +31,10 @@ const ACCOUNT: AccountSettingsState = {
 };
 
 function optionCount(rowKey: string): number {
-  for (const group of findSettingsTab("account", "privacy")?.groups ?? []) {
+  for (const group of [
+    ...(findSettingsTab("account", "privacy")?.groups ?? []),
+    ...(findSettingsTab("appearance", "language")?.groups ?? []),
+  ]) {
     for (const row of group.rows) {
       if (row.key === rowKey) return row.options?.length ?? 0;
     }
@@ -41,6 +44,12 @@ function optionCount(rowKey: string): number {
 }
 
 describe("splitAccountPatch — tanınan anahtarlar", () => {
+  it("routes read receipts to the existing messaging privacy contract", () => {
+    const split = splitAccountPatch({ g6: false });
+    assert.deepEqual(split.messagingPrivacy, { readReceipts: false });
+    assert.deepEqual(split.layout, {});
+    assert.deepEqual(split.unmapped, []);
+  });
   it("gizlilik menüleri kolonlara çevriliyor", () => {
     const split = splitAccountPatch({ g1: 1, g2: 2, g3: 3, g4: 0, g5: false });
 
@@ -76,9 +85,18 @@ describe("splitAccountPatch — tanınan anahtarlar", () => {
 
 describe("splitAccountPatch — karşılığı olmayanlar", () => {
   it("web yazma yolu olmayan anahtarlar sessizce yutulmuyor", () => {
-    const split = splitAccountPatch({ g6: true, g7: true, g8: 2, pbio: "x", pz: "o/ona" });
+    const split = splitAccountPatch({
+      g6: true,
+      g7: true,
+      g8: 2,
+      pbio: "x",
+      ps: "Release",
+      pe: "🚀",
+      px: 4,
+    });
 
-    assert.deepEqual([...split.unmapped].sort(), ["g6", "g7", "g8", "pbio", "pz"]);
+    assert.deepEqual([...split.unmapped].sort(), ["g8"]);
+    assert.deepEqual(split.gameSharing, { enabled: true });
     assert.deepEqual(split.layout, {});
   });
 });

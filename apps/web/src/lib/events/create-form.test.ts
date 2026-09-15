@@ -131,7 +131,7 @@ describe("events create-form — başlangıç durumu", () => {
     assert.equal(state.kind, "voice");
     assert.equal(state.duration, EVENT_CREATE_DEFAULT_DURATION);
     assert.equal(EVENT_CREATE_DEFAULT_DURATION, 45);
-    assert.deepEqual([...EVENT_CREATE_DURATIONS], [30, 45, 60]);
+    assert.deepEqual([...EVENT_CREATE_DURATIONS], [30, 45, 60, 90, 120]);
     assert.equal(state.placeMode, "channel");
     assert.equal(state.channel, null);
     assert.equal(state.channelCleared, false);
@@ -403,11 +403,44 @@ describe("events create-form — doğrulama ve `CreateEventInput`", () => {
   const ready = (): EventCreateFormState =>
     initial({ channel: VOICE, server: COMMUNITY, title: "Tasarım Kritiği" });
 
-  it("eksik başlık, yer ve sunucu ayrı ayrı raporlanır", () => {
+  it("eksik başlık ve sunucu raporlanır; yer isteğe bağlıdır", () => {
     const result = validateEventCreateForm(initial());
 
     assert.equal(result.ok, false);
-    assert.deepEqual([...result.errors].sort(), ["place", "server", "title"]);
+    assert.deepEqual([...result.errors].sort(), ["server", "title"]);
+  });
+
+  it("yer seçmeden 90/120 dakikalık etkinlik oluşturur ve açıklamayı korur", () => {
+    for (const duration of [90, 120] as const) {
+      const input = buildCreateEventInput({
+        ...ready(),
+        channel: null,
+        duration,
+        description: "  Buluşma  ",
+      });
+      assert.ok(input);
+      assert.equal(input.durationMinutes, duration);
+      assert.equal(input.description, "Buluşma");
+      assert.equal("channelId" in input, false);
+      assert.equal("externalLocation" in input, false);
+      assert.equal(input.serverId, COMMUNITY.id);
+      assert.equal(input.isPublic, false);
+    }
+  });
+
+  it("yer temizlenince harici bağlantıyı da temizler, sunucuyu korur", () => {
+    const result = eventCreateFormReducer(
+      { ...ready(), placeMode: "external", externalLocation: "https://example.com" },
+      { type: "clearPlace" },
+    );
+    assert.equal(result.channel, null);
+    assert.equal(result.externalLocation, "");
+    assert.equal(result.server, COMMUNITY);
+    assert.ok(validateEventCreateForm(result).ok);
+  });
+
+  it("takvimde olmayan günü sonraki aya taşımadan reddeder", () => {
+    assert.equal(parseLocalDateTimeValue("2026-02-31T15:00"), null);
   });
 
   it("120 karakterden uzun başlık reddedilir", () => {

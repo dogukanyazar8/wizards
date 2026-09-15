@@ -155,6 +155,7 @@ export function ServerRail({
   // Ray, iki pencereyi kabuğun prop zincirinden geçirmeden açar: pencerelerin
   // durumu zaten global ve `WorkspaceModals` onu aynı yerden okuyor.
   const openSupportModal = useAppStore((state) => state.openSupportModal);
+  const serverRailIconSize = useAppStore((state) => state.serverRailIconSize);
   const seenServers = readSeenServers();
   const addBtnRef = useRef<HTMLButtonElement>(null);
   const recentlyDraggedServerIdRef = useRef<string | null>(null);
@@ -334,6 +335,7 @@ export function ServerRail({
                   }}
                 >
                   <ServerIcon
+                    iconSize={serverRailIconSize}
                     active={server.id === activeServerId}
                     badgeCount={server.unreadCount}
                     className={`${draggingServerId === server.id ? "cursor-grabbing" : "cursor-pointer"}${

@@ -100,7 +100,19 @@ describe("SettingsRow — tek kontrol ekseni", () => {
   it("kontrol yuvası büyümüyor ve sağa yaslı", () => {
     const markup = render();
 
-    assert.match(markup, /class="flex shrink-0 items-center justify-end"/u);
+    const controlClasses = markup
+      .match(/class="([^"]+)" data-setting-control="pu"/u)?.[1]
+      ?.split(" ");
+    for (const token of [
+      "flex",
+      "shrink-0",
+      "items-center",
+      "justify-end",
+      "min-w-0",
+      "max-w-full",
+    ]) {
+      assert.ok(controlClasses?.includes(token), `missing control constraint: ${token}`);
+    }
   });
 
   it("satır dolgusu her satırda aynı sözlük değerinden geliyor", () => {

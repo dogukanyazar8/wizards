@@ -119,6 +119,31 @@ function interestFindMany(args: unknown) {
 
 describe("etkinlik sayaç sözleşmesi — interestedCount = going (K1)", () => {
   describe("tüketici 1 — lib/home/events-service.ts", () => {
+    it("yer seçilmemiş etkinliği Anasayfada gösterir; üyelik ve tarih kapsamını korur", async () => {
+      const fake = createFakeDatabase({
+        models: {
+          scheduledEvent: {
+            count: () => 1,
+            findMany: () => [{ ...homeEventRow(), channel: null }],
+          },
+          scheduledEventInterest: { findMany: () => [] },
+          serverMember: { findMany: () => [{ serverId: SERVER_ID }] },
+        },
+      });
+      const response = await getHomeUpcomingEvents(VIEWER_ID, 5, {
+        database: fake.database,
+        now: NOW,
+        readPresence: fakePresenceReader(),
+      });
+      assert.equal(response.next?.id, EVENT_ID);
+      assert.equal(response.next?.context, "Whispr Topluluğu");
+      const query = fake.calls.find((call) => call.operation === "scheduledEvent.findMany");
+      assert.deepEqual((query?.args as { where: unknown }).where, {
+        scheduledStartAt: { gte: NOW },
+        serverId: { in: [SERVER_ID] },
+        status: "SCHEDULED",
+      });
+    });
     it("Sıradaki kartı 3 yazar (5 değil) ve önizlemeyi GOING ile süzer", async () => {
       const fake = createFakeDatabase({
         models: {

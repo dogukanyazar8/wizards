@@ -14,10 +14,18 @@ export function MessageEmojiPicker({
   isOpen,
   onClose,
   onSelect,
+  closeOnSelect = true,
+  selectedEmojis,
+  onClearSelection,
+  canSelect,
 }: {
   readonly isOpen: boolean;
   readonly onClose: () => void;
   readonly onSelect: (emoji: string) => void;
+  readonly closeOnSelect?: boolean;
+  readonly selectedEmojis?: string;
+  readonly onClearSelection?: () => void;
+  readonly canSelect?: (emoji: string) => boolean;
 }) {
   const theme = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -44,6 +52,21 @@ export function MessageEmojiPicker({
       testID="mobile-message-emoji-picker"
     >
       <Text style={styles.title}>{copy.messageEmojiPickerTitle}</Text>
+      {!closeOnSelect ? (
+        <View style={styles.tabs}>
+          <Text numberOfLines={2} style={styles.selectedPreview}>
+            {selectedEmojis}
+          </Text>
+          {selectedEmojis && onClearSelection ? (
+            <Pressable accessibilityRole="button" onPress={onClearSelection}>
+              <Text style={styles.tabText}>{copy.profileCustomStatusClear}</Text>
+            </Pressable>
+          ) : null}
+          <Pressable accessibilityRole="button" onPress={onClose}>
+            <Text style={styles.tabText}>{copy.sheetCloseAction}</Text>
+          </Pressable>
+        </View>
+      ) : null}
       <TextInput
         accessibilityLabel={copy.messageEmojiSearchLabel}
         onChangeText={setQuery}
@@ -74,16 +97,19 @@ export function MessageEmojiPicker({
       </View>
       <FlashList
         data={emojis}
+        extraData={selectedEmojis}
         keyExtractor={(item) => item.emoji}
         numColumns={6}
         renderItem={({ item }) => (
           <Pressable
             accessibilityLabel={item.emoji}
             accessibilityRole="button"
+            disabled={canSelect ? !canSelect(item.emoji) : false}
+            accessibilityState={{ disabled: canSelect ? !canSelect(item.emoji) : false }}
             onPress={() => {
               selection();
               onSelect(item.emoji);
-              onClose();
+              if (closeOnSelect) onClose();
             }}
             style={styles.emoji}
             testID={`mobile-message-emoji-${item.emoji}`}
@@ -100,6 +126,7 @@ export function MessageEmojiPicker({
 
 const createStyles = (theme: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
+    selectedPreview: { flex: 1, fontSize: 22, color: theme.text.primary },
     emoji: {
       alignItems: "center",
       justifyContent: "center",
@@ -124,8 +151,16 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       justifyContent: "center",
     },
     tabSelected: { backgroundColor: theme.accent.soft },
-    tabText: { color: theme.text.muted, fontSize: 12, fontFamily: theme.typography.fontFamilyExtraBold },
+    tabText: {
+      color: theme.text.muted,
+      fontSize: 12,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+    },
     tabTextSelected: { color: theme.accent.strong },
     tabs: { flexDirection: "row", gap: mobileSpacing.row },
-    title: { color: theme.text.primary, fontSize: 18, fontFamily: theme.typography.fontFamilyExtraBold },
+    title: {
+      color: theme.text.primary,
+      fontSize: 18,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+    },
   });

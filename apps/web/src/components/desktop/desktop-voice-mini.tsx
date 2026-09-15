@@ -1,74 +1,89 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Headphones, Mic, MicOff, PhoneOff, Signal } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import {
-  parseVoiceMiniSnapshot,
-  type VoiceMiniParticipant,
-  type VoiceMiniSnapshot,
-} from "@wizards/types";
+  GripVertical,
+  Headphones,
+  HeadphoneOff,
+  Mic,
+  MicOff,
+  PhoneOff,
+  Signal,
+} from "lucide-react";
+import type { VoiceMiniParticipant, VoiceMiniSnapshot } from "@wizards/types";
 import { postDesktopVoiceMiniCommand } from "@/lib/desktop/controls";
-import { WHISPR_DESKTOP_VOICE_MINI_SNAPSHOT_EVENT } from "@/lib/desktop/runtime";
+import { subscribeVoiceMiniSnapshots } from "@/lib/desktop/voice-mini-snapshots";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/components/providers/locale-provider";
 
-function initials(name: string) {
-  return name
+function MiniAvatar({ participant }: { participant: VoiceMiniParticipant }) {
+  const { t } = useI18n();
+  const label = [
+    participant.displayName,
+    participant.isMuted ? t("desktop.voiceMini.muted") : null,
+    participant.isSpeaking ? t("desktop.voiceMini.speaking") : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const initials = participant.displayName
+    .trim()
     .split(/\s+/)
     .map((part) => part[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
-}
 
-function MiniAvatar({ participant }: { participant: VoiceMiniParticipant }) {
   return (
     <span
+      aria-label={label}
+      role="img"
+      title={label}
       className={cn(
-        "relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-2xl border text-xs font-bold shadow-[0_10px_26px_rgba(99,102,241,0.12)]",
-        participant.isSpeaking
-          ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-          : "border-indigo-100 bg-indigo-50 text-indigo-600",
+        "relative grid size-8 shrink-0 place-items-center rounded-full border-2 bg-[hsl(var(--surface-soft))] text-[10px] font-bold text-[hsl(var(--text-secondary))]",
+        participant.isSpeaking ? "border-[hsl(var(--success))]" : "border-[hsl(var(--border))]",
       )}
     >
       {participant.avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img alt="" className="h-full w-full object-cover" src={participant.avatarUrl} />
+        <img alt="" className="size-full rounded-full object-cover" src={participant.avatarUrl} />
       ) : (
-        initials(participant.displayName)
+        initials
       )}
-      <span
-        className={cn(
-          "absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-white",
-          participant.isSpeaking ? "bg-emerald-400" : "bg-slate-300",
-        )}
-      />
+      {participant.isMuted && (
+        <span className="absolute -bottom-1 -right-1 grid size-4 place-items-center rounded-full bg-[hsl(var(--surface-card))] text-[var(--danger-readable)]">
+          <MicOff aria-hidden="true" className="size-2.5" />
+        </span>
+      )}
     </span>
   );
 }
 
 function VoiceMiniAction({
   active,
-  "aria-label": ariaLabel,
+  label,
   children,
   onClick,
-  tone = "neutral",
+  disabled,
+  danger = false,
 }: {
   active?: boolean;
-  "aria-label": string;
+  label: string;
   children: React.ReactNode;
   onClick: () => void;
-  tone?: "danger" | "neutral";
+  disabled: boolean;
+  danger?: boolean;
 }) {
   return (
     <button
-      aria-label={ariaLabel}
+      aria-label={label}
+      aria-pressed={active}
+      title={label}
+      disabled={disabled}
       className={cn(
-        "grid size-8 place-items-center rounded-xl border text-slate-600 transition hover:-translate-y-0.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-400/60",
-        active
-          ? "border-indigo-200 bg-indigo-50 text-indigo-600"
-          : "border-slate-200/80 bg-white/78 hover:bg-indigo-50 hover:text-indigo-600",
-        tone === "danger" && "hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600",
+        "grid size-10 shrink-0 place-items-center rounded-xl transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface-card))] disabled:cursor-not-allowed disabled:opacity-40",
+        danger || active
+          ? "bg-[hsl(var(--danger)/0.12)] text-[var(--danger-readable)] enabled:hover:bg-[hsl(var(--danger)/0.22)]"
+          : "bg-[hsl(var(--surface-soft))] text-[hsl(var(--text-secondary))] enabled:hover:bg-[hsl(var(--primary)/0.16)] enabled:hover:text-[hsl(var(--primary))]",
       )}
       onClick={onClick}
       type="button"
@@ -78,99 +93,128 @@ function VoiceMiniAction({
   );
 }
 
-export function DesktopVoiceMini() {
+export function DesktopVoiceMiniView({ snapshot }: { snapshot: VoiceMiniSnapshot | null }) {
   const { t } = useI18n();
-  const [snapshot, setSnapshot] = useState<VoiceMiniSnapshot | null>(null);
-
-  useEffect(() => {
-    const handleSnapshot = (event: Event) => {
-      const nextSnapshot = parseVoiceMiniSnapshot((event as CustomEvent<unknown>).detail);
-
-      if (nextSnapshot) {
-        setSnapshot(nextSnapshot);
-      }
-    };
-
-    window.addEventListener(WHISPR_DESKTOP_VOICE_MINI_SNAPSHOT_EVENT, handleSnapshot);
-    return () => {
-      window.removeEventListener(WHISPR_DESKTOP_VOICE_MINI_SNAPSHOT_EVENT, handleSnapshot);
-    };
-  }, []);
-
-  const visibleParticipants = useMemo(() => {
-    const participants = snapshot?.participants ?? [];
-    const speaking = participants.filter((participant) => participant.isSpeaking);
-    return (speaking.length > 0 ? speaking : participants).slice(0, 3);
-  }, [snapshot]);
-  const localParticipant = snapshot?.participants.find((participant) => participant.isLocal);
+  const [commandFailed, setCommandFailed] = useState(false);
+  const participants = snapshot?.active ? snapshot.participants : [];
+  // Keep the roster visible and give current speakers priority without mutating the snapshot.
+  const visibleParticipants = [...participants]
+    .sort((a, b) => Number(b.isSpeaking) - Number(a.isSpeaking))
+    .slice(0, 3);
+  const remaining = participants.length - visibleParticipants.length;
+  const localParticipant = participants.find((participant) => participant.isLocal);
   const quality = snapshot?.connection.quality ?? "unknown";
+  const connected = Boolean(snapshot?.active) && (quality === "good" || quality === "excellent");
+  const connectionLabel = !snapshot?.active
+    ? t("desktop.voiceMini.waiting")
+    : quality === "lost"
+      ? t("desktop.voiceMini.reconnecting")
+      : quality === "poor"
+        ? t("desktop.voiceMini.poor")
+        : connected
+          ? t("desktop.voiceMini.connected")
+          : t("desktop.voiceMini.connecting");
+  const title =
+    visibleParticipants.find((participant) => participant.isSpeaking)?.displayName ?? "Voice Mini";
+  const sendCommand = (command: Parameters<typeof postDesktopVoiceMiniCommand>[0]) => {
+    setCommandFailed(!postDesktopVoiceMiniCommand(command));
+  };
 
   return (
-    <main className="h-dvh w-dvw overflow-hidden bg-transparent p-2">
+    <main className="h-dvh w-dvw overflow-hidden bg-transparent p-1.5">
       <section
         aria-label={t("desktop.voiceMini.aria")}
-        className="flex h-full w-full items-center gap-3 rounded-[26px] border border-slate-200/90 bg-white/[0.94] px-3.5 py-3 text-slate-900 shadow-[0_18px_54px_rgba(79,70,229,0.16)] backdrop-blur-xl"
-        data-tauri-drag-region
+        className="flex h-full w-full flex-col justify-between rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--surface-card))] px-3 py-2.5 text-[hsl(var(--text-primary))] shadow-sm"
       >
-        <div className="flex min-w-0 flex-1 items-center gap-3" data-tauri-drag-region>
-          <div className="flex -space-x-2" data-tauri-drag-region>
-            {visibleParticipants.length > 0 ? (
-              visibleParticipants.map((participant) => (
-                <MiniAvatar key={participant.userId} participant={participant} />
-              ))
-            ) : (
-              <span className="grid size-10 place-items-center rounded-2xl border border-indigo-100 bg-indigo-50 text-indigo-600">
-                <Signal className="h-4 w-4" />
+        <header
+          className="flex min-w-0 cursor-grab items-center gap-2 active:cursor-grabbing"
+          data-tauri-drag-region
+        >
+          <GripVertical
+            aria-hidden="true"
+            className="pointer-events-none size-3.5 shrink-0 text-[hsl(var(--text-muted))]"
+          />
+          <p
+            className="pointer-events-none min-w-0 flex-1 truncate text-xs font-semibold"
+            title={title}
+          >
+            {title}
+          </p>
+          <span
+            role={commandFailed ? "alert" : undefined}
+            className={cn(
+              "pointer-events-none flex shrink-0 items-center gap-1 text-[10px] font-medium",
+              commandFailed
+                ? "text-[var(--danger-readable)]"
+                : connected
+                  ? "text-[var(--success-readable)]"
+                  : "text-[hsl(var(--text-muted))]",
+            )}
+          >
+            <Signal aria-hidden="true" className="size-3" />
+            {commandFailed ? t("desktop.voiceMini.commandFailed") : connectionLabel}
+          </span>
+        </header>
+        <div className="flex items-center justify-between gap-2">
+          <div
+            className="flex min-w-0 items-center gap-1.5"
+            role="group"
+            aria-label={t("desktop.voiceMini.participants", { count: participants.length })}
+          >
+            {visibleParticipants.map((participant) => (
+              <MiniAvatar key={participant.userId} participant={participant} />
+            ))}
+            {remaining > 0 && (
+              <span className="text-[10px] font-semibold text-[hsl(var(--text-muted))]">
+                +{remaining}
               </span>
             )}
-          </div>
-
-          <div className="min-w-0" data-tauri-drag-region>
-            <p className="truncate text-sm font-semibold tracking-[-0.01em] text-slate-950">
-              {visibleParticipants[0]?.displayName ?? t("desktop.voiceMini.idle")}
-            </p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
-              <span
-                className={cn(
-                  "size-1.5 rounded-full",
-                  quality === "lost" ? "bg-rose-400" : "bg-emerald-400",
-                )}
-              />
-              {quality === "lost"
-                ? t("desktop.voiceMini.reconnecting")
-                : t("desktop.voiceMini.connected")}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-1.5">
-          <VoiceMiniAction
-            active={Boolean(localParticipant?.isMuted)}
-            aria-label={t("desktop.voiceMini.toggleMute")}
-            onClick={() => postDesktopVoiceMiniCommand("toggleMute")}
-          >
-            {localParticipant?.isMuted ? (
-              <MicOff className="h-4 w-4" />
-            ) : (
-              <Mic className="h-4 w-4" />
+            {participants.length === 0 && (
+              <Headphones aria-hidden="true" className="size-7 text-[hsl(var(--text-muted))]" />
             )}
-          </VoiceMiniAction>
-          <VoiceMiniAction
-            active={Boolean(localParticipant?.isDeafened)}
-            aria-label={t("desktop.voiceMini.toggleDeafen")}
-            onClick={() => postDesktopVoiceMiniCommand("toggleDeafen")}
-          >
-            <Headphones className="h-4 w-4" />
-          </VoiceMiniAction>
-          <VoiceMiniAction
-            aria-label={t("desktop.voiceMini.leaveVoice")}
-            onClick={() => postDesktopVoiceMiniCommand("leaveVoice")}
-            tone="danger"
-          >
-            <PhoneOff className="h-4 w-4" />
-          </VoiceMiniAction>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <VoiceMiniAction
+              active={Boolean(localParticipant?.isMuted)}
+              label={t("desktop.voiceMini.toggleMute")}
+              disabled={!localParticipant}
+              onClick={() => sendCommand("toggleMute")}
+            >
+              {localParticipant?.isMuted ? (
+                <MicOff aria-hidden="true" className="size-4" />
+              ) : (
+                <Mic aria-hidden="true" className="size-4" />
+              )}
+            </VoiceMiniAction>
+            <VoiceMiniAction
+              active={Boolean(localParticipant?.isDeafened)}
+              label={t("desktop.voiceMini.toggleDeafen")}
+              disabled={!localParticipant}
+              onClick={() => sendCommand("toggleDeafen")}
+            >
+              {localParticipant?.isDeafened ? (
+                <HeadphoneOff aria-hidden="true" className="size-4" />
+              ) : (
+                <Headphones aria-hidden="true" className="size-4" />
+              )}
+            </VoiceMiniAction>
+            <VoiceMiniAction
+              label={t("desktop.voiceMini.leaveVoice")}
+              disabled={!snapshot?.active}
+              onClick={() => sendCommand("leaveVoice")}
+              danger
+            >
+              <PhoneOff aria-hidden="true" className="size-4" />
+            </VoiceMiniAction>
+          </div>
         </div>
       </section>
     </main>
   );
+}
+
+export function DesktopVoiceMini() {
+  const [snapshot, setSnapshot] = useState<VoiceMiniSnapshot | null>(null);
+  useEffect(() => subscribeVoiceMiniSnapshots(window, setSnapshot), []);
+  return <DesktopVoiceMiniView snapshot={snapshot} />;
 }

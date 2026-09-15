@@ -8,10 +8,10 @@ Minimal Tauri shell for the existing Whispr web app.
 - Development loads `TAURI_DEV_WEB_URL`, defaulting to `http://localhost:3000`.
 - Production builds load `https://whispr.team` by default. Set `TAURI_WEB_URL` only when an explicit HTTPS override is needed.
 - The desktop shell does not include Prisma, database URLs, auth secrets, LiveKit secrets, upload secrets, or server-side credentials.
-- Tauri IPC is limited to native notification permission/dispatch and minimal window controls required for the custom desktop titlebar.
+- Tauri IPC exposes allowlisted native settings, notifications, device consent, clipboard reads, opted-in game detection, signed updates and window controls. Commands validate the calling window and origin; web content receives no general shell or filesystem API.
 - Off-origin navigation opens in the system browser by default. During an active Auth.js OAuth redirect only, the WebView allows the known provider origins needed to return the session cookie to Whispr.
-- The tray menu exposes Show, Settings, Desktop Diagnostics, mute/deafen commands, and Quit.
-- Signed auto-update support is flag-gated. When enabled for a release build, it requires an HTTPS manifest, an embedded Ed25519 public key, CI-held signing private key material, and an explicit user click on the title-bar "Download and restart" update action.
+- The tray menu exposes Show, mute/deafen, Leave voice, Settings, Updates and Quit; voice actions are enabled only during a voice connection.
+- Signed auto-update support is flag-gated. When enabled for a release build, it requires an HTTPS manifest, an embedded Ed25519 public key, CI-held signing private key material, and explicit confirmation in Settings. Installation is blocked during an active call.
 - Desktop notifications are driven by the existing authenticated socket and settings flows. Message previews are disabled by default and can be enabled locally from notification settings.
 - Desktop deep links use the `whispr://` scheme and are restricted to safe internal routes such as `/channels`, `/settings`, and `/invite`.
 - A single-instance guard focuses the existing window instead of launching duplicate desktop sessions.
@@ -84,11 +84,12 @@ pnpm --filter @wizards/desktop release:publish-plan -- --ring uat --version <ver
 pnpm --filter @wizards/desktop test
 ```
 
-Release rings are ordered from safest to broadest:
+Publishing channels are Beta/UAT and Stable/PROD. `dev` is local validation only.
+See the [channel contract](../../docs/operations/release-channels.md).
 
-- `dev` for local/internal validation.
+The publishing order is:
+
 - `uat` for signed UAT builds and manual QA.
-- `canary` for a small monitored production rollout.
 - `stable` for the broad production release.
 
 Windows is the mandatory desktop CI target. macOS and Linux are staged signal targets until signing, notarization, installer, portal, and tray behavior are release-ready.
@@ -141,9 +142,9 @@ pnpm --filter @wizards/desktop build:desktop
 
 Do not use local or HTTP endpoints for updater manifests. Do not commit Ed25519 updater private keys, Windows certificate material, generated updater artifacts, or manifest drafts.
 
-GitHub Actions desktop release automation is disabled because no local Windows runner is registered. GitHub-hosted runners are not used. A future local Windows runner must restore the workflow before CI can build, sign, validate, publish, or create evidence for Windows artifacts. The local release scripts and secret requirements below remain the contract for that future restoration.
+GitHub Actions builds and releases Windows desktop artifacts on `windows-2025`. The manual `Desktop Release` workflow validates successful CI, signing, updater evidence and optional R2/GitHub publication. macOS is outside the current release scope. See [hosted CI/CD setup](../../docs/operations/github-hosted-ci-cd.md) for environment secrets and activation.
 
-When a future local Windows release process is enabled, it must upload the installer and `.sig` to immutable Cloudflare R2 release keys under `desktop/<ring>/releases/<release-tag>/`, while `latest.json` remains the single mutable feed at `desktop/<ring>/latest.json`. R2 is the canonical public updater/download source. GitHub Releases are optional evidence and convenience bundles; because the repository is private, release asset access remains limited to users who can access the repository.
+The Windows release workflow uploads the installer and `.sig` to immutable Cloudflare R2 release keys under `desktop/<ring>/releases/<release-tag>/`, while `latest.json` remains the single mutable feed at `desktop/<ring>/latest.json`. R2 is the canonical public updater/download source. GitHub Releases are optional evidence and convenience bundles; because the repository is private, release asset access remains limited to users who can access the repository.
 
 Required publishing secrets:
 

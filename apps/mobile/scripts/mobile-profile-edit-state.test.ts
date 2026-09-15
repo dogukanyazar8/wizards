@@ -34,6 +34,25 @@ function draftOf(overrides: Partial<ReturnType<typeof createMobileProfileEditDra
 }
 
 describe("mobile profile edit draft state", () => {
+  it("preserves the deadline after an editor stays open and only text or emoji changes", () => {
+    const timed = {
+      ...baseline,
+      customStatus: "Release",
+      customStatusEmoji: "🚀",
+      customStatusExpiresAt: "2026-07-23T16:00:00.000Z",
+    };
+    const draft = createMobileProfileEditDraft(timed, NOW);
+    const later = new Date("2026-07-23T15:30:00.000Z");
+    assert.deepEqual(buildMobileProfileEditPatch({ baseline: timed, draft, now: later }), {});
+    assert.deepEqual(
+      buildMobileProfileEditPatch({
+        baseline: timed,
+        draft: { ...draft, customStatus: "Review", customStatusEmoji: "🎨" },
+        now: later,
+      }),
+      { customStatus: "Review", customStatusEmoji: "🎨" },
+    );
+  });
   it("starts clean from the server values", () => {
     const draft = createMobileProfileEditDraft(baseline, NOW);
 
@@ -47,6 +66,7 @@ describe("mobile profile edit draft state", () => {
       customStatusEmoji: null,
       displayName: "Ada",
       statusExpiry: "never",
+      initialStatusExpiry: "never",
       username: "ada",
     });
     assert.equal(isMobileProfileEditDirty({ baseline, draft, now: NOW }), false);

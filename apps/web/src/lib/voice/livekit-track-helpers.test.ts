@@ -392,3 +392,22 @@ describe("LiveKit voice track helpers", () => {
     assert.equal(errors.length, 1);
   });
 });
+
+it("master output multiplies microphone and share gains without undoing deafen or mute", () => {
+  const volumes: number[] = [];
+  const room = {
+    remoteParticipants: new Map([
+      ["alice", { identity: "alice", setVolume: (volume: number) => volumes.push(volume) }],
+    ]),
+  };
+  applyRemoteAudioState(room as never, false, { alice: 50 }, 100, 40, 50);
+  assert.deepEqual(volumes.splice(0), [0.25, 0.1]);
+  for (const [deafened, participant, master] of [
+    [true, 100, 100],
+    [false, 0, 100],
+    [false, 100, 0],
+  ] as const) {
+    applyRemoteAudioState(room as never, deafened, { alice: participant }, 100, 100, master);
+    assert.deepEqual(volumes.splice(0), [0, 0]);
+  }
+});

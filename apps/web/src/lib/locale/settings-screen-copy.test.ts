@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 
 import { readDesignReference } from "@/lib/design-reference";
-import { collectSettingsCopyKeys, SETTINGS_TREE } from "@/lib/settings/tree";
+import { collectSettingsCopyKeys } from "@/lib/settings/tree";
 
 import { EN_MESSAGES } from "./messages/en";
 import { TR_MESSAGES } from "./messages/tr";
@@ -14,9 +14,9 @@ import { TR_MESSAGES } from "./messages/tr";
  * "Bildirimler + Ayarlar pencereleri" paketinin metin sözleşmesi.
  *
  * Bu dosya bir tablo **taşımaz**: referans HTML'in içindeki `SET` dizisini okur ve
- * `SETTINGS_TREE` ile yan yana gezerek her başlığı, açıklamayı, pili, seçeneği ve düğme
- * etiketini karşılaştırır. Bir cümleyi kısaltan, uzatan ya da "iyileştiren" her değişiklik
- * burada kırmızı verir — spot kontrol değil, 169 ürün satırının tamamı.
+ * aktif i18n anahtarlarına eşleyerek başlık, açıklama, seçenek ve düğme metinlerini
+ * karşılaştırır. Onaylı ürün değişiklikleri açık bir fark listesiyle korunur; bölüm
+ * taşıma veya satır kaldırma diğer metinlerin denetimini kaydırmaz.
  *
  * Genel sözlük denetimi (iki dilin anahtar kümesi, boş değer, çoğul) `messages.test.ts`
  * dosyasındadır.
@@ -117,6 +117,135 @@ function parseSetLiteral(source: string): SetValue[] {
 
 const SET = parseSetLiteral(reference);
 
+// Section/tab moves must not align unrelated copy by array position.
+const SECTION_KEYS: Record<string, string> = {
+  account: "account",
+  av: "av",
+  look: "appearance",
+  notif: "notifications",
+  desktop: "desktop",
+  about: "about",
+};
+const TAB_KEYS: Record<string, string> = {
+  profil: "profile",
+  hesap: "account",
+  gizlilik: "privacy",
+  guvenlik: "security",
+  rozetler: "badges",
+  veriler: "data",
+  ses: "audio",
+  kamera: "camera",
+  ekran: "screen-share",
+  tema: "theme",
+  metin: "text",
+  medya: "media",
+  duzen: "layout",
+  erisim: "accessibility",
+  yuzey: "surfaces",
+  turler: "types",
+  sessiz: "quiet-hours",
+  sesler: "sounds",
+  panel: "panel",
+  istisna: "exceptions",
+  uygulama: "app",
+  kisayol: "shortcuts",
+  overlay: "overlay",
+  izin: "permissions",
+  guncelleme: "updates",
+};
+
+function referenceCopy(): Record<string, string> {
+  const copy: Record<string, string> = {};
+  const add = (key: string, value: SetValue | undefined) => {
+    if (typeof value === "string" && value) copy[key] = value;
+  };
+  for (const sectionValue of SET) {
+    const section = sectionValue as SetValue[];
+    const sectionKey = SECTION_KEYS[String(section[0])];
+    assert.ok(sectionKey, String(section[0]));
+    add(`settings.section.${sectionKey}.label`, section[1]);
+    add(`settings.section.${sectionKey}.lead`, section[2]);
+    for (const tabValue of section[5] as SetValue[]) {
+      const tab = tabValue as SetValue[];
+      const tabKey = TAB_KEYS[String(tab[0])] ?? (sectionKey === "about" ? "about" : "general");
+      add(`settings.tab.${sectionKey}.${tabKey}`, tab[1] || section[1]);
+      (tab[2] as SetValue[]).forEach((groupValue, groupIndex) => {
+        const group = groupValue as SetValue[];
+        const groupKey = `settings.group.${sectionKey}.${tabKey}.${groupIndex + 1}`;
+        add(`${groupKey}.title`, group[0]);
+        add(`${groupKey}.note`, group[1]);
+        for (const rowValue of group[2] as SetValue[]) {
+          const row = rowValue as SetValue[];
+          const rowKey = String(row[0]);
+          add(`settings.row.${rowKey}.title`, row[2]);
+          const descriptionKey = `settings.row.${rowKey}.description`;
+          // The general and detailed quiet-hours rows intentionally use different copy.
+          add(
+            rowKey === "nq1" && descriptionKey in copy ? `${descriptionKey}Short` : descriptionKey,
+            row[3],
+          );
+          add(`settings.row.${rowKey}.badge`, row[7]);
+          add(`settings.row.${rowKey}.nav`, row[5]);
+          if (!Array.isArray(row[6])) continue;
+          const kind = ["sel", "seg"].includes(String(row[1]))
+            ? "option"
+            : ["act", "jump"].includes(String(row[1]))
+              ? "action"
+              : null;
+          if (kind)
+            row[6].forEach((value, index) => add(`settings.${kind}.${rowKey}.${index + 1}`, value));
+          else add(`settings.row.${rowKey}.prefix`, row[6][0]);
+        }
+      });
+    }
+  }
+  return copy;
+}
+
+// Reviewed product changes: native permissions/actions, live audio controls,
+// game privacy, language relocation and the dedicated Updates section.
+// Keep these explicit; do not derive expected copy from the implementation.
+const APPROVED_COPY_CHANGES: Record<string, string> = {
+  "settings.row.z1.title": "Voice Mini",
+  "settings.row.z5.description":
+    "Oyun overlay’inde sessiz katılımcıları gizle. Kimse konuşmadığında overlay görünmez.",
+  "settings.option.px.5": "30 dakika sonra",
+  "settings.action.ap.2": "Doğrulama · Yakında",
+  "settings.row.g7.description":
+    "Masaüstünde algılanan oyunu görünürlük tercihlerine göre paylaşır. Görünmezken paylaşılmaz.",
+  "settings.row.i4.description":
+    "Yalnızca mikrofon testi çalışırken açılabilir. Kulaklık kullan; test durunca kendini duyma kapanır.",
+  "settings.group.av.audio.3.note":
+    "Gürültü engelleme yöntemini seç; yankı ve ses düzeyini ayrıca ayarla.",
+  "settings.row.p7.title": "Gürültü engelleme",
+  "settings.row.p7.description":
+    "Krisp arka plan gürültüsünü azaltır. Desteklenmediğinde standart işleme kullanılır.",
+  "settings.option.p7.1": "Krisp (Önerilen)",
+  "settings.option.p7.2": "Standart",
+  "settings.option.p7.3": "Kapalı",
+  "settings.row.p5.title": "Otomatik ses düzeyi",
+  "settings.row.e4.description":
+    "Destekleyen kaynak seçicilerde mevcut Whispr sekmesini dışlar. Tam ekran paylaşımında Whispr penceresini gizlemez. Sonraki kaynak seçiminde uygulanır.",
+  "settings.row.e5.description":
+    "Kaynak değiştir düğmesini açar. Tarayıcının sekme değiştirme kontrolüne ilişkin tercih, sonraki paylaşımda uygulanır.",
+  "settings.action.e7.1": "Paylaşımı başlat",
+  "settings.tab.appearance.language": "Dil ve bölge",
+  "settings.group.notifications.exceptions.defaults.title": "Varsayılanlar",
+  "settings.action.desktopApp.manage": "Masaüstü ayarlarını aç",
+  "settings.row.w8.title": "Oyun etkinliği",
+  "settings.row.w8.description":
+    "Bu cihazdaki oyun algılamasını yönet. Paylaşım tercihi Hesabım · Gizlilik bölümünde.",
+  "settings.action.z7.1": "Yönet",
+  "settings.section.updates.label": "Güncelleme",
+  "settings.section.updates.lead":
+    "Sürüm bilgileri, yenilikler ve uygulama güncellemelerini yönet.",
+  "settings.action.h1.1": "Güncellemeleri denetle",
+  "settings.action.o5.1": "Görüntüle",
+  "settings.action.n4.1": "Destek araçlarını aç",
+  "settings.action.n4.2": "Kurtarma araçlarını aç",
+  "settings.section.about.lead": "Whispr hakkında ve katkıda bulunanlar",
+};
+
 function trOf(key: string | undefined, context: string): string {
   assert.ok(key, `${context}: anahtar yok`);
   const value = TR[key];
@@ -130,7 +259,7 @@ function trOf(key: string | undefined, context: string): string {
  * Karar (00 §3, K9) tercihi kullanıcı barı menüsünden Hesabım › Gizlilik › Görünürlük grubuna
  * indiriyor ve `SPEC_DEVIATIONS` #2 bunu "tasarımda olmayan tek satır" olarak kaydediyor.
  * Satır referans `SET` dizisinde geçmediği için ağaca konulamadı — ağaç `SET` ile satır satır
- * hizalı tutuluyor (aşağıdaki 169 satır testi) — ve
+ * hizalı tutuluyor (aşağıdaki 167 satır testi) — ve
  * `components/settings/sections/account/privacy-tab.tsx` içinde çizim anında ekleniyor.
  *
  * Anahtarları bu yüzden "ölü" değil, **ağaç dışı**: tüketicisi belli, sahibi yazılı.
@@ -166,138 +295,12 @@ describe("Ayarlar metin sözleşmesi — ağaç ↔ referans SET", () => {
     );
   });
 
-  it("bölüm adları ve alt satırları birebir", () => {
-    SETTINGS_TREE.forEach((section, index) => {
-      const raw = SET[index] as SetValue[];
-
-      assert.equal(trOf(section.labelKey, `${section.key} label`), raw[1]);
-      assert.equal(trOf(section.leadKey, `${section.key} lead`), raw[2]);
-    });
-  });
-
-  it("sekme etiketleri birebir", () => {
-    SETTINGS_TREE.forEach((section, sectionIndex) => {
-      const rawTabs = (SET[sectionIndex] as SetValue[])[5] as SetValue[];
-
-      section.tabs.forEach((tab, tabIndex) => {
-        const raw = rawTabs[tabIndex] as SetValue[];
-        const expected = (raw[1] as string) || ((SET[sectionIndex] as SetValue[])[1] as string);
-
-        assert.equal(trOf(tab.labelKey, `${section.key}/${tab.key}`), expected);
-      });
-    });
-  });
-
-  it("grup başlıkları ve notları birebir", () => {
-    SETTINGS_TREE.forEach((section, sectionIndex) => {
-      const rawTabs = (SET[sectionIndex] as SetValue[])[5] as SetValue[];
-
-      section.tabs.forEach((tab, tabIndex) => {
-        const rawGroups = (rawTabs[tabIndex] as SetValue[])[2] as SetValue[];
-
-        tab.groups.forEach((group, groupIndex) => {
-          const raw = rawGroups[groupIndex] as SetValue[];
-          const context = `${section.key}/${tab.key}/${groupIndex + 1}`;
-
-          if (raw[0]) {
-            if (group.titleData) return;
-            assert.equal(trOf(group.titleKey, `${context} title`), raw[0]);
-          } else {
-            assert.equal(group.titleKey, undefined, `${context} başlığı uydurulmuş`);
-          }
-
-          if (raw[1] && !group.noteData) {
-            assert.equal(trOf(group.noteKey, `${context} note`), raw[1]);
-          }
-        });
-      });
-    });
-  });
-
-  it("169 ürün satırının başlık, açıklama, pil, seçenek ve düğme metni birebir", () => {
-    let checked = 0;
-
-    SETTINGS_TREE.forEach((section, sectionIndex) => {
-      const rawTabs = (SET[sectionIndex] as SetValue[])[5] as SetValue[];
-
-      section.tabs.forEach((tab, tabIndex) => {
-        const rawGroups = (rawTabs[tabIndex] as SetValue[])[2] as SetValue[];
-
-        tab.groups.forEach((group, groupIndex) => {
-          const rawRows = ((rawGroups[groupIndex] as SetValue[])[2] as SetValue[]).filter(
-            (rawRow) =>
-              !(
-                section.key === "desktop" &&
-                tab.key === "app" &&
-                (rawRow as SetValue[])[0] === "w3"
-              ),
-          );
-
-          group.rows.forEach((row, rowIndex) => {
-            const raw = rawRows[rowIndex] as SetValue[];
-            const context = `${section.key}/${tab.key}/${row.key}`;
-
-            assert.equal(row.key, raw[0], `${context}: anahtar kaymış`);
-
-            if (raw[2]) assert.equal(trOf(row.titleKey, `${context} title`), raw[2]);
-            else assert.equal(row.titleKey, undefined, `${context}: başlık uydurulmuş`);
-
-            if (raw[3] && !row.descriptionData) {
-              assert.equal(trOf(row.descriptionKey, `${context} description`), raw[3]);
-            }
-
-            if (raw[7] && !row.badgeData) {
-              assert.equal(trOf(row.badgeKey, `${context} badge`), raw[7]);
-            }
-
-            if (row.type === "select" || row.type === "segment") {
-              const rawOptions = raw[6] as SetValue[];
-
-              row.options?.forEach((optionKey, optionIndex) => {
-                assert.equal(
-                  trOf(optionKey, `${context} option ${optionIndex + 1}`),
-                  rawOptions[optionIndex],
-                );
-              });
-            }
-
-            if (row.type === "action" || row.type === "jump") {
-              const rawActions = raw[6] as SetValue[];
-
-              row.actions?.forEach((action, actionIndex) => {
-                if (row.key === "q3" || row.key === "w1" || row.key === "w2") {
-                  // SPEC_DEVIATIONS #13 — uzak WebView ayrıcalıklı kısayol mutasyonu yapmaz;
-                  // referansın Kaydet/Sıfırla çifti güvenilir Desktop Control geçişine iner.
-                  assert.equal(actionIndex, 0);
-                  assert.equal(
-                    trOf(action.labelKey, `${context} action ${actionIndex + 1}`),
-                    "Masaüstü Denetimi'nde yönet",
-                  );
-                  return;
-                }
-
-                assert.equal(
-                  trOf(action.labelKey, `${context} action ${actionIndex + 1}`),
-                  rawActions[actionIndex],
-                );
-              });
-            }
-
-            if (row.type === "nav") {
-              assert.equal(trOf(row.navLabelKey, `${context} nav`), raw[5]);
-            }
-
-            if (row.prefixKey) {
-              assert.equal(trOf(row.prefixKey, `${context} prefix`), (raw[6] as SetValue[])[0]);
-            }
-
-            checked += 1;
-          });
-        });
-      });
-    });
-
-    assert.equal(checked, 169);
+  it("aktif metinleri sabit anahtarlarla referansa ve onaylı değişikliklere bağlar", () => {
+    const expected = { ...referenceCopy(), ...APPROVED_COPY_CHANGES };
+    for (const key of collectSettingsCopyKeys()) {
+      assert.ok(key in expected, `${key}: yeni ürün metni için sözleşme eksik`);
+      assert.equal(trOf(key, key), expected[key], key);
+    }
   });
 
   it("SPEC_DEVIATIONS #9 — `Varsayılanlar` başlığı kararın kendisinden geliyor", () => {
@@ -332,7 +335,7 @@ describe("Ayarlar metin sözleşmesi — sözlük bütünlüğü", () => {
     const owned = new Set([...treeKeys, ...OUTSIDE_TREE_ROW_KEYS]);
     const dead = Object.keys(TR)
       .filter((key) => /^settings\.(section|tab|group|row|option|action)\./u.test(key))
-      .filter((key) => !owned.has(key))
+      .filter((key) => !owned.has(key.replace(/\.desktop$/u, "")))
       .sort();
 
     assert.deepEqual(dead, []);
@@ -363,6 +366,7 @@ describe("Ayarlar metin sözleşmesi — sözlük bütünlüğü", () => {
         }
 
         if (!/\.(ts|tsx)$/u.test(entry.name)) continue;
+        if (/\.test\.(ts|tsx)$/u.test(entry.name)) continue;
         if (path.split(sep).join("/").includes("lib/locale/messages/")) continue;
 
         sources.push(readFileSync(path, "utf8"));
@@ -379,7 +383,9 @@ describe("Ayarlar metin sözleşmesi — sözlük bütünlüğü", () => {
     const dead = Object.keys(TR)
       .filter((key) => key.startsWith("settings.") || key.startsWith("notif."))
       .filter((key) => {
-        const base = key.replace(/_(one|other|zero|few|many|two)$/u, "");
+        const base = (
+          key.endsWith(".desktop") && key.slice(0, -8) in TR ? key.slice(0, -8) : key
+        ).replace(/_(one|other|zero|few|many|two)$/u, "");
 
         if (treeKeys.includes(base) || OUTSIDE_TREE_ROW_KEYS.includes(base)) return false;
         if (dynamicPrefixes.some((prefix) => base.startsWith(prefix))) return false;
@@ -420,7 +426,7 @@ describe("Ayarlar metin sözleşmesi — sözlük bütünlüğü", () => {
   it("kabuğun ve ağacın kendi `settings.*` anahtarları duruyor", () => {
     for (const key of [
       "settings.title",
-      "settings.search.placeholder",
+      "settings.search",
       "settings.dirty",
       "settings.saveChanges",
       "settings.discard",

@@ -159,7 +159,7 @@ test("release bundling declares and validates the Expo Babel preset directly", (
 test("release source-map upload declares and validates the Sentry CLI directly", () => {
   const buildScript = readFileSync(join(root, "scripts", "build-android-uat.ps1"), "utf8");
 
-  assert.equal(packageJson.dependencies["@sentry/cli"], "3.6.2");
+  assert.equal(packageJson.dependencies["@sentry/cli"], "3.7.0");
   assert.match(buildScript, /require\.resolve\('@sentry\/cli\/package\.json'\)/);
   assert.match(buildScript, /@sentry\\cli\\bin\\sentry-cli/);
 });

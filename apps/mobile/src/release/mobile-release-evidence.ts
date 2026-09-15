@@ -69,7 +69,9 @@ export interface MobileReleaseEvidence {
   }[];
   readonly nativeCapabilitySummary: ReturnType<typeof summarizeMobileNativeCapabilities>;
   readonly packageVersion: string;
-  readonly productionReadiness: ReturnType<typeof validateMobileReleaseContract>["productionReadiness"];
+  readonly productionReadiness: ReturnType<
+    typeof validateMobileReleaseContract
+  >["productionReadiness"];
   readonly quality: ReturnType<typeof summarizeMobileQualityGate>;
   readonly redacted: true;
   readonly releaseProfiles: readonly MobileReleaseEvidenceProfile[];
@@ -243,7 +245,7 @@ export function validateMobileReleaseEvidence(evidence: MobileReleaseEvidence): 
     issues.push("Mobile release evidence must cover native capability readiness.");
   }
 
-  if (evidence.productionReadiness.stageCount !== 4) {
+  if (evidence.productionReadiness.stageCount !== 3) {
     issues.push("Mobile release evidence must cover all production readiness stages.");
   }
 

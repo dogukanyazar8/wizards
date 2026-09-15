@@ -7,6 +7,7 @@ import { PermissionBits } from "@/lib/workspace/permissions";
 import type { AccessContext } from "@/lib/workspace/workspace-types";
 import {
   authorizeMobileMediaUpload,
+  authorizeProfileBannerUpload,
   completeMobileMediaUpload,
   type MobileMediaUploadAuthorizationDependencies,
   type MobileMediaUploadCompletionDependencies,
@@ -99,6 +100,55 @@ function assertBoundedUploadThingError(
   }
   return true;
 }
+
+describe("authorizeProfileBannerUpload", () => {
+  it("uses active session authentication with a fixed owner-scoped banner purpose", async () => {
+    const events: string[] = [];
+    const result = await authorizeProfileBannerUpload(
+      authorizationDependencies({
+        authenticate: async () =>
+          assert.fail("browser banner upload must not use mobile bearer auth"),
+        authenticateSession: async () => {
+          events.push("session");
+          return "user-1";
+        },
+        enforceRateLimit: async (userId, action) => {
+          assert.equal(userId, "user-1");
+          events.push(action);
+        },
+        runOpportunisticCleanup: async () => {
+          events.push("cleanup");
+        },
+      }),
+    );
+    assert.deepEqual(result, {
+      ownerId: "user-1",
+      purpose: "profile-banner",
+      targetServerId: null,
+    });
+    assert.deepEqual(events, ["session", "mobile:media:upload", "cleanup"]);
+  });
+
+  it("rejects inactive sessions and rate-limit failures before cleanup", async () => {
+    for (const status of [401, 403, 429]) {
+      const deps = authorizationDependencies({
+        authenticateSession: async () => {
+          if (status !== 429) throw new ApiError("private session reason", status);
+          return "user-1";
+        },
+        enforceRateLimit: async () => {
+          throw new ApiError("private limiter reason", 429);
+        },
+        runOpportunisticCleanup: async () =>
+          assert.fail("failed authorization must not start cleanup"),
+      });
+      await assert.rejects(
+        () => authorizeProfileBannerUpload(deps),
+        (error) => assertBoundedUploadThingError(error, ["private"]),
+      );
+    }
+  });
+});
 
 describe("authorizeMobileMediaUpload", () => {
   it("authenticates and rate-limits before starting cleanup, and does not wait for it", async () => {

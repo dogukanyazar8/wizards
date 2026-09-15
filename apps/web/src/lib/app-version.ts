@@ -1,3 +1,4 @@
+import { resolveWebReleaseChannel } from "@/lib/build-release-channel";
 import { getMessage, type AppLocale } from "@/lib/locale";
 export { WHISPR_DESKTOP_DOWNLOAD_URL } from "@/lib/desktop-download";
 
@@ -32,8 +33,9 @@ function formatWhisprVersion(version: string, codename: string) {
 }
 
 /** Çıplak semver — süslenmemiş hâli açılış ekranının sürüm satırına girer. */
-export const WHISPR_VERSION_NUMBER = process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.8.15";
-export const WHISPR_RELEASE_CODENAME = process.env.NEXT_PUBLIC_WHISPR_RELEASE_CODENAME ?? "Echo";
+export const WHISPR_VERSION_NUMBER = process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.9.0";
+export const WHISPR_RELEASE_CODENAME =
+  process.env.NEXT_PUBLIC_WHISPR_RELEASE_CODENAME ?? "Resonance";
 export const WHISPR_APP_VERSION = formatWhisprVersion(
   WHISPR_VERSION_NUMBER,
   WHISPR_RELEASE_CODENAME,
@@ -48,7 +50,9 @@ export const WHISPR_BUILD_ID = process.env.NEXT_PUBLIC_WHISPR_BUILD_ID ?? "devel
  */
 export const WHISPR_BUILD_NUMBER = process.env.NEXT_PUBLIC_WHISPR_BUILD_NUMBER ?? "";
 export const WHISPR_BUILD_TIME = process.env.NEXT_PUBLIC_WHISPR_BUILD_TIME ?? "";
-export const WHISPR_RELEASE_CHANNEL = process.env.NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL ?? "beta";
+export const WHISPR_RELEASE_CHANNEL = resolveWebReleaseChannel(
+  process.env.NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL,
+);
 
 export const WHISPR_RELEASE_NOTES: WhisprReleaseNote[] = [
   {

@@ -2,7 +2,13 @@
 
 import { useSyncExternalStore } from "react";
 
-import { selectUiScale, type UiScaleValue, type UiScaleViewport } from "@/lib/home/scale";
+import {
+  selectUiScale,
+  type UiScalePlatform,
+  type UiScaleValue,
+  type UiScaleViewport,
+} from "@/lib/home/scale";
+import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 
 export const DISCOVER_PAGE_SIZES = Object.freeze({
   1: 24,
@@ -15,12 +21,18 @@ export function selectDiscoverPageSizeForScale(scale: UiScaleValue): 24 | 36 | 4
   return DISCOVER_PAGE_SIZES[scale];
 }
 
-export function selectDiscoverPageSize(viewport: UiScaleViewport): 24 | 36 | 48 {
-  return selectDiscoverPageSizeForScale(selectUiScale(viewport).scale);
+export function selectDiscoverPageSize(
+  viewport: UiScaleViewport,
+  platform: UiScalePlatform = "web",
+): 24 | 36 | 48 {
+  return selectDiscoverPageSizeForScale(selectUiScale(viewport, platform).scale);
 }
 
 function readClientPageSize(): 24 | 36 | 48 {
-  return selectDiscoverPageSize({ height: window.innerHeight, width: window.innerWidth });
+  return selectDiscoverPageSize(
+    { height: window.innerHeight, width: window.innerWidth },
+    isWhisprDesktopRuntime() ? "desktop" : "web",
+  );
 }
 
 function readServerPageSize(): 24 {

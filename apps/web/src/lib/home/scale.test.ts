@@ -59,6 +59,23 @@ describe("selectUiScale — 02-faz1 §2.1 table", () => {
 });
 
 describe("selectUiScale — SPEC §8.1 rules", () => {
+  it("keeps desktop content at the same size when maximizing or restoring the window", () => {
+    for (const viewport of [
+      { width: 960, height: 640 },
+      { width: 1360, height: 920 },
+      { width: 1920, height: 1080 },
+      { width: 2560, height: 1440 },
+      { width: 3840, height: 2160 },
+      { width: 7680, height: 4320 },
+      { width: 1360, height: 920 },
+    ]) {
+      const step = selectUiScale(viewport, "desktop");
+      assert.equal(step.rootFontSizePx, 16);
+      assert.equal(step.scale, 1);
+      assert.equal(step.attribute, "1");
+    }
+  });
+
   it("never returns a step whose fit factor was not reached", () => {
     for (let width = 1000; width <= 8000; width += 137) {
       for (let height = 600; height <= 4400; height += 91) {

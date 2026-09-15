@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
-const ENVIRONMENTS = new Set(["uat", "canary", "production"]);
+const ENVIRONMENTS = new Set(["uat", "production"]);
 const KINDS = new Set(["ota", "apk"]);
 
 function requireSafeId(value, name) {
@@ -15,7 +15,7 @@ function requireSafeId(value, name) {
 
 export function buildMobileReleaseContract(input) {
   if (!ENVIRONMENTS.has(input.environment)) {
-    throw new Error("environment must be uat, canary, or production.");
+    throw new Error("environment must be uat or production.");
   }
   if (!KINDS.has(input.kind)) {
     throw new Error("kind must be ota or apk.");
@@ -66,7 +66,7 @@ export function buildMobileReleaseContract(input) {
   const apkContract = {
     ...common,
     latestKey: `mobile/${input.environment}/latest.json`,
-    releaseChannel: input.environment === "uat" ? "UAT" : "BETA",
+    releaseChannel: "UAT",
     version: input.version,
   };
   if (input.versionCode === undefined) {

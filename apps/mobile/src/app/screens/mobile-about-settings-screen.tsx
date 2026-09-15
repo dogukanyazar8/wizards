@@ -43,7 +43,7 @@ import {
   readMobileUpdateRuntimeIdentity,
   selectMobileUpdateController,
 } from "../../about/mobile-update-controller-factory";
-import { normalizeMobileAppVersion } from "../../about/mobile-app-identity";
+import { getMobileAppCodename, normalizeMobileAppVersion } from "../../about/mobile-app-identity";
 import { getMobileRuntimeConfig } from "../../config/environment";
 import { mobileAboutMetrics } from "../../design/tokens";
 import { MOBILE_OPEN_SOURCE_LICENSE_GROUPS } from "../../legal/mobile-open-source-license-manifest";
@@ -115,8 +115,6 @@ function formatChannelLabel(value: MobileReleaseChannel, locale: "en" | "tr"): s
   switch (value) {
     case "beta":
       return "BETA";
-    case "uat":
-      return "UAT";
     case "stable":
     default:
       return locale === "tr" ? "KARARLI" : "STABLE";
@@ -436,7 +434,8 @@ export function MobileAboutSettingsScreen({
       ? String(new Date(releasedAt).getFullYear())
       : String(new Date().getFullYear());
   const channelLabel = formatChannelLabel(preferences.channel ?? releaseChannel, locale);
-  const codename = release?.codename ? `“${release.codename}”` : "—";
+  const releaseCodename = getMobileAppCodename(installedVersion) ?? release?.codename;
+  const codename = releaseCodename ? `“${releaseCodename}”` : "—";
   const statusLevel: MobileServiceStatusLevel =
     statusQuery.data?.level ?? (serviceOnline ? "ok" : "down");
   const statusLabel =
@@ -575,9 +574,7 @@ export function MobileAboutSettingsScreen({
         <AboutCard testID="mobile-about-app-card">
           {/*
             One control owns the release channel. The beta invitation lives in
-            this row's subtitle rather than a second switch, because a two-state
-            toggle could only ever express two of the three channels and wrote
-            the same preference this row already opens.
+            this row's subtitle; the channel screen owns consent and persistence.
           */}
           <AboutRow
             // AboutRow's default label is `title, value`, which would drop the

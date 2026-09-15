@@ -24,16 +24,16 @@ test("automatic desktop CI runs portable locked Rust quality gates", async () =>
   const desktopOpsConfiguration = desktopOps.slice(0, desktopOps.indexOf("    steps:"));
 
   assert.match(desktopOps, /^    needs: verify$/m);
-  assert.match(desktopOpsConfiguration, /^    runs-on: \[self-hosted, linux, x64, ci-fast\]$/mu);
+  assert.match(desktopOpsConfiguration, /^    runs-on: ubuntu-24\.04$/mu);
   assert.doesNotMatch(desktopOpsConfiguration, /matrix|windows-latest|macos-latest/u);
-  assert.match(desktopOpsConfiguration, /^    if: github\.event_name != 'pull_request'$/m);
+  assert.doesNotMatch(desktopOpsConfiguration, /^    if: github\.event_name != 'pull_request'$/m);
   assert.match(
     desktopOps,
-    /uses: dtolnay\/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable/,
+    /uses: dtolnay\/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable/,
   );
   assert.match(desktopOps, /working-directory: apps\/desktop\/src-tauri/);
   assert.match(desktopOps, /^          components: rustfmt, clippy$/m);
-  assert.match(desktopOps, /CARGO_AUDIT_VERSION: 0\.22\.1/);
+  assert.match(desktopOps, /CARGO_AUDIT_VERSION: 0\.22\.2/);
   assert.match(
     desktopOps,
     /cargo install cargo-audit --version "\$CARGO_AUDIT_VERSION" --locked --force/,
@@ -45,7 +45,7 @@ test("automatic desktop CI runs portable locked Rust quality gates", async () =>
   );
   assert.match(desktopOps, /^          cargo audit --file Cargo\.lock$/m);
   assert.match(desktopOps, /^        run: cargo fmt -- --check$/m);
-  assert.match(desktopOps, /^        run: cargo clippy --locked --all-targets -- -D warnings$/m);
+  assert.match(desktopOps, /^        run: pnpm --filter @wizards\/desktop lint:rust$/m);
   assert.match(desktopOps, /^        run: cargo test --locked$/m);
   assert.match(
     desktopOps,

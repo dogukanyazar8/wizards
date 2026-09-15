@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 
 import type { StoppableTrack } from "@/hooks/use-mic-level";
-import { DEFAULT_CAMERA_DEVICE_ID, type VoiceCameraRotation } from "@/store/voice-store";
+import {
+  DEFAULT_CAMERA_DEVICE_ID,
+  type VoiceCameraPreferences,
+  type VoiceCameraRotation,
+} from "@/store/voice-store";
 
 /**
  * Kamera önizlemesi — K13'ün ikinci parçası.
@@ -19,7 +23,11 @@ import { DEFAULT_CAMERA_DEVICE_ID, type VoiceCameraRotation } from "@/store/voic
 export type CameraPreviewStatus =
   "denied" | "device-unavailable" | "error" | "idle" | "ready" | "starting" | "unsupported";
 
-export type CapturedVideoStream = { getTracks: () => readonly StoppableTrack[] };
+type CapturedVideoTrack = StoppableTrack & {
+  addEventListener?: (type: "ended", listener: () => void) => void;
+  removeEventListener?: (type: "ended", listener: () => void) => void;
+};
+export type CapturedVideoStream = { getTracks: () => readonly CapturedVideoTrack[] };
 
 export type CameraPreviewSnapshot = {
   readonly status: CameraPreviewStatus;
@@ -28,17 +36,23 @@ export type CameraPreviewSnapshot = {
 
 const IDLE_SNAPSHOT: CameraPreviewSnapshot = { status: "idle", stream: null };
 
+export type CameraPreviewQuality = Pick<VoiceCameraPreferences, "quality" | "frameRate">;
+const DEFAULT_PREVIEW_QUALITY: CameraPreviewQuality = { quality: "h1080", frameRate: 30 };
+
 export type CameraPreviewSessionOptions = {
-  capture?: (deviceId: string) => Promise<CapturedVideoStream>;
+  capture?: (deviceId: string, quality: CameraPreviewQuality) => Promise<CapturedVideoStream>;
 };
 
-/** SPEC §5.2 — 220 px 16:9 çerçevenin beslendiği kısıtlar. */
-export function buildCameraPreviewConstraints(deviceId: string): MediaStreamConstraints {
+/** Device constraints shared by every local preview start or reconfiguration. */
+export function buildCameraPreviewConstraints(
+  deviceId: string,
+  quality: CameraPreviewQuality = DEFAULT_PREVIEW_QUALITY,
+): MediaStreamConstraints {
   const video: MediaTrackConstraints = {
     facingMode: { ideal: "user" },
-    frameRate: { ideal: 30, max: 30 },
-    height: { ideal: 720 },
-    width: { ideal: 1280 },
+    frameRate: { ideal: quality.frameRate, max: quality.frameRate },
+    height: { ideal: quality.quality === "h720" ? 720 : 1080 },
+    width: { ideal: quality.quality === "h720" ? 1280 : 1920 },
   };
 
   if (deviceId !== DEFAULT_CAMERA_DEVICE_ID) {
@@ -63,12 +77,15 @@ export function rotateCameraPreview(
   return ((current + delta + 360) % 360) as VoiceCameraRotation satisfies VoiceCameraRotation;
 }
 
-function defaultCapture(deviceId: string): Promise<CapturedVideoStream> {
+function defaultCapture(
+  deviceId: string,
+  quality: CameraPreviewQuality,
+): Promise<CapturedVideoStream> {
   if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
     return Promise.reject(new Error("camera-preview/unsupported"));
   }
 
-  return navigator.mediaDevices.getUserMedia(buildCameraPreviewConstraints(deviceId));
+  return navigator.mediaDevices.getUserMedia(buildCameraPreviewConstraints(deviceId, quality));
 }
 
 function classifyCaptureError(error: unknown): CameraPreviewStatus {
@@ -92,11 +109,15 @@ function classifyCaptureError(error: unknown): CameraPreviewStatus {
 export class CameraPreviewSession {
   private readonly listeners = new Set<() => void>();
 
-  private readonly capture: (deviceId: string) => Promise<CapturedVideoStream>;
+  private readonly capture: (
+    deviceId: string,
+    quality: CameraPreviewQuality,
+  ) => Promise<CapturedVideoStream>;
 
   private snapshot: CameraPreviewSnapshot = IDLE_SNAPSHOT;
 
   private generation = 0;
+  private detachTrackListeners: (() => void) | null = null;
 
   constructor(options: CameraPreviewSessionOptions = {}) {
     this.capture = options.capture ?? defaultCapture;
@@ -115,7 +136,10 @@ export class CameraPreviewSession {
   isRunning = (): boolean =>
     this.snapshot.status === "ready" || this.snapshot.status === "starting";
 
-  start = async (deviceId: string = DEFAULT_CAMERA_DEVICE_ID): Promise<void> => {
+  start = async (
+    deviceId: string = DEFAULT_CAMERA_DEVICE_ID,
+    quality: CameraPreviewQuality = DEFAULT_PREVIEW_QUALITY,
+  ): Promise<void> => {
     if (this.isRunning()) {
       return;
     }
@@ -126,7 +150,7 @@ export class CameraPreviewSession {
     let stream: CapturedVideoStream;
 
     try {
-      stream = await this.capture(deviceId);
+      stream = await this.capture(deviceId, quality);
     } catch (error) {
       if (generation === this.generation) {
         this.write({ status: classifyCaptureError(error), stream: null });
@@ -140,11 +164,29 @@ export class CameraPreviewSession {
       return;
     }
 
+    const tracks = stream.getTracks();
+    const onEnded = () => {
+      if (generation !== this.generation) return;
+      this.stop();
+      this.write({ status: "device-unavailable", stream: null });
+    };
+    for (const track of tracks) track.addEventListener?.("ended", onEnded);
+    this.detachTrackListeners = () => {
+      for (const track of tracks) track.removeEventListener?.("ended", onEnded);
+    };
     this.write({ status: "ready", stream });
+  };
+
+  reconfigure = (deviceId: string, quality: CameraPreviewQuality): void => {
+    if (!this.isRunning()) return;
+    this.stop();
+    void this.start(deviceId, quality);
   };
 
   stop = (): void => {
     this.generation += 1;
+    this.detachTrackListeners?.();
+    this.detachTrackListeners = null;
 
     const { stream } = this.snapshot;
 
@@ -187,11 +229,15 @@ export type UseCameraPreviewResult = CameraPreviewSnapshot & {
 
 export function useCameraPreview(
   deviceId: string = DEFAULT_CAMERA_DEVICE_ID,
+  quality: CameraPreviewQuality = DEFAULT_PREVIEW_QUALITY,
 ): UseCameraPreviewResult {
   const session = useMemo(() => new CameraPreviewSession(), []);
 
   useEffect(() => () => session.dispose(), [session]);
-  useEffect(() => () => session.stop(), [deviceId, session]);
+  const { quality: tier, frameRate } = quality;
+  useEffect(() => {
+    session.reconfigure(deviceId, { quality: tier, frameRate });
+  }, [deviceId, tier, frameRate, session]);
 
   // Görünürlük koruması: sekme arkaya düşünce kamera kapanır.
   useEffect(() => {
@@ -216,7 +262,10 @@ export function useCameraPreview(
     () => IDLE_SNAPSHOT,
   );
 
-  const start = useCallback(() => void session.start(deviceId), [deviceId, session]);
+  const start = useCallback(
+    () => void session.start(deviceId, { quality: tier, frameRate }),
+    [deviceId, tier, frameRate, session],
+  );
   const stop = useCallback(() => session.stop(), [session]);
   const toggle = useCallback(() => {
     if (session.isRunning()) {
@@ -224,8 +273,8 @@ export function useCameraPreview(
       return;
     }
 
-    void session.start(deviceId);
-  }, [deviceId, session]);
+    void session.start(deviceId, { quality: tier, frameRate });
+  }, [deviceId, tier, frameRate, session]);
 
   return { ...snapshot, start, stop, toggle };
 }

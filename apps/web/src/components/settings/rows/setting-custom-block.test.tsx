@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import {
@@ -19,18 +20,38 @@ import { SETTINGS_TREE_COUNTS, walkSettingsRows, type SettingsBlockKey } from "@
 const { row } = SETTINGS_METRICS;
 
 function render(block: SettingsBlockKey, divider = false) {
-  return renderToStaticMarkup(
-    <LocaleProvider initialLocale="tr" initialMessages={getMessagesForLocale("tr")}>
-      <SettingCustomBlock
-        data={{}}
-        divider={divider}
-        row={{ block, key: `${block}-row`, type: "custom" }}
-      />
-    </LocaleProvider>,
+  const client = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } });
+  const markup = renderToStaticMarkup(
+    <QueryClientProvider client={client}>
+      <LocaleProvider initialLocale="tr" initialMessages={getMessagesForLocale("tr")}>
+        <SettingCustomBlock
+          data={{}}
+          divider={divider}
+          row={{
+            block,
+            key: `${block}-row`,
+            type: "custom",
+            ...(block === "profileEmoji" ? { titleKey: "settings.row.ps.title" } : {}),
+          }}
+        />
+      </LocaleProvider>
+    </QueryClientProvider>,
   );
+  client.clear();
+  return markup;
 }
 
 describe("SETTINGS_BLOCKS — defter", () => {
+  it("durum emojisi ortak satır eksenini ve seçici ölçülerini kullanır", () => {
+    const markup = render("profileEmoji");
+    assert.ok(markup.includes('data-setting-control="profileEmoji-row"'));
+    assert.ok(markup.includes("min-[720px]:flex-row"));
+    assert.ok(markup.includes('data-testid="setting-input-ps"'));
+    assert.ok(markup.includes(`width:${pxToRem(SETTINGS_METRICS.controls.input.width)}`));
+    const labelId = markup.match(/aria-labelledby="([^"]+)"/u)?.[1];
+    assert.ok(labelId && markup.includes(`id="${labelId}"`));
+    assert.ok(markup.includes('aria-haspopup="dialog"'));
+  });
   it("yirmi yuva var", () => {
     assert.equal(Object.keys(SETTINGS_BLOCKS).length, SETTINGS_TREE_COUNTS.blocks);
     assert.equal(Object.keys(SETTINGS_BLOCKS).length, 20);
@@ -164,7 +185,7 @@ describe("SettingCustomBlock — kırpma (tuzak #6)", () => {
   });
 
   it("inline liste yalnız mikrofon ölçeri ve kamera önizlemesi (K13)", () => {
-    assert.deepEqual([...SETTINGS_INLINE_BLOCKS], ["camera", "mic"]);
+    assert.deepEqual([...SETTINGS_INLINE_BLOCKS], ["camera", "mic", "profileEmoji"]);
     assert.equal(isFullWidthSettingsBlock("hero"), true);
     assert.equal(isFullWidthSettingsBlock("mic"), false);
     assert.equal(isFullWidthSettingsBlock("camera"), false);

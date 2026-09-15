@@ -11,6 +11,23 @@ export type NoiseFilterTier =
 
 export type AudioCaptureProcessingProfile = "native" | "enhanced" | "off";
 
+/** Settings expose three choices; capture/runtime still own platform fallback. */
+export function getNoiseSuppressionChoice(audio: VoiceAudioPreferences): 0 | 1 | 2 {
+  if (audio.krispNoiseCancellation && audio.enhancedNoiseFilterMode !== "browser_only") return 0;
+  return audio.noiseSuppression || audio.voiceIsolation ? 1 : 2;
+}
+
+export function getNoiseSuppressionPreset(choice: number) {
+  if (![0, 1, 2].includes(choice)) throw new Error("INVALID_NOISE_SUPPRESSION_CHOICE");
+  return {
+    krispNoiseCancellation: choice === 0,
+    enhancedNoiseFilterMode: choice === 0 ? ("krisp_only" as const) : ("browser_only" as const),
+    // Used as a fallback when Krisp is unavailable; echo/gain remain independent.
+    noiseSuppression: choice !== 2,
+    voiceIsolation: choice !== 2,
+  };
+}
+
 export function isEnhancedNoiseFilterMode(value: unknown): value is EnhancedNoiseFilterMode {
   return (
     typeof value === "string" &&

@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
  *
  * Tek bileşen üç düzeni de çizer:
  * - `surface="desktop"` → SPEC §4, 420 × 280 kabuk (üretimde `zoom: 1.5`).
- * - `surface="web"` → SPEC §5, panel %40 / kolon %60, tam görünüm alanı.
+ * - `surface="web"` → SPEC §5, 1280 × 720 ortalanmış kabuk, panel %40 / kolon %60.
  * - dar görünüm alanı (< 768px) → SPEC §6 düzeni (K12); üçüncü bir düzen icat edilmez.
  *
  * Aurora katmanı **kabuğun ilk çocuğudur**; kolonlar opak zemin almaz, böylece
@@ -198,8 +198,10 @@ export function SplashScreen({
                 {surface === "desktop" ? <SplashTip tipKey={tipKey} /> : null}
               </div>
               <div className="whispr-splash-col">
-                {renderHead(true)}
-                {body}
+                <div className="whispr-splash-content">
+                  {renderHead(true)}
+                  {body}
+                </div>
                 {surface === "desktop" ? (
                   <div className="whispr-splash-foot">
                     {state === "loading" && !completed ? <SplashDots /> : null}

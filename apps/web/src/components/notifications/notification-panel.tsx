@@ -45,8 +45,8 @@ import type {
 /**
  * Bildirimler paneli — SPEC §1, Ş11 §A.
  *
- * Panel bir **okuma yüzeyi** değil, bir kayıt defteri: satıra tıklamak okundu durumunu
- * çevirir, sayaçlar hep sunucudan gelir ve `/inbox` silindiği için (K10) `Sistem` sekmesi de
+ * Satıra tıklamak hedefi açar ve okundu işaretler. Sayaçlar sunucudan gelir;
+ * `/inbox` silindiği için (K10) `Sistem` sekmesi de
  * dâhil dört sekmenin dördü de sonsuz kaydırır.
  *
  * ## Sayaç neden ayrı bir sorgu
@@ -305,11 +305,14 @@ export function NotificationPanel({
     },
   });
 
-  const handleToggleRead = useCallback(
+  const handleOpen = useCallback(
     (notification: AppNotification) => {
-      toggleReadMutation.mutate({ id: notification.id, read: !notification.read });
+      if (!notification.read) {
+        toggleReadMutation.mutate({ id: notification.id, read: true });
+      }
+      if (notification.actionUrl) onClose();
     },
-    [toggleReadMutation],
+    [toggleReadMutation, onClose],
   );
 
   const unread = counts.all;
@@ -537,7 +540,7 @@ export function NotificationPanel({
                     <NotificationItem
                       key={notification.id}
                       notification={notification}
-                      onToggleRead={handleToggleRead}
+                      onOpen={handleOpen}
                       timeZone={timeZone}
                     />
                   ))}

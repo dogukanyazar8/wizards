@@ -76,7 +76,6 @@ async function createPrismaAccountDataExportSource(
             phoneVerified: true,
             premiumSince: true,
             premiumType: true,
-            pronouns: true,
             registeredAt: true,
             status: true,
             theme: true,

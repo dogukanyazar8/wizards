@@ -61,7 +61,9 @@ describe("server modal focus contract", () => {
     assert.match(modal, /event\.key === "Escape"/u);
     // Tab sarmalı: sondan başa, baştan sona.
     assert.match(modal, /event\.key !== "Tab"/u);
-    assert.match(modal, /event\.shiftKey && document\.activeElement === first/u);
+    assert.match(modal, /event\.shiftKey && activeElement === first/u);
+    assert.match(modal, /event\.composedPath\(\)\[0\]/u);
+    assert.match(modal, /child\.shadowRoot \?\? child/u);
     // Açılışta ilk odaklanabilir öğe (ya da verilen `initialFocusRef`).
     assert.match(modal, /initialFocusRef\?\.current \?\? focusable\?\.\[0\]/u);
     // Kapanışta tetikleyiciye dönüş.
@@ -101,4 +103,16 @@ describe("server layer contract (K11)", () => {
     assert.match(overlay, /zIndex: settingsLayer\.zIndex/u);
     assert.equal(overlay.includes('className="fixed inset-0 z-[95]'), false);
   });
+});
+
+it("child dialogs including shortcut help stack above the settings window", () => {
+  const modal = readFileSync(join(componentsRoot, "ui/modal.tsx"), "utf8");
+  const settings = readFileSync(join(componentsRoot, "settings/settings-window.tsx"), "utf8");
+  const help = readFileSync(join(componentsRoot, "shortcuts/shortcut-help-dialog.tsx"), "utf8");
+  const modalLayer = Number(/fixed[^"\n]*? z-\[(\d+)\]/.exec(modal)?.[1]);
+  const settingsLayer = Number(/fixed[^"\n]*? z-\[(\d+)\]/.exec(settings)?.[1]);
+  assert.ok(modalLayer > settingsLayer);
+  assert.match(help, /<Modal/);
+  assert.doesNotMatch(help, /font-mono/);
+  assert.match(settings, /closest\('\[role="dialog"\]'\)/);
 });

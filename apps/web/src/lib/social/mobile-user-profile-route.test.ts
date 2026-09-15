@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import type { MobileUserProfile } from "@wizards/types";
+import { MobileUserProfileSchema } from "@wizards/types";
+import { z } from "zod";
 
 /**
  * Lives beside the service rather than beside the route: the web test runner
@@ -33,7 +35,6 @@ function createProfile(overrides: Partial<MobileUserProfile> = {}): MobileUserPr
     mutualServers: { count: 0, preview: [] },
     note: null,
     presence: { customStatus: null, customStatusEmoji: null, status: "ONLINE" },
-    pronouns: null,
     registeredAt: "2025-04-02T09:00:00.000Z",
     relationship: "friend",
     self: false,
@@ -57,6 +58,52 @@ const baseDependencies: MobileUserRouteDependencies = {
 };
 
 describe("mobile user profile route", () => {
+  it("preserves the strict pre-0.9 profile wire shape unless the client opts in", async () => {
+    const legacySchema = MobileUserProfileSchema.extend({
+      pronouns: z.string().max(40).nullable(),
+      presence: MobileUserProfileSchema.shape.presence
+        .omit({ customStatusExpiresAt: true })
+        .extend({ customStatusEmoji: z.string().max(16).nullable() }),
+    }).strict();
+    for (const capability of [
+      undefined,
+      "profile-details-v2-extra",
+      "badge-notifications-v1, profile-details-v2",
+    ]) {
+      const response = await mobileUserProfileRoute(
+        new Request("https://whispr.test/api/v1/mobile/users/user-2/profile", {
+          headers: capability ? { "x-whispr-capabilities": capability } : {},
+        }),
+        { params: Promise.resolve({ userId: "user-2" }) },
+        {
+          ...baseDependencies,
+          getProfile: async () =>
+            createProfile({
+              presence: {
+                customStatus: "Working",
+                customStatusEmoji: "👨‍👩‍👧‍👦👨‍👩‍👧‍👦",
+                customStatusExpiresAt: "2026-10-01T00:00:00.000Z",
+                status: "ONLINE",
+              },
+            }),
+        },
+      );
+      assert.equal(response.status, 200);
+      const { profile } = await response.json();
+      if (capability?.includes(", profile-details-v2")) {
+        assert.equal(MobileUserProfileSchema.safeParse(profile).success, true);
+        assert.equal(profile.presence.customStatusExpiresAt, "2026-10-01T00:00:00.000Z");
+        assert.equal("pronouns" in profile, false);
+        assert.equal(profile.presence.customStatusEmoji, "👨‍👩‍👧‍👦👨‍👩‍👧‍👦");
+      } else {
+        assert.equal(legacySchema.safeParse(profile).success, true);
+        assert.equal(profile.pronouns, null);
+        assert.equal(profile.presence.customStatusEmoji, null);
+        assert.equal("customStatusExpiresAt" in profile.presence, false);
+      }
+    }
+  });
+
   it("passes the server context through and rate-limits the read", async () => {
     const calls: unknown[] = [];
     const response = await mobileUserProfileRoute(

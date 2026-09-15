@@ -697,6 +697,15 @@ export function createMobileRealtimeQueryBridge({
     }
 
     if (event.eventName === "user:profile:updated") {
+      const parsed = MobileUserProfileUpdatedEventSchema.safeParse(event.payload);
+      if (!parsed.success) return true;
+      void queryClient.invalidateQueries({
+        queryKey: [...mobileQueryKeys.userProfileRoot(), parsed.data.userId],
+      });
+      if (parsed.data.userId === getCurrentUserId()) {
+        void queryClient.invalidateQueries({ queryKey: mobileQueryKeys.profile() });
+        void queryClient.invalidateQueries({ queryKey: mobileQueryKeys.accountSettings() });
+      }
       patchProfileCaches(event.payload);
       return true;
     }

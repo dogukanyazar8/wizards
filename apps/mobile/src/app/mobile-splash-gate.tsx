@@ -12,7 +12,11 @@ import {
   type SplashStepId,
 } from "@wizards/types";
 
-import { getMobileAppReleaseChannel, getMobileAppVersion } from "../about/mobile-app-identity";
+import {
+  getMobileAppCodename,
+  getMobileAppReleaseChannel,
+  getMobileAppVersion,
+} from "../about/mobile-app-identity";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { getMobileTheme } from "../design/mobile-theme-runtime";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
@@ -129,7 +133,8 @@ export function MobileSplashGate({ children }: { readonly children: ReactNode })
 
   const theme = getMobileTheme("system", colorScheme);
   const environment = resolveSplashEnvironment(getMobileAppReleaseChannel());
-  const versionLine = formatSplashVersionLine({ version: getMobileAppVersion() });
+  const version = getMobileAppVersion();
+  const versionLine = formatSplashVersionLine({ version, codename: getMobileAppCodename(version) });
 
   return (
     <View style={styles.root}>

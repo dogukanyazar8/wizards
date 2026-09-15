@@ -43,6 +43,7 @@ import {
   OverlaySurface,
   SheetHeader,
   Skeleton,
+  Toggle,
   useSheetPresentation,
   type SheetIconName,
   type SheetOption,
@@ -865,8 +866,27 @@ export function MobileAccountSettingsView({
           testID="mobile-account-group-invites-row"
           tone="accent"
           value={getPolicyLabel(locale, settings.privacy.groupInvites ? "EVERYONE" : "NOBODY")}
-          withBorder={false}
+          withBorder={settings.privacy.readReceipts !== undefined}
         />
+        {settings.privacy.readReceipts !== undefined ? (
+          <View style={styles.row} testID="mobile-account-read-receipts-row">
+            <View style={[styles.iconBox, styles.iconAccent]}>
+              <Ionicons color={theme.accent.strong} name="checkmark-done-outline" size={17} />
+            </View>
+            <Text style={styles.rowLabel}>{copy.accountSettingsReadReceipts}</Text>
+            <Toggle
+              accessibilityLabel={copy.accountSettingsReadReceipts}
+              testID="mobile-account-read-receipts-toggle"
+              value={settings.privacy.readReceipts}
+              readOnly={privacyMutationPending}
+              onValueChange={(readReceipts) => {
+                void onUpdatePrivacy({ readReceipts }).catch(() => {
+                  // The screen reports the save error; the canonical value stays visible.
+                });
+              }}
+            />
+          </View>
+        ) : null}
       </View>
 
       <Text style={styles.sectionHeading}>{copy.accountSettingsRegionalHeading}</Text>

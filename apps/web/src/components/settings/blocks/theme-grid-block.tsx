@@ -73,7 +73,7 @@ export function ThemeGridBlockBody({ rowKey }: { readonly rowKey: string }) {
       role="radiogroup"
       style={{
         gap: pxToRem(6),
-        gridTemplateColumns: `repeat(${themeGrid.columns}, minmax(0, 1fr))`,
+        gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))",
         padding: `${pxToRem(14)} ${pxToRem(15)}`,
       }}
     >
@@ -83,7 +83,7 @@ export function ThemeGridBlockBody({ rowKey }: { readonly rowKey: string }) {
         return (
           <button
             aria-checked={active}
-            className="flex items-center text-left"
+            className="flex items-center text-left transition-colors hover:bg-[hsl(var(--primary)/0.06)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
             data-testid={`settings-theme-${themeDefinition.id}`}
             data-theme-mode={themeDefinition.mode}
             key={themeDefinition.id}
@@ -102,15 +102,25 @@ export function ThemeGridBlockBody({ rowKey }: { readonly rowKey: string }) {
           >
             <span
               aria-hidden="true"
-              className="flex-none"
+              className="relative flex-none overflow-hidden"
               style={{
                 background: getThemePreviewBackground(themeDefinition.preview),
-                borderRadius: pxToRem(themeGrid.swatchRadius),
+                borderRadius: pxToRem(10),
                 boxShadow: `inset 0 0 0 ${hairline()} hsl(var(--border) / 0.5)`,
-                height: pxToRem(themeGrid.swatchSize),
-                width: pxToRem(themeGrid.swatchSize),
+                height: pxToRem(36),
+                width: pxToRem(48),
               }}
-            />
+            >
+              <span className="absolute inset-y-0 left-0 w-3 bg-black/15" />
+              <span
+                className="absolute inset-y-2 left-4 right-2 flex flex-col justify-center gap-1"
+                style={{ color: themeDefinition.mode === "dark" ? "#fff" : "#202331" }}
+              >
+                <span className="h-1 w-3/4 rounded-full bg-current opacity-70" />
+                <span className="h-1 w-full rounded-full bg-current opacity-30" />
+                <span className="h-1 w-1/2 rounded-full bg-current opacity-30" />
+              </span>
+            </span>
             <span
               className="min-w-0 flex-1 truncate"
               style={{

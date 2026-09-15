@@ -270,7 +270,7 @@ function ServerSettingsOverlayContent({
   return (
     <motion.div
       animate={{ opacity: 1 }}
-      className="fixed inset-0 grid place-items-center"
+      className="fixed inset-x-0 bottom-0 top-[var(--app-viewport-top,0px)] grid grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] place-items-center"
       data-testid="server-settings-overlay"
       exit={{ opacity: 0 }}
       initial={{ opacity: 0 }}
@@ -284,7 +284,7 @@ function ServerSettingsOverlayContent({
       <style>{SINGLE_COLUMN_CSS}</style>
       <motion.div
         animate={{ opacity: 1, scale: 1 }}
-        className="flex h-full w-full flex-row overflow-hidden border"
+        className="flex h-full min-h-0 min-w-0 w-full flex-row overflow-hidden border"
         exit={{ opacity: 0, scale: 0.98 }}
         initial={{ opacity: 0, scale: 0.98 }}
         style={{

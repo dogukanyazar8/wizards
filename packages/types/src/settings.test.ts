@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  AccountSessionSchema,
   LOCKED_NOTIFICATION_TYPE_KEYS,
   NOTIFICATION_TYPE_KEYS,
   NotificationExceptionSchema,
@@ -12,6 +13,30 @@ import {
   SecurityEventSchema,
   UserSettingsSchema,
 } from "./settings";
+
+describe("account session device classification", () => {
+  const session = {
+    id: "session-1",
+    device: "Chrome · Windows",
+    platform: "web",
+    os: "Windows",
+    browser: "Chrome",
+    location: null,
+    lastActive: "2026-09-10T09:00:00.000Z",
+    current: false,
+  };
+
+  it("accepts legacy payloads and preserves each supported device type", () => {
+    assert.equal(AccountSessionSchema.parse(session).deviceType, undefined);
+    for (const deviceType of ["DESKTOP", "MOBILE", "TABLET", "UNKNOWN"] as const) {
+      assert.equal(AccountSessionSchema.parse({ ...session, deviceType }).deviceType, deviceType);
+    }
+    assert.equal(
+      AccountSessionSchema.safeParse({ ...session, deviceType: "PHONE" }).success,
+      false,
+    );
+  });
+});
 
 describe("notification types — the lock is a server contract", () => {
   it("reads sixteen rows, the last two always true", () => {

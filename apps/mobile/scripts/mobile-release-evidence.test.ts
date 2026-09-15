@@ -46,7 +46,7 @@ describe("mobile release evidence", () => {
     assert.equal(evidence.manualQa.length >= 20, true);
     assert.equal(evidence.deviceMatrix.length >= 4, true);
     assert.equal(evidence.nativeCapabilities.length >= 5, true);
-    assert.equal(evidence.productionReadiness.stageCount, 4);
+    assert.equal(evidence.productionReadiness.stageCount, 3);
     assert.deepEqual(validateMobileReleaseEvidence(evidence), []);
   });
 

@@ -33,14 +33,14 @@ This is E2E scenario coverage, not line/branch coverage. Unit/integration percen
 Whispr is a realtime chat, voice, media, desktop, and identity product. Test level
 selection is risk-based:
 
-| Risk area                                    | Primary gate                                          | Why                                                                                   |
-| -------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Auth/session, permissions, rate limits       | Unit, integration, API contract, smoke                | Fast feedback and security boundary coverage before merge.                            |
-| Messaging, DM, attachments, settings         | Unit, component where possible, API contract, smoke   | Product-critical paths should fail quickly without requiring the full browser matrix. |
-| Realtime fanout, presence, voice lifecycle   | Post-merge realtime/voice E2E                         | Multi-user and media flows are higher cost and more environment-sensitive.            |
-| Mobile responsive, popups, drawer navigation | Scheduled/mobile regression plus targeted PR tests    | Mobile quality needs viewport matrix coverage without slowing every small PR.         |
-| Desktop release, updater, capabilities       | Desktop ops contract and release build gates          | Native permissions and signed artifacts must be validated before distribution.        |
-| Accessibility, performance, load, media QoE  | Scheduled/manual regression and production monitoring | Automation helps, but these require artifact review, budgets, and canary telemetry.   |
+| Risk area                                    | Primary gate                                          | Why                                                                                     |
+| -------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Auth/session, permissions, rate limits       | Unit, integration, API contract, smoke                | Fast feedback and security boundary coverage before merge.                              |
+| Messaging, DM, attachments, settings         | Unit, component where possible, API contract, smoke   | Product-critical paths should fail quickly without requiring the full browser matrix.   |
+| Realtime fanout, presence, voice lifecycle   | Post-merge realtime/voice E2E                         | Multi-user and media flows are higher cost and more environment-sensitive.              |
+| Mobile responsive, popups, drawer navigation | Scheduled/mobile regression plus targeted PR tests    | Mobile quality needs viewport matrix coverage without slowing every small PR.           |
+| Desktop release, updater, capabilities       | Desktop ops contract and release build gates          | Native permissions and signed artifacts must be validated before distribution.          |
+| Accessibility, performance, load, media QoE  | Scheduled/manual regression and production monitoring | Automation helps, but these require artifact review, budgets, and production telemetry. |
 
 The source-of-truth strategy contract lives in
 `apps/web/src/lib/e2e/test-strategy.ts` and is covered by Node tests. If a new
@@ -226,7 +226,7 @@ docker run --rm --network host \
   -e NEXTAUTH_SECRET=whispr-e2e-auth-secret-change-me-local-only \
   -e E2E_TEST_PASSWORD \
   -e NODE_ENV=test \
-  mcr.microsoft.com/playwright:v1.61.1-noble \
+  mcr.microsoft.com/playwright:v1.63.0-noble \
   bash -lc "corepack enable && pnpm db:generate && pnpm --filter @wizards/web e2e:visual --update-snapshots"
 ```
 
@@ -523,7 +523,7 @@ Trace, screenshots, and video are configured in `playwright.config.ts`:
 - Keep every Playwright entrypoint behind `pnpm run e2e:check-env`.
 - Prefer `expect.poll` for realtime state that arrives asynchronously.
 - Keep smoke tests fast.
-- Update visual baselines only with `mcr.microsoft.com/playwright:v1.61.1-noble`.
+- Update visual baselines only with `mcr.microsoft.com/playwright:v1.63.0-noble`.
 - Put expensive multi-user/media tests outside smoke unless they protect a critical regression.
 - Never add production secrets to tests, CI, or docs.
 - Keep the governance tests green before broadening E2E scope; they protect CI signal quality.

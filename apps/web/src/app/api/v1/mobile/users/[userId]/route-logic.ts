@@ -16,6 +16,10 @@ import {
   getMobileUserProfile,
 } from "@/lib/social/mobile-user-profile-service";
 import { submitUserReport } from "@/lib/social/user-report-submission";
+import {
+  mobileProfileEmoji,
+  supportsMobileProfileDetails,
+} from "@/lib/mobile/profile-compatibility";
 
 export type MobileUserRouteContext = { params: Promise<Record<string, string>> };
 
@@ -50,15 +54,29 @@ export async function mobileUserProfileRoute(
       Object.fromEntries(new URL(request.url).searchParams.entries()),
     );
 
-    return Response.json(
-      MobileUserProfileResponseSchema.parse({
-        profile: await dependencies.getProfile({
-          requesterId,
-          userId,
-          ...(serverId === undefined ? {} : { serverId }),
-        }),
+    const payload = MobileUserProfileResponseSchema.parse({
+      profile: await dependencies.getProfile({
+        requesterId,
+        userId,
+        ...(serverId === undefined ? {} : { serverId }),
       }),
-    );
+    });
+    if (!supportsMobileProfileDetails(request)) {
+      // Installed clients use a strict schema. Keep the retired nullable wire
+      // field without restoring its database column or exposing new fields.
+      const { customStatusExpiresAt: _expiresAt, ...presence } = payload.profile.presence;
+      return Response.json({
+        profile: {
+          ...payload.profile,
+          presence: {
+            ...presence,
+            customStatusEmoji: mobileProfileEmoji(request, presence.customStatusEmoji),
+          },
+          pronouns: null,
+        },
+      });
+    }
+    return Response.json(payload);
   } catch (error) {
     return jsonError(error);
   }

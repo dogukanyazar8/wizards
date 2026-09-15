@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { FlipHorizontal2, RotateCcw, RotateCw, VideoOff } from "lucide-react";
 
+import { SettingSelect } from "@/components/settings/rows/setting-select";
 import { useI18n } from "@/components/providers/locale-provider";
 import type { SettingsBlockProps } from "@/components/settings/rows/setting-custom-block";
 import {
@@ -14,14 +15,7 @@ import {
 import { SETTINGS_METRICS, hairline, pxToEm, pxToRem } from "@/lib/settings/metrics";
 import { useVoiceStore } from "@/store/voice-store";
 
-/**
- * Kamera önizleme çerçevesi (`k2`) — K13'ün ikinci parçası.
- *
- * 220 px 16:9 çerçeve, yanında `Önizlemeyi başlat` ve üç dönüşüm düğmesi. Önizleme yalnız bu
- * pencerede yaşar ve **kapanınca track durur** — durdurmayı bileşen değil `useCameraPreview`
- * yapar, çünkü bileşen sökülürken çalışan bir temizlik iddia edilebilir ama ölçülemez;
- * oturum sınıfı ölçülebilir (`use-camera-preview.test.ts`).
- */
+/** Local device test; capture lifetime is owned by useCameraPreview. */
 
 const { action } = SETTINGS_METRICS.controls;
 const { cameraPreview } = SETTINGS_METRICS.blocks;
@@ -40,7 +34,14 @@ export function CameraPreviewBlock({ row: rowDef }: SettingsBlockProps) {
   const { t } = useI18n();
   const cameraPreferences = useVoiceStore((state) => state.cameraPreferences);
   const setCameraPreference = useVoiceStore((state) => state.setCameraPreference);
-  const { status, stream, toggle } = useCameraPreview(cameraPreferences.deviceId);
+  const { status, stream, toggle } = useCameraPreview(
+    cameraPreferences.deviceId,
+    cameraPreferences,
+  );
+  const [openSelect, setOpenSelect] = useState<"quality" | "fps" | null>(null);
+  const qualityLabel = useId();
+  const fpsLabel = useId();
+  const actual = (stream as MediaStream | null)?.getVideoTracks?.()[0]?.getSettings();
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const running = status === "ready" || status === "starting";
@@ -70,16 +71,17 @@ export function CameraPreviewBlock({ row: rowDef }: SettingsBlockProps) {
   });
 
   return (
-    <div className="flex" data-block="camera" style={{ gap: pxToRem(14) }}>
+    <div className="flex flex-wrap" data-block="camera" style={{ gap: pxToRem(14) }}>
       <div
-        className="relative grid flex-none place-items-center overflow-hidden"
+        className="relative grid max-w-full flex-none place-items-center overflow-hidden"
         data-testid="settings-camera-preview"
         style={{
           aspectRatio: `${cameraPreview.aspectWidth} / ${cameraPreview.aspectHeight}`,
           background: "hsl(var(--surface-secondary))",
           border: `${hairline()} solid hsl(var(--border) / ${cameraPreview.borderAlpha})`,
           borderRadius: pxToRem(cameraPreview.radius),
-          width: pxToRem(cameraPreview.width),
+          width: "100%",
+          maxWidth: pxToRem(520),
         }}
       >
         {stream ? (
@@ -103,8 +105,37 @@ export function CameraPreviewBlock({ row: rowDef }: SettingsBlockProps) {
         )}
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col" style={{ gap: pxToRem(7) }}>
+      <div className="flex min-w-0 flex-1 basis-48 flex-col" style={{ gap: pxToRem(12) }}>
+        <div className="flex flex-wrap gap-3">
+          <div className="min-w-0 max-w-full space-y-2">
+            <p id={qualityLabel} className="text-sm font-medium">
+              {t("settings.camera.quality")}
+            </p>
+            <SettingSelect
+              labelledById={qualityLabel}
+              options={[{ label: "720p" }, { label: "1080p" }]}
+              value={cameraPreferences.quality === "h720" ? 0 : 1}
+              open={openSelect === "quality"}
+              onOpenChange={(open) => setOpenSelect(open ? "quality" : null)}
+              onChange={(index) => setCameraPreference("quality", index === 0 ? "h720" : "h1080")}
+            />
+          </div>
+          <div className="min-w-0 max-w-full space-y-2">
+            <p id={fpsLabel} className="text-sm font-medium">
+              {t("settings.camera.fps")}
+            </p>
+            <SettingSelect
+              labelledById={fpsLabel}
+              options={[{ label: "15 FPS" }, { label: "30 FPS" }]}
+              value={cameraPreferences.frameRate === 15 ? 0 : 1}
+              open={openSelect === "fps"}
+              onOpenChange={(open) => setOpenSelect(open ? "fps" : null)}
+              onChange={(index) => setCameraPreference("frameRate", index === 0 ? 15 : 30)}
+            />
+          </div>
+        </div>
         <button
+          className="transition-[filter] hover:brightness-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           data-testid={`setting-actions-${rowDef.key}`}
           onClick={toggle}
           style={{
@@ -156,11 +187,18 @@ export function CameraPreviewBlock({ row: rowDef }: SettingsBlockProps) {
             textWrap: "pretty",
           }}
         >
-          {t("settings.block.camera.note")}
+          {t("settings.block.camera.note")} {t("settings.camera.qualityHelp")}
         </span>
 
-        <span className="sr-only" data-testid="settings-camera-status" role="status">
+        <span
+          className="text-xs text-[hsl(var(--text-secondary))]"
+          data-testid="settings-camera-status"
+          role="status"
+        >
           {t(STATUS_MESSAGE_KEY[status])}
+          {actual?.width && actual?.height
+            ? ` · ${actual.width} × ${actual.height}${actual.frameRate ? ` · ${Math.round(actual.frameRate)} FPS` : ""}`
+            : ""}
         </span>
       </div>
     </div>
@@ -184,14 +222,14 @@ function TransformButton({
     <button
       aria-label={label}
       aria-pressed={active}
-      className="grid flex-1 place-items-center"
+      className="grid flex-1 place-items-center transition-[filter] hover:brightness-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
       data-testid={testId}
       onClick={onClick}
       style={{
-        background: active ? `hsl(var(--primary) / 0.12)` : "hsl(var(--surface-base))",
+        background: active === false ? "hsl(var(--surface-base))" : "hsl(var(--primary))",
         border: `${hairline()} solid hsl(var(--border) / ${action.borderAlpha})`,
         borderRadius: pxToRem(action.radius),
-        color: active ? "hsl(var(--primary))" : "hsl(var(--text-secondary))",
+        color: active === false ? "hsl(var(--text-secondary))" : "hsl(var(--primary-foreground))",
         height: pxToRem(action.height),
       }}
       title={label}

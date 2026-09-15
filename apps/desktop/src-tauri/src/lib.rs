@@ -12,7 +12,7 @@ use std::{
 use crate::ipc::{DesktopCompanionSnapshotPublishResultV1, DesktopCompanionSnapshotV1};
 use serde::{Deserialize, Serialize};
 use tauri::{
-    menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     webview::{NewWindowResponse, PageLoadEvent, WebviewWindow},
     AppHandle, LogicalSize, Manager, PhysicalPosition, PhysicalSize, WebviewUrl,
@@ -24,8 +24,19 @@ use media_permissions::{
     DesktopMediaPermissionBroker, DesktopMediaPermissionKind, DesktopMediaPermissionPrompt,
 };
 
+mod game_activity;
+mod game_overlay_lifecycle;
+use game_overlay_lifecycle::GameOverlayLifecycle;
 mod ipc;
 mod media_permissions;
+mod notifications;
+mod tray_menu;
+mod window_tasks;
+use window_tasks::DesktopWindowTasks;
+#[cfg(windows)]
+mod clipboard;
+#[cfg(windows)]
+mod screen_capture_picker;
 #[cfg(windows)]
 mod windows_media_permissions;
 
@@ -58,6 +69,7 @@ const DESKTOP_INIT_SCRIPT_TEMPLATE: &str = r#"
 Object.defineProperty(window, "__WHISPR_DESKTOP__", {
   value: Object.freeze({
     platform: "tauri",
+    os: __WHISPR_DESKTOP_OS__,
     launchMode: __WHISPR_DESKTOP_LAUNCH_MODE__,
     releaseRing: __WHISPR_DESKTOP_RELEASE_RING__,
     shell: "desktop",
@@ -97,12 +109,15 @@ if (document.documentElement) {
 const DESKTOP_MAIN_WINDOW_LABEL: &str = "main";
 const DESKTOP_CONTROL_WINDOW_LABEL: &str = "desktop-control";
 const DESKTOP_CONTROL_SCHEME: &str = "desktop-control";
-const DESKTOP_CONTROL_CSP: &str = "default-src 'none'; base-uri 'none'; connect-src ipc: http://ipc.localhost https://ipc.localhost; font-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'";
+const DESKTOP_CONTROL_CSP: &str = "default-src 'none'; base-uri 'none'; connect-src ipc: http://ipc.localhost https://ipc.localhost; font-src 'self'; form-action 'none'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'";
 const DESKTOP_CONTROL_INDEX: &[u8] = include_bytes!("../assets/desktop-control/index.html");
+const DESKTOP_CONTROL_FONT: &[u8] = include_bytes!("../../../web/src/app/fonts/outfit-latin.woff2");
 const DESKTOP_CONTROL_CSS: &[u8] = include_bytes!("../assets/desktop-control/app.css");
 const DESKTOP_CONTROL_SCRIPT: &[u8] = include_bytes!("../assets/desktop-control/app.js");
 const DESKTOP_CONTROL_SHORTCUT_EDITOR_SCRIPT: &[u8] =
     include_bytes!("../assets/desktop-control/shortcut-editor.mjs");
+const DESKTOP_CONTROL_PLATFORM_KEYBOARD_SCRIPT: &[u8] =
+    include_bytes!("../../../../packages/ui/src/platform-keyboard.mjs");
 const DESKTOP_MEDIA_PERMISSION_BRIDGE_SCRIPT: &str =
     include_str!("../assets/desktop-media-permission-bridge.js");
 const DESKTOP_START_PATH: &str = "/desktop/start";
@@ -174,6 +189,10 @@ fn desktop_init_script(
 
     DESKTOP_INIT_SCRIPT_TEMPLATE
         .replace(
+            "__WHISPR_DESKTOP_OS__",
+            &format!("\"{}\"", std::env::consts::OS),
+        )
+        .replace(
             "__WHISPR_DESKTOP_UPDATER_ENABLED__",
             if updater_enabled { "true" } else { "false" },
         )
@@ -198,10 +217,8 @@ fn desktop_launched_from_autostart(args: impl IntoIterator<Item = String>) -> bo
 
 fn desktop_release_ring() -> String {
     match desktop_config_value("WHISPR_DESKTOP_RELEASE_RING", "uat").as_str() {
-        "production" => "production".into(),
-        "production-small" => "production-small".into(),
+        "production" => "stable".into(),
         "dev" => "dev".into(),
-        "canary" => "canary".into(),
         "stable" => "stable".into(),
         _ => "uat".into(),
     }
@@ -265,37 +282,46 @@ struct DesktopCloseBehaviorState {
     quit_on_close: Arc<Mutex<bool>>,
 }
 
-#[derive(Clone, Default)]
-struct DesktopTraySettingsItems {
-    autostart: Arc<Mutex<Option<CheckMenuItem<tauri::Wry>>>>,
-    quit_on_close: Arc<Mutex<Option<CheckMenuItem<tauri::Wry>>>>,
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct DesktopTrayContext {
+    locale: String,
+    voice_active: bool,
+    muted: bool,
+    deafened: bool,
 }
 
-impl DesktopTraySettingsItems {
-    fn install(
-        &self,
-        autostart: CheckMenuItem<tauri::Wry>,
-        quit_on_close: CheckMenuItem<tauri::Wry>,
-    ) {
-        if let Ok(mut item) = self.autostart.lock() {
-            *item = Some(autostart);
-        }
-        if let Ok(mut item) = self.quit_on_close.lock() {
-            *item = Some(quit_on_close);
-        }
-    }
+struct DesktopTrayItems {
+    items: [MenuItem<tauri::Wry>; 7],
+    locale: Mutex<String>,
+}
 
-    fn sync(&self, autostart: bool, quit_on_close: bool) {
-        if let Ok(item) = self.autostart.lock() {
-            if let Some(item) = item.as_ref() {
-                let _ = item.set_checked(autostart);
+impl DesktopTrayItems {
+    fn sync(&self, context: Option<&DesktopTrayContext>, voice_active: bool) -> Result<(), String> {
+        let locale = {
+            let mut locale = self
+                .locale
+                .lock()
+                .map_err(|_| "Desktop tray state is unavailable.")?;
+            if let Some(context) = context {
+                *locale = context.locale.clone();
+            }
+            locale.clone()
+        };
+        let labels = tray_menu::labels(
+            &locale,
+            context.is_some_and(|value| value.muted),
+            context.is_some_and(|value| value.deafened),
+        );
+        for (index, (item, label)) in self.items.iter().zip(labels).enumerate() {
+            item.set_text(label)
+                .map_err(|error| format!("Unable to update tray label: {error}"))?;
+            if (1..=3).contains(&index) {
+                item.set_enabled(voice_active)
+                    .map_err(|error| format!("Unable to update tray voice action: {error}"))?;
             }
         }
-        if let Ok(item) = self.quit_on_close.lock() {
-            if let Some(item) = item.as_ref() {
-                let _ = item.set_checked(quit_on_close);
-            }
-        }
+        Ok(())
     }
 }
 
@@ -317,6 +343,7 @@ struct DesktopWindowSettings {
 #[serde(default, rename_all = "camelCase")]
 struct DesktopDeviceSettings {
     schema_version: u8,
+    game_detection_enabled: bool,
     window: DesktopWindowSettings,
     voice_shortcuts: DesktopShortcutConfig,
 }
@@ -325,6 +352,7 @@ impl Default for DesktopDeviceSettings {
     fn default() -> Self {
         Self {
             schema_version: DESKTOP_DEVICE_SETTINGS_SCHEMA_VERSION,
+            game_detection_enabled: false,
             window: DesktopWindowSettings::default(),
             voice_shortcuts: DesktopShortcutConfig::default(),
         }
@@ -395,9 +423,21 @@ impl DesktopTrayBadgeState {
 #[derive(Clone, Default)]
 struct DesktopCompanionSurfaceState {
     last_error: Arc<Mutex<Option<String>>>,
+    game_overlay: Arc<Mutex<GameOverlayLifecycle>>,
 }
 
 impl DesktopCompanionSurfaceState {
+    fn update_game_overlay<T>(
+        &self,
+        update: impl FnOnce(&mut GameOverlayLifecycle) -> T,
+    ) -> Result<T, String> {
+        let mut lifecycle = self
+            .game_overlay
+            .lock()
+            .map_err(|_| "Desktop overlay lifecycle is unavailable.".to_string())?;
+        Ok(update(&mut lifecycle))
+    }
+
     fn clear_error(&self) {
         if let Ok(mut last_error) = self.last_error.lock() {
             *last_error = None;
@@ -532,6 +572,8 @@ struct DesktopControlUpdaterState {
 struct DesktopControlAppSettings {
     close_action: DesktopWindowCloseAction,
     launch_on_startup: bool,
+    #[serde(default)]
+    game_detection_enabled: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -938,10 +980,10 @@ pub fn run() {
         .manage(DesktopCloseCoordinator::default())
         .manage(DesktopCloseBehaviorState::default())
         .manage(DesktopCompanionSurfaceState::default())
+        .manage(DesktopWindowTasks::default())
         .manage(DesktopNativeLogState::default())
         .manage(desktop_media_permission_broker.clone())
         .manage(DesktopTrayBadgeState::default())
-        .manage(DesktopTraySettingsItems::default())
         .manage(DesktopWindowPromotionState::default())
         .manage(desktop_shortcut_registry)
         .invoke_handler(tauri::generate_handler![
@@ -952,12 +994,17 @@ pub fn run() {
             desktop_control_install_update,
             desktop_control_recover,
             desktop_control_request_notification_permission,
+            get_desktop_notification_permission,
+            test_desktop_screen_capture,
+            read_desktop_clipboard_text,
+            send_desktop_notification,
             resolve_desktop_media_permission,
             desktop_control_set_app_settings,
             export_desktop_diagnostics_bundle,
             get_desktop_app_info,
             get_desktop_control_state,
             get_desktop_foreground_process_name,
+            get_desktop_detected_game,
             get_desktop_main_window_focused,
             get_desktop_admin_console_open,
             get_desktop_companion_surfaces_status,
@@ -1025,9 +1072,7 @@ pub fn run() {
                 app,
                 &app_name,
                 close_coordinator.clone(),
-                close_behavior_state.clone(),
                 promotion_state.clone(),
-                desktop_updater_enabled,
             )?;
 
             if device_settings.voice_shortcuts.shortcuts_enabled {
@@ -1048,8 +1093,13 @@ pub fn run() {
                 }
             }
 
+            // Configure Windows identity and permission handlers before the first remote request.
+            #[cfg(windows)]
+            let initial_main_url = Url::parse("about:blank")?;
+            #[cfg(not(windows))]
+            let initial_main_url = app_url.clone();
             let mut main_window_builder =
-                WebviewWindowBuilder::new(app, "main", WebviewUrl::External(app_url.clone()))
+                WebviewWindowBuilder::new(app, "main", WebviewUrl::External(initial_main_url))
                     .title(app_name)
                     .decorations(false)
                     .transparent(true)
@@ -1061,6 +1111,9 @@ pub fn run() {
                         let oauth_navigation_active = Arc::clone(&oauth_navigation_active);
 
                         move |url| {
+                            if url.as_str() == "about:blank" {
+                                return true;
+                            }
                             if is_same_origin(url, &allowed_origin) {
                                 sync_oauth_navigation_state(url, &oauth_navigation_active);
                                 return true;
@@ -1127,8 +1180,9 @@ pub fn run() {
             #[cfg(windows)]
             windows_media_permissions::install_webview2_media_permission_handler(
                 &main_window,
-                desktop_media_permission_broker.clone(),
+                Some(desktop_media_permission_broker.clone()),
                 configured_app_origin_url(),
+                app_url.clone(),
             )
             .map_err(std::io::Error::other)?;
 
@@ -1224,6 +1278,25 @@ fn assert_desktop_control_command_window(window: &WebviewWindow) -> Result<(), S
     Err("Desktop command is only available to trusted local Desktop Control.".to_string())
 }
 
+// Only app-specific settings operations use this guard. Media consent resolution stays local.
+fn is_authorized_desktop_settings_window(label: &str, url: &Url, app_url: &Url) -> bool {
+    is_authorized_desktop_control_command_window(label, url)
+        || (label == DESKTOP_MAIN_WINDOW_LABEL
+            && url.username().is_empty()
+            && url.password().is_none()
+            && is_same_origin(url, app_url))
+}
+
+fn assert_desktop_settings_command_window(window: &WebviewWindow) -> Result<(), String> {
+    let url = window
+        .url()
+        .map_err(|_| "Desktop settings origin could not be verified.".to_string())?;
+    if is_authorized_desktop_settings_window(window.label(), &url, &configured_app_url()) {
+        return Ok(());
+    }
+    Err("Desktop settings require the Whispr application window and origin.".to_string())
+}
+
 fn desktop_control_protocol_response(path: &str) -> tauri::http::Response<Vec<u8>> {
     use tauri::http::{header, Response, StatusCode};
 
@@ -1233,6 +1306,7 @@ fn desktop_control_protocol_response(path: &str) -> tauri::http::Response<Vec<u8
             "text/html; charset=utf-8",
             DESKTOP_CONTROL_INDEX,
         ),
+        "/font.woff2" => (StatusCode::OK, "font/woff2", DESKTOP_CONTROL_FONT),
         "/app.css" => (
             StatusCode::OK,
             "text/css; charset=utf-8",
@@ -1247,6 +1321,11 @@ fn desktop_control_protocol_response(path: &str) -> tauri::http::Response<Vec<u8
             StatusCode::OK,
             "text/javascript; charset=utf-8",
             DESKTOP_CONTROL_SHORTCUT_EDITOR_SCRIPT,
+        ),
+        "/platform-keyboard.mjs" => (
+            StatusCode::OK,
+            "text/javascript; charset=utf-8",
+            DESKTOP_CONTROL_PLATFORM_KEYBOARD_SCRIPT,
         ),
         _ => (
             StatusCode::NOT_FOUND,
@@ -1348,7 +1427,7 @@ fn configure_desktop_voice_shortcuts(
     registry: tauri::State<'_, DesktopShortcutRegistry>,
     config: DesktopShortcutConfig,
 ) -> Result<DesktopShortcutStatus, String> {
-    assert_desktop_control_command_window(&window)?;
+    assert_desktop_settings_command_window(&window)?;
 
     apply_desktop_shortcut_config(&app, registry.inner(), config)
 }
@@ -1402,7 +1481,7 @@ fn export_desktop_diagnostics_bundle(
     surface_state: tauri::State<'_, DesktopCompanionSurfaceState>,
     registry: tauri::State<'_, DesktopShortcutRegistry>,
 ) -> Result<DesktopSupportBundleFileResult, String> {
-    assert_desktop_control_command_window(&window)?;
+    assert_desktop_settings_command_window(&window)?;
 
     record_desktop_native_log(
         &app,
@@ -1455,15 +1534,19 @@ fn get_desktop_control_state(
     surface_state: tauri::State<'_, DesktopCompanionSurfaceState>,
     registry: tauri::State<'_, DesktopShortcutRegistry>,
 ) -> Result<DesktopControlState, String> {
-    assert_desktop_control_command_window(&window)?;
+    assert_desktop_settings_command_window(&window)?;
 
     Ok(DesktopControlState {
         app: desktop_support_app_info(),
         application: desktop_control_app_settings(&app, close_behavior.inner())?,
         companion_surfaces: desktop_companion_surfaces_status(&app, surface_state.inner()),
-        media_permission_prompt: media_permissions
-            .pending_prompt(current_unix_ms())
-            .map(DesktopMediaPermissionPromptPayload::from),
+        media_permission_prompt: if window.label() == DESKTOP_CONTROL_WINDOW_LABEL {
+            media_permissions
+                .pending_prompt(current_unix_ms())
+                .map(DesktopMediaPermissionPromptPayload::from)
+        } else {
+            None
+        },
         permissions: desktop_control_permission_info(),
         platform: DesktopSupportPlatformInfo {
             arch: std::env::consts::ARCH,
@@ -1486,6 +1569,7 @@ fn desktop_control_app_settings(
             DesktopWindowCloseAction::Tray
         },
         launch_on_startup: is_desktop_autostart_enabled(app)?,
+        game_detection_enabled: load_desktop_device_settings(app)?.game_detection_enabled,
     })
 }
 
@@ -1494,10 +1578,9 @@ fn desktop_control_set_app_settings(
     window: WebviewWindow,
     app: AppHandle,
     close_behavior: tauri::State<'_, DesktopCloseBehaviorState>,
-    tray_items: tauri::State<'_, DesktopTraySettingsItems>,
     settings: DesktopControlAppSettings,
 ) -> Result<DesktopControlAppSettings, String> {
-    assert_desktop_control_command_window(&window)?;
+    assert_desktop_settings_command_window(&window)?;
 
     let previous_autostart = is_desktop_autostart_enabled(&app)?;
     let previous_device_settings = load_desktop_device_settings(&app)?;
@@ -1512,6 +1595,7 @@ fn desktop_control_set_app_settings(
 
     let mut next_device_settings = previous_device_settings;
     next_device_settings.window.close_action = settings.close_action;
+    next_device_settings.game_detection_enabled = settings.game_detection_enabled;
     if let Err(save_error) = save_desktop_device_settings(&app, &next_device_settings) {
         if previous_autostart != applied_autostart
             && set_desktop_autostart_from_native_menu(&app, previous_autostart).is_err()
@@ -1526,17 +1610,17 @@ fn desktop_control_set_app_settings(
 
     let quit_on_close = settings.close_action == DesktopWindowCloseAction::Quit;
     set_desktop_quit_on_close(close_behavior.inner(), quit_on_close);
-    tray_items.sync(applied_autostart, quit_on_close);
     record_desktop_native_log(
         &app,
         "info",
         "device_settings",
-        "Desktop application settings updated from trusted local control.",
+        "Desktop application settings updated from guarded settings.",
     );
 
     Ok(DesktopControlAppSettings {
         close_action: settings.close_action,
         launch_on_startup: applied_autostart,
+        game_detection_enabled: settings.game_detection_enabled,
     })
 }
 
@@ -1547,7 +1631,7 @@ async fn desktop_control_check_for_updates(
 ) -> Result<DesktopControlUpdaterState, String> {
     use tauri_plugin_updater::UpdaterExt;
 
-    assert_desktop_control_command_window(&window)?;
+    assert_desktop_settings_command_window(&window)?;
     let Some(updater) = resolve_desktop_updater(desktop_updater_enabled(), || {
         app.updater()
             .map_err(|_| "Desktop updater is not configured.".to_string())
@@ -1579,7 +1663,7 @@ async fn desktop_control_install_update(
 ) -> Result<(), String> {
     use tauri_plugin_updater::UpdaterExt;
 
-    assert_desktop_control_command_window(&window)?;
+    assert_desktop_settings_command_window(&window)?;
     let expected_version = validate_desktop_update_install_request(confirmed, &expected_version)?;
     let Some(updater) = resolve_desktop_updater(desktop_updater_enabled(), || {
         app.updater()
@@ -1618,17 +1702,8 @@ fn desktop_control_request_notification_permission(
     window: WebviewWindow,
     app: AppHandle,
 ) -> Result<DesktopControlOperationResult, String> {
-    use tauri_plugin_notification::NotificationExt;
-
-    assert_desktop_control_command_window(&window)?;
-    // The desktop plugin has no Windows runtime prompt: `request_permission()` returns Granted
-    // unconditionally. A visible notification is the only useful local verification.
-    app.notification()
-        .builder()
-        .title("Whispr")
-        .body("Whispr desktop notifications are working.")
-        .show()
-        .map_err(|_| "Test notification could not be sent.".to_string())?;
+    assert_desktop_settings_command_window(&window)?;
+    notifications::send(&app, "Whispr", "Whispr masaüstü bildirimleri çalışıyor.")?;
 
     Ok(DesktopControlOperationResult {
         message:
@@ -1638,65 +1713,118 @@ fn desktop_control_request_notification_permission(
 }
 
 #[tauri::command]
-fn desktop_control_recover(
-    window: WebviewWindow,
-    app: AppHandle,
-    promotion_state: tauri::State<'_, DesktopWindowPromotionState>,
-    action: DesktopControlRecoveryAction,
-) -> Result<DesktopControlOperationResult, String> {
-    assert_desktop_control_command_window(&window)?;
-
-    let message = match action {
-        DesktopControlRecoveryAction::ReopenVoiceMini => {
-            show_or_create_desktop_voice_mini_window(&app)?;
-            if let Some(window) = app.get_webview_window(DESKTOP_VOICE_MINI_WINDOW_LABEL) {
-                let _ = window.set_focus();
-            }
-            "Voice mini window reopened."
-        }
-        DesktopControlRecoveryAction::RefreshOverlay => {
-            if app
-                .get_webview_window(DESKTOP_GAME_OVERLAY_WINDOW_LABEL)
-                .is_some()
-            {
-                let (width, height) = desktop_game_overlay_size(DesktopGameOverlaySize::default());
-                refresh_desktop_companion_surface_window(
-                    &app,
-                    DESKTOP_GAME_OVERLAY_WINDOW_LABEL,
-                    width,
-                    height,
-                    desktop_game_overlay_bottom_offset(DesktopGameOverlayAnchor::default()),
-                    DesktopGameOverlayAnchor::default(),
-                    true,
-                )?;
-                "Game overlay refreshed."
-            } else {
-                "Game overlay is not active; nothing was changed."
-            }
-        }
-        DesktopControlRecoveryAction::HideOverlay => {
-            hide_desktop_game_overlay_window(&app)?;
-            "Game overlay hidden."
-        }
-        DesktopControlRecoveryAction::ResetMainWindow => {
-            reset_desktop_main_window(&app, promotion_state.inner())?;
-            "Main window size and position reset."
-        }
-    };
-
-    Ok(DesktopControlOperationResult {
-        message: message.to_string(),
-    })
+fn read_desktop_clipboard_text(window: WebviewWindow) -> Result<String, String> {
+    assert_desktop_main_command_window(&window)?;
+    #[cfg(windows)]
+    {
+        clipboard::read_text(&window)
+    }
+    #[cfg(not(windows))]
+    {
+        Err("Native clipboard access is unavailable on this platform.".into())
+    }
 }
 
 #[tauri::command]
-fn show_desktop_control(
+async fn test_desktop_screen_capture(window: WebviewWindow) -> Result<bool, String> {
+    assert_desktop_main_command_window(&window)?;
+    #[cfg(windows)]
+    {
+        screen_capture_picker::test(window).await
+    }
+    #[cfg(not(windows))]
+    {
+        Err("Native screen selection is not available on this platform.".into())
+    }
+}
+
+#[tauri::command]
+fn get_desktop_notification_permission(
+    window: WebviewWindow,
+    app: AppHandle,
+) -> Result<String, String> {
+    assert_desktop_settings_command_window(&window)?;
+    notifications::permission(&app).map(str::to_owned)
+}
+
+#[tauri::command]
+fn send_desktop_notification(
+    window: WebviewWindow,
+    app: AppHandle,
+    title: String,
+    body: String,
+) -> Result<(), String> {
+    assert_desktop_settings_command_window(&window)?;
+    notifications::send(&app, &title, &body)
+}
+
+#[tauri::command]
+async fn desktop_control_recover(
+    window: WebviewWindow,
+    app: AppHandle,
+    action: DesktopControlRecoveryAction,
+) -> Result<DesktopControlOperationResult, String> {
+    assert_desktop_settings_command_window(&window)?;
+
+    let tasks = app.state::<DesktopWindowTasks>().inner().clone();
+    tasks
+        .run(move || {
+            let promotion_state = app.state::<DesktopWindowPromotionState>();
+            let message = match action {
+                DesktopControlRecoveryAction::ReopenVoiceMini => {
+                    show_or_create_desktop_voice_mini_window(&app)?;
+                    if let Some(window) = app.get_webview_window(DESKTOP_VOICE_MINI_WINDOW_LABEL) {
+                        let _ = window.set_focus();
+                    }
+                    "Voice mini window reopened."
+                }
+                DesktopControlRecoveryAction::RefreshOverlay => {
+                    if app
+                        .get_webview_window(DESKTOP_GAME_OVERLAY_WINDOW_LABEL)
+                        .is_some()
+                    {
+                        let (width, height) =
+                            desktop_game_overlay_size(DesktopGameOverlaySize::default());
+                        refresh_desktop_companion_surface_window(
+                            &app,
+                            DESKTOP_GAME_OVERLAY_WINDOW_LABEL,
+                            width,
+                            height,
+                            desktop_game_overlay_bottom_offset(DesktopGameOverlayAnchor::default()),
+                            DesktopGameOverlayAnchor::default(),
+                            true,
+                        )?;
+                        "Game overlay refreshed."
+                    } else {
+                        "Game overlay is not active; nothing was changed."
+                    }
+                }
+                DesktopControlRecoveryAction::HideOverlay => {
+                    hide_desktop_game_overlay_window(&app)?;
+                    "Game overlay hidden."
+                }
+                DesktopControlRecoveryAction::ResetMainWindow => {
+                    reset_desktop_main_window(&app, promotion_state.inner())?;
+                    "Main window size and position reset."
+                }
+            };
+
+            Ok(DesktopControlOperationResult {
+                message: message.to_string(),
+            })
+        })
+        .await
+}
+
+#[tauri::command]
+async fn show_desktop_control(
     window: WebviewWindow,
     app: AppHandle,
     section: Option<String>,
 ) -> Result<bool, String> {
     assert_desktop_main_command_window(&window)?;
-    show_or_create_desktop_control_window(&app, section.as_deref())?;
+    let section = desktop_control_section(section.as_deref())?;
+    open_in_app_desktop_settings(&app, section)?;
     Ok(true)
 }
 
@@ -1724,7 +1852,7 @@ fn open_desktop_permission_settings(window: WebviewWindow, key: String) -> Resul
 }
 
 #[tauri::command]
-fn request_desktop_media_permission(
+async fn request_desktop_media_permission(
     window: WebviewWindow,
     app: AppHandle,
     media_permissions: tauri::State<'_, DesktopMediaPermissionBroker>,
@@ -1736,7 +1864,7 @@ fn request_desktop_media_permission(
     let origin = configured_app_origin_url().origin().ascii_serialization();
     let prompt = media_permissions.prepare(kind, &origin, current_unix_ms())?;
 
-    if let Err(error) = show_or_create_desktop_control_window(&app, Some("permissions")) {
+    if let Err(error) = open_desktop_control_window(app.clone()).await {
         let _ = media_permissions.resolve(&prompt.request_id, false, current_unix_ms());
         return Err(error);
     }
@@ -1770,6 +1898,9 @@ fn resolve_desktop_media_permission(
             if resolution.allowed { "true" } else { "false" },
         ))
         .map_err(|_| "Desktop media permission result could not be delivered.".to_string())?;
+
+    let _ = window.hide();
+    let _ = main_window.set_focus();
 
     Ok(DesktopControlOperationResult {
         message: if resolution.allowed {
@@ -1868,6 +1999,36 @@ fn get_desktop_foreground_process_name(window: WebviewWindow) -> Result<Option<S
     Ok(desktop_foreground_process_name())
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopDetectedGame {
+    enabled: bool,
+    game_id: Option<String>,
+}
+
+#[tauri::command]
+async fn get_desktop_detected_game(
+    window: WebviewWindow,
+    app: AppHandle,
+) -> Result<DesktopDetectedGame, String> {
+    assert_desktop_main_command_window(&window)?;
+    // Process detection is opt-in per device, saved through guarded desktop settings.
+    let enabled = load_desktop_device_settings(&app)?.game_detection_enabled;
+    let game_id = if enabled {
+        tauri::async_runtime::spawn_blocking(game_activity::detect_cached)
+            .await
+            .map_err(|_| "Game detection unavailable.".to_string())??
+    } else {
+        None
+    };
+    // Consent can be revoked while the blocking scan runs.
+    let enabled = enabled && load_desktop_device_settings(&app)?.game_detection_enabled;
+    Ok(DesktopDetectedGame {
+        enabled,
+        game_id: if enabled { game_id } else { None },
+    })
+}
+
 #[tauri::command]
 fn get_desktop_main_window_focused(window: WebviewWindow, app: AppHandle) -> Result<bool, String> {
     assert_desktop_main_command_window(&window)?;
@@ -1938,9 +2099,16 @@ fn set_desktop_activity_status(
     app: AppHandle,
     badge_state: tauri::State<'_, DesktopTrayBadgeState>,
     status: Option<String>,
+    tray: Option<DesktopTrayContext>,
 ) -> Result<bool, String> {
     assert_desktop_main_command_window(&window)?;
 
+    if tray
+        .as_ref()
+        .is_some_and(|value| !matches!(value.locale.as_str(), "tr" | "en"))
+    {
+        return Err("Desktop tray locale is not supported.".to_string());
+    }
     let status = DesktopActivityStatus::from_optional(status.as_deref())?;
 
     if let Some(window) = app.get_webview_window("main") {
@@ -1949,6 +2117,15 @@ fn set_desktop_activity_status(
             .map_err(|error| format!("Unable to update desktop window activity: {error}"))?;
     }
 
+    let voice_active = tray.as_ref().map_or(
+        matches!(
+            status,
+            DesktopActivityStatus::Voice | DesktopActivityStatus::Streaming
+        ),
+        |value| value.voice_active,
+    );
+    app.state::<DesktopTrayItems>()
+        .sync(tray.as_ref(), voice_active)?;
     badge_state.set_activity(status);
     apply_desktop_tray_tooltip(&app, badge_state.inner())
         .map_err(|error| format!("Unable to update desktop tray activity: {error}"))?;
@@ -2001,7 +2178,7 @@ fn apply_desktop_tray_tooltip(
 }
 
 #[tauri::command]
-fn set_desktop_game_overlay_visible(
+async fn set_desktop_game_overlay_visible(
     window: WebviewWindow,
     app: AppHandle,
     surface_state: tauri::State<'_, DesktopCompanionSurfaceState>,
@@ -2009,22 +2186,23 @@ fn set_desktop_game_overlay_visible(
     layout: Option<DesktopGameOverlayLayout>,
 ) -> Result<bool, String> {
     assert_desktop_main_command_window(&window)?;
-
     let layout = layout.unwrap_or_default();
-    let state_for_task = surface_state.inner().clone();
-    schedule_desktop_companion_surface_task(
-        &app,
-        "game-overlay-visibility",
-        state_for_task,
-        move |app_handle| {
-            if visible {
-                show_or_create_desktop_game_overlay_window(&app_handle, layout)
-            } else {
-                hide_desktop_game_overlay_window(&app_handle)
+    let state = surface_state.inner().clone();
+    state.update_game_overlay(|lifecycle| lifecycle.request_visibility(visible))?;
+    let tasks = app.state::<DesktopWindowTasks>().inner().clone();
+    tasks
+        .run(move || {
+            // A newer focus/visibility request supersedes queued work.
+            if state.update_game_overlay(|lifecycle| lifecycle.requested())? != visible {
+                return Ok(());
             }
-        },
-    );
-
+            if visible {
+                show_or_create_desktop_game_overlay_window(&app, layout)
+            } else {
+                hide_desktop_game_overlay_window(&app)
+            }
+        })
+        .await?;
     Ok(visible)
 }
 
@@ -2076,18 +2254,21 @@ fn set_desktop_voice_mini_visible(
 /// label but `main`, which is also what keeps it from closing or re-opening
 /// itself from a page that was loaded over the network.
 #[tauri::command]
-fn set_desktop_admin_console_visible(
+async fn set_desktop_admin_console_visible(
     window: WebviewWindow,
     app: AppHandle,
     visible: bool,
 ) -> Result<bool, String> {
     assert_desktop_main_command_window(&window)?;
 
-    if visible {
-        show_or_create_desktop_admin_console_window(&app)?;
-    } else {
-        close_desktop_admin_console_window(&app)?;
-    }
+    run_desktop_window_task(app, "admin-console", move |app| {
+        if visible {
+            show_or_create_desktop_admin_console_window(&app)
+        } else {
+            close_desktop_admin_console_window(&app)
+        }
+    })
+    .await?;
 
     Ok(visible)
 }
@@ -2139,7 +2320,7 @@ fn publish_desktop_snapshot_to_window(
     let event_json = serde_json::to_string(event_name)
         .map_err(|_| "Desktop companion snapshot could not be published.".to_string())?;
     let script = format!(
-        "window.dispatchEvent(new CustomEvent({event_json}, {{ detail: {snapshot_json} }}));"
+        "window.__WHISPR_DESKTOP_SNAPSHOTS__ ??= {{}}; window.__WHISPR_DESKTOP_SNAPSHOTS__[{event_json}] = {snapshot_json}; window.dispatchEvent(new CustomEvent({event_json}, {{ detail: window.__WHISPR_DESKTOP_SNAPSHOTS__[{event_json}] }}));"
     );
     window
         .eval(&script)
@@ -3072,11 +3253,13 @@ fn is_application_shortcut_accelerator(value: &str) -> bool {
         return false;
     }
 
-    (command && !alt && !shift && matches!(key, "," | "/" | "b" | "f" | "i" | "k" | "u"))
-        || (command
-            && !alt
-            && shift
-            && matches!(key, "b" | "d" | "h" | "i" | "m" | "o" | "s" | "u" | "v"))
+    (command
+        && !alt
+        && if shift {
+            matches!(key, "b" | "d" | "h" | "i" | "m" | "o" | "s" | "u" | "v")
+        } else {
+            matches!(key, "," | "/" | "b" | "f" | "i" | "k" | "u")
+        })
         || (!command && alt && !shift && matches!(key, "arrowdown" | "arrowleft" | "arrowup"))
         || (!command && alt && shift && matches!(key, "arrowdown" | "arrowup"))
         || (!command && !alt && shift && key == "f6")
@@ -3246,6 +3429,21 @@ fn dispatch_desktop_shortcut_event(
         .get_webview_window("desktop-control")
         .and_then(|window| window.is_focused().ok())
         .unwrap_or(false)
+    {
+        return;
+    }
+
+    // Registered OS hotkeys must not execute while editing their assignments.
+    if event.state == ShortcutState::Pressed
+        && app
+            .get_webview_window(DESKTOP_MAIN_WINDOW_LABEL)
+            .is_some_and(|window| {
+                window.is_focused().unwrap_or(false)
+                    && window.url().is_ok_and(|url| {
+                        is_same_origin(&url, &configured_app_url())
+                            && url.path().trim_end_matches('/') == "/settings/desktop/shortcuts"
+                    })
+            })
     {
         return;
     }
@@ -3536,22 +3734,6 @@ fn legacy_desktop_native_settings_path<R: tauri::Runtime>(
         .map(|directory| directory.join(DESKTOP_LEGACY_NATIVE_SETTINGS_FILENAME))
 }
 
-fn set_desktop_quit_on_close_from_native_menu(
-    app: &AppHandle,
-    close_behavior: &DesktopCloseBehaviorState,
-    enabled: bool,
-) -> Result<bool, String> {
-    let mut settings = load_desktop_device_settings(app)?;
-    settings.window.close_action = if enabled {
-        DesktopWindowCloseAction::Quit
-    } else {
-        DesktopWindowCloseAction::Tray
-    };
-    save_desktop_device_settings(app, &settings)?;
-    set_desktop_quit_on_close(close_behavior, enabled);
-    Ok(enabled)
-}
-
 #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
 fn is_desktop_autostart_enabled(app: &AppHandle) -> Result<bool, String> {
     use tauri_plugin_autostart::ManagerExt;
@@ -3816,159 +3998,59 @@ fn setup_tray(
     app: &mut tauri::App,
     app_name: &str,
     close_coordinator: DesktopCloseCoordinator,
-    close_behavior: DesktopCloseBehaviorState,
     promotion_state: DesktopWindowPromotionState,
-    updater_enabled: bool,
 ) -> tauri::Result<()> {
-    let show_item = MenuItem::with_id(app, "show", format!("Show {app_name}"), true, None::<&str>)?;
-    let settings_item = MenuItem::with_id(app, "settings", "Open Settings", true, None::<&str>)?;
-    let diagnostics_item = MenuItem::with_id(
-        app,
-        "diagnostics",
-        "Desktop Diagnostics",
-        true,
-        None::<&str>,
-    )?;
-    let autostart_item = CheckMenuItem::with_id(
-        app,
-        "autostart",
-        "Launch at startup",
-        true,
-        is_desktop_autostart_enabled(app.handle()).unwrap_or(false),
-        None::<&str>,
-    )?;
-    let quit_on_close_item = CheckMenuItem::with_id(
-        app,
-        "quit_on_close",
-        "Quit when main window closes",
-        true,
-        is_desktop_quit_on_close_enabled(&close_behavior),
-        None::<&str>,
-    )?;
-    app.state::<DesktopTraySettingsItems>()
-        .install(autostart_item.clone(), quit_on_close_item.clone());
-    let hide_overlay_item = MenuItem::with_id(
-        app,
-        "hide_game_overlay",
-        "Hide Game Overlay",
-        true,
-        None::<&str>,
-    )?;
-    let refresh_overlay_item = MenuItem::with_id(
-        app,
-        "refresh_game_overlay",
-        "Refresh Game Overlay",
-        true,
-        None::<&str>,
-    )?;
-    let mute_item = MenuItem::with_id(app, "toggle_mute", "Toggle Mute", true, None::<&str>)?;
-    let deafen_item = MenuItem::with_id(app, "toggle_deafen", "Toggle Deafen", true, None::<&str>)?;
-    let updates_item = MenuItem::with_id(
-        app,
-        "updates",
-        if updater_enabled {
-            "Updates"
-        } else {
-            "Updates (not configured)"
-        },
-        true,
-        None::<&str>,
-    )?;
-    let separator = PredefinedMenuItem::separator(app)?;
-    let quit_item = MenuItem::with_id(app, "quit", format!("Quit {app_name}"), true, None::<&str>)?;
-    let command_separator = PredefinedMenuItem::separator(app)?;
+    let labels = tray_menu::labels("en", false, false);
+    let show_item = MenuItem::with_id(app, "show", labels[0], true, None::<&str>)?;
+    let mute_item = MenuItem::with_id(app, "toggle_mute", labels[1], false, None::<&str>)?;
+    let deafen_item = MenuItem::with_id(app, "toggle_deafen", labels[2], false, None::<&str>)?;
+    let leave_item = MenuItem::with_id(app, "leave_voice", labels[3], false, None::<&str>)?;
+    let settings_item = MenuItem::with_id(app, "settings", labels[4], true, None::<&str>)?;
+    let updates_item = MenuItem::with_id(app, "updates", labels[5], true, None::<&str>)?;
+    let quit_item = MenuItem::with_id(app, "quit", labels[6], true, None::<&str>)?;
+    let voice_separator = PredefinedMenuItem::separator(app)?;
+    let settings_separator = PredefinedMenuItem::separator(app)?;
+    let quit_separator = PredefinedMenuItem::separator(app)?;
     let menu = Menu::with_items(
         app,
         &[
             &show_item,
-            &settings_item,
-            &diagnostics_item,
-            &autostart_item,
-            &quit_on_close_item,
-            &command_separator,
-            &hide_overlay_item,
-            &refresh_overlay_item,
+            &voice_separator,
             &mute_item,
             &deafen_item,
+            &leave_item,
+            &settings_separator,
+            &settings_item,
             &updates_item,
-            &separator,
+            &quit_separator,
             &quit_item,
         ],
     )?;
-
+    app.manage(DesktopTrayItems {
+        items: [
+            show_item,
+            mute_item,
+            deafen_item,
+            leave_item,
+            settings_item,
+            updates_item,
+            quit_item,
+        ],
+        locale: Mutex::new("en".to_string()),
+    });
     let promotion_state_for_menu = promotion_state.clone();
-    let close_behavior_for_menu = close_behavior.clone();
-    let autostart_item_for_menu = autostart_item.clone();
-    let quit_on_close_item_for_menu = quit_on_close_item.clone();
     let mut tray_builder = TrayIconBuilder::with_id(DESKTOP_TRAY_ID)
         .tooltip(format!("{app_name} Desktop"))
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| match event.id().as_ref() {
             "show" => show_main_window(app),
-            "settings" => {
-                let _ = show_or_create_desktop_control_window(app, Some("overview"));
-            }
-            "diagnostics" => {
-                let _ = show_or_create_desktop_control_window(app, Some("diagnostics"));
-            }
-            "autostart" => match is_desktop_autostart_enabled(app) {
-                Ok(current) => match set_desktop_autostart_from_native_menu(app, !current) {
-                    Ok(enabled) => {
-                        let _ = autostart_item_for_menu.set_checked(enabled);
-                    }
-                    Err(_) => {
-                        let _ = autostart_item_for_menu.set_checked(current);
-                        record_desktop_native_log(
-                            app,
-                            "error",
-                            "native_autostart",
-                            "Native launch-at-startup setting was not updated.",
-                        );
-                    }
-                },
-                Err(_) => {
-                    let _ = autostart_item_for_menu.set_checked(false);
-                    record_desktop_native_log(
-                        app,
-                        "error",
-                        "native_autostart",
-                        "Native launch-at-startup state could not be read.",
-                    );
-                }
-            },
-            "quit_on_close" => {
-                let current = is_desktop_quit_on_close_enabled(&close_behavior_for_menu);
-                match set_desktop_quit_on_close_from_native_menu(
-                    app,
-                    &close_behavior_for_menu,
-                    !current,
-                ) {
-                    Ok(enabled) => {
-                        let _ = quit_on_close_item_for_menu.set_checked(enabled);
-                    }
-                    Err(_) => {
-                        let _ = quit_on_close_item_for_menu.set_checked(current);
-                        record_desktop_native_log(
-                            app,
-                            "error",
-                            "native_close_behavior",
-                            "Native close behavior setting was not updated.",
-                        );
-                    }
-                }
-            }
-            "hide_game_overlay" => {
-                let _ = hide_desktop_game_overlay_window(app);
-                dispatch_desktop_command_without_focus(app, "hide-game-overlay", None);
-            }
-            "refresh_game_overlay" => {
-                dispatch_desktop_command_without_focus(app, "refresh-game-overlay", None);
-            }
-            "toggle_mute" => dispatch_desktop_command(app, "toggle-mute", None),
-            "toggle_deafen" => dispatch_desktop_command(app, "toggle-deafen", None),
+            "settings" => schedule_desktop_control_window(app, "app"),
+            "toggle_mute" => dispatch_desktop_command_without_focus(app, "toggle-mute", None),
+            "toggle_deafen" => dispatch_desktop_command_without_focus(app, "toggle-deafen", None),
+            "leave_voice" => dispatch_desktop_command_without_focus(app, "leave-voice", None),
             "updates" => {
-                let _ = show_or_create_desktop_control_window(app, Some("updates"));
+                dispatch_desktop_command(app, "navigate", Some("/settings/updates/updates"))
             }
             "quit" => request_app_quit(app, &close_coordinator, &promotion_state_for_menu),
             _ => {}
@@ -4085,7 +4167,6 @@ fn position_windows_game_overlay_window<R: tauri::Runtime>(
     let hwnd = windows_hwnd_for_overlay(window)?;
 
     unsafe {
-        ShowWindow(hwnd, SW_SHOWNOACTIVATE);
         if SetWindowPos(
             hwnd,
             HWND_TOPMOST,
@@ -4093,11 +4174,7 @@ fn position_windows_game_overlay_window<R: tauri::Runtime>(
             y.max(monitor_position.y),
             width_px.max(1),
             height_px.max(1),
-            SWP_NOACTIVATE
-                | SWP_NOOWNERZORDER
-                | SWP_NOSENDCHANGING
-                | SWP_SHOWWINDOW
-                | SWP_FRAMECHANGED,
+            SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSENDCHANGING | SWP_FRAMECHANGED,
         ) == 0
         {
             return Err("Unable to position native desktop overlay window.".into());
@@ -4235,8 +4312,6 @@ unsafe extern "system" fn apply_windows_overlay_child_styles(
         *failed = true;
     }
 
-    ShowWindow(child_hwnd, SW_SHOWNOACTIVATE);
-
     1
 }
 
@@ -4308,6 +4383,14 @@ fn apply_windows_game_overlay_click_through<R: tauri::Runtime>(
 fn show_desktop_game_overlay_window<R: tauri::Runtime>(
     window: &tauri::WebviewWindow<R>,
 ) -> Result<(), String> {
+    if !window
+        .app_handle()
+        .state::<DesktopCompanionSurfaceState>()
+        .update_game_overlay(|lifecycle| lifecycle.can_show())?
+    {
+        return Ok(());
+    }
+
     apply_windows_game_overlay_click_through(window)?;
     let hwnd = windows_hwnd_for_overlay(window)?;
 
@@ -4340,6 +4423,14 @@ fn show_desktop_game_overlay_window<R: tauri::Runtime>(
 fn show_desktop_game_overlay_window<R: tauri::Runtime>(
     window: &tauri::WebviewWindow<R>,
 ) -> Result<(), String> {
+    if !window
+        .app_handle()
+        .state::<DesktopCompanionSurfaceState>()
+        .update_game_overlay(|lifecycle| lifecycle.can_show())?
+    {
+        return Ok(());
+    }
+
     window
         .show()
         .map_err(|error| format!("Unable to show desktop game overlay window: {error}"))
@@ -4593,51 +4684,73 @@ fn desktop_control_section(section: Option<&str>) -> Result<&'static str, String
     }
 }
 
-fn select_desktop_control_section(window: &WebviewWindow, section: &str) -> Result<(), String> {
-    let section = desktop_control_section(Some(section))?;
-    let section_json = serde_json::to_string(section)
-        .map_err(|_| "Desktop Control section could not be selected.".to_string())?;
-    window
-        .eval(format!(
-            "window.whisprDesktopControlSelectSection?.({section_json});"
-        ))
-        .map_err(|_| "Desktop Control section could not be selected.".to_string())
+async fn run_desktop_window_task<F>(
+    app: AppHandle,
+    label: &'static str,
+    task: F,
+) -> Result<(), String>
+where
+    F: FnOnce(AppHandle) -> Result<(), String> + Send + 'static,
+{
+    let tasks = app.state::<DesktopWindowTasks>().inner().clone();
+    let app_for_task = app.clone();
+    let result = tasks.run(move || task(app_for_task)).await;
+    if let Err(error) = &result {
+        record_desktop_native_log(&app, "error", "window_open", &format!("{label}: {error}"));
+    }
+    result
 }
 
-fn show_or_create_desktop_control_window(
-    app: &tauri::AppHandle,
-    section: Option<&str>,
-) -> Result<(), String> {
-    let section = desktop_control_section(section)?;
+async fn open_desktop_control_window(app: AppHandle) -> Result<(), String> {
+    run_desktop_window_task(app, "desktop-control", move |app| {
+        show_or_create_desktop_control_window(&app)
+    })
+    .await
+}
+
+fn open_in_app_desktop_settings(app: &AppHandle, section: &str) -> Result<(), String> {
+    let tab = match desktop_control_section(Some(section))? {
+        "shortcuts" => "shortcuts",
+        "permissions" => "permissions",
+        "updates" | "diagnostics" | "recovery" | "overview" => "updates",
+        _ => "app",
+    };
+    if app.get_webview_window(DESKTOP_MAIN_WINDOW_LABEL).is_none() {
+        return Err("Whispr main window is unavailable.".to_string());
+    }
+    dispatch_desktop_command(app, "navigate", Some(&format!("/settings/desktop/{tab}")));
+    Ok(())
+}
+
+fn schedule_desktop_control_window(app: &AppHandle, section: &'static str) {
+    if let Err(error) = open_in_app_desktop_settings(app, section) {
+        record_desktop_native_log(app, "error", "desktop_settings", &error);
+    }
+}
+
+fn show_or_create_desktop_control_window(app: &tauri::AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(DESKTOP_CONTROL_WINDOW_LABEL) {
         window
             .show()
             .map_err(|_| "Desktop Control could not be shown.".to_string())?;
         let _ = window.unminimize();
         let _ = window.set_focus();
-        let _ = select_desktop_control_section(&window, section);
         return Ok(());
     }
 
     let control_url = Url::parse("desktop-control://localhost/index.html")
         .map_err(|_| "Desktop Control URL is invalid.".to_string())?;
-    let page_section = section.to_string();
     let window = WebviewWindowBuilder::new(
         app,
         DESKTOP_CONTROL_WINDOW_LABEL,
         WebviewUrl::CustomProtocol(control_url),
     )
-    .title("Whispr Desktop Control")
+    .title("Whispr Cihaz İzni")
     .inner_size(DESKTOP_CONTROL_WIDTH, DESKTOP_CONTROL_HEIGHT)
     .min_inner_size(DESKTOP_CONTROL_MIN_WIDTH, DESKTOP_CONTROL_MIN_HEIGHT)
     .resizable(true)
     .center()
     .on_navigation(is_desktop_control_url)
-    .on_page_load(move |window, payload| {
-        if matches!(payload.event(), PageLoadEvent::Finished) {
-            let _ = select_desktop_control_section(&window, &page_section);
-        }
-    })
     .on_new_window(|_, _| NewWindowResponse::Deny)
     .visible(false)
     .build()
@@ -4667,6 +4780,8 @@ fn hide_main_window_to_tray(app: &tauri::AppHandle, promotion_state: &DesktopWin
 }
 
 fn hide_desktop_game_overlay_window(app: &tauri::AppHandle) -> Result<(), String> {
+    app.state::<DesktopCompanionSurfaceState>()
+        .update_game_overlay(|lifecycle| lifecycle.closed())?;
     if let Some(window) = app.get_webview_window(DESKTOP_GAME_OVERLAY_WINDOW_LABEL) {
         let park_result = park_desktop_game_overlay_window(&window);
         if let Err(error) = park_result {
@@ -4810,17 +4925,27 @@ fn show_or_create_desktop_game_overlay_window(
         return Ok(());
     }
 
+    let generation = app
+        .state::<DesktopCompanionSurfaceState>()
+        .update_game_overlay(|lifecycle| lifecycle.begin_load())?;
     let app_url = desktop_app_url_with_path(DESKTOP_GAME_OVERLAY_PATH);
     let allowed_origin = configured_app_origin_url();
+    #[cfg(windows)]
+    let initial_url = Url::parse("about:blank").map_err(|error| error.to_string())?;
+    #[cfg(not(windows))]
+    let initial_url = app_url.clone();
     let webview_data_directory = resolve_webview_data_directory_for_handle(app)
         .map_err(|error| format!("Unable to prepare desktop game overlay webview data: {error}"))?;
 
     let window = WebviewWindowBuilder::new(
         app,
         DESKTOP_GAME_OVERLAY_WINDOW_LABEL,
-        WebviewUrl::External(app_url),
+        WebviewUrl::External(initial_url),
     )
-    .title("Whispr Game Overlay")
+    .title("")
+    .shadow(false)
+    .focused(false)
+    .background_color(tauri::utils::config::Color(0, 0, 0, 0))
     .decorations(false)
     .transparent(true)
     .always_on_top(true)
@@ -4837,7 +4962,7 @@ fn show_or_create_desktop_game_overlay_window(
         false,
     ))
     .on_navigation(move |url| {
-        if is_same_origin(url, &allowed_origin) {
+        if url.as_str() == "about:blank" || is_same_origin(url, &allowed_origin) {
             return true;
         }
 
@@ -4845,33 +4970,47 @@ fn show_or_create_desktop_game_overlay_window(
         false
     })
     .on_page_load(move |window, payload| {
-        if matches!(payload.event(), PageLoadEvent::Finished) {
-            if let Err(error) = refresh_desktop_companion_surface_window(
-                window.app_handle(),
-                DESKTOP_GAME_OVERLAY_WINDOW_LABEL,
-                overlay_width,
-                overlay_height,
-                overlay_bottom_offset,
-                overlay_anchor,
-                true,
-            ) {
-                eprintln!("Unable to refresh desktop game overlay on page load: {error}");
+        if payload.url().as_str() == "about:blank" {
+            return;
+        }
+        let state = window.app_handle().state::<DesktopCompanionSurfaceState>();
+        if matches!(payload.event(), PageLoadEvent::Started) {
+            if let Err(error) = state.update_game_overlay(|lifecycle| lifecycle.loading(generation))
+            {
+                state.set_error(error);
             }
-            if let Err(error) = show_desktop_game_overlay_window(&window) {
-                eprintln!("Unable to show desktop game overlay on page load: {error}");
+            if let Err(error) = park_desktop_game_overlay_window(&window) {
+                state.set_error(error);
             }
-            if let Err(error) = refresh_desktop_companion_surface_window(
-                window.app_handle(),
-                DESKTOP_GAME_OVERLAY_WINDOW_LABEL,
-                overlay_width,
-                overlay_height,
-                overlay_bottom_offset,
-                overlay_anchor,
-                true,
-            ) {
-                eprintln!("Unable to refresh desktop game overlay after page load: {error}");
+            return;
+        }
+        // A redirect (for example, an expired session) must never expose an auth page as an overlay.
+        if payload.url().path() != DESKTOP_GAME_OVERLAY_PATH {
+            state.set_error("Desktop overlay did not load its application page.".to_string());
+            return;
+        }
+        match state.update_game_overlay(|lifecycle| lifecycle.loaded(generation)) {
+            Ok(true) => {
+                let result = refresh_desktop_companion_surface_window(
+                    window.app_handle(),
+                    DESKTOP_GAME_OVERLAY_WINDOW_LABEL,
+                    overlay_width,
+                    overlay_height,
+                    overlay_bottom_offset,
+                    overlay_anchor,
+                    true,
+                )
+                .and_then(|_| show_desktop_game_overlay_window(&window));
+                if let Err(error) = result {
+                    state.set_error(error);
+                }
+                dispatch_desktop_surface_ready(
+                    window.app_handle(),
+                    DESKTOP_GAME_OVERLAY_WINDOW_LABEL,
+                );
             }
-            dispatch_desktop_surface_ready(window.app_handle(), DESKTOP_GAME_OVERLAY_WINDOW_LABEL);
+            Ok(false) => {}
+            Err(error) => state.set_error(error),
         }
     })
     .on_new_window(|url, _features| {
@@ -4881,6 +5020,14 @@ fn show_or_create_desktop_game_overlay_window(
     .visible(false)
     .build()
     .map_err(|error| format!("Unable to create desktop game overlay window: {error}"))?;
+
+    #[cfg(windows)]
+    windows_media_permissions::install_webview2_media_permission_handler(
+        &window,
+        None,
+        configured_app_origin_url(),
+        app_url,
+    )?;
 
     #[cfg(windows)]
     {
@@ -4913,7 +5060,6 @@ fn show_or_create_desktop_game_overlay_window(
             overlay_anchor,
         );
     }
-    show_desktop_game_overlay_window(&window)?;
     Ok(())
 }
 
@@ -4946,13 +5092,17 @@ fn show_or_create_desktop_voice_mini_window(app: &tauri::AppHandle) -> Result<()
 
     let app_url = desktop_app_url_with_path(DESKTOP_VOICE_MINI_PATH);
     let allowed_origin = configured_app_origin_url();
+    #[cfg(windows)]
+    let initial_url = Url::parse("about:blank").map_err(|error| error.to_string())?;
+    #[cfg(not(windows))]
+    let initial_url = app_url.clone();
     let webview_data_directory = resolve_webview_data_directory_for_handle(app)
         .map_err(|error| format!("Unable to prepare desktop voice mini webview data: {error}"))?;
 
-    WebviewWindowBuilder::new(
+    let window = WebviewWindowBuilder::new(
         app,
         DESKTOP_VOICE_MINI_WINDOW_LABEL,
-        WebviewUrl::External(app_url),
+        WebviewUrl::External(initial_url),
     )
     .title("Whispr Voice")
     .decorations(false)
@@ -4970,7 +5120,7 @@ fn show_or_create_desktop_voice_mini_window(app: &tauri::AppHandle) -> Result<()
         false,
     ))
     .on_navigation(move |url| {
-        if is_same_origin(url, &allowed_origin) {
+        if url.as_str() == "about:blank" || is_same_origin(url, &allowed_origin) {
             return true;
         }
 
@@ -4978,7 +5128,9 @@ fn show_or_create_desktop_voice_mini_window(app: &tauri::AppHandle) -> Result<()
         false
     })
     .on_page_load(|window, payload| {
-        if matches!(payload.event(), PageLoadEvent::Finished) {
+        if payload.url().as_str() != "about:blank"
+            && matches!(payload.event(), PageLoadEvent::Finished)
+        {
             if refresh_desktop_companion_surface_window(
                 window.app_handle(),
                 DESKTOP_VOICE_MINI_WINDOW_LABEL,
@@ -5011,8 +5163,15 @@ fn show_or_create_desktop_voice_mini_window(app: &tauri::AppHandle) -> Result<()
     })
     .visible(false)
     .build()
-    .map(|_| ())
-    .map_err(|error| format!("Unable to create desktop voice mini window: {error}"))
+    .map_err(|error| format!("Unable to create desktop voice mini window: {error}"))?;
+    #[cfg(windows)]
+    windows_media_permissions::install_webview2_media_permission_handler(
+        &window,
+        None,
+        configured_app_origin_url(),
+        app_url,
+    )?;
+    Ok(())
 }
 
 /// The console is a plain second window on the same web app — decorated,
@@ -5031,15 +5190,19 @@ fn show_or_create_desktop_admin_console_window(app: &tauri::AppHandle) -> Result
 
     let app_url = desktop_app_url_with_path(DESKTOP_ADMIN_CONSOLE_PATH);
     let allowed_origin = configured_app_origin_url();
+    #[cfg(windows)]
+    let initial_url = Url::parse("about:blank").map_err(|error| error.to_string())?;
+    #[cfg(not(windows))]
+    let initial_url = app_url.clone();
     let webview_data_directory =
         resolve_webview_data_directory_for_handle(app).map_err(|error| {
             format!("Unable to prepare desktop admin console webview data: {error}")
         })?;
 
-    WebviewWindowBuilder::new(
+    let window = WebviewWindowBuilder::new(
         app,
         DESKTOP_ADMIN_CONSOLE_WINDOW_LABEL,
-        WebviewUrl::External(app_url),
+        WebviewUrl::External(initial_url),
     )
     .title("Whispr Moderation")
     .inner_size(DESKTOP_ADMIN_CONSOLE_WIDTH, DESKTOP_ADMIN_CONSOLE_HEIGHT)
@@ -5056,7 +5219,7 @@ fn show_or_create_desktop_admin_console_window(app: &tauri::AppHandle) -> Result
         false,
     ))
     .on_navigation(move |url| {
-        if is_same_origin(url, &allowed_origin) {
+        if url.as_str() == "about:blank" || is_same_origin(url, &allowed_origin) {
             return true;
         }
 
@@ -5068,8 +5231,15 @@ fn show_or_create_desktop_admin_console_window(app: &tauri::AppHandle) -> Result
         NewWindowResponse::Deny
     })
     .build()
-    .map(|_| ())
-    .map_err(|error| format!("Unable to create desktop admin console window: {error}"))
+    .map_err(|error| format!("Unable to create desktop admin console window: {error}"))?;
+    #[cfg(windows)]
+    windows_media_permissions::install_webview2_media_permission_handler(
+        &window,
+        None,
+        configured_app_origin_url(),
+        app_url,
+    )?;
+    Ok(())
 }
 
 fn close_desktop_admin_console_window(app: &tauri::AppHandle) -> Result<(), String> {
@@ -5587,18 +5757,88 @@ mod tests {
     }
 
     #[test]
+    fn desktop_settings_require_the_main_window_and_exact_app_origin() {
+        let app = Url::parse("https://whispr.team").unwrap();
+        for url in [
+            "https://whispr.team/settings/desktop/app",
+            "https://whispr.team:443/settings/desktop/shortcuts",
+        ] {
+            assert!(is_authorized_desktop_settings_window(
+                "main",
+                &Url::parse(url).unwrap(),
+                &app
+            ));
+        }
+        for url in [
+            "https://accounts.google.com",
+            "https://github.com",
+            "https://whispr.team.evil.test",
+            "https://evil.test/whispr.team",
+            "http://whispr.team",
+            "https://whispr.team:444",
+            "https://user@whispr.team",
+            "https://user:pass@whispr.team",
+        ] {
+            assert!(
+                !is_authorized_desktop_settings_window("main", &Url::parse(url).unwrap(), &app),
+                "{url}"
+            );
+        }
+        for label in [
+            "game-overlay",
+            "voice-mini",
+            "settings",
+            "desktop-control",
+            "",
+        ] {
+            assert!(
+                !is_authorized_desktop_settings_window(label, &app, &app),
+                "{label}"
+            );
+        }
+        let local = Url::parse("http://desktop-control.localhost/index.html").unwrap();
+        assert!(is_authorized_desktop_settings_window(
+            "desktop-control",
+            &local,
+            &app
+        ));
+        assert!(!is_authorized_desktop_settings_window("main", &local, &app));
+        let development = Url::parse("http://localhost:3000").unwrap();
+        assert!(is_authorized_desktop_settings_window(
+            "main",
+            &development,
+            &development
+        ));
+        assert!(!is_authorized_desktop_settings_window(
+            "main",
+            &Url::parse("http://localhost:3001").unwrap(),
+            &development
+        ));
+    }
+
+    #[test]
     fn desktop_control_protocol_serves_only_allowlisted_static_assets() {
         let index = desktop_control_protocol_response("/index.html");
         let css = desktop_control_protocol_response("/app.css");
+        let font = desktop_control_protocol_response("/font.woff2");
         let script = desktop_control_protocol_response("/app.js");
         let shortcut_editor = desktop_control_protocol_response("/shortcut-editor.mjs");
+        let platform_keyboard = desktop_control_protocol_response("/platform-keyboard.mjs");
         let traversal = desktop_control_protocol_response("/../Cargo.toml");
         let unknown = desktop_control_protocol_response("/missing.js");
 
         assert_eq!(index.status(), tauri::http::StatusCode::OK);
         assert_eq!(css.status(), tauri::http::StatusCode::OK);
+        assert_eq!(font.status(), tauri::http::StatusCode::OK);
+        assert_eq!(font.body(), DESKTOP_CONTROL_FONT);
+        assert!(font.body().starts_with(b"wOF2"));
         assert_eq!(script.status(), tauri::http::StatusCode::OK);
         assert_eq!(shortcut_editor.status(), tauri::http::StatusCode::OK);
+        assert_eq!(platform_keyboard.status(), tauri::http::StatusCode::OK);
+        assert_eq!(
+            platform_keyboard.body(),
+            DESKTOP_CONTROL_PLATFORM_KEYBOARD_SCRIPT
+        );
         assert_eq!(traversal.status(), tauri::http::StatusCode::NOT_FOUND);
         assert_eq!(unknown.status(), tauri::http::StatusCode::NOT_FOUND);
         assert_eq!(
@@ -5966,6 +6206,10 @@ mod tests {
             DESKTOP_DEVICE_SETTINGS_SCHEMA_VERSION
         );
         assert_eq!(settings.window.close_action, DesktopWindowCloseAction::Quit);
+        assert!(
+            !settings.game_detection_enabled,
+            "legacy settings must not consent to scanning"
+        );
         assert_eq!(
             DesktopDeviceSettings::default().window.close_action,
             DesktopWindowCloseAction::Tray
@@ -5993,10 +6237,18 @@ mod tests {
             keys,
             HashSet::from([
                 "schemaVersion".to_string(),
+                "gameDetectionEnabled".to_string(),
                 "voiceShortcuts".to_string(),
                 "window".to_string(),
             ])
         );
+    }
+
+    #[test]
+    fn desktop_initialization_exposes_the_native_os_for_presentation() {
+        let script = desktop_init_script(false, "uat", false);
+        assert!(script.contains(&format!("os: \"{}\"", std::env::consts::OS)));
+        assert!(!script.contains("__WHISPR_DESKTOP_OS__"));
     }
 
     #[test]

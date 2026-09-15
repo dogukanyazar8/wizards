@@ -8,8 +8,9 @@ declare global {
         updater?: boolean;
       };
       platform: "tauri";
+      os?: string;
       launchMode?: "autostart" | "interactive";
-      releaseRing?: "production" | "production-small" | "uat";
+      releaseRing?: "dev" | "stable" | "production" | "uat";
       shell: "desktop";
     };
   }

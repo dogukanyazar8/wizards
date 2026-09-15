@@ -7,7 +7,7 @@ Expo React Native application for the iOS and Android Whispr mobile product.
 The current mobile phase turns the Expo foundation into a native Whispr product shell:
 
 - Expo app shell under the existing monorepo.
-- UAT, canary, and production EAS build profiles.
+- UAT and production EAS build profiles.
 - Build-time public endpoint validation.
 - Shared type package access through `@wizards/types`.
 - SecureStore-backed mobile session repository.
@@ -28,7 +28,7 @@ The current mobile phase turns the Expo foundation into a native Whispr product 
 - Mobile bootstrap client validation that refuses malformed server payloads.
 - EAS release readiness contract with HTTPS endpoint, profile, version, and performance budget checks.
 - Mobile quality gate with automated checks, Android/iOS device matrix, and manual smoke checklist validation.
-- Production readiness contract for UAT, canary, store-candidate, and production promotion evidence.
+- Production readiness contract for UAT, store-candidate, and production promotion evidence.
 - Real mobile DM conversation preview backed by authenticated, bounded mobile API responses.
 - Real mobile workspace preview backed by permission-filtered server channels and bounded text-channel message reads.
 - Foreground freshness contract that refreshes visible real data after a cooldown and displays last sync state without claiming fake realtime.
@@ -120,7 +120,6 @@ corepack pnpm --filter @wizards/mobile quality:check
 
 - `development`: local development client, local endpoints allowed.
 - `uat`: internal smoke builds against Railway UAT.
-- `canary`: internal production-origin builds for dogfood/canary users.
 - `production`: store distribution only.
 
 Non-development profiles must use HTTPS, non-local Whispr endpoints. Secret-like values must not be embedded into EAS public env.
@@ -129,17 +128,17 @@ Non-development profiles must use HTTPS, non-local Whispr endpoints. Secret-like
 
 `.github/workflows/mobile-release.yml` is a manual, environment-gated publisher. UAT OTA
 publishes an Expo export signed outside the repository, uploads immutable bytes to R2, registers
-only the signed metadata, then verifies the served manifest. UAT/canary APK publication uses the
+only the signed metadata, then verifies the served manifest. UAT APK publication uses the
 existing EAS-managed Android application-signing credential, verifies the resulting APK with
 `apksigner`, and registers its certificate fingerprint, SHA-256, size, and immutable URL.
 Production remains store-only and never receives `REQUEST_INSTALL_PACKAGES` or an internal APK URL.
 
 The first internal APK must be installed manually from the trusted immutable release URL. Later
-UAT/canary native updates can use the in-app downloader after Android's per-app unknown-source
+UAT native updates can use the in-app downloader after Android's per-app unknown-source
 permission is explicitly granted. JavaScript-only compatible updates use signed OTA delivery.
 
-Configure these GitHub environment secrets separately for `mobile-uat` and, after establishing a
-distinct trust root, `mobile-canary`:
+Configure these GitHub environment secrets for `mobile-uat`. Production OTA remains disabled
+until it has a separate trust root and approved publishing support:
 
 - `WHISPR_MOBILE_OTA_PRIVATE_KEY`: environment-specific RSA private key; OTA job only.
 - `WHISPR_RELEASE_PUBLISH_TOKEN`: narrowly scoped server publisher credential.
@@ -165,7 +164,7 @@ immediate publication disablement and a new native build with a new trust root.
 - Chat input latency: `p95 <= 50ms`.
 - Idle memory: `<= 180MB` after 5 minutes.
 
-Record these values during UAT/canary QA before store promotion.
+Record these values during UAT QA before store promotion.
 
 ## Manual UAT smoke checklist
 
@@ -184,9 +183,9 @@ Record these values during UAT/canary QA before store promotion.
 - Voice: Calls stays visible as a primary tab, but readiness surfaces stay honest until native permission and LiveKit contracts are connected.
 - Store: App Store and Play Store listing text, screenshots, and privacy answers match the permission disclosure contract.
 - Performance: five minutes idle shows no obvious heating, memory growth, or scroll stutter.
-- Release: the build displays the intended UAT/canary/production environment endpoints.
+- Release: the build displays the intended UAT/production environment endpoints.
 - Local Android: `android:uat:local` builds, installs, launches, and reaches the tab shell on the emulator.
-- Production readiness: Profile diagnostics show UAT, canary, store-candidate, and production gates without exposing PII or secrets.
+- Production readiness: Profile diagnostics show UAT, store-candidate, and production gates without exposing PII or secrets.
 
 ## Security notes
 

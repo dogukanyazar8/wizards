@@ -3,6 +3,8 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { WorkspaceServerDetail } from "@wizards/types";
+import { EventCreateModal } from "@/components/events/event-create-modal";
+import { invalidateEventQueries } from "@/lib/events/invalidate-event-queries";
 
 import { useI18n } from "@/components/providers/locale-provider";
 import {
@@ -15,7 +17,6 @@ import {
   SERVER_EVENT_DESCRIPTION_MAX_LENGTH,
   SERVER_EVENT_INITIAL_STATE,
   SERVER_EVENT_NAME_MAX_LENGTH,
-  buildServerEventPayload,
   buildServerEventUpdatePayload,
   clampServerEventDate,
   clampServerEventDescription,
@@ -33,7 +34,6 @@ import {
 } from "@/lib/servers/event-form";
 import { SERVER_METRICS, hairline, pxToEm, pxToRem } from "@/lib/servers/metrics";
 import {
-  createServerEventRequest,
   listServerEventsRequest,
   updateServerEventRequest,
   workspaceQueryKeys,
@@ -464,6 +464,20 @@ export type CreateEventModalProps = {
 };
 
 export function CreateEventModal({ detail, eventId = null, onClose, open }: CreateEventModalProps) {
+  if (!open) return null;
+  return eventId ? (
+    <EditServerEventModal detail={detail} eventId={eventId} onClose={onClose} open />
+  ) : (
+    <EventCreateModal serverDetail={detail} onClose={onClose} />
+  );
+}
+
+function EditServerEventModal({
+  detail,
+  eventId,
+  onClose,
+  open,
+}: CreateEventModalProps & { readonly eventId: string }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   /**
@@ -498,28 +512,16 @@ export function CreateEventModal({ detail, eventId = null, onClose, open }: Crea
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      if (eventId) {
-        const updatePayload = buildServerEventUpdatePayload(state, channels);
+      const updatePayload = buildServerEventUpdatePayload(state, channels);
 
-        if (!updatePayload) {
-          throw new Error("validation.event.endBeforeStart");
-        }
-
-        return updateServerEventRequest(detail.server.id, eventId, updatePayload);
-      }
-
-      const payload = buildServerEventPayload(state, channels);
-
-      if (!payload) {
+      if (!updatePayload) {
         throw new Error("validation.event.endBeforeStart");
       }
 
-      return createServerEventRequest(detail.server.id, payload);
+      return updateServerEventRequest(detail.server.id, eventId, updatePayload);
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: workspaceQueryKeys.serverEvents(detail.server.id),
-      });
+      void invalidateEventQueries(queryClient, detail.server.id);
       onClose();
     },
   });

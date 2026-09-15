@@ -30,33 +30,30 @@ describe("mobile release workflow contract", () => {
       sourceSha: "a".repeat(40),
     });
     const pendingApk = buildMobileReleaseContract({
-      environment: "canary",
+      environment: "uat",
       kind: "apk",
       releaseId: "release-2",
       rollout: 100,
       runNumber: 43,
       sourceSha: "b".repeat(40),
-      version: "0.9.0-canary.1",
+      version: "0.9.0-uat.1",
     });
     const apk = buildMobileReleaseContract({
-      environment: "canary",
+      environment: "uat",
       kind: "apk",
       releaseId: "release-2",
       rollout: 100,
       runNumber: 43,
       sourceSha: "b".repeat(40),
-      version: "0.9.0-canary.1",
+      version: "0.9.0-uat.1",
       versionCode: 8_200,
     });
 
     assert.match(ota.bundleKey, /^uat-release-1-42-a{12}$/);
     assert.equal(pendingApk.artifactKey, undefined);
     assert.equal(pendingApk.fileName, undefined);
-    assert.equal(pendingApk.latestKey, "mobile/canary/latest.json");
-    assert.equal(
-      apk.artifactKey,
-      "mobile/canary/releases/v0.9.0-canary.1/whispr-0.9.0-canary.1-8200.apk",
-    );
+    assert.equal(pendingApk.latestKey, "mobile/uat/latest.json");
+    assert.equal(apk.artifactKey, "mobile/uat/releases/v0.9.0-uat.1/whispr-0.9.0-uat.1-8200.apk");
     assert.doesNotMatch(JSON.stringify({ ota, apk }), /private|secret|token/i);
   });
 
@@ -78,7 +75,7 @@ describe("mobile release workflow contract", () => {
     assert.throws(
       () =>
         buildMobileReleaseContract({
-          environment: "canary",
+          environment: "production",
           kind: "ota",
           releaseId: "release-1",
           rollout: 100,
@@ -89,21 +86,21 @@ describe("mobile release workflow contract", () => {
     );
   });
 
-  it("preflight reports self-hosted scratch space without a fixed capacity threshold", async () => {
+  it("preflight reports GitHub-hosted scratch space without a fixed capacity threshold", async () => {
     const workflow = await readFile(workflowPath, "utf8");
     const preflightJob = workflow.slice(
       workflow.indexOf("\n  preflight:"),
       workflow.indexOf("\n  contract:"),
     );
 
-    assert.match(preflightJob, /Verify self-hosted release runner toolchain/u);
+    assert.match(preflightJob, /Verify GitHub-hosted release runner toolchain/u);
     assert.match(preflightJob, /df -Pk "\$RUNNER_TEMP"/u);
-    assert.match(preflightJob, /Self-hosted mobile release runner/u);
+    assert.match(preflightJob, /GitHub-hosted mobile release runner/u);
     assert.doesNotMatch(preflightJob, /Report hosted runner storage layout|mountpoint|\/mnt/u);
     assert.doesNotMatch(preflightJob, /20971520|at least 20 GiB/u);
   });
 
-  it("records final self-hosted scratch telemetry without an optional environment indirection", async () => {
+  it("records final GitHub-hosted scratch telemetry without an optional environment indirection", async () => {
     const workflow = await readFile(workflowPath, "utf8");
     const apkJob = workflow.slice(workflow.indexOf("\n  apk:"));
     const diskEnd = apkJob.slice(
@@ -134,12 +131,12 @@ describe("mobile release workflow contract", () => {
     assert.doesNotMatch(workflow, /^\s{6}version_code:/m);
     assert.doesNotMatch(workflow, /\$\{\{\s*inputs\.version_code\s*\}\}/);
     assert.equal(
-      workflow.match(/runs-on: \[self-hosted, Linux, X64, mobile-release\]/g)?.length,
+      workflow.match(/runs-on: ubuntu-24\.04/g)?.length,
       4,
-      "every mobile release job must use the dedicated local runner label",
+      "every mobile release job must use the GitHub-hosted Linux runner",
     );
-    assert.doesNotMatch(workflow, /runs-on: ubuntu-(?:latest|24\.04)/u);
-    assert.match(workflow, /Verify self-hosted release runner toolchain/);
+    assert.doesNotMatch(workflow, /runs-on: \[self-hosted/u);
+    assert.match(workflow, /Verify GitHub-hosted release runner toolchain/);
     assert.match(workflow, /github\.ref_name.*uat/);
     assert.equal(
       workflow.match(/persist-credentials: false/g)?.length,
@@ -157,7 +154,7 @@ describe("mobile release workflow contract", () => {
     assert.match(awsCliSetup, /FB5DB77FD5C118B80511ADA8A6310ACC4672475C/);
     assert.doesNotMatch(awsCliSetup, /sudo|\/usr\/local/);
     assert.equal(
-      workflow.match(/actions\/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95/g)?.length,
+      workflow.match(/actions\/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6/g)?.length,
       2,
       "preflight and APK publication must provision the pinned JDK",
     );
@@ -178,7 +175,7 @@ describe("mobile release workflow contract", () => {
     assert.doesNotMatch(
       apkJob,
       /Reclaim hosted runner disk|sudo rm -rf|docker image prune|WHISPR_BUILD_ROOT|GRADLE_USER_HOME|scratch_root/u,
-      "a persistent runner must not mutate hosted-image toolchain paths or redirect persistent caches",
+      "build steps must use the guarded hosted storage helper instead of ad-hoc cleanup",
     );
     assert.match(androidBuildToolsSetup, /commandlinetools-linux-15859902_latest\.zip/);
     assert.match(
@@ -228,21 +225,21 @@ describe("mobile release workflow contract", () => {
     assert.match(workflow, /"\$aapt_path" dump badging "\$apk"/);
     assert.match(workflow, /versionCode='/);
     assert.match(workflow, /versionName='/);
-    assert.match(workflow, /actual_version_name.*inputs\.version/);
+    assert.match(workflow, /actual_version_name.*VALUE_INPUTS_VERSION/);
     assert.match(workflow, /--version-code "\$actual_version_code"/);
     assert.match(workflow, /steps\.verify\.outputs\.version_code/);
     assert.match(workflow, /"\$apksigner_path" verify --print-certs/);
     assert.match(workflow, /sha256sum/);
     assert.match(workflow, /remote_sha256=.*curl/);
-    assert.match(workflow, /"\$remote_sha256" == "\$\{\{ steps\.verify\.outputs\.sha256 \}\}"/);
+    assert.match(workflow, /"\$remote_sha256" == "\$\{VALUE_STEPS_VERIFY_OUTPUTS_SHA256\}"/);
     assert.match(workflow, /stat -c%s/);
     assert.match(workflow, /Content-Length/i);
     assert.match(workflow, /Range: bytes=0-1023/);
     assert.match(workflow, /api\/v1\/mobile\/app\/update/);
-    assert.match(workflow, /installed=\$\{\{ steps\.verify\.outputs\.version_name \}\}/);
+    assert.match(workflow, /installed=\$\{VALUE_STEPS_VERIFY_OUTPUTS_VERSION_NAME\}/);
     assert.doesNotMatch(workflow, /installed=0\.0\.0/);
     assert.match(workflow, /\.updateKind == "apk"/);
-    assert.match(workflow, /artifact_key="\$\{\{ steps\.verify\.outputs\.artifact_key \}\}"/);
+    assert.match(workflow, /artifact_key="\$\{VALUE_STEPS_VERIFY_OUTPUTS_ARTIFACT_KEY\}"/);
     assert.match(workflow, /r2\.cloudflarestorage\.com/);
     assert.match(workflow, /Authorization: Bearer/);
     assert.match(
@@ -254,4 +251,13 @@ describe("mobile release workflow contract", () => {
     assert.doesNotMatch(workflow, /credentials\.json/);
     assert.doesNotMatch(workflow, /upload-artifact[\s\S]{0,300}private-key/i);
   });
+});
+
+it("rejects a removed publishing environment before preparing any artifact", () => {
+  for (const kind of ["apk", "ota"]) {
+    assert.throws(
+      () => buildMobileReleaseContract({ environment: "canary", kind }),
+      /environment must be uat or production/,
+    );
+  }
 });

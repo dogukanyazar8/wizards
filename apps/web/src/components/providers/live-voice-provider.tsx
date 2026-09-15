@@ -9,7 +9,16 @@ import {
   Track,
   type TrackProcessor,
 } from "livekit-client";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { ScreenShareSession } from "@/lib/voice/screen-share-session";
 import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import type { KrispNoiseFilterProcessor } from "@livekit/krisp-noise-filter";
@@ -43,12 +52,12 @@ import { getSocket } from "@/lib/socket/client";
 import { collectVoiceAudioHealthFromSender } from "@/lib/voice/audio-health";
 import { resolveAudioDeviceFallback } from "@/lib/voice/audio-device-fallback";
 import {
+  getMicrophoneConstraintName,
   isCameraDeviceUnavailable,
   isCameraPermissionDenied,
   isLikelyKrispSecurityPolicyError,
   isMicrophoneDeviceUnavailable,
   isMicrophonePermissionDenied,
-  isScreenSharePermissionDenied,
 } from "@/lib/voice/error-classification";
 import { resolveMicrophoneCaptureRetry } from "@/lib/voice/microphone-capture-retry";
 import { canAttemptMicrophoneCapture } from "@/lib/voice/microphone-permission";
@@ -68,7 +77,6 @@ import {
   getLocalCameraTrack,
   getLocalMicrophoneTrack,
   getLocalScreenShareTrack,
-  getLocalScreenShareTracks,
   isLocalCameraTrackLive,
   isLocalMicrophoneTrackLive,
   isLocalScreenShareTrackLive,
@@ -215,6 +223,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const preferredKrispQuality = getPreferredKrispQuality();
   const fallbackKrispQuality = getFallbackKrispQuality(preferredKrispQuality);
   const roomRef = useRef<Room | null>(null);
+  const cameraRestartQueue = useRef<Promise<void>>(Promise.resolve());
   /** Remote video this client paused while the tab was hidden, and only that. */
   const backgroundSuspendedRemoteVideoSidsRef = useRef<Set<string>>(new Set());
   const joinRequestRef = useRef<string | null>(null);
@@ -250,6 +259,13 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const [participants, setParticipants] = useState<VoiceParticipantViewModel[]>([]);
   const [activeVoiceRoster, setActiveVoiceRoster] = useState<VoiceStateParticipantDTO[]>([]);
   const [screenShares, setScreenShares] = useState<VoiceScreenShareViewModel[]>([]);
+  const [screenShareSession] = useState(() => new ScreenShareSession());
+  const screenShareStatus = useSyncExternalStore(
+    screenShareSession.subscribe,
+    screenShareSession.getSnapshot,
+    screenShareSession.getSnapshot,
+  );
+  useEffect(() => () => screenShareSession.cancel(), [screenShareSession]);
   const [activeScreenShareId, setActiveScreenShareIdState] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [cameraStatus, setCameraStatus] = useState<VoiceCameraStatus>("disabled");
@@ -257,6 +273,9 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     ConnectionState.Disconnected,
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const handleAudioOutputError = useCallback(() => {
+    setErrorMessage(t("voice.errors.outputDeviceFailed"));
+  }, [t]);
   const [isJoining, setIsJoining] = useState(false);
   const [isApplyingAudioPreferences, setIsApplyingAudioPreferences] = useState(false);
   const [isApplyingScreenShareQuality, setIsApplyingScreenShareQuality] = useState(false);
@@ -299,6 +318,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     screenShareError,
     screenShareQuality,
     screenShareVolume,
+    masterOutputVolume,
     serverId,
     sessionMode,
     voiceInputMode,
@@ -317,6 +337,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       screenShareAudioEnabled: state.screenShareAudioEnabled,
       screenShareError: state.screenShareError,
       screenShareVolume: state.screenShareVolume,
+      masterOutputVolume: state.masterOutputVolume,
       screenShareQuality: state.screenShareQuality,
       serverId: state.serverId,
       sessionMode: state.sessionMode,
@@ -1032,22 +1053,12 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
             throw error;
           }
 
-          logError(
+          logWarning(
             retry.reason === "default-device"
               ? "[voice] Selected microphone unavailable, retrying system default"
-              : retry.reason === "stable-processing"
-                ? "[voice] Advanced microphone processing unavailable, retrying stable profile"
-                : "[voice] Default microphone capture failed, retrying with plain constraints",
-            error,
+              : "[voice] Advanced microphone processing unavailable, retrying stable profile",
+            { error, constraint: getMicrophoneConstraintName(error) },
           );
-
-          if (retry.persistDeviceFallback) {
-            useVoiceStore.getState().setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
-          }
-
-          if (retry.persistProcessingFallback) {
-            useVoiceStore.getState().setAudioPreference("voiceIsolation", false);
-          }
 
           const fallbackCaptureConfig = getAudioCaptureConfig(retry.preferences);
           await targetRoom.localParticipant.setMicrophoneEnabled(
@@ -1057,10 +1068,24 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
             }),
           );
 
+          const track = requirePublishedMicrophoneTrack(targetRoom);
+          if (
+            retry.persistDeviceFallback &&
+            useVoiceStore.getState().audioPreferences.inputDeviceId === preferences.inputDeviceId
+          ) {
+            useVoiceStore.getState().setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
+          }
+          if (
+            retry.persistProcessingFallback &&
+            useVoiceStore.getState().audioPreferences.voiceIsolation === preferences.voiceIsolation
+          ) {
+            useVoiceStore.getState().setAudioPreference("voiceIsolation", false);
+          }
+
           return {
             preferences: retry.preferences,
             processingProfile: fallbackCaptureConfig.processingProfile,
-            track: requirePublishedMicrophoneTrack(targetRoom),
+            track,
           };
         }
       } finally {
@@ -1090,7 +1115,8 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         return;
       }
 
-      let activeCaptureConfig = getAudioCaptureConfig(audioPreferences);
+      let activePreferences = audioPreferences;
+      let activeCaptureConfig = getAudioCaptureConfig(activePreferences);
       const nextSignature = getAudioCaptureRestartSignature(
         audioPreferences,
         activeCaptureConfig.processingProfile,
@@ -1114,22 +1140,12 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
               throw error;
             }
 
-            logError(
+            logWarning(
               retry.reason === "default-device"
                 ? "[voice] Microphone restart failed, retrying system default"
-                : retry.reason === "stable-processing"
-                  ? "[voice] Advanced microphone restart failed, retrying stable profile"
-                  : "[voice] Microphone restart failed, retrying with plain constraints",
-              error,
+                : "[voice] Advanced microphone restart failed, retrying stable profile",
+              { error, constraint: getMicrophoneConstraintName(error) },
             );
-
-            if (retry.persistDeviceFallback) {
-              useVoiceStore.getState().setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
-            }
-
-            if (retry.persistProcessingFallback) {
-              useVoiceStore.getState().setAudioPreference("voiceIsolation", false);
-            }
 
             const fallbackCaptureConfig = getAudioCaptureConfig(retry.preferences);
             await localMicrophoneTrack.restartTrack(
@@ -1137,24 +1153,40 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
                 enhancedNoiseFilterActive: fallbackCaptureConfig.enhancedNoiseFilterActive,
               }),
             );
+            if (
+              retry.persistDeviceFallback &&
+              useVoiceStore.getState().audioPreferences.inputDeviceId ===
+                audioPreferences.inputDeviceId
+            ) {
+              useVoiceStore.getState().setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
+            }
+            if (
+              retry.persistProcessingFallback &&
+              useVoiceStore.getState().audioPreferences.voiceIsolation ===
+                audioPreferences.voiceIsolation
+            ) {
+              useVoiceStore.getState().setAudioPreference("voiceIsolation", false);
+            }
+
             appliedAudioPreferencesSignatureRef.current = getAudioCaptureRestartSignature(
               retry.preferences,
               fallbackCaptureConfig.processingProfile,
             );
+            activePreferences = retry.preferences;
             activeCaptureConfig = fallbackCaptureConfig;
           }
         }
 
         const syncedNoiseFilter = await syncNoiseFilterForTrack(
           localMicrophoneTrack,
-          audioPreferences,
+          activePreferences,
         );
         activeCaptureConfig = {
           ...activeCaptureConfig,
           processingProfile: syncedNoiseFilter.processingProfile,
         };
         appliedAudioPreferencesSignatureRef.current = getAudioCaptureRestartSignature(
-          audioPreferences,
+          activePreferences,
           activeCaptureConfig.processingProfile,
         );
         syncParticipants(targetRoom);
@@ -1255,6 +1287,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
             return true;
           }
 
+          logError("[voice] Microphone recovery failed", {
+            error,
+            constraint: getMicrophoneConstraintName(error),
+          });
           setIsKrispNoiseCancellationActive(false);
           if (isMicrophonePermissionDenied(error)) {
             useVoiceStore.getState().setMuted(true);
@@ -1448,37 +1484,24 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     async (targetRoom?: Room | null) => {
       const activeRoom = targetRoom ?? roomRef.current;
       if (!activeRoom) {
+        screenShareSession.cancel();
         useVoiceStore.getState().clearScreenShareState();
         setScreenShares([]);
         setActiveScreenShareIdState(null);
         return;
       }
 
-      // Picture and share audio both, so stopping can never leave the sharer's
-      // system sound broadcasting.
-      const localScreenTracks = getLocalScreenShareTracks(activeRoom);
-
-      const unpublishedByLiveKit = await activeRoom.localParticipant
-        .setScreenShareEnabled(false)
-        .then(() => true)
-        .catch(() => false);
-
-      if (!unpublishedByLiveKit) {
-        await Promise.all(
-          localScreenTracks.map((track) =>
-            activeRoom.localParticipant.unpublishTrack(track, true).catch(() => undefined),
-          ),
-        );
+      try {
+        await screenShareSession.stop(activeRoom);
+      } catch (error) {
+        logWarning("[voice] Screen share unpublish failed; local capture stopped", error);
       }
-
-      for (const track of localScreenTracks) {
-        track.detach();
+      if (roomRef.current === activeRoom) {
+        useVoiceStore.getState().clearScreenShareState();
+        syncScreenShares(activeRoom);
       }
-
-      useVoiceStore.getState().clearScreenShareState();
-      syncScreenShares(activeRoom);
     },
-    [syncScreenShares],
+    [screenShareSession, syncScreenShares],
   );
 
   const setScreenShareQuality = useCallback(
@@ -1589,7 +1612,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       const publication = await activeRoom.localParticipant.setCameraEnabled(
         true,
         buildCameraCaptureOptions(cameraPreferences),
-        { ...getCameraPublishOptions(), source: Track.Source.Camera },
+        { ...getCameraPublishOptions(cameraPreferences.quality), source: Track.Source.Camera },
       );
       const localCameraTrack =
         publication?.track instanceof LocalVideoTrack
@@ -1636,78 +1659,131 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     }
   }, [cameraPreferences, cameraStatus, isDesktopRuntime, stopCamera, syncParticipants, t]);
 
-  const toggleScreenShare = useCallback(async () => {
-    const activeRoom = roomRef.current;
-    if (!activeRoom) {
-      return;
-    }
+  const onCameraRestartResult = useEffectEvent((targetRoom: Room | null, failed: boolean) => {
+    setCameraError(failed ? t("voice.errors.cameraStartFailed") : null);
+    syncParticipants(targetRoom);
+  });
 
-    if (useVoiceStore.getState().isScreenSharing) {
-      await stopScreenShare();
-      return;
-    }
-
-    if (!isScreenShareSupported()) {
-      const message = isDesktopRuntime
-        ? t("screenShare.errors.notSupportedDesktop")
-        : t("screenShare.errors.notSupported");
-      useVoiceStore.getState().setScreenShareError(message);
-      setTransientErrorMessage(message);
-      return;
-    }
-
-    if (countActiveScreenShares(activeRoom) >= 2) {
-      const message = t("screenShare.errors.maxReached");
-      useVoiceStore.getState().setScreenShareError(message);
-      setTransientErrorMessage(message);
-      return;
-    }
-
-    try {
-      const currentQuality = useVoiceStore.getState().screenShareQuality;
-      // A browser without the feature is asked for video only, so the share can
-      // never fail over a preference the browser cannot honour.
-      const shareSystemAudio =
-        useVoiceStore.getState().screenShareAudioEnabled && isScreenShareAudioSupported();
-      const publication = await activeRoom.localParticipant.setScreenShareEnabled(
-        true,
-        getScreenShareCaptureOptions(currentQuality, { shareSystemAudio }),
-        getScreenSharePublishOptions(currentQuality),
-      );
-      const localScreenTrack = publication?.track;
-
-      if (localScreenTrack instanceof LocalVideoTrack) {
-        // Only the video track ends the share. livekit unpublishes an ended
-        // track on its own, so audio stopping leaves the picture running.
-        localScreenTrack.mediaStreamTrack.addEventListener(
-          "ended",
-          () => {
-            void stopScreenShare();
-          },
-          { once: true },
+  // Serialize capture changes only; roster refreshes must not reopen the camera.
+  useEffect(() => {
+    const targetRoom = roomRef.current;
+    const track = getLocalCameraTrack(targetRoom);
+    if (!track || !isLocalCameraTrackLive(track)) return;
+    let cancelled = false;
+    cameraRestartQueue.current = cameraRestartQueue.current.then(async () => {
+      if (cancelled || roomRef.current !== targetRoom || !isLocalCameraTrackLive(track)) return;
+      try {
+        await track.restartTrack(
+          buildCameraCaptureOptions(useVoiceStore.getState().cameraPreferences),
         );
+        if (!cancelled && roomRef.current === targetRoom) {
+          onCameraRestartResult(targetRoom, false);
+        }
+      } catch {
+        if (!cancelled && roomRef.current === targetRoom) {
+          onCameraRestartResult(targetRoom, true);
+        }
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [cameraPreferences.deviceId, cameraPreferences.quality, cameraPreferences.frameRate]);
+
+  const requestScreenShare = useCallback(
+    async (replace: boolean) => {
+      const activeRoom = roomRef.current;
+      if (
+        !activeRoom ||
+        activeRoom.state !== ConnectionState.Connected ||
+        screenShareSession.getSnapshot() !== "idle"
+      ) {
+        return;
+      }
+      const store = useVoiceStore.getState();
+      if (replace && (!store.isScreenSharing || !store.screenShareAllowSourceSwitch)) {
+        return;
       }
 
-      if (shareSystemAudio) {
-        suppressLocalScreenShareAudioPlayback(activeRoom);
+      if (!isScreenShareSupported()) {
+        const message = isDesktopRuntime
+          ? t("screenShare.errors.notSupportedDesktop")
+          : t("screenShare.errors.notSupported");
+        useVoiceStore.getState().setScreenShareError(message);
+        setTransientErrorMessage(message);
+        return;
       }
 
-      setErrorMessage(null);
-      syncScreenShares(activeRoom);
-    } catch (error) {
-      const message = isScreenSharePermissionDenied(error)
-        ? isDesktopRuntime
-          ? t("screenShare.errors.permissionDeniedDesktop")
-          : t("screenShare.errors.permissionDenied")
-        : error instanceof Error
-          ? error.message
-          : t("screenShare.errors.startFailed");
+      if (!replace && countActiveScreenShares(activeRoom) >= 2) {
+        const message = t("screenShare.errors.maxReached");
+        useVoiceStore.getState().setScreenShareError(message);
+        setTransientErrorMessage(message);
+        return;
+      }
 
-      useVoiceStore.getState().setScreenShareError(message);
-      setTransientErrorMessage(message);
-      await stopScreenShare(activeRoom).catch(() => undefined);
+      store.setScreenShareError(null);
+      try {
+        const currentQuality = useVoiceStore.getState().screenShareQuality;
+        // A browser without the feature is asked for video only, so the share can
+        // never fail over a preference the browser cannot honour.
+        const shareSystemAudio =
+          useVoiceStore.getState().screenShareAudioEnabled && isScreenShareAudioSupported();
+        const started = await screenShareSession.start(activeRoom, {
+          capture: getScreenShareCaptureOptions(currentQuality, {
+            shareSystemAudio,
+            excludeSelfWindow: store.screenShareExcludeSelfWindow,
+            allowSourceSwitch: store.screenShareAllowSourceSwitch,
+          }),
+          publish: getScreenSharePublishOptions(currentQuality),
+          replace,
+          isCurrent: () =>
+            roomRef.current === activeRoom && activeRoom.state === ConnectionState.Connected,
+          canPublish: () =>
+            replace
+              ? useVoiceStore.getState().screenShareAllowSourceSwitch &&
+                isLocalScreenShareTrackLive(getLocalScreenShareTrack(activeRoom))
+              : countActiveScreenShares(activeRoom) < 2,
+          onEnded: () => {
+            void stopScreenShare(activeRoom);
+          },
+        });
+        if (roomRef.current !== activeRoom) return;
+
+        if (started && shareSystemAudio) {
+          suppressLocalScreenShareAudioPlayback(activeRoom);
+        }
+
+        setErrorMessage(null);
+        syncScreenShares(activeRoom);
+      } catch (error) {
+        if (roomRef.current !== activeRoom) return;
+        logWarning("[voice] Screen share operation failed", error);
+        syncScreenShares(activeRoom);
+        const message = t(
+          replace ? "screenShare.errors.switchFailed" : "screenShare.errors.startFailed",
+        );
+        useVoiceStore.getState().setScreenShareError(message);
+        setTransientErrorMessage(message);
+      }
+    },
+    [
+      isDesktopRuntime,
+      screenShareSession,
+      setTransientErrorMessage,
+      stopScreenShare,
+      syncScreenShares,
+      t,
+    ],
+  );
+
+  const toggleScreenShare = useCallback(async () => {
+    if (useVoiceStore.getState().isScreenSharing || screenShareSession.getSnapshot() !== "idle") {
+      await stopScreenShare();
+    } else {
+      await requestScreenShare(false);
     }
-  }, [isDesktopRuntime, setTransientErrorMessage, stopScreenShare, syncScreenShares, t]);
+  }, [requestScreenShare, screenShareSession, stopScreenShare]);
+  const switchScreenShareSource = useCallback(() => requestScreenShare(true), [requestScreenShare]);
 
   const leaveChannel = useCallback(async () => {
     stopHeartbeat();
@@ -1950,6 +2026,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
               useVoiceStore.getState().participantVolumes,
               DEFAULT_PARTICIPANT_VOLUME,
               useVoiceStore.getState().screenShareVolume,
+              useVoiceStore.getState().masterOutputVolume,
             );
             syncParticipants(nextRoom);
             syncScreenShares(nextRoom);
@@ -2556,6 +2633,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       useVoiceStore.getState().participantVolumes,
       DEFAULT_PARTICIPANT_VOLUME,
       useVoiceStore.getState().screenShareVolume,
+      useVoiceStore.getState().masterOutputVolume,
     );
     syncParticipants(activeRoom);
   }, [syncParticipants]);
@@ -2685,8 +2763,9 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       participantVolumes,
       DEFAULT_PARTICIPANT_VOLUME,
       screenShareVolume,
+      masterOutputVolume,
     );
-  }, [isDeafened, participantVolumes, screenShareVolume]);
+  }, [isDeafened, participantVolumes, screenShareVolume, masterOutputVolume]);
 
   // Direct calls run without adaptive stream, which also drops livekit's own
   // `pauseVideoInBackground`. Without this a hidden tab keeps pulling the other
@@ -2923,6 +3002,8 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       room,
       screenShareAudioEnabled,
       screenShareError,
+      screenShareStatus,
+      switchScreenShareSource,
       screenShareQuality,
       screenShareVolume,
       serverId,
@@ -2978,6 +3059,8 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       retryKrispNoiseCancellation,
       screenShareAudioEnabled,
       screenShareError,
+      screenShareStatus,
+      switchScreenShareSource,
       screenShareQuality,
       screenShareVolume,
       serverId,
@@ -3008,7 +3091,11 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       <VoiceParticipantsContext.Provider value={voiceParticipantsValue}>
         {children}
         <VoiceInviteToasts />
-        <VoiceAudioRenderer outputDeviceId={audioPreferences.outputDeviceId} room={room} />
+        <VoiceAudioRenderer
+          outputDeviceId={audioPreferences.outputDeviceId}
+          room={room}
+          onOutputError={handleAudioOutputError}
+        />
       </VoiceParticipantsContext.Provider>
     </VoiceStateContext.Provider>
   );

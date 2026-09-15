@@ -1,4 +1,5 @@
 import { ApiError } from "@/lib/api";
+import { activeProfileStatus } from "@wizards/types";
 import {
   resolveVisibilityDecisions,
   type VisibilityDecision,
@@ -7,14 +8,19 @@ import {
 type WebProfileUser = {
   avatarUrl: string | null;
   bannerColor: string | null;
+  bannerOffsetX: number | null;
+  bannerOffsetY: number | null;
   bannerUrl: string | null;
   bio: string | null;
   createdAt: Date;
   customStatus: string | null;
+  customStatusEmoji: string | null;
+  customStatusExpiresAt: Date | null;
   deletedAt: Date | null;
   displayName: string | null;
   id: string;
   username: string;
+  status: string;
 };
 
 type ServerMembership = { nickname: string | null; userId: string };
@@ -44,14 +50,19 @@ const defaultDependencies: WebUserProfileDependencies = {
       select: {
         avatarUrl: true,
         bannerColor: true,
+        bannerOffsetX: true,
+        bannerOffsetY: true,
         bannerUrl: true,
         bio: true,
         createdAt: true,
         customStatus: true,
+        customStatusEmoji: true,
+        customStatusExpiresAt: true,
         deletedAt: true,
         displayName: true,
         id: true,
         username: true,
+        status: true,
       },
     });
   },
@@ -87,10 +98,18 @@ export async function getWebUserProfile(
   return {
     avatarUrl: user.avatarUrl,
     bannerColor: user.bannerColor,
+    bannerOffsetX: user.bannerOffsetX,
+    bannerOffsetY: user.bannerOffsetY,
     bannerUrl: user.bannerUrl,
     bio: user.bio,
     createdAt: user.createdAt.toISOString(),
-    customStatus: decision.canViewPresence ? user.customStatus : null,
+    ...activeProfileStatus({
+      ...user,
+      customStatus:
+        decision.canViewPresence && user.status !== "OFFLINE" && user.status !== "INVISIBLE"
+          ? user.customStatus
+          : null,
+    }),
     displayName: user.displayName,
     id: user.id,
     serverNickname,

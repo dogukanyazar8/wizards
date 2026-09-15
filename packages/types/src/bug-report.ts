@@ -34,7 +34,7 @@ export type BugReportClientPlatform = z.infer<typeof BugReportClientPlatformSche
  * kanalı sözleşmesiyle (`stable | beta | uat`) aynı adları kullanmıyor, o
  * yüzden raporun kanal alanına girmeden önce çevrilir.
  */
-export const DesktopReleaseRingSchema = z.enum(["production", "production-small", "uat"]);
+export const DesktopReleaseRingSchema = z.enum(["stable", "production", "uat"]);
 export type DesktopReleaseRing = z.infer<typeof DesktopReleaseRingSchema>;
 
 /**
@@ -48,7 +48,7 @@ export function resolveBugReportReleaseChannel(ring: unknown): MobileReleaseChan
     return "stable";
   }
 
-  return parsed.data === "uat" ? "uat" : "stable";
+  return parsed.data === "uat" ? "beta" : "stable";
 }
 
 /**

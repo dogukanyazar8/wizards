@@ -1,3 +1,10 @@
+import {
+  formatShortcut,
+  formatShortcutParts,
+  readableShortcut,
+  type KeyboardPlatform,
+} from "@wizards/ui/platform-keyboard.mjs";
+
 export const APP_SHORTCUT_IDS = [
   "commandPalette.toggle",
   "settings.open",
@@ -31,7 +38,7 @@ export const APP_SHORTCUT_IDS = [
 ] as const;
 
 export type AppShortcutId = (typeof APP_SHORTCUT_IDS)[number];
-export type AppShortcutPlatform = "linux" | "macos" | "windows";
+export type AppShortcutPlatform = KeyboardPlatform;
 export type AppShortcutScope = "app" | "context" | "global";
 export type AppShortcutHandler =
   | "ChatArea"
@@ -357,6 +364,10 @@ export function matchesAppShortcut(
   event: AppShortcutEvent,
   options: MatchOptions = {},
 ): boolean {
+  // Synthetic keydown events (for example from browser integrations) may not
+  // carry KeyboardEvent.key despite the listener's static TypeScript type.
+  if (typeof event.key !== "string" || event.key.length === 0) return false;
+
   const shortcut = APP_SHORTCUT_CATALOG[id];
 
   if (
@@ -378,25 +389,13 @@ export function resolveAppShortcut<const TIds extends readonly AppShortcutId[]>(
   return ids.find((id) => matchesAppShortcut(id, event, options)) ?? null;
 }
 
-const KEY_LABELS: Readonly<Record<string, string>> = {
-  ArrowDown: "↓",
-  ArrowLeft: "←",
-  ArrowUp: "↑",
-  Escape: "Esc",
-};
-
-function formatBinding(binding: AppShortcutBinding, platform: AppShortcutPlatform): string {
-  const key = KEY_LABELS[binding.key] ?? binding.key.toUpperCase();
-
-  if (platform === "macos") {
-    return `${binding.commandOrControl || binding.meta ? "⌘" : ""}${binding.alt ? "⌥" : ""}${binding.shift ? "⇧" : ""}${key}`;
-  }
-
+function bindingAccelerator(binding: AppShortcutBinding): string {
   return [
-    binding.commandOrControl ? "Ctrl" : null,
+    binding.commandOrControl ? "CmdOrCtrl" : null,
+    binding.meta ? "Meta" : null,
     binding.alt ? "Alt" : null,
     binding.shift ? "Shift" : null,
-    key,
+    binding.key.length === 1 ? binding.key.toUpperCase() : binding.key,
   ]
     .filter(Boolean)
     .join("+");
@@ -407,5 +406,42 @@ export function getAppShortcutLabels(id: AppShortcutId, platform: AppShortcutPla
 
   return shortcut.bindings
     .filter((binding) => !binding.platform || binding.platform === platform)
-    .map((binding) => formatBinding(binding, platform));
+    .map((binding) => formatShortcut(bindingAccelerator(binding), platform));
+}
+
+export function getAppShortcutAccessibleLabels(
+  id: AppShortcutId,
+  platform: AppShortcutPlatform,
+): string[] {
+  const shortcut: AppShortcutDefinition = APP_SHORTCUT_CATALOG[id];
+  return shortcut.bindings
+    .filter((binding) => !binding.platform || binding.platform === platform)
+    .map((binding) => readableShortcut(formatShortcutParts(bindingAccelerator(binding), platform)));
+}
+
+export function getAppShortcutAriaKeyShortcuts(
+  id: AppShortcutId,
+  platform: AppShortcutPlatform,
+): string {
+  const shortcut: AppShortcutDefinition = APP_SHORTCUT_CATALOG[id];
+  return shortcut.bindings
+    .filter((binding) => !binding.platform || binding.platform === platform)
+    .flatMap((binding) => {
+      const modifiers = binding.commandOrControl
+        ? platform === "unknown"
+          ? ["Control", "Meta"]
+          : [platform === "macos" ? "Meta" : "Control"]
+        : [binding.meta ? "Meta" : ""];
+      return modifiers.map((modifier) =>
+        [
+          modifier,
+          binding.alt ? "Alt" : "",
+          binding.shift ? "Shift" : "",
+          binding.key === "+" ? "plus" : binding.key,
+        ]
+          .filter(Boolean)
+          .join("+"),
+      );
+    })
+    .join(" ");
 }

@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { pnpmInvocation } from "../../../scripts/quality/pnpm-invocation.mjs";
 import {
   buildC8ReportEnv,
   buildC8ReportArgs,
@@ -13,7 +14,6 @@ import { formatE2EEnvironmentValidation, validateE2EEnvironment } from "../src/l
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const webRoot = join(scriptDir, "..");
-const pnpmCliPath = process.env.npm_execpath;
 const runId = `${new Date().toISOString().replace(/[:.]/g, "-")}-${process.pid}`;
 const coverageTempDirectory = join(webRoot, "coverage", ".tmp", runId);
 
@@ -51,12 +51,8 @@ function runCommand(
 }
 
 function runPnpm(label: string, args: string[], env: CoverageEnvironment = process.env) {
-  if (pnpmCliPath) {
-    runCommand(label, process.execPath, [pnpmCliPath, ...args], env);
-    return;
-  }
-
-  runCommand(label, process.platform === "win32" ? "pnpm.cmd" : "pnpm", args, env);
+  const invocation = pnpmInvocation(process.env.npm_execpath, args);
+  runCommand(label, invocation.command, invocation.args, env);
 }
 
 mkdirSync(coverageTempDirectory, { recursive: true });
@@ -66,7 +62,7 @@ const coverageEnv = buildNodeCoverageEnv(process.env, coverageTempDirectory);
 runCommand(
   "node unit/integration tests",
   process.execPath,
-  ["scripts/run-node-tests.mjs"],
+  ["scripts/run-node-tests.mjs", ...process.argv.slice(2)],
   coverageEnv,
 );
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { useVirtualizer, type VirtualItem } from "@tanstack/react-virtual";
 import type { ChatMessage, DMParticipantRole } from "@wizards/types";
@@ -183,7 +184,7 @@ function MessageListContent({
   const scrollFrameRef = useRef<number | null>(null);
   const scrollTimeoutRef = useRef<number | null>(null);
   const lastHighlightedMessageIdRef = useRef<string | null>(null);
-  const [targetMessageId, setTargetMessageId] = useState<string | null>(null);
+  const targetMessageId = useSearchParams().get("message");
   const [unreadJumpDismissed, setUnreadJumpDismissed] = useState(false);
   const [deletedNoticeNow, setDeletedNoticeNow] = useState(() => Date.now());
   const [virtualScrollMargin, setVirtualScrollMargin] = useState(0);
@@ -360,19 +361,6 @@ function MessageListContent({
 
     return () => observer.disconnect();
   }, [fetchOlderMessages, hasNextPage, isFetchingNextPage, isLoading]);
-
-  useEffect(() => {
-    const readTargetMessage = () => {
-      setTargetMessageId(new URLSearchParams(window.location.search).get("message"));
-    };
-
-    readTargetMessage();
-    window.addEventListener("popstate", readTargetMessage);
-
-    return () => {
-      window.removeEventListener("popstate", readTargetMessage);
-    };
-  }, []);
 
   const scrollToMessage = useCallback(
     (messageId: string) => {

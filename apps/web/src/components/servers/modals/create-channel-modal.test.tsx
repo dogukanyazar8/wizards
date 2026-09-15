@@ -268,7 +268,7 @@ describe("kanal penceresi — sabit dış geometri", () => {
 
   it("türden bağımsız, viewport içinde kalan sabit gövde yüksekliği üretir", () => {
     assert.deepEqual(channelModalBodyStyle(), {
-      flex: "0 0 min(35rem, calc(100dvh - 12rem))",
+      flex: "0 1 min(35rem, calc(100dvh - 12rem))",
       height: "min(35rem, calc(100dvh - 12rem))",
     });
   });

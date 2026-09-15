@@ -440,7 +440,7 @@ describe("auth parity gate — SPEC §12", () => {
     assert.match(collapse, /\[data-auth-surface\] \.auth-brand \{\s*display:\s*none;/);
   });
 
-  it("keeps the shell a fixed-size centred card instead of a full-viewport layout", () => {
+  it("centres the reference frame while allowing long forms to grow and scroll", () => {
     /*
      * Referans kabuğu 1280×720 sabit bir kart ve sayfada ortalı. Görüntü alanını kaplarsa
      * marka paneli 512'de kalıp form sütunu büyüyor ve aradaki boşluk açılıyordu.
@@ -454,10 +454,14 @@ describe("auth parity gate — SPEC §12", () => {
 
     const windowBlock = readCssBlock(".auth-window");
     assert.match(windowBlock, /width:\s*var\(--auth-window-width\)/);
-    assert.match(windowBlock, /height:\s*var\(--auth-window-height\)/);
+    assert.match(windowBlock, /min-height:\s*var\(--auth-window-height\)/);
+    assert.match(windowBlock, /height:\s*auto/);
+    assert.match(windowBlock, /margin-block:\s*auto/);
 
     const pageBlock = readCssBlock(".auth-page");
-    assert.match(pageBlock, /align-items:\s*center/);
+    assert.match(pageBlock, /align-items:\s*flex-start/);
+    assert.match(pageBlock, /overflow-y:\s*auto/);
+    assert.match(pageBlock, /height:\s*100dvh/);
     assert.match(pageBlock, /justify-content:\s*center/);
 
     // Kabuk sayfa sarmalayıcısını çiziyor ve aurora pencerenin ilk çocuğu kalıyor.

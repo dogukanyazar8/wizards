@@ -1,6 +1,2 @@
-self-hosted-runner:
-  labels:
-    - wizards-ci
-    - playwright
-    - ci-fast
-    - mobile-release
+# All jobs use standard GitHub-hosted runner labels.
+{}

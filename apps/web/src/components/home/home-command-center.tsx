@@ -60,7 +60,7 @@ export function HomeCommandCenter({ viewerId }: HomeCommandCenterProps) {
       data-testid="home-command-center"
     >
       {/* Kırılım tablosu tek yerden; `layout.ts` dışında bir eşik yazılı değil. */}
-      <style dangerouslySetInnerHTML={{ __html: BENTO_CSS }} />
+      <style>{BENTO_CSS}</style>
       <HomeTopBar locale={locale} now={now} state={summary} />
 
       <div

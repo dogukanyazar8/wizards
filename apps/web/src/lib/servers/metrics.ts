@@ -98,6 +98,9 @@ export const SERVER_METRICS = {
   },
 
   /** Kanal kenar çubuğu (252) — SPEC §2.1–§2.4. */
+  /** Keep the server sidebar and channel divider aligned, including when no subtitle exists. */
+  headerHeight: 70,
+
   sidebar: {
     width: 252,
 

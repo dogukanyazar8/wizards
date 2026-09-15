@@ -3,7 +3,8 @@
  *
  * Tasarımın tüm px değerleri ×1 ölçekteki (1360×920 kabuk) tasarım pikselidir ve rem'e çevrilir
  * (`metrics.pxToRem`). Ekran büyüdükçe kompozisyon değişmez; yalnız kök font boyutu adım adım
- * yükselir ve rem tabanlı her ölçü onunla birlikte büyür.
+ * yükselir ve rem tabanlı her ölçü onunla birlikte büyür. Bu otomatik büyütme yalnız web
+ * görünümüne uygulanır; masaüstünde pencere büyümesi içerik boyutunu değiştirmez.
  *
  * Bu modül **saf**tır: DOM'a dokunmaz, tarayıcı API'si okumaz. Uygulayıcı `@/hooks/use-ui-scale`.
  */
@@ -13,6 +14,8 @@ import { HOME_METRICS } from "./metrics";
 export type UiScaleValue = 1 | 1.15 | 1.5 | 2;
 
 export type UiScaleAttribute = "1" | "1.15" | "1.5" | "2";
+
+export type UiScalePlatform = "web" | "desktop";
 
 export interface UiScaleStep {
   /** `data-ui-scale` niteliğinin değeri; testlerin ve CSS istisnalarının tutamağı. */
@@ -52,7 +55,7 @@ export interface UiScaleViewport {
 }
 
 /**
- * Görünüm alanına düşen ölçek adımı (SPEC §8.1).
+ * Web görünüm alanına düşen ölçek adımı (SPEC §8.1). Masaüstü her ölçüde ×1 kullanır.
  *
  * 1. `fit = min(width / 1360, height / 920)` — seçim **her iki eksene** bakar (§6.2).
  * 2. `fit` değerini geçmeyen en yüksek adım seçilir.
@@ -61,7 +64,14 @@ export interface UiScaleViewport {
  *
  * Ölçülemeyen görünüm alanı (SSR öncesi, sıfır, negatif, `NaN`) taban adıma düşer.
  */
-export function selectUiScale(viewport: UiScaleViewport): UiScaleStep {
+export function selectUiScale(
+  viewport: UiScaleViewport,
+  platform: UiScalePlatform = "web",
+): UiScaleStep {
+  // Native DPI ve kullanıcının yazı boyutu tercihi ayrıca uygulanır. Pencereyi
+  // büyütmek bunların üstüne ikinci bir otomatik büyütme eklememeli.
+  if (platform === "desktop") return STEP_X1;
+
   const { height, width } = viewport;
 
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {

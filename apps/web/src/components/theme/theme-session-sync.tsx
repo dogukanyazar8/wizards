@@ -33,11 +33,15 @@ export function getThemeSessionSyncDecision({
   }
 
   const normalizedCurrentTheme = normalizeWizardsThemeId(currentTheme);
+  // A server action may refresh the session after the user has selected another theme.
+  // Once the provider diverges from the last session value, the local choice wins.
+  const hasLocalSelection =
+    lastPreferredTheme != null && normalizedCurrentTheme !== lastPreferredTheme;
 
   return {
     nextLastPreferredTheme: nextPreferredTheme,
     themeToApply:
-      nextPreferredTheme && normalizedCurrentTheme !== nextPreferredTheme
+      !hasLocalSelection && nextPreferredTheme && normalizedCurrentTheme !== nextPreferredTheme
         ? nextPreferredTheme
         : null,
   };

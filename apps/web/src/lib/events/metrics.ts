@@ -649,9 +649,9 @@ export const EVENTS_METRICS = {
     durationButtonFontSize: 11.5,
     durationButtonWeight: 600,
 
-    placeTileSize: 18,
-    placeTileRadius: 6,
-    placeTileFontSize: 9,
+    placeTileSize: 30,
+    placeTileRadius: 10,
+    placeTileFontSize: 11,
     placeChevronSize: 14,
 
     publicRowGap: 14,

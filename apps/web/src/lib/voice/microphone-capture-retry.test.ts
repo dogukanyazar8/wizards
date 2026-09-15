@@ -23,16 +23,13 @@ describe("resolveMicrophoneCaptureRetry", () => {
     assert.equal(retry?.preferences.inputDeviceId, DEFAULT_AUDIO_DEVICE_ID);
   });
 
-  it("still retries when the system default device itself failed", () => {
+  it("does not retry the same unavailable default device with unchanged constraints", () => {
     const retry = resolveMicrophoneCaptureRetry(
       preferences({ inputDeviceId: DEFAULT_AUDIO_DEVICE_ID, voiceIsolation: true }),
       new DOMException("Could not start audio source", "NotReadableError"),
     );
 
-    assert.equal(retry?.reason, "bare-capture");
-    assert.equal(retry?.persistDeviceFallback, false);
-    assert.equal(retry?.persistProcessingFallback, false);
-    assert.equal(retry?.preferences.voiceIsolation, false);
+    assert.equal(retry, null);
   });
 
   it("drops voice isolation for constraint failures and persists the choice", () => {
@@ -56,4 +53,47 @@ describe("resolveMicrophoneCaptureRetry", () => {
       null,
     );
   });
+});
+
+it("retains the selected microphone when voice isolation is the rejected constraint", () => {
+  const error = Object.assign(new DOMException("", "OverconstrainedError"), {
+    constraint: "voiceIsolation",
+  });
+  const retry = resolveMicrophoneCaptureRetry(
+    preferences({ inputDeviceId: "mic-1", voiceIsolation: true }),
+    error,
+  );
+  assert.equal(retry?.reason, "stable-processing");
+  assert.equal(retry?.preferences.inputDeviceId, "mic-1");
+});
+it("does not blame the device for a known non-device constraint", () => {
+  const error = Object.assign(new DOMException("", "OverconstrainedError"), {
+    constraint: "sampleRate",
+  });
+  assert.equal(
+    resolveMicrophoneCaptureRetry(
+      preferences({ inputDeviceId: "mic-1", voiceIsolation: false }),
+      error,
+    ),
+    null,
+  );
+});
+it("a missing exact device takes priority over optional processing", () => {
+  const error = Object.assign(new DOMException("", "OverconstrainedError"), {
+    constraint: "deviceId",
+  });
+  const retry = resolveMicrophoneCaptureRetry(
+    preferences({ inputDeviceId: "mic-1", voiceIsolation: true }),
+    error,
+  );
+  assert.equal(retry?.reason, "default-device");
+  assert.equal(retry?.preferences.voiceIsolation, true);
+});
+
+it("still changes a selected device when an older engine omits the rejected constraint", () => {
+  const retry = resolveMicrophoneCaptureRetry(
+    preferences({ inputDeviceId: "missing-mic", voiceIsolation: true }),
+    new DOMException("", "OverconstrainedError"),
+  );
+  assert.equal(retry?.reason, "default-device");
 });

@@ -81,7 +81,7 @@ export async function onAppSessionStarted(
 ): Promise<void> {
   // The badge asks for a beta preference *and* a session on it; this call is
   // made from session creation, so the session half is already true.
-  if (args.releaseChannel !== "BETA") {
+  if (args.releaseChannel !== "UAT") {
     return;
   }
 

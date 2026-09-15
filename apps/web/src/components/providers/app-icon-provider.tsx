@@ -2,8 +2,7 @@
 
 import { useEffect } from "react";
 import type { ReactNode } from "react";
-import { DEFAULT_APP_ICON_ID, getAppIconById } from "@/lib/app-icons";
-import { useAppStore } from "@/lib/store";
+import { DEFAULT_APP_ICON_ID, getAppIconById, getAppFaviconById } from "@/lib/app-icons";
 
 const APP_ICON_LINK_SELECTOR =
   'link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"], link[rel="apple-touch-icon-precomposed"], link[data-wizards-app-icon="true"]';
@@ -14,10 +13,15 @@ function applyAttributes(link: HTMLLinkElement, attributes: Record<string, strin
   });
 }
 
-function updateIconLink(link: HTMLLinkElement, href: string) {
+function updateIconLink(
+  link: HTMLLinkElement,
+  href: string,
+  faviconHref: string,
+  faviconType: string,
+) {
   const rel = link.getAttribute("rel")?.toLowerCase() ?? "";
 
-  link.setAttribute("href", href);
+  link.setAttribute("href", rel.includes("apple-touch-icon") ? href : faviconHref);
 
   if (rel.includes("apple-touch-icon")) {
     applyAttributes(link, {
@@ -27,7 +31,7 @@ function updateIconLink(link: HTMLLinkElement, href: string) {
   }
 
   applyAttributes(link, {
-    type: "image/png",
+    type: faviconType,
   });
 }
 
@@ -46,17 +50,17 @@ function ensureOwnedIconLink(rel: string, href: string, attributes: Record<strin
   applyAttributes(link, attributes);
 }
 
-function applyAppIcon(href: string) {
+function applyAppIcon(href: string, faviconHref: string, faviconType: string) {
   document
     .querySelectorAll<HTMLLinkElement>(APP_ICON_LINK_SELECTOR)
-    .forEach((link) => updateIconLink(link, href));
+    .forEach((link) => updateIconLink(link, href, faviconHref, faviconType));
 
-  ensureOwnedIconLink("icon", href, {
+  ensureOwnedIconLink("icon", faviconHref, {
     sizes: "any",
-    type: "image/png",
+    type: faviconType,
   });
-  ensureOwnedIconLink("shortcut icon", href, {
-    type: "image/png",
+  ensureOwnedIconLink("shortcut icon", faviconHref, {
+    type: faviconType,
   });
   ensureOwnedIconLink("apple-touch-icon", href, {
     sizes: "512x512",
@@ -66,16 +70,15 @@ function applyAppIcon(href: string) {
 }
 
 export function AppIconProvider({ children }: { children: ReactNode }) {
-  const appIconId = useAppStore((state) => state.appIconId);
-
   useEffect(() => {
-    const icon = getAppIconById(appIconId ?? DEFAULT_APP_ICON_ID);
+    const icon = getAppIconById(DEFAULT_APP_ICON_ID);
+    const favicon = getAppFaviconById(icon.id);
     const iconHref = `${icon.src}?wizardsIcon=${encodeURIComponent(icon.id)}&updated=${Date.now()}`;
 
-    applyAppIcon(iconHref);
+    applyAppIcon(iconHref, favicon.src, favicon.type);
 
     const observer = new MutationObserver(() => {
-      applyAppIcon(iconHref);
+      applyAppIcon(iconHref, favicon.src, favicon.type);
     });
 
     observer.observe(document.head, {
@@ -84,7 +87,7 @@ export function AppIconProvider({ children }: { children: ReactNode }) {
     });
 
     return () => observer.disconnect();
-  }, [appIconId]);
+  }, []);
 
   return children;
 }

@@ -208,7 +208,7 @@ describe("server rail support buttons", () => {
     assert.match(download, /hsl\(var\(--success\) \/ 0\.2\)/);
     assert.match(download, /2\.5625rem/);
     assert.match(report, /title="Sorun bildir"/);
-    assert.match(report, /hsl\(var\(--surface-tertiary\)\)/);
+    assert.match(report, /hsl\(var\(--warning\) \/ 0\.18\)/);
     assert.match(report, /2\.5625rem/);
   });
 

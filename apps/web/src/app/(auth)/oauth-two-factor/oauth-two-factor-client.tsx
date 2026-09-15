@@ -1,10 +1,17 @@
 "use client";
 
-import { KeyRound, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useState, type FormEvent } from "react";
 
+import {
+  AuthDescription,
+  AuthEyebrow,
+  AuthScreenLayout,
+  AuthTitle,
+  PrimaryButton,
+  TextInput,
+} from "@/components/auth/auth-screen";
 import { useI18n } from "@/components/providers/locale-provider";
 import type { OAuthTwoFactorProvider } from "@/lib/auth/oauth-two-factor";
 
@@ -67,76 +74,45 @@ export function OAuthTwoFactorClient({
   }
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-4">
-        <div className="app-badge-accent inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em]">
-          <ShieldCheck className="h-3.5 w-3.5" />
-          {t("auth.oauthTwoFactor.badge")}
-        </div>
-        <div>
-          <h1 className="text-app-foreground text-4xl font-semibold tracking-tight">
-            {t("auth.oauthTwoFactor.title")}
-          </h1>
-          <p className="text-app-muted mt-3 text-sm leading-7">{t("auth.oauthTwoFactor.body")}</p>
-        </div>
-      </div>
+    <AuthScreenLayout>
+      <AuthEyebrow>{t("auth.oauthTwoFactor.badge")}</AuthEyebrow>
+      <AuthTitle>{t("auth.oauthTwoFactor.title")}</AuthTitle>
+      <AuthDescription>{t("auth.oauthTwoFactor.body")}</AuthDescription>
 
       {challengeReady ? (
-        <form className="space-y-5" onSubmit={handleSubmit}>
-          <label className="block space-y-2" htmlFor="oauth-two-factor-code">
-            <span className="text-app-foreground text-sm font-semibold">
-              {t("auth.oauthTwoFactor.codeLabel")}
-            </span>
-            {/*
-             * Odak halkası sarmalayıcıda: iç alan `outline-none` taşıyor, halka olmasaydı
-             * klavyeyle gelen kullanıcı alanın odakta olduğunu göremezdi (SPEC §11/6).
-             */}
-            <span className="app-input flex h-14 items-center gap-3 rounded-2xl border px-4 focus-within:border-[hsl(var(--ring)/0.78)] focus-within:ring-4 focus-within:ring-[hsl(var(--ring)/0.13)]">
-              <KeyRound className="text-app-muted h-5 w-5" aria-hidden="true" />
-              <input
-                autoCapitalize="none"
-                autoComplete="one-time-code"
-                autoCorrect="off"
-                className="text-app-foreground min-w-0 flex-1 bg-transparent text-sm outline-none"
-                id="oauth-two-factor-code"
-                maxLength={64}
-                onChange={(event) => {
-                  setCode(event.target.value);
-                  setError(null);
-                }}
-                placeholder={t("auth.oauthTwoFactor.codePlaceholder")}
-                value={code}
-              />
-            </span>
-          </label>
-
-          {error ? (
-            <p className="text-sm font-medium text-[hsl(var(--danger))]" role="alert">
-              {error}
-            </p>
-          ) : null}
-
-          <button
-            className="app-button-primary inline-flex h-12 w-full items-center justify-center rounded-2xl px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={submitting}
-            type="submit"
-          >
+        <form
+          className="mt-[var(--auth-title-gap)] flex flex-col gap-[var(--auth-title-gap)]"
+          onSubmit={handleSubmit}
+        >
+          <TextInput
+            autoCapitalize="none"
+            autoComplete="one-time-code"
+            autoCorrect="off"
+            error={error}
+            id="oauth-two-factor-code"
+            label={t("auth.oauthTwoFactor.codeLabel")}
+            maxLength={64}
+            onChange={(event) => {
+              setCode(event.target.value);
+              setError(null);
+            }}
+            placeholder={t("auth.oauthTwoFactor.codePlaceholder")}
+            value={code}
+          />
+          <PrimaryButton disabled={submitting} loading={submitting} type="submit">
             {submitting ? t("auth.oauthTwoFactor.submitting") : t("auth.oauthTwoFactor.submit")}
-          </button>
+          </PrimaryButton>
         </form>
       ) : (
-        <div className="space-y-5">
-          <p className="rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.1)] p-4 text-sm text-[hsl(var(--danger))]">
+        <div className="mt-[var(--auth-title-gap)] flex flex-col gap-[var(--auth-title-gap)]">
+          <p className="auth-field-error" role="alert">
             {t("auth.oauthTwoFactor.invalidChallenge")}
           </p>
-          <Link
-            className="app-button-primary inline-flex h-12 w-full items-center justify-center rounded-2xl px-4 text-sm font-semibold"
-            href="/login"
-          >
+          <Link className="auth-btn-primary" href="/login">
             {t("auth.oauthTwoFactor.backToLogin")}
           </Link>
         </div>
       )}
-    </div>
+    </AuthScreenLayout>
   );
 }
