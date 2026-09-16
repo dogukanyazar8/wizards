@@ -21,7 +21,7 @@
     "maintenance:cleanup-reauth": "pnpm --filter @wizards/web maintenance:cleanup-reauth",
     "quality:dashboard": "node tools/local-quality-dashboard/server.mjs",
     "test": "turbo test",
-    "test:coverage": "turbo test:coverage --filter @wizards/web",
+    "test:coverage": "turbo test:coverage --filter @wizards/web --log-order=stream",
     "test:quality-dashboard": "node --test tools/local-quality-dashboard/*.test.mjs",
     "test:quality-dashboard:browser": "pnpm --filter @wizards/web exec playwright test --config playwright.quality-dashboard.config.ts",
     "test:toolchain": "node --test scripts/quality/*.test.mjs",

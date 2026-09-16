@@ -1,4 +1,9 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import {
   buildC8ReportArgs,
@@ -22,6 +27,67 @@ function validation(ok: boolean): E2EEnvironmentValidation {
 }
 
 describe("coverage runner contract", () => {
+  it("incrementally merges complementary runs without losing uncovered files or threshold failures", () => {
+    const root = mkdtempSync(join(tmpdir(), "whispr-coverage-merge-"));
+    const raw = join(root, "raw");
+    const c8 = createRequire(import.meta.url).resolve("c8/bin/c8.js");
+    const reportEnv = { ...process.env, ...buildC8ReportEnv(process.env) };
+    delete reportEnv.NODE_V8_COVERAGE;
+
+    try {
+      mkdirSync(join(root, "src"));
+      mkdirSync(raw);
+      writeFileSync(
+        join(root, "src", "branch.ts"),
+        "export function choose(value: boolean) {\n  if (value) return 1;\n  return 2;\n}\nchoose(process.argv[2] === 'true');\n",
+      );
+      writeFileSync(
+        join(root, "src", "uncovered.ts"),
+        "export function neverCalled() {\n  return 0;\n}\n",
+      );
+
+      for (const value of ["true", "false"]) {
+        const result = spawnSync(process.execPath, ["src/branch.ts", value], {
+          cwd: root,
+          env: { ...process.env, NODE_V8_COVERAGE: raw },
+          encoding: "utf8",
+          timeout: 30_000,
+        });
+        assert.equal(result.status, 0, result.stderr);
+      }
+
+      const summaries = [];
+      for (const incremental of [false, true]) {
+        const reportsDir = join(root, incremental ? "incremental" : "baseline");
+        const args = buildC8ReportArgs({ reportsDir, tempDirectory: raw }).filter(
+          (arg) => arg !== "--check-coverage" && (incremental || arg !== "--merge-async"),
+        );
+        const result = spawnSync(process.execPath, [c8, ...args], {
+          cwd: root,
+          env: reportEnv,
+          encoding: "utf8",
+          timeout: 30_000,
+        });
+        assert.equal(result.status, 0, result.stderr);
+        summaries.push(JSON.parse(readFileSync(join(reportsDir, "coverage-summary.json"), "utf8")));
+      }
+
+      assert.deepEqual(summaries[1], summaries[0]);
+      assert.equal(summaries[1][join(root, "src", "branch.ts")].branches.pct, 100);
+      assert.equal(summaries[1][join(root, "src", "uncovered.ts")].lines.pct, 0);
+
+      const failedGate = spawnSync(
+        process.execPath,
+        [c8, ...buildC8ReportArgs({ reportsDir: join(root, "gate"), tempDirectory: raw })],
+        { cwd: root, env: reportEnv, encoding: "utf8", timeout: 30_000 },
+      );
+      assert.equal(failedGate.status, 1, failedGate.stderr);
+      assert.match(failedGate.stderr, /Coverage for functions .* does not meet global threshold/u);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("uses ratcheted thresholds for the merged c8 report", () => {
     assert.deepEqual(COVERAGE_THRESHOLDS, {
       branches: 67,
@@ -37,6 +103,7 @@ describe("coverage runner contract", () => {
       [
         "report",
         "--all",
+        "--merge-async",
         "--reporter=text",
         "--reporter=json-summary",
         "--include=src/**/*.ts",
@@ -90,19 +157,19 @@ describe("coverage runner contract", () => {
     });
   });
 
-  it("gives only the c8 report child enough heap for the all-file merge", () => {
+  it("bounds the incremental c8 merge heap below the hosted runner memory", () => {
     assert.deepEqual(
       buildC8ReportEnv({
         NODE_OPTIONS: "--enable-source-maps",
         PATH: "bin",
       }),
       {
-        NODE_OPTIONS: "--enable-source-maps --max-old-space-size=8192",
+        NODE_OPTIONS: "--enable-source-maps --max-old-space-size=4096",
         PATH: "bin",
       },
     );
     assert.deepEqual(buildC8ReportEnv({ PATH: "bin" }), {
-      NODE_OPTIONS: "--max-old-space-size=8192",
+      NODE_OPTIONS: "--max-old-space-size=4096",
       PATH: "bin",
     });
     assert.deepEqual(
@@ -110,7 +177,7 @@ describe("coverage runner contract", () => {
         NODE_OPTIONS: "--max-old-space-size=2048 --enable-source-maps",
       }),
       {
-        NODE_OPTIONS: "--enable-source-maps --max-old-space-size=8192",
+        NODE_OPTIONS: "--enable-source-maps --max-old-space-size=4096",
       },
     );
   });

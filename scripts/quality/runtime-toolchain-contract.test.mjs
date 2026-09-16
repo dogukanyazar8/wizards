@@ -260,6 +260,11 @@ test("CI provides a non-routable LiveKit URL to coverage tests", () => {
     verifyJob,
     /^      - name: Test with coverage baseline\r?\n        env:\r?\n          LIVEKIT_URL: ws:\/\/127\.0\.0\.1:7880$/mu,
   );
+  assert.match(
+    verifyJob,
+    /timeout-minutes: 20\r?\n(?:[^\n]*\r?\n)*?        run: pnpm --filter @wizards\/web test:coverage --test-timeout=120000/u,
+  );
+  assert.match(readJson("package.json").scripts["test:coverage"], /--log-order=stream/u);
 });
 
 test("actionlint CI job is checksum-verified, fail-closed, and least-privilege", () => {

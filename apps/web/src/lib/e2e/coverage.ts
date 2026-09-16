@@ -13,7 +13,7 @@ export type ApiE2ECoverageMode = {
 
 export type CoverageEnvironment = Record<string, string | undefined>;
 
-const C8_REPORT_HEAP_MIB = 8192;
+const C8_REPORT_HEAP_MIB = 4096;
 
 export function buildNodeCoverageEnv(
   env: CoverageEnvironment,
@@ -26,9 +26,9 @@ export function buildNodeCoverageEnv(
 }
 
 /**
- * `c8 report --all` parses every V8 coverage shard and every included source
- * file in one process. Keep its larger heap scoped to that merge instead of
- * raising memory for the much longer test and E2E child processes.
+ * Incremental merging avoids retaining every raw V8 report at once. Keep its
+ * heap below the hosted runner's total memory, leaving room for native memory
+ * and the OS, and scope this budget to the report child only.
  */
 export function buildC8ReportEnv(env: CoverageEnvironment): CoverageEnvironment {
   const nodeOptions = (env.NODE_OPTIONS ?? "")
@@ -46,6 +46,7 @@ export function buildC8ReportArgs(args: { reportsDir: string; tempDirectory: str
   return [
     "report",
     "--all",
+    "--merge-async",
     "--reporter=text",
     "--reporter=json-summary",
     "--include=src/**/*.ts",
