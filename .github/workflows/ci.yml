@@ -613,6 +613,9 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter @wizards/web exec playwright install --with-deps chromium
 
+      - name: Test login challenge interaction
+        run: pnpm --filter @wizards/web exec node --test scripts/login-turnstile-browser.test.mjs
+
       - name: Run accessibility scan
         run: pnpm --filter @wizards/web e2e:a11y
 

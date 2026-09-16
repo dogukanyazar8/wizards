@@ -2630,8 +2630,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/app/(auth)/login/login-client.tsx": {
-    "mtime": 1787809280.5066717,
-    "ast_hash": "d60352fb38d6355c9ee1851369e5c294",
+    "mtime": 1789567444.1559265,
+    "ast_hash": "9beffcd5aa35bf60bd1b566b58090396",
     "semantic_hash": ""
   },
   "apps/web/src/app/(auth)/login/page.tsx": {
@@ -3895,8 +3895,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/auth/turnstile-widget.tsx": {
-    "mtime": 1786475616.8332367,
-    "ast_hash": "5e0c5178cbe92b0d569be15b012f7522",
+    "mtime": 1789567444.1559265,
+    "ast_hash": "4deaf1c216c3f405d3553a8f73e68ff5",
     "semantic_hash": ""
   },
   "apps/web/src/components/brand/brand-logo.tsx": {
@@ -6980,8 +6980,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1789563162.9366474,
-    "ast_hash": "fe476cd2cbc51bd2325a622e2ba827cc",
+    "mtime": 1789567508.3305576,
+    "ast_hash": "5614ae5a52a242e6338bed4a4e1b2ce1",
     "semantic_hash": ""
   },
   ".github/workflows/mobile-redesign-device-gate-nightly.yml": {
@@ -25672,6 +25672,11 @@
   "packages/types/src/game-activity.test.ts": {
     "mtime": 1789563055.7242734,
     "ast_hash": "8323e0054297375e61234021c0146a20",
+    "semantic_hash": ""
+  },
+  "apps/web/scripts/login-turnstile-browser.test.mjs": {
+    "mtime": 1789567508.4554198,
+    "ast_hash": "7202c9e91fa88c9384dc3658d0bf3d79",
     "semantic_hash": ""
   }
 }

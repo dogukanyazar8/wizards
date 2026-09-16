@@ -19,6 +19,8 @@ type TurnstileApi = {
     options: {
       "error-callback": () => void;
       "expired-callback": () => void;
+      "timeout-callback": () => void;
+      "unsupported-callback": () => void;
       action: string;
       callback: (token: string) => void;
       language: string;
@@ -59,6 +61,7 @@ export function TurnstileWidget({
   const widgetIdRef = useRef<string | null>(null);
   const [scriptReady, setScriptReady] = useState(false);
   const [scriptFailed, setScriptFailed] = useState(false);
+  const [challengeFailed, setChallengeFailed] = useState(false);
   const isE2EBypass = isE2ETurnstileBypassEnabled();
 
   useEffect(() => {
@@ -88,15 +91,21 @@ export function TurnstileWidget({
       onTokenChange("");
     }
 
+    const handleChallengeError = () => {
+      setChallengeFailed(true);
+      onTokenChange("");
+    };
+
     widgetIdRef.current = window.turnstile.render(containerRef.current, {
-      "error-callback": () => {
-        onTokenChange("");
-      },
+      "error-callback": handleChallengeError,
       "expired-callback": () => {
         onTokenChange("");
       },
+      "timeout-callback": handleChallengeError,
+      "unsupported-callback": handleChallengeError,
       action,
       callback: (token) => {
+        setChallengeFailed(false);
         onTokenChange(token);
       },
       language: locale,
@@ -148,7 +157,7 @@ export function TurnstileWidget({
             {t("auth.turnstile.loading")}
           </p>
         ) : null}
-        {scriptFailed ? (
+        {scriptFailed || challengeFailed ? (
           <p className="auth-reference-turnstile-state is-error" role="alert">
             {t("auth.turnstile.unavailable")}
           </p>

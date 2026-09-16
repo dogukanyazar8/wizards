@@ -320,6 +320,15 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
 
             <input type="hidden" {...register("turnstileToken")} />
 
+            {/* Managed challenges may require interaction, including inside desktop WebViews. */}
+            {TURNSTILE_SITE_KEY ? (
+              <TurnstileWidget
+                action="login"
+                onTokenChange={handleTurnstileTokenChange}
+                siteKey={TURNSTILE_SITE_KEY}
+              />
+            ) : null}
+
             <PrimaryButton
               /*
                * Turnstile yapılandırılmamış bir ortamda (yerel geliştirme, site anahtarı yok)
@@ -333,20 +342,6 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
               {t("auth.login.cta")}
             </PrimaryButton>
           </form>
-
-          {/*
-           * SPEC §4.1'de görünür bir Turnstile satırı yok, ama `loginAction` token istiyor.
-           * Widget görünmez kalır; token gelmeden birincil düğme açılmaz.
-           */}
-          {TURNSTILE_SITE_KEY ? (
-            <div className="sr-only">
-              <TurnstileWidget
-                action="login"
-                onTokenChange={handleTurnstileTokenChange}
-                siteKey={TURNSTILE_SITE_KEY}
-              />
-            </div>
-          ) : null}
 
           <AuthDivider />
 
