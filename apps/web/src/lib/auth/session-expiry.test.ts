@@ -67,7 +67,11 @@ describe("Auth.js session expiry contract", () => {
   });
 
   for (const rememberMe of [false, true]) {
-    it(`aligns credential login and renewal cookies with rememberMe=${rememberMe}`, async () => {
+    it(`aligns credential login and renewal cookies with rememberMe=${rememberMe}`, async (t) => {
+      // JWT iat is assigned after async key derivation, while exp is chosen in
+      // the callback. A real second boundary can legitimately shorten exp-iat.
+      // Freeze only this test's clock to keep the exact policy assertion stable.
+      t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-16T12:00:00Z") });
       const secret = randomBytes(32).toString("hex");
       const cookieName = "authjs.session-token";
       const maxAge = rememberMe ? 2_592_000 : 43_200;

@@ -150,7 +150,8 @@ export default withSentryConfig(withBundleAnalyzer(nextConfig), {
       removeDebugLogging: true,
     },
   },
-  tunnelRoute: "/monitoring",
+  // /monitoring is a bounded route handler. Sentry's generated external rewrite
+  // uses Next/httpxy and exceeds ServerResponse's listener budget on Next 16.3.
   widenClientFileUpload: true,
   release: { name: whisprBuildId },
   sourcemaps: { deleteSourcemapsAfterUpload: true },

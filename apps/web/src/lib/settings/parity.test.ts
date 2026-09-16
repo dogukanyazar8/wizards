@@ -161,13 +161,13 @@ describe("settings parity — satır ve kontroller", () => {
 });
 
 describe("settings parity — hero ve diğer özel bloklar", () => {
-  it("hero bloğunun banner, avatar ve halka ölçülerini korur", () => {
+  it("hero bloğunun avatar, halka ve kontrol ölçülerini korur", () => {
     const { hero } = SETTINGS_METRICS.blocks;
 
-    assertReferenceContains(`height:${hero.bannerHeight}px;background:linear-gradient(120deg`);
+    // Banner height and avatar overlap intentionally differ from the reference;
+    // profile-hero-card.test.tsx covers the extended banner geometry.
     assertReferenceContains(`hint-size="${hero.avatarSize}px,${hero.avatarSize}px"`);
     assertReferenceContains(`box-shadow:0 0 0 ${hero.avatarRing}px hsl(var(--surface-card))`);
-    assertReferenceContains(`margin-top:${hero.avatarRowMarginTop}px`);
     assertReferenceContains(
       `width:${hero.statusDotSize}px;height:${hero.statusDotSize}px;border-radius:50%`,
     );

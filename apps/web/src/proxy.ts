@@ -334,6 +334,6 @@ export const config = {
   matcher: [
     "/api/v1/:path*",
     "/api/e2e/:path*",
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)",
+    "/((?!monitoring(?:/|$)|api|_next/static|_next/image|favicon.ico|.*\\..*).*)",
   ],
 };

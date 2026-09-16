@@ -82,13 +82,13 @@ describe("ProfileHeroCard — geometri", () => {
     assert.match(SOURCE, /mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between/u);
   });
 
-  it("132 banner · 80 avatar · 5 halka · -42 üst boşluk sözlükten geliyor", () => {
+  it("banner adın üstüne uzarken avatarın ve metnin konumunu korur", () => {
     const markup = render();
 
-    assert.ok(markup.includes(`height:${pxToRem(hero.bannerHeight)}`));
+    assert.ok(markup.includes(`height:${pxToRem(180)}`));
     assert.ok(markup.includes(`width:${pxToRem(hero.avatarSize)}`));
     assert.ok(markup.includes(`0 0 0 ${pxToRem(hero.avatarRing)} hsl(var(--surface-card))`));
-    assert.ok(markup.includes(`margin-top:${pxToRem(hero.avatarRowMarginTop)}`));
+    assert.ok(markup.includes(`margin-top:${pxToRem(-90)}`));
   });
 
   it("17 px durum noktası ve 28 px kamera düğmesi", () => {

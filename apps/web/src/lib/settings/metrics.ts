@@ -938,7 +938,8 @@ export const SETTINGS_METRICS = {
   blocks: {
     /** SPEC §5.1 — Profil hero kartı. Ad ve kullanıcı adı yazdıkça canlı güncellenir. */
     hero: {
-      bannerHeight: 132,
+      // Extend the banner behind the avatar; compensate below to keep the content in place.
+      bannerHeight: 180,
       bannerFadeHeight: 64,
       bannerButtonTop: 11,
       bannerButtonRight: 12,
@@ -947,7 +948,7 @@ export const SETTINGS_METRICS = {
       bannerButtonPaddingX: 11,
       bannerButtonRadius: 9,
       bannerRemoveSize: 29,
-      avatarRowMarginTop: -42,
+      avatarRowMarginTop: -90,
       avatarRowPaddingX: 18,
       avatarRowGap: 15,
       avatarSize: 80,

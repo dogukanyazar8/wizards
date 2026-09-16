@@ -7,12 +7,12 @@ is required for tests, builds, or E2E to pass.
 
 ## Components
 
-| Sentry project | Platform | Surface |
-|---|---|---|
-| `whispr-server` | Node.js | `apps/web/instrument.ts` (web server process + outbox worker, same codebase, distinguished by `process` tag) |
-| `whispr-web` | Next.js / Browser | `apps/web/src/instrumentation-client.ts` (browser), `apps/web/src/instrumentation.ts` (RSC/edge fallback) |
-| `whispr-mobile` | React Native | `apps/mobile/src/observability/mobile-sentry.ts` |
-| `whispr-desktop` | Rust | `apps/desktop/src-tauri/src/lib.rs` (`run()`, build-time DSN) |
+| Sentry project   | Platform          | Surface                                                                                                      |
+| ---------------- | ----------------- | ------------------------------------------------------------------------------------------------------------ |
+| `whispr-server`  | Node.js           | `apps/web/instrument.ts` (web server process + outbox worker, same codebase, distinguished by `process` tag) |
+| `whispr-web`     | Next.js / Browser | `apps/web/src/instrumentation-client.ts` (browser), `apps/web/src/instrumentation.ts` (RSC/edge fallback)    |
+| `whispr-mobile`  | React Native      | `apps/mobile/src/observability/mobile-sentry.ts`                                                             |
+| `whispr-desktop` | Rust              | `apps/desktop/src-tauri/src/lib.rs` (`run()`, build-time DSN)                                                |
 
 - Organization slug: **`whispr-p0`** (not the generic `whispr` — verify this before writing any
   script or CI variable that references the org).
@@ -28,22 +28,54 @@ is required for tests, builds, or E2E to pass.
 
 ## Environment Variables and Kill Switch
 
-| Variable | Surface | Empty behavior |
-|---|---|---|
-| `SENTRY_DSN` | web server + outbox worker | Sentry fully disabled (no-op); `instrument.ts` logs `[observability] SENTRY_DSN not set; Sentry disabled.` |
-| `NEXT_PUBLIC_SENTRY_DSN` | browser | Sentry disabled in the client bundle |
-| `SENTRY_TRACES_SAMPLE_RATE` | server | Defaults to `0.1` |
-| `SENTRY_ORG` | build (source maps) | `whispr-p0` |
-| `SENTRY_PROJECT` | build (source maps) | Set per app: `whispr-web` for the Next.js build |
-| `SENTRY_AUTH_TOKEN` | build only — Railway deploy build, never GitHub CI | Source map upload silently skipped; build still succeeds |
-| `SENTRY_URL` | build (source maps) | Defaults to `https://de.sentry.io` in `next.config.ts` |
-| `EXPO_PUBLIC_WHISPR_SENTRY_DSN` | mobile | Sentry disabled; `initMobileSentry` returns `false` |
-| `WHISPR_DESKTOP_SENTRY_DSN` | desktop, **build time only** (`option_env!`) | `sentry::init` never called; guard is `None` |
+| Variable                        | Surface                                            | Empty behavior                                                                                             |
+| ------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `SENTRY_DSN`                    | web server + outbox worker                         | Sentry fully disabled (no-op); `instrument.ts` logs `[observability] SENTRY_DSN not set; Sentry disabled.` |
+| `NEXT_PUBLIC_SENTRY_DSN`        | browser                                            | Sentry disabled in the client bundle                                                                       |
+| `SENTRY_TRACES_SAMPLE_RATE`     | server                                             | Defaults to `0.1`                                                                                          |
+| `SENTRY_ORG`                    | build (source maps)                                | `whispr-p0`                                                                                                |
+| `SENTRY_PROJECT`                | build (source maps)                                | Set per app: `whispr-web` for the Next.js build                                                            |
+| `SENTRY_AUTH_TOKEN`             | build only — Railway deploy build, never GitHub CI | Source map upload silently skipped; build still succeeds                                                   |
+| `SENTRY_URL`                    | build (source maps)                                | Defaults to `https://de.sentry.io` in `next.config.ts`                                                     |
+| `EXPO_PUBLIC_WHISPR_SENTRY_DSN` | mobile                                             | Sentry disabled; `initMobileSentry` returns `false`                                                        |
+| `WHISPR_DESKTOP_SENTRY_DSN`     | desktop, **build time only** (`option_env!`)       | `sentry::init` never called; guard is `None`                                                               |
 
 `SENTRY_AUTH_TOKEN` is an organization auth token (`org:ci` scope). It is never committed and
 never passed to the GitHub Actions `verify` job's build step — only to the Railway deployment
 build (`turbo.json`'s `build` task env list includes it so Railway's Turbo build can see it) and
 to EAS as a `Sensitive` environment variable scoped to `Preview` + `Production`.
+
+## Browser Envelope Tunnel
+
+`POST /monitoring` is a Node route handler, not a Sentry-generated external rewrite.
+Keep `tunnel: "/monitoring"` in the browser SDK, but do not restore `tunnelRoute` in
+`next.config.ts`: Next 16.3's external rewrite/httpxy path exceeds the response listener
+budget when combined with Sentry HTTP instrumentation. Session middleware excludes this path.
+
+The handler accepts only the HTTPS ingest host, public key and project in
+`NEXT_PUBLIC_SENTRY_DSN`. `SENTRY_DSN` remains the separate server/worker project. Legacy
+query parameters cannot choose the destination. The uncompressed envelope is forwarded
+byte-for-byte; request cookies and authorization headers are not forwarded. Redirects are
+not followed, and upstream bodies/cookies are not returned to the client.
+
+Limits per process: 1 MiB per envelope, 16 KiB envelope header, 8 simultaneous uploads,
+8 seconds for the entire upload/forward/response operation, and 64 KiB upstream response.
+A dedicated IPv4 HTTPS keep-alive pool reuses connections without changing global DNS or
+TLS verification. Existing browser error/trace telemetry needs no configuration change.
+Compressed requests and envelopes exceeding these bounds are rejected (415/413).
+
+Upstream rate-limit headers reach the SDK. Network failures return 502, upstream deadlines
+504, stalled uploads 408, and concurrency exhaustion 503. Temporary failures include SDK
+backoff headers. POSTs are not retried automatically because an envelope might already have
+been accepted. Inspect `/monitoring` HTTP status codes when diagnosing delivery; a healthy
+`/ready` endpoint does not prove Sentry ingestion. Missing/invalid client DSN fails closed
+with 503. Do not silence process-wide listener warnings as a workaround.
+
+Focused checks, from `apps/web`:
+
+```sh
+node --import tsx --test src/lib/observability/sentry-tunnel*.test.ts
+```
 
 ## PII Policy — Layered Redaction
 
@@ -75,10 +107,10 @@ User context is limited to `userId` everywhere. Email, IP, and user-agent are ne
 
 ## Sampling
 
-| Environment | Server trace rate | Client trace rate | Error rate |
-|---|---|---|---|
-| Production | `0.1` | `0.05` | `1.0` (always) |
-| UAT | `1.0` | `1.0` | `1.0` (always) |
+| Environment | Server trace rate | Client trace rate | Error rate     |
+| ----------- | ----------------- | ----------------- | -------------- |
+| Production  | `0.1`             | `0.05`            | `1.0` (always) |
+| UAT         | `1.0`             | `1.0`             | `1.0` (always) |
 
 `E2E_TEST_MODE=true` / `NEXT_PUBLIC_E2E_TEST_MODE=true` drop every event via `beforeSend`
 regardless of sample rate.
@@ -155,5 +187,5 @@ redeploy. Every SDK returns to no-op; no code revert is needed.
   US endpoint).
 - **Testing locally with a real DSN:** `apps/web/.env` is git-ignored; set
   `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN` there, then `pnpm --filter @wizards/web build && pnpm
-  --filter @wizards/web start` (the dev server via `next dev`/`tsx watch` never initializes
+--filter @wizards/web start` (the dev server via `next dev`/`tsx watch` never initializes
   Sentry — that is intentional, `instrument.ts` only runs through the `--import` production entry).

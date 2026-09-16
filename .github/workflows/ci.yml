@@ -108,10 +108,10 @@ jobs:
         env:
           LIVEKIT_URL: ws://127.0.0.1:7880
           WEB_COVERAGE_API_E2E: "0"
-        timeout-minutes: 20
+        timeout-minutes: 30
         # This uncached single-package gate needs live output, not Turbo's CI buffering.
         # Bound each test file as well as the whole coverage/report step.
-        run: pnpm --filter @wizards/web test:coverage --test-timeout=120000
+        run: pnpm --filter @wizards/web test:coverage --test-concurrency=2 --test-timeout=120000
 
       - name: Build
         run: pnpm build

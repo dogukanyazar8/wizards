@@ -262,7 +262,7 @@ test("CI provides a non-routable LiveKit URL to coverage tests", () => {
   );
   assert.match(
     verifyJob,
-    /timeout-minutes: 20\r?\n(?:[^\n]*\r?\n)*?        run: pnpm --filter @wizards\/web test:coverage --test-timeout=120000/u,
+    /timeout-minutes: 30\r?\n(?:[^\n]*\r?\n)*?        run: pnpm --filter @wizards\/web test:coverage --test-concurrency=2 --test-timeout=120000/u,
   );
   assert.match(readJson("package.json").scripts["test:coverage"], /--log-order=stream/u);
 });
