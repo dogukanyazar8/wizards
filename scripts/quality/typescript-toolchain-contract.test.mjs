@@ -151,6 +151,11 @@ test("CI requires main and compatibility compiler evidence", () => {
   assert.match(compilerJob, /^    name: TypeScript Compiler Compatibility$/m);
   assert.match(compilerJob, /^        run: pnpm typecheck:main:ci$/m);
   assert.match(compilerJob, /^        run: pnpm typecheck:compat$/m);
+  assert.match(
+    compilerJob,
+    /- name: Run TypeScript 6 compatibility typecheck\n        env:\n(?:          #[^\n]*\n)*          NODE_OPTIONS: --max-old-space-size=4096\n        run: pnpm typecheck:compat/,
+    "TS6 needs a bounded 4 GiB heap for the full web project on hosted runners",
+  );
   assert.match(compilerJob, /^        run: pnpm typecheck:declarations$/m);
   assert.match(compilerJob, /^        if: always\(\)$/m);
   assert.match(compilerJob, /^          path: artifacts\/typescript\/\*\.json$/m);

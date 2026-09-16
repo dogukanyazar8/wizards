@@ -481,6 +481,7 @@ export function AddMembersModalBody({
       >
         <div
           className="flex items-center border-[hsl(var(--border)/0.6)] bg-[hsl(var(--surface-soft)/0.7)] focus-within:ring-2 focus-within:ring-[hsl(var(--ring)/0.45)]"
+          data-focus-surface
           style={{
             borderRadius: pxToRem(inviteModal.searchRadius),
             borderWidth: hairline(),

@@ -81,11 +81,39 @@ describe("DiscoverServerCard", () => {
     assert.ok(!markup.includes('data-testid="discover-server-card-tags"'));
   });
 
-  it("renk seçilmemiş sunucu ikonunun tonunu kategori yerine kısaltmadan türetir", () => {
+  it("renk seçilmemiş ikon profil panelinin kategori tonunu kullanır", () => {
     const markup = render(server({ category: "oyun", iconColor: null, initials: "OYU" }));
 
-    assert.ok(markup.includes('data-tone="info"'));
-    assert.ok(markup.includes("background:hsl(var(--info) / 0.14)"));
+    assert.ok(markup.includes('data-tone="warning"'));
+    assert.ok(markup.includes("background:hsl(var(--warning) / 0.14)"));
+    assert.ok(
+      markup.includes("color-mix(in srgb, hsl(var(--warning)) 45%, hsl(var(--foreground)))"),
+    );
+  });
+
+  it("sunucu barındaki Türkçe kısaltma ve seçilmiş renk kurallarını uygular", () => {
+    const markup = render(server({ initials: "izı", iconColor: "accent2" }));
+
+    assert.ok(markup.includes(">İZI</span>"));
+    assert.ok(markup.includes('data-tone="accent2"'));
+    assert.ok(
+      markup.includes("color-mix(in srgb, hsl(var(--accent-2)) 45%, hsl(var(--foreground)))"),
+    );
+    assert.ok(markup.includes("border-radius:1.0625rem"));
+  });
+
+  it("boş açıklama için paragraf veya zorunlu açıklama yüksekliği ayırmaz", () => {
+    const empty = render(server({ description: "   ", tags: [] }));
+    assert.ok(!empty.includes("<p"));
+    assert.ok(!render(server()).includes("min-height:"));
+  });
+
+  it("resimli sunucuyu bar ile aynı Avatar kırpmasıyla çizer", () => {
+    const markup = render(server({ iconUrl: "https://assets.example.test/server.webp" }));
+
+    assert.ok(markup.includes('src="https://assets.example.test/server.webp"'));
+    assert.ok(markup.includes("object-cover"));
+    assert.ok(!markup.includes("background:center"));
   });
 
   it("render sırasında fetch çağırmaz", (context) => {

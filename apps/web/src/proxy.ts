@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { expireAuthSessionCookies, getAuthSessionCookieConfig } from "@/lib/auth/session-cookies";
+import {
+  expireAuthSessionCookies,
+  getAuthSessionCookieConfig,
+  isAuthSessionCookieName,
+} from "@/lib/auth/session-cookies";
 import { WHISPR_REQUEST_PATHNAME_HEADER } from "@/lib/request-context";
 
 const CSRF_PROTECTED_API_PREFIXES = ["/api/v1", "/api/e2e"] as const;
@@ -273,6 +277,10 @@ export async function proxy(request: NextRequest) {
 
   let isAuthenticated = false;
   let shouldExpireCookies = false;
+  const sessionCookieNames = request.cookies
+    .getAll()
+    .map(({ name }) => name)
+    .filter((name) => isAuthSessionCookieName(name));
   try {
     if (secret) {
       const sessionCookie = getAuthSessionCookieConfig();
@@ -284,7 +292,8 @@ export async function proxy(request: NextRequest) {
       });
       const disposition = getAuthTokenDisposition(token);
       isAuthenticated = disposition.isAuthenticated;
-      shouldExpireCookies = disposition.shouldExpireCookies;
+      shouldExpireCookies =
+        disposition.shouldExpireCookies || (token === null && sessionCookieNames.length > 0);
     }
   } catch {
     // Token parsing failures remain unauthenticated; protected routes fail closed below.
@@ -299,18 +308,24 @@ export async function proxy(request: NextRequest) {
   if (authRedirectPath) {
     const response = NextResponse.redirect(new URL(authRedirectPath, request.nextUrl.origin));
     if (shouldExpireCookies) {
-      expireAuthSessionCookies(response.cookies);
+      expireAuthSessionCookies(response.cookies, sessionCookieNames);
     }
     return attachSecurityHeaders(response, cspHeader, nonce);
   }
 
+  if (shouldExpireCookies) {
+    // Also remove invalid cookies from the forwarded request: clearing only the
+    // response still makes this render's auth() calls decode the stale token.
+    for (const name of sessionCookieNames) request.cookies.delete(name);
+    requestHeaders.set("cookie", request.cookies.toString());
+  }
   const response = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   });
   if (shouldExpireCookies) {
-    expireAuthSessionCookies(response.cookies);
+    expireAuthSessionCookies(response.cookies, sessionCookieNames);
   }
   return attachSecurityHeaders(response, cspHeader, nonce);
 }

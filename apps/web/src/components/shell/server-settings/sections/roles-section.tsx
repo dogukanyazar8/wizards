@@ -472,26 +472,30 @@ export function RolesSectionView({
                 {t("server.settings.roles.presetsLabel")}
               </span>
               <div className="flex" style={{ gap: pxToRem(settingsSections.rolesPresetChipsGap) }}>
-                {SERVER_ROLE_PRESETS.map((preset) => (
-                  <PresetChip
-                    active={activePreset === preset}
-                    disabled={readOnly}
-                    key={preset}
-                    label={t(`server.settings.roles.preset.${preset}`)}
-                    onClick={() =>
-                      onDraftChange({
-                        ...draft,
-                        permissions: applyRolePreset(draft.permissions, preset),
-                      })
-                    }
-                    preset={preset}
-                  />
-                ))}
+                {SERVER_ROLE_PRESETS.filter((preset) => isOwner || preset !== "admin").map(
+                  (preset) => (
+                    <PresetChip
+                      active={activePreset === preset}
+                      disabled={readOnly}
+                      key={preset}
+                      label={t(`server.settings.roles.preset.${preset}`)}
+                      onClick={() =>
+                        onDraftChange({
+                          ...draft,
+                          permissions: applyRolePreset(draft.permissions, preset),
+                        })
+                      }
+                      preset={preset}
+                    />
+                  ),
+                )}
               </div>
             </div>
           </div>
 
-          {SERVER_PERMISSION_GROUPS.map((group) => (
+          {SERVER_PERMISSION_GROUPS.filter((group) =>
+            group.rows.some((row) => isOwner || !row.ownerOnly),
+          ).map((group) => (
             <PermissionGroupCard
               group={group}
               isOwner={isOwner}
@@ -783,6 +787,7 @@ export function RolesSection({ detail, permissions }: ServerSettingsSectionProps
    */
   const [editing, setEditing] = useState<RoleEditingState | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saveError, setSaveError] = useState(false);
 
   const isDraft = editing?.key === DRAFT_KEY;
   const selectedRole = isDraft
@@ -816,6 +821,12 @@ export function RolesSection({ detail, permissions }: ServerSettingsSectionProps
   }, [queryClient, serverId]);
 
   const updateRoleMutation = useMutation({
+    scope: { id: `server-role-update:${serverId}` },
+    onMutate: () => setSaveError(false),
+    onError: () => {
+      setSaveError(true);
+      setEditing(null);
+    },
     mutationFn: (input: {
       patch: Parameters<typeof updateWorkspaceRoleRequest>[2];
       roleId: string;
@@ -824,6 +835,8 @@ export function RolesSection({ detail, permissions }: ServerSettingsSectionProps
   });
 
   const createRoleMutation = useMutation({
+    onMutate: () => setSaveError(false),
+    onError: () => setSaveError(true),
     mutationFn: (input: ServerRoleDraft) =>
       createWorkspaceRoleRequest(serverId, {
         color: roleToneToColor(input.tone),
@@ -860,7 +873,9 @@ export function RolesSection({ detail, permissions }: ServerSettingsSectionProps
   useLayerStack({
     id: "server-settings-role-delete",
     kind: "modal",
-    onClose: () => setConfirmDelete(false),
+    onClose: () => {
+      if (!deleteRoleMutation.isPending) setConfirmDelete(false);
+    },
     open: confirmDelete,
   });
 
@@ -919,6 +934,11 @@ export function RolesSection({ detail, permissions }: ServerSettingsSectionProps
 
   return (
     <>
+      {saveError ? (
+        <p role="alert" className="mb-4 text-sm text-[hsl(var(--danger))]">
+          {t("server.settings.members.error")}
+        </p>
+      ) : null}
       <RolesSectionView
         draft={draft}
         guard={guard}
@@ -927,7 +947,10 @@ export function RolesSection({ detail, permissions }: ServerSettingsSectionProps
           const previous = roles.find((role) => role.id === editing?.restoreKey);
           setEditing(previous ? { draft: toRoleDraft(previous), key: previous.id } : null);
         }}
-        onDeleteRole={() => setConfirmDelete(true)}
+        onDeleteRole={() => {
+          deleteRoleMutation.reset();
+          setConfirmDelete(true);
+        }}
         onDraftChange={handleDraftChange}
         onNameCommit={handleNameCommit}
         onSelectRole={(roleId) => {
@@ -946,7 +969,9 @@ export function RolesSection({ detail, permissions }: ServerSettingsSectionProps
             restoreKey: selectedRole?.id,
           });
         }}
-        onSubmitDraft={() => createRoleMutation.mutate(draft)}
+        onSubmitDraft={() => {
+          if (!createRoleMutation.isPending) createRoleMutation.mutate(draft);
+        }}
         readOnly={readOnly}
         roleMemberCounts={roleMemberCounts}
         roles={roles}
@@ -955,11 +980,18 @@ export function RolesSection({ detail, permissions }: ServerSettingsSectionProps
       />
 
       <Modal
-        onClose={() => setConfirmDelete(false)}
+        onClose={() => {
+          if (!deleteRoleMutation.isPending) setConfirmDelete(false);
+        }}
         open={confirmDelete}
         title={t("server.settings.roles.delete.confirmTitle", { name: selectedRole?.name ?? "" })}
         description={t("server.settings.roles.delete.description")}
       >
+        {deleteRoleMutation.isError ? (
+          <p role="alert" className="mb-4 text-sm text-[hsl(var(--danger))]">
+            {t("server.settings.members.error")}
+          </p>
+        ) : null}
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
           <Button
             className="h-11 rounded-2xl"

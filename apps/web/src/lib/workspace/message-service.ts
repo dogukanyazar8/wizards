@@ -12,6 +12,11 @@ import {
 } from "@wizards/types";
 import { ApiError } from "@/lib/api";
 import {
+  channelPinPageWhere,
+  selectChannelPinPage,
+  type ChannelPinCursor,
+} from "@/lib/servers/channel-pins";
+import {
   claimUploadedMessageAttachments,
   normalizeMessageContentForSend,
 } from "@/lib/messages/attachments";
@@ -579,31 +584,38 @@ export async function listChannelPinnedMessages(
   userId: string,
   channelId: string,
   limit: number = 30,
+  cursor?: ChannelPinCursor,
 ) {
   await requireChannelAccess(userId, channelId);
+  const pageSize = Math.min(Math.max(limit, 1), 50);
 
   const pinnedMessages = await prisma.pinnedMessage.findMany({
     where: {
       channelId,
+      ...channelPinPageWhere(cursor),
       message: {
         deletedAt: null,
         placeholderRemovedAt: null,
       },
     },
-    orderBy: { pinnedAt: "desc" },
-    take: Math.min(Math.max(limit, 1), 50),
+    orderBy: [{ pinnedAt: "desc" }, { messageId: "desc" }],
+    take: pageSize + 1,
     select: {
+      pinnedAt: true,
+      messageId: true,
       message: {
         include: messageInclude,
       },
     },
   });
 
-  const parentIds = pinnedMessages.map((pin) => pin.message.id);
+  const { page, nextCursor } = selectChannelPinPage(pinnedMessages, pageSize);
+  const parentIds = page.map((pin) => pin.message.id);
   const threadSummaries = await getThreadSummaryMap(parentIds);
 
   return {
-    messages: pinnedMessages.map((pin) =>
+    nextCursor,
+    messages: page.map((pin) =>
       mapRawMessage(pin.message as RawMessage, threadSummaries.get(pin.message.id), userId),
     ),
   };

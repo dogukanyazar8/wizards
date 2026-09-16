@@ -1,4 +1,36 @@
 import type { ChatMessage, PinnedMessageDTO } from "@wizards/types";
+import { z } from "zod";
+
+export const ChannelPinCursorSchema = z.object({
+  pinnedAt: z.iso.datetime(),
+  messageId: z.string().min(1).max(128),
+});
+export type ChannelPinCursor = z.infer<typeof ChannelPinCursorSchema>;
+
+export function selectChannelPinPage<T extends { pinnedAt: Date; messageId: string }>(
+  rows: readonly T[],
+  pageSize: number,
+) {
+  const page = rows.slice(0, pageSize);
+  const last = page.at(-1);
+  return {
+    page,
+    nextCursor:
+      rows.length > pageSize && last
+        ? { pinnedAt: last.pinnedAt.toISOString(), messageId: last.messageId }
+        : null,
+  };
+}
+
+export function channelPinPageWhere(cursor?: ChannelPinCursor) {
+  if (!cursor) return {};
+  return {
+    OR: [
+      { pinnedAt: { lt: new Date(cursor.pinnedAt) } },
+      { pinnedAt: new Date(cursor.pinnedAt), messageId: { lt: cursor.messageId } },
+    ],
+  };
+}
 
 /**
  * SPEC-SUNUCU §3.2 — sabitlenen mesaj çubuğunun beslemesi.

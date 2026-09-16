@@ -70,7 +70,7 @@ describe("yetki grupları — SPEC §8.5 tablosu", () => {
 
     assert.deepEqual(
       ownerOnly.map((row) => row.key),
-      ["ADMINISTRATOR"],
+      ["MANAGE_CHANNELS", "MANAGE_ROLES", "MANAGE_SERVER", "ADMINISTRATOR"],
     );
   });
 });
@@ -157,7 +157,7 @@ describe("grup toplu seçimi", () => {
   it("sahip olmayan kullanıcı için Yönetici anahtarını saymaz ve değiştirmez", () => {
     const options = { includeOwnerOnly: false } as const;
 
-    assert.deepEqual(countGroupSelected("management", [], options), { selected: 0, total: 3 });
+    assert.deepEqual(countGroupSelected("management", [], options), { selected: 0, total: 0 });
     assert.equal(
       setPermissionGroupSelection(["ADMINISTRATOR"], "management", true, options).includes(
         "ADMINISTRATOR",
@@ -170,7 +170,8 @@ describe("grup toplu seçimi", () => {
         ["MANAGE_CHANNELS", "MANAGE_ROLES", "MANAGE_SERVER"],
         options,
       ).state,
-      "all",
+      "none",
     );
+    assert.deepEqual(setPermissionGroupSelection([], "management", true, options), []);
   });
 });

@@ -555,7 +555,6 @@ export const HOME_METRICS = {
   shadow: {
     shell: { offsetX: 0, offsetY: 40, blur: 100, spread: -55, alpha: 0.85 },
     card: { offsetX: 0, offsetY: 1, blur: 2, alpha: 0.1 },
-    activeServerIcon: { offsetX: 0, offsetY: 8, blur: 18, spread: -10 },
     railAddButton: { offsetX: 0, offsetY: 6, blur: 16, spread: -9 },
     railAddButtonHover: { offsetX: 0, offsetY: 12, blur: 24, spread: -10 },
     railJoinButton: { offsetX: 0, offsetY: 6, blur: 16, spread: -10 },

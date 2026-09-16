@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Lock, Pin, Search, X } from "lucide-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   ChatMessage,
   ConversationToast,
@@ -71,7 +71,8 @@ import { useAppShortcutLabel } from "@/hooks/use-app-shortcut-label";
 import { matchesAppShortcut } from "@/lib/shortcuts/catalog";
 import {
   fetchChannelNotificationSettings,
-  fetchChannelPinnedMessages,
+  fetchChannelPinnedMessagesPage,
+  unpinChannelMessageRequest,
   fetchWorkspaceServer,
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
@@ -87,7 +88,7 @@ import {
   resolveChannelAccessPreset,
   resolveChannelCategoryName,
 } from "@/lib/servers/channel-access-count";
-import { toChannelPinnedMessages } from "@/lib/servers/channel-pins";
+import { toChannelPinnedMessages, type ChannelPinCursor } from "@/lib/servers/channel-pins";
 import { RESPONSIVE_SHELL_SIZES } from "@/lib/responsive";
 
 interface ChatAreaProps {
@@ -382,10 +383,12 @@ function ChatAreaContent({
       (serverMembersQuery.data?.roles ?? []).filter((role) => role.mentionable && !role.isDefault),
     [serverMembersQuery.data],
   );
-  const pinnedMessagesQuery = useQuery({
+  const pinnedMessagesQuery = useInfiniteQuery({
     enabled: mode === "channel",
-    queryFn: () => fetchChannelPinnedMessages(conversationId),
-    queryKey: workspaceQueryKeys.pinnedMessages(conversationId),
+    initialPageParam: undefined as ChannelPinCursor | undefined,
+    queryFn: ({ pageParam }) => fetchChannelPinnedMessagesPage(conversationId, pageParam),
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    queryKey: [...workspaceQueryKeys.pinnedMessages(conversationId), "pages"],
     staleTime: 30_000,
   });
   const notificationSettingsQuery = useQuery({
@@ -411,6 +414,15 @@ function ChatAreaContent({
     onSuccess: (pins) => {
       queryClient.setQueryData(["messages", "dm", conversationId, "pins"], pins);
     },
+  });
+  const channelUnpinMutation = useMutation({
+    mutationFn: ({ channelId, messageId }: { channelId: string; messageId: string }) =>
+      unpinChannelMessageRequest(channelId, messageId),
+    onSuccess: (_message, { channelId }) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: workspaceQueryKeys.pinnedMessages(channelId) }),
+        queryClient.invalidateQueries({ queryKey: getMessagesQueryKey("channel", channelId) }),
+      ]),
   });
   const forwardMutation = useMutation({
     mutationFn: ({
@@ -915,7 +927,13 @@ function ChatAreaContent({
 
   const isChannelReadOnly =
     mode === "channel" && (channelReadOnly || (channelLocked && !canModerate));
-  const pinnedMessages = (pinnedMessagesQuery.data ?? []).filter((message) => !message.deletedAt);
+  const pinnedMessages = useMemo(() => {
+    const unique = new Map<string, ChatMessage>();
+    for (const page of pinnedMessagesQuery.data?.pages ?? []) {
+      for (const message of page.messages) if (!message.deletedAt) unique.set(message.id, message);
+    }
+    return [...unique.values()];
+  }, [pinnedMessagesQuery.data]);
   const hasPinnedMessages = mode === "channel" && pinnedMessages.length > 0;
   const showPinnedMessages = isPinnedMessagesRequested && hasPinnedMessages;
   const notificationLevel = notificationSettingsQuery.data?.level ?? "all";
@@ -1543,18 +1561,44 @@ function ChatAreaContent({
         </div>
       )}
 
-      {mode === "dm" ? (
-        <PinnedListSheet
-          onClose={() => setPinnedSheetOpen(false)}
-          onJump={(messageId) => {
-            setPinnedSheetOpen(false);
-            jumpToMessage(messageId);
-          }}
-          onUnpin={(messageId) => handleTogglePin(messageId, true)}
-          open={pinnedSheetOpen}
-          pins={dmPinsQuery.data ?? EMPTY_PINS}
-        />
-      ) : null}
+      <PinnedListSheet
+        onClose={() => setPinnedSheetOpen(false)}
+        onJump={(messageId) => {
+          setPinnedSheetOpen(false);
+          jumpToMessage(messageId);
+        }}
+        onUnpin={(messageId) => {
+          if (mode === "channel") {
+            if (canModerate && !channelUnpinMutation.isPending)
+              channelUnpinMutation.mutate({ channelId: conversationId, messageId });
+          } else if (!dmPinsMutation.isPending) handleTogglePin(messageId, true);
+        }}
+        open={pinnedSheetOpen}
+        pins={mode === "channel" ? channelPins : (dmPinsQuery.data ?? EMPTY_PINS)}
+        busy={mode === "channel" ? channelUnpinMutation.isPending : dmPinsMutation.isPending}
+        loading={mode === "channel" ? pinnedMessagesQuery.isPending : dmPinsQuery.isPending}
+        errorText={
+          (mode === "channel" ? channelUnpinMutation.isError : dmPinsMutation.isError)
+            ? t("chat.message.pinFailed")
+            : (mode === "channel" ? pinnedMessagesQuery.isError : dmPinsQuery.isError)
+              ? t("messages.conversation.pinnedList.loadFailed")
+              : null
+        }
+        onRetry={() => {
+          channelUnpinMutation.reset();
+          dmPinsMutation.reset();
+          if (mode === "channel") void pinnedMessagesQuery.refetch();
+          else void dmPinsQuery.refetch();
+        }}
+        onLoadMore={
+          mode === "channel" && pinnedMessagesQuery.hasNextPage
+            ? () => {
+                void pinnedMessagesQuery.fetchNextPage();
+              }
+            : undefined
+        }
+        loadingMore={pinnedMessagesQuery.isFetching}
+      />
 
       {mode === "dm" ? (
         <ForwardMessageSheet

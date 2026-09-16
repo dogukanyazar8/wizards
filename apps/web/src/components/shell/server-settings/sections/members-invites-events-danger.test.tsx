@@ -230,7 +230,6 @@ function renderMembers(overrides: Partial<React.ComponentProps<typeof MembersSec
       onToggleAllowMemberAdds={() => undefined}
       onToggleBans={() => undefined}
       onToggleMenu={() => undefined}
-      onToggleRole={() => undefined}
       onToggleRoleMenu={() => undefined}
       onUnban={() => undefined}
       openMenuMemberId={null}
@@ -254,6 +253,40 @@ describe("§8.6 Üyeler ve Moderasyon", () => {
     }
 
     assert.match(html, /role="radiogroup"/u);
+  });
+
+  it("tek rol düzenleyici gösterir ve varsayılan rolü rozetlere dahil etmez", () => {
+    const html = renderMembers({
+      members: [
+        member({
+          id: "m",
+          userId: "u",
+          roles: [
+            { id: "r-everyone", name: "@everyone", color: 0 },
+            { id: "r-mod", name: "Moderatör", color: 0 },
+            { id: "r-custom", name: "Tasarımcı", color: 0 },
+          ],
+        }),
+      ],
+    });
+    assert.equal((html.match(/aria-haspopup="dialog"/gu) ?? []).length, 1);
+    assert.ok(html.includes("Roller (2)"));
+    assert.ok(html.includes("Moderatör"));
+    assert.ok(html.includes("Tasarımcı"));
+    assert.equal(html.includes("@everyone"), false);
+  });
+
+  it("yetkisiz hedefte rol düzenleme ve moderasyon eylemleri etkin değildir", () => {
+    const html = renderMembers({
+      members: [MEMBER],
+      canEditMember: () => false,
+      moderationActions: () => [],
+      canBan: false,
+    });
+    assert.equal(html.includes('aria-haspopup="dialog"'), false);
+    assert.equal(html.includes('data-testid="server-settings-member-menu-'), false);
+    assert.match(html, /aria-disabled="true"[^>]*disabled=""/u);
+    assert.equal(html.includes("Yasaklılar"), false);
   });
 
   it("sayaç süzülmüş ve toplam sayıyı ayrı taşır", () => {
@@ -291,7 +324,7 @@ describe("§8.6 Üyeler ve Moderasyon", () => {
     const html = renderMembers({ members: [OWNER, timedOut] });
 
     assert.ok(html.includes('data-testid="server-settings-member-timeout-m-mert"'));
-    assert.ok(html.includes("Zaman aşımında · 2 saat"));
+    assert.ok(html.includes("Zaman aşımında · 02:00:00"));
   });
 
   it("zaman aşımı olmayan üyede çip yok", () => {

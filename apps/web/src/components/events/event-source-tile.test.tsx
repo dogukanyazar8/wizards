@@ -21,7 +21,7 @@ describe("EventSourceTile sunucu ikonu", () => {
     );
 
     assert.match(markup, />WZR<\/span>/u);
-    assert.match(markup, /background:hsl\(var\(--danger\)\)/u);
+    assert.match(markup, /background-color:hsl\(var\(--danger\)\)/u);
   });
 
   it("yüklenen görsel varsa kısaltmayı çizmez", () => {

@@ -13,7 +13,7 @@ describe("mobile client attribution headers", () => {
   it("declares the platform and a version the server will accept", () => {
     assert.deepEqual(MOBILE_CLIENT_HEADERS, {
       "x-whispr-client": "mobile",
-      "x-whispr-capabilities": "badge-notifications-v1",
+      "x-whispr-capabilities": "badge-notifications-v1,profile-details-v2",
       "x-whispr-client-version": MOBILE_CLIENT_VERSION,
     });
 

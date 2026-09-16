@@ -160,6 +160,7 @@ export function SettingsNav({
         <form
           autoComplete="off"
           role="search"
+          data-focus-surface
           onSubmit={(event) => event.preventDefault()}
           className="flex items-center focus-within:ring-2 focus-within:ring-[hsl(var(--ring))]"
           style={{

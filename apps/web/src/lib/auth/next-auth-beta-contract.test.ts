@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 
 const webRoot = process.cwd();
@@ -36,8 +37,11 @@ describe("next-auth beta dependency contract", () => {
   });
 
   it("keeps OAuth authorization before account linking in the pinned Auth.js callback", () => {
-    const callbackSource = readWorkspaceFile(
-      "node_modules/.pnpm/@auth+core@0.41.3/node_modules/@auth/core/src/lib/actions/callback/index.ts",
+    const require = createRequire(import.meta.url);
+    const authRequire = createRequire(require.resolve("next-auth"));
+    const callbackSource = readFileSync(
+      join(dirname(authRequire.resolve("@auth/core")), "src/lib/actions/callback/index.ts"),
+      "utf8",
     );
     const authorizeIndex = callbackSource.indexOf("const redirect = await handleAuthorized(");
     const redirectIndex = callbackSource.indexOf(

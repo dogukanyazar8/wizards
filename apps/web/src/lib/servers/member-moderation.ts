@@ -11,7 +11,9 @@
  * buradaki kurallar onun aynası. Aynanın kırıldığı tek yer olsa bile uç yine reddeder.
  */
 
-import type { WorkspaceAccessLevel, WorkspaceMemberFilter } from "@wizards/types";
+import type { WorkspaceAccessLevel, WorkspaceMemberFilter, WorkspaceRole } from "@wizards/types";
+
+import { isProtectedRole, isElevatedRole } from "./role-editor";
 
 /**
  * SPEC §8.6'nın yedi çipi, **soldan sağa referanstaki sırayla**
@@ -238,4 +240,51 @@ export function selectPrimaryRoleName(
   }
 
   return owned.reduce((best, role) => (role.position > best.position ? role : best)).name;
+}
+
+/** Only manually editable roles belong in the replacement payload. The API preserves system roles. */
+export function selectEditableMemberRoleIds(
+  roleIds: readonly string[],
+  roles: readonly WorkspaceRole[],
+): string[] {
+  const selected = new Set(roleIds);
+  return roles
+    .filter((role) => selected.has(role.id) && !role.isDefault && !role.managed)
+    .map((role) => role.id);
+}
+
+export function canManageMemberTarget(
+  member: { accessLevel: WorkspaceAccessLevel; roles: readonly { id: string }[] },
+  roles: readonly WorkspaceRole[],
+  isOwner: boolean,
+): boolean {
+  return (
+    member.accessLevel !== "OWNER" &&
+    (isOwner ||
+      !member.roles.some(({ id }) => {
+        const role = roles.find((entry) => entry.id === id);
+        return !role || (!role.isDefault && isProtectedRole(role));
+      }))
+  );
+}
+
+export function selectAssignableMemberRoles(
+  roles: readonly WorkspaceRole[],
+  isOwner: boolean,
+): WorkspaceRole[] {
+  return roles.filter(
+    (role) => !role.isDefault && !role.managed && (isOwner || !isElevatedRole(role)),
+  );
+}
+
+/** Exact remaining time, rounded only to the next second. Hours can exceed 24. */
+export function formatTimeoutCountdown(
+  until: string | null | undefined,
+  nowMs: number,
+): string | null {
+  if (!isMemberTimedOut(until, nowMs)) return null;
+  const seconds = Math.ceil((Date.parse(until!) - nowMs) / 1000);
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return [hours, minutes, seconds % 60].map((value) => String(value).padStart(2, "0")).join(":");
 }

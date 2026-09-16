@@ -331,8 +331,8 @@ describe("Roller ve Yetkiler (§8.5)", () => {
     assert.equal(html.includes(copy("server.settings.roles.permission.administrator")), false);
     assert.equal(html.includes('data-testid="settings-role-delete-card"'), false);
     assert.equal(html.includes('data-testid="settings-role-delete"'), false);
-    // Yönetim grubu yine görünür, yalnız satır düşer.
-    assert.match(html, /data-testid="permission-group-management"/u);
+    assert.equal(html.includes('data-testid="permission-group-management"'), false);
+    assert.equal(html.includes('data-testid="settings-role-preset-admin"'), false);
   });
 
   it("korunan rolde guard metni çizilir ve girdiler kilitlenir", () => {

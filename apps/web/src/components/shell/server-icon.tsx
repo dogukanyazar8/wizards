@@ -192,13 +192,6 @@ export function ServerIcon({
             style={{
               background: getServerIconToneColor(presentation.tone, active ? undefined : 0.16),
               borderRadius: pxToRem(rail.iconRadius),
-              boxShadow: active
-                ? `${pxToRem(HOME_METRICS.shadow.activeServerIcon.offsetX)} ${pxToRem(
-                    HOME_METRICS.shadow.activeServerIcon.offsetY,
-                  )} ${pxToRem(HOME_METRICS.shadow.activeServerIcon.blur)} ${pxToRem(
-                    HOME_METRICS.shadow.activeServerIcon.spread,
-                  )} hsl(var(--primary))`
-                : undefined,
               color: active ? ON_ACCENT_COLOR : getServerIconToneColor(presentation.tone),
               fontSize: pxToRem(rail.iconFontSize),
               fontWeight: 600,

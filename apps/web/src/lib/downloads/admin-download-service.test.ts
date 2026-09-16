@@ -152,6 +152,53 @@ describe("admin download catalog service", () => {
     );
   });
 
+  it("answers 404 for Prisma's missing-row error during an edit", async () => {
+    await assert.rejects(
+      () =>
+        updateAdminDownloadArtifact(
+          "missing",
+          { versionLabel: "2.4.2" },
+          dependencies({
+            update: async () => {
+              throw { code: "P2025" };
+            },
+          }),
+        ),
+      (error) => error instanceof ApiError && error.status === 404,
+    );
+  });
+
+  it("updates all editable metadata and clears optional fields without changing publication", async () => {
+    let written: Prisma.DownloadArtifactUncheckedUpdateInput | undefined;
+    await updateAdminDownloadArtifact(
+      "artifact-1",
+      {
+        ...input,
+        channel: "UAT",
+        platform: "ANDROID",
+        delivery: "STORE",
+        buildLabel: null,
+        sizeBytes: null,
+        sha256: null,
+      },
+      dependencies({
+        update: async (_id, data) => {
+          written = data;
+          return row;
+        },
+      }),
+    );
+    assert.ok(written);
+    assert.equal(written.channel, "UAT");
+    assert.equal(written.platform, "ANDROID");
+    assert.equal(written.delivery, "STORE");
+    assert.equal(written.sizeBytes, null);
+    assert.equal(written.sha256, null);
+    assert.equal(written.buildLabel, null);
+    assert.deepEqual(written.releasedAt, new Date(input.releasedAt));
+    assert.equal("publishedAt" in written, false);
+  });
+
   it("deletes by id", async () => {
     const removed: string[] = [];
     const result = await deleteAdminDownloadArtifact(

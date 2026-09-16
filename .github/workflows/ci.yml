@@ -236,6 +236,9 @@ jobs:
         run: pnpm typecheck:main:ci
 
       - name: Run TypeScript 6 compatibility typecheck
+        env:
+          # The full web project exceeds Node's default 2 GiB heap on hosted runners.
+          NODE_OPTIONS: --max-old-space-size=4096
         run: pnpm typecheck:compat
 
       - name: Compare TS6 and TS7 declarations

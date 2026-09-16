@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Loader2 } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { Loader2, PackagePlus } from "lucide-react";
 import { Button } from "@wizards/ui";
 
 import {
@@ -10,7 +10,13 @@ import {
   AdminPageHeader,
   AdminPill,
 } from "@/components/admin/kit/admin-primitives";
-import type { AdminDownloadArtifact } from "@/lib/downloads/admin-download-service";
+import type {
+  AdminDownloadArtifact,
+  AdminDownloadArtifactInput,
+  AdminDownloadArtifactPatch,
+} from "@/lib/downloads/admin-download-service";
+import { writeAdminDownloadArtifact } from "@/lib/downloads/admin-download-client";
+import { AdminDownloadForm } from "./admin-download-form";
 
 /**
  * SPEC-INDIRME §B kataloğunun yönetim yüzeyi.
@@ -40,54 +46,119 @@ export function getDownloadPublishLabel(artifact: AdminDownloadArtifact) {
   return artifact.publishedAt === null ? "Yayınla" : "Yayından kaldır";
 }
 
-export function AdminDownloads({ artifacts }: { artifacts: AdminDownloadArtifact[] }) {
+export function AdminDownloads({
+  artifacts,
+  canWrite,
+}: {
+  artifacts: AdminDownloadArtifact[];
+  canWrite: boolean;
+}) {
+  const [items, setItems] = useState(artifacts);
+  const [editor, setEditor] = useState<AdminDownloadArtifact | null | undefined>(undefined);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const inFlight = useRef(false);
+
+  async function persist(
+    id: string | null,
+    input: AdminDownloadArtifactInput | AdminDownloadArtifactPatch,
+  ) {
+    if (!canWrite || inFlight.current) throw new Error("İşlem şu anda kullanılamıyor.");
+    inFlight.current = true;
+    setBusyId(id ?? "new");
+    setError(null);
+    setMessage(null);
+    try {
+      const saved = await writeAdminDownloadArtifact(id, input);
+      setItems((current) =>
+        [...current.filter((item) => item.id !== saved.id), saved].sort(
+          (left, right) =>
+            left.channel.localeCompare(right.channel) ||
+            left.platform.localeCompare(right.platform),
+        ),
+      );
+      return saved;
+    } finally {
+      inFlight.current = false;
+      setBusyId(null);
+    }
+  }
+
+  async function save(input: AdminDownloadArtifactInput) {
+    const saved = await persist(editor?.id ?? null, input);
+    setEditor(undefined);
+    setMessage(
+      saved.publishedAt
+        ? "Yayındaki paket güncellendi."
+        : "Paket taslak olarak kaydedildi. Yayınla ile kullanıcılara açabilirsiniz.",
+    );
+  }
 
   async function togglePublished(artifact: AdminDownloadArtifact) {
-    setBusyId(artifact.id);
-    setError(null);
-
-    const response = await fetch(`/api/v1/admin/downloads/${artifact.id}`, {
-      body: JSON.stringify({ published: artifact.publishedAt === null }),
-      headers: { "Content-Type": "application/json" },
-      method: "PATCH",
-    });
-
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-      setError(payload?.error ?? "Paket durumu değiştirilemedi.");
-      setBusyId(null);
-      return;
+    try {
+      const saved = await persist(artifact.id, { published: artifact.publishedAt === null });
+      setMessage(saved.publishedAt ? "Paket yayınlandı." : "Paket yayından kaldırıldı.");
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error ? requestError.message : "Paket durumu değiştirilemedi.",
+      );
     }
-
-    setBusyId(null);
-    window.location.reload();
   }
 
   return (
     <section className="space-y-5">
       <AdminPageHeader
+        actions={
+          canWrite ? (
+            <Button
+              disabled={busyId !== null || editor !== undefined}
+              onClick={() => {
+                setError(null);
+                setMessage(null);
+                setEditor(null);
+              }}
+              type="button"
+            >
+              <PackagePlus aria-hidden="true" className="mr-2 h-4 w-4" />
+              Paket Ekle
+            </Button>
+          ) : undefined
+        }
         subtitle="İndirme penceresini besleyen masaüstü ve mobil paketler"
         title="İndirme Paketleri"
       />
 
       {error ? (
-        <p aria-live="polite" className="text-app-danger text-sm">
+        <p role="alert" className="text-app-danger text-sm">
           {error}
         </p>
       ) : null}
+      {message ? (
+        <p className="text-app-muted text-sm" role="status">
+          {message}
+        </p>
+      ) : null}
+      {canWrite && editor !== undefined ? (
+        <AdminDownloadForm
+          artifact={editor}
+          busy={busyId !== null}
+          key={editor?.id ?? "new"}
+          onCancel={() => setEditor(undefined)}
+          onSave={save}
+        />
+      ) : null}
 
       <AdminCard>
-        {artifacts.length === 0 ? (
+        {items.length === 0 ? (
           <p className="text-app-muted p-4 text-sm">
             Henüz paket eklenmedi. Katalog boşken indirme penceresi de boş görünür.
           </p>
         ) : (
           <AdminGridTable
-            columns="90px 110px 150px minmax(0,1fr) 190px 140px"
+            columns="80px 90px 120px minmax(120px,1fr) 170px 210px"
             headers={["Ortam", "Platform", "Sürüm", "Bağlantı", "Durum", ""]}
-            rows={artifacts.map((artifact) => ({
+            rows={items.map((artifact) => ({
               cells: [
                 <AdminPill
                   key="channel"
@@ -112,18 +183,39 @@ export function AdminDownloads({ artifacts }: { artifacts: AdminDownloadArtifact
                     ? "Taslak"
                     : `Yayında · ${formatDate(artifact.publishedAt)}`}
                 </AdminPill>,
-                <Button
-                  key="action"
-                  onClick={() => void togglePublished(artifact)}
-                  size="sm"
-                  variant="outline"
-                >
-                  {busyId === artifact.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    getDownloadPublishLabel(artifact)
-                  )}
-                </Button>,
+                canWrite ? (
+                  <div className="flex flex-wrap gap-2" key="action">
+                    <Button
+                      disabled={busyId !== null || editor !== undefined}
+                      onClick={() => {
+                        setError(null);
+                        setMessage(null);
+                        setEditor(artifact);
+                      }}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      Düzenle
+                    </Button>
+                    <Button
+                      disabled={busyId !== null || editor !== undefined}
+                      onClick={() => void togglePublished(artifact)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      {busyId === artifact.id ? (
+                        <Loader2 aria-hidden="true" className="mr-1 h-3.5 w-3.5 animate-spin" />
+                      ) : null}
+                      {getDownloadPublishLabel(artifact)}
+                    </Button>
+                  </div>
+                ) : (
+                  <span className="text-app-muted text-xs" key="readonly">
+                    Salt okunur
+                  </span>
+                ),
               ],
               id: artifact.id,
             }))}

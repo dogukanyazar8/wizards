@@ -143,11 +143,13 @@ describe("admin download console", () => {
   };
 
   it("shows a draft row as a draft and offers to publish it", () => {
-    const markup = renderToStaticMarkup(<AdminDownloads artifacts={[adminArtifact]} />);
+    const markup = renderToStaticMarkup(<AdminDownloads artifacts={[adminArtifact]} canWrite />);
 
     assert.match(markup, /Taslak/);
     assert.match(markup, /Yayınla/);
     assert.match(markup, /2\.4\.1 \(1187\)/);
+    assert.match(markup, /Paket Ekle/);
+    assert.match(markup, /Düzenle/);
     assert.equal(getDownloadPublishLabel(adminArtifact), "Yayınla");
     assert.equal(
       getDownloadPublishLabel({ ...adminArtifact, publishedAt: "2026-08-26T09:00:00.000Z" }),
@@ -156,8 +158,18 @@ describe("admin download console", () => {
   });
 
   it("explains an empty catalog instead of leaving a blank table", () => {
-    const markup = renderToStaticMarkup(<AdminDownloads artifacts={[]} />);
+    const markup = renderToStaticMarkup(<AdminDownloads artifacts={[]} canWrite />);
 
     assert.match(markup, /Henüz paket eklenmedi/);
+  });
+
+  it("hides all mutation controls from read-only admins", () => {
+    const markup = renderToStaticMarkup(
+      <AdminDownloads artifacts={[adminArtifact]} canWrite={false} />,
+    );
+    assert.match(markup, /2\.4\.1/);
+    for (const action of ["Paket Ekle", "Düzenle", "Yayınla", "Yayından kaldır"]) {
+      assert.equal(markup.includes(action), false, action);
+    }
   });
 });

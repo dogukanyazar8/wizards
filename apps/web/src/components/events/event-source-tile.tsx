@@ -61,7 +61,7 @@ export function EventSourceTile({ event, fontSize, radius, size }: EventSourceTi
       data-public={community || undefined}
       data-testid="event-source-tile"
       style={{
-        background: community
+        backgroundColor: community
           ? "hsl(var(--surface-tertiary))"
           : presentation.kind === "fallback"
             ? getServerIconToneColor(presentation.tone)

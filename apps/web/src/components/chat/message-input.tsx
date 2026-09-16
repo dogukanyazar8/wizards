@@ -1532,6 +1532,7 @@ export function ChatComposer({
                 "border-[hsl(var(--primary)/0.5)] ring-2 ring-[hsl(var(--primary)/0.1)]",
             )}
             data-testid="message-composer-input-row"
+            data-focus-surface
             style={serverComposerBoxStyle(serverComposer)}
           >
             {!referenceComposer && showFormattingToolbar ? (

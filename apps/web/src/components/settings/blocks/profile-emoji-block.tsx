@@ -55,6 +55,7 @@ export function ProfileEmojiBlock({
     <>
       <div
         data-block="profileEmoji"
+        data-focus-surface
         className="flex min-w-0 items-center overflow-hidden bg-[hsl(var(--surface-base))] focus-within:ring-2 focus-within:ring-[hsl(var(--ring))]"
         style={{
           border: `${hairline()} solid hsl(var(--border) / ${input.borderAlpha})`,

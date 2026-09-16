@@ -1,6 +1,7 @@
 "use client";
 
 import { z } from "zod";
+import { ChannelPinCursorSchema, type ChannelPinCursor } from "@/lib/servers/channel-pins";
 import {
   WorkspaceServerResponseSchema,
   WorkspaceServersResponseSchema,
@@ -75,6 +76,7 @@ export const workspaceQueryKeys = {
 
 const WorkspaceChannelPinnedMessagesResponseSchema = z.object({
   messages: z.array(ChatMessageSchema),
+  nextCursor: ChannelPinCursorSchema.nullish(),
 });
 
 const WorkspaceChannelPinResponseSchema = z.object({
@@ -481,9 +483,15 @@ export async function clearChannelMessagesRequest(channelId: string) {
 }
 
 export async function fetchChannelPinnedMessages(channelId: string) {
-  const payload = await requestJson<unknown>(`/api/v1/channels/${channelId}/pins`);
-  const parsed = WorkspaceChannelPinnedMessagesResponseSchema.parse(payload);
-  return parsed.messages;
+  return (await fetchChannelPinnedMessagesPage(channelId)).messages;
+}
+
+export async function fetchChannelPinnedMessagesPage(channelId: string, cursor?: ChannelPinCursor) {
+  const query = cursor
+    ? `?${new URLSearchParams({ before: cursor.pinnedAt, beforeId: cursor.messageId })}`
+    : "";
+  const payload = await requestJson<unknown>(`/api/v1/channels/${channelId}/pins${query}`);
+  return WorkspaceChannelPinnedMessagesResponseSchema.parse(payload);
 }
 
 export async function pinChannelMessageRequest(channelId: string, messageId: string) {

@@ -12,7 +12,12 @@ import {
   completeGoogleEmailReauth,
 } from "@/lib/account/email-change-service";
 import type { Adapter, AdapterAccount, AdapterUser } from "next-auth/adapters";
-import { decode as decodeJwt, encode as encodeJwt } from "next-auth/jwt";
+import { authLogger } from "@/lib/auth/auth-logger";
+import {
+  authSessionJwt,
+  refreshJwtSessionExpiry,
+  REMEMBERED_SESSION_MAX_AGE_SECONDS,
+} from "@/lib/auth/session-lifetime";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
@@ -100,8 +105,6 @@ function loadAuthEnvironment() {
 
 loadAuthEnvironment();
 
-const REMEMBERED_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
-const SHORT_SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
 const AUTH_SESSION_TOUCH_INTERVAL_SECONDS = 5 * 60;
 
 /**
@@ -144,19 +147,6 @@ function parseRememberMeCredential(value: unknown) {
   }
 
   return ["1", "on", "true", "yes"].includes(value.toLowerCase());
-}
-
-function getJwtSessionMaxAge(token: unknown) {
-  if (
-    token &&
-    typeof token === "object" &&
-    "rememberMe" in token &&
-    (token as { rememberMe?: unknown }).rememberMe === false
-  ) {
-    return SHORT_SESSION_MAX_AGE_SECONDS;
-  }
-
-  return REMEMBERED_SESSION_MAX_AGE_SECONDS;
 }
 
 function readLocalEnvValue(key: string): string {
@@ -568,22 +558,12 @@ const adapter: Adapter = {
 
 const authConfig = {
   adapter,
+  logger: authLogger,
   session: {
     strategy: "jwt",
     maxAge: REMEMBERED_SESSION_MAX_AGE_SECONDS,
   },
-  jwt: {
-    maxAge: REMEMBERED_SESSION_MAX_AGE_SECONDS,
-    async encode(params) {
-      return encodeJwt({
-        ...params,
-        maxAge: getJwtSessionMaxAge(params.token),
-      });
-    },
-    async decode(params) {
-      return decodeJwt(params);
-    },
-  },
+  jwt: authSessionJwt,
   cookies: {
     callbackUrl: {
       name: getAuthJsCallbackCookieName(),
@@ -931,7 +911,7 @@ const authConfig = {
       }
 
       const authSessionId = stringOrEmpty(token.authSessionId);
-      const authSessionExpiresAt = new Date((nowSeconds + getJwtSessionMaxAge(token)) * 1_000);
+      const authSessionExpiresAt = new Date(refreshJwtSessionExpiry(token, nowSeconds) * 1_000);
       if (user && revocationUserId && authSessionId) {
         await ensureAuthSession({
           expiresAt: authSessionExpiresAt,

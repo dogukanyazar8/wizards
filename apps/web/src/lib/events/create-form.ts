@@ -24,7 +24,7 @@ export const EVENT_CREATE_KINDS = EventKindSchema.options;
 /** Referans HTML `KIND` haritasının ilk anahtarı; ızgaranın da ilk kutusu. */
 export const EVENT_CREATE_DEFAULT_KIND: EventKind = "voice";
 
-/** Horizontally scrollable duration presets, in minutes. */
+/** Visible duration presets, in minutes; wrap on narrow screens. */
 export const EVENT_CREATE_DURATIONS = [30, 45, 60, 90, 120] as const;
 export type EventCreateDuration = (typeof EVENT_CREATE_DURATIONS)[number];
 

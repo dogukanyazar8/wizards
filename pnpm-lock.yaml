@@ -206,6 +206,7 @@ overrides:
 packageExtensionsChecksum: sha256-eWePaDUObTyin60X+XXMYV8zr4g6PibYCJfTb6sFU1A=
 
 patchedDependencies:
+  '@auth/core@0.41.3': 54070bc64092efd7fadb3685ba4d7939cc2637ebe8c4586f48205a7c965bccc6
   brace-expansion@5.0.12: 455afc3299d8db8815575768cca00fd8c9891776183fda152bd8fdd08cc3d602
   image-size@1.2.1: 3cb2ce8a0f9997e9f1c0cccebaf14237c56cb4f72f794300a713061445613a79
   next-auth@5.0.0-beta.32: 282dc35bcae223428964bef8a563a71d118fa35e48f7f08fd08f8670220c20f0
@@ -8404,7 +8405,7 @@ snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
 
-  '@auth/core@0.41.3':
+  '@auth/core@0.41.3(patch_hash=54070bc64092efd7fadb3685ba4d7939cc2637ebe8c4586f48205a7c965bccc6)':
     dependencies:
       '@panva/hkdf': 1.2.1
       jose: 6.2.12
@@ -8414,7 +8415,7 @@ snapshots:
 
   '@auth/prisma-adapter@2.11.3(@prisma/client@7.10.0(@typescript/typescript6@6.0.2)(prisma@7.10.0(@types/node@24.13.4)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(@typescript/typescript6@6.0.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)))':
     dependencies:
-      '@auth/core': 0.41.3
+      '@auth/core': 0.41.3(patch_hash=54070bc64092efd7fadb3685ba4d7939cc2637ebe8c4586f48205a7c965bccc6)
       '@prisma/client': 7.10.0(@typescript/typescript6@6.0.2)(prisma@7.10.0(@types/node@24.13.4)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(@typescript/typescript6@6.0.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))
     transitivePeerDependencies:
       - '@simplewebauthn/browser'
@@ -15367,7 +15368,7 @@ snapshots:
 
   next-auth@5.0.0-beta.32(patch_hash=282dc35bcae223428964bef8a563a71d118fa35e48f7f08fd08f8670220c20f0)(next@16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@playwright/test@1.63.0)(@types/node@24.13.4)(@types/react@19.3.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0):
     dependencies:
-      '@auth/core': 0.41.3
+      '@auth/core': 0.41.3(patch_hash=54070bc64092efd7fadb3685ba4d7939cc2637ebe8c4586f48205a7c965bccc6)
       next: 16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@playwright/test@1.63.0)(@types/node@24.13.4)(@types/react@19.3.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react: 19.3.0
 

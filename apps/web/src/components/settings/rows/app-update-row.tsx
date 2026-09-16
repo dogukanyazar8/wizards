@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useAppUpdate } from "@/hooks/use-app-update";
 import { hasActiveUpdateCall } from "@/lib/app-update-query";
+import { SETTINGS_METRICS, pxToRem } from "@/lib/settings/metrics";
 import { useI18n } from "@/components/providers/locale-provider";
 import { useVoiceStore } from "@/store/voice-store";
 import { Modal } from "@/components/ui/modal";
@@ -43,7 +44,13 @@ export function AppUpdateRow({ rowKey, divider }: { rowKey: string; divider: boo
             aria-live="polite"
           >
             {data?.checkedAt && (
-              <p>
+              <p
+                className="font-sans font-normal"
+                style={{
+                  fontSize: pxToRem(SETTINGS_METRICS.row.subFontSize),
+                  lineHeight: SETTINGS_METRICS.row.subLineHeight,
+                }}
+              >
                 {t("settings.update.lastCheck", {
                   time: new Date(data.checkedAt).toLocaleString(),
                 })}

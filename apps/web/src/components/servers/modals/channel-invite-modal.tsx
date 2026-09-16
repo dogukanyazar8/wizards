@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
 import type { WorkspaceServerDetail } from "@wizards/types";
@@ -79,7 +79,7 @@ export type ChannelInviteModalViewProps = {
   readonly onSelectUseLimit: (id: ServerInviteUseLimitId) => void;
   readonly open: boolean;
   readonly pendingFriendId: string | null;
-  readonly qrCanvasRef?: React.RefObject<HTMLCanvasElement | null> | undefined;
+  readonly qrCanvasRef?: React.Ref<HTMLCanvasElement> | undefined;
   readonly server: ChannelInviteModalCopy;
   readonly state: ServerInviteFormState;
 };
@@ -569,7 +569,7 @@ export function ChannelInviteModal({
   const [friendQuery, setFriendQuery] = useState("");
   const [invitedFriendIds, setInvitedFriendIds] = useState<ReadonlySet<string>>(new Set());
   const [pendingFriendId, setPendingFriendId] = useState<string | null>(null);
-  const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [qrCanvas, setQrCanvas] = useState<HTMLCanvasElement | null>(null);
   const serverId = detail.server.id;
 
   /**
@@ -614,16 +614,17 @@ export function ChannelInviteModal({
   }, [inviteQuery.data?.code]);
 
   /**
-   * QR yeniden çizilir hem bağlantı hem de **tema** değiştiğinde: renkler CSS token'ından
-   * okunuyor ve tema değişimi token'ın değerini değiştiriyor, bileşenin girdilerini değil.
+   * Sekme dönüşünde ve portal açıldığında yeni canvas oluşur. Çizimi gerçek canvas'a
+   * bağla; önbellekteki bağlantı aynı kalsa da yeniden çizilsin. Tema değişimi de
+   * CSS token'larından okunan renkleri yeniler.
    */
   useEffect(() => {
-    if (!open || !inviteUrl) {
+    if (!open || !inviteUrl || !qrCanvas) {
       return;
     }
 
-    void renderInviteQr(qrCanvasRef.current, inviteUrl, { width: QR_BOX_SIZE });
-  }, [inviteUrl, open, resolvedTheme, theme]);
+    void renderInviteQr(qrCanvas, inviteUrl, { width: QR_BOX_SIZE });
+  }, [inviteUrl, open, qrCanvas, resolvedTheme, theme]);
 
   const targetedMutation = useMutation({
     mutationFn: (targetUserId: string) =>
@@ -707,7 +708,7 @@ export function ChannelInviteModal({
         }}
         open={open}
         pendingFriendId={pendingFriendId}
-        qrCanvasRef={qrCanvasRef}
+        qrCanvasRef={setQrCanvas}
         server={{ channelName, serverName: detail.server.name }}
         state={state}
       />

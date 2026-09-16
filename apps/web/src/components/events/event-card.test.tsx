@@ -377,7 +377,7 @@ describe("EventCard — kaynak tile dili (K3)", () => {
     assert.match(markup, /data-public="true"[^>]*data-testid="event-source-tile"/u);
     assert.match(markup, /border-radius:50%/u);
     assert.match(markup, />TK<\/span>/u);
-    assert.match(markup, /background:hsl\(var\(--surface-tertiary\)\)/u);
+    assert.match(markup, /background-color:hsl\(var\(--surface-tertiary\)\)/u);
   });
 
   it("üye olunan sunucunun herkese açık etkinliği normal tile çizer", () => {

@@ -66,6 +66,30 @@ Pass conditions:
 
 No Prisma migration, native project, or CI change is part of this checkpoint. If a post-deploy regression is confirmed, revert the single checkpoint commit so `apps/web/package.json` and `pnpm-lock.yaml` roll back together; then re-run the required verification suite before redeploying. Do not manually edit a deployed lockfile or bypass Auth.js checks.
 
+## JWT lifetime patch
+
+`patches/@auth__core@0.41.3.patch` caps JWT session cookies and the public
+`session.expires` at the finite `exp` returned by `callbacks.jwt`, without an
+additional decryption or database query. The encoder also caps the encrypted
+expiry at that claim after asynchronous key derivation. It covers credential, OAuth, email and
+WebAuthn callback branches plus session renewal; database sessions are unchanged.
+
+`apps/web/src/lib/auth/session-lifetime.ts` refreshes that claim using the existing
+rolling policy (12 hours without remember-me, 30 days otherwise). The patched encoder
+preserves the selected second even if the callback crosses a clock boundary.
+Keep both sides together: the callback must refresh `exp` on renewal. The upstream
+default encoder alone overwrites expiry and would not satisfy this contract.
+
+The safe Auth.js logger omits exception messages, stacks and payloads. Only a real
+`JWTExpired` for the `exp` claim inside `JWTSessionError` is suppressed; unexpected
+failures retain their Auth.js type and JOSE code. The proxy clears invalid incoming
+session cookies from both the response and the downstream rendering request.
+
+Before changing or removing the patch, run `session-expiry.test.ts`,
+`session-lifetime.test.ts`, `expired-session-proxy.test.ts`, `auth-logger.test.ts`,
+and the auth regression suite. Real OAuth provider/browser acceptance remains a
+separate deployment check.
+
 ## Stable v5 Migration Checklist
 
 When a stable 5.0.0 or newer v5 release appears:

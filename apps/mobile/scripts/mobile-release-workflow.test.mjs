@@ -246,7 +246,7 @@ describe("mobile release workflow contract", () => {
       workflow,
       /if: inputs\.kind == 'apk' && inputs\.environment == 'uat' && github\.ref_name == 'uat'/,
     );
-    assert.match(workflow, /npm install --prefix "\$RUNNER_TEMP\/eas-cli" eas-cli@21\.3\.0/);
+    assert.match(workflow, /npm install --prefix "\$RUNNER_TEMP\/eas-cli" eas-cli@24\.5\.0/);
     assert.doesNotMatch(workflow, /npm install --global eas-cli/);
     assert.doesNotMatch(workflow, /credentials\.json/);
     assert.doesNotMatch(workflow, /upload-artifact[\s\S]{0,300}private-key/i);

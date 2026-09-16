@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import type { AdminRole } from "@wizards/db";
+import type { AdminRole, Prisma } from "@wizards/db";
 import { getAdminDashboardSnapshotUncached } from "@/lib/admin/dashboard";
 import {
   composeAdminDashboardSnapshot,
@@ -151,6 +151,36 @@ describe("admin dashboard snapshot authorization", () => {
 });
 
 describe("admin snapshot query isolation", () => {
+  it("only sums numeric Prisma fields while preserving daily overview dates", async (context) => {
+    const { client } = createSnapshotTestClient();
+    const groupBy = context.mock.method(client.userDailyMetric, "groupBy");
+    const numericFields = new Set<string>([
+      "appSeconds",
+      "cameraSeconds",
+      "dmMessageCount",
+      "fileUploadCount",
+      "messageCount",
+      "screenShareSeconds",
+      "sessionCount",
+      "uploadedBytes",
+      "voiceSeconds",
+    ] satisfies Array<keyof Prisma.UserDailyMetricSumAggregateInputType>);
+
+    const snapshot = await loadAdminOverviewSnapshot(input, client);
+
+    assert.equal(groupBy.mock.callCount(), 2);
+    for (const call of groupBy.mock.calls) {
+      const [args] = call.arguments;
+      assert.ok(args._sum);
+      for (const field of Object.keys(args._sum)) {
+        assert.ok(numericFields.has(field), `UserDailyMetric._sum.${field} is not numeric`);
+      }
+    }
+    assert.equal(snapshot.usageSeries.length, SNAPSHOT_FIXTURE_DAYS);
+    assert.equal(snapshot.usageSeries[0]?.date, "2026-05-06");
+    assert.equal(snapshot.usageSeries.at(-1)?.date, "2026-05-12");
+  });
+
   it("aggregates overview metrics in the database instead of reading user-day rows", async () => {
     const { client, calls } = createSnapshotTestClient();
 

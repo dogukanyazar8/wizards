@@ -10,7 +10,7 @@ import type {
 } from "@wizards/types";
 
 import { useI18n } from "@/components/providers/locale-provider";
-import { OptionChipGroup } from "@/components/servers/shared/option-chip-group";
+import { MemberRolesDialog } from "./member-roles-dialog";
 import { ToggleRow } from "@/components/servers/shared/toggle-row";
 import { ServerModalShell } from "@/components/servers/modals/server-modal-shell";
 import { DISPLAY_FONT } from "@/components/servers/shared/typography";
@@ -29,12 +29,12 @@ import {
   SERVER_MEMBER_FILTERS,
   SERVER_MODERATION_REASON_MAX_LENGTH,
   SERVER_TIMEOUT_DURATIONS,
-  formatTimeoutRemaining,
+  formatTimeoutCountdown,
+  canManageMemberTarget,
   listMemberModerationActions,
   resolveTimeoutUntil,
   selectBanDeleteWindow,
   selectMemberTypeBadge,
-  selectPrimaryRoleName,
   selectTimeoutDuration,
 } from "@/lib/servers/member-moderation";
 import { useLayerStack } from "@/lib/servers/use-layer-stack";
@@ -65,12 +65,10 @@ import {
 
 const SEARCH_ICON_PATH = "m20 20-3.6-3.6M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z";
 const CHEVRON_PATH = "m6 9 6 6 6-6";
-const PLUS_PATH = "M12 5v14M5 12h14";
 const KICK_PATH =
   "M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM17 8l4 4m0-4-4 4";
 const MORE_PATH = "M12 6.01V6M12 12.01V12M12 18.01V18";
 const BAN_ICON_PATH = "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM5.6 5.6l12.8 12.8";
-const CHECK_PATH = "M4 12.5 9 17.5 20 6.5";
 
 function initials(value: string): string {
   const token = value.trim();
@@ -99,6 +97,8 @@ export type MembersSectionViewProps = {
   readonly canManageServer: boolean;
   readonly counts: { readonly filtered: number; readonly total: number };
   readonly canAssignRoles: boolean;
+  readonly canEditMember?: (member: WorkspaceMember) => boolean;
+  readonly canBan?: boolean;
   readonly filter: WorkspaceMemberFilter;
   readonly members: readonly WorkspaceMember[];
   readonly moderationActions: (member: WorkspaceMember) => readonly MemberModerationActionId[];
@@ -111,7 +111,6 @@ export type MembersSectionViewProps = {
   readonly onToggleAllowMemberAdds: (next: boolean) => void;
   readonly onToggleBans: () => void;
   readonly onToggleMenu: (memberId: string | null) => void;
-  readonly onToggleRole: (member: WorkspaceMember, roleId: string) => void;
   readonly onToggleRoleMenu: (memberId: string | null) => void;
   readonly onTimeout: (member: WorkspaceMember, id: ServerTimeoutDurationId) => void;
   readonly onUnban: (entry: ServerBanEntry) => void;
@@ -126,6 +125,8 @@ export function MembersSectionView({
   bans,
   bansExpanded,
   canAssignRoles,
+  canEditMember = () => true,
+  canBan = true,
   canManageServer,
   counts,
   filter,
@@ -141,7 +142,6 @@ export function MembersSectionView({
   onToggleAllowMemberAdds,
   onToggleBans,
   onToggleMenu,
-  onToggleRole,
   onToggleRoleMenu,
   onUnban,
   openMenuMemberId,
@@ -152,7 +152,6 @@ export function MembersSectionView({
   const { locale, t } = useI18n();
   const { settingsSections, sidebar } = SERVER_METRICS;
   const searchId = useId();
-  const assignableRoles = roles.filter((role) => !role.isDefault && !role.managed);
   const dateFormatter = new Intl.DateTimeFormat(locale, { dateStyle: "medium" });
 
   return (
@@ -263,18 +262,15 @@ export function MembersSectionView({
           const tone = badgeTone(badge);
           const online = member.status !== "OFFLINE";
           const isOwner = member.accessLevel === "OWNER";
-          const remaining = formatTimeoutRemaining(member.communicationDisabledUntil, nowMs);
-          const roleName =
-            selectPrimaryRoleName(
-              member.roles.map((role) => role.id),
-              roles,
-            ) ?? t("server.settings.members.role.none");
+          const remaining = formatTimeoutCountdown(member.communicationDisabledUntil, nowMs);
           const actions = moderationActions(member);
-          const memberRoleIds = member.roles.map((role) => role.id);
+          const assignedRoles = member.roles.filter(
+            (badge) => !roles.find((role) => role.id === badge.id)?.isDefault,
+          );
 
           return (
             <div
-              className="relative flex items-center border bg-[hsl(var(--surface-card))] transition-colors hover:border-[hsl(var(--primary)/0.4)]"
+              className="relative flex flex-wrap items-center border bg-[hsl(var(--surface-card))] transition-colors hover:border-[hsl(var(--primary)/0.4)]"
               data-testid={`server-settings-member-${member.id}`}
               key={member.id}
               style={{
@@ -323,7 +319,7 @@ export function MembersSectionView({
 
               <div className="min-w-0 flex-1">
                 <div
-                  className="flex items-center"
+                  className="flex flex-wrap items-center"
                   style={{ gap: pxToRem(settingsSections.membersNameGap) }}
                 >
                   <span
@@ -371,10 +367,7 @@ export function MembersSectionView({
                       }}
                     >
                       {t("server.settings.members.timeout.chip", {
-                        remaining: t(
-                          `server.settings.members.timeout.remaining.${remaining.unit}`,
-                          { count: remaining.value },
-                        ),
+                        remaining,
                       })}
                     </span>
                   ) : null}
@@ -390,13 +383,29 @@ export function MembersSectionView({
                 >
                   @{member.username}
                 </div>
+                {assignedRoles.length > 0 ? (
+                  <div
+                    className="mt-2 flex flex-wrap gap-1.5"
+                    aria-label={t("server.settings.members.role.menuLabel")}
+                  >
+                    {assignedRoles.map((role) => (
+                      <span
+                        key={role.id}
+                        className="max-w-full truncate rounded-md bg-[hsl(var(--surface-tertiary))] px-2 py-1 text-xs font-medium text-[hsl(var(--text-secondary))]"
+                        title={role.name}
+                      >
+                        {role.name}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
 
-              {canAssignRoles && !isOwner ? (
+              {canAssignRoles && !isOwner && canEditMember(member) ? (
                 <>
                   <button
                     aria-expanded={openRoleMenuMemberId === member.id}
-                    aria-haspopup="menu"
+                    aria-haspopup="dialog"
                     aria-label={t("server.settings.members.role.open", {
                       name: member.displayName,
                     })}
@@ -417,7 +426,7 @@ export function MembersSectionView({
                     }}
                     type="button"
                   >
-                    {roleName}
+                    {t("server.settings.members.role.menuLabel")} ({assignedRoles.length})
                     <svg
                       aria-hidden="true"
                       fill="none"
@@ -431,40 +440,6 @@ export function MembersSectionView({
                     >
                       <path d={CHEVRON_PATH} />
                     </svg>
-                  </button>
-                  <button
-                    aria-expanded={openRoleMenuMemberId === member.id}
-                    aria-haspopup="menu"
-                    className="flex flex-none items-center border border-dashed border-[hsl(var(--border))] bg-transparent text-[hsl(var(--primary))] transition-colors hover:bg-[hsl(var(--primary)/0.1)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                    onClick={() =>
-                      onToggleRoleMenu(openRoleMenuMemberId === member.id ? null : member.id)
-                    }
-                    style={{
-                      borderRadius: pxToRem(settingsSections.membersRoleButtonRadius),
-                      fontSize: pxToRem(settingsSections.membersRoleButtonFontSize),
-                      fontWeight: 600,
-                      gap: pxToRem(settingsSections.membersAddRoleGap),
-                      height: pxToRem(settingsSections.membersRoleButtonHeight),
-                      lineHeight: 1,
-                      padding: `0 ${pxToRem(settingsSections.membersRoleButtonPaddingX)}`,
-                      whiteSpace: "nowrap",
-                    }}
-                    type="button"
-                  >
-                    <svg
-                      aria-hidden="true"
-                      fill="none"
-                      height={pxToEm(12, settingsSections.membersRoleButtonFontSize)}
-                      stroke="currentColor"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2.4}
-                      viewBox="0 0 24 24"
-                      width={pxToEm(12, settingsSections.membersRoleButtonFontSize)}
-                    >
-                      <path d={PLUS_PATH} />
-                    </svg>
-                    {t("server.settings.members.role.add")}
                   </button>
                 </>
               ) : null}
@@ -504,20 +479,23 @@ export function MembersSectionView({
               ) : null}
 
               <button
-                aria-disabled={isOwner}
+                aria-disabled={!actions.includes("kick")}
+                disabled={!actions.includes("kick")}
                 aria-label={t("server.settings.members.kick")}
                 className="grid flex-none place-items-center border-0 bg-transparent text-[hsl(var(--text-muted))] transition-colors hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                 data-testid={`server-settings-member-kick-${member.id}`}
                 onClick={() => {
-                  if (!isOwner) {
+                  if (actions.includes("kick")) {
                     onKick(member);
                   }
                 }}
                 style={{
                   borderRadius: pxToRem(settingsSections.membersKickRadius),
-                  cursor: isOwner ? "not-allowed" : "pointer",
+                  cursor: !actions.includes("kick") ? "not-allowed" : "pointer",
                   height: pxToRem(settingsSections.membersKickSize),
-                  opacity: isOwner ? settingsSections.membersKickDisabledOpacity : 1,
+                  opacity: !actions.includes("kick")
+                    ? settingsSections.membersKickDisabledOpacity
+                    : 1,
                   width: pxToRem(settingsSections.membersKickSize),
                 }}
                 title={isOwner ? t("server.settings.members.kick.ownerDisabled") : undefined}
@@ -541,93 +519,9 @@ export function MembersSectionView({
                 <span className="sr-only">{t("server.settings.members.kick.ownerDisabled")}</span>
               ) : null}
 
-              {openRoleMenuMemberId === member.id ? (
-                <div
-                  className="absolute right-0 z-20 border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card))]"
-                  data-testid={`server-settings-member-role-menu-${member.id}`}
-                  role="menu"
-                  style={{
-                    borderRadius: pxToRem(sidebar.menuRadius),
-                    boxShadow: `${sidebar.menuShadow.x}px ${pxToRem(sidebar.menuShadow.y)} ${pxToRem(
-                      sidebar.menuShadow.blur,
-                    )} ${pxToRem(sidebar.menuShadow.spread)} hsl(var(--shadow-color)/0.42)`,
-                    padding: pxToRem(sidebar.menuPadding),
-                    top: `calc(100% + ${pxToRem(settingsSections.moderationMenuOffsetY)})`,
-                    width: pxToRem(settingsSections.moderationMenuWidth),
-                  }}
-                >
-                  <div
-                    className="uppercase text-[hsl(var(--text-muted))]"
-                    style={{
-                      fontFamily: DISPLAY_FONT,
-                      fontSize: pxToRem(settingsSections.moderationMenuLabelFontSize),
-                      fontWeight: 600,
-                      letterSpacing: `${settingsSections.moderationMenuLabelLetterSpacing}em`,
-                      padding: `${pxToRem(settingsSections.moderationMenuLabelPaddingY)} ${pxToRem(
-                        settingsSections.moderationMenuLabelPaddingX,
-                      )}`,
-                    }}
-                  >
-                    {t("server.settings.members.role.menuLabel")}
-                  </div>
-                  {assignableRoles.length === 0 ? (
-                    <div
-                      className="text-[hsl(var(--text-muted))]"
-                      style={{
-                        fontSize: pxToRem(sidebar.menuRowFontSize),
-                        padding: `${pxToRem(sidebar.menuRowPaddingY)} ${pxToRem(
-                          sidebar.menuRowPaddingX,
-                        )}`,
-                      }}
-                    >
-                      {t("server.settings.members.role.empty")}
-                    </div>
-                  ) : null}
-                  {assignableRoles.map((role) => {
-                    const selected = memberRoleIds.includes(role.id);
-
-                    return (
-                      <button
-                        aria-checked={selected}
-                        className="flex w-full items-center border-0 bg-transparent text-left text-[hsl(var(--text-secondary))] transition-colors hover:bg-[hsl(var(--surface-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                        key={role.id}
-                        onClick={() => onToggleRole(member, role.id)}
-                        role="menuitemcheckbox"
-                        style={{
-                          borderRadius: pxToRem(sidebar.menuRowRadius),
-                          fontSize: pxToRem(sidebar.menuRowFontSize),
-                          gap: pxToRem(sidebar.menuRowGap),
-                          padding: `${pxToRem(sidebar.menuRowPaddingY)} ${pxToRem(
-                            sidebar.menuRowPaddingX,
-                          )}`,
-                        }}
-                        type="button"
-                      >
-                        <span className="min-w-0 flex-1 truncate">{role.name}</span>
-                        {selected ? (
-                          <svg
-                            aria-hidden="true"
-                            fill="none"
-                            height={pxToEm(13, sidebar.menuRowFontSize)}
-                            stroke="hsl(var(--primary))"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2.6}
-                            viewBox="0 0 24 24"
-                            width={pxToEm(13, sidebar.menuRowFontSize)}
-                          >
-                            <path d={CHECK_PATH} />
-                          </svg>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
-
               {openMenuMemberId === member.id ? (
                 <div
-                  className="absolute right-0 z-20 border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card))]"
+                  className="w-full border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-base))]"
                   data-testid={`server-settings-member-moderation-${member.id}`}
                   role="menu"
                   style={{
@@ -636,8 +530,6 @@ export function MembersSectionView({
                       sidebar.menuShadow.blur,
                     )} ${pxToRem(sidebar.menuShadow.spread)} hsl(var(--shadow-color)/0.42)`,
                     padding: pxToRem(sidebar.menuPadding),
-                    top: `calc(100% + ${pxToRem(settingsSections.moderationMenuOffsetY)})`,
-                    width: pxToRem(settingsSections.moderationMenuWidth),
                   }}
                 >
                   {actions.includes("timeout") ? (
@@ -743,108 +635,111 @@ export function MembersSectionView({
         })}
       </div>
 
-      <CollapsibleList
-        expanded={bansExpanded}
-        label={t("server.settings.members.banned.toggle", { count: bans.length })}
-        onToggle={onToggleBans}
-        testId="server-settings-bans-toggle"
-      >
-        {bans.length === 0 ? (
-          <CollapsibleEmpty>{t("server.settings.members.banned.empty")}</CollapsibleEmpty>
-        ) : (
-          <div
-            className="flex flex-col"
-            style={{ gap: pxToRem(settingsSections.collapsibleRowsGap) }}
-          >
-            {bans.map((entry) => (
-              <div
-                className="flex items-center border bg-[hsl(var(--surface-card))]"
-                data-testid={`server-settings-ban-${entry.userId}`}
-                key={entry.userId}
-                style={{
-                  borderColor: `hsl(var(--border)/${settingsSections.membersRowBorderAlpha})`,
-                  borderRadius: pxToRem(settingsSections.membersRowRadius),
-                  gap: pxToRem(settingsSections.membersRowGap),
-                  padding: `${pxToRem(settingsSections.membersRowPaddingY)} ${pxToRem(
-                    settingsSections.membersRowPaddingX,
-                  )}`,
-                }}
-              >
+      {canBan ? (
+        <CollapsibleList
+          expanded={bansExpanded}
+          label={t("server.settings.members.banned.toggle", { count: bans.length })}
+          onToggle={onToggleBans}
+          testId="server-settings-bans-toggle"
+        >
+          {bans.length === 0 ? (
+            <CollapsibleEmpty>{t("server.settings.members.banned.empty")}</CollapsibleEmpty>
+          ) : (
+            <div
+              className="flex flex-col"
+              style={{ gap: pxToRem(settingsSections.collapsibleRowsGap) }}
+            >
+              {bans.map((entry) => (
                 <div
-                  className="grid flex-none place-items-center rounded-full"
+                  className="flex items-center border bg-[hsl(var(--surface-card))]"
+                  data-testid={`server-settings-ban-${entry.userId}`}
+                  key={entry.userId}
                   style={{
-                    background: "hsl(var(--danger)/0.16)",
-                    color: "hsl(var(--danger))",
-                    fontFamily: DISPLAY_FONT,
-                    fontSize: pxToRem(settingsSections.membersAvatarFontSize),
-                    fontWeight: 600,
-                    height: pxToRem(settingsSections.membersAvatarSize),
-                    lineHeight: 1,
-                    width: pxToRem(settingsSections.membersAvatarSize),
+                    borderColor: `hsl(var(--border)/${settingsSections.membersRowBorderAlpha})`,
+                    borderRadius: pxToRem(settingsSections.membersRowRadius),
+                    gap: pxToRem(settingsSections.membersRowGap),
+                    padding: `${pxToRem(settingsSections.membersRowPaddingY)} ${pxToRem(
+                      settingsSections.membersRowPaddingX,
+                    )}`,
                   }}
                 >
-                  {initials(entry.displayName)}
-                </div>
-                <div className="min-w-0 flex-1">
                   <div
-                    className="truncate text-[hsl(var(--foreground))]"
+                    className="grid flex-none place-items-center rounded-full"
                     style={{
-                      fontSize: pxToRem(settingsSections.membersNameFontSize),
+                      background: "hsl(var(--danger)/0.16)",
+                      color: "hsl(var(--danger))",
+                      fontFamily: DISPLAY_FONT,
+                      fontSize: pxToRem(settingsSections.membersAvatarFontSize),
                       fontWeight: 600,
-                      lineHeight: 1.2,
+                      height: pxToRem(settingsSections.membersAvatarSize),
+                      lineHeight: 1,
+                      width: pxToRem(settingsSections.membersAvatarSize),
                     }}
                   >
-                    {entry.displayName}
+                    {initials(entry.displayName)}
                   </div>
-                  <div
-                    className="text-[hsl(var(--text-muted))]"
+                  <div className="min-w-0 flex-1">
+                    <div
+                      className="truncate text-[hsl(var(--foreground))]"
+                      style={{
+                        fontSize: pxToRem(settingsSections.membersNameFontSize),
+                        fontWeight: 600,
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {entry.displayName}
+                    </div>
+                    <div
+                      className="text-[hsl(var(--text-muted))]"
+                      style={{
+                        fontSize: pxToRem(settingsSections.membersUsernameFontSize),
+                        fontWeight: 500,
+                        lineHeight: 1.4,
+                        marginTop: pxToRem(settingsSections.membersUsernameMarginTop),
+                      }}
+                    >
+                      {t("server.settings.members.banned.meta", {
+                        date: dateFormatter.format(new Date(entry.bannedAt)),
+                        name: entry.bannedByDisplayName ?? "—",
+                      })}
+                      {" · "}
+                      {entry.reason
+                        ? t("server.settings.members.banned.reason", { reason: entry.reason })
+                        : t("server.settings.members.banned.noReason")}
+                    </div>
+                  </div>
+                  <button
+                    className="flex-none border text-[hsl(var(--danger))] transition-colors hover:bg-[hsl(var(--danger)/0.12)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                    data-testid={`server-settings-unban-${entry.userId}`}
+                    onClick={() => onUnban(entry)}
                     style={{
-                      fontSize: pxToRem(settingsSections.membersUsernameFontSize),
-                      fontWeight: 500,
-                      lineHeight: 1.4,
-                      marginTop: pxToRem(settingsSections.membersUsernameMarginTop),
+                      background: "transparent",
+                      borderColor: "hsl(var(--danger)/0.35)",
+                      borderRadius: pxToRem(settingsSections.invitesActionRadius),
+                      fontSize: pxToRem(settingsSections.invitesActionFontSize),
+                      fontWeight: 600,
+                      height: pxToRem(settingsSections.invitesActionHeight),
+                      lineHeight: 1,
+                      padding: `0 ${pxToRem(settingsSections.invitesActionPaddingX)}`,
+                      whiteSpace: "nowrap",
                     }}
+                    type="button"
                   >
-                    {t("server.settings.members.banned.meta", {
-                      date: dateFormatter.format(new Date(entry.bannedAt)),
-                      name: entry.bannedByDisplayName ?? "—",
-                    })}
-                    {" · "}
-                    {entry.reason
-                      ? t("server.settings.members.banned.reason", { reason: entry.reason })
-                      : t("server.settings.members.banned.noReason")}
-                  </div>
+                    {t("server.settings.members.banned.unban")}
+                  </button>
                 </div>
-                <button
-                  className="flex-none border text-[hsl(var(--danger))] transition-colors hover:bg-[hsl(var(--danger)/0.12)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                  data-testid={`server-settings-unban-${entry.userId}`}
-                  onClick={() => onUnban(entry)}
-                  style={{
-                    background: "transparent",
-                    borderColor: "hsl(var(--danger)/0.35)",
-                    borderRadius: pxToRem(settingsSections.invitesActionRadius),
-                    fontSize: pxToRem(settingsSections.invitesActionFontSize),
-                    fontWeight: 600,
-                    height: pxToRem(settingsSections.invitesActionHeight),
-                    lineHeight: 1,
-                    padding: `0 ${pxToRem(settingsSections.invitesActionPaddingX)}`,
-                    whiteSpace: "nowrap",
-                  }}
-                  type="button"
-                >
-                  {t("server.settings.members.banned.unban")}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </CollapsibleList>
+              ))}
+            </div>
+          )}
+        </CollapsibleList>
+      ) : null}
     </div>
   );
 }
 
 export type MemberBanDialogProps = {
   readonly displayName: string;
+  readonly error?: string | null;
   readonly onCancel: () => void;
   readonly onSubmit: (input: { deleteMessageSeconds?: number; reason?: string }) => void;
   readonly open: boolean;
@@ -853,6 +748,7 @@ export type MemberBanDialogProps = {
 
 export function MemberBanDialog({
   displayName,
+  error,
   onCancel,
   onSubmit,
   open,
@@ -876,6 +772,7 @@ export function MemberBanDialog({
         <>
           <button
             className="flex-none border border-[hsl(var(--border))] bg-transparent text-[hsl(var(--text-secondary))] transition-colors hover:bg-[hsl(var(--surface-soft))]"
+            disabled={submitting}
             onClick={onCancel}
             style={{
               borderRadius: pxToRem(modal.secondaryRadius),
@@ -930,53 +827,82 @@ export function MemberBanDialog({
         </svg>
       }
       layerId="server-member-ban"
-      onClose={onCancel}
+      onClose={() => {
+        if (!submitting) onCancel();
+      }}
       open={open}
       title={t("server.settings.members.ban.title")}
       tone="danger"
-      width="invite"
+      width="category"
+      bodyClassName="space-y-5"
     >
-      <label
-        className="uppercase text-[hsl(var(--text-muted))]"
-        htmlFor="server-member-ban-reason"
-        style={{
-          display: "block",
-          fontFamily: DISPLAY_FONT,
-          fontSize: pxToRem(modal.labelFontSize),
-          fontWeight: 600,
-          letterSpacing: `${modal.labelLetterSpacing}em`,
-        }}
-      >
-        {t("server.settings.members.ban.reasonLabel")}
-      </label>
-      <input
-        className="w-full border border-[hsl(var(--border))] bg-[hsl(var(--surface-base))] text-[hsl(var(--foreground))] outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-        id="server-member-ban-reason"
-        maxLength={SERVER_MODERATION_REASON_MAX_LENGTH}
-        onChange={(event) => setReason(event.target.value)}
-        placeholder={t("server.settings.members.ban.reasonPlaceholder")}
-        style={{
-          borderRadius: pxToRem(modal.inputRadius),
-          fontSize: pxToRem(modal.inputFontSize),
-          marginTop: pxToRem(modal.inputMarginTop),
-          padding: `${pxToRem(modal.inputPaddingY)} ${pxToRem(modal.inputPaddingX)}`,
-        }}
-        value={reason}
-      />
-      <div style={{ marginTop: pxToRem(modal.noteMarginTop) }}>
-        <OptionChipGroup
-          description={t("server.settings.members.ban.windowDescription")}
-          onChange={setWindowId}
-          options={SERVER_BAN_DELETE_WINDOWS.map((option) => ({
-            label: t(`server.settings.members.ban.window.${option.id}`),
-            value: option.id,
-          }))}
-          testId="server-settings-ban-window"
-          title={t("server.settings.members.ban.windowTitle")}
-          value={windowId}
-          variant="settings"
-        />
+      <div className="flex items-center gap-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface-base))] p-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[hsl(var(--primary)/0.12)] font-semibold text-[hsl(var(--primary))]">
+          {initials(displayName)}
+        </span>
+        <span className="min-w-0 break-words text-sm font-semibold text-[hsl(var(--foreground))]">
+          {displayName}
+        </span>
       </div>
+      <fieldset disabled={submitting} className="min-w-0 space-y-5 border-0 p-0">
+        <div className="space-y-2">
+          <label
+            className="block text-sm font-semibold text-[hsl(var(--foreground))]"
+            htmlFor="server-member-ban-reason"
+          >
+            {t("server.settings.members.ban.reasonLabel")}
+          </label>
+          <textarea
+            className="min-h-24 w-full resize-y rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface-base))] px-3 py-2.5 text-sm text-[hsl(var(--foreground))] outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            id="server-member-ban-reason"
+            maxLength={SERVER_MODERATION_REASON_MAX_LENGTH}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder={t("server.settings.members.ban.reasonPlaceholder")}
+            value={reason}
+          />
+          <p className="text-right text-xs tabular-nums text-[hsl(var(--text-muted))]">
+            {reason.length} / {SERVER_MODERATION_REASON_MAX_LENGTH}
+          </p>
+        </div>
+        <div className="space-y-2">
+          <label
+            htmlFor="server-member-ban-window"
+            className="block text-sm font-semibold text-[hsl(var(--foreground))]"
+          >
+            {t("server.settings.members.ban.windowTitle")}
+          </label>
+          <select
+            id="server-member-ban-window"
+            aria-describedby="server-member-ban-window-hint"
+            data-testid="server-settings-ban-window"
+            className="w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface-base))] px-3 py-2.5 text-sm text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            value={windowId}
+            onChange={(event) => setWindowId(event.target.value as ServerBanDeleteWindowId)}
+          >
+            {SERVER_BAN_DELETE_WINDOWS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {t(`server.settings.members.ban.window.${option.id}`)}
+              </option>
+            ))}
+          </select>
+          <p
+            id="server-member-ban-window-hint"
+            className="text-xs leading-relaxed text-[hsl(var(--text-muted))]"
+          >
+            {t("server.settings.members.ban.windowDescription")}
+          </p>
+        </div>
+      </fieldset>
+      {windowId !== "none" ? (
+        <p className="rounded-xl bg-[hsl(var(--danger)/0.08)] p-3 text-sm text-[hsl(var(--danger))]">
+          {t("server.settings.members.ban.deleteWarning")}
+        </p>
+      ) : null}
+      {error ? (
+        <p role="alert" className="text-sm text-[hsl(var(--danger))]">
+          {error}
+        </p>
+      ) : null}
     </ServerModalShell>
   );
 }
@@ -988,6 +914,7 @@ export function MembersSection({
   patch,
   permissions,
 }: ServerSettingsSectionProps) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const serverId = detail.server.id;
   const [query, setQuery] = useState("");
@@ -997,6 +924,7 @@ export function MembersSection({
   const [openRoleMenuMemberId, setOpenRoleMenuMemberId] = useState<string | null>(null);
   const [bansExpanded, setBansExpanded] = useState(false);
   const [banTarget, setBanTarget] = useState<WorkspaceMember | null>(null);
+  const [actionError, setActionError] = useState(false);
   /**
    * "Şimdi" render başına **bir kez** okunur. Her satır kendi `Date.now()`unu çağırsaydı aynı
    * listedeki iki zaman aşımı çipi farklı saniyeleri gösterebilirdi; ayrıca sunucuda render
@@ -1024,7 +952,7 @@ export function MembersSection({
     id: "server-settings-member-row-menu",
     kind: "menu",
     onClose: closeRowMenus,
-    open: openMenuMemberId !== null || openRoleMenuMemberId !== null,
+    open: openMenuMemberId !== null,
   });
 
   /**
@@ -1035,7 +963,7 @@ export function MembersSection({
    * basıldığında menüyü açık bırakırdı.
    */
   useEffect(() => {
-    if (openMenuMemberId === null && openRoleMenuMemberId === null) {
+    if (openMenuMemberId === null) {
       return;
     }
 
@@ -1056,20 +984,13 @@ export function MembersSection({
     return () => {
       window.removeEventListener("pointerdown", handlePointerDown, true);
     };
-  }, [closeRowMenus, openMenuMemberId, openRoleMenuMemberId]);
+  }, [closeRowMenus, openMenuMemberId]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), 220);
 
     return () => clearTimeout(timer);
   }, [query]);
-
-  /** Zaman aşımı çipi kendiliğinden sönmeli; en kısa süre 60 sn, dakikada bir tazelemek yeter. */
-  useEffect(() => {
-    const timer = setInterval(() => setNowMs(Date.now()), 30_000);
-
-    return () => clearInterval(timer);
-  }, []);
 
   const membersQuery = useQuery({
     placeholderData: (previous) => previous,
@@ -1096,6 +1017,8 @@ export function MembersSection({
   const timeoutMutation = useMutation({
     mutationFn: (input: { memberId: string; until: string | null }) =>
       timeoutServerMember(serverId, input.memberId, { until: input.until }),
+    onMutate: () => setActionError(false),
+    onError: () => setActionError(true),
     onSettled: invalidate,
   });
 
@@ -1111,11 +1034,15 @@ export function MembersSection({
 
   const unbanMutation = useMutation({
     mutationFn: (userId: string) => unbanServerMember(serverId, userId),
+    onMutate: () => setActionError(false),
+    onError: () => setActionError(true),
     onSettled: invalidate,
   });
 
   const kickMutation = useMutation({
     mutationFn: (memberId: string) => kickMemberRequest(serverId, memberId),
+    onMutate: () => setActionError(false),
+    onError: () => setActionError(true),
     onSettled: invalidate,
   });
 
@@ -1123,6 +1050,7 @@ export function MembersSection({
     mutationFn: (input: { memberId: string; roleIds: string[] }) =>
       updateWorkspaceMemberRolesRequest(serverId, input.memberId, { roleIds: input.roleIds }),
     onSettled: invalidate,
+    onSuccess: () => setOpenRoleMenuMemberId(null),
   });
 
   const members = membersQuery.data?.members ?? detail.members;
@@ -1131,83 +1059,139 @@ export function MembersSection({
     total: detail.server.memberCount,
   };
 
+  const canEditMember = useCallback(
+    (member: WorkspaceMember) => canManageMemberTarget(member, detail.roles, detail.server.isOwner),
+    [detail.roles, detail.server.isOwner],
+  );
   const moderationActions = useMemo(
     () => (member: WorkspaceMember) =>
-      listMemberModerationActions(
-        { canBan, canKick, canTimeout, userId: currentUserId },
-        {
-          accessLevel: member.accessLevel,
-          communicationDisabledUntil: member.communicationDisabledUntil,
-          userId: member.userId,
-        },
-        nowMs,
-      ),
-    [canBan, canKick, canTimeout, currentUserId, nowMs],
+      canEditMember(member)
+        ? listMemberModerationActions(
+            { canBan, canKick, canTimeout, userId: currentUserId },
+            member,
+            nowMs,
+          )
+        : [],
+    [canBan, canKick, canTimeout, currentUserId, nowMs, canEditMember],
   );
+  const latestTimeout = useMemo(
+    () =>
+      Math.max(
+        0,
+        ...members.map((member) => Date.parse(member.communicationDisabledUntil ?? "") || 0),
+      ),
+    [members],
+  );
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const tick = () => {
+      const now = Date.now();
+      setNowMs(now);
+      if (now >= latestTimeout) clearInterval(timer);
+    };
+    const sync = () => {
+      clearInterval(timer);
+      if (!document.hidden) {
+        tick();
+        if (latestTimeout > Date.now()) timer = setInterval(tick, 1000);
+      }
+    };
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", sync);
+    };
+  }, [latestTimeout]);
+  const roleTarget = members.find((member) => member.id === openRoleMenuMemberId);
+  const busy = timeoutMutation.isPending || kickMutation.isPending || unbanMutation.isPending;
 
   return (
     <>
-      <MembersSectionView
-        allowMemberAdds={draft.allowMemberAdds}
-        bans={bansQuery.data?.bans ?? []}
-        bansExpanded={bansExpanded}
-        canAssignRoles={canAssignRoles}
-        canManageServer={canManageServer}
-        counts={counts}
-        filter={filter}
-        members={members}
-        moderationActions={moderationActions}
-        nowMs={nowMs}
-        onBan={(member) => {
-          setOpenMenuMemberId(null);
-          setBanTarget(member);
-        }}
-        onFilterChange={setFilter}
-        onKick={(member) => kickMutation.mutate(member.id)}
-        onQueryChange={setQuery}
-        onRemoveTimeout={(member) => {
-          setOpenMenuMemberId(null);
-          timeoutMutation.mutate({ memberId: member.id, until: null });
-        }}
-        onTimeout={(member, id) => {
-          setOpenMenuMemberId(null);
-          timeoutMutation.mutate({
-            memberId: member.id,
-            until: resolveTimeoutUntil(Date.now(), selectTimeoutDuration(id).seconds),
-          });
-        }}
-        onToggleAllowMemberAdds={(allowMemberAdds) => patch({ allowMemberAdds })}
-        onToggleBans={() => setBansExpanded((current) => !current)}
-        onToggleMenu={(memberId) => {
-          setOpenRoleMenuMemberId(null);
-          setOpenMenuMemberId(memberId);
-        }}
-        onToggleRole={(member, roleId) => {
-          const current = member.roles.map((role) => role.id);
-
-          rolesMutation.mutate({
-            memberId: member.id,
-            roleIds: current.includes(roleId)
-              ? current.filter((id) => id !== roleId)
-              : [...current, roleId],
-          });
-        }}
-        onToggleRoleMenu={(memberId) => {
-          setOpenMenuMemberId(null);
-          setOpenRoleMenuMemberId(memberId);
-        }}
-        onUnban={(entry) => unbanMutation.mutate(entry.userId)}
-        openMenuMemberId={openMenuMemberId}
-        openRoleMenuMemberId={openRoleMenuMemberId}
-        query={query}
-        roles={detail.roles}
-      />
+      {actionError || membersQuery.isError || (canBan && bansExpanded && bansQuery.isError) ? (
+        <p role="alert" className="mb-4 text-sm text-[hsl(var(--danger))]">
+          {t("server.settings.members.error")}
+        </p>
+      ) : null}
+      <fieldset disabled={busy} className="min-w-0 border-0 p-0">
+        <MembersSectionView
+          allowMemberAdds={draft.allowMemberAdds}
+          bans={bansQuery.data?.bans ?? []}
+          bansExpanded={bansExpanded}
+          canAssignRoles={canAssignRoles}
+          canEditMember={canEditMember}
+          canBan={canBan}
+          canManageServer={canManageServer}
+          counts={counts}
+          filter={filter}
+          members={members}
+          moderationActions={moderationActions}
+          nowMs={nowMs}
+          onBan={(member) => {
+            setOpenMenuMemberId(null);
+            banMutation.reset();
+            setBanTarget(member);
+          }}
+          onFilterChange={setFilter}
+          onKick={(member) => {
+            if (!busy && moderationActions(member).includes("kick")) kickMutation.mutate(member.id);
+          }}
+          onQueryChange={setQuery}
+          onRemoveTimeout={(member) => {
+            setOpenMenuMemberId(null);
+            timeoutMutation.mutate({ memberId: member.id, until: null });
+          }}
+          onTimeout={(member, id) => {
+            setOpenMenuMemberId(null);
+            timeoutMutation.mutate({
+              memberId: member.id,
+              until: resolveTimeoutUntil(Date.now(), selectTimeoutDuration(id).seconds),
+            });
+          }}
+          onToggleAllowMemberAdds={(allowMemberAdds) => patch({ allowMemberAdds })}
+          onToggleBans={() => setBansExpanded((current) => !current)}
+          onToggleMenu={(memberId) => {
+            setOpenRoleMenuMemberId(null);
+            setOpenMenuMemberId(memberId);
+          }}
+          onToggleRoleMenu={(memberId) => {
+            setOpenMenuMemberId(null);
+            rolesMutation.reset();
+            setOpenRoleMenuMemberId(memberId);
+          }}
+          onUnban={(entry) => unbanMutation.mutate(entry.userId)}
+          openMenuMemberId={openMenuMemberId}
+          openRoleMenuMemberId={openRoleMenuMemberId}
+          query={query}
+          roles={detail.roles}
+        />
+      </fieldset>
+      {roleTarget && canAssignRoles && canEditMember(roleTarget) ? (
+        <MemberRolesDialog
+          key={roleTarget.id}
+          member={roleTarget}
+          roles={detail.roles}
+          isOwner={detail.server.isOwner}
+          submitting={rolesMutation.isPending}
+          error={rolesMutation.isError ? t("server.settings.members.error") : null}
+          onCancel={() => {
+            if (!rolesMutation.isPending) setOpenRoleMenuMemberId(null);
+          }}
+          onSubmit={(roleIds) => {
+            if (!rolesMutation.isPending)
+              rolesMutation.mutate({ memberId: roleTarget.id, roleIds });
+          }}
+        />
+      ) : null}
       {banTarget ? (
         <MemberBanDialog
           displayName={banTarget.displayName}
+          error={banMutation.isError ? t("server.settings.members.error") : null}
           key={banTarget.id}
           onCancel={() => setBanTarget(null)}
-          onSubmit={(input) => banMutation.mutate({ ...input, memberId: banTarget.id })}
+          onSubmit={(input) => {
+            if (!banMutation.isPending) banMutation.mutate({ ...input, memberId: banTarget.id });
+          }}
           open
           submitting={banMutation.isPending}
         />

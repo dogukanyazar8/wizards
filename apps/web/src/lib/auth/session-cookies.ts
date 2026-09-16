@@ -77,8 +77,25 @@ export function shouldClearDesktopSessionOnClose(
   return token?.rememberMe === false;
 }
 
-export function expireAuthSessionCookies(cookies: AuthSessionCookieWriter) {
-  for (const cookieName of getAuthSessionCookieNamesToClear()) {
+export function isAuthSessionCookieName(
+  name: string,
+  cookieName = getAuthSessionCookieConfig().cookieName,
+) {
+  return (
+    name === cookieName ||
+    (name.startsWith(`${cookieName}.`) && /^\d+$/.test(name.slice(cookieName.length + 1)))
+  );
+}
+
+export function expireAuthSessionCookies(
+  cookies: AuthSessionCookieWriter,
+  incomingNames: readonly string[] = [],
+) {
+  const names = new Set([
+    ...getAuthSessionCookieNamesToClear(),
+    ...incomingNames.filter((name) => isAuthSessionCookieName(name)),
+  ]);
+  for (const cookieName of names) {
     cookies.set(cookieName, "", {
       ...getAuthSessionCookieOptions(),
       expires: new Date(0),

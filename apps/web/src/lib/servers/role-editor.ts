@@ -186,6 +186,7 @@ const ELEVATED_PERMISSION_KEYS: readonly WorkspacePermissionKey[] = [
   "ADMINISTRATOR",
   "MANAGE_ROLES",
   "MANAGE_SERVER",
+  "MANAGE_CHANNELS",
 ];
 
 export function isElevatedRole(role: Pick<WorkspaceRole, "permissions">): boolean {

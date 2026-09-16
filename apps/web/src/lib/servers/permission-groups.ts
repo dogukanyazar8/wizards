@@ -34,7 +34,7 @@ export type ServerPermissionRow = {
   id: string;
   /** `undefined` yalnız `alwaysOn` satırlarda olur. */
   key?: WorkspacePermissionKey;
-  /** SPEC §8.5: `Yönetici` satırı `yalnızca sahip` çipi taşır ve sahip dışına çizilmez. */
+  /** Elevated permissions are owner-only, matching ensureCanWriteRolePermissions. */
   ownerOnly?: true;
 };
 
@@ -81,9 +81,9 @@ export const SERVER_PERMISSION_GROUPS: readonly ServerPermissionGroup[] = [
   {
     id: "management",
     rows: [
-      { id: "manageChannels", key: "MANAGE_CHANNELS" },
-      { id: "manageRoles", key: "MANAGE_ROLES" },
-      { id: "manageServer", key: "MANAGE_SERVER" },
+      { id: "manageChannels", key: "MANAGE_CHANNELS", ownerOnly: true },
+      { id: "manageRoles", key: "MANAGE_ROLES", ownerOnly: true },
+      { id: "manageServer", key: "MANAGE_SERVER", ownerOnly: true },
       { id: "administrator", key: "ADMINISTRATOR", ownerOnly: true },
     ],
   },
@@ -169,7 +169,7 @@ export function setPermissionGroupSelection(
 
 /**
  * SPEC §8.5'in üç hazır ayarı. `Admin` "hepsi **eksi** `Yönetici`"dir — tasarımın kendi
- * cümlesi; `ADMINISTRATOR` yalnız sahibin açabileceği tek anahtardır.
+ * cümlesi; Yönetim grubundaki tüm anahtarları yalnız sunucu sahibi verebilir.
  */
 export function resolvePreset(preset: ServerRolePresetId): WorkspacePermissionKey[] {
   const keys = GROUPS_BY_PRESET[preset].flatMap((groupId) => listGroupKeys(groupId));

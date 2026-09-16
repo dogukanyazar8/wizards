@@ -174,6 +174,9 @@ export async function updateAdminDownloadArtifact(
 
     return { artifact: toAdminArtifact(row) };
   } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2025") {
+      throw new ApiError("Download package was not found.", 404, "DOWNLOAD_ARTIFACT_NOT_FOUND");
+    }
     if (dependencies.isUniqueViolation(error)) {
       throw new ApiError(
         "This environment already has a package for that platform.",

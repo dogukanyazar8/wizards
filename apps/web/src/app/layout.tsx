@@ -11,6 +11,7 @@ import { AppIconProvider } from "@/components/providers/app-icon-provider";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { AUTH_THEME_BOOTSTRAP_SCRIPT } from "@/lib/auth/auth-theme";
 import { MessageFontSync } from "@/components/providers/message-font-sync";
+import { FocusModalitySync } from "@/components/providers/focus-modality-sync";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
@@ -115,6 +116,7 @@ export default async function RootLayout({
               <QueryProvider>
                 <ConfirmationHost />
                 <MessageFontSync />
+                <FocusModalitySync />
                 <WebHealthReporter />
                 <DesktopContextMenuGuard />
                 <div className="desktop-window-frame" data-testid="desktop-window-frame">

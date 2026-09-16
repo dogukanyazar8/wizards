@@ -47,7 +47,6 @@ export async function loadAdminOverviewSnapshot(
       _sum: {
         appSeconds: true,
         cameraSeconds: true,
-        date: true,
         dmMessageCount: true,
         fileUploadCount: true,
         messageCount: true,

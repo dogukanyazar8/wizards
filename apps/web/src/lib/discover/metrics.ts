@@ -300,6 +300,7 @@ export const DISCOVER_METRICS = {
   },
 
   /** SPEC §4.4 — sunucu kartı ve ızgarası. */
+  // September 2026 card polish: roomier text/actions; shell and grid remain unchanged.
   serverCard: {
     /** `repeat(auto-fill, minmax(262px, 1fr))`; `Büyük` boyutta 330. */
     gridMin: 262,
@@ -314,33 +315,32 @@ export const DISCOVER_METRICS = {
     bandHeight: 46,
 
     tileRowGap: 11,
-    tileRowPaddingX: 14,
-    /** Tile banda **oturur**: negatif margin + 3px halka çakışmayı önler. */
+    tileRowPaddingX: 16,
+    /** Tile banda oturur; opak alt zemin bandın ikon içinden görünmesini önler. */
     tileMarginTop: -19,
-    tileSize: 44,
-    tileRadius: 14,
-    tileRingWidth: 3,
-    tileFontSize: 15,
+    tileSize: 54,
+    tileRadius: 17,
+    tileFontSize: 19,
     tileWeight: 600,
 
     nameGap: 6,
     namePaddingBottom: 2,
-    nameFontSize: 14.5,
+    nameFontSize: 15,
     nameLineHeight: 1.25,
     nameWeight: 600,
     nameLetterSpacing: -0.02,
 
-    bodyPaddingTop: 10,
-    bodyPaddingX: 14,
+    bodyPaddingTop: 12,
+    bodyPaddingX: 16,
     metaGap: 9,
-    metaFontSize: 11,
+    metaFontSize: 11.5,
     metaWeight: 500,
     metaOnlineGap: 5,
     metaDotSize: 6,
     metaSeparatorSize: 3,
 
     descMarginTop: 9,
-    descFontSize: 12.5,
+    descFontSize: 13,
     descLineHeight: 1.5,
 
     tagRowGap: 6,
@@ -353,22 +353,21 @@ export const DISCOVER_METRICS = {
 
     actionRowMarginTop: 13,
     actionRowPaddingTop: 11,
-    actionRowPaddingX: 14,
+    actionRowPaddingX: 16,
     actionRowPaddingBottom: 13,
     actionRowGap: 7,
     actionRowBorderWidth: 1,
 
-    joinButtonHeight: 32,
+    joinButtonHeight: 36,
     joinButtonRadius: 10,
     joinButtonGap: 6,
     joinButtonBorderWidth: 1,
-    /** SPEC sessiz — HTML `font:600 11.5px/1`. */
-    joinButtonFontSize: 11.5,
+    joinButtonFontSize: 12,
     joinButtonWeight: 600,
-    previewButtonHeight: 32,
+    previewButtonHeight: 36,
     previewButtonPaddingX: 12,
     previewButtonRadius: 10,
-    previewButtonFontSize: 11.5,
+    previewButtonFontSize: 12,
     previewButtonWeight: 600,
 
     selectedStripeWidth: 3,

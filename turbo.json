@@ -42,7 +42,7 @@
         "WHISPR_RELEASE_CHANNEL",
         "WHISPR_VERSION"
       ],
-      "outputs": [".next/**", "dist/**"]
+      "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**", "dist/**"]
     },
     "build:desktop": {
       "cache": false,

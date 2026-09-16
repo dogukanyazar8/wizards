@@ -1037,10 +1037,41 @@ export const MessageItem = React.memo(
           : t("chat.message.systemJoin", { name: message.author.displayName });
 
       return (
-        <div className="px-2 py-1.5 sm:px-3" role="status" aria-live="polite">
-          <div className="app-system-message mx-auto flex max-w-xl items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium">
-            <Icon className="app-system-message-icon h-3.5 w-3.5" />
-            <span className="message-font-scope">{systemContent}</span>
+        <div
+          className="grid min-w-0 grid-cols-[var(--message-avatar-size,2.05rem)_minmax(0,1fr)] items-center gap-2.5 px-1.5 py-[var(--m-pad,0.375rem)] sm:grid-cols-[var(--message-avatar-size,2.25rem)_minmax(0,1fr)] sm:gap-3 sm:px-[var(--m-row-pad-x,0.75rem)]"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="flex justify-center" aria-hidden="true">
+            <span
+              className={cn(
+                "grid size-7 place-items-center rounded-full",
+                message.type === "SYSTEM_LEAVE"
+                  ? "bg-[hsl(var(--surface-soft))] text-app-muted"
+                  : "bg-[hsl(var(--success)/0.1)] text-[var(--success-readable)]",
+              )}
+            >
+              <Icon className="size-3.5" />
+            </span>
+          </span>
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span
+              className="message-font-scope min-w-0 font-medium text-app-muted [overflow-wrap:anywhere]"
+              style={{
+                fontSize: `var(--message-body-size, ${pxToRem(MESSAGES_METRICS.messageList.bodyFontSize)})`,
+                lineHeight: MESSAGES_METRICS.messageList.bodyLineHeight,
+              }}
+            >
+              {systemContent}
+            </span>
+            <time
+              className="shrink-0 text-app-soft"
+              dateTime={message.createdAt}
+              title={`${formatDate(message.createdAt)} · ${formattedTime}`}
+              style={{ fontSize: pxToRem(MESSAGES_METRICS.messageList.timeFontSize) }}
+            >
+              {formattedTime}
+            </time>
           </div>
         </div>
       );

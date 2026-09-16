@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import type { WorkspaceRole } from "@wizards/types";
 
 import {
   SERVER_BAN_DELETE_WINDOWS,
@@ -7,6 +8,10 @@ import {
   SERVER_MODERATION_REASON_MAX_LENGTH,
   SERVER_TIMEOUT_DURATIONS,
   formatTimeoutRemaining,
+  formatTimeoutCountdown,
+  selectEditableMemberRoleIds,
+  selectAssignableMemberRoles,
+  canManageMemberTarget,
   isMemberTimedOut,
   listMemberModerationActions,
   resolveTimeoutUntil,
@@ -218,5 +223,68 @@ describe("satırın rozeti ve rol adı", () => {
     const roles = [{ id: "r-0", isDefault: true, name: "@everyone", position: 0 }];
 
     assert.equal(selectPrimaryRoleName(["r-0"], roles), null);
+  });
+});
+
+describe("multi-role assignment and exact timeout countdown", () => {
+  const role = (id: string, extra: Partial<WorkspaceRole> = {}): WorkspaceRole => ({
+    id,
+    name: id,
+    color: 0,
+    position: 0,
+    permissions: [],
+    isDefault: false,
+    managed: false,
+    mentionable: false,
+    ...extra,
+  });
+  const roles = [
+    role("everyone", { isDefault: true }),
+    role("bot", { managed: true }),
+    role("one"),
+    role("two"),
+    role("channels", { permissions: ["MANAGE_CHANNELS"] }),
+  ];
+
+  it("replacement payload excludes default/managed roles, preserves multiple selections and deduplicates", () => {
+    assert.deepEqual(selectEditableMemberRoleIds(["everyone", "bot", "one", "two", "one"], roles), [
+      "one",
+      "two",
+    ]);
+    assert.deepEqual(selectEditableMemberRoleIds(["everyone", "bot"], roles), []);
+  });
+
+  it("only the owner can assign elevated permissions; system roles are never assignable", () => {
+    assert.deepEqual(
+      selectAssignableMemberRoles(roles, false).map((entry) => entry.id),
+      ["one", "two"],
+    );
+    assert.deepEqual(
+      selectAssignableMemberRoles(roles, true).map((entry) => entry.id),
+      ["one", "two", "channels"],
+    );
+  });
+
+  it("matches backend protection for targets with elevated and managed roles", () => {
+    const member = { accessLevel: "MEMBER" as const, roles: [{ id: "everyone" }, { id: "one" }] };
+    assert.equal(canManageMemberTarget(member, roles, false), true);
+    for (const id of ["channels", "bot", "unknown"]) {
+      assert.equal(canManageMemberTarget({ ...member, roles: [{ id }] }, roles, false), false);
+    }
+    assert.equal(
+      canManageMemberTarget({ ...member, roles: [{ id: "channels" }] }, roles, true),
+      true,
+    );
+    assert.equal(canManageMemberTarget({ ...member, accessLevel: "OWNER" }, roles, true), false);
+  });
+
+  it("counts down every second, including partial seconds and durations over a day", () => {
+    const until = resolveTimeoutUntil(NOW, 90061);
+    assert.equal(formatTimeoutCountdown(until, NOW), "25:01:01");
+    assert.equal(formatTimeoutCountdown(until, NOW + 1000), "25:01:00");
+    assert.equal(formatTimeoutCountdown(resolveTimeoutUntil(NOW, 1), NOW + 999), "00:00:01");
+    assert.equal(formatTimeoutCountdown(resolveTimeoutUntil(NOW, 1), NOW + 1000), null);
+    assert.equal(formatTimeoutCountdown("invalid", NOW), null);
+    assert.equal(formatTimeoutCountdown(null, NOW), null);
   });
 });

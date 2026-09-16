@@ -47,14 +47,16 @@ describe("DiscoverGrid", () => {
     assert.ok(markup.includes("flex-direction:column"));
   });
 
-  it("profil paneli açıkken sunucu ızgarasını tek kolona düşürür", () => {
+  it("profil paneli açıkken kolonları kalan genişliğe göre otomatik yerleştirir", () => {
     const markup = render(
       <DiscoverGrid cardSize="medium" lane="servers" panelOpen>
         <article>sunucu</article>
       </DiscoverGrid>,
     );
 
-    assert.ok(markup.includes("grid-template-columns:minmax(0, 1fr)"));
+    assert.ok(
+      markup.includes("repeat(auto-fill, minmax(min(100%, var(--discover-card-min)), 1fr))"),
+    );
   });
 
   it("role=list eklemeden aktif şeridi aria-label ile adlandırır", () => {

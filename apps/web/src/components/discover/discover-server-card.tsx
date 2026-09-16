@@ -3,12 +3,12 @@
 import React, { memo, type CSSProperties } from "react";
 import { formatServerProfileCount, type DiscoverServer } from "@wizards/types";
 
-import {
-  DiscoverCategoryTile,
-  getDiscoverCategoryTone,
-} from "@/components/discover/discover-category-tile";
+import { Avatar } from "@/components/ui/avatar";
+import { getDiscoverCategoryTone } from "@/components/discover/discover-category-tile";
 import { useI18n } from "@/components/providers/locale-provider";
 import { DISCOVER_METRICS, hairline, pxToRem } from "@/lib/discover/metrics";
+import { resolveServerIconPresentation } from "@/lib/servers/server-icon-presentation";
+import { getServerIconToneColor } from "@/lib/servers/server-icon-tone";
 
 export type DiscoverServerCardProps = {
   readonly onOpen: (server: DiscoverServer) => void;
@@ -47,24 +47,33 @@ function DiscoverServerCardComponent({
 }: DiscoverServerCardProps) {
   const { locale, t } = useI18n();
   const metrics = DISCOVER_METRICS.serverCard;
-  const tone = getDiscoverCategoryTone(server.category);
+  const presentation = resolveServerIconPresentation({
+    name: server.name,
+    shortName: server.initials,
+    iconColor: server.iconColor,
+    iconUrl: server.iconUrl,
+  });
+  const tone = server.iconColor ?? getDiscoverCategoryTone(server.category);
   const border = resolveBorder(server, selected);
   const titleId = `discover-server-card-title-${server.id}`;
   const memberCount = formatServerProfileCount(server.memberCount, locale);
   const onlineCount = formatServerProfileCount(server.onlineCount, locale);
-  const articleStyle: CSSProperties = {
-    background: server.joined ? "hsl(var(--surface-card))" : "hsl(var(--surface-card)/0.6)",
-    border: `${hairline(metrics.borderWidth)} solid ${border.color}`,
+  const articleStyle: CSSProperties & { "--card-border": string } = {
+    "--card-border": border.color,
+    background: "hsl(var(--surface-card))",
+    borderWidth: hairline(metrics.borderWidth),
+    borderStyle: "solid",
     borderRadius: pxToRem(metrics.radius),
     contentVisibility: "auto",
     fontFamily: "var(--font-sans)",
-    transition: `border-color ${DISCOVER_METRICS.transitions.hover}ms, transform ${DISCOVER_METRICS.transitions.hover}ms`,
+    transitionDuration: `${DISCOVER_METRICS.transitions.hover}ms`,
   };
 
   return (
     <article
       aria-labelledby={titleId}
-      className="group relative flex cursor-pointer flex-col overflow-hidden hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.45)] motion-reduce:hover:translate-y-0"
+      // globals.css has an unlayered universal border color; keep state/hover colors local.
+      className="group relative flex min-w-0 cursor-pointer flex-col overflow-hidden border-[var(--card-border)]! shadow-sm shadow-[hsl(var(--shadow-color)/0.12)] transition-[border-color,transform,box-shadow] hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.45)]! hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0"
       data-border-state={border.state}
       data-category={server.category}
       data-testid="discover-server-card"
@@ -73,7 +82,7 @@ function DiscoverServerCardComponent({
       <div
         aria-hidden="true"
         style={{
-          background: `linear-gradient(120deg, hsl(var(--${tone})/0.3) 0%, hsl(var(--${tone})/0.1) 100%)`,
+          background: getServerIconToneColor(tone),
           height: pxToRem(metrics.bandHeight),
         }}
       />
@@ -86,17 +95,48 @@ function DiscoverServerCardComponent({
           paddingInline: pxToRem(metrics.tileRowPaddingX),
         }}
       >
-        <DiscoverCategoryTile
-          category={server.category}
-          fontSize={metrics.tileFontSize}
-          iconColor={server.iconColor}
-          iconUrl={server.iconUrl}
-          initials={server.initials}
-          radius={metrics.tileRadius}
-          ringToken="surface-card"
-          ringWidth={metrics.tileRingWidth}
-          size={metrics.tileSize}
-        />
+        <span
+          aria-hidden="true"
+          className="shrink-0"
+          data-testid="discover-server-card-icon"
+          style={{
+            // An opaque backing prevents the banner edge from showing through the tint.
+            background: "hsl(var(--surface-card))",
+            borderRadius: pxToRem(metrics.tileRadius),
+          }}
+        >
+          {presentation.kind === "image" ? (
+            <Avatar
+              alt=""
+              fallback=""
+              className="bg-[hsl(var(--surface-soft)/0.7)]"
+              src={presentation.imageUrl}
+              style={{
+                borderRadius: pxToRem(metrics.tileRadius),
+                height: pxToRem(metrics.tileSize),
+                width: pxToRem(metrics.tileSize),
+              }}
+            />
+          ) : (
+            <span
+              className="grid place-items-center uppercase"
+              data-tone={tone}
+              style={{
+                background: getServerIconToneColor(tone, 0.14),
+                borderRadius: pxToRem(metrics.tileRadius),
+                color: `color-mix(in srgb, ${getServerIconToneColor(tone)} 45%, hsl(var(--foreground)))`,
+                fontFamily: "var(--font-display), sans-serif",
+                fontSize: pxToRem(metrics.tileFontSize),
+                fontWeight: 600,
+                height: pxToRem(metrics.tileSize),
+                lineHeight: 1,
+                width: pxToRem(metrics.tileSize),
+              }}
+            >
+              {presentation.label}
+            </span>
+          )}
+        </span>
         <div
           className="flex min-w-0 flex-1 items-center"
           style={{
@@ -108,6 +148,7 @@ function DiscoverServerCardComponent({
             className="min-w-0 flex-1 truncate text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-[hsl(var(--ring))] focus-visible:after:ring-offset-2 focus-visible:after:ring-offset-[hsl(var(--surface-card))]"
             data-testid="discover-server-card-open"
             id={titleId}
+            title={server.name}
             onClick={() => onOpen(server)}
             style={{
               color: "hsl(var(--foreground))",
@@ -125,13 +166,15 @@ function DiscoverServerCardComponent({
       </div>
 
       <div
+        className="flex flex-1 flex-col"
         style={{
           paddingInline: pxToRem(metrics.bodyPaddingX),
           paddingTop: pxToRem(metrics.bodyPaddingTop),
+          paddingBottom: pxToRem(metrics.actionRowMarginTop),
         }}
       >
         <div
-          className="flex items-center text-[hsl(var(--text-muted))]"
+          className="flex flex-wrap items-center text-[hsl(var(--text-muted))]"
           style={{
             fontSize: pxToRem(metrics.metaFontSize),
             fontWeight: metrics.metaWeight,
@@ -161,16 +204,18 @@ function DiscoverServerCardComponent({
           <span>{t("discover.card.members", { count: memberCount })}</span>
         </div>
 
-        <p
-          className="m-0 text-pretty text-[hsl(var(--text-secondary))]"
-          style={{
-            fontSize: pxToRem(metrics.descFontSize),
-            lineHeight: metrics.descLineHeight,
-            marginTop: pxToRem(metrics.descMarginTop),
-          }}
-        >
-          {server.description}
-        </p>
+        {server.description.trim() ? (
+          <p
+            className="m-0 line-clamp-3 break-words text-pretty text-[hsl(var(--text-secondary))]"
+            style={{
+              fontSize: pxToRem(metrics.descFontSize),
+              lineHeight: metrics.descLineHeight,
+              marginTop: pxToRem(metrics.descMarginTop),
+            }}
+          >
+            {server.description}
+          </p>
+        ) : null}
 
         {server.tags.length > 0 ? (
           <div
@@ -180,7 +225,7 @@ function DiscoverServerCardComponent({
           >
             {server.tags.map((tag) => (
               <span
-                className="whitespace-nowrap bg-[hsl(var(--surface-soft))] text-[hsl(var(--text-muted))]"
+                className="max-w-full truncate bg-[hsl(var(--surface-soft))] text-[hsl(var(--text-muted))]"
                 key={tag}
                 style={{
                   borderRadius: pxToRem(metrics.tagRadius),
@@ -202,13 +247,12 @@ function DiscoverServerCardComponent({
         style={{
           borderTop: `${hairline(metrics.actionRowBorderWidth)} solid hsl(var(--border)/0.5)`,
           gap: pxToRem(metrics.actionRowGap),
-          marginTop: pxToRem(metrics.actionRowMarginTop),
           padding: `${pxToRem(metrics.actionRowPaddingTop)} ${pxToRem(metrics.actionRowPaddingX)} ${pxToRem(metrics.actionRowPaddingBottom)}`,
         }}
       >
         <button
           aria-pressed={server.joined}
-          className="flex flex-1 items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="flex flex-1 items-center justify-center transition-colors hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           onClick={() => onToggleJoin(server)}
           style={{
             background: server.joined ? "hsl(var(--success)/0.16)" : "hsl(var(--primary))",
@@ -216,9 +260,7 @@ function DiscoverServerCardComponent({
               server.joined ? "hsl(var(--success)/0.45)" : "hsl(var(--primary))"
             }`,
             borderRadius: pxToRem(metrics.joinButtonRadius),
-            color: server.joined
-              ? "hsl(var(--success-readable))"
-              : "hsl(var(--primary-foreground))",
+            color: server.joined ? "var(--success-readable)" : "hsl(var(--primary-foreground))",
             fontSize: pxToRem(metrics.joinButtonFontSize),
             fontWeight: metrics.joinButtonWeight,
             height: pxToRem(metrics.joinButtonHeight),

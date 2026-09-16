@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { describe, it } from "node:test";
+import { readDesignReference } from "@/lib/design-reference";
 
 process.env.APP_URL = "https://whispr.app";
 
@@ -22,15 +21,6 @@ const { renderPasswordResetEmail } = await import("@/lib/email/templates/passwor
  * - Metin düğümleri imzaya girmez; metinler kendi testlerinde birebir denetlenir.
  * - Stil kuralları sıralanır: kural sırası görünümü değiştirmez.
  */
-
-const REFERENCE_DIR = path.join(
-  process.cwd(),
-  "..",
-  "..",
-  "design_handoff",
-  "eposta-handoff",
-  "html",
-);
 
 const SIGNIFICANT_ATTRIBUTES = ["bgcolor", "width", "height", "align", "valign", "class"] as const;
 
@@ -92,7 +82,7 @@ function firstDifference(actual: readonly string[], expected: readonly string[])
 
 describe("e-posta referans paritesi", () => {
   it("doğrulama kodu şablonu referans uygulamayla aynı yapıyı üretir", () => {
-    const reference = readFileSync(path.join(REFERENCE_DIR, "dogrulama-kodu.html"), "utf8");
+    const reference = readDesignReference("eposta-handoff/html/dogrulama-kodu.html");
     const rendered = renderVerificationCodeEmail({
       code: "482915",
       codeTtlMinutes: 10,
@@ -110,7 +100,7 @@ describe("e-posta referans paritesi", () => {
   });
 
   it("şifre sıfırlama şablonu referans uygulamayla aynı yapıyı üretir", () => {
-    const reference = readFileSync(path.join(REFERENCE_DIR, "sifre-sifirlama.html"), "utf8");
+    const reference = readDesignReference("eposta-handoff/html/sifre-sifirlama.html");
     const rendered = renderPasswordResetEmail({
       accountEmail: "ada@whispr.app",
       locale: "tr",

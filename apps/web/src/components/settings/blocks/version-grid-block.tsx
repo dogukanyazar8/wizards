@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
+import { Check, Copy } from "lucide-react";
 
 import { useI18n } from "@/components/providers/locale-provider";
 import type { SettingsBlockProps } from "@/components/settings/rows/setting-custom-block";
@@ -28,6 +29,53 @@ export type VersionGridRow = {
 };
 
 type Translate = (key: string, values?: Record<string, number | string>) => string;
+
+function BuildIdValue({ buildId, t }: { buildId: string; t: Translate }) {
+  const [copyState, setCopyState] = useState<"idle" | "copying" | "copied" | "failed">("idle");
+
+  async function copyBuildId() {
+    setCopyState("copying");
+    try {
+      if (!navigator.clipboard) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(buildId);
+      setCopyState("copied");
+    } catch {
+      // Denied permissions and unavailable clipboard APIs need a manual copy path.
+      setCopyState("failed");
+    }
+  }
+
+  const Icon = copyState === "copied" ? Check : Copy;
+
+  return (
+    <>
+      <button
+        aria-label={t("settings.block.version.copyBuildId", { buildId })}
+        className="inline-flex max-w-full cursor-pointer items-center gap-1 rounded-sm text-right focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[hsl(var(--accent))] disabled:cursor-wait"
+        disabled={copyState === "copying"}
+        onClick={() => void copyBuildId()}
+        title={buildId}
+        type="button"
+      >
+        <span className="max-w-[18ch] truncate">{buildId}</span>
+        <Icon aria-hidden="true" className="size-3 shrink-0" />
+      </button>
+      {copyState === "copied" && (
+        <span className="sr-only" role="status">
+          {t("settings.block.version.buildIdCopied")}
+        </span>
+      )}
+      {copyState === "failed" && (
+        <span className="mt-1 block text-left leading-normal" role="alert">
+          <span className="text-[hsl(var(--danger))]">
+            {t("settings.block.version.buildIdCopyFailed")}
+          </span>
+          <span className="block select-all break-all">{buildId}</span>
+        </span>
+      )}
+    </>
+  );
+}
 
 export function buildVersionGridRows(
   desktop: DesktopSettingsValue,
@@ -132,14 +180,18 @@ export function VersionGridBlock({ row: rowDef }: SettingsBlockProps) {
             {t(row.labelKey)}
           </span>
           <span
-            className="font-display flex-none text-[hsl(var(--foreground))]"
+            className={`font-display text-[hsl(var(--foreground))] ${row.key === "buildId" ? "min-w-0 max-w-[60%] text-right" : "flex-none"}`}
             style={{
               fontSize: pxToRem(versionGrid.valueFontSize),
               fontWeight: versionGrid.valueWeight,
               lineHeight: 1,
             }}
           >
-            {row.value}
+            {row.key === "buildId" && desktop.buildInfo?.buildId ? (
+              <BuildIdValue key={row.value} buildId={row.value} t={t} />
+            ) : (
+              row.value
+            )}
           </span>
         </div>
       ))}

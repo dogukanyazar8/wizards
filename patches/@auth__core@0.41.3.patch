@@ -1,0 +1,136 @@
+diff --git a/jwt.js b/jwt.js
+index bde87ba6cae26de84034ffd67aeb647478ee23dd..7bfe9700196f141c18ad39c7b2b521287e4b5034 100644
+--- a/jwt.js
++++ b/jwt.js
+@@ -55,7 +55,7 @@ export async function encode(params) {
+     return await new EncryptJWT(token)
+         .setProtectedHeader({ alg, enc, kid: thumbprint })
+         .setIssuedAt()
+-        .setExpirationTime(now() + maxAge)
++        .setExpirationTime(Math.min(now() + maxAge, typeof token.exp === "number" && Number.isFinite(token.exp) ? token.exp : Infinity))
+         .setJti(crypto.randomUUID())
+         .encrypt(encryptionSecret);
+ }
+diff --git a/lib/actions/callback/index.js b/lib/actions/callback/index.js
+index edcb7f9644c3418043eb49e20d8615587aa9617f..ef2cb05968f9a22697b80e4825f857ad052d1e73 100644
+--- a/lib/actions/callback/index.js
++++ b/lib/actions/callback/index.js
+@@ -93,7 +93,7 @@ export async function callback(request, options, sessionStore, cookies) {
+                     const newToken = await jwt.encode({ ...jwt, token, salt });
+                     // Set cookie expiry date
+                     const cookieExpires = new Date();
+-                    cookieExpires.setTime(cookieExpires.getTime() + sessionMaxAge * 1000);
++                    cookieExpires.setTime(Math.min(cookieExpires.getTime() + sessionMaxAge * 1000, typeof token.exp === "number" && Number.isFinite(token.exp) ? token.exp * 1000 : Infinity));
+                     const sessionCookies = sessionStore.chunk(newToken, {
+                         expires: cookieExpires,
+                     });
+@@ -193,7 +193,7 @@ export async function callback(request, options, sessionStore, cookies) {
+                     const newToken = await jwt.encode({ ...jwt, token, salt });
+                     // Set cookie expiry date
+                     const cookieExpires = new Date();
+-                    cookieExpires.setTime(cookieExpires.getTime() + sessionMaxAge * 1000);
++                    cookieExpires.setTime(Math.min(cookieExpires.getTime() + sessionMaxAge * 1000, typeof token.exp === "number" && Number.isFinite(token.exp) ? token.exp * 1000 : Infinity));
+                     const sessionCookies = sessionStore.chunk(newToken, {
+                         expires: cookieExpires,
+                     });
+@@ -267,7 +267,7 @@ export async function callback(request, options, sessionStore, cookies) {
+                 const newToken = await jwt.encode({ ...jwt, token, salt });
+                 // Set cookie expiry date
+                 const cookieExpires = new Date();
+-                cookieExpires.setTime(cookieExpires.getTime() + sessionMaxAge * 1000);
++                cookieExpires.setTime(Math.min(cookieExpires.getTime() + sessionMaxAge * 1000, typeof token.exp === "number" && Number.isFinite(token.exp) ? token.exp * 1000 : Infinity));
+                 const sessionCookies = sessionStore.chunk(newToken, {
+                     expires: cookieExpires,
+                 });
+@@ -345,7 +345,7 @@ export async function callback(request, options, sessionStore, cookies) {
+                     const newToken = await jwt.encode({ ...jwt, token, salt });
+                     // Set cookie expiry date
+                     const cookieExpires = new Date();
+-                    cookieExpires.setTime(cookieExpires.getTime() + sessionMaxAge * 1000);
++                    cookieExpires.setTime(Math.min(cookieExpires.getTime() + sessionMaxAge * 1000, typeof token.exp === "number" && Number.isFinite(token.exp) ? token.exp * 1000 : Infinity));
+                     const sessionCookies = sessionStore.chunk(newToken, {
+                         expires: cookieExpires,
+                     });
+diff --git a/lib/actions/session.js b/lib/actions/session.js
+index 9e225743d05a5f6639ef01987f7a9b25df2b1853..c8050ea8f08f991b1caaa69164d639f7ebca17c9 100644
+--- a/lib/actions/session.js
++++ b/lib/actions/session.js
+@@ -31,6 +31,10 @@ export async function session(options, sessionStore, cookies, isUpdate, newSessi
+                 session: newSession,
+             });
+             const newExpires = fromDate(sessionMaxAge);
++            // Cap the cookie and public session at the expiry selected by callbacks.jwt.
++            if (typeof token?.exp === "number" && Number.isFinite(token.exp)) {
++              newExpires.setTime(Math.min(newExpires.getTime(), token.exp * 1000));
++            }
+             if (token !== null) {
+                 // By default, only exposes a limited subset of information to the client
+                 // as needed for presentation purposes (e.g. "you are logged in as...").
+diff --git a/src/jwt.ts b/src/jwt.ts
+index 02776889999a274c1aa7e9732c6b6f76e67a7636..f4e34fc36db497d25245d69581f0c9ed169db311 100644
+--- a/src/jwt.ts
++++ b/src/jwt.ts
+@@ -67,7 +67,7 @@ export async function encode<Payload = JWT>(params: JWTEncodeParams<Payload>) {
+   return await new EncryptJWT(token)
+     .setProtectedHeader({ alg, enc, kid: thumbprint })
+     .setIssuedAt()
+-    .setExpirationTime(now() + maxAge)
++    .setExpirationTime(Math.min(now() + maxAge, typeof token.exp === "number" && Number.isFinite(token.exp) ? token.exp : Infinity))
+     .setJti(crypto.randomUUID())
+     .encrypt(encryptionSecret)
+ }
+diff --git a/src/lib/actions/callback/index.ts b/src/lib/actions/callback/index.ts
+index d11048f7cbab931f773bc6c092260dcd3752c979..c17ef2c47c785c43939dbcc47695af35653d5973 100644
+--- a/src/lib/actions/callback/index.ts
++++ b/src/lib/actions/callback/index.ts
+@@ -163,7 +163,7 @@ export async function callback(
+ 
+           // Set cookie expiry date
+           const cookieExpires = new Date()
+-          cookieExpires.setTime(cookieExpires.getTime() + sessionMaxAge * 1000)
++          cookieExpires.setTime(Math.min(cookieExpires.getTime() + sessionMaxAge * 1000, typeof token.exp === "number" && Number.isFinite(token.exp) ? token.exp * 1000 : Infinity))
+ 
+           const sessionCookies = sessionStore.chunk(newToken, {
+             expires: cookieExpires,
+@@ -287,7 +287,7 @@ export async function callback(
+ 
+           // Set cookie expiry date
+           const cookieExpires = new Date()
+-          cookieExpires.setTime(cookieExpires.getTime() + sessionMaxAge * 1000)
++          cookieExpires.setTime(Math.min(cookieExpires.getTime() + sessionMaxAge * 1000, typeof token.exp === "number" && Number.isFinite(token.exp) ? token.exp * 1000 : Infinity))
+ 
+           const sessionCookies = sessionStore.chunk(newToken, {
+             expires: cookieExpires,
+@@ -376,7 +376,7 @@ export async function callback(
+ 
+         // Set cookie expiry date
+         const cookieExpires = new Date()
+-        cookieExpires.setTime(cookieExpires.getTime() + sessionMaxAge * 1000)
++        cookieExpires.setTime(Math.min(cookieExpires.getTime() + sessionMaxAge * 1000, typeof token.exp === "number" && Number.isFinite(token.exp) ? token.exp * 1000 : Infinity))
+ 
+         const sessionCookies = sessionStore.chunk(newToken, {
+           expires: cookieExpires,
+@@ -484,7 +484,7 @@ export async function callback(
+ 
+           // Set cookie expiry date
+           const cookieExpires = new Date()
+-          cookieExpires.setTime(cookieExpires.getTime() + sessionMaxAge * 1000)
++          cookieExpires.setTime(Math.min(cookieExpires.getTime() + sessionMaxAge * 1000, typeof token.exp === "number" && Number.isFinite(token.exp) ? token.exp * 1000 : Infinity))
+ 
+           const sessionCookies = sessionStore.chunk(newToken, {
+             expires: cookieExpires,
+diff --git a/src/lib/actions/session.ts b/src/lib/actions/session.ts
+index cd2d815cded27aa08b5922d533c1fb476ffb2b18..6837cfdb69c167d1975f24b2dba45f699e9cadd5 100644
+--- a/src/lib/actions/session.ts
++++ b/src/lib/actions/session.ts
+@@ -54,6 +54,10 @@ export async function session(
+       })
+ 
+       const newExpires = fromDate(sessionMaxAge)
++      // Cap the cookie and public session at the expiry selected by callbacks.jwt.
++      if (typeof token?.exp === "number" && Number.isFinite(token.exp)) {
++        newExpires.setTime(Math.min(newExpires.getTime(), token.exp * 1000))
++      }
+ 
+       if (token !== null) {
+         // By default, only exposes a limited subset of information to the client

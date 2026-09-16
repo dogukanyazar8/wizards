@@ -20,6 +20,7 @@ import { MESSAGES_METRICS, hairline, pxToRem } from "@/lib/messages/metrics";
 const { messageList } = MESSAGES_METRICS;
 
 export type PinnedListProps = {
+  busy?: boolean;
   onJump: (messageId: string) => void;
   onUnpin: (messageId: string) => void;
   pins: readonly PinnedMessageDTO[];
@@ -28,6 +29,11 @@ export type PinnedListProps = {
 export type PinnedListSheetProps = PinnedListProps & {
   onClose: () => void;
   open: boolean;
+  loading?: boolean;
+  loadingMore?: boolean;
+  errorText?: string | null;
+  onRetry?: () => void;
+  onLoadMore?: (() => void) | undefined;
 };
 
 /**
@@ -38,7 +44,7 @@ export type PinnedListSheetProps = PinnedListProps & {
  * Ayrılınca hem test edilebiliyor hem de başka bir yüzey (ör. sağ panel) aynı
  * listeyi çizebiliyor.
  */
-export function PinnedList({ onJump, onUnpin, pins }: PinnedListProps) {
+export function PinnedList({ busy = false, onJump, onUnpin, pins }: PinnedListProps) {
   const { t } = useI18n();
 
   return (
@@ -108,6 +114,7 @@ export function PinnedList({ onJump, onUnpin, pins }: PinnedListProps) {
                   aria-label={t("messages.conversation.pinnedList.unpin")}
                   className="grid shrink-0 place-items-center text-[hsl(var(--text-secondary))] transition hover:bg-[hsl(var(--danger)/0.12)] hover:text-[hsl(var(--danger))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
                   data-testid="pinned-list-unpin"
+                  disabled={busy}
                   onClick={() => onUnpin(pin.messageId)}
                   style={{
                     borderRadius: pxToRem(messageList.attachmentActionRadius),
@@ -128,17 +135,55 @@ export function PinnedList({ onJump, onUnpin, pins }: PinnedListProps) {
   );
 }
 
-export function PinnedListSheet({ onClose, onJump, onUnpin, open, pins }: PinnedListSheetProps) {
+export function PinnedListSheet({
+  onClose,
+  onJump,
+  onUnpin,
+  open,
+  pins,
+  busy = false,
+  loading,
+  loadingMore,
+  errorText,
+  onRetry,
+  onLoadMore,
+}: PinnedListSheetProps) {
   const { t } = useI18n();
 
   return (
     <Modal
-      className="max-w-lg"
+      className="max-w-lg max-h-[85dvh] overflow-y-auto"
       onClose={onClose}
       open={open}
       title={t("messages.conversation.pinnedList.title")}
     >
-      <PinnedList onJump={onJump} onUnpin={onUnpin} pins={pins} />
+      {errorText ? (
+        <div role="alert" className="mb-3 text-sm text-[hsl(var(--danger))]">
+          <p>{errorText}</p>
+          {onRetry ? (
+            <button type="button" className="mt-2 underline" onClick={onRetry}>
+              {t("common.retry")}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {loading ? (
+        <p role="status" className="py-6 text-center text-sm text-[hsl(var(--text-secondary))]">
+          {t("messages.conversation.pinnedList.loading")}
+        </p>
+      ) : pins.length > 0 || !errorText ? (
+        <PinnedList busy={busy} onJump={onJump} onUnpin={onUnpin} pins={pins} />
+      ) : null}
+      {onLoadMore ? (
+        <button
+          type="button"
+          disabled={loadingMore}
+          onClick={onLoadMore}
+          className="mt-4 w-full rounded-xl border border-[hsl(var(--border))] p-3 text-sm text-[hsl(var(--primary))] disabled:opacity-50"
+        >
+          {t("chat.search.loadMore")}
+        </button>
+      ) : null}
     </Modal>
   );
 }

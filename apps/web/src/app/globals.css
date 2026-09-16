@@ -2869,20 +2869,6 @@ h4 {
     color: hsl(var(--warning));
   }
 
-  .app-system-message {
-    border-color: hsl(var(--border-color) / 0.72);
-    background: linear-gradient(
-      180deg,
-      hsl(var(--bg-tertiary) / 0.76),
-      hsl(var(--bg-secondary) / 0.56)
-    );
-    color: hsl(var(--text-primary));
-  }
-
-  .app-system-message-icon {
-    color: hsl(var(--text-secondary));
-  }
-
   .text-app-foreground {
     color: hsl(var(--foreground));
   }
@@ -6214,7 +6200,7 @@ html[data-high-contrast="true"] {
 /* Text fields already indicate focus on their own border or containing surface.
    Do not add a second outline inside those fields; retain strong focus for
    buttons, checkboxes, sliders and other non-text controls. */
-html[data-strong-focus="true"]
+html[data-strong-focus="true"]:not([data-focus-modality="pointer"])
   :focus-visible:not(
     input:not(
       [type="checkbox"],
@@ -6235,8 +6221,27 @@ html[data-strong-focus="true"]
 }
 
 /* The composer is one field: keep its focus ring on the outer surface. */
-html[data-strong-focus="true"]
+html[data-strong-focus="true"]:not([data-focus-modality="pointer"])
   .message-composer-field:has(> .message-composer-textarea:focus-visible) {
   outline: 3px solid hsl(var(--ring)) !important;
   outline-offset: 3px !important;
+}
+
+/* Pointer editing keeps the field's border, validation and surface shadows, but
+   not a second focus frame. Keyboard navigation retains the existing rings.
+   Composite fields opt in so unrelated selected/status rings stay untouched. */
+@media (forced-colors: none) {
+  html[data-focus-modality="pointer"]
+    :is(input, textarea, select, [contenteditable]:not([contenteditable="false"])):focus,
+  html[data-focus-modality="pointer"] [data-focus-surface]:focus-within {
+    outline: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+    --tw-inset-ring-shadow: 0 0 #0000 !important;
+  }
+
+  /* These legacy fields draw focus with box-shadow rather than Tailwind rings. */
+  html[data-focus-modality="pointer"] :is(.auth-input, .app-input):focus {
+    box-shadow: none;
+  }
 }

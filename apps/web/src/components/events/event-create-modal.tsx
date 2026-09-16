@@ -217,6 +217,7 @@ export function EventCreateForm({
             {t("events.create.titleLabel")}
           </div>
           <Input
+            aria-label={t("events.create.titleLabel")}
             className="border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-base))]"
             data-testid="events-create-title"
             maxLength={EVENT_CREATE_TITLE_MAX}
@@ -238,7 +239,7 @@ export function EventCreateForm({
 
         <label className="grid gap-2">
           <span className="uppercase font-display" style={fieldLabelStyle()}>
-            {t("server.modal.event.field.description")}
+            {t("server.modal.event.description.label")}
           </span>
           <textarea
             className="min-h-20 w-full resize-y rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface-base))] px-3 py-2 text-sm text-[hsl(var(--foreground))] outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
@@ -253,7 +254,7 @@ export function EventCreateForm({
         </label>
 
         <div
-          className="grid grid-cols-1 sm:grid-cols-2"
+          className="grid min-w-0 grid-cols-1"
           style={{
             gap: pxToRem(createModal.fieldRowGap),
           }}
@@ -283,7 +284,7 @@ export function EventCreateForm({
             */}
             <div
               aria-labelledby={durationLabelId}
-              className="flex overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="grid grid-cols-3 sm:grid-cols-5"
               data-testid="events-duration-options"
               onKeyDown={(event) => {
                 const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
@@ -314,7 +315,7 @@ export function EventCreateForm({
                 borderRadius: pxToRem(createModal.durationSegmentRadius),
                 boxSizing: "border-box",
                 gap: pxToRem(createModal.durationSegmentGap),
-                height: pxToRem(createModal.inputHeight),
+                minHeight: pxToRem(createModal.inputHeight),
                 padding: pxToRem(createModal.durationSegmentPadding),
               }}
             >
@@ -324,7 +325,7 @@ export function EventCreateForm({
                 return (
                   <button
                     aria-checked={selected}
-                    className="min-w-16 shrink-0 whitespace-nowrap px-3 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] motion-safe:transition-colors"
+                    className="min-w-0 whitespace-nowrap px-1 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] motion-safe:transition-colors"
                     data-testid={`events-duration-${duration}`}
                     key={duration}
                     onClick={() => dispatch({ duration, type: "setDuration" })}
@@ -339,6 +340,9 @@ export function EventCreateForm({
                       fontSize: pxToRem(createModal.durationButtonFontSize),
                       fontWeight: createModal.durationButtonWeight,
                       lineHeight: 1,
+                      minHeight: pxToRem(
+                        createModal.inputHeight - 2 * createModal.durationSegmentPadding,
+                      ),
                     }}
                     tabIndex={selected ? 0 : -1}
                     type="button"

@@ -14,18 +14,24 @@ export function buildPnpmInvocation(environment, nodeExecutable = process.execPa
   return pnpmInvocation(pnpmCli, PNPM_BUILD_ARGS, nodeExecutable);
 }
 
-function runNextBuild() {
-  const buildEnvironment = {
-    ...process.env,
+export function buildNextEnvironment(environment) {
+  return {
+    ...environment,
+    // Next's TS6 worker exceeds the hosted runner's default 2 GiB heap.
+    // Later operator options take precedence over this build-only default.
+    NODE_OPTIONS: `--max-old-space-size=4096 ${environment.NODE_OPTIONS ?? ""}`.trim(),
     // Railway supplies DATABASE_URL at runtime. PrismaPg validates its URL at
     // module evaluation, while Next imports route modules during static build.
     // pg pools connect lazily, so this loopback value cannot reach a database.
     DATABASE_URL:
-      process.env.DATABASE_URL ?? "postgresql://prisma:prisma@127.0.0.1:5432/wizards_build",
+      environment.DATABASE_URL ?? "postgresql://prisma:prisma@127.0.0.1:5432/wizards_build",
   };
+}
+
+function runNextBuild() {
   const invocation = buildPnpmInvocation(process.env);
   const result = spawnSync(invocation.command, invocation.args, {
-    env: buildEnvironment,
+    env: buildNextEnvironment(process.env),
     shell: false,
     stdio: "inherit",
   });

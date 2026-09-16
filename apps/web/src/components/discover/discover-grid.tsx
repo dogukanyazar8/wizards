@@ -26,7 +26,6 @@ function DiscoverGridComponent({
   lane,
   loadingMore = false,
   onLoadMore,
-  panelOpen = false,
 }: DiscoverGridProps) {
   const { t } = useI18n();
   const metrics = DISCOVER_METRICS.serverCard;
@@ -39,9 +38,7 @@ function DiscoverGridComponent({
     gridTemplateColumns:
       lane === "channels"
         ? undefined
-        : panelOpen
-          ? "minmax(0, 1fr)"
-          : "repeat(auto-fill, minmax(var(--discover-card-min), 1fr))",
+        : "repeat(auto-fill, minmax(min(100%, var(--discover-card-min)), 1fr))",
   };
   const paginated = lane !== "people" && onLoadMore !== undefined;
 

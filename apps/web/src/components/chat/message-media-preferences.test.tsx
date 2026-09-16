@@ -55,6 +55,7 @@ const props: MessageItemProps = {
 function render(
   enabled: boolean,
   overrides: Partial<React.ComponentProps<typeof AppearancePreferenceProvider>["preferences"]> = {},
+  message = props.message,
 ) {
   const client = new QueryClient();
   const markup = renderToStaticMarkup(
@@ -71,7 +72,7 @@ function render(
                 ...overrides,
               }}
             >
-              <MessageItem {...props} />
+              <MessageItem {...props} message={message} />
             </AppearancePreferenceProvider>
           </LocaleProvider>
         </SocketContext.Provider>
@@ -81,6 +82,26 @@ function render(
   client.clear();
   return markup;
 }
+
+it("server membership notices retain localized text and expose their event time without chat actions", () => {
+  for (const [type, text] of [
+    ["SYSTEM_JOIN", "Whispr Test 01 sunucuya katıldı."],
+    ["SYSTEM_LEAVE", "Whispr Test 01 sunucudan ayrıldı."],
+  ] as const) {
+    const markup = render(
+      true,
+      {},
+      {
+        ...props.message,
+        type,
+        author: { ...props.message.author, displayName: "Whispr Test 01" },
+      },
+    );
+    assert.ok(markup.includes(text));
+    assert.match(markup, /<time[^>]*dateTime="2026-09-14T00:00:00Z"/);
+    assert.doesNotMatch(markup, /message-action-reply|message-reaction|message-image-attachment/);
+  }
+});
 it("enabled media renders attachments, embedded image, link preview and reactions", () => {
   const markup = render(true);
   assert.match(markup, /message-image-attachment/);

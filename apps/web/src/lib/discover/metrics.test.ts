@@ -187,7 +187,7 @@ describe("discover metrics — SPEC §4.4 sunucu kartı", () => {
   it("tile banda oturur: negatif margin tile'ın yarısından küçüktür", () => {
     const { serverCard } = DISCOVER_METRICS;
 
-    // -19, 44'lük tile'ın 19px'ini banda taşır; kalan 25px kart gövdesindedir.
+    // -19, 54'lük tile'ın 19px'ini banda taşır; kalan 35px kart gövdesindedir.
     assert.equal(serverCard.tileMarginTop, -19);
     assert.ok(Math.abs(serverCard.tileMarginTop) < serverCard.tileSize);
     assert.ok(Math.abs(serverCard.tileMarginTop) < serverCard.bandHeight);
@@ -212,10 +212,10 @@ describe("discover metrics — SPEC §5 profil paneli", () => {
   it("profil bloğunun tile'ı halkasız ve negatif marginsizdir", () => {
     const { panel, serverCard } = DISCOVER_METRICS;
 
-    // Kart tile'ı banda oturur (halka + negatif margin); panel tile'ı oturmaz. İki ölçünün
-    // aynı sözlükte yan yana durması, panelin yanlışlıkla kartın dilini kopyalamasını önler.
+    // Kimlik kutuları aynı boyuttadır; banda taşma yalnız kart yerleşimine aittir.
     assert.equal(panel.profileTileSize, 54);
-    assert.ok("tileRingWidth" in serverCard);
+    assert.equal(serverCard.tileSize, panel.profileTileSize);
+    assert.equal(serverCard.tileRadius, panel.profileTileRadius);
     assert.equal("profileTileRingWidth" in panel, false);
   });
 

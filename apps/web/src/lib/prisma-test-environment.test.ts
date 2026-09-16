@@ -24,8 +24,9 @@ test("production build receives a temporary adapter-safe URL without changing ru
   const builder = readFileSync(new URL("../../scripts/build-next.mjs", import.meta.url), "utf8");
   assert.match(
     builder,
-    /DATABASE_URL:\s*process\.env\.DATABASE_URL\s*\?\?\s*"postgresql:\/\/prisma:prisma@127\.0\.0\.1:5432\/wizards_build"/,
+    /DATABASE_URL:\s*environment\.DATABASE_URL\s*\?\?\s*"postgresql:\/\/prisma:prisma@127\.0\.0\.1:5432\/wizards_build"/,
   );
+  assert.match(builder, /env: buildNextEnvironment\(process\.env\)/);
 });
 
 test("externalized Prisma server runtime dependencies belong to the web package", () => {
