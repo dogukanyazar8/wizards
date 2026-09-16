@@ -6250,13 +6250,13 @@
     "semantic_hash": ""
   },
   "apps/desktop/README.md": {
-    "mtime": 1789486295.123578,
-    "ast_hash": "01ba827341907eff11859b85dd9a1413",
+    "mtime": 1789564165.5743957,
+    "ast_hash": "7a881759adba18e069d9ebe3039ce35b",
     "semantic_hash": ""
   },
   "apps/desktop/RELEASE.md": {
-    "mtime": 1789482169.9135652,
-    "ast_hash": "2e381048757bd9d4f4b64cdb986272ac",
+    "mtime": 1789564165.5733943,
+    "ast_hash": "051c4e59eed45e1efe49e32154868195",
     "semantic_hash": ""
   },
   "apps/desktop/src-tauri/capabilities/README.md": {
@@ -9785,8 +9785,8 @@
     "semantic_hash": ""
   },
   "scripts/quality/desktop-ops-workflow-contract.test.mjs": {
-    "mtime": 1789468880.692834,
-    "ast_hash": "4c9716dea3470cbc3c685b65b4ecaa1e",
+    "mtime": 1789564128.481674,
+    "ast_hash": "60b1861d36d0cefac0f547bbe532185c",
     "semantic_hash": ""
   },
   "scripts/quality/actionlint-contract.test.mjs": {
@@ -25260,8 +25260,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/desktop-release.yml": {
-    "mtime": 1789483065.209515,
-    "ast_hash": "e9e6b8007329d8e6d24587948be482c1",
+    "mtime": 1789564166.7072923,
+    "ast_hash": "bcafd6ca48f7f4145b5b9e156eb7bcc1",
     "semantic_hash": ""
   },
   ".github/scripts/prepare-hosted-android.sh": {
@@ -25275,8 +25275,8 @@
     "semantic_hash": ""
   },
   "docs/operations/github-hosted-ci-cd.md": {
-    "mtime": 1789481562.3429167,
-    "ast_hash": "ed75e132a6244adadb938359beb4fbc3",
+    "mtime": 1789564165.5743957,
+    "ast_hash": "2eda07f5ae93fda5b9f7095b5b99d994",
     "semantic_hash": ""
   },
   "apps/desktop/scripts/desktop-tray-menu.test.mjs": {

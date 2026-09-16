@@ -142,7 +142,7 @@ pnpm --filter @wizards/desktop build:desktop
 
 Do not use local or HTTP endpoints for updater manifests. Do not commit Ed25519 updater private keys, Windows certificate material, generated updater artifacts, or manifest drafts.
 
-GitHub Actions builds and releases Windows desktop artifacts on `windows-2025`. The manual `Desktop Release` workflow validates successful CI, signing, updater evidence and optional R2/GitHub publication. macOS is outside the current release scope. See [hosted CI/CD setup](../../docs/operations/github-hosted-ci-cd.md) for environment secrets and activation.
+GitHub Actions builds and releases Windows desktop artifacts on `windows-2025`. The manual `Desktop Release` workflow validates signing, updater evidence and optional R2/GitHub publication. UAT builds run independently of CI status; stable releases require successful push CI for the exact commit. macOS is outside the current release scope. See [hosted CI/CD setup](../../docs/operations/github-hosted-ci-cd.md) for environment secrets and activation.
 
 The Windows release workflow uploads the installer and `.sig` to immutable Cloudflare R2 release keys under `desktop/<ring>/releases/<release-tag>/`, while `latest.json` remains the single mutable feed at `desktop/<ring>/latest.json`. R2 is the canonical public updater/download source. GitHub Releases are optional evidence and convenience bundles; because the repository is private, release asset access remains limited to users who can access the repository.
 

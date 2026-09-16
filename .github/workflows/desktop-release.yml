@@ -80,6 +80,7 @@ jobs:
           fetch-depth: 0
 
       - name: Require successful CI for this commit
+        if: inputs.ring == 'stable'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -87,7 +88,7 @@ jobs:
           set -euo pipefail
           gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&event=push&per_page=100" \
             --jq '.workflow_runs | any(.conclusion == "success")' | grep -qx true || {
-            echo "::error::This exact commit needs successful push CI before a desktop release."
+            echo "::error::This exact commit needs successful push CI before a stable desktop release."
             exit 1
           }
 
