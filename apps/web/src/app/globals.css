@@ -5914,6 +5914,19 @@ html.whispr-desktop-chrome .auth-window {
   color: hsl(var(--auth-tone-soft, var(--danger-soft)));
 }
 
+.auth-handoff-card {
+  background: hsl(var(--surface-card));
+  color: hsl(var(--foreground));
+}
+
+.auth-handoff-card .auth-controls {
+  position: static;
+}
+
+.auth-handoff-card .whispr-logo-wordmark {
+  color: hsl(var(--foreground));
+}
+
 .auth-status-card[data-tone="warning"] .auth-status-tile {
   background-color: hsl(var(--warning) / 0.22);
 }

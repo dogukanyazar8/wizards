@@ -105,7 +105,11 @@ test.describe("server smoke", () => {
       await input.fill(value);
       const current = await readGeometry();
       expect(current.height).toBeCloseTo(initial.height, 0);
-      expect(current.inputOffset).toBeCloseTo(initial.inputOffset, 0);
+      // Sözleşme "etiket ikinci satıra kırılmaz": kırılma girdiyi bir satır boyu (≥ lineHeight)
+      // aşağı iter. WebKit alt piksel yerleşimi sayaç değişince ~0.7px oynatıyor; o kırılma değil.
+      expect(Math.abs(current.inputOffset - initial.inputOffset)).toBeLessThan(
+        initial.lineHeight / 2,
+      );
     }
   });
 

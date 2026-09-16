@@ -13,6 +13,7 @@ import {
   clickChannelSidebarChannelAndWait,
   clickServerRailServerAndWait,
   closeInAppSettingsOverlay,
+  expectSettingsOverlayOpen,
   gotoAppRoute,
   gotoTextChannelRoute,
   openSettingsFromUserQuickMenu,
@@ -297,23 +298,34 @@ test.describe("voice and screen share", () => {
     await expectVoiceParticipantCount(voiceChannelId, 1);
   });
 
-  test("voice settings clean profile applies without disconnecting", async ({ page }) => {
+  test("voice settings opened from the control bar apply without disconnecting", async ({
+    page,
+  }) => {
     const { voiceChannelId } = await getE2EServerRoute();
 
     await loginAs(page, "alice");
     await openVoiceChannel(page);
+
+    // K13: dişli ayrı bir pencere değil, Ayarlar › Ses ve Video › Ses sekmesine giden bir
+    // bağlantı (`/settings/av/audio`). Pencere kabuğun üstünde açılır; ses oturumu arkada yaşar.
     await page.getByTestId("server-voice-control-settings").click();
+    await expectSettingsOverlayOpen(page);
+    await expect(page).toHaveURL(/\/settings\/av\/audio(?:[/?#]|$)/);
+    await expect(page.getByTestId("settings-window")).toBeVisible({ timeout: 10_000 });
 
-    await expect(page.getByTestId("voice-settings-modal")).toBeVisible({ timeout: 10_000 });
+    // "Temiz ses profili" eylemi üründe yok. Sözleşme aynı: canlı oturumdayken bir işleme
+    // ayarı (`p4` Yankı giderme) değiştirilip geri alınır, bağlantı düşmez.
+    const echoToggle = page.getByTestId("setting-toggle-p4");
+    await expect(echoToggle).toBeVisible();
+    const initialChecked = (await echoToggle.getAttribute("aria-checked")) === "true";
+    await echoToggle.click();
+    await expect(echoToggle).toHaveAttribute("aria-checked", String(!initialChecked));
+    await expectVoiceParticipantCount(voiceChannelId, 1);
+    await echoToggle.click();
+    await expect(echoToggle).toHaveAttribute("aria-checked", String(initialChecked));
 
-    // K13: `VoicePreferencesPanel` silindi; dişli artık Ayarlar penceresinin **aynı** `Ses`
-    // sekmesini çiziyor. "Temiz ses profili" bugün `p9` eylem satırı (`Varsayılanlara dön`):
-    // beş filtreyi önerilen kümeye, gürültü filtresini katmanlıya alır.
-    await expect(page.getByTestId("setting-actions-p9")).toBeVisible();
-    await page.getByTestId("setting-actions-p9-0").click();
-
+    await closeInAppSettingsOverlay(page);
     await expect(page.getByTestId("server-voice-control-leave")).toBeVisible();
-    await expect(page.getByTestId("voice-settings-modal")).toBeVisible();
     await expectVoiceParticipantCount(voiceChannelId, 1);
   });
 
@@ -326,16 +338,24 @@ test.describe("voice and screen share", () => {
       "aria-pressed",
       "true",
     );
-    await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible({
+    await expect(page.getByTestId("server-voice-share-stage")).toBeVisible({
       timeout: 10_000,
     });
-    await expectElementWithinViewport(page, "voice-screen-share-stage");
-    await expect(page.getByTestId("screen-share-quality-select")).toBeVisible();
-    await expect(page.getByTestId("screen-share-quality-select").locator("option")).toHaveCount(3);
+    await expectElementWithinViewport(page, "server-voice-share-stage");
 
-    await page.getByTestId("screen-share-quality-select").selectOption("h1440fps60");
-    await expect(page.getByTestId("screen-share-quality-select")).toHaveValue("h1440fps60");
-    await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible();
+    // §5.3: kalite seçici yerel `<select>` değil, `SettingSelect` liste kutusu. Üç ön ayar
+    // (`SCREEN_SHARE_QUALITY_OPTIONS`), seçim tetikleyicinin etiketine yazılır.
+    const quality = page.getByTestId("server-voice-share-quality");
+    await expect(quality).toBeVisible();
+    await quality.click();
+    const qualityMenu = page.getByTestId("server-voice-share-quality-menu");
+    await expect(qualityMenu).toBeVisible();
+    await expect(qualityMenu.getByRole("option")).toHaveCount(3);
+
+    await qualityMenu.getByRole("option", { name: /1440p/ }).click();
+    await expect(qualityMenu).toBeHidden();
+    await expect(quality).toContainText("1440p");
+    await expect(page.getByTestId("server-voice-share-stage")).toBeVisible();
   });
 
   test("screen share does not break microphone controls", async ({ page }) => {
@@ -355,9 +375,9 @@ test.describe("voice and screen share", () => {
       "true",
     );
     await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
-    await expect(page.getByTestId("voice-stage-camera-pip")).toBeVisible();
-    await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible();
-    await expectElementWithinViewport(page, "voice-screen-share-stage");
+    await expect(page.getByTestId("server-voice-share-camera-pip")).toBeVisible();
+    await expect(page.getByTestId("server-voice-share-stage")).toBeVisible();
+    await expectElementWithinViewport(page, "server-voice-share-stage");
     await page.getByTestId("server-voice-control-mic").click();
     await expect(page.getByTestId("server-voice-control-mic")).toHaveAttribute(
       "aria-pressed",
@@ -381,7 +401,7 @@ test.describe("voice and screen share", () => {
       "aria-pressed",
       "true",
     );
-    await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible();
+    await expect(page.getByTestId("server-voice-share-stage")).toBeVisible();
     await expectVoiceParticipantCount(voiceChannelId, 1);
   });
 
@@ -401,10 +421,10 @@ test.describe("voice and screen share", () => {
       "aria-pressed",
       "true",
     );
-    await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible();
-    await expect(page.getByTestId("voice-stage-camera-pip")).toBeVisible();
+    await expect(page.getByTestId("server-voice-share-stage")).toBeVisible();
+    await expect(page.getByTestId("server-voice-share-camera-pip")).toBeVisible();
     await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
-    await expectElementWithinViewport(page, "voice-screen-share-stage");
+    await expectElementWithinViewport(page, "server-voice-share-stage");
   });
 
   test("returning to a server restores active voice without interrupting video or screen share", async ({
@@ -458,7 +478,7 @@ test.describe("voice and screen share", () => {
       "aria-pressed",
       "true",
     );
-    await expect(page.getByTestId("voice-screen-share-stage")).toBeVisible();
+    await expect(page.getByTestId("server-voice-share-stage")).toBeVisible();
     await expect(page.getByTestId("voice-participant-camera-video")).toBeVisible();
     await expectVoiceParticipantCount(voiceChannelId, 1);
   });

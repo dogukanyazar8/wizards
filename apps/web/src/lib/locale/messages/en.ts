@@ -62,8 +62,7 @@ export const EN_MESSAGES = {
   "appearance.language.description.desktop":
     "Change the interface language instantly. Your preference is saved to this device and your account.",
   "settings.row.e5.description.desktop": "Show the source-switch button during sharing.",
-  "auth.desktopOAuth.startDescription.desktop":
-    "Complete sign-in in the Google window, then return to Whispr.",
+  "auth.desktopOAuth.startDescription.desktop": "Choose your Google account to continue.",
   "auth.desktopOAuth.pendingTitle.desktop": "Complete Google sign-in",
   "auth.desktopOAuth.pendingSecurity.desktop":
     "Your Google password stays on the Google sign-in page. Whispr receives only a short-lived sign-in handoff.",
@@ -1314,10 +1313,13 @@ export const EN_MESSAGES = {
   "auth.login.oauthAccountNotLinked":
     "This email already belongs to an account. For your security, sign in with your existing method first.",
   "auth.login.oauthLoading": "Loading...",
+  "auth.mobileOAuth.startDescription": "Choose your Google account to continue.",
+  "auth.mobileOAuth.title": "Return to Whispr Mobile",
+  "auth.mobileOAuth.description": "You are signed in. Open the app to continue.",
+  "auth.mobileOAuth.button": "Open Whispr Mobile",
   "auth.desktopOAuth.badge": "Desktop sign-in",
   "auth.desktopOAuth.startButton": "Continue with Google",
-  "auth.desktopOAuth.startDescription":
-    "Complete Google sign-in in your browser. After it succeeds, Whispr will hand the session back to the desktop app safely.",
+  "auth.desktopOAuth.startDescription": "Choose your Google account to continue.",
   "auth.desktopOAuth.startRetry": "Restart Google sign-in",
   "auth.desktopOAuth.startTitle": "Secure Google sign-in",
   "auth.desktopOAuth.pendingTitle": "Complete sign-in in your browser",
@@ -1337,8 +1339,7 @@ export const EN_MESSAGES = {
     "This sign-in handoff can only be completed safely inside the Whispr desktop app.",
   "auth.desktopOAuth.claimBrowserTitle": "Open this link in Whispr Desktop",
   "auth.desktopOAuth.claimButton": "Continue in Whispr Desktop",
-  "auth.desktopOAuth.description":
-    "Google sign-in is complete. Whispr will now hand this session back to the desktop app.",
+  "auth.desktopOAuth.description": "You are signed in. Open the app to continue.",
   "auth.desktopOAuth.failed":
     "Whispr could not complete desktop sign-in. Please try Google sign-in again.",
   "auth.desktopOAuth.invalid": "This desktop sign-in link is invalid or expired.",

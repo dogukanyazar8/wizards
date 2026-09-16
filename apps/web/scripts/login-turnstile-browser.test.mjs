@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
@@ -147,6 +148,100 @@ test("desktop login and register share compact verification without hiding requi
         await expect
           .poll(() => page.evaluate(() => window.redirectPath))
           .toBe("/verify-email?next=%2Fchannels");
+      } else {
+        await page.evaluate(() => {
+          window.oauthWindows = [];
+          window.open = (...args) => {
+            window.oauthWindows.push(args);
+            return null;
+          };
+        });
+        const google = page.getByRole("button", { name: /Google/ });
+        await google.click();
+        const dialog = page.getByRole("dialog");
+        await expect(dialog).toBeVisible();
+        for (const theme of ["light", "dark"]) {
+          await page.evaluate(
+            (value) => document.documentElement.setAttribute("data-auth-theme", value),
+            theme,
+          );
+          for (const width of [1280, 540, 390]) {
+            await page.setViewportSize({ width, height: 800 });
+            // Wait for the shared button's theme transition before comparing colors.
+            await expect
+              .poll(() =>
+                dialog.evaluate(
+                  (element) =>
+                    getComputedStyle(element.querySelector(".auth-block-icon")).color ===
+                    getComputedStyle(element.querySelector(".auth-btn-primary")).backgroundColor,
+                ),
+              )
+              .toBe(true);
+            const geometry = await dialog.evaluate((element) => {
+              const button = element.querySelector(".auth-btn-primary");
+              const icon = button.querySelector("svg").getBoundingClientRect();
+              const walker = document.createTreeWalker(button, NodeFilter.SHOW_TEXT);
+              let text;
+              while (walker.nextNode()) {
+                if (walker.currentNode.textContent.trim()) {
+                  text = walker.currentNode;
+                  break;
+                }
+              }
+              const range = document.createRange();
+              range.selectNodeContents(text);
+              const label = range.getBoundingClientRect();
+              const card = element.querySelector("section").getBoundingClientRect();
+              return {
+                iconY: icon.y + icon.height / 2,
+                labelY: label.y + label.height / 2,
+                iconRight: icon.right,
+                labelLeft: label.left,
+                spinnerColor: getComputedStyle(element.querySelector(".auth-block-icon")).color,
+                primaryColor: getComputedStyle(button).backgroundColor,
+                cardLeft: card.left,
+                cardRight: card.right,
+                viewport: innerWidth,
+              };
+            });
+            assert.ok(
+              Math.abs(geometry.iconY - geometry.labelY) < 3,
+              "retry icon and label must share a row",
+            );
+            assert.ok(geometry.iconRight < geometry.labelLeft, "retry icon must precede its label");
+            assert.equal(
+              geometry.spinnerColor,
+              geometry.primaryColor,
+              "pending must use the primary color",
+            );
+            assert.ok(geometry.cardLeft >= 0 && geometry.cardRight <= geometry.viewport);
+            if (process.env.AUTH_PENDING_SCREENSHOT_DIR) {
+              await mkdir(process.env.AUTH_PENDING_SCREENSHOT_DIR, { recursive: true });
+              await dialog.locator("section").screenshot({
+                path: join(
+                  process.env.AUTH_PENDING_SCREENSHOT_DIR,
+                  `pending-${width}-${theme}.png`,
+                ),
+              });
+            }
+          }
+        }
+        await dialog.locator(".auth-btn-primary").click();
+        const windows = await page.evaluate(() => window.oauthWindows);
+        assert.equal(windows.length, 2);
+        assert.deepEqual(windows[0], windows[1]);
+        assert.equal(windows[0][1], "_blank");
+        assert.equal(windows[0][2], "noopener,noreferrer");
+        const start = new URL(windows[0][0]);
+        assert.equal(start.pathname, "/desktop/oauth/start");
+        assert.equal(start.searchParams.get("callbackUrl"), "/channels");
+        await dialog.getByRole("button", { name: "İptal et", exact: true }).click();
+        await expect(dialog).toHaveCount(0);
+        await expect(google).toBeEnabled();
+        await google.click();
+        await dialog.getByRole("button", { name: "Kapat", exact: true }).click();
+        await expect(dialog).toHaveCount(0);
+        await page.setViewportSize({ width: 1280, height: 1000 });
       }
     }
     assert.deepEqual(errors, []);

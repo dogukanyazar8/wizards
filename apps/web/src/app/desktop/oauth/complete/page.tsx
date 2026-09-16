@@ -4,7 +4,6 @@ import { auth } from "@/auth";
 import { createDesktopOAuthHandoffToken } from "@/lib/auth/desktop-oauth-handoff";
 import { buildDesktopOAuthCompletePath } from "@/lib/auth/desktop-oauth-start";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
-import { getServerTranslator } from "@/lib/locale/server";
 import { DesktopOAuthCompleteClient } from "./desktop-oauth-complete-client";
 
 interface DesktopOAuthCompletePageProps {
@@ -20,11 +19,7 @@ function buildDesktopOAuthHandoffUrl(token: string, callbackUrl: string) {
 export default async function DesktopOAuthCompletePage({
   searchParams,
 }: DesktopOAuthCompletePageProps) {
-  const [session, queryParams, { t }] = await Promise.all([
-    auth(),
-    searchParams,
-    getServerTranslator(),
-  ]);
+  const [session, queryParams] = await Promise.all([auth(), searchParams]);
   const callbackParam = Array.isArray(queryParams?.callbackUrl)
     ? queryParams.callbackUrl[0]
     : queryParams?.callbackUrl;
@@ -45,16 +40,6 @@ export default async function DesktopOAuthCompletePage({
     <DesktopOAuthCompleteClient
       callbackUrl={handoff.callbackUrl}
       desktopHandoffUrl={buildDesktopOAuthHandoffUrl(handoff.token, handoff.callbackUrl)}
-      labels={{
-        badge: t("auth.desktopOAuth.badge"),
-        browserHint: t("auth.desktopOAuth.browserHint"),
-        button: t("auth.desktopOAuth.button"),
-        closeButton: t("auth.desktopOAuth.closeButton"),
-        closeHint: t("auth.desktopOAuth.closeHint"),
-        description: t("auth.desktopOAuth.description"),
-        privacy: t("auth.desktopOAuth.privacy"),
-        title: t("auth.desktopOAuth.title"),
-      }}
     />
   );
 }

@@ -2375,7 +2375,7 @@
     "semantic_hash": ""
   },
   "apps/web/next-env.d.ts": {
-    "mtime": 1789555578.6388135,
+    "mtime": 1789576146.9346845,
     "ast_hash": "8195d2c60ce847a459ae9d308d6a5724",
     "semantic_hash": ""
   },
@@ -2525,8 +2525,8 @@
     "semantic_hash": ""
   },
   "apps/web/e2e/specs/smoke/server.spec.ts": {
-    "mtime": 1787820916.6664324,
-    "ast_hash": "ce4db8f87afb45a668e73ff09f466900",
+    "mtime": 1789576024.7190194,
+    "ast_hash": "f60e6c4d337dfdc3f27d33eb33229b77",
     "semantic_hash": ""
   },
   "apps/web/e2e/specs/visual/visual.spec.ts": {
@@ -2535,8 +2535,8 @@
     "semantic_hash": ""
   },
   "apps/web/e2e/specs/voice/voice.spec.ts": {
-    "mtime": 1787819924.1229632,
-    "ast_hash": "6dc287f623e3e2dad25f3663de0dae01",
+    "mtime": 1789576101.2967803,
+    "ast_hash": "bae8a92785176eaa2400bb4d7fbdebcb",
     "semantic_hash": ""
   },
   "apps/web/scripts/build-server.mjs": {
@@ -2630,8 +2630,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/app/(auth)/login/login-client.tsx": {
-    "mtime": 1789569040.7577636,
-    "ast_hash": "c7a5d13d0a6630073ad4ba3cf6398051",
+    "mtime": 1789573128.3494792,
+    "ast_hash": "72fb3c4cfea4bfbf5c4b29dc1273e64e",
     "semantic_hash": ""
   },
   "apps/web/src/app/(auth)/login/page.tsx": {
@@ -3795,33 +3795,33 @@
     "semantic_hash": ""
   },
   "apps/web/src/app/desktop/oauth/claim/[token]/desktop-oauth-claim-client.tsx": {
-    "mtime": 1787748497.4961534,
-    "ast_hash": "980e6fc55ab9747cfd6f7b6b32ef19bc",
+    "mtime": 1789573619.423374,
+    "ast_hash": "9ad8c8867938b2a2444db50fbb227f8d",
     "semantic_hash": ""
   },
   "apps/web/src/app/desktop/oauth/claim/[token]/page.tsx": {
-    "mtime": 1782270909.3802218,
-    "ast_hash": "d11fd89cf815e35e221f8186e2527765",
+    "mtime": 1789572811.4127004,
+    "ast_hash": "5b4448ec0ec811667bcc26466d32822e",
     "semantic_hash": ""
   },
   "apps/web/src/app/desktop/oauth/complete/desktop-oauth-complete-client.tsx": {
-    "mtime": 1785018210.4561322,
-    "ast_hash": "a4e1bb16c6198d382db006a3a560ec28",
+    "mtime": 1789573637.0393524,
+    "ast_hash": "faecd4ffae9e40a7f1a2f43cfd8115ff",
     "semantic_hash": ""
   },
   "apps/web/src/app/desktop/oauth/complete/page.tsx": {
-    "mtime": 1787222592.28764,
-    "ast_hash": "fb9b2250b0f69c3a5908b987439ec672",
+    "mtime": 1789572811.4446464,
+    "ast_hash": "f1a07e5c6b7efeaeab356bc40eb560dc",
     "semantic_hash": ""
   },
   "apps/web/src/app/desktop/oauth/start/desktop-oauth-start-client.tsx": {
-    "mtime": 1785018210.4566362,
-    "ast_hash": "f821e06677b5d4e228a58d0db65f8501",
+    "mtime": 1789573619.423374,
+    "ast_hash": "df25e3b7ec43e09e190189edf91795fe",
     "semantic_hash": ""
   },
   "apps/web/src/app/desktop/oauth/start/page.tsx": {
-    "mtime": 1782270909.38222,
-    "ast_hash": "762b291997a7111c2f3a6ea2f9bf4e36",
+    "mtime": 1789572811.4582603,
+    "ast_hash": "24cc2106c5e0046ebd0df56ad1252f5e",
     "semantic_hash": ""
   },
   "apps/web/src/app/desktop/start/desktop-start-client.tsx": {
@@ -3850,13 +3850,13 @@
     "semantic_hash": ""
   },
   "apps/web/src/app/mobile/oauth/complete/mobile-oauth-complete-client.tsx": {
-    "mtime": 1785018210.4589758,
-    "ast_hash": "736b5ac98e994fb5eeb1ae32ad96bdb1",
+    "mtime": 1789573664.94309,
+    "ast_hash": "99fece8836b93760bb38895f1a5a87ec",
     "semantic_hash": ""
   },
   "apps/web/src/app/mobile/oauth/complete/page.tsx": {
-    "mtime": 1787222592.2896445,
-    "ast_hash": "b4a8d645cf332c2adbda8d78a76ae3f4",
+    "mtime": 1789572810.3376856,
+    "ast_hash": "cb9f2ba88b43b76cd710ca004794e9cd",
     "semantic_hash": ""
   },
   "apps/web/src/app/settings/layout.tsx": {
@@ -4215,8 +4215,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/shell/wizards-shell.tsx": {
-    "mtime": 1789472278.8319705,
-    "ast_hash": "8e1bd612a2ab032ac652a943833d9b56",
+    "mtime": 1789576673.8205738,
+    "ast_hash": "efbd136dff56ff261ce47e71b2580325",
     "semantic_hash": ""
   },
   "apps/web/src/components/shell/workspace-modals.tsx": {
@@ -5290,13 +5290,13 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/locale/messages/en.ts": {
-    "mtime": 1789552742.398368,
-    "ast_hash": "388ec39e43c22e94c93534f4d3446a54",
+    "mtime": 1789573619.441936,
+    "ast_hash": "a668bf9fb23aed78c83429a01a9fefdb",
     "semantic_hash": ""
   },
   "apps/web/src/lib/locale/messages/tr.ts": {
-    "mtime": 1789552742.3963666,
-    "ast_hash": "b79084f112e2ae53c1051dd24acbb9a7",
+    "mtime": 1789573619.4359334,
+    "ast_hash": "d67ec016d5ba9e2a8c015890184c21c5",
     "semantic_hash": ""
   },
   "apps/web/src/lib/messages/attachment-rules.ts": {
@@ -7485,8 +7485,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/app/mobile/oauth/start/mobile-oauth-start-client.tsx": {
-    "mtime": 1786547962.4269826,
-    "ast_hash": "55c3810f812e6fa8d6055bd84e6680c6",
+    "mtime": 1789573619.4299304,
+    "ast_hash": "697e3f373f91cfaf711f80dd5fdeab43",
     "semantic_hash": ""
   },
   "apps/web/src/app/mobile/oauth/start/page.tsx": {
@@ -22140,8 +22140,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/servers/modals/create-server-modal.tsx": {
-    "mtime": 1787820699.0814462,
-    "ast_hash": "3da5b27e43a5a62c6318261c6383cc09",
+    "mtime": 1789576019.0300865,
+    "ast_hash": "1279278eb074af7ccff54c852811c998",
     "semantic_hash": ""
   },
   "apps/web/src/components/servers/modals/create-server-preview.test.tsx": {
@@ -25675,8 +25675,8 @@
     "semantic_hash": ""
   },
   "apps/web/scripts/login-turnstile-browser.test.mjs": {
-    "mtime": 1789569187.8324518,
-    "ast_hash": "e72725197391efa5678b98a2728b1002",
+    "mtime": 1789573181.625635,
+    "ast_hash": "ef8b03eaac1cc6836dcad9e2d5c253d5",
     "semantic_hash": ""
   },
   "apps/web/scripts/voice-composer-browser.test.mjs": {
@@ -25687,6 +25687,21 @@
   "apps/web/src/lib/events/day-navigation.test.ts": {
     "mtime": 1789569876.3086195,
     "ast_hash": "d488d0c205a0702acc19bbe316329902",
+    "semantic_hash": ""
+  },
+  "apps/web/scripts/oauth-handoff-browser.test.mjs": {
+    "mtime": 1789573787.0952694,
+    "ast_hash": "6e995d19b89b56daebfc190776a2bc5f",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/auth/oauth-handoff-layout.tsx": {
+    "mtime": 1789573728.7076516,
+    "ast_hash": "aa2f575fee14de8d9cf1eb4d2e8ace19",
+    "semantic_hash": ""
+  },
+  "apps/web/src/components/auth/oauth-handoff-screen.test.tsx": {
+    "mtime": 1789573729.8506875,
+    "ast_hash": "6eafdcb6af8bc125b155f6348a4b5aa4",
     "semantic_hash": ""
   }
 }

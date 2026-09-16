@@ -1429,7 +1429,12 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       }
 
       if (persistedActiveArea === "friends") {
-        router.replace("/messages");
+        /*
+         * Kök rota zaten Arkadaşlar (`/messages`); aynı yola `replace` gerçek bir navigasyondur.
+         * Etki `servers` değişince de koşar: sunucu listesi tazelenirken (ör. yeni sunucu kurma)
+         * sürmekte olan `push`'u iptal edip kullanıcıyı Mesajlar'da bırakıyordu — WebKit her
+         * seferinde, Firefox ara sıra. Gidilecek yer yok, çıkılır.
+         */
         return;
       }
 

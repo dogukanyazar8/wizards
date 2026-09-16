@@ -237,13 +237,19 @@ export function CreateServerModal({
 
   const createMutation = useMutation({
     mutationFn: () => createServerRequest(buildCreateServerBody(state)),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       const destination = result.channelId
         ? `/channels/${result.serverId}/${result.channelId}`
         : "/channels";
+      /*
+       * Kabuk, rotadaki sunucu listede yoksa yolu geri alır (`wizards-shell` erişim kapısı).
+       * Liste yenilenmeden gidilirse yeni sunucu bir an "erişim yok" sayılır ve kullanıcı
+       * Mesajlar'a düşer; WebKit bu yarışı her seferinde kaybediyordu. Önce liste, sonra yol —
+       * `leaveServer` ile aynı sıra. Düğme bu sırada "Kaydediliyor" kalır.
+       */
+      await queryClient.invalidateQueries({ queryKey: workspaceQueryKeys.servers });
       onClose();
       onNavigate(destination);
-      void queryClient.invalidateQueries({ queryKey: workspaceQueryKeys.servers });
     },
   });
 

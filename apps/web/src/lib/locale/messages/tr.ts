@@ -61,8 +61,7 @@ export const TR_MESSAGES = {
   "appearance.language.description.desktop":
     "Arayüz dilini anında değiştir. Tercihin bu cihaza ve hesabına kaydedilir.",
   "settings.row.e5.description.desktop": "Paylaşım sırasında kaynak değiştirme düğmesini gösterir.",
-  "auth.desktopOAuth.startDescription.desktop":
-    "Google giriş penceresinde oturumunu tamamla. Başarılı olduğunda Whispr’a döneceksin.",
+  "auth.desktopOAuth.startDescription.desktop": "Devam etmek için Google hesabını seç.",
   "auth.desktopOAuth.pendingTitle.desktop": "Google girişini tamamla",
   "auth.desktopOAuth.pendingSecurity.desktop":
     "Google parolan Google giriş sayfasında kalır. Whispr yalnız kısa ömürlü oturum aktarımını alır.",
@@ -1313,10 +1312,13 @@ export const TR_MESSAGES = {
   "auth.login.oauthAccountNotLinked":
     "Bu e-posta zaten bir hesaba ait. Güvenliğin için önce mevcut giriş yönteminle oturum aç.",
   "auth.login.oauthLoading": "Yükleniyor...",
+  "auth.mobileOAuth.startDescription": "Devam etmek için Google hesabını seç.",
+  "auth.mobileOAuth.title": "Whispr Mobile uygulamasına dön",
+  "auth.mobileOAuth.description": "Giriş tamamlandı. Devam etmek için uygulamayı aç.",
+  "auth.mobileOAuth.button": "Whispr Mobile uygulamasını aç",
   "auth.desktopOAuth.badge": "Masaüstü girişi",
   "auth.desktopOAuth.startButton": "Google ile devam et",
-  "auth.desktopOAuth.startDescription":
-    "Google oturumunu tarayıcıda tamamla. Başarılı olduğunda Whispr oturumu masaüstü uygulamasına güvenli şekilde aktaracak.",
+  "auth.desktopOAuth.startDescription": "Devam etmek için Google hesabını seç.",
   "auth.desktopOAuth.startRetry": "Google girişini yeniden başlat",
   "auth.desktopOAuth.startTitle": "Güvenli Google girişi",
   "auth.desktopOAuth.pendingTitle": "Girişi tarayıcıda tamamla",
@@ -1336,8 +1338,7 @@ export const TR_MESSAGES = {
     "Bu giriş aktarımı yalnızca Whispr masaüstü uygulamasında güvenli şekilde tamamlanabilir.",
   "auth.desktopOAuth.claimBrowserTitle": "Bu bağlantıyı Whispr Desktop'ta aç",
   "auth.desktopOAuth.claimButton": "Whispr Desktop'ta devam et",
-  "auth.desktopOAuth.description":
-    "Google girişi tamamlandı. Whispr şimdi bu oturumu masaüstü uygulamasına güvenli şekilde aktaracak.",
+  "auth.desktopOAuth.description": "Giriş tamamlandı. Devam etmek için uygulamayı aç.",
   "auth.desktopOAuth.failed":
     "Whispr masaüstü girişini tamamlayamadı. Lütfen Google ile girişi tekrar dene.",
   "auth.desktopOAuth.invalid": "Bu masaüstü giriş bağlantısı geçersiz veya süresi dolmuş.",

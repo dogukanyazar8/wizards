@@ -1,7 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 
 import { auth } from "@/auth";
-import { BrandLogo } from "@/components/brand/brand-logo";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
 import {
   buildMobileOAuthCompletePath,
@@ -42,9 +41,6 @@ export default async function MobileOAuthCompletePage({
   return (
     <MobileOAuthCompleteClient
       appHandoffUrl={buildMobileOAuthHandoffUrl(handoff.token, handoff.callbackPath, state)}
-      callbackPath={handoff.callbackPath}
-    >
-      <BrandLogo className="mx-auto justify-center" interactive={false} />
-    </MobileOAuthCompleteClient>
+    />
   );
 }

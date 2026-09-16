@@ -5,7 +5,7 @@ import { LoginSchema, type LoginFormInput, type LoginInput } from "@wizards/type
 import { ExternalLink, Loader2, ShieldCheck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { useCallback, useState } from "react";
+import { useCallback, useState, type CSSProperties } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { storeTwoFactorChallenge } from "@/app/(auth)/login/challenge-transport";
@@ -68,7 +68,15 @@ function DesktopOAuthPendingDialog({
       className="fixed inset-0 z-[1000] flex items-center justify-center bg-[hsl(var(--background)/0.62)] px-5 py-8 backdrop-blur-xl"
       role="dialog"
     >
-      <section className="auth-status-card relative text-center">
+      <section
+        className="auth-status-card relative flex flex-col gap-[var(--auth-title-gap)] text-center"
+        style={
+          {
+            "--auth-tone": "var(--primary)",
+            "--auth-tone-soft": "var(--primary)",
+          } as CSSProperties
+        }
+      >
         <button
           aria-label={t("common.close")}
           className="auth-link absolute right-4 top-4"
@@ -82,27 +90,34 @@ function DesktopOAuthPendingDialog({
           <Loader2 className="h-6 w-6 motion-safe:animate-spin" />
         </span>
 
-        <p className="auth-status-label mt-[var(--auth-label-gap)]">
-          {t("auth.desktopOAuth.badge")}
-        </p>
-        <h2 className="auth-status-title" id="desktop-oauth-pending-title">
-          {t("auth.desktopOAuth.pendingTitle")}
-        </h2>
-        <p className="auth-status-body" id="desktop-oauth-pending-description">
-          {t("auth.desktopOAuth.pendingDescription")}
-        </p>
+        <div className="flex flex-col gap-[var(--auth-label-gap)]">
+          <p className="auth-status-label">{t("auth.desktopOAuth.badge")}</p>
+          <h2 className="auth-status-title" id="desktop-oauth-pending-title">
+            {t("auth.desktopOAuth.pendingTitle")}
+          </h2>
+          <p className="auth-status-body" id="desktop-oauth-pending-description">
+            {t("auth.desktopOAuth.pendingDescription")}
+          </p>
+        </div>
 
-        <div className="auth-block-band mt-[var(--auth-title-gap)]">
+        <div className="auth-block-band">
           <ShieldCheck aria-hidden="true" className="h-4 w-4" />
           <span>{t("auth.desktopOAuth.pendingBrowser")}</span>
         </div>
 
-        <div className="mt-[var(--auth-title-gap)] flex flex-col gap-[var(--auth-label-gap)]">
+        <div className="flex flex-col gap-[var(--auth-title-gap)]">
           <PrimaryButton onClick={onRetry} type="button">
-            <ExternalLink aria-hidden="true" className="h-4 w-4" />
-            {t("auth.desktopOAuth.pendingRetry")}
+            <span className="inline-flex items-center justify-center gap-[var(--auth-label-gap)]">
+              <ExternalLink aria-hidden="true" className="h-4 w-4 shrink-0" />
+              <span>{t("auth.desktopOAuth.pendingRetry")}</span>
+            </span>
           </PrimaryButton>
-          <button className="auth-link" onClick={onCancel} type="button">
+          <button
+            className="auth-link self-center"
+            data-size="small"
+            onClick={onCancel}
+            type="button"
+          >
             {t("auth.desktopOAuth.pendingCancel")}
           </button>
         </div>
