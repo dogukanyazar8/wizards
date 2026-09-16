@@ -87,6 +87,7 @@ export const eventsQueryKeys = {
   counts: ["events", "counts"] as const,
   details: (eventId: string) => ["events", "detail", eventId] as const,
   list: (input: {
+    date?: string | null;
     mine?: EventMineFilter | null;
     query?: string | null;
     source?: string | null;
@@ -103,6 +104,7 @@ export const eventsQueryKeys = {
       input.mine ?? "",
       input.query ?? "",
       input.weekStart ?? "",
+      input.date ?? "",
     ] as const,
   lists: ["events", "list"] as const,
   root: ["events"] as const,
@@ -125,6 +127,7 @@ export const EVENTS_STALE_TIME_MS = {
 export const EVENTS_COUNTS_STALE_TIME_MS = 30_000;
 
 export type EventsListRequest = {
+  readonly date?: string | null;
   readonly cursor?: string | null;
   readonly limit?: number;
   readonly mine?: EventMineFilter | null;
@@ -145,6 +148,10 @@ export type EventsListRequest = {
  */
 export async function fetchEvents(input: EventsListRequest): Promise<EventsListResponse> {
   const params = new URLSearchParams({ tab: input.tab });
+
+  if (input.date) {
+    params.set("date", input.date);
+  }
 
   if (input.time) {
     params.set("time", input.time);

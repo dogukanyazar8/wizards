@@ -38,7 +38,7 @@ describe("register screen contract", () => {
       "auth.field.emailDetected",
       "auth.field.password",
       "AuthPasswordStrength",
-      "AuthTurnstileRow",
+      "<TurnstileWidget",
       "auth.register.terms",
       "auth.register.cta",
       "auth.register.haveAccount",

@@ -139,6 +139,7 @@ describe("events routes — durum okuma", () => {
         ),
       ),
       {
+        date: null,
         tab: "live",
         time: "today",
         source: "s-1",

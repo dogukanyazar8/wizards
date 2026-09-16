@@ -36,6 +36,17 @@ function render(props: Partial<React.ComponentProps<typeof EventFilterBar>> = {}
 }
 
 describe("events filter bar — çip kaynakları", () => {
+  it("seçilen tarihi yerelleştirir ve kaldırılabilir bir filtre olarak gösterir", () => {
+    const markup = render({ state: { ...EMPTY, date: "2026-09-18" } });
+    assert.ok(markup.includes("18 Eylül 2026"));
+    assert.ok(
+      markup.includes(
+        `aria-label="${copy("events.filters.remove").replace("{label}", "18 Eylül 2026")}"`,
+      ),
+    );
+    assert.equal(buildEventFilterChips({ ...EMPTY, date: "2026-09-18" })[0]?.axis, "date");
+  });
+
   it("aktif filtre yokken çip üretilmez", () => {
     assert.deepEqual(buildEventFilterChips(EMPTY), []);
   });

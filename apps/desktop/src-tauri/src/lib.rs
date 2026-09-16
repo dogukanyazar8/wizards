@@ -1177,8 +1177,7 @@ pub fn run() {
 
             let main_window = main_window_builder.build()?;
 
-            #[cfg(windows)]
-            windows_media_permissions::install_webview2_media_permission_handler(
+            install_webview_media_permission_handler(
                 &main_window,
                 Some(desktop_media_permission_broker.clone()),
                 configured_app_origin_url(),
@@ -5021,13 +5020,7 @@ fn show_or_create_desktop_game_overlay_window(
     .build()
     .map_err(|error| format!("Unable to create desktop game overlay window: {error}"))?;
 
-    #[cfg(windows)]
-    windows_media_permissions::install_webview2_media_permission_handler(
-        &window,
-        None,
-        configured_app_origin_url(),
-        app_url,
-    )?;
+    install_webview_media_permission_handler(&window, None, configured_app_origin_url(), app_url)?;
 
     #[cfg(windows)]
     {
@@ -5164,13 +5157,7 @@ fn show_or_create_desktop_voice_mini_window(app: &tauri::AppHandle) -> Result<()
     .visible(false)
     .build()
     .map_err(|error| format!("Unable to create desktop voice mini window: {error}"))?;
-    #[cfg(windows)]
-    windows_media_permissions::install_webview2_media_permission_handler(
-        &window,
-        None,
-        configured_app_origin_url(),
-        app_url,
-    )?;
+    install_webview_media_permission_handler(&window, None, configured_app_origin_url(), app_url)?;
     Ok(())
 }
 
@@ -5232,13 +5219,38 @@ fn show_or_create_desktop_admin_console_window(app: &tauri::AppHandle) -> Result
     })
     .build()
     .map_err(|error| format!("Unable to create desktop admin console window: {error}"))?;
-    #[cfg(windows)]
+    install_webview_media_permission_handler(&window, None, configured_app_origin_url(), app_url)?;
+    Ok(())
+}
+
+/// Routes a webview's media permission prompt through the desktop broker.
+///
+/// Only WebView2 exposes a permission-requested hook, so the bridge is wired on
+/// Windows alone; WebKit on macOS and Linux keeps its native prompt and the
+/// window is left untouched there. Every window goes through this one entry
+/// point so the platform split lives here instead of at each call site.
+#[cfg(windows)]
+fn install_webview_media_permission_handler(
+    window: &WebviewWindow,
+    broker: Option<DesktopMediaPermissionBroker>,
+    allowed_origin: Url,
+    initial_url: Url,
+) -> Result<(), String> {
     windows_media_permissions::install_webview2_media_permission_handler(
-        &window,
-        None,
-        configured_app_origin_url(),
-        app_url,
-    )?;
+        window,
+        broker,
+        allowed_origin,
+        initial_url,
+    )
+}
+
+#[cfg(not(windows))]
+fn install_webview_media_permission_handler(
+    _window: &WebviewWindow,
+    _broker: Option<DesktopMediaPermissionBroker>,
+    _allowed_origin: Url,
+    _initial_url: Url,
+) -> Result<(), String> {
     Ok(())
 }
 

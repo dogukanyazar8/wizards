@@ -86,6 +86,19 @@ describe("başlık menüsü — kabuk (SPEC §17)", () => {
     assert.ok(render().includes("@selin · Çevrimiçi"));
   });
 
+  it("başlık bloğu erişilebilirlik ağacının dışında — `menu` yalnız öğe taşır", () => {
+    // WAI-ARIA: `role="menu"` altında yalnız menü öğesi/grup/ayırıcı olabilir; avatarın `img`
+    // rolü axe'te `aria-required-children` ihlaliydi. Başlık görsel özettir, ad sayfa başlığında.
+    assert.match(
+      render(),
+      /<div aria-hidden="true"[^>]*data-testid="conversation-more-menu-header"/,
+    );
+    assert.match(
+      render({ memberCount: 5, name: "Sürüm 2.4 Ekibi", variant: "group" }),
+      /<div aria-hidden="true"[^>]*data-testid="conversation-more-menu-header"/,
+    );
+  });
+
   it("grup başlığı `{n} üye · {rol}` yazar", () => {
     const markup = render({
       memberCount: 5,

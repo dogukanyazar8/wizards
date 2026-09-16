@@ -288,7 +288,7 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
             <AuthLevelTwoBanner result={result} />
 
             <TextInput
-              autoComplete="username email"
+              autoComplete="username"
               label={t("auth.field.email")}
               type="email"
               {...register("email")}
@@ -324,6 +324,8 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
             {TURNSTILE_SITE_KEY ? (
               <TurnstileWidget
                 action="login"
+                compact
+                verified={Boolean(turnstileToken)}
                 onTokenChange={handleTurnstileTokenChange}
                 siteKey={TURNSTILE_SITE_KEY}
               />

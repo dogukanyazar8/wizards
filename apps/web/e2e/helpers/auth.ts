@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { DEFAULT_AUTH_REDIRECT_PATH } from "@/lib/auth/redirect";
 import { resolveE2ETimeoutPolicy } from "@/lib/e2e/timeout-policy";
 import { expect } from "../fixtures/test";
 import { e2eRequestHeaders } from "./api-auth";
@@ -6,6 +7,11 @@ import { gotoAppRoute } from "./navigation";
 import { e2eUsers, e2eUserPassword, type E2EUserKey } from "./test-data";
 
 const { authRequestTimeoutMs } = resolveE2ETimeoutPolicy();
+
+/** `/home` eşleşir; `/home?x`, `/home#y`, `/home/...` de — `/homepage` eşleşmez. */
+function appPathPattern(path: string): RegExp {
+  return new RegExp(`${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:[/?#]|$)`);
+}
 
 async function assertSuccessfulE2EResponse(response: Awaited<ReturnType<Page["request"]["post"]>>) {
   if (response.ok()) {
@@ -52,7 +58,8 @@ export async function loginViaUi(page: Page, userKey: E2EUserKey): Promise<void>
     password: e2eUserPassword,
   });
   await submitLoginForm(page);
-  await expect(page).toHaveURL(/\/messages/);
+  // Hedef verilmeden giriş ürünün varsayılanına düşer; kaynak `redirect.ts`, burada kopya yok.
+  await expect(page).toHaveURL(appPathPattern(DEFAULT_AUTH_REDIRECT_PATH));
 }
 
 export async function authenticateAs(page: Page, userKey: E2EUserKey): Promise<void> {
@@ -109,7 +116,9 @@ export async function logoutViaUi(page: Page): Promise<void> {
 }
 
 export async function expectLoggedIn(page: Page): Promise<void> {
-  await expect(page).toHaveURL(/\/messages/);
+  // Oturum açık = giriş ekranından çıkılmış. Hangi kabuk rotasına düşüldüğü çağıranın
+  // sözleşmesi (`loginViaUi` varsayılan hedefi, `loginAs` `/messages` rayını doğrular).
+  await expect(page).not.toHaveURL(appPathPattern("/login"));
 }
 
 export async function expectLoggedOut(page: Page): Promise<void> {

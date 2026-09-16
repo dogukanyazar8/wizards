@@ -52,6 +52,7 @@ import { selectEventsDensity } from "@/lib/events/density";
 import { EVENTS_METRICS, hairline, pxToRem } from "@/lib/events/metrics";
 import {
   buildEventsHref,
+  mondayOf,
   writeStoredCardSize,
   parseEventsRouteState,
   type EventsRouteState,
@@ -226,6 +227,7 @@ export function buildEventsFilterBarState(
   sourceTitle: string | null,
 ): EventFilterBarState {
   return {
+    date: routeState.date,
     mine: routeState.mine,
     query: routeState.query,
     // Sunucu adı henüz yüklenmediyse kimliği yazmak yerine çipi çizmiyoruz: ham bir uuid
@@ -236,12 +238,14 @@ export function buildEventsFilterBarState(
 }
 
 export function hasActiveEventsFilters(state: EventFilterBarState): boolean {
-  return Boolean(state.time || state.source || state.mine || state.query);
+  return Boolean(state.date || state.time || state.source || state.mine || state.query);
 }
 
 /** Tek çipin kaldırılması. `null` vermek ekseni adresten siler (`buildEventsHref`). */
 export function eventsFilterRemovalPatch(axis: EventFilterAxis): Partial<EventsRouteState> {
   switch (axis) {
+    case "date":
+      return { date: null };
     case "mine":
       return { mine: null };
     case "query":
@@ -261,6 +265,7 @@ export function eventsFilterRemovalPatch(axis: EventFilterAxis): Partial<EventsR
  * hareket olurdu.
  */
 export const EVENTS_CLEAR_FILTERS_PATCH: Partial<EventsRouteState> = {
+  date: null,
   mine: null,
   query: null,
   source: null,
@@ -535,13 +540,16 @@ export function EventsPage({
    * `/events?week=<bu hafta>` aynı ekranı gösterir ve iki adres aynı şeyi anlatırsa paylaşılan
    * bağlantı hangisinin doğru olduğunu söyleyemez.
    */
-  const weekStart = routeState.weekStart ?? weekStartOf(now, timeZone);
+  const weekStart = routeState.date
+    ? mondayOf(routeState.date)
+    : (routeState.weekStart ?? weekStartOf(now, timeZone));
 
   const density = selectEventsDensity(scale);
 
   const listKey = useMemo(
     () =>
       eventsQueryKeys.list({
+        date: routeState.date,
         mine: routeState.mine,
         query: routeState.query,
         source: routeState.source,
@@ -550,6 +558,7 @@ export function EventsPage({
         weekStart,
       }),
     [
+      routeState.date,
       routeState.mine,
       routeState.query,
       routeState.source,
@@ -570,6 +579,7 @@ export function EventsPage({
     initialPageParam: undefined,
     queryFn: ({ pageParam }) =>
       fetchEvents({
+        date: routeState.date,
         limit: density.gridPageSize,
         mine: routeState.mine,
         query: routeState.query,

@@ -20,7 +20,7 @@ import { EVENTS_METRICS, hairline, pxToEm, pxToRem } from "@/lib/events/metrics"
 
 const { filterBar } = EVENTS_METRICS;
 
-export type EventFilterAxis = "mine" | "query" | "source" | "time";
+export type EventFilterAxis = "date" | "mine" | "query" | "source" | "time";
 
 /**
  * Bir çip ya bir sözlük anahtarıdır (`key` + `params`) ya da sunucudaki **verinin kendisidir**
@@ -34,6 +34,7 @@ export type EventFilterChipDescriptor = {
 };
 
 export type EventFilterBarState = {
+  readonly date?: string | null;
   readonly mine: EventMineFilter | null;
   readonly query: string | null;
   readonly source: { readonly id: string; readonly name: string } | null;
@@ -51,6 +52,10 @@ export function buildEventFilterChips(
   state: EventFilterBarState,
 ): readonly EventFilterChipDescriptor[] {
   const chips: EventFilterChipDescriptor[] = [];
+
+  if (state.date) {
+    chips.push({ axis: "date", key: null, params: null, text: state.date });
+  }
 
   if (state.time) {
     chips.push({
@@ -87,7 +92,7 @@ export function buildEventFilterChips(
 }
 
 export function EventFilterBar({ onClearAll, onRemove, state }: EventFilterBarProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const chips = buildEventFilterChips(state);
 
   if (chips.length === 0) {
@@ -121,7 +126,17 @@ export function EventFilterBar({ onClearAll, onRemove, state }: EventFilterBarPr
       </span>
 
       {chips.map((chip) => {
-        const label = chip.key ? t(chip.key, chip.params ?? undefined) : (chip.text ?? "");
+        const label =
+          chip.axis === "date" && chip.text
+            ? new Intl.DateTimeFormat(locale, {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+                timeZone: "UTC",
+              }).format(new Date(`${chip.text}T12:00:00.000Z`))
+            : chip.key
+              ? t(chip.key, chip.params ?? undefined)
+              : (chip.text ?? "");
 
         return (
           <span

@@ -199,6 +199,7 @@ export function toEventsSearchPattern(query: string): string {
 export type EventsBranch = "member" | "public";
 
 export type EventsQueryScope = {
+  readonly date?: string | null;
   readonly mine: EventMineFilter | null;
   readonly now: Date;
   readonly query: string | null;
@@ -280,6 +281,13 @@ export type EventsTimeRange = {
  * **an** olarak iner; `AT TIME ZONE` ile yazılmış bir sınır indeksi kullanılamaz hâle getirirdi.
  */
 export function resolveEventsTimeRange(scope: EventsQueryScope): EventsTimeRange {
+  if (scope.date) {
+    return {
+      from: zonedDayStart(scope.date, scope.timeZone),
+      to: zonedDayStart(addZonedDays(scope.date, 1), scope.timeZone),
+    };
+  }
+
   const today = zonedCalendarDate(scope.now, scope.timeZone);
 
   switch (scope.time) {

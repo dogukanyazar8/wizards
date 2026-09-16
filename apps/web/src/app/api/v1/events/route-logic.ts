@@ -13,6 +13,7 @@ import { listEvents, type EventsListQuery } from "@/lib/events/events-service";
 import { createEvent, type EventWriteResponse } from "@/lib/events/mutations";
 import { publishEventCreated } from "@/lib/events/realtime";
 import {
+  parseEventDate,
   parseEventMineFilter,
   parseEventQuery,
   parseEventSource,
@@ -40,6 +41,7 @@ import {
  */
 
 const EventsQueryParamsSchema = z.object({
+  date: z.string().optional(),
   cursor: z.string().min(1).max(400).optional(),
   // `0` bir hata değil, bir kip: kart istemeyen kabuk ipucu yalnız `counts` bloğunu okur.
   limit: z.coerce.number().int().min(0).max(50).default(24),
@@ -73,6 +75,7 @@ export async function eventsRoute(
     async (userId) => {
       const params = readSearchParams(request);
       const query = EventsQueryParamsSchema.parse({
+        date: optionalParam(params, "date"),
         cursor: optionalParam(params, "cursor"),
         limit: optionalParam(params, "limit"),
         mine: optionalParam(params, "mine"),
@@ -82,16 +85,18 @@ export async function eventsRoute(
         time: optionalParam(params, "time"),
         week: optionalParam(params, "week"),
       });
+      const date = parseEventDate(query.date);
 
       return EventsListResponseSchema.parse(
         await dependencies.listEvents(userId, {
           cursor: query.cursor ?? null,
+          date,
           limit: query.limit,
           mine: parseEventMineFilter(query.mine),
           query: parseEventQuery(query.q),
           serverId: parseEventSource(query.source),
           tab: parseEventTab(query.tab),
-          time: parseEventTimeFilter(query.time),
+          time: date ? null : parseEventTimeFilter(query.time),
           weekStart: parseEventWeekStart(query.week),
         }),
       );

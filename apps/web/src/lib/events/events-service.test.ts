@@ -352,6 +352,36 @@ describe("events service — katilimci onizlemesi", () => {
 });
 
 describe("events service — sayaclar", () => {
+  it("gün filtresi SQL sınırlarına iner; hafta ve sayaç sorguları daralmaz", async () => {
+    const { calls, database } = fakeEventsDatabase({ page: [] });
+    await listEvents("u1", { ...BASE_QUERY, date: "2026-08-28" }, dependencies(database));
+    const queries = calls.filter((call) => call.operation === "$queryRaw");
+    assert.equal(queries.length, 3, "gün seçimi ek sorgu üretmemeli");
+    const dates = (index: number) =>
+      (queries[index]?.args as { values: unknown[] }).values
+        .filter((value): value is Date => value instanceof Date)
+        .map((value) => value.toISOString());
+    assert.deepEqual(dates(0), [
+      "2026-08-27T21:00:00.000Z",
+      "2026-08-28T21:00:00.000Z",
+      "2026-08-27T21:00:00.000Z",
+      "2026-08-28T21:00:00.000Z",
+    ]);
+    assert.ok(!dates(1).includes("2026-08-27T21:00:00.000Z"));
+    assert.deepEqual(dates(2), [
+      "2026-08-23T21:00:00.000Z",
+      "2026-08-30T21:00:00.000Z",
+      "2026-08-23T21:00:00.000Z",
+      "2026-08-30T21:00:00.000Z",
+    ]);
+    const text = (queries[0]?.args as { strings: string[] }).strings.join("?");
+    assert.match(text, /e\."scheduledStartAt" >=/u);
+    assert.match(text, /e\."scheduledStartAt" </u);
+    assert.match(text, /e\."serverId" IN/u);
+    assert.match(text, /e\."isPublic" = TRUE/u);
+    assert.doesNotMatch(text, /2026-08-28|AT TIME ZONE/u);
+  });
+
   it("sayaclar sekme disinda hicbir suzgec uygulamaz (tuzak #3)", async () => {
     const { calls, database } = fakeEventsDatabase({
       counts: [countsRow({ all: 9 })],

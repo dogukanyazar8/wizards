@@ -117,18 +117,28 @@ async function revokeE2EUserSessionsAfterIssue(userKey: E2EUserKey) {
 }
 
 async function submitDuplicateRegistration(page: Page) {
-  const uniqueName = `auth-upgrade-${Date.now()}`;
+  // `UsernameSchema` yalnız `a-zA-Z0-9_` kabul eder; tire geçersiz.
+  const uniqueName = `auth_upgrade_${Date.now()}`;
 
   await page.goto("/register");
   const form = page.getByTestId("register-form");
   await expect(form).toBeVisible();
 
+  // SPEC-GIRIS-KAYIT §4.4 — dört alan: Ad Soyad · Kullanıcı adı · E-posta · Şifre. Şifre
+  // tekrarı yok (K10); gönderim kapısı dördü dolmadan ve şartlar onaylanmadan açılmaz.
+  await form.locator('input[name="displayName"]').fill("Auth Upgrade");
   await form.locator('input[name="username"]').fill(uniqueName);
   await form.locator('input[name="email"]').fill(e2eUsers.alice.email);
   await form.locator('input[name="password"]').fill(e2eUserPassword);
-  await form.locator('input[name="confirmPassword"]').fill(e2eUserPassword);
-  await form.locator('input[type="checkbox"]').check();
-  await form.locator('button[type="submit"]').click();
+
+  // Kutu `sr-only`, tıklanabilir yüzey etiketin kendisi; kullanıcı gibi etikete tıklanır.
+  const termsCheckbox = form.locator('input[type="checkbox"]');
+  await form.locator('label:has(input[type="checkbox"])').click();
+  await expect(termsCheckbox).toBeChecked();
+
+  const submit = form.locator('button[type="submit"]');
+  await expect(submit).toBeEnabled();
+  await submit.click();
 }
 
 test.describe("Auth.js upgrade regression safety net", () => {
@@ -201,19 +211,15 @@ test.describe("Auth.js upgrade regression safety net", () => {
   test("registration keeps existing emails non-enumerating", async ({ page }) => {
     await submitDuplicateRegistration(page);
 
-    // Faz 7 Playwright'ın yerelini Türkçe'ye sabitledi (`fixtures/test.ts`); bu ekranın
-    // metinleri gerçekten çevriliyor. Sözleşme "doğrulama bölgesi çıkıyor, e-posta sızmıyor" —
-    // hangi dilde çıktığı değil.
-    const verificationRegion = page.getByRole("region", {
-      name: /Whispr (email verification|e-posta doğrulama)/,
-    });
-    await expect(verificationRegion).toBeVisible();
+    // SPEC-GIRIS-KAYIT §4.5 — kayıtlı adres de yeni adres de aynı kod ekranına düşer: `/register`
+    // hata bandı göstermez, adres sekmeden okunup "gönderdik" satırında yazılır. Sözleşme
+    // "yol ve ekran yeni kayıtla aynı, e-posta sızmıyor"; metnin dili değil (`fixtures/test.ts`
+    // yereli Türkçe'ye sabitler).
+    await expect(page).toHaveURL(/\/verify-email(?:[/?#]|$)/);
     await expect(
-      verificationRegion.getByRole("heading", {
-        name: /(Check your inbox|Gelen kutunu kontrol et)/,
-      }),
+      page.getByRole("heading", { level: 1, name: /(Verify your email|E-postanı doğrula)/ }),
     ).toBeVisible();
-    await expect(verificationRegion).toContainText(e2eUsers.alice.email);
+    await expect(page.locator(".auth-description")).toContainText(e2eUsers.alice.email);
   });
 
   test("desktop OAuth handoff creates a one-time desktop claim URL", async ({ request }) => {

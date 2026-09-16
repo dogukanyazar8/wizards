@@ -318,8 +318,12 @@ it("companion windows install native identity and deny device permissions before
     const body = rust.slice(start, rust.indexOf("\n}", start) + 2);
     assert.match(body, /Url::parse\("about:blank"\)/);
     assert.match(body, /WebviewUrl::External\(initial_url\)/);
-    assert.match(body, /install_webview2_media_permission_handler\([\s\S]*?&window,\s*None,/);
+    assert.match(body, /install_webview_media_permission_handler\([\s\S]*?&window,\s*None,/);
   }
+  assert.match(
+    rust,
+    /#\[cfg\(windows\)\]\s*fn install_webview_media_permission_handler\([\s\S]*?windows_media_permissions::install_webview2_media_permission_handler\(\s*window,\s*broker,\s*allowed_origin,\s*initial_url,/,
+  );
   const policy = await readFile(
     path.join(desktopRoot, "src-tauri/src/windows_media_permissions.rs"),
     "utf8",

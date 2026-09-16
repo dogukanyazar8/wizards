@@ -52,6 +52,9 @@ struct PendingPrompt {
 #[derive(Debug)]
 struct PermissionGrant {
     expires_at_ms: u64,
+    /// Only the WebView2 bridge reads this back (`consume_grant`); it is stored
+    /// everywhere so a grant can never be redeemed by a different origin.
+    #[cfg_attr(not(windows), allow(dead_code))]
     origin: String,
 }
 
@@ -143,6 +146,11 @@ impl DesktopMediaPermissionBroker {
         })
     }
 
+    /// Redeems a grant once, only for the kind and origin it was issued for.
+    ///
+    /// Consumed by the WebView2 bridge (see the note above the webview
+    /// permission bridge section below).
+    #[cfg_attr(not(windows), allow(dead_code))]
     pub(crate) fn consume_grant(
         &self,
         kind: DesktopMediaPermissionKind,
@@ -187,6 +195,17 @@ fn clear_expired(state: &mut BrokerState, now_ms: u64) {
         .retain(|_, grant| grant.expires_at_ms >= now_ms);
 }
 
+// ---------------------------------------------------------------------------
+// Webview permission bridge.
+//
+// Only WebView2 exposes a permission-requested hook, so this layer is consumed
+// by `windows_media_permissions` alone (plus the unit tests below). It stays
+// compiled on every platform instead of being `cfg`-gated: Clippy runs on Linux
+// in CI, and gating would take the decision logic out of its reach. The
+// `dead_code` allowance is therefore scoped to non-Windows builds only.
+// ---------------------------------------------------------------------------
+
+#[cfg_attr(not(windows), allow(dead_code))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum WebviewMediaPermissionState {
     Allow,
@@ -194,6 +213,7 @@ pub(crate) enum WebviewMediaPermissionState {
     Deny,
 }
 
+#[cfg_attr(not(windows), allow(dead_code))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum WebviewMediaPermissionDecision {
     AllowAndPersist,
@@ -202,6 +222,7 @@ pub(crate) enum WebviewMediaPermissionDecision {
     Ignore,
 }
 
+#[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) fn resolve_webview_media_permission(
     kind: Option<DesktopMediaPermissionKind>,
     same_origin: bool,

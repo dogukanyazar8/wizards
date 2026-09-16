@@ -27,9 +27,7 @@ import {
  *
  * Kutular `<button>` değil `<Link>`: filtre adres çubuğunda duruyor ve gerçek bir `href`
  * paylaşılabilir adresi, orta tıkla yeni sekmeyi ve geri tuşunu bedavaya getiriyor. Yazım
- * **`replace`**: hafta ve zaman birer filtre ve her ok tıklaması geçmiş yığınına bir giriş
- * eklerse geri tuşu ekrandan çıkmaz (PROMPT §4). Panel ve modal `push` ile yazılır ve o karar
- * `events-page.tsx`'te durur.
+ * Gün seçimi `replace`, hafta okları `push` kullanır. Böylece geri tuşu önceki haftaya döner.
  *
  * `data-nav` bir kanıt işareti: Next `<Link replace>` bayrağını çıktı işaretlemesine
  * yansıtmıyor ve testin "filtre yazımı geçmişi büyütmüyor" iddiasını doğrulayacak başka bir
@@ -55,18 +53,20 @@ export type EventWeekStripProps = {
 /**
  * Gün kutusunun adresi.
  *
- * Referans HTML'in `go` işleyicisi bugün için `time: 'today'`, diğer günler için `time: null`
- * yazıyor ve otorite odur: `EventTimeFilter` Dalga 0'da dört değerle donduruldu
- * (`today/week/month/past`) ve gün başına bir değeri yok. Aynı güne ikinci tık filtreyi
- * kaldırır (`toggleEventTimeFilter`).
+ * Bugün zaman kısayolunu, diğer günler açık takvim tarihini seçer.
+ * Aynı güne ikinci tık filtreyi kaldırır.
  */
 export function eventWeekDayHref(routeState: EventsRouteState, day: EventWeekDay): string {
   return buildEventsHref(routeState, {
     createOpen: false,
+    date: day.isToday || routeState.date === day.date ? null : day.date,
     // Yeni süzgeç, panelin dayandığı etkinliği listeden çıkarabilir; dayanağı olmayan bir
     // kolon açık kalmasın diye panel de düşer (`mentions-feed-header.tsx` ile aynı karar).
     panel: null,
-    time: day.isToday ? toggleEventTimeFilter(routeState.time, "today") : null,
+    time:
+      day.isToday && routeState.date !== day.date
+        ? toggleEventTimeFilter(routeState.time, "today")
+        : null,
   });
 }
 
@@ -80,6 +80,7 @@ export function EventWeekStrip({
   const { t } = useI18n();
 
   const boxes = resolveEventWeek(weekStart, days, todayDate);
+  const selectedDate = routeState.date ?? todayDate;
   const label = weekMonthLabel(weekDays(weekStart), locale);
 
   const arrowStyle = {
@@ -97,6 +98,7 @@ export function EventWeekStrip({
   const arrowHref = (steps: number) =>
     buildEventsHref(routeState, {
       createOpen: false,
+      date: null,
       panel: null,
       weekStart: shiftEventWeek(weekStart, steps),
     });
@@ -168,7 +170,7 @@ export function EventWeekStrip({
       >
         {boxes.map((box) => (
           <Link
-            aria-current={box.isToday ? "date" : undefined}
+            aria-current={box.date === selectedDate ? "date" : undefined}
             // Renk tek başına anlam taşımaz: nokta satırı `aria-hidden`, sayı burada metin.
             aria-label={`${formatEventDayLabel(box.date, "UTC", locale)}, ${t("events.sub.count", {
               count: box.count,
@@ -183,11 +185,12 @@ export function EventWeekStrip({
             style={{
               // Dinlenme zemini **değişkenle** iniyor: satır içi bir `background`
               // `hover:bg-*` kuralını her zaman yener ve vurgu sessizce ölürdü.
-              ["--event-week-day-bg" as string]: box.isToday
-                ? `hsl(var(--primary)/${weekStrip.todaySurfaceAlpha})`
-                : "transparent",
+              ["--event-week-day-bg" as string]:
+                box.date === selectedDate
+                  ? `hsl(var(--primary)/${weekStrip.todaySurfaceAlpha})`
+                  : "transparent",
               border: `${hairline()} solid ${
-                box.isToday
+                box.date === selectedDate
                   ? `hsl(var(--primary)/${weekStrip.todayBorderAlpha})`
                   : `hsl(var(--border)/${weekStrip.dayBorderAlpha})`
               }`,
@@ -204,7 +207,8 @@ export function EventWeekStrip({
                 // Ş10 — bugünün metni `--primary-readable`: ham `--primary`, kendi %14'lük
                 // zemini üstünde 2,52:1 kalıyor ve axe'in `color-contrast` kuralını
                 // serious seviyede düşürüyordu. Ton aynı aile, okunurluk WCAG AA.
-                color: box.isToday ? "var(--primary-readable)" : "hsl(var(--text-muted))",
+                color:
+                  box.date === selectedDate ? "var(--primary-readable)" : "hsl(var(--text-muted))",
                 fontFamily: DISPLAY_FONT,
                 fontSize: pxToRem(weekStrip.dowFontSize),
                 fontWeight: weekStrip.dowWeight,
@@ -218,7 +222,8 @@ export function EventWeekStrip({
             <span
               aria-hidden="true"
               style={{
-                color: box.isToday ? "var(--primary-readable)" : "hsl(var(--foreground))",
+                color:
+                  box.date === selectedDate ? "var(--primary-readable)" : "hsl(var(--foreground))",
                 fontFamily: DISPLAY_FONT,
                 fontSize: pxToRem(weekStrip.numFontSize),
                 fontWeight: weekStrip.numWeight,

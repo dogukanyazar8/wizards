@@ -42,6 +42,8 @@ const CALENDAR_DATE = /^(\d{4})-(\d{2})-(\d{2})$/u;
 const MS_PER_DAY = 86_400_000;
 
 export type EventsRouteState = {
+  /** Seçilen takvim günü; zaman kısayollarıyla aynı anda uygulanmaz. */
+  readonly date: string | null;
   readonly tab: EventTab;
   /** Zaman filtresi; seçim yoksa `null` (hafta şeridi ve filtre çipi aynı ekseni sürer). */
   readonly time: EventTimeFilter | null;
@@ -59,6 +61,7 @@ export type EventsRouteState = {
 };
 
 export const EVENTS_DEFAULT_ROUTE_STATE: EventsRouteState = {
+  date: null,
   tab: EVENTS_DEFAULT_TAB,
   time: null,
   source: null,
@@ -148,11 +151,8 @@ export function mondayOf(value: Date | string): string {
   return formatCalendarDate(utcMidnight - daysSinceMonday * MS_PER_DAY);
 }
 
-/**
- * K9 — `week` her zaman bir pazartesidir. Başka bir gün verilirse o günün haftasına yuvarlanır;
- * reddetmek, şeridin gösterdiği günlerden birine tıklayıp paylaşılan bir adresi bozardı.
- */
-export function parseEventWeekStart(value: string | null | undefined): string | null {
+/** Gerçek takvim tarihlerini kabul eder; taşan günler ve serbest metin elenir. */
+export function parseEventDate(value: string | null | undefined): string | null {
   if (!value) {
     return null;
   }
@@ -172,7 +172,13 @@ export function parseEventWeekStart(value: string | null | undefined): string | 
     return null;
   }
 
-  return mondayOf(match[0]);
+  return match[0];
+}
+
+/** K9 — haftanın herhangi bir günü pazartesiye yuvarlanır. */
+export function parseEventWeekStart(value: string | null | undefined): string | null {
+  const date = parseEventDate(value);
+  return date ? mondayOf(date) : null;
 }
 
 /** `URLSearchParams` ve `ReadonlyURLSearchParams` ortak yüzeyi. */
@@ -180,10 +186,12 @@ type ReadableParams = { get(name: string): string | null };
 
 export function parseEventsRouteState(params: ReadableParams): EventsRouteState {
   const createOpen = params.get("modal") === "create";
+  const date = parseEventDate(params.get("date"));
 
   return {
+    date,
     tab: parseEventTab(params.get("tab")),
-    time: parseEventTimeFilter(params.get("time")),
+    time: date ? null : parseEventTimeFilter(params.get("time")),
     source: parseEventSource(params.get("source")),
     mine: parseEventMineFilter(params.get("mine")),
     query: parseEventQuery(params.get("q")),
@@ -208,13 +216,17 @@ export function buildEventsHref(
   patch: Partial<EventsRouteState> = {},
 ): string {
   const next: EventsRouteState = { ...EVENTS_DEFAULT_ROUTE_STATE, ...state, ...patch };
+  // Zaman kısayoluna geçiş seçili günü kaldırır; diğer eksenler günü korur.
+  const date = patch.time ? null : parseEventDate(next.date);
   const params = new URLSearchParams();
 
   if (next.tab !== EVENTS_DEFAULT_TAB) {
     params.set("tab", next.tab);
   }
 
-  if (next.time) {
+  if (date) {
+    params.set("date", date);
+  } else if (next.time) {
     params.set("time", next.time);
   }
 

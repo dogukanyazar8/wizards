@@ -2,6 +2,7 @@
 
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
+import { AuthTurnstileRow } from "@/components/auth/auth-pieces";
 import { useI18n } from "@/components/providers/locale-provider";
 import type { TurnstileAction } from "@/lib/auth/turnstile";
 import { E2E_TURNSTILE_TOKEN, isE2ETurnstileBypassEnabled } from "@/lib/auth/turnstile-e2e";
@@ -10,6 +11,8 @@ type TurnstileWidgetProps = {
   action?: TurnstileAction;
   onTokenChange: (token: string) => void;
   siteKey: string;
+  compact?: boolean;
+  verified?: boolean;
 };
 
 type TurnstileApi = {
@@ -22,6 +25,7 @@ type TurnstileApi = {
       "timeout-callback": () => void;
       "unsupported-callback": () => void;
       action: string;
+      appearance: "always" | "interaction-only";
       callback: (token: string) => void;
       language: string;
       sitekey: string;
@@ -55,6 +59,8 @@ export function TurnstileWidget({
   action = "register",
   onTokenChange,
   siteKey,
+  compact = false,
+  verified = false,
 }: TurnstileWidgetProps) {
   const { locale, t } = useI18n();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -104,6 +110,7 @@ export function TurnstileWidget({
       "timeout-callback": handleChallengeError,
       "unsupported-callback": handleChallengeError,
       action,
+      appearance: compact ? "interaction-only" : "always",
       callback: (token) => {
         setChallengeFailed(false);
         onTokenChange(token);
@@ -118,7 +125,7 @@ export function TurnstileWidget({
       widgetIdRef.current = null;
       onTokenChange("");
     };
-  }, [action, isE2EBypass, locale, onTokenChange, scriptReady, siteKey]);
+  }, [action, compact, isE2EBypass, locale, onTokenChange, scriptReady, siteKey]);
 
   if (isE2EBypass) {
     return null;
@@ -133,7 +140,7 @@ export function TurnstileWidget({
   }
 
   return (
-    <div className="auth-reference-turnstile-shell">
+    <div className="auth-reference-turnstile-shell" data-compact={compact || undefined}>
       <Script
         id="cloudflare-turnstile"
         onError={() => {
@@ -148,9 +155,10 @@ export function TurnstileWidget({
       <div
         aria-busy={!scriptReady && !scriptFailed}
         aria-label={t("auth.turnstile.label")}
-        className="auth-reference-turnstile-box"
+        className={compact ? "auth-turnstile-group" : "auth-reference-turnstile-box"}
         role="group"
       >
+        {compact ? <AuthTurnstileRow verified={verified} /> : null}
         <div className="auth-reference-turnstile-mount" ref={containerRef} />
         {!scriptReady && !scriptFailed ? (
           <p className="auth-reference-turnstile-state" role="status">
@@ -163,7 +171,7 @@ export function TurnstileWidget({
           </p>
         ) : null}
       </div>
-      <p className="auth-reference-turnstile-help">{t("auth.turnstile.help")}</p>
+      {compact ? null : <p className="auth-reference-turnstile-help">{t("auth.turnstile.help")}</p>}
     </div>
   );
 }

@@ -17,7 +17,11 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
 import { getMessagesForLocale } from "@/lib/locale";
 import { getRequestLocale } from "@/lib/locale/server";
-import { isDesktopStartPathname, WHISPR_REQUEST_PATHNAME_HEADER } from "@/lib/request-context";
+import {
+  CSP_NONCE_HEADER,
+  isDesktopStartPathname,
+  WHISPR_REQUEST_PATHNAME_HEADER,
+} from "@/lib/request-context";
 
 const bodyFont = localFont({
   src: "./fonts/outfit-latin.woff2",
@@ -79,6 +83,9 @@ export default async function RootLayout({
 }>) {
   const headerStore = await headers();
   const requestPathname = headerStore.get(WHISPR_REQUEST_PATHNAME_HEADER);
+  // Production CSP is nonce + `strict-dynamic`: Next stamps its own scripts, the
+  // hand-written bootstrap below must carry the same nonce or the browser drops it.
+  const nonce = headerStore.get(CSP_NONCE_HEADER) ?? undefined;
   const skipRootAuth = isDesktopStartPathname(requestPathname);
   const session = skipRootAuth ? null : await auth();
   const locale = await getRequestLocale(session?.user?.locale);
@@ -97,7 +104,7 @@ export default async function RootLayout({
          */}
         {/* Static module-owned bootstrap; no request or stored text is interpolated. */}
         {/* nosemgrep: typescript.react.security.no-dangerously-set-inner-html */}
-        <script dangerouslySetInnerHTML={{ __html: AUTH_THEME_BOOTSTRAP_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: AUTH_THEME_BOOTSTRAP_SCRIPT }} nonce={nonce} />
       </head>
       <body
         className={`${bodyFont.variable} ${displayFont.variable} ${messageOpenSansFont.variable} ${messageInterFont.variable} ${messageRalewayFont.variable} ${messageOutfitFont.variable}`}
@@ -106,6 +113,8 @@ export default async function RootLayout({
           storageKey="wizards-theme"
           defaultTheme={theme ?? DEFAULT_WIZARDS_THEME}
           attribute="class"
+          // next-themes injects its own first-paint inline script; same CSP rule applies.
+          {...(nonce ? { nonce } : {})}
         >
           <LocaleProvider
             initialLocale={locale}

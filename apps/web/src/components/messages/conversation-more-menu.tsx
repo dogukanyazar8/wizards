@@ -467,7 +467,13 @@ export function ConversationMoreMenu({
       }}
       testId="conversation-more-menu"
     >
+      {/*
+       * WAI-ARIA'da `role="menu"` yalnız menü öğesi, grup ve ayırıcı taşıyabilir; avatarın `img`
+       * rolü axe'te `aria-required-children` ihlaliydi. Başlık görsel bir özet: ad ve durum
+       * sayfa başlığında zaten okunuyor, menünün kendi erişilebilir adı `label`'dan geliyor.
+       */}
       <div
+        aria-hidden="true"
         className="flex items-center"
         data-testid="conversation-more-menu-header"
         style={{

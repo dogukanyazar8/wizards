@@ -63,6 +63,16 @@ describe("login screen contract", () => {
     }
   });
 
+  it("keeps the sign-in identifier's autocomplete token valid (WCAG 1.3.5)", () => {
+    /*
+     * `autocomplete` accepts one field name; `"username email"` is two, which axe reports as
+     * `autocomplete-valid` and browsers ignore. `username` alone is the login identifier token
+     * and covers e-mail addresses too.
+     */
+    assert.match(LOGIN, /<TextInput\s+autoComplete="username"\s/);
+    assert.doesNotMatch(LOGIN, /autoComplete="username email"/);
+  });
+
   it("keeps the forgot-password link inside the label row (SPEC §4.1)", () => {
     assert.match(
       LOGIN,

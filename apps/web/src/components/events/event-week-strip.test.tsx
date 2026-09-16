@@ -196,15 +196,27 @@ describe("EventWeekStrip — gün tıklaması", () => {
     assert.match(markup, /data-testid="events-week-day-2026-08-26"[^>]*href="\/events"/u);
   });
 
-  /**
-   * Kayda geçen sapma: `EventTimeFilter` gün başına bir değer taşımıyor (Dalga 0'da donduruldu)
-   * ve referans HTML'in `go` işleyicisi bugün dışındaki günde `time: null` yazıyor. Otorite
-   * HTML olduğu için bugün dışındaki kutu zaman filtresini **kaldırır**.
-   */
-  it("bugün olmayan gün zaman filtresini kaldırır (HTML otoritesi)", () => {
+  it("bugün olmayan gün kendi tarihini seçer ve zaman kısayolunu kaldırır", () => {
     const markup = renderStrip({ routeState: withRoute({ time: "week" }) });
 
-    assert.match(markup, /data-testid="events-week-day-2026-08-28"[^>]*href="\/events"/u);
+    assert.match(
+      markup,
+      /data-testid="events-week-day-2026-08-28"[^>]*href="\/events\?date=2026-08-28"/u,
+    );
+  });
+
+  it("seçilen günü vurgular; aynı güne tekrar tıklamak seçimi kaldırır", () => {
+    const markup = renderStrip({ routeState: withRoute({ date: "2026-08-28" }) });
+    assert.match(
+      markup,
+      /aria-current="date"[^>]*data-testid="events-week-day-2026-08-28"[^>]*href="\/events"/u,
+    );
+    assert.equal(countMatches(markup, /aria-current="date"/gu), 1);
+  });
+
+  it("hafta okları önceki haftadaki gün seçimini kaldırır", () => {
+    const markup = renderStrip({ routeState: withRoute({ date: "2026-08-28" }) });
+    assert.match(markup, /data-testid="events-week-next"[^>]*href="\/events\?week=2026-08-31"/u);
   });
 
   it("gün bağlantısı açık paneli ve modalı düşürür", () => {

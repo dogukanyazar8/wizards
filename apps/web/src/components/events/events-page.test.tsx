@@ -309,6 +309,7 @@ describe("buildEventsFilterBarState / hasActiveEventsFilters (SPEC §3.3)", () =
         "Oyun Kulübü",
       ),
       {
+        date: null,
         mine: "going",
         query: "oyun",
         source: { id: "s2", name: "Oyun Kulübü" },
@@ -331,7 +332,12 @@ describe("buildEventsFilterBarState / hasActiveEventsFilters (SPEC §3.3)", () =
   });
 
   it("tek eksen bile şeridi açar", () => {
-    for (const patch of [{ time: "today" }, { mine: "going" }, { query: "oyun" }] as const) {
+    for (const patch of [
+      { date: "2026-09-18" },
+      { time: "today" },
+      { mine: "going" },
+      { query: "oyun" },
+    ] as const) {
       assert.equal(
         hasActiveEventsFilters(buildEventsFilterBarState(withRoute(patch), null)),
         true,
@@ -348,6 +354,7 @@ describe("buildEventsFilterBarState / hasActiveEventsFilters (SPEC §3.3)", () =
 
 describe("eventsFilterRemovalPatch / EVENTS_CLEAR_FILTERS_PATCH", () => {
   it("her eksen kendi parametresini siler", () => {
+    assert.deepEqual(eventsFilterRemovalPatch("date"), { date: null });
     assert.deepEqual(eventsFilterRemovalPatch("time"), { time: null });
     assert.deepEqual(eventsFilterRemovalPatch("source"), { source: null });
     assert.deepEqual(eventsFilterRemovalPatch("mine"), { mine: null });
@@ -360,6 +367,7 @@ describe("eventsFilterRemovalPatch / EVENTS_CLEAR_FILTERS_PATCH", () => {
 
   /** K9 — şerit bir gezinme aracı; `Tümünü temizle` haftayı bugüne fırlatmaz. */
   it("tümünü temizle haftayı sıfırlamaz", () => {
+    assert.equal(EVENTS_CLEAR_FILTERS_PATCH.date, null);
     assert.equal("weekStart" in EVENTS_CLEAR_FILTERS_PATCH, false);
     assert.equal(
       buildEventsHref(

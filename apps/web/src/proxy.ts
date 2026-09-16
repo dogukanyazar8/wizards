@@ -5,7 +5,7 @@ import {
   getAuthSessionCookieConfig,
   isAuthSessionCookieName,
 } from "@/lib/auth/session-cookies";
-import { WHISPR_REQUEST_PATHNAME_HEADER } from "@/lib/request-context";
+import { CSP_NONCE_HEADER, WHISPR_REQUEST_PATHNAME_HEADER } from "@/lib/request-context";
 
 const CSRF_PROTECTED_API_PREFIXES = ["/api/v1", "/api/e2e"] as const;
 const UNSAFE_METHODS = new Set(["DELETE", "PATCH", "POST", "PUT"]);
@@ -183,7 +183,7 @@ export function buildContentSecurityPolicy(
 
 function attachSecurityHeaders(response: NextResponse, cspHeader: string, nonce: string) {
   response.headers.set("Content-Security-Policy", cspHeader);
-  response.headers.set("x-nonce", nonce);
+  response.headers.set(CSP_NONCE_HEADER, nonce);
   return response;
 }
 
@@ -237,7 +237,7 @@ export async function proxy(request: NextRequest) {
   const nonce = createNonce();
   const cspHeader = buildContentSecurityPolicy(nonce);
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set(CSP_NONCE_HEADER, nonce);
   requestHeaders.set("Content-Security-Policy", cspHeader);
   requestHeaders.set(WHISPR_REQUEST_PATHNAME_HEADER, pathname);
 

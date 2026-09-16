@@ -23,7 +23,7 @@ import {
   TextInput,
 } from "@/components/auth/auth-screen";
 import { AuthPasswordStrength } from "@/components/auth/auth-password-strength";
-import { AuthSuggestionChip, AuthTurnstileRow } from "@/components/auth/auth-pieces";
+import { AuthSuggestionChip } from "@/components/auth/auth-pieces";
 import { AuthLevelTwoBanner } from "@/components/auth/auth-status-view";
 import { TurnstileWidget } from "@/components/auth/turnstile-widget";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -292,16 +292,14 @@ export function RegisterClient({ callbackUrl }: { callbackUrl: string }) {
           </div>
         </div>
 
-        <AuthTurnstileRow verified={Boolean(turnstileToken)} />
-
         {TURNSTILE_SITE_KEY ? (
-          <div className="sr-only">
-            <TurnstileWidget
-              action="register"
-              onTokenChange={handleTurnstileTokenChange}
-              siteKey={TURNSTILE_SITE_KEY}
-            />
-          </div>
+          <TurnstileWidget
+            action="register"
+            compact
+            verified={Boolean(turnstileToken)}
+            onTokenChange={handleTurnstileTokenChange}
+            siteKey={TURNSTILE_SITE_KEY}
+          />
         ) : null}
 
         <AuthCheckbox

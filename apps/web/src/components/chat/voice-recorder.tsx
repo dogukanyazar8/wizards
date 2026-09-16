@@ -54,6 +54,7 @@ export type VoiceRecording = {
 
 export type VoiceRecorderProps = {
   disabled?: boolean;
+  onActiveChange?: (active: boolean) => void;
   /** Kayıt hazır; çağıran yükler ve gönderir. */
   onRecorded: (recording: VoiceRecording) => void;
 };
@@ -75,7 +76,11 @@ type ActiveCaptureSession = {
   stopSampling(): void;
 };
 
-export function VoiceRecorder({ disabled = false, onRecorded }: VoiceRecorderProps) {
+export function VoiceRecorder({
+  disabled = false,
+  onActiveChange,
+  onRecorded,
+}: VoiceRecorderProps) {
   const { t } = useI18n();
   const [state, setState] = useState<RecorderState>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +94,10 @@ export function VoiceRecorder({ disabled = false, onRecorded }: VoiceRecorderPro
   );
   const requestGenerationRef = useRef<number | null>(null);
   const [lifecycle] = useState(createVoiceCaptureGeneration);
+
+  useEffect(() => {
+    onActiveChange?.(state === "requesting" || state === "recording" || state === "preview");
+  }, [onActiveChange, state]);
 
   const resetMeters = useCallback(() => {
     setElapsedMs(0);
@@ -412,7 +421,7 @@ export function VoiceRecorder({ disabled = false, onRecorded }: VoiceRecorderPro
         aria-live="polite"
         className="flex min-w-0 flex-1 items-center justify-end"
         data-testid="voice-recorder-requesting"
-        style={{ gap: pxToRem(composer.inputGap) }}
+        style={{ gap: pxToRem(composer.inputGap), minHeight: pxToRem(composer.sendSize) }}
       >
         <span className="text-[hsl(var(--text-muted))]">{t("messages.composer.voice.start")}</span>
         <button
@@ -452,6 +461,7 @@ export function VoiceRecorder({ disabled = false, onRecorded }: VoiceRecorderPro
           className="min-w-0 flex-1"
           controls
           src={preview.url}
+          style={{ height: pxToRem(composer.sendSize) }}
         />
         <button
           aria-label={t("messages.composer.voice.cancel")}

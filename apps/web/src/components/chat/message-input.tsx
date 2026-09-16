@@ -391,6 +391,7 @@ export function ChatComposer({
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
   const [isUploadingVoiceMessage, setIsUploadingVoiceMessage] = useState(false);
+  const [isVoiceRecorderActive, setIsVoiceRecorderActive] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [showFormattingToolbar, setShowFormattingToolbar] = useState(false);
@@ -439,6 +440,8 @@ export function ChatComposer({
     content.length <= effectiveMaxLength &&
     !hasUploadingAttachments &&
     !isUploadingAttachments &&
+    !isVoiceRecorderActive &&
+    !isUploadingVoiceMessage &&
     !disabled;
   const activeMention = useMemo(
     () => (disabled ? null : getActiveMention(content, selectionIndex)),
@@ -1940,29 +1943,32 @@ export function ChatComposer({
                 >
                   <VoiceRecorder
                     disabled={disabled || isUploadingVoiceMessage}
+                    onActiveChange={setIsVoiceRecorderActive}
                     onRecorded={(recording) => void handleVoiceRecorded(recording)}
                   />
                 </div>
 
-                <ComposerButton
-                  aria-disabled={!canSend}
-                  className={cn(
-                    referenceComposer
-                      ? "order-8 h-[2.125rem] min-h-[2.125rem] w-[2.125rem] min-w-[2.125rem] rounded-[0.6875rem] bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))] hover:brightness-110"
-                      : isThreadComposer
-                        ? "h-10 min-h-10 min-w-10 rounded-xl"
-                        : "h-10 w-10 md:h-12 md:w-12",
-                  )}
-                  data-testid="message-send-button"
-                  disabled={!canSend}
-                  icon={Send}
-                  style={messageSendButtonStyle()}
-                  label={t("chat.input.sendMessage")}
-                  onClick={handleSend}
-                  variant="primary"
-                >
-                  <span className="sr-only">{t("chat.input.sendMessage")}</span>
-                </ComposerButton>
+                {!isVoiceRecorderActive ? (
+                  <ComposerButton
+                    aria-disabled={!canSend}
+                    className={cn(
+                      referenceComposer
+                        ? "order-8 h-[2.125rem] min-h-[2.125rem] w-[2.125rem] min-w-[2.125rem] rounded-[0.6875rem] bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))] hover:brightness-110"
+                        : isThreadComposer
+                          ? "h-10 min-h-10 min-w-10 rounded-xl"
+                          : "h-10 w-10 md:h-12 md:w-12",
+                    )}
+                    data-testid="message-send-button"
+                    disabled={!canSend}
+                    icon={Send}
+                    style={messageSendButtonStyle()}
+                    label={t("chat.input.sendMessage")}
+                    onClick={handleSend}
+                    variant="primary"
+                  >
+                    <span className="sr-only">{t("chat.input.sendMessage")}</span>
+                  </ComposerButton>
+                ) : null}
               </div>
             </div>
 

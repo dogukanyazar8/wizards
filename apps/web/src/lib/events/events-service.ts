@@ -95,6 +95,7 @@ export type EventsDependencies = {
 };
 
 export type EventsListQuery = {
+  readonly date?: string | null | undefined;
   readonly cursor?: string | null | undefined;
   readonly limit: number;
   readonly mine?: EventMineFilter | null | undefined;
@@ -406,6 +407,7 @@ export async function listEvents(
   const weekStart = query.weekStart ?? mondayOfZonedToday(now, timeZone);
 
   const scope: EventsQueryScope = {
+    date: query.date ?? null,
     mine: query.mine ?? null,
     now,
     query: query.query ?? null,
