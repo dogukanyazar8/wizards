@@ -125,8 +125,8 @@
     "semantic_hash": ""
   },
   "apps/desktop/src-tauri/src/lib.rs": {
-    "mtime": 1789481072.870878,
-    "ast_hash": "523ed7814ebba8749ec82d10bcdf2172",
+    "mtime": 1789563077.1324646,
+    "ast_hash": "9364d8f0bd05a3c9d63ccc5144581ebc",
     "semantic_hash": ""
   },
   "apps/desktop/src-tauri/src/main.rs": {
@@ -6375,8 +6375,8 @@
     "semantic_hash": ""
   },
   "docs/operations/observability.md": {
-    "mtime": 1789558533.1861699,
-    "ast_hash": "1e50f2dcc4490dea9a8d7414ef269958",
+    "mtime": 1789560709.2232249,
+    "ast_hash": "d4bdc3ad66308e41a5ce5fae7f67dc34",
     "semantic_hash": ""
   },
   "docs/operations/outbox-worker-monitoring.md": {
@@ -6980,8 +6980,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1789560532.1271205,
-    "ast_hash": "8b993af57402a28b17e4ac9421abef9c",
+    "mtime": 1789563162.9366474,
+    "ast_hash": "fe476cd2cbc51bd2325a622e2ba827cc",
     "semantic_hash": ""
   },
   ".github/workflows/mobile-redesign-device-gate-nightly.yml": {
@@ -24985,8 +24985,8 @@
     "semantic_hash": ""
   },
   "packages/types/src/game-activity.ts": {
-    "mtime": 1789377265.832746,
-    "ast_hash": "8ae530b5fb652ef71dce3f6fdf8a19a0",
+    "mtime": 1789563077.1309547,
+    "ast_hash": "2bb3b662f432fb3397960295fe7245f6",
     "semantic_hash": ""
   },
   "packages/types/src/game-catalog.json": {
@@ -25667,6 +25667,11 @@
   "apps/web/src/lib/observability/sentry-tunnel.ts": {
     "mtime": 1789558280.6262708,
     "ast_hash": "725878cf2a555ba2f59afdf9eb6d7026",
+    "semantic_hash": ""
+  },
+  "packages/types/src/game-activity.test.ts": {
+    "mtime": 1789563055.7242734,
+    "ast_hash": "8323e0054297375e61234021c0146a20",
     "semantic_hash": ""
   }
 }

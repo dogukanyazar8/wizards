@@ -5796,13 +5796,23 @@ mod tests {
                 "{label}"
             );
         }
-        let local = Url::parse("http://desktop-control.localhost/index.html").unwrap();
+        let local = Url::parse("desktop-control://localhost/index.html").unwrap();
         assert!(is_authorized_desktop_settings_window(
             "desktop-control",
             &local,
             &app
         ));
         assert!(!is_authorized_desktop_settings_window("main", &local, &app));
+        let windows_local = Url::parse("http://desktop-control.localhost/index.html").unwrap();
+        assert_eq!(
+            is_authorized_desktop_settings_window("desktop-control", &windows_local, &app),
+            cfg!(windows),
+        );
+        assert!(!is_authorized_desktop_settings_window(
+            "main",
+            &windows_local,
+            &app
+        ));
         let development = Url::parse("http://localhost:3000").unwrap();
         assert!(is_authorized_desktop_settings_window(
             "main",

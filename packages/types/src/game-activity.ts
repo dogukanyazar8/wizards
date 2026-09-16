@@ -1,5 +1,5 @@
 import { z } from "zod";
-import catalog from "./game-catalog.json";
+import catalog from "./game-catalog.json" with { type: "json" };
 
 export const GameIdSchema = z.enum([
   "cs2",

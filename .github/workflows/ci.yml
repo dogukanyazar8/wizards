@@ -61,6 +61,12 @@ jobs:
       - name: Test toolchain and workflow contracts
         run: pnpm test:toolchain
 
+      - name: Check Playwright test discovery
+        env:
+          # Import-time Prisma configuration only; discovery does not connect to a database.
+          DATABASE_URL: postgresql://prisma:prisma@127.0.0.1:5432/wizards_unit_tests
+        run: pnpm --filter @wizards/web exec playwright test --list --reporter=line
+
       - name: Check E2E password guard
         run: node scripts/quality/e2e-password-guard.mjs
 
