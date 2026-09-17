@@ -70,7 +70,8 @@ export type SettingsBlockKey =
   | "contributors";
 
 /** SPEC §5.1 — satır içinde açılan üç riskli akış. Aynı anda yalnız biri açık (tuzak #12). */
-export type SettingsRiskyBlockKey = "email" | "phone" | "password" | "twoFactor" | "deleteAccount";
+export type SettingsRiskyBlockKey =
+  "email" | "phone" | "password" | "twoFactor" | "recoveryCodes" | "deleteAccount";
 
 /**
  * Ton **token adının kısaltmasıdır**, renk değil: tüketici `--success` / `--warning` /
@@ -97,6 +98,8 @@ export type SettingsRowDef = {
   descriptionData?: string;
   badgeKey?: string;
   badgeData?: string;
+  /** Runtime label for a stateful risky action, such as enabled two-factor security. */
+  openLabelData?: string;
   tone?: SettingsTone;
   /** `toggle` / `sound` → boolean · `select` / `segment` → seçenek dizini · `slider` → sayı. */
   defaultValue?: boolean | number | string;
@@ -383,12 +386,16 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
                 titleKey: "settings.row.s1.title",
                 descriptionKey: "settings.row.s1.description",
                 riskyBlock: "twoFactor",
+                badgeData: "twoFactorStatus",
+                openLabelData: "twoFactorAction",
+                tone: "success",
               },
               {
                 key: "s2",
                 type: "action",
                 titleKey: "settings.row.s2.title",
                 descriptionData: "recoveryCodes",
+                riskyBlock: "recoveryCodes",
                 actions: [
                   { labelKey: "settings.action.s2.1" },
                   { labelKey: "settings.action.s2.2" },

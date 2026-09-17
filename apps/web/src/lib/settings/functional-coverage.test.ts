@@ -35,7 +35,7 @@ register("account/account", "runtime", "account-contact", "ae ap");
 register("account/account", "runtime", "account-security", "apw cn");
 register("account/privacy", "runtime", "account-bridge", "g1 g2 g3 g4 g5 g6 g7 g9");
 register("account/security", "runtime", "account-security", "s1 s4 o2");
-register("account/security", "unavailable", "account-disabled", "s2");
+register("account/security", "runtime", "account-recovery-codes", "s2");
 register("account/security", "informational", "account-read-model", "s3 o1");
 register("account/badges", "informational", "account-read-model", "r1");
 register("account/data", "runtime", "account-data", "d1 d3");

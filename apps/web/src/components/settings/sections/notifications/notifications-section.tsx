@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -17,6 +18,7 @@ import { SettingsDataBoundary } from "@/components/settings/settings-data-bounda
 import { useI18n } from "@/components/providers/locale-provider";
 import {
   useReportSettingsStore,
+  useSettingsSaveReporter,
   useSettingsLadderOverrides,
 } from "@/components/settings/settings-ladder";
 import {
@@ -154,6 +156,8 @@ export function NotificationsSection({ tab }: NotificationsSectionProps) {
 
   // F1 — kutunun durumu kabuğun başlığına buradan gider.
   useReportSettingsStore(store);
+  const reportExceptionSave = useSettingsSaveReporter();
+  const exceptionBusy = useRef(false);
 
   // Pencere kapanırken bekleyen yama gitmeli; 250 ms'lik birleştirme penceresinde kapatılan bir
   // ayar, kaydedilmiş görünüp kaydedilmemiş olurdu.
@@ -189,16 +193,21 @@ export function NotificationsSection({ tab }: NotificationsSectionProps) {
 
   const runException = useCallback(
     (exception: NotificationException, action: () => Promise<void>) => {
+      if (exceptionBusy.current) return;
+      exceptionBusy.current = true;
       setPendingExceptionId(exception.id);
+      reportExceptionSave("saving");
 
       void action()
-        .then(refreshExceptions)
-        // Hata yutulmaz ama ekranı da kilitlemez: liste tazelendiğinde satır sunucunun bildiği
-        // düzeye döner ve kullanıcı ne olduğunu satırın kendisinde görür.
-        .catch(() => refreshExceptions())
-        .finally(() => setPendingExceptionId(null));
+        .then(() => reportExceptionSave("saved"))
+        .catch(() => reportExceptionSave("error"))
+        .finally(() => {
+          exceptionBusy.current = false;
+          setPendingExceptionId(null);
+          void refreshExceptions();
+        });
     },
-    [refreshExceptions],
+    [refreshExceptions, reportExceptionSave],
   );
 
   const onEditException = useCallback(

@@ -18,7 +18,7 @@ if ARGV[2] == '' then redis.call('DEL', KEYS[1]); return 1 end
 local previous = redis.call('HGET', KEYS[1], 'gameId')
 local started = redis.call('HGET', KEYS[1], 'startedAt')
 if previous ~= ARGV[2] or not started then started = ARGV[3] end
-redis.call('HSET', KEYS[1], 'sessionId', ARGV[1], 'gameId', ARGV[2], 'startedAt', started, 'expiresAt', ARGV[4])
+redis.call('HSET', KEYS[1], 'sessionId', ARGV[1], 'gameId', ARGV[2], 'startedAt', started, 'expiresAt', ARGV[4], 'label', ARGV[6] or '')
 redis.call('PEXPIRE', KEYS[1], ARGV[5])
 return 1
 `;
@@ -67,7 +67,7 @@ export async function updateGameSharingSettings(userId: string, enabled: boolean
 
 export async function publishGameActivity(
   userId: string,
-  input: { gameId: GameId | null; sessionId: string },
+  input: { gameId: GameId | null; sessionId: string; label?: string | null | undefined },
 ) {
   return withGameSharingLock(userId, async (enabled, tx) => {
     const user = await tx.user.findUnique({
@@ -94,6 +94,13 @@ export async function publishGameActivity(
       new Date(now).toISOString(),
       new Date(now + GAME_ACTIVITY_TTL_MS).toISOString(),
       GAME_ACTIVITY_TTL_MS,
+      input.gameId?.startsWith("custom:")
+        ? (input.label
+            ?.replace(/[\p{Cc}\p{Cf}]/gu, "")
+            .replace(/\s+/gu, " ")
+            .trim()
+            .slice(0, 64) ?? "")
+        : "",
     );
   });
 }
@@ -123,6 +130,7 @@ export async function readGameActivity(requesterId: string, userId: string) {
   const record = await redis.hgetall(keyFor(userId));
   const parsed = GameActivitySchema.safeParse({
     gameId: record.gameId,
+    label: record.gameId?.startsWith("custom:") ? record.label || null : null,
     startedAt: record.startedAt,
     expiresAt: record.expiresAt,
   });

@@ -1,6 +1,8 @@
 "use client";
 
 import { ConnectionState, type LocalVideoTrack } from "livekit-client";
+import { GAME_CATALOG } from "@wizards/types";
+import { resolveGoLiveStream, shouldStopClosedGameShare } from "@/lib/voice/go-live";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
@@ -234,6 +236,9 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
         channelId: targetChannelId,
         isScreenSharing: isSharing,
         serverId: targetServerId,
+        ...(isSharing && useVoiceStore.getState().screenShareStreamInfo
+          ? { stream: useVoiceStore.getState().screenShareStreamInfo! }
+          : {}),
       });
     },
     [currentUser.id, queryClient],
@@ -520,7 +525,16 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
     }
 
     const shareId = `${currentUser.id}:e2e-screen-share`;
+    const game = GAME_CATALOG.find(
+      (entry) => entry.id === window.localStorage.getItem("whispr:e2e:detected-game"),
+    );
+    const stream = resolveGoLiveStream(
+      "window",
+      game ? { kind: "game", gameId: game.id, label: game.name } : null,
+    );
+    store.setScreenShareStreamInfo(stream);
     const share: VoiceScreenShareViewModel = {
+      stream,
       avatarUrl: currentUser.avatarUrl ?? null,
       displayName: currentUser.displayName,
       id: shareId,
@@ -544,6 +558,18 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
     setErrorMessage(null);
     emitScreenShareState(store.activeChannelId, store.serverId, true);
   }, [currentUser, emitScreenShareState, setTransientErrorMessage, stopScreenShare, t]);
+
+  useEffect(() => {
+    if (!isScreenSharing) return;
+    let missingCount = 0;
+    const timer = setInterval(() => {
+      missingCount = window.localStorage.getItem("whispr:e2e:detected-game") ? 0 : missingCount + 1;
+      if (shouldStopClosedGameShare(useVoiceStore.getState().screenShareStreamInfo, missingCount)) {
+        void stopScreenShare();
+      }
+    }, 2_000);
+    return () => clearInterval(timer);
+  }, [isScreenSharing, stopScreenShare]);
 
   const setActiveScreenShareId = useCallback((id: string) => {
     setActiveScreenShareIdState(id);
@@ -748,6 +774,12 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
 
   const voiceStateValue = useMemo<VoiceStateContextValue>(
     () => ({
+      goLiveLabel:
+        typeof window === "undefined"
+          ? null
+          : (GAME_CATALOG.find(
+              (game) => game.id === window.localStorage.getItem("whispr:e2e:detected-game"),
+            )?.name ?? null),
       activeChannelId,
       activeConversationId,
       activeNoiseFilterTier: "browser_native",

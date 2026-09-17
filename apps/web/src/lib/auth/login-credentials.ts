@@ -27,6 +27,7 @@ export const LOGIN_CREDENTIAL_USER_SELECT = {
   isBanned: true,
   locale: true,
   passwordHash: true,
+  sessionsRevokedAfter: true,
   theme: true,
   twoFactorEnabled: true,
   twoFactorSecret: true,
@@ -45,6 +46,7 @@ export type LoginCredentialUser = {
   isBanned: boolean;
   locale: string | null;
   passwordHash: string | null;
+  sessionsRevokedAfter: Date | null;
   theme: string | null;
   twoFactorEnabled: boolean;
   twoFactorSecret: string | null;

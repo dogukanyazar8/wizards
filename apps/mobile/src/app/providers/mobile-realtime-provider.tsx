@@ -10,6 +10,9 @@ import {
   useState,
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
+import { mobileScreenShareWatching } from "../../voice/mobile-screen-share-watching";
+import type { MobileVoiceStatesResponse } from "@wizards/types";
+import { useOptionalMobileVoiceRuntime } from "./mobile-voice-provider";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { getMobileRuntimeConfig } from "../../config/environment";
 import { mobileQueryKeys } from "../../query/mobile-query-keys";
@@ -94,6 +97,7 @@ const MobileRealtimeRuntimeContext = createContext<MobileRealtimeRuntime | null>
 export function MobileRealtimeProvider({ children }: PropsWithChildren) {
   const { apiClient, getAccessToken, session, status } = useMobileAuth();
   const queryClient = useMobileQueryClient();
+  const syncVoiceParticipants = useOptionalMobileVoiceRuntime()?.syncParticipantsFromServer;
   const networkStatus = useMobileNetworkStatus();
   const refreshNetworkStatus = useMobileNetworkRefresh();
   /** Bumped by the banner's manual retry; the connect effect below keys on it. */
@@ -292,6 +296,24 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
         lastSeenAt: event.receivedAt,
       };
       bridge.handleEvent(event);
+      if (
+        event.eventName === "voice:screenshare:update" ||
+        event.eventName === "voice:screenshare:watchers:update"
+      ) {
+        const { serverId, voiceChannelId } = useMobileActiveTargetStore.getState();
+        if (serverId && voiceChannelId && syncVoiceParticipants) {
+          const cached = queryClient.getQueryData<MobileVoiceStatesResponse>(
+            mobileQueryKeys.voiceStates(serverId),
+          );
+          const channel = cached?.states.find((state) => state.channelId === voiceChannelId);
+          if (channel)
+            syncVoiceParticipants({
+              serverId,
+              channelId: voiceChannelId,
+              participants: channel.participants,
+            });
+        }
+      }
 
       if (event.eventName === "dm:message:new") {
         const incoming = getMobileDMIncomingMessagePayload(event.payload);
@@ -339,6 +361,8 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
     },
     [
       bridge,
+      queryClient,
+      syncVoiceParticipants,
       scheduleDeliveryAck,
       scheduleDMTypingPrune,
       scheduleTypingPrune,
@@ -379,7 +403,10 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
 
     const client = createMobileRealtimeClient({
       getAccessToken,
-      onConnected: () => dispatchConnection({ type: "connected" }),
+      onConnected: () => {
+        dispatchConnection({ type: "connected" });
+        queueMicrotask(() => mobileScreenShareWatching.tick(Date.now(), true));
+      },
       onDisconnected: () => dispatchConnection({ type: "disconnected" }),
       onError: (code) => dispatchConnection({ code, type: "connection-error" }),
       onEvent: handleEvent,
@@ -387,12 +414,15 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
       socketUrl: getMobileRuntimeConfig().socketUrl,
     });
     clientRef.current = client;
+    mobileScreenShareWatching.setActive(appStateRef.current === "active");
+    mobileScreenShareWatching.setEmitter((event) => client.emitScreenShareWatch(event));
     reconnectPendingRef.current = false;
     dispatchConnection({ type: "connect-started" });
     void client.connect();
 
     return () => {
       client.disconnect();
+      mobileScreenShareWatching.setEmitter(null);
       if (clientRef.current === client) {
         clientRef.current = null;
       }
@@ -420,10 +450,12 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     clientRef.current?.setActiveTargets({ channelId, conversationId, serverId, voiceChannelId });
+    mobileScreenShareWatching.tick(Date.now(), true);
   }, [channelId, conversationId, serverId, voiceChannelId]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
+      mobileScreenShareWatching.setActive(nextState === "active");
       const previousVisibility = connectionRef.current.visibility;
       const nextVisibility = getMobileRealtimeVisibilityFromAppState(nextState, previousVisibility);
       const now = Date.now();

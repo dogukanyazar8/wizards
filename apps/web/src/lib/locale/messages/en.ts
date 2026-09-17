@@ -927,6 +927,16 @@ export const EN_MESSAGES = {
   "voice.screenShare.bar.stop": "Stop",
   "voice.screenShare.bar.goLive": "Live: {game}",
   "voice.goLive.cta": "Go Live: {game}",
+  "voice.goLive.registered.empty": "No registered games yet.",
+  "voice.goLive.registered.refresh": "Refresh list",
+  "voice.goLive.registered.choose": "Choose a running application to add.",
+  "voice.goLive.registered.noApplications":
+    "No running applications to add. Open your game and try again.",
+  "voice.goLive.registered.loadError": "Could not read running applications. Try again.",
+  "voice.goLive.registered.title": "Registered games",
+  "voice.goLive.registered.label": "Game name",
+  "voice.goLive.registered.add": "Can't see your game? Add it",
+  "voice.goLive.registered.remove": "Remove",
   "voice.goLive.cta.disabledOptIn": "Turn on game detection under Settings › Desktop to go live.",
   "voice.goLive.pickerHint":
     "Pick the game window in the picker; for fullscreen games use the Screen tab.",
@@ -1633,6 +1643,20 @@ export const EN_MESSAGES = {
   "settings.account.badges.family.commerce": "Support",
   "settings.account.badges.family.event": "Events",
   "settings.account.twoFactor.codePlaceholder": "6-digit code",
+  "settings.account.twoFactor.active": "Active",
+  "settings.recovery.saveHint":
+    "Save these codes somewhere safe. Their full values cannot be shown again after you close settings.",
+  "settings.recovery.unavailable":
+    "Existing recovery codes cannot be displayed or downloaded again for security reasons. Generate a new set if you did not save them.",
+  "settings.recovery.singleUse":
+    "Each recovery code can only be used once. Never share your codes.",
+  "settings.recovery.replaceWarning":
+    "Generating new codes invalidates all previous recovery codes.",
+  "settings.recovery.reauthHelp":
+    "Enter your current password and an authenticator code or unused recovery code to regenerate.",
+  "settings.recovery.confirm": "Generate new codes",
+  "settings.recovery.passwordRequired":
+    "This action requires a Whispr password. Code renewal is unavailable because your account has no password.",
   "settings.account.twoFactor.confirmLabel": "Confirm authenticator code",
   "settings.account.twoFactor.disableCta": "Disable 2FA",
   "settings.account.twoFactor.disableDescription":
@@ -4616,7 +4640,7 @@ export const EN_MESSAGES = {
   "profile.playingGame": "Playing {game}",
   "settings.row.w8.title": "Game activity",
   "settings.row.w8.description":
-    "Manage game detection on this device. Sharing is controlled in My account · Privacy.",
+    "Manage game detection and Go Live suggestions on this device. Sharing is controlled in My account · Privacy.",
   "settings.row.h1.badge": "Up to date",
   "settings.row.h1.title": "Current version",
   "settings.row.h2.title": "Release channel",

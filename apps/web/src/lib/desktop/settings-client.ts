@@ -9,6 +9,7 @@ import {
 
 export const NATIVE_DESKTOP_SETTINGS_KEY = ["settings", "desktop", "native"] as const;
 export type NativeApplicationSettings = {
+  registeredGames?: { id: string; executable: string; label: string }[];
   launchOnStartup: boolean;
   closeAction: "tray" | "quit";
   gameDetectionEnabled: boolean;
@@ -56,6 +57,8 @@ async function nativeInvoke<T>(command: string, args?: Record<string, unknown>):
 export function createNativeSettingsClient(invoke: Invoke = nativeInvoke) {
   return {
     read: () => invoke<NativeDesktopSettings>(NATIVE_SETTINGS_COMMANDS.read),
+    runningApplications: () =>
+      invoke<{ executable: string; displayName: string }[]>("list_desktop_running_applications"),
     application: (settings: NativeApplicationSettings) =>
       invoke<NativeApplicationSettings>(NATIVE_SETTINGS_COMMANDS.application, { settings }),
     shortcuts: (assignments: DesktopShortcutAssignments, enabled: boolean) =>

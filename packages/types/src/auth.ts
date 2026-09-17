@@ -107,6 +107,7 @@ export const TwoFactorChallengeSchema = z.object({
 export const BackupCodeChallengeSchema = z.object({
   challengeId: LoginChallengeIdSchema,
   backupCode: BackupCodeSchema,
+  rememberDevice: BooleanFlagSchema.optional(),
 });
 
 /** SPEC §4.5 — altı haneli e-posta doğrulama kodu (K3). */

@@ -31,5 +31,8 @@ export function useMobileGameActivity(client: MobileApiClient, userId: string, e
     return () => clearTimeout(timer);
   }, [activity]);
   if (!enabled || query.isError || !activity || Date.parse(activity.expiresAt) <= now) return null;
-  return GAME_CATALOG.find((game) => game.id === activity.gameId)?.name ?? null;
+  return (
+    GAME_CATALOG.find((game) => game.id === activity.gameId)?.name ??
+    (activity.gameId.startsWith("custom:") ? (activity.label ?? null) : null)
+  );
 }

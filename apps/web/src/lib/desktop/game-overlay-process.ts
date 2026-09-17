@@ -1,6 +1,6 @@
 "use client";
 
-import type { VoiceOverlayAnchor, VoiceOverlaySize } from "@wizards/types";
+import { GAME_CATALOG, type VoiceOverlayAnchor, type VoiceOverlaySize } from "@wizards/types";
 import {
   DEFAULT_DESKTOP_GAME_OVERLAY_ANCHOR,
   DEFAULT_DESKTOP_GAME_OVERLAY_SIZE,
@@ -13,17 +13,8 @@ const MAX_EXECUTABLE_NAME_LENGTH = 128;
 export const MAX_DESKTOP_GAME_OVERLAY_GAME_SETTINGS = 64;
 
 export const DESKTOP_GAME_OVERLAY_EXECUTABLE_NAMES = [
-  "cs2.exe",
-  "dota2.exe",
-  "fortniteclient-win64-shipping.exe",
-  "javaw.exe",
-  "league of legends.exe",
-  "minecraft.exe",
-  "osu!.exe",
-  "osu.exe",
-  "rocketleague.exe",
-  "valorant-win64-shipping.exe",
-] as const;
+  ...new Set(GAME_CATALOG.flatMap((game) => game.executables)),
+];
 
 const DESKTOP_GAME_OVERLAY_EXECUTABLE_WHITELIST: ReadonlySet<string> = new Set(
   DESKTOP_GAME_OVERLAY_EXECUTABLE_NAMES,

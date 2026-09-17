@@ -29,6 +29,8 @@ fn main() {
         "get_desktop_companion_surfaces_status",
         "get_desktop_foreground_process_name",
         "get_desktop_detected_game",
+        "get_desktop_go_live_candidate",
+        "list_desktop_running_applications",
         "get_desktop_main_window_focused",
         "get_desktop_platform_capabilities",
         "get_desktop_voice_shortcut_status",

@@ -154,7 +154,7 @@ describe("mobile screen share contract", () => {
       serviceSource,
       /\.set\(screenShareKey, "1", "EX", VOICE_SCREEN_SHARE_STATE_TTL_SECONDS\)/,
     );
-    assert.match(serviceSource, /\.del\(screenShareKey\)/);
+    assert.match(serviceSource, /\.del\(screenShareKey, streamKey\)/);
     assert.match(serviceSource, /emitVoiceScreenShareUpdate/);
   });
 

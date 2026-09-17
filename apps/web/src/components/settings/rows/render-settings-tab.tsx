@@ -549,6 +549,8 @@ function RiskyRowShell({ row, shared }: RowShellProps) {
       control={(ids) => (
         <SettingRiskyBlockTrigger
           blockKey={blockKey}
+          disabled={runtime.disabledRows?.[row.key] ?? false}
+          openLabel={row.openLabelData ? runtime.data[row.openLabelData] : undefined}
           describedById={ids.describedById}
           onOpenChange={(next) => runtime.setOpenRisky(next ? blockKey : null)}
           open={open}

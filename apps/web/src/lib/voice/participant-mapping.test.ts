@@ -261,6 +261,7 @@ describe("voice participant mapping helpers", () => {
           id: "user-1:local-share",
           isLocal: true,
           participantId: "user-1",
+          stream: null,
           publication: {
             source: Track.Source.ScreenShare,
             trackSid: "local-share",
@@ -276,6 +277,7 @@ describe("voice participant mapping helpers", () => {
           id: "user-2:remote-share",
           isLocal: false,
           participantId: "user-2",
+          stream: null,
           publication: {
             source: Track.Source.ScreenShare,
             trackSid: "remote-share",

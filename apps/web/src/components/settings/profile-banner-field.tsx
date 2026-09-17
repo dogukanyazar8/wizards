@@ -17,6 +17,7 @@ import {
 import type { AccountBanner, AccountBannerResult } from "@/lib/account/banner";
 import { SETTINGS_METRICS, pxToRem } from "@/lib/settings/metrics";
 import { useUploadThing } from "@/lib/uploadthing";
+import { useSettingsSaveReporter } from "@/components/settings/settings-ladder";
 
 const { hero } = SETTINGS_METRICS.blocks;
 const EMPTY_BANNER: AccountBanner = {
@@ -45,6 +46,7 @@ export function ProfileBannerField({
   uploadthingEnabled: boolean;
 }) {
   const { t } = useI18n();
+  const reportSave = useSettingsSaveReporter();
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const busyRef = useRef(false);
@@ -111,6 +113,7 @@ export function ProfileBannerField({
     if (busyRef.current || !ready) return;
     busyRef.current = true;
     setBusy(true);
+    reportSave("saving");
     setError(null);
     setProgress(0);
     try {
@@ -118,17 +121,20 @@ export function ProfileBannerField({
       await queryClient.cancelQueries({ queryKey });
       const result = await operation();
       if (!result.success) {
+        reportSave("error");
         if (mountedRef.current) setError(result.error);
         void queryClient.invalidateQueries({ queryKey });
         return;
       }
       queryClient.setQueryData(queryKey, result.banner);
+      reportSave("saved");
       void queryClient.invalidateQueries({ queryKey: ["user-profile", accountId] });
       if (mountedRef.current) {
         setOpen(false);
         selectFile(null);
       }
     } catch {
+      reportSave("error");
       if (mountedRef.current) setError("settings.account.banner.errors.save");
       // The response may have been lost after the server committed the change.
       void queryClient.invalidateQueries({ queryKey });
@@ -230,13 +236,9 @@ export function ProfileBannerField({
             <X aria-hidden="true" size={13} />
           </button>
         </div>
-        {!open && (feedback || busy) ? (
+        {!open && feedback ? (
           <div className="absolute bottom-3 right-3 max-w-[65%] rounded-lg bg-[hsl(var(--surface-card)/.95)] px-3 py-2 text-xs">
-            {feedback ? (
-              <p role="alert">{t(feedback)}</p>
-            ) : (
-              <p role="status">{t("settings.account.banner.saving")}</p>
-            )}
+            <p role="alert">{t(feedback)}</p>
             {loadFailed ? (
               <button
                 className="underline"
@@ -368,11 +370,9 @@ export function ProfileBannerField({
               {t(error)}
             </p>
           ) : null}
-          {busy ? (
+          {busy && file ? (
             <p className="text-sm" role="status">
-              {file
-                ? t("settings.account.banner.uploading", { progress })
-                : t("settings.account.banner.saving")}
+              {t("settings.account.banner.uploading", { progress })}
             </p>
           ) : null}
           <div className="flex flex-wrap justify-end gap-2">

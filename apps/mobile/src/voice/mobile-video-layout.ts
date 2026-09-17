@@ -37,11 +37,17 @@ export const MAX_MOBILE_VIDEO_ASPECT = 16 / 9;
 /** Below this short edge (pt) a tile is a thumbnail and fills rather than letterboxes. */
 export const MOBILE_VIDEO_THUMBNAIL_SHORT_EDGE = 160;
 
-function clampAspect(value: number): number {
-  return Math.min(MAX_MOBILE_VIDEO_ASPECT, Math.max(MIN_MOBILE_VIDEO_ASPECT, value));
+function clampAspect(value: number, kind: "camera" | "screen"): number {
+  return Math.min(
+    kind === "screen" ? 21 / 9 : MAX_MOBILE_VIDEO_ASPECT,
+    Math.max(MIN_MOBILE_VIDEO_ASPECT, value),
+  );
 }
 
-export function resolveVideoAspect(dimensions: MobileVideoSourceDimensions): number {
+export function resolveVideoAspect(
+  dimensions: MobileVideoSourceDimensions,
+  kind: "camera" | "screen" = "camera",
+): number {
   if (!dimensions) {
     return DEFAULT_MOBILE_VIDEO_ASPECT;
   }
@@ -51,7 +57,7 @@ export function resolveVideoAspect(dimensions: MobileVideoSourceDimensions): num
     return DEFAULT_MOBILE_VIDEO_ASPECT;
   }
 
-  return clampAspect(width / height);
+  return clampAspect(width / height, kind);
 }
 
 /**

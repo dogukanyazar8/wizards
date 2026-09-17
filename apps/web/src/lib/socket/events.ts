@@ -216,7 +216,7 @@ export interface ClientToServerEvents {
     isScreenSharing: boolean;
     serverId: string;
     /** K8 — Go Live presence (`kind` / `gameId` / `label`); yalnız paylaşım açıkken. */
-    stream?: ScreenShareStreamInfo;
+    stream?: ScreenShareStreamInfo | null;
   }) => void;
   /**
    * K11 — bir paylaşımı izlemeye başladım / bıraktım. İzleyici 60 s'de bir `watching: true`
@@ -507,7 +507,7 @@ export interface ServerToClientEvents {
       isScreenSharing?: boolean;
       screenShareViewerCount?: number;
       /** K8 — Go Live presence; yalnız `isScreenSharing` iken. */
-      stream?: ScreenShareStreamInfo;
+      stream?: ScreenShareStreamInfo | null;
     }>;
   }) => void;
   "voice:screenshare:update": (data: {
@@ -518,7 +518,7 @@ export interface ServerToClientEvents {
      * K8 — sunucu tarafından yayılır; paylaşanın `GameSharingSettings.enabled` tercihi
      * kapalıysa `gameId: null`, `label: null`, `kind` olduğu gibi ("Bir oyun yayınlıyor").
      */
-    stream?: ScreenShareStreamInfo;
+    stream?: ScreenShareStreamInfo | null;
     userId: string;
   }) => void;
   /**

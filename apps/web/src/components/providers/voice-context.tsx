@@ -58,6 +58,7 @@ export type VoiceContextValue = {
   isRecoveringKrispNoiseCancellation: boolean;
   isMuted: boolean;
   isScreenSharing: boolean;
+  goLiveLabel?: string | null;
   krispAvailability: KrispAvailability;
   participants: VoiceParticipantViewModel[];
   resetParticipantVolume: (userId: string) => void;

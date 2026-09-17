@@ -59,6 +59,13 @@ appId: team.whispr.mobile
 # participant share badge is the stage proof.
 - tapOn:
     id: "mobile-voice-screen-share"
+- runFlow:
+    when:
+      visible:
+        id: "mobile-voice-screen-share-consent-confirm"
+    commands:
+      - tapOn:
+          id: "mobile-voice-screen-share-consent-confirm"
 - extendedWaitUntil:
     visible:
       text: ".*(Start now|Şimdi başlat).*"
@@ -71,6 +78,15 @@ appId: team.whispr.mobile
     timeout: 30000
 - assertVisible:
     id: "mobile-voice-participant-.*-share-badge"
+- assertVisible:
+    id: "mobile-voice-screen-share-banner"
+- pressKey: HOME
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: "mobile-voice-screen-share-banner"
+    timeout: 15000
 
 # Stop sharing: the badge disappears without leaving the room.
 - tapOn:
@@ -81,6 +97,8 @@ appId: team.whispr.mobile
     timeout: 15000
 - assertNotVisible:
     id: "mobile-voice-participant-.*-share-badge"
+- assertNotVisible:
+    id: "mobile-voice-screen-share-banner"
 - assertVisible:
     id: "mobile-voice-room-screen"
 

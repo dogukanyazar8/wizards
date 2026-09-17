@@ -290,6 +290,7 @@ describe("voice service concurrency helpers", () => {
             isDeafened: false,
             isScreenSharing: false,
             screenShareViewerCount: 0,
+            stream: null,
             userId: "user-1",
             username: "ada",
           },

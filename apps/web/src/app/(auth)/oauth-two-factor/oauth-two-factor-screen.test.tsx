@@ -34,6 +34,8 @@ describe("OAuth two-factor screen", () => {
       assert.match(markup, /class="auth-input"/);
       assert.match(markup, /autoComplete="one-time-code"/);
       assert.match(markup, /maxLength="64"/);
+      assert.match(markup, /Bu cihazı 30 gün hatırla/);
+      assert.doesNotMatch(markup, /type="checkbox"[^>]*checked/);
       assert.doesNotMatch(markup, /inputMode="numeric"/);
       assert.match(markup, /class="auth-btn-primary"[^>]*type="submit"/);
     });

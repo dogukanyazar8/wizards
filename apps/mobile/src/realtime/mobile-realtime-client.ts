@@ -1,5 +1,6 @@
 import { io, type Socket } from "socket.io-client";
 import { MOBILE_CLIENT_HEADERS } from "../api/mobile-client-headers";
+import type { MobileScreenShareWatch } from "../voice/mobile-screen-share-watching";
 import {
   createMobileRealtimeEventEnvelope,
   MOBILE_REALTIME_RECONNECT_POLICY,
@@ -17,6 +18,7 @@ export type MobileRealtimeClientTargets = {
 
 export type MobileRealtimeClient = {
   connect(): Promise<void>;
+  emitScreenShareWatch(input: MobileScreenShareWatch): void;
   disconnect(): void;
   emitChannelTypingStart(channelId: string): void;
   emitChannelTypingStop(channelId: string): void;
@@ -167,6 +169,14 @@ export function createMobileRealtimeClient(
   };
 
   return {
+    emitScreenShareWatch(input) {
+      if (
+        socket?.connected &&
+        input.channelId === activeVoiceChannelId &&
+        input.serverId === activeServerId
+      )
+        socket.emit("voice:screenshare:watch", input);
+    },
     async connect() {
       if (disposed) {
         return;

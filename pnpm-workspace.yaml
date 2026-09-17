@@ -112,6 +112,7 @@ minimumReleaseAgeExclude:
 
 patchedDependencies:
   "@auth/core@0.41.3": patches/@auth__core@0.41.3.patch
+  "@livekit/react-native-webrtc@144.1.2": patches/@livekit__react-native-webrtc@144.1.2.patch
   brace-expansion@5.0.12: patches/brace-expansion@5.0.12.patch
   image-size@1.2.1: patches/image-size@1.2.1.patch
   next-auth@5.0.0-beta.32: patches/next-auth@5.0.0-beta.32.patch

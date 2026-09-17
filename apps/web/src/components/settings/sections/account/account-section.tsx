@@ -37,6 +37,10 @@ import {
 import { DeleteAccountBlock } from "@/components/settings/risky/delete-account-block";
 import { PasswordBlock } from "@/components/settings/risky/password-block";
 import { TwoFactorBlock } from "@/components/settings/risky/two-factor-block";
+import {
+  RecoveryCodesBlock,
+  downloadRecoveryCodes,
+} from "@/components/settings/risky/recovery-codes-block";
 import { AccountSurfaceContext } from "@/components/settings/sections/account/account-context";
 import {
   DATE_FORMAT_BY_INDEX,
@@ -157,6 +161,11 @@ export function AccountSection({
   });
 
   const account = bootstrapQuery.data?.initialAccount ?? null;
+  // Plaintext recovery codes live only in this mounted settings section, never in a cache/storage.
+  const [recoverySet, setRecoverySet] = useState<{ userId: string; codes: string[] } | null>(null);
+  const freshRecoveryCodes =
+    recoverySet?.userId === account?.id ? (recoverySet?.codes ?? null) : null;
+  const [renewingRecoveryCodes, setRenewingRecoveryCodes] = useState(false);
   // Keep successful profile/avatar writes when the account section is mounted again.
   const onAccountUpdated = useCallback(
     (updatedAccount: AccountSettingsState) => {
@@ -202,6 +211,32 @@ export function AccountSection({
     staleTime: 30_000,
   });
   const recoveryCodes = recoveryQuery.data?.success ? recoveryQuery.data : null;
+
+  const receiveRecoveryCodes = (codes: string[]) => {
+    if (!account) return;
+    setRecoverySet({ userId: account.id, codes });
+    setRenewingRecoveryCodes(false);
+    void queryClient.cancelQueries({ queryKey: ["account-recovery-status", account.id] });
+    queryClient.setQueryData(["account-recovery-status", account.id], {
+      success: true,
+      total: codes.length,
+      unused: codes.length,
+    });
+  };
+
+  const onTwoFactorChanged = (enabled: boolean, codes?: string[]) => {
+    if (!account) return;
+    onAccountUpdated({ ...account, twoFactorEnabled: enabled });
+    void queryClient.invalidateQueries({ queryKey: contactKey });
+    if (enabled && codes) {
+      receiveRecoveryCodes(codes);
+      input.toggleRisky("recoveryCodes");
+    } else {
+      setRecoverySet(null);
+      queryClient.setQueryData(["account-recovery-status", account.id], { success: false });
+      input.toggleRisky("twoFactor");
+    }
+  };
 
   /**
    * Tek yazma yolu.
@@ -376,6 +411,12 @@ export function AccountSection({
       lastExport: t("settings.data.noExport"),
       passwordChangedAt: t("settings.data.noPasswordChange"),
       phone: contactQuery.data?.phone ?? t("settings.data.noPhone"),
+      twoFactorStatus: account?.twoFactorEnabled ? t("settings.account.twoFactor.active") : "",
+      twoFactorAction: t(
+        account?.twoFactorEnabled
+          ? "settings.account.twoFactor.disableCta"
+          : "settings.control.risky.twoFactor",
+      ),
       recoveryCodes: recoveryCodes
         ? t("settings.data.recoveryCodes", {
             total: recoveryCodes.total,
@@ -394,6 +435,18 @@ export function AccountSection({
   const onAction = useCallback(
     (rowKey: string, actionIndex: number) => {
       switch (`${rowKey}:${actionIndex}`) {
+        case "s2:1":
+          if (freshRecoveryCodes) {
+            downloadRecoveryCodes(freshRecoveryCodes);
+            return;
+          }
+          setRenewingRecoveryCodes(false);
+          if (input.openRisky !== "recoveryCodes") input.toggleRisky("recoveryCodes");
+          return;
+        case "s2:2":
+          setRenewingRecoveryCodes(true);
+          if (input.openRisky !== "recoveryCodes") input.toggleRisky("recoveryCodes");
+          return;
         case "o2:0":
           sessions.refresh();
           return;
@@ -428,13 +481,15 @@ export function AccountSection({
           return;
       }
     },
-    [sessions],
+    [freshRecoveryCodes, input, sessions],
   );
 
   const runtime: SettingsRowRuntime = useSettingsRowRuntimeState({
     data,
     disabledRows: {
       ...ACCOUNT_UNAVAILABLE_ROWS,
+      s1: !account,
+      s2: !account?.twoFactorEnabled,
       g6: !messagingPrivacyQuery.data,
       g7: !gameSharingQuery.data,
       ae: !contactQuery.data,
@@ -475,12 +530,23 @@ export function AccountSection({
       s1: (
         <TwoFactorBlock
           enabled={account?.twoFactorEnabled ?? false}
-          onChanged={() => void bootstrapQuery.refetch()}
+          onChanged={onTwoFactorChanged}
           onClose={() => input.toggleRisky("twoFactor")}
         />
       ),
+      s2: account?.twoFactorEnabled ? (
+        <RecoveryCodesBlock
+          codes={freshRecoveryCodes}
+          renewing={renewingRecoveryCodes}
+          hasPassword={contactQuery.data?.hasPassword ?? null}
+          onGenerated={receiveRecoveryCodes}
+          onRenew={() => setRenewingRecoveryCodes(true)}
+          onClose={() => input.toggleRisky("recoveryCodes")}
+        />
+      ) : null,
     },
     setOpenRisky: (key) => {
+      if (key === "recoveryCodes") setRenewingRecoveryCodes(false);
       const target = key ?? input.openRisky;
       if (target) input.toggleRisky(target);
     },
@@ -501,7 +567,7 @@ export function AccountSection({
       ? [layoutQuery, messagingPrivacyQuery, gameSharingQuery]
       : input.tab.key === "profile"
         ? [bootstrapQuery, detailsQuery]
-        : input.tab.key === "account"
+        : input.tab.key === "account" || input.tab.key === "security"
           ? [bootstrapQuery, contactQuery]
           : [];
   const missing = reads.filter((query) => query.data === undefined);

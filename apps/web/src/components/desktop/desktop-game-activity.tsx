@@ -21,11 +21,15 @@ export function DesktopGameActivity({ userId }: { userId: string }) {
     let failureReported = false;
     let publishedGame: GameId | null = null;
     const sessionId = crypto.randomUUID();
-    const publish = async (gameId: GameId | null) => {
+    const publish = async (gameId: GameId | null, label?: string | null) => {
       const response = await fetch("/api/v1/users/me/game-activity", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gameId, sessionId }),
+        body: JSON.stringify({
+          gameId,
+          sessionId,
+          ...(gameId?.startsWith("custom:") ? { label } : {}),
+        }),
         keepalive: gameId === null,
         signal: AbortSignal.timeout(10_000),
       });
@@ -38,7 +42,7 @@ export function DesktopGameActivity({ userId }: { userId: string }) {
         const gameId =
           detected.enabled && detected.gameId !== null ? GameIdSchema.parse(detected.gameId) : null;
         if (gameId === null && publishedGame === null) return;
-        await publish(gameId);
+        await publish(gameId, detected.label);
         publishedGame = gameId;
         // Cleanup may have run while the first heartbeat was still in flight.
         if (!active && gameId !== null) await publish(null);

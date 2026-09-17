@@ -452,6 +452,8 @@ describe("Phase 0 Maestro testID contract", () => {
     assert.doesNotMatch(phase4FlowSource, /claimId|inviteCode|MAESTRO_UAT_(?:EMAIL|PASSWORD)/);
 
     const productionContracts = [
+      ["src/app/screens/voice-screen.tsx", 'testID="mobile-voice-screen-share-consent-confirm"'],
+      ["src/app/screens/voice-screen.tsx", 'testID="mobile-voice-screen-share-banner"'],
       // 6a moved the settings entry out of the header and into the "..." menu.
       ["src/app/screens/workspace-header-row.tsx", "mobile-workspace-server-menu-open"],
       [
@@ -541,11 +543,11 @@ describe("Phase 0 Maestro testID contract", () => {
     );
     assert.match(
       phase6FlowSource,
-      /tapOn:\r?\n\s+id:\s*"mobile-voice-screen-share"[\s\S]{0,260}?tapOn:\r?\n\s+text:\s*"\.\*\(Start now\|Şimdi başlat\)\.\*"[\s\S]{0,200}?assertVisible:\r?\n\s+id:\s*"mobile-voice-participant-\.\*-share-badge"/,
+      /tapOn:\r?\n\s+id:\s*"mobile-voice-screen-share"[\s\S]{0,700}?tapOn:\r?\n\s+text:\s*"\.\*\(Start now\|Şimdi başlat\)\.\*"[\s\S]{0,200}?assertVisible:\r?\n\s+id:\s*"mobile-voice-participant-\.\*-share-badge"/,
     );
     assert.match(
       phase6FlowSource,
-      /assertVisible:\r?\n\s+id:\s*"mobile-voice-participant-\.\*-share-badge"[\s\S]{0,120}?tapOn:\r?\n\s+id:\s*"mobile-voice-screen-share"[\s\S]{0,260}?assertNotVisible:\r?\n\s+id:\s*"mobile-voice-participant-\.\*-share-badge"/,
+      /assertVisible:\r?\n\s+id:\s*"mobile-voice-participant-\.\*-share-badge"[\s\S]{0,600}?tapOn:\r?\n\s+id:\s*"mobile-voice-screen-share"[\s\S]{0,260}?assertNotVisible:\r?\n\s+id:\s*"mobile-voice-participant-\.\*-share-badge"/,
     );
     assert.equal(phase6FlowSource.match(/id:\s*"mobile-voice-screen-share"/g)?.length, 3);
     assert.match(
@@ -556,6 +558,8 @@ describe("Phase 0 Maestro testID contract", () => {
     assert.doesNotMatch(phase6FlowSource, /claimId|inviteCode|MAESTRO_UAT_(?:EMAIL|PASSWORD)/);
 
     const productionContracts = [
+      ["src/app/screens/voice-screen.tsx", 'testID="mobile-voice-screen-share-consent-confirm"'],
+      ["src/app/screens/voice-screen.tsx", 'testID="mobile-voice-screen-share-banner"'],
       ["src/app/screens/voice-screen.tsx", 'testID="mobile-voice-screen-share"'],
       [
         "src/app/screens/voice-screen.tsx",

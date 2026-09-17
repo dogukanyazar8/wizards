@@ -46,6 +46,41 @@ function createDependencies(
 }
 
 describe("OAuth two-factor completion route", () => {
+  it("writes device proof only as an HttpOnly cookie after checked verification", async () => {
+    const request = new Request("http://localhost/api/v1/auth/oauth-two-factor", {
+      method: "POST",
+      headers: { "content-type": "application/json", "user-agent": "fixture-browser" },
+      body: JSON.stringify({
+        challengeToken: "challenge-raw-token",
+        twoFactorCode: "123456",
+        rememberDevice: true,
+      }),
+    });
+    const response = await oauthTwoFactorRoute(
+      request,
+      createDependencies({
+        completeChallenge: async (input) => {
+          assert.equal(input.rememberDevice, true);
+          assert.equal(input.userAgent, "fixture-browser");
+          return {
+            expiresAt: new Date(),
+            grantToken: "grant-token",
+            provider: "google",
+            trustedDeviceToken: "secret-trust-token",
+          };
+        },
+      }),
+    );
+    const cookie = response.headers
+      .getSetCookie()
+      .find((value) => value.includes("whispr.trusted-device="));
+    assert.ok(cookie);
+    assert.match(cookie, /HttpOnly/);
+    assert.match(cookie, /Max-Age=2592000/);
+    assert.match(cookie, /Path=\//);
+    assert.match(cookie, /SameSite=Lax/);
+    assert.equal((await response.text()).includes("secret-trust-token"), false);
+  });
   it("keeps a stable trusted-network bucket when attackers rotate challenge tokens", () => {
     const first = new Request("http://localhost", {
       headers: { "x-forwarded-for": "203.0.113.8" },

@@ -12,6 +12,7 @@ import { nativeDesktopShortcutAssignments } from "@/lib/desktop/shortcuts";
 import { useNativeDesktopSettings } from "./native-settings-context";
 import { AppUpdateRow } from "@/components/settings/rows/app-update-row";
 import { NativeShortcutEditor } from "./native-shortcut-editor";
+import { RegisteredGamesEditor } from "./registered-games-editor";
 
 export const NATIVE_DESKTOP_ROW_KEYS = new Set(["w1", "w2", "w8", "q1", "q2", "h1", "n4"]);
 
@@ -45,6 +46,7 @@ export function DesktopNativeRow({ row, divider }: { row: SettingsRowDef; divide
     return (
       <SettingsRow
         {...base}
+        below={row.key === "w8" ? <RegisteredGamesEditor /> : undefined}
         control={(ids) => (
           <SettingToggle
             {...ids}

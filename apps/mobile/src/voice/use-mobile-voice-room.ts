@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AndroidAudioTypePresets, AudioSession } from "@livekit/react-native";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
+import { mobileScreenShareWatching } from "./mobile-screen-share-watching";
+import Constants from "expo-constants";
+import { resolveMobileScreenShareSupport } from "./mobile-screen-share-platform";
+import { activeMobileCopy } from "../locale/mobile-locale-preferences";
+
+// Keep shipping builds gated until the native extension passes TestFlight acceptance.
+const screenShareSupported =
+  resolveMobileScreenShareSupport({
+    platform: Platform.OS,
+    hasBroadcastExtension:
+      Boolean(Constants.expoConfig?.ios?.infoPlist?.RTCAppGroupIdentifier) &&
+      Constants.expoConfig?.extra?.iosBroadcastValidated === true,
+  }) === "supported";
 import {
   LocalAudioTrack,
   LocalVideoTrack,
@@ -8,6 +21,8 @@ import {
   Room,
   RoomEvent,
   Track,
+  TrackEvent,
+  type TrackPublication,
   type Participant,
   type RemoteParticipant,
 } from "livekit-client";
@@ -352,7 +367,10 @@ function mapLiveKitParticipantToRoomParticipant(
     displayName: isSelf ? currentUser.displayName : liveKitName,
     isCameraEnabled: participant.isCameraEnabled,
     isMuted,
-    isScreenSharing: Boolean(screenSharePublication?.isSubscribed || screenSharePublication),
+    isScreenSharing: Boolean(
+      screenSharePublication &&
+      screenSharePublication.track?.mediaStreamTrack.readyState !== "ended",
+    ),
     isSelf,
     isSpeaking: isMuted ? false : (measured?.isSpeaking ?? participant.isSpeaking),
     // LiveKit stamps a join time on every participant; it anchors stable stage
@@ -408,13 +426,15 @@ function mergeLiveKitParticipants(
 }
 
 function isLocalParticipantScreenSharing(room: Room): boolean {
-  return Boolean(room.localParticipant.getTrackPublication(Track.Source.ScreenShare));
+  const publication = room.localParticipant.getTrackPublication(Track.Source.ScreenShare);
+  return Boolean(publication && publication.track?.mediaStreamTrack.readyState !== "ended");
 }
 
 function resolveSelfScreenShareStatus(
   currentStatus: MobileVoiceScreenShareStatus,
   isScreenSharing: boolean,
 ): MobileVoiceScreenShareStatus {
+  if (!screenShareSupported) return "unsupported";
   if (isScreenSharing) {
     return "on";
   }
@@ -470,6 +490,7 @@ export function useMobileVoiceRoom({
   // physical camera cannot drift apart and make the first flip a no-op.
   const cameraFacingMode = roomState.cameraFacingMode;
   const roomRef = useRef<Room | null>(null);
+  const screenShareOperationRef = useRef<Room | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const levelTickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const appStateRef = useRef(AppState.currentState);
@@ -990,6 +1011,7 @@ export function useMobileVoiceRoom({
         enabled: true,
         intervalMs: MOBILE_VOICE_LEVEL_INTERVAL_MS,
         run: () => {
+          mobileScreenShareWatching.tick();
           void runMobileVoiceLevelTick({
             sample: () =>
               appStateRef.current === "active"
@@ -1097,6 +1119,45 @@ export function useMobileVoiceRoom({
 
   const bindRoomEvents = useCallback(
     (room: Room, generation: number) => {
+      const endedListeners = new Map<
+        TrackPublication,
+        { track: NonNullable<TrackPublication["track"]>; ended: () => void }
+      >();
+      const unwatchScreenTrack = (publication: TrackPublication) => {
+        const entry = endedListeners.get(publication);
+        if (entry) entry.track.off(TrackEvent.Ended, entry.ended);
+        endedListeners.delete(publication);
+      };
+      const watchScreenTrack = (publication: TrackPublication) => {
+        if (
+          publication.source !== Track.Source.ScreenShare ||
+          !publication.track ||
+          endedListeners.has(publication)
+        )
+          return;
+        const ended = () => {
+          if (!isCurrentSessionGeneration(generation) || roomRef.current !== room) return;
+          const sessionId = sessionIdRef.current;
+          if (sessionId)
+            void sendMobileVoiceHeartbeat(
+              apiClient,
+              buildMobileScreenShareHeartbeatPayload({ isScreenSharing: false, sessionId }),
+            ).catch(() => undefined);
+          setRoomState((current) => ({
+            ...current,
+            screenShareStatus: "off",
+            selfScreenShareEnabled: false,
+            errorMessage:
+              current.screenShareStatus === "stopping"
+                ? null
+                : activeMobileCopy.voiceScreenShareStoppedBySystem,
+            updatedAt: Date.now(),
+          }));
+        };
+        publication.track.on(TrackEvent.Ended, ended);
+        endedListeners.set(publication, { track: publication.track, ended });
+      };
+      room.localParticipant.getTrackPublications().forEach(watchScreenTrack);
       const refresh = () => updateParticipantsFromRoom(generation);
       const refreshOnParticipant = (_participant: RemoteParticipant) => refresh();
       const handleDisconnected = () => {
@@ -1137,12 +1198,17 @@ export function useMobileVoiceRoom({
       room.on(RoomEvent.TrackSubscribed, refresh);
       room.on(RoomEvent.TrackUnsubscribed, refresh);
       room.on(RoomEvent.LocalTrackPublished, refresh);
+      room.on(RoomEvent.LocalTrackPublished, watchScreenTrack);
+      room.on(RoomEvent.LocalTrackUnpublished, unwatchScreenTrack);
       room.on(RoomEvent.LocalTrackUnpublished, refresh);
       room.on(RoomEvent.Reconnecting, handleReconnecting);
       room.on(RoomEvent.Reconnected, handleReconnected);
       room.on(RoomEvent.Disconnected, handleDisconnected);
 
       return () => {
+        room.off(RoomEvent.LocalTrackPublished, watchScreenTrack);
+        room.off(RoomEvent.LocalTrackUnpublished, unwatchScreenTrack);
+        for (const publication of endedListeners.keys()) unwatchScreenTrack(publication);
         room.off(RoomEvent.ActiveSpeakersChanged, refresh);
         room.off(RoomEvent.ParticipantConnected, refreshOnParticipant);
         room.off(RoomEvent.ParticipantDisconnected, refreshOnParticipant);
@@ -1159,7 +1225,7 @@ export function useMobileVoiceRoom({
         room.off(RoomEvent.Disconnected, handleDisconnected);
       };
     },
-    [cleanupDisconnectedRoom, isCurrentSessionGeneration, updateParticipantsFromRoom],
+    [apiClient, cleanupDisconnectedRoom, isCurrentSessionGeneration, updateParticipantsFromRoom],
   );
 
   const enableDirectCallVideo = useCallback(async (): Promise<boolean> => {
@@ -1440,7 +1506,7 @@ export function useMobileVoiceRoom({
               audioActivityRef.current,
             ),
             noiseSuppressionEnabled: voiceDevicePreferencesRef.current.noiseSuppressionEnabled,
-            screenShareStatus: "off",
+            screenShareStatus: screenShareSupported ? "off" : "unsupported",
             selfCameraEnabled: room.localParticipant.isCameraEnabled,
             selfMuted: !room.localParticipant.isMicrophoneEnabled,
             selfScreenShareEnabled: false,
@@ -1662,10 +1728,12 @@ export function useMobileVoiceRoom({
   );
 
   const toggleScreenShare = useCallback(async () => {
+    if (!screenShareSupported) return;
     const room = roomRef.current;
-    if (!room || roomState.status !== "connected") {
+    if (!room || roomState.status !== "connected" || screenShareOperationRef.current === room) {
       return;
     }
+    screenShareOperationRef.current = room;
 
     const nextEnabled = !isLocalParticipantScreenSharing(room);
     // Enabling raises the MediaProjection / broadcast-picker consent dialog, which
@@ -1689,6 +1757,7 @@ export function useMobileVoiceRoom({
         getMobileScreenShareCaptureOptions(screenShareQualityId),
         getMobileScreenSharePublishOptions(screenShareQualityId),
       );
+      if (roomRef.current !== room) return;
       updateParticipantsFromRoom();
       sendScreenShareHeartbeat(nextEnabled);
       setRoomState((current) => ({
@@ -1699,10 +1768,13 @@ export function useMobileVoiceRoom({
         updatedAt: Date.now(),
       }));
     } catch (error) {
+      if (roomRef.current !== room) return;
       sendScreenShareHeartbeat(false);
       setRoomState((current) => ({
         ...current,
-        errorMessage: redactMobileScreenShareError(error),
+        errorMessage: isMobileScreenSharePermissionDenied(error)
+          ? activeMobileCopy.voiceScreenSharePermissionDenied
+          : redactMobileScreenShareError(error),
         screenShareStatus: isMobileScreenSharePermissionDenied(error)
           ? "permission-denied"
           : "error",
@@ -1710,6 +1782,7 @@ export function useMobileVoiceRoom({
         updatedAt: Date.now(),
       }));
     } finally {
+      if (screenShareOperationRef.current === room) screenShareOperationRef.current = null;
       if (nextEnabled) {
         endCaptureConsentGuard();
       }
@@ -2064,12 +2137,13 @@ export function useMobileVoiceRoom({
       // A capture-consent dialog backgrounds the app while its system UI is up;
       // stopping media then would kill the stream the user is starting. Only a
       // real background (no consent in flight) suspends camera and screen share.
-      if (
-        !shouldSuspendVoiceMediaOnAppStateChange({
-          nextAppState: nextState,
-          captureConsentInProgress: captureConsentDepthRef.current > 0,
-        })
-      ) {
+      const backgroundPolicy = shouldSuspendVoiceMediaOnAppStateChange({
+        nextAppState: nextState,
+        captureConsentInProgress: captureConsentDepthRef.current > 0,
+        platform: Platform.OS,
+        isScreenSharing: isLocalParticipantScreenSharing(room),
+      });
+      if (!backgroundPolicy.suspendCamera && !backgroundPolicy.suspendScreenShare) {
         return;
       }
 
@@ -2080,7 +2154,7 @@ export function useMobileVoiceRoom({
         suspendedRemoteVideoSids.add(trackSid);
       }
 
-      if (room.localParticipant.isCameraEnabled) {
+      if (backgroundPolicy.suspendCamera && room.localParticipant.isCameraEnabled) {
         void room.localParticipant
           .setCameraEnabled(false)
           .catch(() => undefined)
@@ -2096,7 +2170,7 @@ export function useMobileVoiceRoom({
           });
       }
 
-      if (isLocalParticipantScreenSharing(room)) {
+      if (backgroundPolicy.suspendScreenShare && isLocalParticipantScreenSharing(room)) {
         void room.localParticipant
           .setScreenShareEnabled(false)
           .catch(() => undefined)
@@ -2106,7 +2180,7 @@ export function useMobileVoiceRoom({
             setRoomState((current) => ({
               ...current,
               errorMessage: MOBILE_SCREEN_SHARE_BACKGROUND_STOP_MESSAGE,
-              screenShareStatus: "off",
+              screenShareStatus: screenShareSupported ? "off" : "unsupported",
               selfScreenShareEnabled: false,
               updatedAt: Date.now(),
             }));

@@ -15,6 +15,7 @@ import {
   type WizardsThemeId,
 } from "@/lib/appearance";
 import { SETTINGS_METRICS, pxToEm, pxToRem } from "@/lib/settings/metrics";
+import { useSettingsSaveReporter } from "@/components/settings/settings-ladder";
 
 /**
  * Basit temalar (`t1`) — SPEC §5.3, K6.
@@ -42,17 +43,24 @@ export type ThemeSelection = {
 export function useThemeSelection(): ThemeSelection {
   const { setTheme, theme } = useTheme();
   const [pending, startTransition] = useTransition();
+  const reportSave = useSettingsSaveReporter();
 
   const select = useCallback(
     (themeId: WizardsThemeId) => {
       const next = applyWizardsThemeToDocument(themeId);
       setTheme(next);
 
+      reportSave("saving");
       startTransition(async () => {
-        await updateThemePreferenceAction(next);
+        try {
+          const result = await updateThemePreferenceAction(next);
+          reportSave(result.success ? "saved" : "error");
+        } catch {
+          reportSave("error");
+        }
       });
     },
-    [setTheme],
+    [reportSave, setTheme],
   );
 
   return { pending, select, selected: normalizeWizardsThemeId(theme) };

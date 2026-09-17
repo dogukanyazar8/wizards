@@ -101,6 +101,7 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
     isKrispNoiseCancellationActive,
     isMuted,
     isScreenSharing,
+    goLiveLabel,
     joinChannel,
     leaveChannel,
     resetParticipantVolume,
@@ -587,6 +588,7 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
         isDeafened={isDeafened}
         isMuted={isMuted}
         isScreenSharing={isScreenSharing}
+        goLiveLabel={goLiveLabel ?? null}
         onLeave={() => {
           void leaveChannel();
         }}

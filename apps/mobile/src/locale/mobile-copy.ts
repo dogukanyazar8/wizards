@@ -1800,6 +1800,7 @@ export const mobileCopy = {
     voiceScreenShareBackgroundContinues:
       "Uygulama arka plandayken ekran paylaşımı ve mikrofon açık kalır; kamera durur.",
     voiceScreenShareStoppedBySystem: "Ekran paylaşımı sistem tarafından durduruldu.",
+    voiceScreenShareRememberConsent: "Bir daha gösterme",
     voiceScreenSharePermissionDenied:
       "Ekran kaydı izni verilmedi. Paylaşmak için sistem isteğini onayla.",
     voiceScreenShareViewers: "{count} izliyor",
@@ -4766,6 +4767,7 @@ export const mobileCopy = {
     voiceScreenShareBackgroundContinues:
       "Screen share and microphone stay on while the app is in the background; the camera stops.",
     voiceScreenShareStoppedBySystem: "The system stopped the screen share.",
+    voiceScreenShareRememberConsent: "Don't show again",
     voiceScreenSharePermissionDenied:
       "Screen recording permission was not granted. Approve the system prompt to share.",
     voiceScreenShareViewers: "{count} watching",

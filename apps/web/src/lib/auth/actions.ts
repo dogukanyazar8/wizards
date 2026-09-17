@@ -28,6 +28,7 @@ import { loginChallengeStore } from "@/lib/auth/login-challenge";
 import { verifyLoginCredentials } from "@/lib/auth/login-credentials";
 import { createLoginLockout } from "@/lib/auth/login-lockout";
 import { createLoginProof } from "@/lib/auth/login-proof";
+import { isTrustedDeviceRequest } from "@/lib/auth/trusted-device-request";
 import type { AuthStatusId } from "@/lib/auth/status-catalog";
 import { LOGIN_FAILED_MESSAGE_KEY } from "@/lib/auth/login-errors";
 import {
@@ -448,7 +449,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
 
   const user = credentialResult.user;
 
-  if (user.twoFactorEnabled && !legacyTwoFactorCode) {
+  if (user.twoFactorEnabled && !legacyTwoFactorCode && !(await isTrustedDeviceRequest(user))) {
     try {
       const challengeId = await loginChallengeStore.issue({
         clientIp,

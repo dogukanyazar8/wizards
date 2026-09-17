@@ -9,6 +9,7 @@ import {
   type PendingTwoFactorChallenge,
 } from "@/app/(auth)/login/challenge-transport";
 import {
+  AuthCheckbox,
   AuthDescription,
   AuthEyebrow,
   AuthLink,
@@ -59,6 +60,7 @@ export function BackupCodeClient({ callbackUrl }: { callbackUrl: string }) {
   const hydrated = useHydrated();
   const [challenge] = useState<PendingTwoFactorChallenge | null>(readTwoFactorChallenge);
   const [value, setValue] = useState("");
+  const [rememberDevice, setRememberDevice] = useState(false);
   const [result, setResult] = useState<AuthActionResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -83,6 +85,7 @@ export function BackupCodeClient({ callbackUrl }: { callbackUrl: string }) {
     formData.set("backupCode", value);
     formData.set("callbackUrl", callbackUrl);
     formData.set("challengeId", challenge.challengeId);
+    formData.set("rememberDevice", rememberDevice ? "true" : "false");
 
     const actionResult = await submitBackupCodeAction(formData);
     setSubmitting(false);
@@ -128,6 +131,11 @@ export function BackupCodeClient({ callbackUrl }: { callbackUrl: string }) {
           value={value}
         />
 
+        <AuthCheckbox
+          checked={rememberDevice}
+          label={t("auth.twoFactor.rememberDevice")}
+          onChange={(event) => setRememberDevice(event.target.checked)}
+        />
         <PrimaryButton
           disabled={value.length === 0 || submitting}
           loading={submitting}

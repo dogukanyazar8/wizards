@@ -2,6 +2,7 @@ import { prisma } from "@wizards/db";
 import type { AuthSessionsResponse } from "@wizards/types";
 import { logError } from "@/lib/logger";
 import { isDurableAuthSessionActive } from "@/lib/auth/session-revocation";
+import { revokeTrustedDevices } from "./trusted-device";
 import {
   recordSecurityEvent,
   type RecordSecurityEventInput,
@@ -38,6 +39,7 @@ export type AuthSessionDeviceFingerprint = Pick<
 >;
 
 export interface AuthSessionStore {
+  forgetTrustedDevices(userId: string): Promise<void>;
   /**
    * Ayarlar Ş3 §3. How many *other* sessions this account has ever opened from the same
    * browser/OS/client combination. Optional so an in-memory store can opt out of the
@@ -75,6 +77,7 @@ const authSessionSelect = {
 } as const;
 
 export const prismaAuthSessionStore: AuthSessionStore = {
+  forgetTrustedDevices: revokeTrustedDevices,
   countKnownDevices: (userId, fingerprint, excludeSessionId) =>
     prisma.authSession.count({
       where: {
@@ -307,11 +310,12 @@ export async function revokeAuthSession(
   sessionId: string,
   options: AuthSessionRevocationOptions = {},
 ) {
-  const revokedSession = await (options.store ?? prismaAuthSessionStore).revoke(
-    sessionId,
-    userId,
-    options.now ?? new Date(),
-  );
+  const store = options.store ?? prismaAuthSessionStore;
+  const target = await store.find(sessionId);
+  if (!target || target.userId !== userId || target.revokedAt) return null;
+  // Forget trust first: a failed deletion must remain safely retryable.
+  await store.forgetTrustedDevices(userId);
+  const revokedSession = await store.revoke(sessionId, userId, options.now ?? new Date());
   if (revokedSession) {
     notifyAccountSecurityChanged(userId, true);
     await notifyRevokedAuthSessions(
@@ -339,6 +343,9 @@ export async function revokeOtherAuthSessions(
   currentSessionId: string,
   options: AuthSessionRevocationOptions = {},
 ) {
+  // Also forget logged-out remembered browsers, even if no active sessions remain.
+  // This does not revoke the caller's live session.
+  await (options.store ?? prismaAuthSessionStore).forgetTrustedDevices(userId);
   const revokedSessions = await (options.store ?? prismaAuthSessionStore).revokeOthers(
     userId,
     currentSessionId,

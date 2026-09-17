@@ -5,6 +5,11 @@ import { prisma } from "@wizards/db";
 import { getAuthSessionCookieConfig } from "@/lib/auth/session-cookies";
 import { verifyTwoFactorCredential } from "@/lib/auth/two-factor";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
+import {
+  issueTrustedDevice,
+  TRUSTED_DEVICE_USER_SELECT,
+  type TrustedDeviceUser,
+} from "./trusted-device";
 
 export const OAUTH_TWO_FACTOR_TTL_SECONDS = 5 * 60;
 const OAUTH_TWO_FACTOR_TOKEN_BYTES = 32;
@@ -13,7 +18,7 @@ const OAUTH_TWO_FACTOR_PURPOSE_PATTERN = /^oauth2fa:(c|g):(google|github):([a-f0
 export type OAuthTwoFactorProvider = "github" | "google";
 export type OAuthTwoFactorPurposeKind = "challenge" | "grant";
 
-type OAuthTwoFactorUser = {
+type OAuthTwoFactorUser = TrustedDeviceUser & {
   deletedAt: Date | null;
   id: string;
   isBanned: boolean;
@@ -48,6 +53,7 @@ type CreateOAuthTwoFactorChallengeOptions = {
 };
 
 type CompleteOAuthTwoFactorChallengeOptions = {
+  issueTrustedDevice?: typeof issueTrustedDevice;
   consumeChallengeAndCreateGrant?: (input: {
     challengeId: string;
     grant: OAuthTwoFactorRecordInput;
@@ -173,12 +179,7 @@ async function loadChallengeRecord(
       userId: true,
       user: {
         select: {
-          deletedAt: true,
-          id: true,
-          isBanned: true,
-          twoFactorEnabled: true,
-          twoFactorSecret: true,
-          twoFactorSecretCiphertext: true,
+          ...TRUSTED_DEVICE_USER_SELECT,
           twoFactorSecretKeyVersion: true,
         },
       },
@@ -279,7 +280,12 @@ function throwTwoFactorVerificationError(error: string): never {
 }
 
 export async function completeOAuthTwoFactorChallenge(
-  input: { challengeToken: string; twoFactorCode: string },
+  input: {
+    challengeToken: string;
+    twoFactorCode: string;
+    rememberDevice?: boolean | undefined;
+    userAgent?: string | null;
+  },
   options: CompleteOAuthTwoFactorChallengeOptions = {},
 ) {
   const now = options.now?.() ?? new Date();
@@ -298,6 +304,7 @@ export async function completeOAuthTwoFactorChallenge(
     challenge.userId !== challenge.user.id ||
     challenge.user.deletedAt ||
     challenge.user.isBanned ||
+    !challenge.user.emailVerified ||
     !challenge.user.twoFactorEnabled
   ) {
     throw new OAuthTwoFactorError(
@@ -342,7 +349,15 @@ export async function completeOAuthTwoFactorChallenge(
     );
   }
 
-  return { expiresAt, grantToken, provider: parsedPurpose.provider };
+  const trustedDeviceToken = input.rememberDevice
+    ? await (options.issueTrustedDevice ?? issueTrustedDevice)(challenge.user, input.userAgent)
+    : undefined;
+  return {
+    expiresAt,
+    grantToken,
+    provider: parsedPurpose.provider,
+    ...(trustedDeviceToken ? { trustedDeviceToken } : {}),
+  };
 }
 
 export async function consumeOAuthTwoFactorGrant(
@@ -390,6 +405,7 @@ export async function authorizeOAuthTwoFactorSignIn(
   options: {
     consumeGrant?: typeof consumeOAuthTwoFactorGrant;
     createChallenge?: typeof createOAuthTwoFactorChallenge;
+    isTrustedDevice?: () => Promise<boolean>;
   } = {},
 ): Promise<boolean | string> {
   if (input.existingUser?.twoFactorEnabled !== true) {
@@ -411,6 +427,8 @@ export async function authorizeOAuthTwoFactorSignIn(
   ) {
     return true;
   }
+
+  if (await options.isTrustedDevice?.()) return true;
 
   const challenge = await (options.createChallenge ?? createOAuthTwoFactorChallenge)({
     provider: input.provider,

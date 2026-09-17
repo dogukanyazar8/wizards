@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { useState, type FormEvent } from "react";
 
 import {
+  AuthCheckbox,
   AuthDescription,
   AuthEyebrow,
   AuthScreenLayout,
@@ -28,6 +29,7 @@ export function OAuthTwoFactorClient({
 }: OAuthTwoFactorClientProps) {
   const { t } = useI18n();
   const [code, setCode] = useState("");
+  const [rememberDevice, setRememberDevice] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const challengeReady = Boolean(challengeToken && provider);
@@ -47,7 +49,7 @@ export function OAuthTwoFactorClient({
 
     try {
       const response = await fetch("/api/v1/auth/oauth-two-factor", {
-        body: JSON.stringify({ challengeToken, twoFactorCode: normalizedCode }),
+        body: JSON.stringify({ challengeToken, twoFactorCode: normalizedCode, rememberDevice }),
         headers: { "content-type": "application/json" },
         method: "POST",
       });
@@ -98,6 +100,11 @@ export function OAuthTwoFactorClient({
             }}
             placeholder={t("auth.oauthTwoFactor.codePlaceholder")}
             value={code}
+          />
+          <AuthCheckbox
+            checked={rememberDevice}
+            label={t("auth.twoFactor.rememberDevice")}
+            onChange={(event) => setRememberDevice(event.target.checked)}
           />
           <PrimaryButton disabled={submitting} loading={submitting} type="submit">
             {submitting ? t("auth.oauthTwoFactor.submitting") : t("auth.oauthTwoFactor.submit")}

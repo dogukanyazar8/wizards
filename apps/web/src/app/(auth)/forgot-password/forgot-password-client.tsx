@@ -33,6 +33,7 @@ const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 export function ForgotPasswordClient() {
   const { t } = useI18n();
   const router = useRouter();
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const [result, setResult] = useState<AuthActionResult | null>(null);
 
   const {
@@ -64,6 +65,8 @@ export function ForgotPasswordClient() {
     const actionResult = await forgotPasswordAction(formData);
 
     if (!actionResult.success) {
+      handleTurnstileTokenChange("");
+      setTurnstileResetKey((key) => key + 1);
       setResult(actionResult);
       return;
     }
@@ -110,9 +113,12 @@ export function ForgotPasswordClient() {
       </form>
 
       {TURNSTILE_SITE_KEY ? (
-        <div className="sr-only">
+        <div className="mt-[var(--auth-title-gap)]">
           <TurnstileWidget
+            resetKey={turnstileResetKey}
             action="forgot-password"
+            compact
+            verified={Boolean(turnstileToken)}
             onTokenChange={handleTurnstileTokenChange}
             siteKey={TURNSTILE_SITE_KEY}
           />

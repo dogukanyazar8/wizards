@@ -117,3 +117,25 @@ test("the pattern page and the fixture agree on the clock-strip geometry", () =>
   assert.match(page, /notFound\(\)/);
   assert.match(page, /performance\.now\(\)/);
 });
+
+test("workflow LiveKit runs the compose digest and answers loopback ICE on the host network", () => {
+  const repoRoot = join(webRoot, "..", "..");
+  const compose = readFileSync(join(repoRoot, "docker-compose.yml"), "utf8");
+  const composeImage = compose.match(/image: (livekit\/livekit-server:\S+)/)?.[1];
+  assert.ok(composeImage, "docker-compose.yml must pin the LiveKit image");
+
+  for (const workflow of ["ci.yml", "screen-share-network-nightly.yml"]) {
+    const source = readFileSync(join(repoRoot, ".github", "workflows", workflow), "utf8");
+    const start = source.match(
+      /docker run -d --rm --name whispr-livekit[\s\S]*?--dev\b[^\n]*/,
+    )?.[0];
+    assert.ok(start, `${workflow} must start the whispr-livekit container`);
+    assert.ok(start.includes(composeImage), `${workflow} must run ${composeImage}`);
+    assert.match(start, /--network host/);
+    assert.match(start, /--node-ip 127\.0\.0\.1/);
+    // Host networking has no port forwarder in front of LiveKit: its media sockets bind the
+    // non-loopback addresses only, so the advertised 127.0.0.1:7882 candidate goes unanswered
+    // and the server drops every participant with CONNECTION_TIMEOUT unless loopback is enabled.
+    assert.match(start, /--env 'LIVEKIT_CONFIG=rtc: \{enable_loopback_candidate: true\}'/);
+  }
+});

@@ -1,0 +1,27 @@
+diff --git a/android/src/main/java/com/oney/WebRTCModule/MediaProjectionService.java b/android/src/main/java/com/oney/WebRTCModule/MediaProjectionService.java
+index 26e188c45c5543a73e1a5cf29c5205e4b5b32a38..bf31ba115b237b74936ea14c36664b42fc70f024 100644
+--- a/android/src/main/java/com/oney/WebRTCModule/MediaProjectionService.java
++++ b/android/src/main/java/com/oney/WebRTCModule/MediaProjectionService.java
+@@ -6,6 +6,8 @@ import android.content.ComponentName;
+ import android.content.Context;
+ import android.content.Intent;
+ import android.content.pm.ServiceInfo;
++import android.content.pm.PackageManager;
++import android.Manifest;
+ import android.os.Build;
+ import android.os.IBinder;
+ import android.util.Log;
+@@ -72,7 +74,12 @@ public class MediaProjectionService extends Service {
+         Notification notification = MediaProjectionNotification.buildMediaProjectionNotification(this);
+ 
+         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
++            int serviceTypes = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION;
++            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
++                    && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
++                serviceTypes |= ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
++            }
++            startForeground(NOTIFICATION_ID, notification, serviceTypes);
+         } else {
+             startForeground(NOTIFICATION_ID, notification);
+         }

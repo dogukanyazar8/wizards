@@ -37,6 +37,7 @@ export function DmCallView({
     isDeafened,
     isMuted,
     isScreenSharing,
+    goLiveLabel,
     getParticipantVolume,
     resetParticipantVolume,
     room,
@@ -206,6 +207,7 @@ export function DmCallView({
       </div>
 
       <VoiceControlBar
+        goLiveLabel={goLiveLabel ?? null}
         cameraStatus={cameraStatus}
         isCameraEnabled={isCameraEnabled}
         isDeafened={isDeafened}

@@ -1,5 +1,7 @@
 "use client";
 
+import { useSettingsSaveReporter } from "@/components/settings/settings-ladder";
+
 import { ImagePlus, LoaderCircle, Move, RotateCcw, Trash2, Upload, ZoomIn } from "lucide-react";
 import {
   useCallback,
@@ -165,6 +167,7 @@ export function ProfileAvatarField({
   uploadthingEnabled,
 }: ProfileAvatarFieldProps) {
   const { t } = useI18n();
+  const reportSave = useSettingsSaveReporter();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const cropDraftRef = useRef<CropDraft | null>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -336,6 +339,7 @@ export function ProfileAvatarField({
     }
 
     setIsSaving(true);
+    reportSave("saving");
     setError(null);
     setProgress(5);
 
@@ -354,8 +358,10 @@ export function ProfileAvatarField({
       }
 
       publishAccountUpdate(result.user);
+      reportSave("saved");
       closeCropModal();
     } catch (saveError) {
+      reportSave("error");
       setError(
         saveError instanceof Error ? saveError.message : t("settings.account.avatar.errors.save"),
       );
@@ -370,6 +376,7 @@ export function ProfileAvatarField({
     }
 
     setIsSaving(true);
+    reportSave("saving");
     setError(null);
 
     try {
@@ -379,7 +386,9 @@ export function ProfileAvatarField({
       }
 
       publishAccountUpdate(result.user);
+      reportSave("saved");
     } catch (clearError) {
+      reportSave("error");
       setError(
         clearError instanceof Error ? clearError.message : t("settings.account.avatar.errors.save"),
       );

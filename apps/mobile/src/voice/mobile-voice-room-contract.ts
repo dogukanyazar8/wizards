@@ -1,4 +1,8 @@
-import type { MobileVoiceStateParticipant, WorkspaceMember } from "@wizards/types";
+import type {
+  MobileVoiceStateParticipant,
+  WorkspaceMember,
+  ScreenShareStreamInfo,
+} from "@wizards/types";
 import type { Participant, Track, TrackPublication } from "livekit-client";
 
 import type { MobileSessionUser } from "../auth/session-types";
@@ -89,6 +93,8 @@ export interface MobileVoiceInviteSendState {
 }
 
 export interface MobileVoiceRoomParticipant {
+  readonly screenShareViewerCount?: number;
+  readonly stream?: ScreenShareStreamInfo | null;
   readonly audioLevel: number;
   readonly avatarUrl: string | null;
   readonly cameraTrackRef?: MobileVoiceTrackReference;
@@ -458,6 +464,8 @@ export function mapServerVoiceParticipantToRoomParticipant(
   currentUserId: string,
 ): MobileVoiceRoomParticipant {
   return {
+    screenShareViewerCount: participant.screenShareViewerCount ?? 0,
+    stream: participant.stream ?? null,
     audioLevel: 0,
     avatarUrl: participant.avatarUrl,
     displayName: participant.displayName,

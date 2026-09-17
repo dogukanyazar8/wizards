@@ -6,6 +6,7 @@ import { useI18n } from "@/components/providers/locale-provider";
 import { useVoiceStore } from "@/store/voice-store";
 import { Modal } from "@/components/ui/modal";
 import { SettingActions } from "@/components/settings/rows/setting-actions";
+import { useSettingsSaveReporter } from "@/components/settings/settings-ladder";
 import type { DesktopShortcutAssignments } from "@/lib/desktop/shortcuts";
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import {
@@ -15,7 +16,7 @@ import {
 } from "@/lib/desktop/settings-client";
 
 function useNativeSettingsController() {
-  const { t } = useI18n();
+  const reportSave = useSettingsSaveReporter();
   const client = useQueryClient();
   const locked = useRef(false);
   const pendingCount = useIsMutating({ mutationKey: NATIVE_DESKTOP_SETTINGS_KEY });
@@ -66,11 +67,14 @@ function useNativeSettingsController() {
       return false;
     locked.current = true;
     setMessage("");
+    reportSave("saving");
     try {
       const result = await mutation.mutateAsync(operation);
-      setMessage(result ?? success ?? t("settings.native.saved"));
+      setMessage(result ?? success ?? "");
+      reportSave("saved");
       return true;
     } catch {
+      reportSave("error");
       // Keep cached values and the user's draft. Native errors can contain OS details.
       return false;
     } finally {
@@ -103,27 +107,27 @@ export function NativeDesktopSettingsProvider({ children }: { children: ReactNod
   const readFailed = state.query.isError && !state.data;
   return (
     <NativeSettingsContext.Provider value={state}>
-      {(state.failed || readFailed) && (
+      {readFailed && (
         <div className="px-5 py-3 text-sm text-[hsl(var(--danger))]" role="alert">
-          {t(readFailed ? "settings.native.loadError" : "settings.native.error")}
-          {readFailed && (
-            <button
-              className="ml-2 underline"
-              type="button"
-              onClick={() => void state.query.refetch()}
-            >
-              {t("settings.account.banner.retry")}
-            </button>
-          )}
+          {t("settings.native.loadError")}
+          <button
+            className="ml-2 underline"
+            type="button"
+            onClick={() => void state.query.refetch()}
+          >
+            {t("settings.account.banner.retry")}
+          </button>
         </div>
       )}
-      <div
-        role="status"
-        aria-live="polite"
-        className="min-h-5 px-5 text-sm text-[hsl(var(--text-muted))]"
-      >
-        {state.busy ? t("settings.native.saving") : state.message}
-      </div>
+      {state.message && !state.busy && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="min-h-5 px-5 text-sm text-[hsl(var(--text-muted))]"
+        >
+          {state.message}
+        </div>
+      )}
       {children}
       <Modal
         open={!!state.confirmation}

@@ -13,6 +13,8 @@ type TurnstileWidgetProps = {
   siteKey: string;
   compact?: boolean;
   verified?: boolean;
+  /** Change after a rejected submission: Siteverify consumes tokens even if credentials fail. */
+  resetKey?: number;
 };
 
 type TurnstileApi = {
@@ -63,6 +65,7 @@ export function TurnstileWidget({
   siteKey,
   compact = false,
   verified = false,
+  resetKey = 0,
 }: TurnstileWidgetProps) {
   const { locale, t } = useI18n();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -83,7 +86,7 @@ export function TurnstileWidget({
     return () => {
       onTokenChange("");
     };
-  }, [isE2EBypass, onTokenChange]);
+  }, [isE2EBypass, onTokenChange, resetKey]);
 
   useEffect(() => {
     if (isE2EBypass) {
@@ -100,19 +103,27 @@ export function TurnstileWidget({
       onTokenChange("");
     }
 
+    let active = true;
+    setChallengeFailed(false);
+    setInteractive(false);
     const handleChallengeError = () => {
+      if (!active) return;
       setChallengeFailed(true);
       onTokenChange("");
     };
 
     widgetIdRef.current = window.turnstile.render(containerRef.current, {
       "before-interactive-callback": () => {
+        if (!active) return;
         setInteractive(true);
         onTokenChange("");
       },
-      "after-interactive-callback": () => setInteractive(false),
+      "after-interactive-callback": () => {
+        if (active) setInteractive(false);
+      },
       "error-callback": handleChallengeError,
       "expired-callback": () => {
+        if (!active) return;
         onTokenChange("");
       },
       "timeout-callback": handleChallengeError,
@@ -120,6 +131,7 @@ export function TurnstileWidget({
       action,
       appearance: compact ? "interaction-only" : "always",
       callback: (token) => {
+        if (!active) return;
         setInteractive(false);
         setChallengeFailed(false);
         onTokenChange(token);
@@ -130,11 +142,12 @@ export function TurnstileWidget({
     });
 
     return () => {
+      active = false;
       removeTurnstileWidget(widgetIdRef.current);
       widgetIdRef.current = null;
       onTokenChange("");
     };
-  }, [action, compact, isE2EBypass, locale, onTokenChange, scriptReady, siteKey]);
+  }, [action, compact, isE2EBypass, locale, onTokenChange, resetKey, scriptReady, siteKey]);
 
   if (isE2EBypass) {
     return null;

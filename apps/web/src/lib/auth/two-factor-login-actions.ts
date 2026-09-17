@@ -13,6 +13,7 @@ import { submitBackupCode, submitTwoFactorCode } from "@/lib/auth/two-factor-log
 import type { AuthActionResult } from "@/lib/auth/actions";
 import { logError } from "@/lib/logger";
 import { resolveTrustedProxyClientIp } from "@/lib/security/client-ip";
+import { rememberVerifiedDevice } from "./trusted-device-request";
 
 /**
  * SPEC-GIRIS-KAYIT §4.2 / §4.3 ekranlarının sunucu eylemleri.
@@ -43,12 +44,21 @@ async function completeSignIn(
   }
 
   try {
-    await signIn("credentials", {
+    const redirectTo = getSafeAuthRedirectPath(outcome.redirectTo || fallbackRedirect);
+    const destination = await signIn("credentials", {
       email: outcome.email,
       loginProof,
-      redirectTo: getSafeAuthRedirectPath(outcome.redirectTo || fallbackRedirect),
+      redirectTo,
       twoFactorTicket: outcome.ticket,
+      redirect: false,
     });
+    // Auth.js can return an error redirect instead of throwing for internal failures.
+    const destinationUrl = new URL(String(destination), "https://whispr.local");
+    if (`${destinationUrl.pathname}${destinationUrl.search}${destinationUrl.hash}` !== redirectTo) {
+      return { success: false, error: "auth.login.alertUnavailable" };
+    }
+
+    if (outcome.trustedDeviceToken) await rememberVerifiedDevice(outcome.trustedDeviceToken);
 
     return { success: true };
   } catch (error) {
@@ -125,6 +135,7 @@ export async function submitBackupCodeAction(formData: FormData): Promise<AuthAc
   const validation = BackupCodeChallengeSchema.safeParse({
     backupCode: getFormValue(formData, "backupCode"),
     challengeId: getFormValue(formData, "challengeId"),
+    rememberDevice: getFormValue(formData, "rememberDevice"),
   });
 
   if (!validation.success) {

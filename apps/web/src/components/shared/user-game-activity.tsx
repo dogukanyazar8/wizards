@@ -28,14 +28,15 @@ export function UserGameActivity({ userId }: { userId: string }) {
   }, [activity]);
   if (query.isError || !activity || Date.parse(activity.expiresAt) <= now) return null;
   const game = GAME_CATALOG.find((entry) => entry.id === activity.gameId);
-  if (!game) return null;
+  const label = game?.name ?? (activity.gameId.startsWith("custom:") ? activity.label : null);
+  if (!label) return null;
   return (
     <p
       className="mt-2 flex items-center gap-2 text-xs text-app-muted"
       data-testid="user-game-activity"
     >
       <Gamepad2 size={14} aria-hidden="true" />
-      {t("profile.playingGame", { game: game.name })}
+      {t("profile.playingGame", { game: label })}
     </p>
   );
 }

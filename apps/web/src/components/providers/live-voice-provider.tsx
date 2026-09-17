@@ -1,5 +1,11 @@
 "use client";
 
+import { useGoLiveCandidate } from "@/hooks/use-go-live-candidate";
+import { resolveGoLiveStream, shouldStopClosedGameShare } from "@/lib/voice/go-live";
+import { captureGoLiveTracks } from "@/lib/voice/go-live-capture";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
+
 import {
   createScreenShareModeChangeEvent,
   publishScreenShareHealthEvents,
@@ -239,6 +245,9 @@ function requirePublishedMicrophoneTrack(targetRoom: Room) {
 
 export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const { t } = useI18n();
+  const toast = useToast();
+  const router = useRouter();
+  const goLiveHintSeenRef = useRef(false);
   const queryClient = useQueryClient();
   const isDesktopRuntime = isWhisprDesktopRuntime();
   const preferredKrispQuality = getPreferredKrispQuality();
@@ -311,6 +320,24 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const initialKrispAvailability = isLiveKitCloudUrl(NEXT_PUBLIC_LIVEKIT_URL);
   const supportsLiveKitCloudNoiseCancellationRef = useRef(initialKrispAvailability);
   const [room, setRoom] = useState<Room | null>(null);
+  const goLive = useGoLiveCandidate(Boolean(room));
+  useEffect(() => {
+    if (goLive.candidate?.kind !== "opt-in-required" || goLiveHintSeenRef.current) return;
+    goLiveHintSeenRef.current = true;
+    try {
+      if (window.localStorage.getItem("whispr:go-live:hint-seen") === "true") return;
+      window.localStorage.setItem("whispr:go-live:hint-seen", "true");
+    } catch {
+      /* Storage may be unavailable; keep this session's hint bounded. */
+    }
+    toast.show({
+      message: t("voice.goLive.cta.disabledOptIn"),
+      action: {
+        label: t("settings.row.w8.title"),
+        onAct: () => router.push("/settings/desktop/app?highlight=w8"),
+      },
+    });
+  }, [goLive.candidate, router, t, toast]);
   const [participants, setParticipants] = useState<VoiceParticipantViewModel[]>([]);
   const [activeVoiceRoster, setActiveVoiceRoster] = useState<VoiceStateParticipantDTO[]>([]);
   const [screenShares, setScreenShares] = useState<VoiceScreenShareViewModel[]>([]);
@@ -701,6 +728,9 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         channelId: targetChannelId,
         isScreenSharing: isSharing,
         serverId: targetServerId,
+        ...(isSharing && useVoiceStore.getState().screenShareStreamInfo
+          ? { stream: useVoiceStore.getState().screenShareStreamInfo! }
+          : {}),
       });
     },
     [currentUser.id, queryClient],
@@ -721,6 +751,9 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       }
 
       const nextScreenShares = collectScreenShares(targetRoom, currentUser, activeVoiceRoster);
+      for (const share of nextScreenShares) {
+        if (share.isLocal) share.stream = useVoiceStore.getState().screenShareStreamInfo;
+      }
       setScreenShares(nextScreenShares);
       setActiveScreenShareIdState((current) => {
         if (current && nextScreenShares.some((share) => share.id === current)) {
@@ -1569,6 +1602,14 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
 
   const previousScreenShareMode = useRef(screenAxes.mode);
   useEffect(() => {
+    if (
+      shouldStopClosedGameShare(useVoiceStore.getState().screenShareStreamInfo, goLive.missingCount)
+    ) {
+      void stopScreenShare();
+      toast.show({ message: t("voice.goLive.gameClosed") });
+    }
+  }, [goLive.missingCount, stopScreenShare, toast, t]);
+  useEffect(() => {
     // LiveKit can override contentHint for SVC; compare user intent, not the SDK hint.
     const modeChanged = previousScreenShareMode.current !== screenAxes.mode;
     previousScreenShareMode.current = screenAxes.mode;
@@ -1585,11 +1626,15 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       try {
         const height = track.mediaStreamTrack.getSettings().height;
         const effective = resolveCapturedScreenShareResolution(screenAxes.resolution, height);
-        const preset = getScreenSharePreset(effective, screenAxes.frameRate, screenAxes.mode);
+        const mode =
+          useVoiceStore.getState().screenShareStreamInfo?.kind === "game"
+            ? "motion"
+            : screenAxes.mode;
+        const preset = getScreenSharePreset(effective, screenAxes.frameRate, mode);
         await measureVoicePerformance(
           { operation: "screen_share_mode_switch", runtime: "client" },
           async () => {
-            await applyScreenShareModeToTrack(track, screenAxes.mode);
+            await applyScreenShareModeToTrack(track, mode);
             // Raising capture resolution requires selecting the source again.
             if (height && preset.height <= height)
               await applyScreenShareResolutionToTrack(track, preset);
@@ -1820,13 +1865,19 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         const axes = {
           resolution: store.screenShareResolution,
           frameRate: store.screenShareFrameRate,
-          mode: store.screenShareContentMode,
+          mode:
+            goLive.candidate?.kind === "game" && !replace
+              ? ("motion" as const)
+              : store.screenShareContentMode,
         };
         // A browser without the feature is asked for video only, so the share can
         // never fail over a preference the browser cannot honour.
         const shareSystemAudio =
           useVoiceStore.getState().screenShareAudioEnabled && isScreenShareAudioSupported();
         const captureStartedAt = getVoicePerformanceNow();
+        if (goLive.candidate?.kind === "game" && !replace)
+          toast.show({ message: t("voice.goLive.pickerHint"), durationMs: 2_000 });
+        let capturedStream = resolveGoLiveStream(undefined, null);
         const started = await screenShareSession.start(activeRoom, {
           onCaptured: () =>
             recordVoicePerformanceMetric({
@@ -1835,13 +1886,25 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
               result: "success",
               durationMs: getVoicePerformanceDurationMs(captureStartedAt),
             }),
-          capture: getScreenShareCaptureOptions({
-            ...axes,
-            shareSystemAudio,
-            excludeSelfWindow: store.screenShareExcludeSelfWindow,
-            allowSourceSwitch: store.screenShareAllowSourceSwitch,
-          }),
+          capture:
+            goLive.candidate?.kind === "game" && !replace
+              ? () =>
+                  captureGoLiveTracks({
+                    ...getScreenSharePreset(axes.resolution, axes.frameRate, axes.mode),
+                    frameRate: axes.frameRate,
+                    shareSystemAudio,
+                  })
+              : getScreenShareCaptureOptions({
+                  ...axes,
+                  shareSystemAudio,
+                  excludeSelfWindow: store.screenShareExcludeSelfWindow,
+                  allowSourceSwitch: store.screenShareAllowSourceSwitch,
+                }),
           publish: async (tracks) => {
+            const surface = tracks
+              .find((track) => track.source === Track.Source.ScreenShare)
+              ?.mediaStreamTrack.getSettings().displaySurface;
+            capturedStream = resolveGoLiveStream(surface, replace ? null : goLive.candidate);
             const height = tracks
               .find((track) => track.source === Track.Source.ScreenShare)
               ?.mediaStreamTrack.getSettings().height;
@@ -1884,6 +1947,14 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         });
         if (roomRef.current !== activeRoom) return;
 
+        if (started) {
+          useVoiceStore.getState().setScreenShareStreamInfo(capturedStream);
+          const currentStore = useVoiceStore.getState();
+          emitVoiceScreenShareState(currentStore.activeChannelId, currentStore.serverId, true, {
+            force: true,
+          });
+        }
+
         if (started && shareSystemAudio) {
           suppressLocalScreenShareAudioPlayback(activeRoom);
         }
@@ -1903,6 +1974,9 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     },
     [
       isDesktopRuntime,
+      goLive.candidate,
+      emitVoiceScreenShareState,
+      toast,
       screenShare4kEnabled,
       screenShareSession,
       setTransientErrorMessage,
@@ -3139,6 +3213,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       screenShareAudioEnabled,
       screenShareError,
       screenShareStatus,
+      goLiveLabel: goLive.candidate?.kind === "game" ? goLive.candidate.label : null,
       switchScreenShareSource,
       screenShareQuality,
       screenShareVolume,
@@ -3196,6 +3271,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       screenShareAudioEnabled,
       screenShareError,
       screenShareStatus,
+      goLive.candidate,
       switchScreenShareSource,
       screenShareQuality,
       screenShareVolume,

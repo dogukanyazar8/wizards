@@ -158,7 +158,7 @@ export function ExceptionsBlock({ row: rowDef }: SettingsBlockProps) {
           onEdit={section.onEditException}
           onRemove={section.onRemoveException}
           openMenuKey={runtime.openSelect}
-          pending={section.pendingExceptionId === exception.id}
+          pending={section.pendingExceptionId !== null}
           setOpenMenuKey={runtime.setOpenSelect}
         />
       ))}

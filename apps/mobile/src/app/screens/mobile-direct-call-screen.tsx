@@ -1,5 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useState } from "react";
+import { useMobileScreenShareConsent } from "../../voice/use-mobile-screen-share-consent";
 import { Pressable, Text, View } from "react-native";
 
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
@@ -18,6 +19,8 @@ import {
   ActiveVoiceRoomControl,
   ActiveVoiceRoomSessionStrip,
   ActiveVoiceRoomStage,
+  ScreenShareConsentSheet,
+  ScreenShareActiveBanner,
   getVoiceAudioRouteAccessibilityLabel,
 } from "./voice-screen";
 import { useVoiceScreenStyles } from "./voice-screen.styles";
@@ -48,6 +51,8 @@ export type MobileDirectCallScreenProps = {
   onSelectVoiceAudioOutputDevice?(id: string): Promise<void>;
   onSelectVoiceNoiseSuppression?(enabled: boolean): Promise<void>;
   onSelectVoiceScreenShareQuality?(qualityId: MobileScreenShareQualityId): void;
+  onSelectVoiceScreenShareAudioMuted?(muted: boolean): void;
+  voiceScreenShareAudioMuted?: boolean;
   onToggleVoiceCamera?(): Promise<void>;
   onToggleVoiceMute(): Promise<void>;
   onToggleVoiceScreenShare?(): Promise<void>;
@@ -82,6 +87,8 @@ export function MobileDirectCallSurface({
   onSelectVoiceAudioOutputDevice = async () => undefined,
   onSelectVoiceNoiseSuppression = async () => undefined,
   onSelectVoiceScreenShareQuality,
+  onSelectVoiceScreenShareAudioMuted,
+  voiceScreenShareAudioMuted = false,
   onToggleVoiceCamera = async () => undefined,
   onToggleVoiceMute,
   onToggleVoiceScreenShare = async () => undefined,
@@ -145,8 +152,12 @@ export function MobileDirectCallSurface({
   const handleCamera = () => {
     void onToggleVoiceCamera().then(selection);
   };
+  const shareConsent = useMobileScreenShareConsent(
+    voiceRoomState.selfScreenShareEnabled,
+    onToggleVoiceScreenShare,
+  );
   const handleScreenShare = () => {
-    void onToggleVoiceScreenShare().then(selection);
+    void shareConsent.request().then(selection);
   };
   const handleFlipCamera = () => {
     void onFlipVoiceCamera().then(selection);
@@ -229,7 +240,14 @@ export function MobileDirectCallSurface({
       ) : null}
 
       {stageMode === "video" ? (
-        <ActiveVoiceRoomStage onFlipCamera={handleFlipCamera} participants={model.participants} />
+        <ActiveVoiceRoomStage
+          onFlipCamera={handleFlipCamera}
+          participants={model.participants}
+          screenShareAudioMuted={voiceScreenShareAudioMuted}
+          {...(onSelectVoiceScreenShareAudioMuted
+            ? { onToggleScreenShareAudioMuted: onSelectVoiceScreenShareAudioMuted }
+            : {})}
+        />
       ) : (
         <ActiveVoiceRoomAudience
           audioRoute={audioRoute}
@@ -277,7 +295,16 @@ export function MobileDirectCallSurface({
             testID={`${testIDPrefix}-camera`}
           />
           <ActiveVoiceRoomControl
-            disabled={!model.canToggleMute || screenShareBusy}
+            disabled={
+              !model.canToggleMute ||
+              screenShareBusy ||
+              voiceRoomState.screenShareStatus === "unsupported"
+            }
+            accessibilityHint={
+              voiceRoomState.screenShareStatus === "unsupported"
+                ? copy.voiceScreenShareUnsupportedIos
+                : undefined
+            }
             icon="tv-outline"
             inactive={!voiceRoomState.selfScreenShareEnabled}
             label={
@@ -301,6 +328,10 @@ export function MobileDirectCallSurface({
       </View>
 
       <MobileVoiceSettingsSheet
+        screenShareAudioMuted={voiceScreenShareAudioMuted}
+        {...(onSelectVoiceScreenShareAudioMuted
+          ? { onSelectScreenShareAudioMuted: onSelectVoiceScreenShareAudioMuted }
+          : {})}
         audioInputs={voiceRoomState.availableAudioInputs}
         audioOutputs={voiceRoomState.availableAudioOutputs}
         connectionStatus={voiceRoomState.status}
@@ -323,6 +354,17 @@ export function MobileDirectCallSurface({
         screenShareQualityId={voiceScreenShareQualityId}
         selectedAudioInputId={voiceRoomState.selectedAudioInputId}
         selectedAudioOutputId={voiceRoomState.selectedAudioOutputId}
+      />
+      <ScreenShareConsentSheet
+        visible={shareConsent.visible}
+        onCancel={shareConsent.cancel}
+        onConfirm={() => void shareConsent.confirm()}
+        remember={shareConsent.remember}
+        onRememberChange={shareConsent.setRemember}
+      />
+      <ScreenShareActiveBanner
+        room={voiceRoomState}
+        onStop={() => void onToggleVoiceScreenShare()}
       />
     </View>
   );

@@ -180,14 +180,14 @@ export function RiskyMessage({
 }: {
   readonly testId: string;
   readonly text: string;
-  readonly tone: "danger" | "success";
+  readonly tone: "danger" | "success" | "warning";
 }) {
   return (
     <p
       aria-live="polite"
       data-testid={testId}
       style={{
-        color: `hsl(var(--${tone === "danger" ? "danger" : "success"}))`,
+        color: tone === "warning" ? "var(--warning-readable)" : `hsl(var(--${tone}))`,
         fontSize: pxToRem(row.subFontSize),
         gridColumn: "1 / -1",
         lineHeight: row.subLineHeight,

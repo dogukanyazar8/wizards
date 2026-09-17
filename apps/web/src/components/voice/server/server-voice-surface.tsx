@@ -1133,6 +1133,7 @@ function ControlButton({
 }
 
 export type ServerVoiceControlsProps = {
+  readonly goLiveLabel?: string | null;
   readonly cameraBusy: boolean;
   readonly isCameraEnabled: boolean;
   readonly isDeafened: boolean;
@@ -1146,6 +1147,7 @@ export type ServerVoiceControlsProps = {
 };
 
 export function ServerVoiceControls({
+  goLiveLabel,
   cameraBusy,
   isCameraEnabled,
   isDeafened,
@@ -1189,7 +1191,11 @@ export function ServerVoiceControls({
       <ControlButton
         glyph={MONITOR_PATH}
         label={
-          isScreenSharing ? t("server.voice.controls.stopShare") : t("server.voice.controls.share")
+          isScreenSharing
+            ? t("server.voice.controls.stopShare")
+            : goLiveLabel
+              ? t("voice.goLive.cta", { game: goLiveLabel })
+              : t("server.voice.controls.share")
         }
         onClick={onToggleScreenShare}
         pressed={isScreenSharing}

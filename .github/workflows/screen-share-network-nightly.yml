@@ -109,11 +109,14 @@ jobs:
         run: pnpm --filter @wizards/web exec playwright install --with-deps chromium
 
       # Same image and digest as docker-compose.yml; `--dev` keys are devkey/secret.
+      # Host networking: the loopback candidate keeps media on 127.0.0.1 (where netem shapes
+      # it); without it LiveKit listens on non-loopback addresses only and ICE never connects.
       - name: Start LiveKit (docker-compose digest)
         shell: bash
         run: |
           set -euo pipefail
           docker run -d --rm --name whispr-livekit --network host \
+            --env 'LIVEKIT_CONFIG=rtc: {enable_loopback_candidate: true}' \
             livekit/livekit-server:v1.13.7@sha256:6fd3b7088874c4d119160dd688798dfec852bc014786d392caad15f6f63912a3 \
             --dev --bind 0.0.0.0 --node-ip 127.0.0.1
           for attempt in $(seq 1 30); do

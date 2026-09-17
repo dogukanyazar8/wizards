@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { ScreenShareStreamInfoSchema, type ScreenShareStreamInfo } from "@wizards/types";
+import { sanitizeGoLiveStream } from "@/lib/voice/go-live";
 import { ChannelType, Prisma, prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import {
@@ -41,6 +43,43 @@ import {
 
 /** Re-exported so the callers that already read it here keep working (§6.6). */
 export { getStaleVoiceHeartbeatCutoff };
+
+export async function readVoiceScreenShareStreams(
+  entries: readonly { channelId: string; userId: string }[],
+): Promise<Array<ScreenShareStreamInfo | null>> {
+  if (!entries.length) return [];
+  try {
+    const values = await getRedis().mget(
+      ...entries.map(({ channelId, userId }) => `voice:screenshare:stream:${channelId}:${userId}`),
+    );
+    const streams = values.map((value) => {
+      try {
+        return ScreenShareStreamInfoSchema.safeParse(JSON.parse(value ?? "null")).data ?? null;
+      } catch {
+        return null;
+      }
+    });
+    const userIds = [
+      ...new Set(entries.flatMap((entry, index) => (streams[index]?.gameId ? [entry.userId] : []))),
+    ];
+    const settings = userIds.length
+      ? await prisma.userSettings.findMany({
+          where: { userId: { in: userIds } },
+          select: { userId: true, showCurrentGame: true },
+        })
+      : [];
+    const enabled = new Set(
+      settings.filter((item) => item.showCurrentGame).map((item) => item.userId),
+    );
+    return entries.map((entry, index) =>
+      sanitizeGoLiveStream(streams[index], enabled.has(entry.userId)),
+    );
+  } catch (error) {
+    // Metadata failure must hide private game information without dropping the voice roster.
+    logError("[voice] Screen-share metadata read failed", error);
+    return entries.map(() => null);
+  }
+}
 
 function getVoiceRoomName(channelId: string) {
   return `voice:${channelId}`;
@@ -381,7 +420,10 @@ async function handleDeletedStaleVoiceStates(staleStates: StaleVoiceStateRecord[
     await Promise.all(
       staleStates.map((state) =>
         redis
-          .del(getVoiceScreenShareStateKey(state.channelId, state.userId))
+          .del(
+            getVoiceScreenShareStateKey(state.channelId, state.userId),
+            `voice:screenshare:stream:${state.channelId}:${state.userId}`,
+          )
           .catch(() => undefined),
       ),
     );
@@ -550,6 +592,9 @@ export async function buildVoiceStateParticipantsForChannel(
   const viewerCounts = await readScreenShareViewerCounts(
     states.map((state) => ({ channelId, userId: state.user.id })),
   );
+  const streams = await readVoiceScreenShareStreams(
+    states.map((state) => ({ channelId, userId: state.user.id })),
+  );
 
   return states.map((state, index) => ({
     userId: state.user.id,
@@ -558,6 +603,7 @@ export async function buildVoiceStateParticipantsForChannel(
     avatarUrl: state.user.avatarUrl,
     isDeafened: state.selfDeaf,
     isScreenSharing: screenShareValues[index] === "1",
+    stream: screenShareValues[index] === "1" ? (streams[index] ?? null) : null,
     screenShareViewerCount: screenShareValues[index] === "1" ? (viewerCounts[index] ?? 0) : 0,
   }));
 }
@@ -571,6 +617,7 @@ function mapSocketParticipants(participants: VoiceStateParticipantDTO[]) {
     isDeafened: participant.isDeafened,
     isScreenSharing: participant.isScreenSharing === true,
     screenShareViewerCount: participant.screenShareViewerCount ?? 0,
+    stream: participant.stream ?? null,
   }));
 }
 
@@ -623,6 +670,7 @@ export async function emitVoiceStateUpdate(args: {
 }
 
 export async function emitVoiceScreenShareUpdate(args: {
+  stream?: ScreenShareStreamInfo | null;
   channelId: string;
   isScreenSharing: boolean;
   serverId: string;
@@ -638,6 +686,19 @@ export async function emitVoiceScreenShareUpdate(args: {
     isScreenSharing: args.isScreenSharing,
     serverId: args.serverId,
     userId: args.userId,
+    stream: args.isScreenSharing
+      ? args.stream === undefined
+        ? ((await readVoiceScreenShareStreams([args]))[0] ?? null)
+        : sanitizeGoLiveStream(
+            args.stream,
+            (
+              await prisma.userSettings.findUnique({
+                where: { userId: args.userId },
+                select: { showCurrentGame: true },
+              })
+            )?.showCurrentGame === true,
+          )
+      : null,
   };
 
   io.to(getVoiceStateViewerRoomName(args.channelId)).emit("voice:screenshare:update", payload);
@@ -718,7 +779,10 @@ export async function disconnectUnauthorizedVoiceParticipants(channelId: string)
           return;
         }
         if (!canStream) {
-          await getRedis().del(getVoiceScreenShareStateKey(channelId, state.userId));
+          await getRedis().del(
+            getVoiceScreenShareStateKey(channelId, state.userId),
+            `voice:screenshare:stream:${channelId}:${state.userId}`,
+          );
           await clearScreenShareWatchers(channelId, state.userId);
           await emitVoiceScreenShareUpdate({
             channelId,
@@ -792,6 +856,9 @@ export async function listVoiceStatesForServer(
   const viewerCounts = await readScreenShareViewerCounts(
     states.map((state) => ({ channelId: state.channelId, userId: state.user.id })),
   );
+  const streams = await readVoiceScreenShareStreams(
+    states.map((state) => ({ channelId: state.channelId, userId: state.user.id })),
+  );
   const grouped = new Map<string, VoiceStateParticipantDTO[]>();
   for (const [index, state] of states.entries()) {
     const participants = grouped.get(state.channelId) ?? [];
@@ -802,6 +869,7 @@ export async function listVoiceStatesForServer(
       avatarUrl: state.user.avatarUrl,
       isDeafened: state.selfDeaf,
       isScreenSharing: screenShareValues[index] === "1",
+      stream: screenShareValues[index] === "1" ? (streams[index] ?? null) : null,
       screenShareViewerCount: screenShareValues[index] === "1" ? (viewerCounts[index] ?? 0) : 0,
     });
     grouped.set(state.channelId, participants);
@@ -918,7 +986,10 @@ export async function upsertVoiceState(
       },
     );
     await redis
-      .del(getVoiceScreenShareStateKey(replacedState.channelId, userId))
+      .del(
+        getVoiceScreenShareStateKey(replacedState.channelId, userId),
+        `voice:screenshare:stream:${replacedState.channelId}:${userId}`,
+      )
       .catch(() => undefined);
     if (replacedState.channelId !== channel.id) {
       await removeLiveKitVoiceParticipant(replacedState.channelId, userId);
@@ -984,7 +1055,10 @@ export async function clearVoiceState(
   });
 
   await getRedis()
-    .del(getVoiceScreenShareStateKey(existingState.channelId, userId))
+    .del(
+      getVoiceScreenShareStateKey(existingState.channelId, userId),
+      `voice:screenshare:stream:${existingState.channelId}:${userId}`,
+    )
     .catch(() => undefined);
 
   await clearScreenShareWatchers(existingState.channelId, userId);
@@ -1164,13 +1238,15 @@ export async function heartbeatVoiceState(
   if (selfScreenShare !== undefined) {
     const redis = getRedis();
     const screenShareKey = getVoiceScreenShareStateKey(existingState.channelId, userId);
+    const streamKey = `voice:screenshare:stream:${existingState.channelId}:${userId}`;
 
     if (selfScreenShare) {
       await redis
         .set(screenShareKey, "1", "EX", VOICE_SCREEN_SHARE_STATE_TTL_SECONDS)
         .catch(() => undefined);
+      await redis.expire(streamKey, VOICE_SCREEN_SHARE_STATE_TTL_SECONDS).catch(() => undefined);
     } else {
-      await redis.del(screenShareKey).catch(() => undefined);
+      await redis.del(screenShareKey, streamKey).catch(() => undefined);
     }
 
     const toggleScreenShare = selfScreenShare

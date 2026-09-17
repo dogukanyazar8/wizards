@@ -9,6 +9,25 @@ const script = await readFile(
 );
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
+it("the trusted permission window has no native frame or opaque canvas", async () => {
+  const native = await readFile(new URL("../src-tauri/src/lib.rs", import.meta.url), "utf8");
+  const builder = native.slice(
+    native.indexOf("fn show_or_create_desktop_control_window("),
+    native.indexOf("fn hide_main_window_to_tray("),
+  );
+  for (const property of [
+    "decorations(false)",
+    "transparent(true)",
+    "shadow(false)",
+    "resizable(false)",
+  ]) {
+    assert.ok(builder.includes(`.${property}`), `permission window requires ${property}`);
+  }
+  assert.match(builder, /\.background_color\(tauri::utils::config::Color\(0, 0, 0, 0\)\)/);
+  assert.match(builder, /\.on_navigation\(is_desktop_control_url\)/);
+  assert.match(builder, /\.on_new_window\(\|_, _\| NewWindowResponse::Deny\)/);
+});
+
 async function surface(invoke) {
   const elements = new Map();
   const get = (id) => {

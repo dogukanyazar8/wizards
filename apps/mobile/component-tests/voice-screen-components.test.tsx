@@ -9,16 +9,24 @@ jest.mock("react-native-gesture-handler", () => {
   const ReactRuntime = require("react");
   const ReactNative = require("react-native");
   return {
-    Gesture: {
-      Pan: () => {
-        const gesture = {
-          enabled: () => gesture,
-          onEnd: () => gesture,
-          onUpdate: () => gesture,
-        };
-        return gesture;
-      },
-    },
+    Gesture: Object.fromEntries(
+      ["Pan", "Pinch", "Tap", "Simultaneous"].map((name) => [
+        name,
+        () => {
+          const gesture: Record<string, unknown> = {};
+          for (const method of [
+            "enabled",
+            "onEnd",
+            "onStart",
+            "onUpdate",
+            "numberOfTaps",
+            "maxPointers",
+          ])
+            gesture[method] = () => gesture;
+          return gesture;
+        },
+      ]),
+    ),
     GestureDetector: ({ children }: { children: React.ReactNode }) =>
       ReactRuntime.createElement(ReactNative.View, null, children),
   };
@@ -776,6 +784,29 @@ describe("mobile voice component rendering", () => {
     // refreshes again on open so a device plugged in mid-call still shows up.
     expect(onRefreshVoiceDevices).toHaveBeenCalledTimes(2);
     expect(view.getByTestId("mobile-voice-device-sheet-panel")).toBeTruthy();
+  });
+
+  it("caps a visible 4K screen-share stage at the medium layer", async () => {
+    const setVideoQuality = jest.fn();
+    const participant = createParticipant({
+      isScreenSharing: true,
+      screenShareTrackRef: {
+        participant: {},
+        publication: {
+          dimensions: { width: 3840, height: 2160 },
+          isSubscribed: true,
+          setVideoQuality,
+        },
+        source: "screen_share",
+      } as unknown as MobileScreenShareTrackReference,
+    });
+    await renderVoiceScreen(
+      createVoiceScreenProps({
+        voiceRoomState: createConnectedVoiceRoom({ participants: [participant] }),
+      }),
+    );
+    expect(setVideoQuality).toHaveBeenCalledWith(1);
+    expect(setVideoQuality).not.toHaveBeenCalledWith(2);
   });
 
   it("reaches the screen-share quality rows from the channel room", async () => {

@@ -79,6 +79,7 @@ async function checkUsername(username: string): Promise<UsernameCheck | null> {
 export function RegisterClient({ callbackUrl }: { callbackUrl: string }) {
   const { t } = useI18n();
   const router = useRouter();
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const [result, setResult] = useState<AuthActionResult | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [usernameCheck, setUsernameCheck] = useState<UsernameCheck | null>(null);
@@ -157,6 +158,8 @@ export function RegisterClient({ callbackUrl }: { callbackUrl: string }) {
     const actionResult = await registerAction(formData);
 
     if (!actionResult.success) {
+      handleTurnstileTokenChange("");
+      setTurnstileResetKey((key) => key + 1);
       setResult(actionResult);
       return;
     }
@@ -294,6 +297,7 @@ export function RegisterClient({ callbackUrl }: { callbackUrl: string }) {
 
         {TURNSTILE_SITE_KEY ? (
           <TurnstileWidget
+            resetKey={turnstileResetKey}
             action="register"
             compact
             verified={Boolean(turnstileToken)}

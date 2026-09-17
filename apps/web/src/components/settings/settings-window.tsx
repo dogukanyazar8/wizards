@@ -309,7 +309,10 @@ export function SettingsWindow({
         }
       },
       onRetry: (retry) => setStoreRetry(() => retry),
-      onStatus: (save) => dispatch({ save, type: "save" }),
+      onStatus: (save) => {
+        setLastPatch(null);
+        dispatch({ save, type: "save" });
+      },
     }),
     [],
   );
@@ -468,7 +471,7 @@ export function SettingsWindow({
         <SettingsHeader
           leadKey={sectionDef?.leadKey ?? ""}
           onClose={closeWindow}
-          onRetrySave={retrySave}
+          onRetrySave={storeRetry || lastPatch ? retrySave : undefined}
           saveState={state.save}
           titleId={titleId}
           titleKey={sectionDef?.labelKey ?? "settings.title"}

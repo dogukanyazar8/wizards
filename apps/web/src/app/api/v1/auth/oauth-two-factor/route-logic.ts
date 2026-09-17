@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getTrustedDeviceCookieConfig } from "@/lib/auth/trusted-device";
 
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
@@ -21,6 +22,7 @@ export const OAuthTwoFactorRequestSchema = z.object({
     .max(256)
     .regex(/^[A-Za-z0-9_-]+$/),
   twoFactorCode: z.string().trim().min(1).max(64),
+  rememberDevice: z.boolean().optional(),
 });
 
 type OAuthTwoFactorRequest = z.infer<typeof OAuthTwoFactorRequestSchema>;
@@ -81,7 +83,10 @@ export async function oauthTwoFactorRoute(
   try {
     const input = await dependencies.parseRequest(request);
     await dependencies.enforceRateLimit(request, hashOAuthTwoFactorToken(input.challengeToken));
-    const result = await dependencies.completeChallenge(input);
+    const result = await dependencies.completeChallenge({
+      ...input,
+      ...(input.rememberDevice ? { userAgent: request.headers.get("user-agent") } : {}),
+    });
     const cookie = dependencies.getGrantCookieConfig();
     const response = Response.json(
       { provider: result.provider, success: true },
@@ -91,6 +96,13 @@ export async function oauthTwoFactorRoute(
       "Set-Cookie",
       serializeGrantCookie(cookie.name, result.grantToken, cookie.options),
     );
+    if (result.trustedDeviceToken) {
+      const trusted = getTrustedDeviceCookieConfig();
+      response.headers.append(
+        "Set-Cookie",
+        serializeGrantCookie(trusted.name, result.trustedDeviceToken, trusted.options),
+      );
+    }
     return response;
   } catch (error) {
     if (error instanceof OAuthTwoFactorError) {

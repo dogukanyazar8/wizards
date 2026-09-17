@@ -17,6 +17,7 @@ const mockStopAudioSession = jest.fn(async () => {
 type MockLocalParticipant = {
   audioLevel: number;
   getTrackPublication: jest.Mock;
+  getTrackPublications: jest.Mock;
   identity: string;
   isCameraEnabled: boolean;
   isMicrophoneEnabled: boolean;
@@ -40,6 +41,7 @@ function mockCreateRoom(): MockRoom {
   const localParticipant: MockLocalParticipant = {
     audioLevel: 0,
     getTrackPublication: jest.fn(() => undefined),
+    getTrackPublications: jest.fn(() => []),
     identity: "user:user-1",
     isCameraEnabled: false,
     isMicrophoneEnabled: false,
@@ -100,6 +102,7 @@ jest.mock("livekit-client", () => ({
     TrackUnsubscribed: "track-unsubscribed",
   },
   Track: { Source: { Camera: "camera", Microphone: "microphone", ScreenShare: "screen-share" } },
+  TrackEvent: { Ended: "ended" },
   VideoPreset: class MockVideoPreset {
     constructor(..._args: unknown[]) {}
   },
@@ -263,6 +266,34 @@ describe("mobile direct-call runtime", () => {
       await Promise.resolve();
     });
     expect(harness.apiCalls).toHaveLength(1);
+  });
+
+  it("keeps iOS publishing unavailable until native acceptance and handles OS-ended track cleanup", async () => {
+    const harness = await createHarness();
+    expect(await joinDirectCall(harness.hook, false)).toBe(true);
+    const room = mockRooms[0]!;
+    const callsBeforeToggle = harness.apiCalls.length;
+    // Jest's iOS runtime has no validated extension: no SDK capture or heartbeat request.
+    await act(() => harness.hook.result.current.toggleScreenShare());
+    expect(harness.hook.result.current.roomState.screenShareStatus).toBe("unsupported");
+    expect(harness.apiCalls.length).toBe(callsBeforeToggle);
+
+    const track = { mediaStreamTrack: { readyState: "live" }, on: jest.fn(), off: jest.fn() };
+    const publication = { source: "screen-share", track };
+    const listeners = room.on.mock.calls.filter(([event]) => event === "local-track-published");
+    expect(listeners).toHaveLength(2);
+    const attach = listeners.at(-1)?.[1] as (value: unknown) => void;
+    attach(publication);
+    const ended = track.on.mock.calls[0]?.[1] as () => void;
+    track.mediaStreamTrack.readyState = "ended";
+    await act(() => ended());
+    expect(harness.hook.result.current.roomState.selfScreenShareEnabled).toBe(false);
+    expect(harness.hook.result.current.roomState.errorMessage).toBeTruthy();
+    const detach = room.on.mock.calls.filter(
+      ([event]) => event === "local-track-unpublished",
+    )[0]?.[1] as (value: unknown) => void;
+    detach(publication);
+    expect(track.off).toHaveBeenCalledWith("ended", ended);
   });
 
   it("upgrades an existing audio direct call before returning video success", async () => {

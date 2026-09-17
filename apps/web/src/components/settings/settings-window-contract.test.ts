@@ -271,7 +271,7 @@ describe("Ayarlar kabuğu — kutu raporu (F1)", () => {
 
   it("kabuk raporu sağlıyor ve üç kanalın hepsini indirgeyiciye bağlıyor", () => {
     assert.match(windowSource, /<SettingsStoreReportProvider value=\{storeReport\}>/u);
-    assert.match(windowSource, /onStatus: \(save\) => dispatch\(\{ save, type: "save" \}\)/u);
+    assert.match(windowSource, /dispatch\(\{ save, type: "save" \}\)/u);
     assert.match(windowSource, /dispatch\(\{ key, type: "touch" \}\)/u);
     assert.match(windowSource, /onRetry: \(retry\) => setStoreRetry/u);
   });
@@ -289,7 +289,7 @@ describe("Ayarlar kabuğu — kutu raporu (F1)", () => {
   it("rapor sökülürken kabuğu boşa çeviriyor — bölüm değişiminde eski `Kaydedildi` asılı kalmaz", () => {
     const hook = ladderSource.slice(ladderSource.indexOf("export function useReportSettingsStore"));
 
-    assert.match(hook, /report\.onStatus\("idle"\)/u);
+    assert.match(hook, /reportSave\("idle"\)/u);
     assert.match(hook, /report\.onDirtyKeys\(\[\]\)/u);
   });
 });

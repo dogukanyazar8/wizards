@@ -302,6 +302,7 @@ module.exports = ({ config }) => {
       // inside the app.
       "@react-native-google-signin/google-signin",
       "./plugins/withScreenShare",
+      "./plugins/withIosBroadcastExtension",
       "./plugins/withWhisprCallNotifications",
       "./plugins/withWhisprGradleMemory",
       [
@@ -314,8 +315,29 @@ module.exports = ({ config }) => {
     ],
     extra: {
       ...config.extra,
+      iosBroadcastValidated: false,
       whispr: publicConfig,
-      ...(easProjectId ? { eas: { projectId: easProjectId } } : {}),
+      eas: {
+        ...(easProjectId ? { projectId: easProjectId } : {}),
+        // EAS must discover the extension before prebuild to prepare its own profile.
+        build: {
+          experimental: {
+            ios: {
+              appExtensions: [
+                {
+                  targetName: "WhisprBroadcast",
+                  bundleIdentifier: `${WHISPR_MOBILE_APP_IDENTITY.iosBundleIdentifier}.broadcast`,
+                  entitlements: {
+                    "com.apple.security.application-groups": [
+                      `group.${WHISPR_MOBILE_APP_IDENTITY.iosBundleIdentifier}`,
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
     },
     runtimeVersion: { policy: "fingerprint" },
     updates: buildUpdatesConfig(environment, publicConfig),

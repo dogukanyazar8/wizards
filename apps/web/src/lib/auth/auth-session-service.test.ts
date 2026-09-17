@@ -16,6 +16,10 @@ import {
 } from "./auth-session-service";
 
 class MemoryAuthSessionStore implements AuthSessionStore {
+  readonly forgottenUsers: string[] = [];
+  async forgetTrustedDevices(userId: string) {
+    this.forgottenUsers.push(userId);
+  }
   readonly records = new Map<string, AuthSessionRecord>();
 
   async countKnownDevices(
@@ -219,6 +223,26 @@ describe("auth session service", () => {
     );
     assert.equal(store.records.get("current")?.revokedAt, null);
     assert.equal(store.records.get("foreign")?.revokedAt, null);
+    assert.deepEqual(store.forgottenUsers, ["user-1", "user-1"]);
+  });
+
+  it("keeps revocation retryable when forgetting trusted devices fails", async () => {
+    const store = new MemoryAuthSessionStore();
+    const { recordEvent } = createEventRecorder();
+    store.records.set("other", record({ id: "other" }));
+    store.forgetTrustedDevices = async () => {
+      throw new Error("trust deletion unavailable");
+    };
+    await assert.rejects(
+      revokeAuthSession("user-1", "other", { now, recordEvent, store }),
+      /trust deletion unavailable/,
+    );
+    assert.equal(store.records.get("other")?.revokedAt, null);
+    store.forgetTrustedDevices = async () => {};
+    assert.equal(
+      (await revokeAuthSession("user-1", "other", { now, recordEvent, store }))?.id,
+      "other",
+    );
   });
 
   it("keeps the caller signed in after revoke-others and logs one SESSION_REVOKED row", async () => {
@@ -254,6 +278,7 @@ describe("auth session service", () => {
     await revokeAuthSession("user-1", "missing", { now, recordEvent, store });
 
     assert.deepEqual(events, []);
+    assert.deepEqual(store.forgottenUsers, ["user-1"]);
   });
 
   it("logs LOGIN_NEW_DEVICE only for the first session from a device", async () => {

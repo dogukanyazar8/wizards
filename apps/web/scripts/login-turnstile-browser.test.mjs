@@ -8,7 +8,7 @@ import { build } from "esbuild";
 import postcss from "postcss";
 import tailwind from "@tailwindcss/postcss";
 
-test("desktop login and register share compact verification without hiding required challenges", async () => {
+test("auth forms expose required challenges and renew consumed tokens for retries", async () => {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const bundle = await build({
     absWorkingDir: root,
@@ -30,13 +30,20 @@ test("desktop login and register share compact verification without hiding requi
         import { createRoot } from "react-dom/client";
         import { LoginClient } from "@/app/(auth)/login/login-client";
         import { RegisterClient } from "@/app/(auth)/register/register-client";
+        import { ForgotPasswordClient } from "@/app/(auth)/forgot-password/forgot-password-client";
+        import { ResetPasswordClient } from "@/app/(auth)/reset-password/reset-password-client";
         import { LocaleProvider } from "@/components/providers/locale-provider";
         import { AuthSurfaceProvider } from "@/components/auth/auth-surface";
         import { getMessagesForLocale } from "@/lib/locale";
         window.__WHISPR_DESKTOP__ = {shell:"desktop"};
+        const screens = {
+          '/register': <RegisterClient callbackUrl="/channels" />,
+          '/forgot-password': <ForgotPasswordClient />,
+          '/reset-password': <ResetPasswordClient token="fixture-reset-token" />,
+        };
         createRoot(document.getElementById("root")).render(
           <LocaleProvider initialLocale="tr" initialMessages={getMessagesForLocale("tr")}>
-            <AuthSurfaceProvider surface="desktop">{location.pathname === "/register" ? <RegisterClient callbackUrl="/channels" /> : <LoginClient callbackUrl="/channels" />}</AuthSurfaceProvider>
+            <AuthSurfaceProvider surface="desktop">{screens[location.pathname] ?? <LoginClient callbackUrl="/channels" />}</AuthSurfaceProvider>
           </LocaleProvider>
         );
       `,
@@ -46,11 +53,23 @@ test("desktop login and register share compact verification without hiding requi
         name: "login-fixture-boundaries",
         setup(builder) {
           const modules = {
-            "@/lib/auth/actions":
-              "export const loginAction = async () => { throw new Error('Unexpected credential submission'); }; export const registerAction = async (data) => { window.submittedToken = data.get('turnstileToken'); return {success:true}; };",
+            "@/lib/auth/actions": `export const loginAction = async data => {
+                const token=data.get('turnstileToken');
+                (window.loginTokens ??= []).push(token);
+                if(window.loginNetworkFailure) throw new Error('fixture network failure');
+                return window.loginOutcome ?? {success:false,status:'credentials',attemptsLeft:3};
+              };
+              const submit = async data => {
+                window.submittedToken = data.get('turnstileToken');
+                (window.formTokens ??= []).push(window.submittedToken);
+                return window.formOutcome ?? {success:true};
+              };
+              export const registerAction = submit;
+              export const forgotPasswordAction = submit;
+              export const resetPasswordAction = submit;`,
             "next-auth/react": "export const signIn = async () => {};",
             "next/navigation":
-              "const router = {replace(path){window.redirectPath=path},push(){}}; export const useRouter = () => router;",
+              "const router = {replace(path){window.redirectPath=path},push(){}}; export const useRouter = () => router; export const unstable_rethrow = error => { if(error?.digest?.startsWith('NEXT_REDIRECT')) throw error; };",
           };
           builder.onResolve(
             { filter: /^(?:@\/lib\/auth\/actions|next-auth\/react|next\/navigation)$/ },
@@ -83,6 +102,9 @@ test("desktop login and register share compact verification without hiding requi
           body: `
           window.turnstile = {
             render(container, options) {
+              const index = window.turnstileRenders = (window.turnstileRenders ?? 0) + 1;
+              const token = index === 1 ? "fixture-token" : "fixture-token-" + index;
+              (window.previousChallenges ??= []).push(options);
               window.challengeOptions = options;
               const button = document.createElement("button");
               button.type = "button";
@@ -94,12 +116,12 @@ test("desktop login and register share compact verification without hiding requi
               };
               button.onclick = () => {
                 button.hidden = true;
-                options.callback("fixture-token");
+                options.callback(token);
                 options["after-interactive-callback"]();
               };
               container.appendChild(button);
               if (location.search === "?invisible=1") {
-                queueMicrotask(() => options.callback("fixture-token"));
+                queueMicrotask(() => options.callback(token));
               }
               return "fixture-widget";
             },
@@ -286,6 +308,98 @@ test("desktop login and register share compact verification without hiding requi
       await page.evaluate(() => window.challengeOptions["expired-callback"]());
       await expect(page.locator('.auth-turnstile-tile[data-state="pending"]')).toBeVisible();
       await expect(page.locator('form button[type="submit"]')).toBeDisabled();
+    }
+    for (const scenario of ["credentials-managed", "credentials-invisible", "network"]) {
+      const invisible = scenario !== "credentials-managed";
+      await page.goto(`https://login.invalid/login${invisible ? "?invisible=1" : ""}`);
+      await page.addScriptTag({ content: bundle.outputFiles[0].text });
+      await page.locator('input[name="email"]').fill("wrong@example.test");
+      await page.locator('input[name="password"]').fill("Wrong-password1!");
+      const submit = page.locator('form button[type="submit"]');
+      const token = page.locator('input[name="turnstileToken"]');
+      const complete = async () => {
+        if (!invisible) {
+          await page.evaluate(() => window.beginChallenge());
+          await page.getByRole("button", { name: "Complete security challenge" }).click();
+        }
+        await expect(submit).toBeEnabled();
+      };
+      await complete();
+      if (scenario === "network")
+        await page.evaluate(() => {
+          window.loginNetworkFailure = true;
+        });
+      await submit.click();
+      await expect.poll(() => page.evaluate(() => window.turnstileRenders)).toBe(2);
+      await expect(page.locator('input[name="email"]')).toHaveValue("wrong@example.test");
+      await expect(page.locator('input[name="password"]')).toHaveValue("Wrong-password1!");
+      // Late callbacks from the removed challenge cannot revive its consumed token.
+      await page.evaluate(() => window.previousChallenges[0].callback("stale-token"));
+      if (!invisible) {
+        await expect(token).toHaveValue("");
+        await expect(submit).toBeDisabled();
+      } else await expect(token).toHaveValue("fixture-token-2");
+      await complete();
+      await page.locator('input[name="email"]').fill("correct@example.test");
+      await page.locator('input[name="password"]').fill("Correct-password1!");
+      await page.evaluate(() => {
+        window.loginNetworkFailure = false;
+        window.loginOutcome = { success: true };
+      });
+      await submit.click();
+      await expect.poll(() => page.evaluate(() => window.redirectPath)).toBe("/channels");
+      assert.deepEqual(await page.evaluate(() => window.loginTokens), [
+        "fixture-token",
+        "fixture-token-2",
+      ]);
+    }
+    for (const [screen, destination] of [
+      ["register", "/verify-email?next=%2Fchannels"],
+      ["forgot-password", "/forgot-password/sent"],
+      ["reset-password", "/reset-password/done"],
+    ]) {
+      await page.goto(`https://login.invalid/${screen}`);
+      await page.addStyleTag({ content: css.css });
+      await page.addScriptTag({ content: bundle.outputFiles[0].text });
+      if (screen !== "reset-password")
+        await page.locator('input[name="email"]').fill("fixture@example.test");
+      if (screen !== "forgot-password")
+        await page.locator('input[name="password"]').fill("Fixture-only-password1!");
+      if (screen === "reset-password")
+        await page.locator('input[name="confirmPassword"]').fill("Fixture-only-password1!");
+      if (screen === "register") {
+        await page.locator('input[name="displayName"]').fill("Fixture User");
+        await page.locator('input[name="username"]').fill("fixture_user");
+        await page.getByRole("checkbox").focus();
+        await page.keyboard.press("Space");
+        await expect(page.getByRole("checkbox")).toBeChecked();
+      }
+      await page.evaluate(() => {
+        window.formOutcome = { success: false, status: "network" };
+      });
+      const submit = page.locator('form button[type="submit"]');
+      await expect(submit).toBeDisabled();
+      await page.evaluate(() => window.beginChallenge());
+      const challenge = page.getByRole("button", { name: "Complete security challenge" });
+      await expect(challenge).toBeInViewport();
+      await challenge.click();
+      await expect(submit).toBeEnabled();
+      await submit.click();
+      await expect.poll(() => page.evaluate(() => window.turnstileRenders)).toBe(2);
+      await expect(submit).toBeDisabled();
+      await page.evaluate(() => window.beginChallenge());
+      await expect(challenge).toBeInViewport();
+      await challenge.click();
+      await expect(page.locator('input[name="turnstileToken"]')).toHaveValue("fixture-token-2");
+      await page.evaluate(() => {
+        window.formOutcome = { success: true };
+      });
+      await submit.click();
+      await expect.poll(() => page.evaluate(() => window.redirectPath)).toBe(destination);
+      assert.deepEqual(await page.evaluate(() => window.formTokens), [
+        "fixture-token",
+        "fixture-token-2",
+      ]);
     }
     assert.deepEqual(errors, []);
   } finally {

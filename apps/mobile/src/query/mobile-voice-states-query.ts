@@ -70,8 +70,13 @@ export function applyMobileVoiceScreenShareUpdate(
     if (state.channelId !== update.channelId) return state;
     const participants = state.participants.map((participant) => {
       if (participant.userId !== update.userId) return participant;
-      patched = participant.isScreenSharing !== update.isScreenSharing;
-      return patched ? { ...participant, isScreenSharing: update.isScreenSharing } : participant;
+      const stream = update.isScreenSharing ? (update.stream ?? null) : null;
+      patched =
+        participant.isScreenSharing !== update.isScreenSharing ||
+        JSON.stringify(participant.stream ?? null) !== JSON.stringify(stream);
+      return patched
+        ? { ...participant, isScreenSharing: update.isScreenSharing, stream }
+        : participant;
     });
     return patched ? { ...state, participants } : state;
   });

@@ -1,4 +1,5 @@
-import { ChannelType } from "@wizards/db";
+import { ChannelType, prisma } from "@wizards/db";
+import { sanitizeGoLiveStream } from "@/lib/voice/go-live";
 
 import { ApiError } from "@/lib/api";
 import { logAnalyticsError, setVoiceScreenShareUsage } from "@/lib/analytics/service";
@@ -296,6 +297,8 @@ export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistr
     try {
       const data = parseSocketPayload(SocketVoiceScreenSharePayloadSchema, rawData);
       const screenShareStateKey = getVoiceScreenShareStateKey(data.channelId, userId);
+      const streamKey = `voice:screenshare:stream:${data.channelId}:${userId}`;
+      let stream = data.stream;
       await runVoiceScreenShareUpdate({
         authorize: async () => {
           await requireChannelPermissionForUser(
@@ -328,12 +331,32 @@ export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistr
           ),
         emit: () =>
           emitVoiceScreenShareUpdate({
+            ...(stream !== undefined ? { stream } : {}),
             channelId: data.channelId,
             isScreenSharing: data.isScreenSharing,
             serverId: data.serverId,
             userId,
           }),
-        readCurrentValue: async () => (await redis.get(screenShareStateKey)) === "1",
+        readCurrentValue: async () => {
+          if (stream) {
+            const settings = await prisma.userSettings.findUnique({
+              where: { userId },
+              select: { showCurrentGame: true },
+            });
+            stream = sanitizeGoLiveStream(stream, settings?.showCurrentGame === true) ?? undefined;
+          }
+          const sharing = (await redis.get(screenShareStateKey)) === "1";
+          if (
+            sharing &&
+            data.isScreenSharing &&
+            stream !== undefined &&
+            (await redis.get(streamKey)) !== JSON.stringify(stream)
+          )
+            return false;
+          if (sharing && data.isScreenSharing)
+            await redis.expire(streamKey, VOICE_SCREEN_SHARE_STATE_TTL_SECONDS);
+          return sharing;
+        },
         recordUsage: async () => {
           void setVoiceScreenShareUsage({
             attribution: socket.data.clientAttribution ?? UNKNOWN_ATTRIBUTION,
@@ -348,8 +371,17 @@ export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistr
         value: data.isScreenSharing,
         writeValue: async () => {
           if (data.isScreenSharing) {
+            if (stream)
+              await redis.set(
+                streamKey,
+                JSON.stringify(stream),
+                "EX",
+                VOICE_SCREEN_SHARE_STATE_TTL_SECONDS,
+              );
+            else await redis.del(streamKey);
             await redis.set(screenShareStateKey, "1", "EX", VOICE_SCREEN_SHARE_STATE_TTL_SECONDS);
           } else {
+            await redis.del(streamKey);
             await redis.del(screenShareStateKey);
             await clearScreenShareWatchers(data.channelId, userId);
           }

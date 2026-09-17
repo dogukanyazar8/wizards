@@ -226,11 +226,11 @@ describe("mobile remote video background rule", () => {
       nextAppState: "background",
     });
 
-    if (shouldSuspend) {
+    if (shouldSuspend.suspendCamera) {
       suspendRemoteVideoForBackground(room);
     }
 
-    assert.equal(shouldSuspend, false);
+    assert.deepEqual(shouldSuspend, { suspendCamera: false, suspendScreenShare: false });
     assert.deepEqual(calls, []);
   });
 });

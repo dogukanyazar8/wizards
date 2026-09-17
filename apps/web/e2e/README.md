@@ -208,6 +208,15 @@ inside the `Playwright E2E` job and run `e2e:real-media`. The separate
 `screen-share-network-nightly.yml` workflow shapes the LiveKit media ports with
 `tc netem` (40 ms delay, 2% loss, 2 Mbit) before running the same spec.
 
+Both workflows run that container with `--network host` and
+`LIVEKIT_CONFIG=rtc: {enable_loopback_candidate: true}`. `--node-ip 127.0.0.1` only
+advertises loopback candidates; behind `docker compose` a port forwarder answers them,
+but on the host network LiveKit's media sockets bind the non-loopback addresses only.
+Without the loopback candidate every ICE check to `127.0.0.1:7882` goes unanswered, the
+page stays on "Connecting to voice channel...", and LiveKit drops the participant with
+`CONNECTION_TIMEOUT` after 15 s. `scripts/playwright-real-media-config.test.mjs` locks
+this setting and the compose digest for both workflows.
+
 ### Settings And Preferences
 
 Spec file: `apps/web/e2e/specs/settings/settings.spec.ts`

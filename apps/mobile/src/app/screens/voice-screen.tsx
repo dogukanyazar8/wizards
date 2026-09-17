@@ -1,5 +1,10 @@
 import { formatMobileScreenShareHealthLabel } from "../../voice/mobile-screen-share-health";
 import { VideoTrack } from "@livekit/react-native";
+import { MobileScreenShareGestures } from "../../voice/mobile-screen-share-gestures";
+import { GAME_CATALOG } from "@wizards/types";
+import { useMobileScreenShareConsent } from "../../voice/use-mobile-screen-share-consent";
+import { useMobileScreenShareWatching } from "../../voice/use-mobile-screen-share-watching";
+import { resolveMobileScreenShareLayer } from "../../voice/mobile-video-subscription";
 import { createContext, useContext, useLayoutEffect } from "react";
 import Animated, {
   runOnJS,
@@ -214,8 +219,12 @@ export function VoiceScreen({
   const handleCamera = () => {
     void onToggleVoiceCamera().then(selection);
   };
+  const shareConsent = useMobileScreenShareConsent(
+    voiceRoomState.selfScreenShareEnabled,
+    onToggleVoiceScreenShare,
+  );
   const handleScreenShare = () => {
-    void onToggleVoiceScreenShare().then(selection);
+    void shareConsent.request().then(selection);
   };
   const handleFlipCamera = () => {
     void onFlipVoiceCamera().then(selection);
@@ -309,6 +318,17 @@ export function VoiceScreen({
           </Text>
         ) : null}
 
+        <ScreenShareConsentSheet
+          visible={shareConsent.visible}
+          onCancel={shareConsent.cancel}
+          onConfirm={() => void shareConsent.confirm()}
+          remember={shareConsent.remember}
+          onRememberChange={shareConsent.setRemember}
+        />
+        <ScreenShareActiveBanner
+          room={voiceRoomState}
+          onStop={() => void onToggleVoiceScreenShare()}
+        />
         {stageMode === "video" ? (
           <ActiveVoiceRoomStage
             cameraFacingMode={voiceRoomState.cameraFacingMode}
@@ -366,7 +386,16 @@ export function VoiceScreen({
               testID="mobile-voice-camera"
             />
             <ActiveVoiceRoomControl
-              disabled={!model.canToggleMute || screenShareBusy}
+              disabled={
+                !model.canToggleMute ||
+                screenShareBusy ||
+                voiceRoomState.screenShareStatus === "unsupported"
+              }
+              accessibilityHint={
+                voiceRoomState.screenShareStatus === "unsupported"
+                  ? copy.voiceScreenShareUnsupportedIos
+                  : undefined
+              }
               icon="tv-outline"
               inactive={!voiceRoomState.selfScreenShareEnabled}
               label={
@@ -955,8 +984,10 @@ function VoiceStageTile({
   const videoQualityMode = useMobileVoiceVideoQualityMode();
 
   // The tile on the visible page is the stage: it asks for the top layer and
-  // gives it back when the pager moves it off screen.
+  // gives it back when the pager moves it off screen. Screen surfaces own their
+  // separate decode ceiling and visible-watcher lifecycle.
   useEffect(() => {
+    if (isScreen) return;
     setVoiceVideoQualityCeiling(publication, {
       isStage: showVideo,
       isVisible: showVideo,
@@ -964,40 +995,43 @@ function VoiceStageTile({
     });
   }, [isScreen, publication, showVideo, videoQualityMode]);
 
-  const surface = showVideo ? (
-    <VideoTrack
-      // A stage tile is read, not glanced at: the whole frame stays visible and
-      // the tile's dark surface fills whatever the source does not cover.
-      mirror={resolveMirror({
-        facingMode: cameraFacingMode,
-        isLocal: participant.isSelf && !isScreen,
-      })}
-      objectFit={resolveVideoFit({ isScreenShare: isScreen, sizeClass: "stage" })}
-      style={styles.activeVoiceRoomStageVideo}
-      trackRef={trackRef!}
-    />
-  ) : (
-    <View style={styles.activeVoiceRoomStageTilePlaceholder}>
-      {isScreen ? (
-        <Ionicons color={theme.media.textMuted} name="tv-outline" size={26} />
-      ) : (
-        <Avatar
-          accessibilityLabel={name}
-          avatarBorderColor="transparent"
-          avatarBorderRadius={22}
-          avatarBorderWidth={0}
-          dimension={64}
-          fallbackTextStyle={styles.activeVoiceRoomAvatarFallback}
-          identityId={participant.userId}
-          imageUrl={participant.avatarUrl}
-          label={name}
-        />
-      )}
-      <Text numberOfLines={1} style={styles.activeVoiceRoomStageTilePlaceholderName}>
-        {name}
-      </Text>
-    </View>
-  );
+  const surface =
+    showVideo && isScreen ? (
+      <ScreenShareVideoSurface participant={participant} variant="stage" />
+    ) : showVideo ? (
+      <VideoTrack
+        // A stage tile is read, not glanced at: the whole frame stays visible and
+        // the tile's dark surface fills whatever the source does not cover.
+        mirror={resolveMirror({
+          facingMode: cameraFacingMode,
+          isLocal: participant.isSelf && !isScreen,
+        })}
+        objectFit={resolveVideoFit({ isScreenShare: isScreen, sizeClass: "stage" })}
+        style={styles.activeVoiceRoomStageVideo}
+        trackRef={trackRef!}
+      />
+    ) : (
+      <View style={styles.activeVoiceRoomStageTilePlaceholder}>
+        {isScreen ? (
+          <Ionicons color={theme.media.textMuted} name="tv-outline" size={26} />
+        ) : (
+          <Avatar
+            accessibilityLabel={name}
+            avatarBorderColor="transparent"
+            avatarBorderRadius={22}
+            avatarBorderWidth={0}
+            dimension={64}
+            fallbackTextStyle={styles.activeVoiceRoomAvatarFallback}
+            identityId={participant.userId}
+            imageUrl={participant.avatarUrl}
+            label={name}
+          />
+        )}
+        <Text numberOfLines={1} style={styles.activeVoiceRoomStageTilePlaceholderName}>
+          {name}
+        </Text>
+      </View>
+    );
 
   const overlay = (
     <>
@@ -1218,25 +1252,17 @@ function VoiceStageScreenFullscreen({
             <Ionicons name="close" size={22} color={theme.media.text} />
           </Pressable>
         </View>
-        <ScrollView
-          bounces={false}
-          centerContent
-          contentContainerStyle={styles.mobileVoiceScreenShareFullscreenScrollContent}
-          maximumZoomScale={3}
-          minimumZoomScale={1}
-          showsHorizontalScrollIndicator={false}
-          showsVerticalScrollIndicator={false}
-          style={styles.mobileVoiceScreenShareFullscreenScroll}
-        >
-          <View
-            style={[
-              styles.mobileVoiceScreenShareFullscreenFrame,
-              { aspectRatio: getScreenShareAspect(participant) },
-            ]}
-          >
+        <Text style={styles.mobileVoiceScreenShareFullscreenTitle}>
+          {copy.voiceScreenShareViewers.replace(
+            "{count}",
+            String(participant.screenShareViewerCount ?? 0),
+          )}
+        </Text>
+        {open && (
+          <MobileScreenShareGestures aspect={getScreenShareAspect(participant)}>
             <ScreenShareVideoSurface participant={participant} variant="fullscreen" />
-          </View>
-        </ScrollView>
+          </MobileScreenShareGestures>
+        )}
       </View>
     </ScreenShareFullscreenOverlay>
   );
@@ -1551,6 +1577,7 @@ function ActiveVoiceRoomParticipantCard({
 }
 
 export function ActiveVoiceRoomControl({
+  accessibilityHint,
   accessibilityLabel,
   danger = false,
   disabled = false,
@@ -1563,6 +1590,7 @@ export function ActiveVoiceRoomControl({
   selected = false,
   testID,
 }: {
+  accessibilityHint?: string | undefined;
   accessibilityLabel?: string;
   danger?: boolean;
   disabled?: boolean;
@@ -1593,6 +1621,7 @@ export function ActiveVoiceRoomControl({
   return (
     <Pressable
       accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityHint={accessibilityHint}
       accessibilityRole="button"
       accessibilityState={{ disabled, selected }}
       disabled={disabled}
@@ -1755,7 +1784,7 @@ export function ScreenShareActiveBanner({
   }
 
   return (
-    <View style={styles.mobileVoiceScreenShareBanner}>
+    <View style={styles.mobileVoiceScreenShareBanner} testID="mobile-voice-screen-share-banner">
       <View style={styles.mobileVoiceScreenShareBannerIcon}>
         <Ionicons name="desktop-outline" size={17} color={theme.status.success} />
       </View>
@@ -1765,6 +1794,14 @@ export function ScreenShareActiveBanner({
         </Text>
         <Text style={styles.mobileVoiceScreenShareBannerDescription} numberOfLines={2}>
           {copy.voiceScreenShareActiveDescription}
+          {" · "}
+          {copy.voiceScreenShareViewers.replace(
+            "{count}",
+            String(
+              room.participants.find((participant) => participant.isSelf)?.screenShareViewerCount ??
+                0,
+            ),
+          )}
         </Text>
       </View>
       <ActionButton
@@ -1778,10 +1815,14 @@ export function ScreenShareActiveBanner({
 }
 
 export function ScreenShareConsentSheet({
+  remember = false,
+  onRememberChange,
   onCancel,
   onConfirm,
   visible,
 }: {
+  remember?: boolean;
+  onRememberChange?: (value: boolean) => void;
   onCancel(): void;
   onConfirm(): void;
   visible: boolean;
@@ -1802,8 +1843,22 @@ export function ScreenShareConsentSheet({
           {copy.voiceScreenShareConsentTitle}
         </Text>
         <Text style={styles.mobileVoiceScreenShareConsentDescription}>
-          {copy.voiceScreenShareConsentDescription}
+          {copy.voiceScreenShareConsentDescription} {copy.voiceScreenShareBackgroundContinues}
         </Text>
+        {onRememberChange && (
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: remember }}
+            accessibilityLabel={copy.voiceScreenShareRememberConsent}
+            onPress={() => onRememberChange(!remember)}
+            testID="mobile-voice-screen-share-consent-remember"
+          >
+            <Text style={styles.mobileVoiceScreenShareConsentDescription}>
+              {remember ? "✓ " : "○ "}
+              {copy.voiceScreenShareRememberConsent}
+            </Text>
+          </Pressable>
+        )}
         <View style={styles.mobileVoiceScreenShareConsentActions}>
           <ActionButton
             label={copy.voiceScreenShareConsentCancel}
@@ -1812,6 +1867,7 @@ export function ScreenShareConsentSheet({
           />
           <ActionButton
             label={copy.voiceScreenShareConsentConfirm}
+            testID="mobile-voice-screen-share-consent-confirm"
             onPress={onConfirm}
             variant="primary"
           />
@@ -1836,6 +1892,12 @@ function getActiveScreenShareParticipant(
 }
 
 function getScreenShareViewerTitle(participant: MobileVoiceRoomParticipant): string {
+  const stream = participant.stream;
+  const game = GAME_CATALOG.find((entry) => entry.id === stream?.gameId)?.name ?? stream?.label;
+  if (stream?.kind === "game" && game)
+    return copy.voiceScreenShareStreamingTitle
+      .replace("{name}", getVoiceParticipantName(participant))
+      .replace("{game}", game);
   return copy.voiceScreenShareViewerTitle.replace("{name}", getVoiceParticipantName(participant));
 }
 
@@ -1844,7 +1906,7 @@ function getScreenShareViewerTitle(participant: MobileVoiceRoomParticipant): str
  * used to letterbox inside a 16/9 box and lose most of its readable height.
  */
 function getScreenShareAspect(participant: MobileVoiceRoomParticipant): number {
-  return resolveVideoAspect(participant.screenShareTrackRef?.publication.dimensions);
+  return resolveVideoAspect(participant.screenShareTrackRef?.publication.dimensions, "screen");
 }
 
 function ScreenShareVideoSurface({
@@ -1852,19 +1914,40 @@ function ScreenShareVideoSurface({
   variant,
 }: {
   participant: MobileVoiceRoomParticipant;
-  variant: "fullscreen" | "inline";
+  variant: "fullscreen" | "inline" | "stage";
 }) {
   const theme = useVoiceRoomTheme();
   const styles = useVoiceScreenStyles();
   const publication = participant.screenShareTrackRef?.publication;
+  useMobileScreenShareWatching(
+    participant.userId,
+    !participant.isSelf && Boolean(publication?.isSubscribed),
+  );
 
-  // A shared screen is read as text: the fullscreen viewer takes the top layer,
-  // the inline preview hands it back.
+  // Fullscreen takes the top layer within the 1080p decode ceiling, then restores inline quality.
   useEffect(() => {
-    setVoiceVideoQualityCeiling(publication, {
-      isStage: variant === "fullscreen",
-    });
-  }, [publication, variant]);
+    if (
+      publication?.isSubscribed &&
+      "setVideoQuality" in publication &&
+      typeof publication.setVideoQuality === "function"
+    ) {
+      publication.setVideoQuality(
+        resolveMobileScreenShareLayer({
+          dimensions: publication.dimensions,
+          isFullscreen: variant === "fullscreen",
+        }),
+      );
+      return () => {
+        if (publication.isSubscribed && typeof publication.setVideoQuality === "function")
+          publication.setVideoQuality(
+            resolveMobileScreenShareLayer({
+              dimensions: publication.dimensions,
+              isFullscreen: false,
+            }),
+          );
+      };
+    }
+  }, [publication, variant, publication?.dimensions?.width, publication?.dimensions?.height]);
 
   if (!participant.screenShareTrackRef) {
     return (
@@ -1889,7 +1972,9 @@ function ScreenShareVideoSurface({
       style={
         variant === "fullscreen"
           ? styles.mobileVoiceScreenShareFullscreenVideo
-          : styles.mobileVoiceScreenShareVideo
+          : variant === "stage"
+            ? styles.activeVoiceRoomStageVideo
+            : styles.mobileVoiceScreenShareVideo
       }
       objectFit="contain"
     />
@@ -2003,25 +2088,17 @@ export function MobileScreenShareViewer({
               <Ionicons name="close" size={22} color={theme.media.text} />
             </Pressable>
           </View>
-          <ScrollView
-            bounces={false}
-            centerContent
-            contentContainerStyle={styles.mobileVoiceScreenShareFullscreenScrollContent}
-            maximumZoomScale={3}
-            minimumZoomScale={1}
-            showsHorizontalScrollIndicator={false}
-            showsVerticalScrollIndicator={false}
-            style={styles.mobileVoiceScreenShareFullscreenScroll}
-          >
-            <View
-              style={[
-                styles.mobileVoiceScreenShareFullscreenFrame,
-                { aspectRatio: getScreenShareAspect(participant) },
-              ]}
-            >
+          <Text style={styles.mobileVoiceScreenShareFullscreenTitle}>
+            {copy.voiceScreenShareViewers.replace(
+              "{count}",
+              String(participant.screenShareViewerCount ?? 0),
+            )}
+          </Text>
+          {expanded && canExpand && (
+            <MobileScreenShareGestures aspect={getScreenShareAspect(participant)}>
               <ScreenShareVideoSurface participant={participant} variant="fullscreen" />
-            </View>
-          </ScrollView>
+            </MobileScreenShareGestures>
+          )}
         </View>
       </ScreenShareFullscreenOverlay>
     </View>

@@ -68,7 +68,11 @@ function render(Tab: () => React.ReactNode, runtime: Partial<SettingsRowRuntime>
   );
 }
 
-function renderSection(tabKey: string, openRisky: SettingsRiskyBlockKey | null = null): string {
+function renderSection(
+  tabKey: string,
+  openRisky: SettingsRiskyBlockKey | null = null,
+  twoFactorEnabled = false,
+): string {
   const section = findSettingsSection("account");
   const tab = section?.tabs.find((entry) => entry.key === tabKey);
 
@@ -78,8 +82,11 @@ function renderSection(tabKey: string, openRisky: SettingsRiskyBlockKey | null =
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
   });
-  if (tabKey === "account") {
-    queryClient.setQueryData(settingsQueryKeys.bootstrap, SETTINGS_TEST_BOOTSTRAP);
+  if (tabKey === "account" || tabKey === "security") {
+    queryClient.setQueryData(settingsQueryKeys.bootstrap, {
+      ...SETTINGS_TEST_BOOTSTRAP,
+      initialAccount: { ...SETTINGS_TEST_BOOTSTRAP.initialAccount, twoFactorEnabled },
+    });
     queryClient.setQueryData(["account-contact", SETTINGS_TEST_BOOTSTRAP.initialAccount.id], {
       phone: null,
       hasPassword: true,
@@ -227,6 +234,17 @@ describe("Hesabım — motor sözleşmesi", () => {
 });
 
 describe("Hesabım — gerçek kullanılabilirlik", () => {
+  it("enabled two-factor shows an active badge and exposes recovery actions", () => {
+    const markup = renderSection("security", null, true);
+    assert.match(markup, />Aktif</u);
+    assert.match(markup, /color:hsl\(var\(--success\)\)/u);
+    assert.doesNotMatch(markup, />Kur<\/button>/u);
+    assert.match(markup, />2FA&#x27;yı kapat<\/button>/u);
+    const actions = markup.match(/<button[^>]+data-testid="setting-actions-s2-\d"[^>]*>/gu) ?? [];
+    assert.equal(actions.length, 3);
+    assert.ok(actions.every((button) => !button.includes(' disabled=""')));
+  });
+
   it("kayıtlı değerler yüklenmeden varsayılan profil/gizlilik kontrolleri gösterilmez", () => {
     const profile = renderSection("profile");
     const privacy = renderSection("privacy");

@@ -1,5 +1,6 @@
 import type { Browser, BrowserContext, Page, TestInfo } from "@playwright/test";
 import { test, expect } from "../../fixtures/test";
+import { e2eRequestHeaders } from "../../helpers/api-auth";
 import { loginAs } from "../../helpers/auth";
 import { attachE2EPageDiagnostics, type E2EPageDiagnosticsHandle } from "../../helpers/diagnostics";
 import {
@@ -665,6 +666,59 @@ test.describe("voice and screen share", () => {
         bob.page.getByTestId(`voice-sidebar-screen-share-${e2eUsers.alice.username}`),
       ).toBeVisible({ timeout: 10_000 });
     } finally {
+      await closeLoggedInPages([alice, bob]);
+    }
+  });
+
+  test("Go Live publishes the game label, honors privacy, and stops when the game closes", async ({
+    browser,
+  }, testInfo) => {
+    const route = await getE2EServerRoute();
+    const alice = await openLoggedInPage(browser, "alice", testInfo);
+    const bob = await openLoggedInPage(browser, "bob", testInfo);
+    const settings = await alice.page.request.get("/api/v1/users/me/game-activity");
+    expect(settings.ok()).toBe(true);
+    const previous = (await settings.json()) as { enabled: boolean };
+    try {
+      expect(
+        (
+          await alice.page.request.patch("/api/v1/users/me/game-activity", {
+            headers: e2eRequestHeaders,
+            data: { enabled: true },
+          })
+        ).ok(),
+      ).toBe(true);
+      await alice.page.evaluate(() => localStorage.setItem("whispr:e2e:detected-game", "valorant"));
+      await gotoTextChannelRoute(bob.page, route.serverId, route.textChannelId);
+      await openVoiceChannelRoute(alice.page, route);
+      await expect(alice.page.getByTestId("server-voice-control-share")).toContainText("VALORANT");
+      await alice.page.getByTestId("server-voice-control-share").click();
+      const chip = bob.page.getByTestId(`voice-sidebar-screen-share-${e2eUsers.alice.username}`);
+      await expect(chip).toContainText("VALORANT", { timeout: 10_000 });
+      await alice.page.getByTestId("server-voice-control-share").click();
+      await expect(chip).toBeHidden();
+      expect(
+        (
+          await alice.page.request.patch("/api/v1/users/me/game-activity", {
+            headers: e2eRequestHeaders,
+            data: { enabled: false },
+          })
+        ).ok(),
+      ).toBe(true);
+      await alice.page.getByTestId("server-voice-control-share").click();
+      await expect(chip).toBeVisible();
+      await expect(chip).not.toContainText("VALORANT");
+      await alice.page.evaluate(() => localStorage.removeItem("whispr:e2e:detected-game"));
+      await expect(chip).toBeHidden({ timeout: 10_000 });
+      await expect(alice.page.getByTestId("server-voice-control-share")).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
+    } finally {
+      await alice.page.request.patch("/api/v1/users/me/game-activity", {
+        headers: e2eRequestHeaders,
+        data: previous,
+      });
       await closeLoggedInPages([alice, bob]);
     }
   });

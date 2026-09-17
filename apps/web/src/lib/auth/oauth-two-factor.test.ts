@@ -27,6 +27,10 @@ function buildChallengeRecord() {
     user: {
       deletedAt: null,
       id: USER_ID,
+      email: "user@example.test",
+      emailVerified: true,
+      passwordHash: "hash",
+      sessionsRevokedAfter: null,
       isBanned: false,
       twoFactorEnabled: true,
       twoFactorSecret: "legacy-secret",
@@ -49,6 +53,92 @@ async function expectOAuthTwoFactorError(
 }
 
 describe("OAuth two-factor challenge protocol", () => {
+  it("accepts trusted Google browsers only after provider identity checks and preserves grant consumption", async () => {
+    const input = {
+      existingUser: { id: USER_ID, twoFactorEnabled: true },
+      grantToken: null,
+      provider: "google",
+      providerAccountId: PROVIDER_ACCOUNT_ID,
+    };
+    let checks = 0;
+    const options = {
+      isTrustedDevice: async () => {
+        checks++;
+        return true;
+      },
+      createChallenge: async () => {
+        throw new Error("unexpected challenge");
+      },
+    };
+    assert.equal(await authorizeOAuthTwoFactorSignIn(input, options), true);
+    assert.equal(checks, 1);
+    assert.equal(
+      await authorizeOAuthTwoFactorSignIn({ ...input, provider: "unknown" }, options),
+      false,
+    );
+    assert.equal(checks, 1);
+    let consumed = 0;
+    assert.equal(
+      await authorizeOAuthTwoFactorSignIn(
+        { ...input, grantToken: "grant" },
+        {
+          ...options,
+          consumeGrant: async () => {
+            consumed++;
+            return true;
+          },
+        },
+      ),
+      true,
+    );
+    assert.equal(consumed, 1);
+    assert.equal(checks, 1);
+    const challenge = await authorizeOAuthTwoFactorSignIn(input, {
+      isTrustedDevice: async () => false,
+      createChallenge: async () => ({ token: "next-challenge", expiresAt: NOW }),
+    });
+    assert.match(String(challenge), /^\/oauth-two-factor\?/);
+  });
+  it("issues device proof only after successful grant consumption and explicit consent", async () => {
+    let issued = 0;
+    const options = {
+      now: () => NOW,
+      loadChallenge: async () => buildChallengeRecord(),
+      verifyTwoFactor: async () => ({ success: true as const }),
+      consumeChallengeAndCreateGrant: async () => true,
+      issueTrustedDevice: async () => {
+        issued++;
+        return "trusted-token";
+      },
+    };
+    const input = {
+      challengeToken: "challenge",
+      twoFactorCode: "123456",
+      rememberDevice: true,
+      userAgent: "browser",
+    };
+    const result = await completeOAuthTwoFactorChallenge(input, options);
+    assert.equal(result.trustedDeviceToken, "trusted-token");
+    assert.equal(issued, 1);
+    const unchecked = await completeOAuthTwoFactorChallenge(
+      { ...input, rememberDevice: false },
+      options,
+    );
+    assert.equal("trustedDeviceToken" in unchecked, false);
+    await assert.rejects(
+      completeOAuthTwoFactorChallenge(input, {
+        ...options,
+        consumeChallengeAndCreateGrant: async () => false,
+      }),
+    );
+    await assert.rejects(
+      completeOAuthTwoFactorChallenge(input, {
+        ...options,
+        verifyTwoFactor: async () => ({ success: false, error: "invalid_code" }),
+      }),
+    );
+    assert.equal(issued, 1);
+  });
   it("redirects a protected OAuth identity until its exact one-time grant is consumed", async () => {
     const calls: string[] = [];
     const redirect = await authorizeOAuthTwoFactorSignIn(

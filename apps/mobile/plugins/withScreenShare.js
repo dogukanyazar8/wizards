@@ -41,7 +41,7 @@ function ensureMediaProjectionService(androidManifest) {
   service.$ = {
     ...service.$,
     "android:exported": "false",
-    "android:foregroundServiceType": "mediaProjection",
+    "android:foregroundServiceType": "mediaProjection|microphone",
   };
   application.service = services;
 }
@@ -51,6 +51,7 @@ function withScreenShare(config) {
     const manifest = configWithManifest.modResults;
     ensureUsesPermission(manifest, FOREGROUND_SERVICE_PERMISSION);
     ensureUsesPermission(manifest, MEDIA_PROJECTION_PERMISSION);
+    ensureUsesPermission(manifest, "android.permission.FOREGROUND_SERVICE_MICROPHONE");
     ensureMediaProjectionService(manifest);
     return configWithManifest;
   });

@@ -6,23 +6,20 @@ import {
 } from "./mobile-permission-contract";
 
 export type MobileNativeCapabilityId =
-  | "mediaAttachments"
-  | "nativeNotifications"
-  | "screenShare"
-  | "videoCalls"
-  | "voiceChannels";
+  "mediaAttachments" | "nativeNotifications" | "screenShare" | "videoCalls" | "voiceChannels";
 
 export type MobileNativeCapabilityStage =
-  | "foundation-ready"
-  | "requires-native-module"
-  | "requires-server-contract"
-  | "research-required";
+  "foundation-ready" | "requires-native-module" | "requires-server-contract" | "research-required";
 
 export interface MobileNativeCapability {
   readonly feature: MobilePermissionFeature;
   readonly id: MobileNativeCapabilityId;
   readonly permissionIntents: readonly MobilePermissionIntentId[];
   readonly stage: MobileNativeCapabilityStage;
+  readonly platformSupport?: {
+    readonly android: "supported";
+    readonly ios: "unsupported-ios-no-extension";
+  };
   readonly userActionTrigger: string;
 }
 
@@ -66,6 +63,7 @@ export const MOBILE_NATIVE_CAPABILITIES: readonly MobileNativeCapability[] = [
   {
     feature: "screenShare",
     id: "screenShare",
+    platformSupport: { android: "supported", ios: "unsupported-ios-no-extension" },
     permissionIntents: ["screenCapture"],
     stage: "foundation-ready",
     userActionTrigger: "User explicitly starts screen sharing from a call.",

@@ -72,6 +72,8 @@ import { recordSecurityEventFromHeaders } from "@/lib/security/security-event-se
 import { consumeDesktopOAuthHandoffToken } from "@/lib/auth/desktop-oauth-handoff";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
 import { verifyWebLoginTwoFactor } from "@/lib/auth/web-login-two-factor";
+import { isTrustedDeviceRequest } from "@/lib/auth/trusted-device-request";
+import { TRUSTED_DEVICE_USER_SELECT } from "@/lib/auth/trusted-device";
 
 function getAuthEnvCandidates() {
   return [
@@ -305,13 +307,7 @@ async function canOAuthUserAccessWhispr(args: {
   user: { email?: unknown; id?: unknown };
 }) {
   const email = getOAuthProfileEmail(args.profile) || normalizeAuthEmail(args.user.email);
-  const userSelect = {
-    deletedAt: true,
-    emailVerified: true,
-    id: true,
-    isBanned: true,
-    twoFactorEnabled: true,
-  } as const;
+  const userSelect = TRUSTED_DEVICE_USER_SELECT;
   const policySubject = await resolveOAuthPolicyUser({
     account: args.account,
     email,
@@ -352,12 +348,15 @@ async function canOAuthUserAccessWhispr(args: {
 
   const cookieStore = await cookies();
   const grantCookie = getOAuthTwoFactorGrantCookieConfig();
-  return authorizeOAuthTwoFactorSignIn({
-    existingUser,
-    grantToken: cookieStore.get(grantCookie.name)?.value,
-    provider: args.account?.provider,
-    providerAccountId: args.account?.providerAccountId,
-  });
+  return authorizeOAuthTwoFactorSignIn(
+    {
+      existingUser,
+      grantToken: cookieStore.get(grantCookie.name)?.value,
+      provider: args.account?.provider,
+      providerAccountId: args.account?.providerAccountId,
+    },
+    { isTrustedDevice: () => isTrustedDeviceRequest(existingUser) },
+  );
 }
 
 function normalizeAdapterAccount(account: OAuthAccountInput) {
@@ -751,7 +750,10 @@ const authConfig = {
 
         const user = credentialResult.user;
 
-        if (!(await verifyWebLoginTwoFactor(user, twoFactorCode))) {
+        if (
+          !(await isTrustedDeviceRequest(user)) &&
+          !(await verifyWebLoginTwoFactor(user, twoFactorCode))
+        ) {
           await recordFailedWebLogin(user.id, "twoFactor");
           return null;
         }

@@ -496,7 +496,7 @@ export const MobileVoiceStateParticipantSchema = z.object({
   isScreenSharing: z.boolean().default(false),
   screenShareViewerCount: z.number().int().min(0).optional(),
   /** K8 — Go Live presence: `kind` + `gameId` + `label`; yalnız paylaşım açıkken gelir. */
-  stream: ScreenShareStreamInfoSchema.optional(),
+  stream: ScreenShareStreamInfoSchema.nullable().optional(),
   userId: z.string().min(1).max(128),
   username: z.string().min(1).max(80),
 });
@@ -523,7 +523,7 @@ export const MobileVoiceScreenShareUpdateEventSchema = z.object({
   isScreenSharing: z.boolean(),
   serverId: z.string().min(1).max(128),
   /** K8 — sunucu `GameSharingSettings.enabled` kapalıyken `gameId: null`, `label: null` yazar. */
-  stream: ScreenShareStreamInfoSchema.optional(),
+  stream: ScreenShareStreamInfoSchema.nullable().optional(),
   userId: z.string().min(1).max(128),
 });
 

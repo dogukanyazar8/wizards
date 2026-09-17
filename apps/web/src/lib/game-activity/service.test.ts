@@ -72,7 +72,7 @@ after(() => {
   if (enabled) getRedisOp().disconnect();
 });
 
-it("accepts only catalog game ids, never process paths or client timestamps", () => {
+it("accepts catalog game ids, never process paths or client timestamps", () => {
   for (const game of GAME_CATALOG)
     assert.equal(GameActivityUpdateSchema.safeParse({ gameId: game.id, sessionId }).success, true);
   for (const payload of [
@@ -103,6 +103,26 @@ test("a second desktop cannot steal or clear the active desktop's game", async (
   await getRedisOp().del(key); // Simulate TTL expiry without sleeping.
   await publishGameActivity(userId, { gameId: "dota-2", sessionId: other });
   assert.equal((await readGameActivity(viewerId, userId))?.gameId, "dota-2");
+});
+
+test("custom labels are sanitized, cleared for catalog games, and hidden when sharing is disabled", async () => {
+  await publishGameActivity(userId, {
+    gameId: "custom:012345abcdef",
+    label: "  My\u0000  Game\u200b  ",
+    sessionId,
+  });
+  assert.equal((await readGameActivity(viewerId, userId))?.label, "My Game");
+  assert.equal(await getRedisOp().hget(key, "label"), "My Game");
+  await publishGameActivity(userId, { gameId: "cs2", label: "Discard me", sessionId });
+  assert.equal((await readGameActivity(viewerId, userId))?.label, null);
+  assert.equal(await getRedisOp().hget(key, "label"), "");
+  await publishGameActivity(userId, {
+    gameId: "custom:012345abcdef",
+    label: "Private Game",
+    sessionId,
+  });
+  sharing = false;
+  assert.equal(await readGameActivity(viewerId, userId), null);
 });
 test("disabling sharing removes the activity and enabling cannot resurrect it", async () => {
   await publishGameActivity(userId, { gameId: "cs2", sessionId });

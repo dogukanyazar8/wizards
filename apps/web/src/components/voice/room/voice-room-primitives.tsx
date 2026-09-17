@@ -727,6 +727,7 @@ export function RoomControlButton({
 }
 
 export function VoiceControlBar({
+  goLiveLabel,
   cameraStatus,
   isCameraEnabled,
   isDeafened,
@@ -739,6 +740,7 @@ export function VoiceControlBar({
   toggleScreenShare,
 }: {
   cameraStatus: VoiceCameraStatus;
+  goLiveLabel?: string | null;
   isCameraEnabled: boolean;
   isDeafened: boolean;
   isMuted: boolean;
@@ -788,16 +790,32 @@ export function VoiceControlBar({
           />
           <RoomControlButton
             active={isScreenSharing}
-            ariaLabel={isScreenSharing ? t("voice.screenShare.stop") : t("voice.screenShare.share")}
+            ariaLabel={
+              isScreenSharing
+                ? t("voice.screenShare.stop")
+                : goLiveLabel
+                  ? t("voice.goLive.cta", { game: goLiveLabel })
+                  : t("voice.screenShare.share")
+            }
             icon={<MonitorUp className="h-5 w-5" />}
             label={
-              isScreenSharing ? t("voice.controls.stopShareShort") : t("voice.controls.shareShort")
+              isScreenSharing
+                ? t("voice.controls.stopShareShort")
+                : goLiveLabel
+                  ? t("voice.goLive.cta", { game: goLiveLabel })
+                  : t("voice.controls.shareShort")
             }
             onClick={() => {
               void toggleScreenShare();
             }}
             testId="voice-room-control-screen-share"
-            title={isScreenSharing ? t("voice.screenShare.stop") : t("voice.screenShare.share")}
+            title={
+              isScreenSharing
+                ? t("voice.screenShare.stop")
+                : goLiveLabel
+                  ? t("voice.goLive.cta", { game: goLiveLabel })
+                  : t("voice.screenShare.share")
+            }
           />
           <RoomControlButton
             active={isCameraEnabled}

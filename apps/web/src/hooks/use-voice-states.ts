@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import type { ScreenShareStreamInfo } from "@wizards/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserProfileUpdatedPayload } from "@/lib/socket/events";
 import { fetchVoiceStates, voiceQueryKeys } from "@/lib/voice/client";
@@ -19,6 +20,8 @@ function applyVoiceStateUpdate(
       avatarUrl: string | null;
       isDeafened: boolean;
       isScreenSharing?: boolean;
+      stream?: ScreenShareStreamInfo | null;
+      screenShareViewerCount?: number;
     }>;
   },
 ) {
@@ -39,6 +42,12 @@ function applyVoiceStateUpdate(
       displayName: participant.displayName ?? existingParticipant?.displayName ?? null,
       isDeafened: participant.isDeafened,
       isScreenSharing: participant.isScreenSharing ?? existingParticipant?.isScreenSharing ?? false,
+      stream:
+        participant.stream === undefined
+          ? (existingParticipant?.stream ?? null)
+          : participant.stream,
+      screenShareViewerCount:
+        participant.screenShareViewerCount ?? existingParticipant?.screenShareViewerCount ?? 0,
     };
   });
 
@@ -68,6 +77,7 @@ function applyVoiceScreenShareUpdate(
   data: {
     channelId: string;
     isScreenSharing: boolean;
+    stream?: ScreenShareStreamInfo | null;
     userId: string;
   },
 ) {
@@ -87,6 +97,7 @@ function applyVoiceScreenShareUpdate(
           ? {
               ...participant,
               isScreenSharing: data.isScreenSharing,
+              stream: data.isScreenSharing ? (data.stream ?? null) : null,
             }
           : participant,
       ),
@@ -180,6 +191,7 @@ export function useVoiceStates(serverId: string | null) {
     const handleVoiceScreenShareUpdate = (data: {
       channelId: string;
       isScreenSharing: boolean;
+      stream?: ScreenShareStreamInfo | null;
       userId: string;
     }) => {
       queryClient.setQueryData<VoiceChannelStateDTO[] | undefined>(

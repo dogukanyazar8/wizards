@@ -29,6 +29,7 @@ const OPEN_LABEL_KEY: Readonly<Record<SettingsRiskyBlockKey, string>> = {
   deleteAccount: "settings.control.risky.deleteAccount",
   password: "settings.control.risky.password",
   twoFactor: "settings.control.risky.twoFactor",
+  recoveryCodes: "settings.action.s2.1",
 };
 
 /** Tetikleyici ile gövdeyi bağlayan kimlik; ikisi ayrı yuvalarda çizildiği için türetilir. */
@@ -43,6 +44,7 @@ export type SettingRiskyBlockTriggerProps = {
   readonly open: boolean;
   /** Ş7 durum bilen bir etiket verebilir (2FA kuruluysa `Kapat`). */
   readonly openLabel?: string | undefined;
+  readonly disabled?: boolean | undefined;
   readonly rowKey: string;
   readonly testId?: string;
 };
@@ -53,6 +55,7 @@ export function SettingRiskyBlockTrigger({
   onOpenChange,
   open,
   openLabel,
+  disabled,
   rowKey,
   testId,
 }: SettingRiskyBlockTriggerProps) {
@@ -66,6 +69,7 @@ export function SettingRiskyBlockTrigger({
       controlsId={open ? settingRiskyPanelId(rowKey) : undefined}
       describedById={describedById}
       entry={{
+        disabled: disabled ?? false,
         kind: open ? undefined : blockKey === "deleteAccount" ? "danger" : "primary",
         label,
         onClick: () => onOpenChange(!open),

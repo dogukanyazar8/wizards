@@ -10,7 +10,10 @@ import {
   type ViewStyle,
 } from "react-native";
 
-import { useVoiceRoomTheme, useVoiceRoomThemedStyles } from "../app/providers/mobile-theme-provider";
+import {
+  useVoiceRoomTheme,
+  useVoiceRoomThemedStyles,
+} from "../app/providers/mobile-theme-provider";
 import type { MobileTheme } from "../design/themes";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import type {
@@ -125,12 +128,14 @@ function VoiceParticipantRow({ participant }: { participant: MobileVoiceRoomPart
 }
 
 function VoiceControlButton({
+  accessibilityHint,
   disabled = false,
   icon,
   label,
   onPress,
   tone = "neutral",
 }: {
+  accessibilityHint?: string | undefined;
   disabled?: boolean;
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
@@ -143,6 +148,7 @@ function VoiceControlButton({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
@@ -272,7 +278,14 @@ export function MobileVoiceRoomPanel({
             />
             <VoiceControlButton
               disabled={
-                room.screenShareStatus === "starting" || room.screenShareStatus === "stopping"
+                room.screenShareStatus === "starting" ||
+                room.screenShareStatus === "stopping" ||
+                room.screenShareStatus === "unsupported"
+              }
+              accessibilityHint={
+                room.screenShareStatus === "unsupported"
+                  ? copy.voiceScreenShareUnsupportedIos
+                  : undefined
               }
               icon="desktop-outline"
               label={
@@ -548,4 +561,5 @@ export const createMobileVoiceRoomPanelStyles = (theme: MobileTheme) =>
     },
   }) satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;
 
-const useMobileVoiceRoomPanelStyles = () => useVoiceRoomThemedStyles(createMobileVoiceRoomPanelStyles);
+const useMobileVoiceRoomPanelStyles = () =>
+  useVoiceRoomThemedStyles(createMobileVoiceRoomPanelStyles);

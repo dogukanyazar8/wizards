@@ -22,6 +22,7 @@ import {
   type TotpSecretKeyring,
 } from "./totp-secret-encryption";
 import { createRedisTotpReplayStore, type TotpReplayStore } from "./totp-replay";
+import { TRUSTED_DEVICE_PURPOSE_PREFIX } from "./trusted-device";
 import {
   createAttemptTracker,
   createMemoryAttemptStore,
@@ -266,6 +267,9 @@ const defaultTwoFactorRepository: TwoFactorRepository = {
   },
   async replaceRecoveryCodes(userId, recoveryCodeHashes) {
     await prisma.$transaction(async (tx) => {
+      await tx.accountReauthChallenge.deleteMany({
+        where: { userId, purpose: { startsWith: TRUSTED_DEVICE_PURPOSE_PREFIX } },
+      });
       await tx.twoFactorRecoveryCode.deleteMany({ where: { userId } });
       await tx.twoFactorRecoveryCode.createMany({
         data: recoveryCodeHashes.map((codeHash) => ({ codeHash, userId })),

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { MobileVoiceStateParticipant } from "@wizards/types";
+import { ScreenShareStreamInfoSchema, type MobileVoiceStateParticipant } from "@wizards/types";
 import { activeMobileCopy } from "../../locale/mobile-locale-preferences";
 import type { MobileRealtimeEventEnvelope } from "../../realtime/mobile-realtime-contract";
 import {
@@ -57,6 +57,13 @@ function getMobileVoiceStateUpdatePayload(payload: unknown): {
           avatarUrl: typeof participant.avatarUrl === "string" ? participant.avatarUrl : null,
           displayName: typeof participant.displayName === "string" ? participant.displayName : null,
           isScreenSharing: participant.isScreenSharing === true,
+          stream: ScreenShareStreamInfoSchema.safeParse(participant.stream).data ?? null,
+          screenShareViewerCount:
+            typeof participant.screenShareViewerCount === "number" &&
+            Number.isSafeInteger(participant.screenShareViewerCount) &&
+            participant.screenShareViewerCount >= 0
+              ? participant.screenShareViewerCount
+              : 0,
           userId: participant.userId,
           username: participant.username,
         },

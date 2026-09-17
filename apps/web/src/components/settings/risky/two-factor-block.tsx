@@ -36,7 +36,7 @@ const CODE_LENGTH = 6;
 
 export type TwoFactorBlockProps = {
   readonly enabled: boolean;
-  readonly onChanged: () => void;
+  readonly onChanged: (enabled: boolean, recoveryCodes?: string[]) => void;
   readonly onClose: () => void;
 };
 
@@ -130,13 +130,13 @@ export function TwoFactorBlock({ enabled, onChanged, onClose }: TwoFactorBlockPr
       .then((result) => {
         if (result.success) {
           setCode("");
-          onChanged();
-          onClose();
+          onChanged(true, result.recoveryCodes);
           return;
         }
 
         setErrorKey(result.error);
       })
+      .catch(() => setErrorKey("settings.account.twoFactor.errors.unavailable"))
       .finally(() => setPending(false));
   };
 
@@ -151,13 +151,13 @@ export function TwoFactorBlock({ enabled, onChanged, onClose }: TwoFactorBlockPr
         if (result.success) {
           setCode("");
           setPassword("");
-          onChanged();
-          onClose();
+          onChanged(false);
           return;
         }
 
         setErrorKey(result.error);
       })
+      .catch(() => setErrorKey("settings.account.twoFactor.errors.unavailable"))
       .finally(() => setPending(false));
   };
 

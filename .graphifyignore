@@ -1,0 +1,2 @@
+# pnpm patch workspace; the maintained delta lives in patches/.
+/.tmp/livekit-screen-share-patch/

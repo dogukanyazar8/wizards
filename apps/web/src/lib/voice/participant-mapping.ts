@@ -23,6 +23,7 @@ export type VoiceParticipantProfile = {
 };
 
 export type VoiceParticipantRosterEntry = VoiceParticipantProfile & {
+  stream?: ScreenShareStreamInfo | null | undefined;
   isDeafened?: boolean;
 };
 
@@ -126,6 +127,7 @@ export function collectScreenShares(
           (publication) => publication.source === Track.Source.ScreenShare && !publication.isMuted,
         )
         .map((publication) => ({
+          stream: roster.find((entry) => entry.userId === participant.identity)?.stream ?? null,
           avatarUrl: profile.avatarUrl,
           displayName: profile.displayName,
           id: getScreenShareId(participant.identity, publication.trackSid),

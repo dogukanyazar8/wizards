@@ -7,7 +7,7 @@ deneyimi ve ölçülebilir kalite. Analiz chat'te verildi; doğrulanmış gerçe
 
 ## Bugün ne var, hedef ne
 
-**Uygulama kaydı (2026-09-17):** Dalga 0 yerel kapısı geçti; Dalga 1 Ş1–Ş4 kodu ve kapanış doğrulamaları [devam durumu](raporlar/00-devam-durumu.md) içinde. Aşağıdaki tablo başlangıç analizini anlatır; güncel uygulama durumu değildir. Dalga 2 başlamadı.
+**Uygulama kaydı (2026-09-17):** Dalga 0 yerel kapısı geçti; Dalga 1 Ş1–Ş4 kodu ve kapanış doğrulamaları [devam durumu](raporlar/00-devam-durumu.md) içinde. Aşağıdaki tablo başlangıç analizini anlatır; güncel uygulama durumu değildir. Dalga 2 Ş5/Ş7 kaynakları ve yerel testleri uygulandı; Ş6 iOS desteği kullanıcı kararıyla kapalı. Native cihaz kabulü ve ayrıntılı kalanlar aynı devam durumu kaydında.
 
 | Yetenek          | Bugün (doğrulandı)                                                          | Hedef (bu paket)                                                                                                           |
 | ---------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |

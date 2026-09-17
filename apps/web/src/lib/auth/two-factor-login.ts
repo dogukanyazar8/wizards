@@ -14,6 +14,8 @@ import {
 import { createRequestFingerprint, loginChallengeStore } from "@/lib/auth/login-challenge";
 import { createLoginLockout } from "@/lib/auth/login-lockout";
 import { verifyTwoFactorCredential } from "@/lib/auth/two-factor";
+import { issueTrustedDevice } from "./trusted-device";
+import { logError } from "@/lib/logger";
 
 /**
  * İkinci adımın saf iş mantığı — SPEC-GIRIS-KAYIT §4.2 ve §4.3.
@@ -32,6 +34,7 @@ export type TwoFactorLoginResult =
       redirectTo: string;
       status: "ok";
       ticket: string;
+      trustedDeviceToken?: string;
     }
   | { attemptsLeft?: number; status: "codeInvalid" }
   | { retryAfterMs: number; status: "accountLocked" }
@@ -42,6 +45,7 @@ export type TwoFactorLoginDependencies = {
   findUser: (userId: string) => Promise<LoginCredentialUser | null>;
   lockout: ReturnType<typeof createLoginLockout>;
   verifyCode: typeof verifyTwoFactorCredential;
+  issueTrustedDevice: typeof issueTrustedDevice;
 };
 
 const defaultDependencies: TwoFactorLoginDependencies = {
@@ -53,6 +57,7 @@ const defaultDependencies: TwoFactorLoginDependencies = {
     }) as Promise<LoginCredentialUser | null>,
   lockout: createLoginLockout(),
   verifyCode: verifyTwoFactorCredential,
+  issueTrustedDevice,
 };
 
 export type TwoFactorRequestContext = {
@@ -61,7 +66,7 @@ export type TwoFactorRequestContext = {
 };
 
 async function completeSecondStep(
-  input: { challengeId: string; code: string },
+  input: { challengeId: string; code: string; rememberDevice?: boolean },
   context: TwoFactorRequestContext,
   overrides: Partial<TwoFactorLoginDependencies>,
 ): Promise<TwoFactorLoginResult> {
@@ -75,7 +80,7 @@ async function completeSecondStep(
 
   const user = await dependencies.findUser(challenge.userId);
 
-  if (!user || user.isBanned || user.deletedAt || !user.emailVerified) {
+  if (!user || user.isBanned || user.deletedAt || !user.emailVerified || !user.twoFactorEnabled) {
     return { status: "challengeExpired" };
   }
 
@@ -123,6 +128,15 @@ async function completeSecondStep(
   }
 
   const ticket = await dependencies.challenges.issueTicket(consumed);
+  let trustedDeviceToken: string | undefined;
+  if (input.rememberDevice) {
+    try {
+      trustedDeviceToken = await dependencies.issueTrustedDevice(user, context.userAgent);
+    } catch (error) {
+      logError("[auth] Failed to remember verified device", error);
+      return { status: "unavailable" };
+    }
+  }
   await dependencies.lockout.reset({
     clientIp: context.clientIp ?? null,
     email: consumed.email,
@@ -133,6 +147,7 @@ async function completeSecondStep(
     redirectTo: consumed.redirectTo,
     status: "ok",
     ticket,
+    ...(trustedDeviceToken ? { trustedDeviceToken } : {}),
   };
 }
 
@@ -143,7 +158,7 @@ export async function submitTwoFactorCode(
   overrides: Partial<TwoFactorLoginDependencies> = {},
 ): Promise<TwoFactorLoginResult> {
   return completeSecondStep(
-    { challengeId: input.challengeId, code: input.code },
+    { challengeId: input.challengeId, code: input.code, rememberDevice: input.rememberDevice },
     context,
     overrides,
   );
@@ -156,7 +171,11 @@ export async function submitBackupCode(
   overrides: Partial<TwoFactorLoginDependencies> = {},
 ): Promise<TwoFactorLoginResult> {
   return completeSecondStep(
-    { challengeId: input.challengeId, code: input.backupCode },
+    {
+      challengeId: input.challengeId,
+      code: input.backupCode,
+      rememberDevice: input.rememberDevice === true,
+    },
     context,
     overrides,
   );

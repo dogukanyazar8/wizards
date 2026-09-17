@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { createMemoryAttemptStore } from "@/lib/auth/attempt-tracker";
 import { createLoginChallengeStore, createMemoryChallengeStore } from "@/lib/auth/login-challenge";
 import type { LoginCredentialUser } from "@/lib/auth/login-credentials";
+import type { TrustedDeviceUser } from "./trusted-device";
 import { createLoginLockout } from "@/lib/auth/login-lockout";
 import { submitBackupCode, submitTwoFactorCode } from "@/lib/auth/two-factor-login";
 
@@ -26,6 +27,7 @@ const USER: LoginCredentialUser = {
   isBanned: false,
   locale: "tr",
   passwordHash: "hash",
+  sessionsRevokedAfter: null,
   theme: "theme-light",
   twoFactorEnabled: true,
   twoFactorSecret: "secret",
@@ -85,6 +87,57 @@ async function issueChallenge(harness: ReturnType<typeof createHarness>) {
 }
 
 describe("two-factor login", () => {
+  it("remembers only an explicitly selected, successfully consumed second factor", async () => {
+    const harness = createHarness();
+    const issued: string[] = [];
+    const dependencies = {
+      ...harness.dependencies,
+      issueTrustedDevice: async (user: TrustedDeviceUser, userAgent: string | null | undefined) => {
+        assert.equal(userAgent, CONTEXT.userAgent);
+        issued.push(user.id);
+        return "trusted-token";
+      },
+    };
+    const challengeId = await issueChallenge(harness);
+    assert.equal(
+      (
+        await submitTwoFactorCode(
+          { challengeId, code: "000000", rememberDevice: true },
+          CONTEXT,
+          dependencies,
+        )
+      ).status,
+      "codeInvalid",
+    );
+    assert.deepEqual(issued, []);
+    const result = await submitTwoFactorCode(
+      { challengeId, code: "481029", rememberDevice: true },
+      CONTEXT,
+      dependencies,
+    );
+    assert.equal(result.status, "ok");
+    if (result.status === "ok") assert.equal(result.trustedDeviceToken, "trusted-token");
+    assert.deepEqual(issued, [USER.id]);
+    assert.equal(
+      (
+        await submitTwoFactorCode(
+          { challengeId, code: "481029", rememberDevice: true },
+          CONTEXT,
+          dependencies,
+        )
+      ).status,
+      "challengeExpired",
+    );
+    assert.deepEqual(issued, [USER.id]);
+    const unchecked = await submitTwoFactorCode(
+      { challengeId: await issueChallenge(harness), code: "481029", rememberDevice: false },
+      CONTEXT,
+      dependencies,
+    );
+    assert.equal(unchecked.status, "ok");
+    assert.equal("trustedDeviceToken" in unchecked, false);
+    assert.deepEqual(issued, [USER.id]);
+  });
   it("mints a ticket for the right code", async () => {
     const harness = createHarness();
     const challengeId = await issueChallenge(harness);
@@ -101,6 +154,45 @@ describe("two-factor login", () => {
       assert.equal(result.redirectTo, "/channels");
       assert.ok(result.ticket.length >= 24);
     }
+  });
+
+  it("remembers a verified recovery-code login only when requested", async () => {
+    const harness = createHarness();
+    let issued = 0;
+    const result = await submitBackupCode(
+      {
+        challengeId: await issueChallenge(harness),
+        backupCode: "7QF42KDX9M",
+        rememberDevice: true,
+      },
+      CONTEXT,
+      {
+        ...harness.dependencies,
+        issueTrustedDevice: async () => {
+          issued++;
+          return "trusted-token";
+        },
+      },
+    );
+    assert.equal(result.status, "ok");
+    assert.equal(issued, 1);
+    if (result.status === "ok") assert.equal(result.trustedDeviceToken, "trusted-token");
+  });
+
+  it("never claims the device was remembered if durable enrollment fails", async () => {
+    const harness = createHarness();
+    const result = await submitTwoFactorCode(
+      { challengeId: await issueChallenge(harness), code: "481029", rememberDevice: true },
+      CONTEXT,
+      {
+        ...harness.dependencies,
+        issueTrustedDevice: async () => {
+          throw new Error("test storage unavailable");
+        },
+      },
+    );
+    assert.equal(result.status, "unavailable");
+    assert.equal("trustedDeviceToken" in result, false);
   });
 
   it("consumes the challenge so the code cannot be replayed", async () => {

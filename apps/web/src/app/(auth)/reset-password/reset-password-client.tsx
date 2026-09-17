@@ -47,6 +47,7 @@ const EXPIRED_ERROR_KEYS = new Set([
 export function ResetPasswordClient({ token }: { token: string }) {
   const { t } = useI18n();
   const router = useRouter();
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const [result, setResult] = useState<AuthActionResult | null>(null);
 
   const {
@@ -87,6 +88,8 @@ export function ResetPasswordClient({ token }: { token: string }) {
     const actionResult = await resetPasswordAction(formData);
 
     if (!actionResult.success) {
+      handleTurnstileTokenChange("");
+      setTurnstileResetKey((key) => key + 1);
       setResult(actionResult);
       return;
     }
@@ -166,9 +169,12 @@ export function ResetPasswordClient({ token }: { token: string }) {
       </form>
 
       {TURNSTILE_SITE_KEY ? (
-        <div className="sr-only">
+        <div className="mt-[var(--auth-title-gap)]">
           <TurnstileWidget
+            resetKey={turnstileResetKey}
             action="reset-password"
+            compact
+            verified={Boolean(turnstileToken)}
             onTokenChange={handleTurnstileTokenChange}
             siteKey={TURNSTILE_SITE_KEY}
           />

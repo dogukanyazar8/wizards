@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoginSchema, type LoginFormInput, type LoginInput } from "@wizards/types";
 import { ExternalLink, Loader2, ShieldCheck, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { unstable_rethrow, useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useCallback, useRef, useState, type CSSProperties } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -129,6 +129,7 @@ function DesktopOAuthPendingDialog({
 export function LoginClient({ authError = null, callbackUrl }: LoginClientProps) {
   const { t } = useI18n();
   const router = useRouter();
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const [result, setResult] = useState<AuthActionResult | null>(() =>
     authError ? { error: "auth.login.oauthError", success: false } : null,
   );
@@ -177,7 +178,13 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
     formData.set("rememberMe", values.rememberMe ? "true" : "false");
     formData.set("turnstileToken", values.turnstileToken);
 
-    const actionResult = await loginAction(formData);
+    let actionResult: AuthActionResult;
+    try {
+      actionResult = await loginAction(formData);
+    } catch (error) {
+      unstable_rethrow(error);
+      actionResult = { success: false, status: "network", error: "auth.login.alertUnavailable" };
+    }
 
     if (actionResult.twoFactorRequired && actionResult.challengeId) {
       // Challenge URL'e yazılmaz; sekmeye konur ve `replace` geri tuşuyla forma dönmeyi keser.
@@ -187,6 +194,8 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
     }
 
     if (!actionResult.success) {
+      handleTurnstileTokenChange("");
+      setTurnstileResetKey((key) => key + 1);
       setShowDesktopStartup(false);
       setResult(actionResult);
       return;
@@ -345,6 +354,7 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
             {/* Managed challenges may require interaction, including inside desktop WebViews. */}
             {TURNSTILE_SITE_KEY ? (
               <TurnstileWidget
+                resetKey={turnstileResetKey}
                 action="login"
                 compact
                 verified={Boolean(turnstileToken)}

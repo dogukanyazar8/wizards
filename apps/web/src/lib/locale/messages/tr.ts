@@ -927,6 +927,16 @@ export const TR_MESSAGES = {
   "voice.screenShare.bar.stop": "Durdur",
   "voice.screenShare.bar.goLive": "Yayında: {game}",
   "voice.goLive.cta": "Yayına geç: {game}",
+  "voice.goLive.registered.empty": "Henüz kayıtlı oyun yok.",
+  "voice.goLive.registered.refresh": "Listeyi yenile",
+  "voice.goLive.registered.choose": "Eklemek istediğin açık uygulamayı seç.",
+  "voice.goLive.registered.noApplications":
+    "Eklenebilecek açık uygulama yok. Oyununu açıp tekrar dene.",
+  "voice.goLive.registered.loadError": "Açık uygulamalar okunamadı. Tekrar dene.",
+  "voice.goLive.registered.title": "Kayıtlı oyunlar",
+  "voice.goLive.registered.label": "Oyun adı",
+  "voice.goLive.registered.add": "Oyununu göremiyor musun? Ekle",
+  "voice.goLive.registered.remove": "Kaldır",
   "voice.goLive.cta.disabledOptIn":
     "Yayına geçmek için Ayarlar › Masaüstü bölümünden oyun algılamayı aç.",
   "voice.goLive.pickerHint":
@@ -1636,6 +1646,20 @@ export const TR_MESSAGES = {
   "settings.account.badges.family.commerce": "Destek",
   "settings.account.badges.family.event": "Etkinlik",
   "settings.account.twoFactor.codePlaceholder": "6 haneli kod",
+  "settings.account.twoFactor.active": "Aktif",
+  "settings.recovery.saveHint":
+    "Bu kodları güvenli bir yere kaydet. Ayarları kapattığında kodların tamamı tekrar gösterilemez.",
+  "settings.recovery.unavailable":
+    "Eski kurtarma kodları güvenlik nedeniyle tekrar görüntülenemez veya indirilemez. Kaydetmediysen yeni bir set oluştur.",
+  "settings.recovery.singleUse":
+    "Her kurtarma kodu yalnızca bir kez kullanılabilir. Kodlarını kimseyle paylaşma.",
+  "settings.recovery.replaceWarning":
+    "Yeni kodlar oluşturulduğunda eski kurtarma kodlarının tamamı geçersiz olur.",
+  "settings.recovery.reauthHelp":
+    "Yenilemek için mevcut şifreni ve authenticator ya da kullanılmamış kurtarma kodunu gir.",
+  "settings.recovery.confirm": "Yeni kodlar oluştur",
+  "settings.recovery.passwordRequired":
+    "Bu işlem bir Whispr şifresi gerektiriyor. Hesabında şifre olmadığı için kod yenileme kullanılamıyor.",
   "settings.account.twoFactor.confirmLabel": "Authenticator kodunu doğrula",
   "settings.account.twoFactor.disableCta": "2FA'yı kapat",
   "settings.account.twoFactor.disableDescription":
@@ -4661,7 +4685,7 @@ export const TR_MESSAGES = {
   "profile.playingGame": "{game} oynuyor",
   "settings.row.w8.title": "Oyun etkinliği",
   "settings.row.w8.description":
-    "Bu cihazdaki oyun algılamasını yönet. Paylaşım tercihi Hesabım · Gizlilik bölümünde.",
+    "Bu cihazdaki oyun algılamasını ve Yayına geç önerilerini yönet. Paylaşım tercihi Hesabım · Gizlilik bölümünde.",
   "settings.row.h1.badge": "Güncel",
   "settings.row.h1.title": "Mevcut sürüm",
   "settings.row.h2.title": "Release kanalı",

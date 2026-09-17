@@ -6,9 +6,7 @@
  * kapatır. Dinamik kapılar (ör. kullanıcı adı bekleme süresi) bölümünde hesaplanır.
  */
 
-export const ACCOUNT_UNAVAILABLE_ROWS = {
-  s2: true,
-} as const satisfies Readonly<Record<string, true>>;
+export const ACCOUNT_UNAVAILABLE_ROWS = {} as const satisfies Readonly<Record<string, true>>;
 
 export const AV_UNAVAILABLE_ROWS = {
   k3: true,

@@ -30,6 +30,20 @@ export const MOBILE_VOICE_ADAPTIVE_STREAM_SETTINGS: AdaptiveStreamSettings = {
  */
 export type MobileVoiceRoomSessionMode = "channel" | "direct";
 
+export function resolveMobileScreenShareLayer({
+  dimensions,
+  isFullscreen,
+}: {
+  dimensions?: { height: number; width: number } | null | undefined;
+  isFullscreen: boolean;
+}): VideoQuality {
+  return (dimensions?.height ?? 0) > 1080
+    ? VideoQuality.MEDIUM
+    : isFullscreen
+      ? VideoQuality.HIGH
+      : VideoQuality.MEDIUM;
+}
+
 /**
  * Adaptive stream is a ceiling, never a floor: `emitTrackUpdate` sends
  * `min(videoDimensionsAdaptiveStream, requested)` on every branch. In a channel

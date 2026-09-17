@@ -155,10 +155,28 @@ export async function getDesktopForegroundProcessName() {
 }
 
 export async function getDesktopDetectedGame() {
-  if (!isWhisprDesktopRuntime()) return { enabled: false, gameId: null };
-  return invokeDesktopCommand<{ enabled: boolean; gameId: string | null }>(
+  if (!isWhisprDesktopRuntime()) return { enabled: false, gameId: null, label: null };
+  return invokeDesktopCommand<{ enabled: boolean; gameId: string | null; label?: string | null }>(
     "get_desktop_detected_game",
   );
+}
+
+export async function getDesktopGoLiveCandidate() {
+  if (!isWhisprDesktopRuntime())
+    return {
+      enabled: false,
+      gameId: null,
+      label: null,
+      foregroundIsGame: false,
+      canOfferGoLive: false,
+    };
+  return invokeDesktopCommand<{
+    enabled: boolean;
+    gameId: string | null;
+    label: string | null;
+    foregroundIsGame: boolean;
+    canOfferGoLive: boolean;
+  }>("get_desktop_go_live_candidate");
 }
 
 function buildDesktopOverlayTestSnapshot(

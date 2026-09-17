@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import type { SettingsRiskyBlockKey } from "@/lib/settings/tree";
 
 import type {
@@ -141,6 +141,10 @@ export type SettingsStoreReport = {
 };
 
 const SettingsStoreReportContext = createContext<SettingsStoreReport | null>(null);
+type SaveReport = { status: SettingSaveStatus; retry?: (() => void) | undefined };
+const SettingsSaveSourcesContext = createContext<
+  ((source: symbol, report: SaveReport | null) => void) | null
+>(null);
 
 export function SettingsStoreReportProvider({
   children,
@@ -149,10 +153,50 @@ export function SettingsStoreReportProvider({
   readonly children: React.ReactNode;
   readonly value: SettingsStoreReport;
 }) {
+  // Native writes and profile uploads can run alongside the section's value store.
+  // A completed write must never hide another pending or failed write.
+  const sources = useRef(new Map<symbol, SaveReport>());
+  const reportSave = useCallback(
+    (source: symbol, report: SaveReport | null) => {
+      sources.current.delete(source);
+      if (report && report.status !== "idle") sources.current.set(source, report);
+      const reports = [...sources.current.values()].reverse();
+      const current =
+        reports.find((entry) => entry.status === "saving") ??
+        reports.find((entry) => entry.status === "error") ??
+        reports[0];
+      value.onRetry(current?.status === "error" ? (current.retry ?? null) : null);
+      value.onStatus(current?.status ?? "idle");
+    },
+    [value],
+  );
   return (
     <SettingsStoreReportContext.Provider value={value}>
-      {children}
+      <SettingsSaveSourcesContext.Provider value={reportSave}>
+        {children}
+      </SettingsSaveSourcesContext.Provider>
     </SettingsStoreReportContext.Provider>
+  );
+}
+
+/** Report real write outcomes; late replies from an unmounted section are ignored. */
+export function useSettingsSaveReporter() {
+  const report = useContext(SettingsSaveSourcesContext);
+  const source = useRef(Symbol("settings-save"));
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    const key = source.current;
+    return () => {
+      active.current = false;
+      report?.(key, null);
+    };
+  }, [report]);
+  return useCallback(
+    (status: SettingSaveStatus, retry?: () => void) => {
+      if (active.current) report?.(source.current, { status, retry });
+    },
+    [report],
   );
 }
 
@@ -168,6 +212,7 @@ export function SettingsStoreReportProvider({
 export function useReportSettingsStore(store: SettingsValueStore | null): void {
   const report = useContext(SettingsStoreReportContext);
   const register = useContext(SettingsDirtyRegistryContext);
+  const reportSave = useSettingsSaveReporter();
 
   useEffect(() => {
     if (!store || !report) return;
@@ -180,7 +225,7 @@ export function useReportSettingsStore(store: SettingsValueStore | null): void {
 
       if (status !== lastStatus) {
         lastStatus = status;
-        report.onStatus(status);
+        reportSave(status, () => store.retry());
       }
 
       const keys = store.getDirtyKeys();
@@ -192,20 +237,18 @@ export function useReportSettingsStore(store: SettingsValueStore | null): void {
       }
     };
 
-    report.onRetry(() => store.retry());
     publish();
 
     const unsubscribe = store.subscribe(publish);
 
     return () => {
       unsubscribe();
-      report.onRetry(null);
       // Bölüm değişirken kabuk devralınan durumu bırakır: yeni bölümün kutusu kendi
       // durumunu yayınlayana kadar başlıkta önceki bölümün `Kaydedildi`si asılı kalmasın.
-      report.onStatus("idle");
+      reportSave("idle");
       report.onDirtyKeys([]);
     };
-  }, [report, store]);
+  }, [report, reportSave, store]);
 
   useEffect(() => {
     if (!store || !register) return;

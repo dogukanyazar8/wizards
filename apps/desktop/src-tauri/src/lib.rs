@@ -174,10 +174,8 @@ const DESKTOP_UPDATE_FAILURE_LOG_MAX_BYTES: u64 = 512 * 1024;
 const DESKTOP_DIAGNOSTIC_TEXT_MAX_CHARS: usize = 512;
 const DESKTOP_SUPPORT_BUNDLE_VERSION: u8 = 2;
 const DESKTOP_SUPPORT_BUNDLE_MAX_BYTES: usize = 256 * 1024;
-const DESKTOP_CONTROL_WIDTH: f64 = 760.0;
-const DESKTOP_CONTROL_HEIGHT: f64 = 780.0;
-const DESKTOP_CONTROL_MIN_WIDTH: f64 = 560.0;
-const DESKTOP_CONTROL_MIN_HEIGHT: f64 = 520.0;
+const DESKTOP_CONTROL_WIDTH: f64 = 480.0;
+const DESKTOP_CONTROL_HEIGHT: f64 = 520.0;
 
 fn desktop_init_script(
     updater_enabled: bool,
@@ -292,12 +290,16 @@ struct DesktopTrayContext {
 }
 
 struct DesktopTrayItems {
-    items: [MenuItem<tauri::Wry>; 7],
+    items: [MenuItem<tauri::Wry>; 3],
     locale: Mutex<String>,
 }
 
 impl DesktopTrayItems {
-    fn sync(&self, context: Option<&DesktopTrayContext>, voice_active: bool) -> Result<(), String> {
+    fn sync(
+        &self,
+        context: Option<&DesktopTrayContext>,
+        _voice_active: bool,
+    ) -> Result<(), String> {
         let locale = {
             let mut locale = self
                 .locale
@@ -313,13 +315,9 @@ impl DesktopTrayItems {
             context.is_some_and(|value| value.muted),
             context.is_some_and(|value| value.deafened),
         );
-        for (index, (item, label)) in self.items.iter().zip(labels).enumerate() {
+        for (item, label) in self.items.iter().zip(labels) {
             item.set_text(label)
                 .map_err(|error| format!("Unable to update tray label: {error}"))?;
-            if (1..=3).contains(&index) {
-                item.set_enabled(voice_active)
-                    .map_err(|error| format!("Unable to update tray voice action: {error}"))?;
-            }
         }
         Ok(())
     }
@@ -342,6 +340,7 @@ struct DesktopWindowSettings {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, rename_all = "camelCase")]
 struct DesktopDeviceSettings {
+    registered_games: Vec<game_activity::RegisteredGame>,
     schema_version: u8,
     game_detection_enabled: bool,
     window: DesktopWindowSettings,
@@ -353,6 +352,7 @@ impl Default for DesktopDeviceSettings {
         Self {
             schema_version: DESKTOP_DEVICE_SETTINGS_SCHEMA_VERSION,
             game_detection_enabled: false,
+            registered_games: Vec::new(),
             window: DesktopWindowSettings::default(),
             voice_shortcuts: DesktopShortcutConfig::default(),
         }
@@ -567,9 +567,11 @@ struct DesktopControlUpdaterState {
     message: String,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 struct DesktopControlAppSettings {
+    #[serde(default)]
+    registered_games: Option<Vec<game_activity::RegisteredGame>>,
     close_action: DesktopWindowCloseAction,
     launch_on_startup: bool,
     #[serde(default)]
@@ -1005,6 +1007,8 @@ pub fn run() {
             get_desktop_control_state,
             get_desktop_foreground_process_name,
             get_desktop_detected_game,
+            get_desktop_go_live_candidate,
+            list_desktop_running_applications,
             get_desktop_main_window_focused,
             get_desktop_admin_console_open,
             get_desktop_companion_surfaces_status,
@@ -1569,6 +1573,7 @@ fn desktop_control_app_settings(
         },
         launch_on_startup: is_desktop_autostart_enabled(app)?,
         game_detection_enabled: load_desktop_device_settings(app)?.game_detection_enabled,
+        registered_games: Some(load_desktop_device_settings(app)?.registered_games),
     })
 }
 
@@ -1582,6 +1587,11 @@ fn desktop_control_set_app_settings(
     assert_desktop_settings_command_window(&window)?;
 
     let previous_autostart = is_desktop_autostart_enabled(&app)?;
+    let registered_games = settings
+        .registered_games
+        .as_deref()
+        .map(game_activity::validate_registered)
+        .transpose()?;
     let previous_device_settings = load_desktop_device_settings(&app)?;
     let applied_autostart = if previous_autostart == settings.launch_on_startup {
         previous_autostart
@@ -1595,6 +1605,9 @@ fn desktop_control_set_app_settings(
     let mut next_device_settings = previous_device_settings;
     next_device_settings.window.close_action = settings.close_action;
     next_device_settings.game_detection_enabled = settings.game_detection_enabled;
+    if let Some(games) = registered_games {
+        next_device_settings.registered_games = games;
+    }
     if let Err(save_error) = save_desktop_device_settings(&app, &next_device_settings) {
         if previous_autostart != applied_autostart
             && set_desktop_autostart_from_native_menu(&app, previous_autostart).is_err()
@@ -1620,6 +1633,7 @@ fn desktop_control_set_app_settings(
         close_action: settings.close_action,
         launch_on_startup: applied_autostart,
         game_detection_enabled: settings.game_detection_enabled,
+        registered_games: Some(next_device_settings.registered_games),
     })
 }
 
@@ -2003,6 +2017,83 @@ fn get_desktop_foreground_process_name(window: WebviewWindow) -> Result<Option<S
 struct DesktopDetectedGame {
     enabled: bool,
     game_id: Option<String>,
+    label: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopGoLiveCandidate {
+    enabled: bool,
+    game_id: Option<String>,
+    label: Option<String>,
+    foreground_is_game: bool,
+    can_offer_go_live: bool,
+}
+
+#[tauri::command]
+async fn get_desktop_go_live_candidate(
+    window: WebviewWindow,
+    app: AppHandle,
+) -> Result<DesktopGoLiveCandidate, String> {
+    assert_desktop_main_command_window(&window)?;
+    let enabled = load_desktop_device_settings(&app)?.game_detection_enabled;
+    let game_id = if enabled {
+        let games = load_desktop_device_settings(&app)?.registered_games;
+        tauri::async_runtime::spawn_blocking(move || game_activity::detect_cached(&games))
+            .await
+            .map_err(|_| "Game detection unavailable.".to_string())??
+    } else {
+        None
+    };
+    let enabled = enabled && load_desktop_device_settings(&app)?.game_detection_enabled;
+    let games = load_desktop_device_settings(&app)?.registered_games;
+    let foreground_name = if enabled {
+        desktop_foreground_process_name()
+    } else {
+        None
+    };
+    let foreground = foreground_name
+        .as_ref()
+        .and_then(|name| game_activity::identify_registered(name, &games));
+    let foreground_is_game = foreground.is_some();
+    let can_offer_go_live = enabled && (foreground_is_game || is_main_window_focused_impl(&app));
+    let game_id = if enabled {
+        foreground.or(game_id)
+    } else {
+        None
+    };
+    let label = games
+        .iter()
+        .find(|game| Some(&game.id) == game_id.as_ref())
+        .map(|game| game.label.clone());
+    Ok(DesktopGoLiveCandidate {
+        enabled,
+        game_id,
+        label,
+        foreground_is_game,
+        can_offer_go_live,
+    })
+}
+
+#[tauri::command]
+async fn list_desktop_running_applications(
+    window: WebviewWindow,
+    app: AppHandle,
+) -> Result<Vec<game_activity::RunningApplication>, String> {
+    assert_desktop_main_command_window(&window)?;
+    if !load_desktop_device_settings(&app)?.game_detection_enabled {
+        return Ok(Vec::new());
+    }
+    let applications = tauri::async_runtime::spawn_blocking(game_activity::running_applications)
+        .await
+        .map_err(|_| "Application list unavailable.".to_string())?;
+    Ok(
+        if load_desktop_device_settings(&app)?.game_detection_enabled {
+            applications
+        } else {
+            Vec::new()
+        },
+    )
 }
 
 #[tauri::command]
@@ -2014,7 +2105,8 @@ async fn get_desktop_detected_game(
     // Process detection is opt-in per device, saved through guarded desktop settings.
     let enabled = load_desktop_device_settings(&app)?.game_detection_enabled;
     let game_id = if enabled {
-        tauri::async_runtime::spawn_blocking(game_activity::detect_cached)
+        let games = load_desktop_device_settings(&app)?.registered_games;
+        tauri::async_runtime::spawn_blocking(move || game_activity::detect_cached(&games))
             .await
             .map_err(|_| "Game detection unavailable.".to_string())??
     } else {
@@ -2024,6 +2116,15 @@ async fn get_desktop_detected_game(
     let enabled = enabled && load_desktop_device_settings(&app)?.game_detection_enabled;
     Ok(DesktopDetectedGame {
         enabled,
+        label: if enabled {
+            load_desktop_device_settings(&app)?
+                .registered_games
+                .iter()
+                .find(|game| Some(&game.id) == game_id.as_ref())
+                .map(|game| game.label.clone())
+        } else {
+            None
+        },
         game_id: if enabled { game_id } else { None },
     })
 }
@@ -4001,40 +4102,22 @@ fn setup_tray(
 ) -> tauri::Result<()> {
     let labels = tray_menu::labels("en", false, false);
     let show_item = MenuItem::with_id(app, "show", labels[0], true, None::<&str>)?;
-    let mute_item = MenuItem::with_id(app, "toggle_mute", labels[1], false, None::<&str>)?;
-    let deafen_item = MenuItem::with_id(app, "toggle_deafen", labels[2], false, None::<&str>)?;
-    let leave_item = MenuItem::with_id(app, "leave_voice", labels[3], false, None::<&str>)?;
-    let settings_item = MenuItem::with_id(app, "settings", labels[4], true, None::<&str>)?;
-    let updates_item = MenuItem::with_id(app, "updates", labels[5], true, None::<&str>)?;
-    let quit_item = MenuItem::with_id(app, "quit", labels[6], true, None::<&str>)?;
-    let voice_separator = PredefinedMenuItem::separator(app)?;
+    let settings_item = MenuItem::with_id(app, "settings", labels[1], true, None::<&str>)?;
+    let quit_item = MenuItem::with_id(app, "quit", labels[2], true, None::<&str>)?;
+    let open_separator = PredefinedMenuItem::separator(app)?;
     let settings_separator = PredefinedMenuItem::separator(app)?;
-    let quit_separator = PredefinedMenuItem::separator(app)?;
     let menu = Menu::with_items(
         app,
         &[
             &show_item,
-            &voice_separator,
-            &mute_item,
-            &deafen_item,
-            &leave_item,
-            &settings_separator,
+            &open_separator,
             &settings_item,
-            &updates_item,
-            &quit_separator,
+            &settings_separator,
             &quit_item,
         ],
     )?;
     app.manage(DesktopTrayItems {
-        items: [
-            show_item,
-            mute_item,
-            deafen_item,
-            leave_item,
-            settings_item,
-            updates_item,
-            quit_item,
-        ],
+        items: [show_item, settings_item, quit_item],
         locale: Mutex::new("en".to_string()),
     });
     let promotion_state_for_menu = promotion_state.clone();
@@ -4045,12 +4128,6 @@ fn setup_tray(
         .on_menu_event(move |app, event| match event.id().as_ref() {
             "show" => show_main_window(app),
             "settings" => schedule_desktop_control_window(app, "app"),
-            "toggle_mute" => dispatch_desktop_command_without_focus(app, "toggle-mute", None),
-            "toggle_deafen" => dispatch_desktop_command_without_focus(app, "toggle-deafen", None),
-            "leave_voice" => dispatch_desktop_command_without_focus(app, "leave-voice", None),
-            "updates" => {
-                dispatch_desktop_command(app, "navigate", Some("/settings/updates/updates"))
-            }
             "quit" => request_app_quit(app, &close_coordinator, &promotion_state_for_menu),
             _ => {}
         })
@@ -4746,8 +4823,11 @@ fn show_or_create_desktop_control_window(app: &tauri::AppHandle) -> Result<(), S
     )
     .title("Whispr Cihaz İzni")
     .inner_size(DESKTOP_CONTROL_WIDTH, DESKTOP_CONTROL_HEIGHT)
-    .min_inner_size(DESKTOP_CONTROL_MIN_WIDTH, DESKTOP_CONTROL_MIN_HEIGHT)
-    .resizable(true)
+    .decorations(false)
+    .transparent(true)
+    .background_color(tauri::utils::config::Color(0, 0, 0, 0))
+    .shadow(false)
+    .resizable(false)
     .center()
     .on_navigation(is_desktop_control_url)
     .on_new_window(|_, _| NewWindowResponse::Deny)
@@ -6260,6 +6340,7 @@ mod tests {
             HashSet::from([
                 "schemaVersion".to_string(),
                 "gameDetectionEnabled".to_string(),
+                "registeredGames".to_string(),
                 "voiceShortcuts".to_string(),
                 "window".to_string(),
             ])

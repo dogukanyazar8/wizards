@@ -8,36 +8,21 @@ const tray = source.slice(
   source.indexOf("fn position_desktop_companion_window"),
 );
 
-test("tray exposes only everyday actions and starts voice actions disabled", () => {
+test("tray exposes only open, settings, and close actions", () => {
   const entries = [...tray.matchAll(/MenuItem::with_id\(app, "([^"]+)"/g)].map((match) => match[1]);
-  assert.deepEqual(entries, [
-    "show",
-    "toggle_mute",
-    "toggle_deafen",
-    "leave_voice",
-    "settings",
-    "updates",
-    "quit",
-  ]);
-  for (const id of ["toggle_mute", "toggle_deafen", "leave_voice"]) {
-    assert.match(tray, new RegExp(`MenuItem::with_id\\(app, "${id}", labels\\[\\d\\], false,`));
-  }
+  assert.deepEqual(entries, ["show", "settings", "quit"]);
+  assert.equal([...tray.matchAll(/PredefinedMenuItem::separator\(app\)/g)].length, 2);
+  assert.match(
+    tray,
+    /Menu::with_items\(\s*app,\s*&\[\s*&show_item,\s*&open_separator,\s*&settings_item,\s*&settings_separator,\s*&quit_item,?\s*\]/,
+  );
 });
 
-test("voice actions stay in the background; navigation and quit use existing safe paths", () => {
-  for (const [id, command] of [
-    ["toggle_mute", "toggle-mute"],
-    ["toggle_deafen", "toggle-deafen"],
-    ["leave_voice", "leave-voice"],
-  ]) {
-    assert.match(
-      tray,
-      new RegExp(`"${id}" => dispatch_desktop_command_without_focus\\(app, "${command}", None\\)`),
-    );
-  }
+test("open, settings, and close keep their existing safe paths", () => {
+  assert.match(tray, /"show" => show_main_window\(app\)/);
   assert.match(tray, /"settings" => schedule_desktop_control_window\(app, "app"\)/);
-  assert.match(tray, /\/settings\/updates\/updates/);
   assert.match(tray, /"quit" => request_app_quit\(/);
+  assert.doesNotMatch(tray, /"(?:toggle_mute|toggle_deafen|leave_voice|updates)" =>/);
 });
 
 test("only the main window can publish typed tray state and unsupported locales are rejected", () => {
@@ -52,7 +37,7 @@ test("only the main window can publish typed tray state and unsupported locales 
   assert.ok(command.indexOf("assert_desktop_main_command_window") < command.indexOf(".sync("));
 });
 
-test("tray tracks the actual voice connection, mute, deafen and application language", () => {
+test("tray tracks application language without changing desktop activity publishing", () => {
   const experience = readFileSync(
     new URL("../../web/src/components/desktop/desktop-experience.tsx", import.meta.url),
     "utf8",
