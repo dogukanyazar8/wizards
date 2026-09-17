@@ -2146,6 +2146,32 @@ describe("mobile invite preview exposure boundary", () => {
   });
 });
 
+it("accepts voice participant updates without treating them as membership changes", () => {
+  const payload = {
+    channelId: "channel-1",
+    participants: [
+      {
+        userId: "user-1",
+        username: "alice",
+        displayName: null,
+        avatarUrl: null,
+      },
+    ],
+    serverId: "server-1",
+    userId: "user-1",
+  };
+
+  for (const action of ["join", "leave", "update"]) {
+    const parsed = MobileVoiceStateUpdateEventSchema.parse({ ...payload, action });
+    assert.equal(parsed.action, action);
+    assert.equal(parsed.participants[0]?.userId, payload.userId);
+  }
+  assert.equal(
+    MobileVoiceStateUpdateEventSchema.safeParse({ ...payload, action: "connect" }).success,
+    false,
+  );
+});
+
 it("normalizes the legacy UAT channel input to Beta and rejects removed channels", () => {
   assert.equal(MobileReleaseChannelSchema.parse("uat"), "beta");
   assert.equal(MobileReleaseChannelSchema.parse("stable"), "stable");

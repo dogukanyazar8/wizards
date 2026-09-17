@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import { UNKNOWN_ATTRIBUTION } from "@/lib/analytics/client-attribution";
+import { getSocketServer, setSocketServer } from "@/lib/socket/runtime";
 import {
   assertVoiceChannelCapacity,
   resolveVoiceParticipantLimit,
@@ -213,9 +214,10 @@ describe("voice service concurrency helpers", () => {
     );
     patchMethod(
       prisma.voiceState,
-      "update",
+      "updateMany",
       async () => {
         updateCount += 1;
+        return { count: 1 };
       },
       restores,
     );
@@ -259,6 +261,330 @@ describe("voice service concurrency helpers", () => {
     } finally {
       for (const restore of restores.reverse()) restore();
       resetVoiceCleanupLocalDebounceForTests();
+    }
+  });
+
+  for (const initialSelfDeaf of [false, true]) {
+    it(`keeps repeated heartbeats silent and emits only deafen changes (initial ${initialSelfDeaf})`, async () => {
+      const restores: Restore[] = [];
+      const previousIo = getSocketServer();
+      const events: Array<Parameters<typeof voiceService.emitVoiceStateUpdate>[0]> = [];
+      let selfDeaf = initialSelfDeaf;
+      let heartbeatWrites = 0;
+      let membershipChecks = 0;
+      patchMethod(
+        prisma.voiceState,
+        "findUnique",
+        async () => ({
+          channelId: "channel-1",
+          serverId: "server-1",
+          sessionId: "session-1",
+          selfDeaf,
+        }),
+        restores,
+      );
+      patchMethod(
+        prisma.voiceState,
+        "updateMany",
+        async ({
+          where,
+          data,
+        }: {
+          where: { userId: string; sessionId: string; selfDeaf?: { not: boolean } };
+          data: { lastHeartbeat: Date; selfDeaf?: boolean };
+        }) => {
+          assert.equal(where.userId, "user-1");
+          assert.equal(where.sessionId, "session-1");
+          if (where.selfDeaf?.not === selfDeaf) return { count: 0 };
+          assert.ok(data.lastHeartbeat instanceof Date);
+          heartbeatWrites += 1;
+          selfDeaf = data.selfDeaf ?? selfDeaf;
+          return { count: 1 };
+        },
+        restores,
+      );
+      patchMethod(
+        prisma.voiceState,
+        "findMany",
+        async () => {
+          assert.fail("unchanged heartbeat must not rebuild and broadcast the participant roster");
+        },
+        restores,
+      );
+      setSocketServer({} as NonNullable<ReturnType<typeof getSocketServer>>);
+      resetVoiceCleanupLocalDebounceForTests();
+      shouldAttemptVoiceCleanup(Date.now());
+      const dependencies = {
+        async detachUser() {
+          assert.fail("authorized session must remain connected");
+        },
+        async requireMembership() {
+          membershipChecks += 1;
+        },
+        async emitStateUpdate(event: Parameters<typeof voiceService.emitVoiceStateUpdate>[0]) {
+          events.push(event);
+        },
+      };
+
+      try {
+        for (let tick = 0; tick < 12; tick += 1) {
+          await voiceService.heartbeatVoiceState(
+            "user-1",
+            {
+              sessionId: "session-1",
+              selfDeaf: initialSelfDeaf,
+            },
+            UNKNOWN_ATTRIBUTION,
+            dependencies,
+          );
+        }
+        assert.deepEqual(events, []);
+        assert.equal(heartbeatWrites, 12);
+        assert.equal(membershipChecks, 12);
+
+        await voiceService.heartbeatVoiceState(
+          "user-1",
+          {
+            sessionId: "session-1",
+            selfDeaf: !initialSelfDeaf,
+          },
+          UNKNOWN_ATTRIBUTION,
+          dependencies,
+        );
+        assert.deepEqual(events, [
+          {
+            action: "update",
+            channelId: "channel-1",
+            serverId: "server-1",
+            userId: "user-1",
+          },
+        ]);
+        assert.equal(selfDeaf, !initialSelfDeaf);
+
+        await voiceService.heartbeatVoiceState(
+          "user-1",
+          {
+            sessionId: "session-1",
+            selfDeaf: !initialSelfDeaf,
+          },
+          UNKNOWN_ATTRIBUTION,
+          dependencies,
+        );
+        await voiceService.heartbeatVoiceState(
+          "user-1",
+          "session-1",
+          UNKNOWN_ATTRIBUTION,
+          dependencies,
+        );
+        assert.equal(events.length, 1);
+        assert.equal(heartbeatWrites, 15);
+        assert.equal(membershipChecks, 15);
+
+        await assert.rejects(
+          voiceService.heartbeatVoiceState(
+            "user-1",
+            {
+              sessionId: "stale-session",
+              selfDeaf: initialSelfDeaf,
+            },
+            UNKNOWN_ATTRIBUTION,
+            dependencies,
+          ),
+          (error: unknown) => error instanceof ApiError && error.code === "NOT_FOUND",
+        );
+        assert.equal(heartbeatWrites, 15);
+        assert.equal(events.length, 1);
+      } finally {
+        setSocketServer(previousIo);
+        for (const restore of restores.reverse()) restore();
+        resetVoiceCleanupLocalDebounceForTests();
+      }
+    });
+  }
+
+  it("broadcasts both changes when opposing heartbeats read the same initial state", async () => {
+    const restores: Restore[] = [];
+    let selfDeaf = false;
+    const broadcasts: boolean[] = [];
+    const gates = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
+    const reads = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
+    let request = 0;
+    patchMethod(
+      prisma.voiceState,
+      "findUnique",
+      async () => ({
+        channelId: "channel-1",
+        serverId: "server-1",
+        sessionId: "session-1",
+        selfDeaf,
+      }),
+      restores,
+    );
+    patchMethod(
+      prisma.voiceState,
+      "update",
+      async ({ data }: { data: { selfDeaf?: boolean } }) => {
+        selfDeaf = data.selfDeaf ?? selfDeaf;
+      },
+      restores,
+    );
+    patchMethod(
+      prisma.voiceState,
+      "updateMany",
+      async ({
+        where,
+        data,
+      }: {
+        where: { userId: string; sessionId: string; selfDeaf?: { not: boolean } };
+        data: { selfDeaf?: boolean };
+      }) => {
+        assert.equal(where.userId, "user-1");
+        assert.equal(where.sessionId, "session-1");
+        if (where.selfDeaf?.not === selfDeaf) return { count: 0 };
+        selfDeaf = data.selfDeaf ?? selfDeaf;
+        return { count: 1 };
+      },
+      restores,
+    );
+    resetVoiceCleanupLocalDebounceForTests();
+    shouldAttemptVoiceCleanup(Date.now());
+    const dependencies = {
+      async detachUser() {
+        assert.fail("valid session");
+      },
+      async requireMembership() {
+        const index = request++;
+        reads[index]!.resolve();
+        await gates[index]!.promise;
+      },
+      async emitStateUpdate() {
+        broadcasts.push(selfDeaf);
+      },
+    };
+    try {
+      const first = voiceService.heartbeatVoiceState(
+        "user-1",
+        { sessionId: "session-1", selfDeaf: true },
+        UNKNOWN_ATTRIBUTION,
+        dependencies,
+      );
+      await reads[0]!.promise;
+      const second = voiceService.heartbeatVoiceState(
+        "user-1",
+        { sessionId: "session-1", selfDeaf: false },
+        UNKNOWN_ATTRIBUTION,
+        dependencies,
+      );
+      await reads[1]!.promise;
+      gates[0]!.resolve();
+      await first;
+      gates[1]!.resolve();
+      await second;
+      assert.equal(selfDeaf, false);
+      assert.deepEqual(broadcasts, [true, false]);
+    } finally {
+      gates.forEach((gate) => gate.resolve());
+      for (const restore of restores.reverse()) restore();
+      resetVoiceCleanupLocalDebounceForTests();
+    }
+  });
+
+  it("does not refresh or mutate a session replaced during heartbeat authorization", async () => {
+    const restores: Restore[] = [];
+    let activeSessionId = "session-1";
+    let writes = 0;
+    patchMethod(
+      prisma.voiceState,
+      "findUnique",
+      async () => ({
+        channelId: "channel-1",
+        serverId: "server-1",
+        sessionId: activeSessionId,
+      }),
+      restores,
+    );
+    patchMethod(
+      prisma.voiceState,
+      "updateMany",
+      async ({ where }: { where: { sessionId?: string } }) => {
+        if (where.sessionId && where.sessionId !== activeSessionId) return { count: 0 };
+        writes += 1;
+        return { count: 1 };
+      },
+      restores,
+    );
+    resetVoiceCleanupLocalDebounceForTests();
+    shouldAttemptVoiceCleanup(Date.now());
+    try {
+      await assert.rejects(
+        voiceService.heartbeatVoiceState(
+          "user-1",
+          {
+            sessionId: "session-1",
+            selfDeaf: true,
+          },
+          UNKNOWN_ATTRIBUTION,
+          {
+            async detachUser() {
+              assert.fail("must not detach the replacement session");
+            },
+            async requireMembership() {
+              activeSessionId = "replacement-session";
+            },
+            async emitStateUpdate() {
+              assert.fail("stale heartbeat must not emit");
+            },
+          },
+        ),
+        (error: unknown) => error instanceof ApiError && error.code === "NOT_FOUND",
+      );
+      assert.equal(writes, 0);
+    } finally {
+      for (const restore of restores.reverse()) restore();
+      resetVoiceCleanupLocalDebounceForTests();
+    }
+  });
+
+  it("broadcasts metadata to the channel without reading or broadcasting friend presence", async () => {
+    const restores: Restore[] = [];
+    const previousIo = getSocketServer();
+    const rooms: string[] = [];
+    const events: Array<{ event: string; payload: unknown }> = [];
+    let friendReads = 0;
+    patchMethod(
+      prisma.user,
+      "findUnique",
+      () => {
+        friendReads += 1;
+        throw new Error("metadata must not query the friend presence audience");
+      },
+      restores,
+    );
+    const io = {
+      to(room: string) {
+        rooms.push(room);
+        return io;
+      },
+      emit(event: string, payload: unknown) {
+        events.push({ event, payload });
+      },
+    };
+    setSocketServer(io as unknown as NonNullable<ReturnType<typeof getSocketServer>>);
+    const input = {
+      action: "update" as const,
+      channelId: "channel-1",
+      serverId: "server-1",
+      userId: "user-1",
+      participants: [],
+    };
+    try {
+      await voiceService.emitVoiceStateUpdate(input);
+      assert.equal(friendReads, 0);
+      assert.deepEqual(events, [{ event: "voice:state:update", payload: input }]);
+      assert.deepEqual(rooms, ["voice-viewers:channel-1", "voice:channel-1"]);
+    } finally {
+      setSocketServer(previousIo);
+      for (const restore of restores.reverse()) restore();
     }
   });
 

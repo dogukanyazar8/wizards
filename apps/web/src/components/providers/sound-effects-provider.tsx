@@ -150,7 +150,7 @@ export function SoundEffectsProvider({ children, currentUserId }: SoundEffectsPr
 
   useEffect(() => {
     const handleVoiceStateUpdate = (data: {
-      action: "join" | "leave";
+      action: "join" | "leave" | "update";
       channelId: string;
       participants: Array<{ userId: string }>;
       userId: string;
@@ -170,7 +170,12 @@ export function SoundEffectsProvider({ children, currentUserId }: SoundEffectsPr
         return;
       }
 
-      if (currentUserStillInChannel && data.userId !== currentUserId && voiceLeaveEnabled) {
+      if (
+        data.action === "leave" &&
+        currentUserStillInChannel &&
+        data.userId !== currentUserId &&
+        voiceLeaveEnabled
+      ) {
         playSound("voiceLeave", voiceLeaveVolume, voiceLeaveSoundFile);
       }
     };

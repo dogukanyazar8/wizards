@@ -497,7 +497,7 @@ export interface ServerToClientEvents {
     channelId: string;
     serverId: string;
     userId: string;
-    action: "join" | "leave";
+    action: "join" | "leave" | "update";
     participants: Array<{
       userId: string;
       username: string;

@@ -11,7 +11,7 @@ import { useSocket } from "./use-socket";
 function applyVoiceStateUpdate(
   current: VoiceChannelStateDTO[] | undefined,
   data: {
-    action: "join" | "leave";
+    action: "join" | "leave" | "update";
     channelId: string;
     participants: Array<{
       userId: string;
@@ -170,7 +170,7 @@ export function useVoiceStates(serverId: string | null) {
     }
 
     const handleVoiceStateUpdate = (data: {
-      action: "join" | "leave";
+      action: "join" | "leave" | "update";
       channelId: string;
       userId: string;
       participants: Array<{

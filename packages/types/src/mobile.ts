@@ -511,7 +511,7 @@ export const MobileVoiceStatesResponseSchema = z.object({
 });
 
 export const MobileVoiceStateUpdateEventSchema = z.object({
-  action: z.enum(["join", "leave"]),
+  action: z.enum(["join", "leave", "update"]),
   channelId: z.string().min(1).max(128),
   participants: z.array(MobileVoiceStateParticipantSchema).max(50),
   serverId: z.string().min(1).max(128),

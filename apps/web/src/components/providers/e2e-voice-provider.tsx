@@ -645,7 +645,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
     const socket = getSocket();
 
     const handleVoiceStateUpdate = (data: {
-      action: "join" | "leave";
+      action: "join" | "leave" | "update";
       channelId: string;
       participants: VoiceChannelStateDTO["participants"];
     }) => {

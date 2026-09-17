@@ -622,7 +622,7 @@ function mapSocketParticipants(participants: VoiceStateParticipantDTO[]) {
 }
 
 export function createVoiceStateUpdatePayload(args: {
-  action: "join" | "leave";
+  action: "join" | "leave" | "update";
   channelId: string;
   participants: VoiceStateParticipantDTO[];
   serverId: string;
@@ -638,7 +638,7 @@ export function createVoiceStateUpdatePayload(args: {
 }
 
 export async function emitVoiceStateUpdate(args: {
-  action: "join" | "leave";
+  action: "join" | "leave" | "update";
   channelId: string;
   participants?: VoiceStateParticipantDTO[];
   serverId: string;
@@ -656,6 +656,11 @@ export async function emitVoiceStateUpdate(args: {
   io.to(getVoiceStateViewerRoomName(args.channelId))
     .to(getVoiceParticipantRoomName(args.channelId))
     .emit("voice:state:update", payload);
+
+  // Metadata updates do not change which voice room friends should display.
+  if (args.action === "update") {
+    return;
+  }
 
   // §2 "1a".5: the same fact, addressed to friends instead of channel watchers,
   // so the conversations strip can swap the presence dot for the wave tile.
@@ -1145,6 +1150,7 @@ export async function detachUserFromVoiceSurface(
 
 type VoiceHeartbeatDependencies = {
   detachUser(userId: string, options: { expectedSessionId: string }): Promise<unknown>;
+  emitStateUpdate: typeof emitVoiceStateUpdate;
   requireMembership(
     userId: string,
     input: { channelId: string; serverId: string },
@@ -1153,6 +1159,7 @@ type VoiceHeartbeatDependencies = {
 
 const voiceHeartbeatDefaults: VoiceHeartbeatDependencies = {
   detachUser: (userId, options) => detachUserFromVoiceSurface(userId, options),
+  emitStateUpdate: emitVoiceStateUpdate,
   requireMembership: requireVoiceMembership,
 };
 
@@ -1190,19 +1197,32 @@ export async function heartbeatVoiceState(
     throw error;
   }
 
-  await prisma.voiceState.update({
-    where: { userId },
-    data: {
-      lastHeartbeat: new Date(),
-      ...(typeof input !== "string" && input.selfDeaf !== undefined
-        ? { selfDeaf: input.selfDeaf }
-        : {}),
-    },
-  });
+  const where = { userId, sessionId };
+  const lastHeartbeat = new Date();
+  const selfDeaf = typeof input === "string" ? undefined : input.selfDeaf;
+  // Detect the transition in the write itself: overlapping heartbeats must not
+  // silently overwrite a change based on the earlier membership lookup.
+  const changed =
+    selfDeaf === undefined
+      ? null
+      : await prisma.voiceState.updateMany({
+          where: { ...where, selfDeaf: { not: selfDeaf } },
+          data: { lastHeartbeat, selfDeaf },
+        });
 
-  if (typeof input !== "string" && input.selfDeaf !== undefined) {
-    await emitVoiceStateUpdate({
-      action: "join",
+  if (!changed?.count) {
+    const refreshed = await prisma.voiceState.updateMany({
+      where,
+      data: { lastHeartbeat },
+    });
+    if (!refreshed.count) {
+      throw new ApiError("Voice session not found", 404, "NOT_FOUND");
+    }
+  }
+
+  if (changed?.count) {
+    await dependencies.emitStateUpdate({
+      action: "update",
       channelId: existingState.channelId,
       serverId: existingState.serverId,
       userId,
