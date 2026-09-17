@@ -49,7 +49,7 @@ The generated target and bundle directories are ignored by git.
 
 ## Signing And Updates
 
-Windows release builds are code-signed in CI when the release certificate secrets are present. Do not add signing secrets, certificates, private updater keys, generated installers, or temporary manifest drafts to the repository.
+Windows Authenticode signing is optional in both release rings. Set `windows_signing=true` to use the configured certificate; it defaults to `false`, even if certificate secrets are present. Updater-enabled builds still require Ed25519 signatures and HTTPS manifests. An installer without Authenticode can show an unknown-publisher or SmartScreen warning. Do not add signing secrets, certificates, private updater keys, generated installers, or temporary manifest drafts to the repository.
 
 Auto-update support is installed as a flag-gated signed release path:
 
@@ -169,7 +169,7 @@ Each publishing ring should point to a distinct HTTPS manifest endpoint so rollb
 Promotion rules:
 
 - `uat`: rollout is manual QA users only. It requires release contract, Windows build, local manifest validation, R2 upload, and remote manifest validation to pass before manual testing starts. It exits only after the manual QA checklist, updater smoke from the previous installed version, and blocker review are clean.
-- `stable`: rollout is a broad production release. It requires UAT evidence, a ready rollback manifest, an assigned support owner and clean release health, `main` branch dispatch, explicit stable confirmation, and real OV/EV Windows signing. It remains reversible until the rollback window is complete.
+- `stable`: rollout is a broad production release. It requires UAT evidence, a ready rollback manifest, an assigned support owner and clean release health, `main` branch dispatch, and explicit stable confirmation. When Windows Authenticode signing is requested, it requires a real OV/EV certificate. It remains reversible until the rollback window is complete.
 
 ## macOS And Linux Readiness
 
@@ -205,7 +205,7 @@ The GitHub Actions workflow has the following desktop layers:
 
 ## GitHub Actions Desktop Release Contract
 
-`.github/workflows/desktop-release.yml` is the Windows release entry point. Dispatch UAT from `uat`; stable from `main`. Neither ring currently waits for CI; review CI evidence separately before production publication. Configure protected `desktop-uat` and `desktop-stable` environments with matching branch restrictions. Stable still requires its existing confirmation and OV/EV certificate guards. See [hosted CI/CD setup](../../docs/operations/github-hosted-ci-cd.md) for activation and secrets.
+`.github/workflows/desktop-release.yml` is the Windows release entry point. Dispatch UAT from `uat`; stable from `main`. Neither ring currently waits for CI; review CI evidence separately before production publication. Configure protected `desktop-uat` and `desktop-stable` environments with matching branch restrictions. Stable requires explicit confirmation; the OV/EV certificate guard applies only when `windows_signing=true`. See [hosted CI/CD setup](../../docs/operations/github-hosted-ci-cd.md) for activation and secrets.
 
 ```text
 .github/workflows/desktop-release.yml
@@ -218,6 +218,8 @@ Manual dispatch inputs:
 - `ring`: `uat` (Beta) or `stable` (PROD).
 - `version`: desktop native version without a leading `v`.
 - `web_url`: HTTPS Whispr web origin embedded into the desktop build.
+- `enable_updater`: defaults to `true`; requires Ed25519 updater signing, independently of Windows Authenticode.
+- `windows_signing`: defaults to `false`; enable only when Windows Authenticode signing is wanted and its certificate is configured.
 - `publish_github_release`: create a GitHub Release after the R2 updater feed is published and validated.
 - `publish_r2`: publish updater-compatible artifacts for the selected release ring. This enables updater signing checks and requires a matching `.sig` artifact.
 - `updater_base_url`: optional HTTPS updater artifact directory. When omitted and `publish_r2=true`, the workflow defaults to `https://updates.whispr.team/desktop/<ring>/`.
@@ -234,15 +236,14 @@ Stable dispatches are rejected unless all of these are true:
 - `confirm_stable_release=true`.
 - `web_url=https://whispr.team/`.
 - `version` is a clean semver value without prerelease or build metadata.
-- `WINDOWS_CERTIFICATE_PFX_BASE64` and `WINDOWS_CERTIFICATE_PASSWORD` are present.
-- `WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND` is set to `OV` or `EV`.
+
+Only when `windows_signing=true`, `WINDOWS_CERTIFICATE_PFX_BASE64` and `WINDOWS_CERTIFICATE_PASSWORD` must be present. Stable also requires `WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND=OV|EV`; UAT may use a self-signed PFX. Certificate secrets are not required with the default `windows_signing=false`.
 
 When `publish_r2=true`, the workflow rejects the build before Tauri runs unless all updater prerequisites are present:
 
 - `WHISPR_DESKTOP_UPDATER_ENDPOINTS` points to one or more HTTPS `latest.json` manifests.
 - `WHISPR_DESKTOP_UPDATER_PUBLIC_KEY` is configured as a repository/environment variable.
 - `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` are configured as secrets.
-- Windows signing is enabled with `WINDOWS_CERTIFICATE_PFX_BASE64` and `WINDOWS_CERTIFICATE_PASSWORD`. A self-signed PFX is acceptable for UAT smoke tests; stable must use the real OV/EV certificate configuration above.
 
 `publish_github_release=true` requires `publish_r2=true`. This prevents a GitHub Release from being created without a reachable updater manifest and rollback evidence.
 

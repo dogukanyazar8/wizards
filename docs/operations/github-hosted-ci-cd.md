@@ -25,13 +25,13 @@ Use protected `desktop-uat` and `desktop-stable` environments. Permit `uat` only
 Secrets (environment or existing repository secrets):
 
 - `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: updater signing.
-- `WINDOWS_CERTIFICATE_PFX_BASE64`, `WINDOWS_CERTIFICATE_PASSWORD`: Windows Authenticode signing.
+- `WINDOWS_CERTIFICATE_PFX_BASE64`, `WINDOWS_CERTIFICATE_PASSWORD`: required only with `windows_signing=true` for optional Windows Authenticode signing.
 - `CLOUDFLARE_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`: optional R2 publishing.
 - `WHISPR_DESKTOP_SENTRY_DSN`: optional telemetry; the existing variable is accepted as fallback.
 
-Variables: `WHISPR_DESKTOP_UPDATER_PUBLIC_KEY`; `WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND` (`OV` or `EV` required for stable). UAT may use the existing self-signed certificate policy. `GITHUB_TOKEN` is supplied automatically; only the publish job grants `contents: write`.
+Variables: `WHISPR_DESKTOP_UPDATER_PUBLIC_KEY`; `WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND` (`OV` or `EV` required only when stable Authenticode signing is requested). UAT may use a self-signed certificate when Windows signing is requested. `GITHUB_TOKEN` is supplied automatically; only the publish job grants `contents: write`.
 
-`enable_updater=true` requires both updater and Windows signing. `publish_r2=true` requires updater support; `publish_github_release=true` also requires R2 publication. With both publication switches off, signed build evidence remains downloadable from the Actions run without updating the public feed.
+`windows_signing=false` is the default for both rings and allows Windows installers without an Authenticode certificate; users may see an unknown-publisher or SmartScreen warning. `enable_updater=true` still requires Ed25519 updater signatures and HTTPS manifests. `publish_r2=true` requires updater support; `publish_github_release=true` also requires R2 publication. With both publication switches off, build evidence remains downloadable from the Actions run without updating the public feed.
 
 Installer and signature uploads are conditional writes: an existing release path cannot be overwritten. Immutable release manifests are retained beside them before `latest.json` is advanced. Do not rerun a partially published build to replace signed artifacts. Use a fresh dispatch/tag for UAT; stable requires a new native version. If only GitHub Release creation failed after R2 succeeded, reconcile the release using the already-published artifacts after review. Retain the previous signed manifest for rollback. See [desktop release guide](../../apps/desktop/RELEASE.md) for updater and manual Windows acceptance checks.
 

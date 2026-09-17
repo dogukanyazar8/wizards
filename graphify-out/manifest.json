@@ -75,8 +75,8 @@
     "semantic_hash": ""
   },
   "apps/desktop/scripts/release-ops.mjs": {
-    "mtime": 1789648774.0113494,
-    "ast_hash": "4627be4567f5b31c03ab75331395d0ef",
+    "mtime": 1789652429.487789,
+    "ast_hash": "e99466b9cfca08290972ce576fa88673",
     "semantic_hash": ""
   },
   "apps/desktop/scripts/release-ops.test.mjs": {
@@ -95,13 +95,13 @@
     "semantic_hash": ""
   },
   "apps/desktop/scripts/run-tauri.mjs": {
-    "mtime": 1789648774.0138588,
-    "ast_hash": "dd3e7a86711890da86403441ac2635e6",
+    "mtime": 1789652429.4867816,
+    "ast_hash": "55be87b4107c6e3c962fcfb7f0658ed7",
     "semantic_hash": ""
   },
   "apps/desktop/scripts/run-tauri.test.mjs": {
-    "mtime": 1789648774.0148568,
-    "ast_hash": "63700c9cac892c9e7fcf5bd7ebf5a0f0",
+    "mtime": 1789652483.3578613,
+    "ast_hash": "fd3f88576c5c43243e69c9520b82ba0d",
     "semantic_hash": ""
   },
   "apps/desktop/scripts/sign-windows-artifact.ps1": {
@@ -2375,8 +2375,8 @@
     "semantic_hash": ""
   },
   "apps/web/next-env.d.ts": {
-    "mtime": 1789650085.5026658,
-    "ast_hash": "aa94238a90e7d04b7a47ecc3145ba6a0",
+    "mtime": 1789651265.102141,
+    "ast_hash": "8195d2c60ce847a459ae9d308d6a5724",
     "semantic_hash": ""
   },
   "apps/web/next.config.ts": {
@@ -6245,8 +6245,8 @@
     "semantic_hash": ""
   },
   "apps/desktop/QA.md": {
-    "mtime": 1789648774.003346,
-    "ast_hash": "aaab0053fffb4ef18105bf1d1ecb55a4",
+    "mtime": 1789652619.8621209,
+    "ast_hash": "bfbd62a491be2e9c76d525005a75af43",
     "semantic_hash": ""
   },
   "apps/desktop/README.md": {
@@ -6255,8 +6255,8 @@
     "semantic_hash": ""
   },
   "apps/desktop/RELEASE.md": {
-    "mtime": 1789649718.7728875,
-    "ast_hash": "b534bd5a16274675475948ea81c4d7fa",
+    "mtime": 1789652482.1519072,
+    "ast_hash": "e33aa75ccdc75b98613e64ec5f0e29b7",
     "semantic_hash": ""
   },
   "apps/desktop/src-tauri/capabilities/README.md": {
@@ -9785,8 +9785,8 @@
     "semantic_hash": ""
   },
   "scripts/quality/desktop-ops-workflow-contract.test.mjs": {
-    "mtime": 1789649666.3622189,
-    "ast_hash": "654428e52d7f6151efe9168784bed0c3",
+    "mtime": 1789652483.37989,
+    "ast_hash": "bd57f264a10c95ac785afb54733173bd",
     "semantic_hash": ""
   },
   "scripts/quality/actionlint-contract.test.mjs": {
@@ -25260,8 +25260,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/desktop-release.yml": {
-    "mtime": 1789649780.2765613,
-    "ast_hash": "2ff9c69ef5db148244362256114edb7c",
+    "mtime": 1789652483.280299,
+    "ast_hash": "7e9662e2f95efab402e4ca5a9d90ffa7",
     "semantic_hash": ""
   },
   ".github/scripts/prepare-hosted-android.sh": {
@@ -25275,8 +25275,8 @@
     "semantic_hash": ""
   },
   "docs/operations/github-hosted-ci-cd.md": {
-    "mtime": 1789649718.7738874,
-    "ast_hash": "f4350263e39f8ae060c6f3c7bca8e69f",
+    "mtime": 1789652482.152907,
+    "ast_hash": "648269451097d8606db6d663e3bfda8e",
     "semantic_hash": ""
   },
   "apps/desktop/scripts/desktop-tray-menu.test.mjs": {

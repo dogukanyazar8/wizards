@@ -464,18 +464,6 @@ describe("desktop Tauri config generation", () => {
         cwd: desktopRoot,
         env: testDesktopEnv({
           WHISPR_DESKTOP_UPDATER_ENABLED: "true",
-          WHISPR_DESKTOP_UPDATER_ENDPOINTS: "https://updates.whispr.team/desktop/uat/latest.json",
-          WHISPR_DESKTOP_UPDATER_PUBLIC_KEY: "trusted-ed25519-public-key",
-        }),
-      }),
-      /WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED=true is required/,
-    );
-
-    await assert.rejects(
-      execFileAsync(process.execPath, [runTauriScript, "build", "--write-config-only"], {
-        cwd: desktopRoot,
-        env: testDesktopEnv({
-          WHISPR_DESKTOP_UPDATER_ENABLED: "true",
           WHISPR_DESKTOP_UPDATER_ENDPOINTS: "http://localhost:3000/latest.json",
           WHISPR_DESKTOP_UPDATER_PUBLIC_KEY: "trusted-ed25519-public-key",
           WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED: "true",
@@ -499,6 +487,41 @@ describe("desktop Tauri config generation", () => {
       /WHISPR_DESKTOP_RELEASE_RING must be one of/,
     );
   });
+});
+
+it("allows updater verification without Windows Authenticode signing in either ring", async () => {
+  for (const ring of ["uat", "stable"]) {
+    const endpoint = `https://updates.whispr.team/desktop/${ring}/latest.json`;
+    await execFileAsync(process.execPath, [runTauriScript, "build", "--write-config-only"], {
+      cwd: desktopRoot,
+      env: testDesktopEnv({
+        TAURI_WEB_URL: "https://whispr.team/",
+        WHISPR_DESKTOP_RELEASE_RING: ring,
+        WHISPR_DESKTOP_UPDATER_ENABLED: "true",
+        WHISPR_DESKTOP_UPDATER_ENDPOINTS: endpoint,
+        WHISPR_DESKTOP_UPDATER_PUBLIC_KEY: "trusted-ed25519-public-key",
+        WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED: "false",
+      }),
+    });
+    const config = JSON.parse(await readFile(generatedConfigPath, "utf8"));
+    assert.equal(config.bundle.createUpdaterArtifacts, true);
+    assert.equal(config.bundle.windows.signCommand, undefined);
+    assert.equal(config.bundle.windows.certificateThumbprint, undefined);
+    assert.equal(config.plugins.updater.pubkey, "trusted-ed25519-public-key");
+    assert.deepEqual(config.plugins.updater.endpoints, [endpoint]);
+  }
+});
+
+it("still rejects incomplete Windows certificates when signing is explicitly enabled", async () => {
+  for (const overrides of [{}, { WINDOWS_CERTIFICATE_PFX_BASE64: "dGVzdC1jZXJ0aWZpY2F0ZQ==" }]) {
+    await assert.rejects(
+      execFileAsync(process.execPath, [runTauriScript, "build", "--write-config-only"], {
+        cwd: desktopRoot,
+        env: testDesktopEnv({ WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED: "true", ...overrides }),
+      }),
+      /WINDOWS_CERTIFICATE_(PFX_BASE64|PASSWORD) is required/,
+    );
+  }
 });
 
 it("preserves fixed IPC transports in generated dev and build configurations", async () => {

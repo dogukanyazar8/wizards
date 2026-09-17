@@ -37,7 +37,7 @@ If a budget regresses, attach the diagnostics export and the exact build ring be
 ## Ring Promotion Rules
 
 - `uat`: rollout is manual QA users only. Enter after release contract, Windows build, local manifest validation, R2 upload, and remote manifest validation pass. Exit only after the manual QA checklist and updater smoke from the previous installed version pass with no blocker diagnostics, crash, voice, overlay, or auth regressions.
-- `stable`: rollout is a broad production release. Enter after UAT evidence and release health are clean, the stable dispatch guard is confirmed from `main`, and real OV/EV Windows signing configuration is present. Keep the rollback window open until stable update metrics remain healthy.
+- `stable`: rollout is a broad production release. Enter after UAT evidence and release health are clean and the stable dispatch guard is confirmed from `main`. Real OV/EV Windows signing configuration is required only when Authenticode signing is requested. Ed25519 updater verification remains required. Keep the rollback window open until stable update metrics remain healthy.
 
 ## Rollback Evidence
 

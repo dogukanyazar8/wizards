@@ -303,13 +303,6 @@ function resolveUpdaterConfig(mode) {
     process.exit(1);
   }
 
-  if (!windowsSigningConfig.enabled) {
-    console.error(
-      "WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED=true is required when desktop updater is enabled.",
-    );
-    process.exit(1);
-  }
-
   const endpointValues = parseUpdaterEndpointValues(
     process.env.WHISPR_DESKTOP_UPDATER_ENDPOINTS ||
       process.env.WHISPR_DESKTOP_UPDATER_ENDPOINT ||

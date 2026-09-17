@@ -126,7 +126,7 @@ export const DESKTOP_RELEASE_PROMOTION_RULES = Object.freeze([
       "rollback manifest is ready",
       "support owner is assigned",
       "stable dispatch guard is confirmed from main",
-      "real OV/EV Windows signing configuration is present",
+      "real OV/EV Windows signing configuration is present when Authenticode signing is requested",
     ],
     exitCriteria: ["stable update metrics remain healthy", "rollback window completed"],
   },

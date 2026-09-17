@@ -41,6 +41,44 @@ function readWorkflowStep(job, stepName) {
   return stepLines.join("\n");
 }
 
+test("Windows certificate signing is opt-in independently of signed updater distribution", () => {
+  const workflow = readFileSync(join(root, ".github", "workflows", "desktop-release.yml"), "utf8");
+  const windowsJob = readWorkflowJob(workflow, "build-windows");
+  assert.match(workflow, /windows_signing:\s+default: false[\s\S]*?type: boolean/u);
+  assert.match(
+    windowsJob,
+    /WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED: \$\{\{ inputs\.windows_signing && 'true' \|\| 'false' \}\}/u,
+  );
+  const signingGuard = readWorkflowStep(
+    windowsJob,
+    "Require Windows code signing configuration when requested",
+  );
+  assert.match(signingGuard, /if: env\.WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED == 'true'/u);
+  assert.match(signingGuard, /WINDOWS_CERTIFICATE_PFX_BASE64/u);
+  assert.match(signingGuard, /WINDOWS_CERTIFICATE_PASSWORD/u);
+  assert.match(signingGuard, /WHISPR_DESKTOP_RELEASE_RING -eq "stable"/u);
+  const updaterGuard = readWorkflowStep(
+    windowsJob,
+    "Require updater signing configuration when updater artifacts are requested",
+  );
+  assert.doesNotMatch(updaterGuard, /WINDOWS_CERTIFICATE|WINDOWS_SIGNING/u);
+  for (const required of [
+    "WHISPR_DESKTOP_UPDATER_PUBLIC_KEY",
+    "TAURI_SIGNING_PRIVATE_KEY",
+    "WHISPR_DESKTOP_UPDATER_ENDPOINTS",
+  ]) {
+    assert.ok(updaterGuard.includes(required), `${required} must remain required`);
+  }
+  const signArtifacts = readWorkflowStep(
+    windowsJob,
+    "Sign desktop artifacts without updater bundle signing",
+  );
+  assert.match(
+    signArtifacts,
+    /if: env\.WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED == 'true' && needs\.release-contract\.outputs\.enable_updater != 'true'/u,
+  );
+});
+
 test("automatic Linux Desktop Ops runs its cargo audit step with Bash", () => {
   const workflow = readFileSync(workflowPath, "utf8");
   const desktopOps = readWorkflowJob(workflow, "desktop-ops");

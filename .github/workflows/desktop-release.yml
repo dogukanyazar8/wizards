@@ -25,6 +25,11 @@ on:
         description: Build with signed updater support and local manifest evidence, even when R2 publishing is disabled
         required: true
         type: boolean
+      windows_signing:
+        default: false
+        description: Sign the Windows installer with Authenticode (optional; stable requires an OV/EV certificate when enabled). Updater signatures are independent.
+        required: true
+        type: boolean
       publish_github_release:
         default: false
         description: Publish a GitHub Release after R2 updater evidence is produced
@@ -168,11 +173,11 @@ jobs:
             echo "| Updater manifest URL | \`${VALUE_STEPS_CONTRACT_OUTPUTS_UPDATER_MANIFEST_URL_NOT_REQUESTED}\` |"
             echo "| Pre-release | \`${VALUE_STEPS_CONTRACT_OUTPUTS_IS_PRERELEASE}\` |"
             echo ""
-            echo "This job validates the release contract. The Windows job builds signed desktop artifacts from the same contract."
+            echo "This job validates the release contract. Windows Authenticode signing is optional; updater signatures remain required when updater support is enabled."
           } >> "$GITHUB_STEP_SUMMARY"
 
   build-windows:
-    name: Build signed Windows desktop artifacts
+    name: Build Windows desktop artifacts
     runs-on: windows-2025
     needs: release-contract
     timeout-minutes: 90
@@ -194,7 +199,7 @@ jobs:
       WHISPR_DESKTOP_UPDATER_ENDPOINTS: ${{ needs.release-contract.outputs.updater_manifest_url }}
       WHISPR_DESKTOP_UPDATER_PUBLIC_KEY: ${{ vars.WHISPR_DESKTOP_UPDATER_PUBLIC_KEY }}
       WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND: ${{ vars.WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND }}
-      WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED: ${{ (needs.release-contract.outputs.release_ring == 'stable' || needs.release-contract.outputs.enable_updater == 'true') && 'true' || 'false' }}
+      WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED: ${{ inputs.windows_signing && 'true' || 'false' }}
 
     steps:
       - name: Checkout
@@ -318,22 +323,22 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$env:VALUE_STEPS_CARGO_AUDIT_PATHS_OUTPUTS_BIN_DIR" | Out-Null
           "$env:VALUE_STEPS_CARGO_AUDIT_PATHS_OUTPUTS_BIN_DIR" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      - name: Require stable Windows code signing configuration
-        if: needs.release-contract.outputs.release_ring == 'stable'
+      - name: Require Windows code signing configuration when requested
+        if: env.WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED == 'true'
         shell: pwsh
         run: |
           $missing = @()
           if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX_BASE64)) { $missing += "WINDOWS_CERTIFICATE_PFX_BASE64" }
           if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) { $missing += "WINDOWS_CERTIFICATE_PASSWORD" }
-          if ([string]::IsNullOrWhiteSpace($env:WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND)) { $missing += "WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND" }
-
-          $certificateKind = $env:WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND.Trim().ToUpperInvariant()
-          if ($certificateKind -and $certificateKind -notin @("OV", "EV")) {
-            $missing += "WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND=OV|EV"
+          if ($env:WHISPR_DESKTOP_RELEASE_RING -eq "stable") {
+            $certificateKind = ([string]$env:WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND).Trim().ToUpperInvariant()
+            if ($certificateKind -notin @("OV", "EV")) {
+              $missing += "WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND=OV|EV"
+            }
           }
 
           if ($missing.Count -gt 0) {
-            Write-Error "Stable desktop releases require a real OV/EV Windows signing configuration before artifacts can be produced: $($missing -join ', ')."
+            Write-Error "Windows signing was requested but its certificate configuration is incomplete: $($missing -join ', ')."
             exit 1
           }
 
@@ -346,12 +351,9 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:WHISPR_DESKTOP_UPDATER_PUBLIC_KEY)) { $missing += "WHISPR_DESKTOP_UPDATER_PUBLIC_KEY" }
           if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)) { $missing += "TAURI_SIGNING_PRIVATE_KEY" }
           if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD)) { $missing += "TAURI_SIGNING_PRIVATE_KEY_PASSWORD" }
-          if ($env:WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED -ne "true") { $missing += "WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED" }
-          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX_BASE64)) { $missing += "WINDOWS_CERTIFICATE_PFX_BASE64" }
-          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) { $missing += "WINDOWS_CERTIFICATE_PASSWORD" }
 
           if ($missing.Count -gt 0) {
-            Write-Error "Updater artifacts require Ed25519 signing, an HTTPS updater endpoint, and Windows signing config. A self-signed PFX is acceptable for UAT, but missing config is not: $($missing -join ', ')."
+            Write-Error "Updater artifacts require Ed25519 signing and an HTTPS updater endpoint: $($missing -join ', ')."
             exit 1
           }
 
@@ -436,8 +438,8 @@ jobs:
       - name: Build desktop app
         run: pnpm --filter @wizards/desktop build:desktop
 
-      - name: Sign stable desktop artifacts without updater bundle signing
-        if: needs.release-contract.outputs.release_ring == 'stable' && needs.release-contract.outputs.enable_updater != 'true'
+      - name: Sign desktop artifacts without updater bundle signing
+        if: env.WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED == 'true' && needs.release-contract.outputs.enable_updater != 'true'
         shell: pwsh
         run: |
           $certificatePath = Join-Path $env:RUNNER_TEMP "whispr-codesign.pfx"
