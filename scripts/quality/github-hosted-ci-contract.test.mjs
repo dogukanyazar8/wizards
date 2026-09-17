@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const workflowsDirectory = join(root, ".github", "workflows");
+const gitleaksIgnorePath = join(root, ".gitleaksignore");
+const gitleaksIgnoreMetadataPath = join(root, ".gitleaksignore.metadata.json");
 const goldenImagePath = join(root, "docker", "ci", "IMAGE");
 const goldenDockerfilePath = join(root, "docker", "ci", "Dockerfile");
 const mobileJestConfigPath = join(root, "apps", "mobile", "jest.config.js");
@@ -119,6 +121,33 @@ test("Railway deployment stays outside Actions and keeps existing service config
   }
   assert.match(readText(join(root, "railway.toml")), /healthcheckPath = "\/ready"/u);
   assert.match(readText(join(root, "railway.toml")), /db:migrate:deploy/u);
+});
+
+test("historical deterministic fixtures stay explicitly documented for Gitleaks", () => {
+  const ignore = new Set(
+    readText(gitleaksIgnorePath)
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter(Boolean),
+  );
+  const metadata = JSON.parse(readText(gitleaksIgnoreMetadataPath));
+  const metadataByFingerprint = new Map(
+    metadata.entries.map((entry) => [entry.fingerprint, entry]),
+  );
+  const expectedFingerprints = [
+    "a8b684322cf1f0bc6f8695e55c70e4194947e600:apps/web/src/app/api/v1/events/route-logic.test.ts:generic-api-key:163",
+    "a8b684322cf1f0bc6f8695e55c70e4194947e600:apps/web/src/app/layout-fonts.test.ts:generic-api-key:27",
+    "bc8d6bba448ec62bf96289718a015753e1696693:apps/web/src/lib/socket/rooms.test.ts:generic-api-key:16",
+  ];
+
+  for (const fingerprint of expectedFingerprints) {
+    assert.ok(ignore.has(fingerprint), `missing Gitleaks fingerprint: ${fingerprint}`);
+    const entry = metadataByFingerprint.get(fingerprint);
+    assert.ok(entry, `missing Gitleaks metadata: ${fingerprint}`);
+    assert.match(entry.reason, /deterministic|CSS/u);
+    assert.equal(entry.owner, "@dogukanyazar8");
+    assert.equal(entry.expiresOn, "2026-10-15");
+  }
 });
 
 test("Android storage reclamation rejects persistent runners before any deletion", () => {

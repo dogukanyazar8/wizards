@@ -22,3 +22,6 @@ c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/component-tests/mobile-sess
 c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/component-tests/mobile-session-resilience.test.tsx:generic-api-key:688
 c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/mobile/component-tests/mobile-session-resilience.test.tsx:generic-api-key:759
 c93070015b3d7f9b7ff874ce996a70b1b142327c:apps/web/src/lib/auth/mobile-oauth-start.test.ts:generic-api-key:13
+a8b684322cf1f0bc6f8695e55c70e4194947e600:apps/web/src/app/api/v1/events/route-logic.test.ts:generic-api-key:163
+a8b684322cf1f0bc6f8695e55c70e4194947e600:apps/web/src/app/layout-fonts.test.ts:generic-api-key:27
+bc8d6bba448ec62bf96289718a015753e1696693:apps/web/src/lib/socket/rooms.test.ts:generic-api-key:16

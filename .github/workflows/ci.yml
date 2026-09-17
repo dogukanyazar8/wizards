@@ -651,8 +651,8 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter @wizards/web exec playwright install --with-deps chromium
 
-      - name: Test auth challenges, desktop OAuth and voice composer UI
-        run: pnpm --filter @wizards/web exec node --test scripts/login-turnstile-browser.test.mjs scripts/oauth-handoff-browser.test.mjs scripts/desktop-oauth-claim.test.mjs scripts/settings-two-factor-browser.test.mjs scripts/trusted-device-actions.test.mjs scripts/trusted-device-browser.test.mjs scripts/voice-composer-browser.test.mjs
+      - name: Test auth challenges, desktop OAuth, voice composer and audio playback
+        run: pnpm --filter @wizards/web exec node --test scripts/login-turnstile-browser.test.mjs scripts/oauth-handoff-browser.test.mjs scripts/desktop-oauth-claim.test.mjs scripts/settings-two-factor-browser.test.mjs scripts/trusted-device-actions.test.mjs scripts/trusted-device-browser.test.mjs scripts/voice-composer-browser.test.mjs scripts/voice-audio-renderer.test.mjs
 
       - name: Run accessibility scan
         run: pnpm --filter @wizards/web e2e:a11y

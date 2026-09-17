@@ -15,8 +15,9 @@ have separate data. Changing a preference does not move accounts or conversation
 ## Publication
 
 Desktop: validate Beta on `uat`, then publish Stable from `main` with explicit
-confirmation, production signing, successful CI, UAT QA evidence, a rollback manifest,
-and an assigned support owner. Keep update, crash, installation, and support monitoring.
+confirmation, production signing, reviewed CI status, UAT QA evidence, a rollback
+manifest, and an assigned support owner. Stable dispatch does not currently enforce CI
+success. Keep update, crash, installation, and support monitoring.
 Protected environments are `desktop-uat` and `desktop-stable`.
 
 Mobile: `uat` is the internal Beta build; `production` is store distribution. Internal

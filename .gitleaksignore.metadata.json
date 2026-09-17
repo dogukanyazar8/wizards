@@ -144,6 +144,24 @@
       "reason": "Historical fingerprint for a deterministic OAuth state fixture in the web mobile OAuth start test.",
       "owner": "@dogukanyazar8",
       "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "a8b684322cf1f0bc6f8695e55c70e4194947e600:apps/web/src/app/api/v1/events/route-logic.test.ts:generic-api-key:163",
+      "reason": "Historical fingerprint for a deterministic public event cursor fixture.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "a8b684322cf1f0bc6f8695e55c70e4194947e600:apps/web/src/app/layout-fonts.test.ts:generic-api-key:27",
+      "reason": "Historical fingerprint for a CSS variable and vendored font filename binding.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "bc8d6bba448ec62bf96289718a015753e1696693:apps/web/src/lib/socket/rooms.test.ts:generic-api-key:16",
+      "reason": "Historical fingerprint for a deterministic public auth-session room fixture.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
     }
   ]
 }

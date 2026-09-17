@@ -3303,11 +3303,13 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       <VoiceParticipantsContext.Provider value={voiceParticipantsValue}>
         {children}
         <VoiceInviteToasts />
-        <VoiceAudioRenderer
-          outputDeviceId={audioPreferences.outputDeviceId}
-          room={room}
-          onOutputError={handleAudioOutputError}
-        />
+        {room && (
+          <VoiceAudioRenderer
+            outputDeviceId={audioPreferences.outputDeviceId}
+            room={room}
+            onOutputError={handleAudioOutputError}
+          />
+        )}
       </VoiceParticipantsContext.Provider>
     </VoiceStateContext.Provider>
   );

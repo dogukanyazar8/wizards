@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -16,6 +17,11 @@ import {
   ServerRailReportButton,
 } from "@/components/shell/server-rail-support-buttons";
 import type { BugReportScreenshotState } from "@/lib/support/bug-report-form-model";
+
+const RAIL_SUPPORT_BUTTON_SOURCE = readFileSync(
+  new URL("../shell/server-rail-support-buttons.tsx", import.meta.url),
+  "utf8",
+);
 
 /**
  * SPEC-INDIRME §0/§A.5/§A.7/§A.11 — pencerenin kendisi bir portal olduğu için
@@ -196,7 +202,7 @@ describe("bug report success screen", () => {
 });
 
 describe("server rail support buttons", () => {
-  it("draws both buttons at 41px with their own tones and titles", () => {
+  it("draws both buttons at 41px with their own tones and accessible labels", () => {
     const download = renderToStaticMarkup(
       <ServerRailDownloadButton label="Uygulamayı indir" onClick={() => undefined} />,
     );
@@ -204,12 +210,24 @@ describe("server rail support buttons", () => {
       <ServerRailReportButton label="Sorun bildir" onClick={() => undefined} />,
     );
 
-    assert.match(download, /title="Uygulamayı indir"/);
+    assert.match(download, /aria-label="Uygulamayı indir"/);
     assert.match(download, /hsl\(var\(--success\) \/ 0\.2\)/);
     assert.match(download, /2\.5625rem/);
-    assert.match(report, /title="Sorun bildir"/);
+    assert.match(report, /aria-label="Sorun bildir"/);
     assert.match(report, /hsl\(var\(--warning\) \/ 0\.18\)/);
     assert.match(report, /2\.5625rem/);
+  });
+
+  it("uses the server rail portal tooltip contract on hover and focus", () => {
+    assert.match(RAIL_SUPPORT_BUTTON_SOURCE, /import \{ createPortal \} from "react-dom";/);
+    assert.match(RAIL_SUPPORT_BUTTON_SOURCE, /onFocus=\{showTooltip\}/);
+    assert.match(RAIL_SUPPORT_BUTTON_SOURCE, /onMouseEnter=\{showTooltip\}/);
+    assert.match(RAIL_SUPPORT_BUTTON_SOURCE, /onBlur=\{hideTooltip\}/);
+    assert.match(RAIL_SUPPORT_BUTTON_SOURCE, /onMouseLeave=\{hideTooltip\}/);
+    assert.match(RAIL_SUPPORT_BUTTON_SOURCE, /left: rect\.right \+ 12/);
+    assert.match(RAIL_SUPPORT_BUTTON_SOURCE, /top: rect\.top \+ rect\.height \/ 2/);
+    assert.match(RAIL_SUPPORT_BUTTON_SOURCE, /className="app-tooltip [^"]*fixed/);
+    assert.doesNotMatch(RAIL_SUPPORT_BUTTON_SOURCE, /title=\{label\}/);
   });
 
   it("labels both buttons for screen readers as well as pointers", () => {

@@ -105,16 +105,9 @@ test("desktop workflows use Windows hosted builds and manual protected publicati
   assert.doesNotMatch(native, /matrix|macos/u);
   assert.match(release, /runs-on: windows-2025/u);
   assert.match(release, /environment: desktop-/u);
-  assert.match(release, /Require successful CI for this commit/u);
-  const ciGate = readWorkflowStep(
-    readWorkflowJob(release, "release-contract"),
-    "Require successful CI for this commit",
-  );
-  assert.match(ciGate, /^        if: inputs\.ring == 'stable'$/mu);
-  assert.match(ciGate, /head_sha=\$GITHUB_SHA&event=push/u);
-  assert.match(ciGate, /\.conclusion == "success"/u);
-  assert.match(ciGate, /exit 1/u);
-  assert.doesNotMatch(ciGate, /continue-on-error/u);
+  assert.doesNotMatch(release, /Require successful CI for this commit/u);
+  assert.doesNotMatch(release, /head_sha=\$GITHUB_SHA&event=push/u);
+  assert.doesNotMatch(release, /^  actions: read$/mu);
   assert.match(release, /--if-none-match "\*"/u);
   assert.doesNotMatch(release, /^  (push|pull_request|schedule):/mu);
 });

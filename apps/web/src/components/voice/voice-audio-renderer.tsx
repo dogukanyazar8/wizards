@@ -2,6 +2,7 @@
 
 import { useEffect, useEffectEvent, useRef } from "react";
 import { RemoteAudioTrack, type Room, Track } from "livekit-client";
+import { useTracks } from "@livekit/components-react";
 import { DEFAULT_AUDIO_DEVICE_ID, useVoiceStore } from "@/store/voice-store";
 import { createAudioOutputRouter } from "@/lib/voice/audio-output-router";
 import { logWarning } from "@/lib/logger";
@@ -65,26 +66,21 @@ export function VoiceAudioRenderer({
   onOutputError,
 }: {
   outputDeviceId: string;
-  room: Room | null;
+  room: Room;
   onOutputError: () => void;
 }) {
-  const audioTracks: Array<{ id: string; track: RemoteAudioTrack }> = [];
-
-  if (room) {
-    for (const participant of room.remoteParticipants.values()) {
-      for (const publication of participant.getTrackPublications()) {
-        if (
-          publication.source === Track.Source.Microphone &&
-          publication.track instanceof RemoteAudioTrack
-        ) {
-          audioTracks.push({
-            id: publication.trackSid,
-            track: publication.track,
-          });
-        }
-      }
-    }
-  }
+  // Room mutates in place. Subscribe here so memoized parents cannot hide new
+  // tracks from playback. Speaking-level updates must not drive audio mounting.
+  const tracks = useTracks([Track.Source.Microphone], {
+    room,
+    onlySubscribed: true,
+    updateOnlyOn: [],
+  });
+  const audioTracks = tracks.flatMap(({ participant, publication }) =>
+    !participant.isLocal && publication.track instanceof RemoteAudioTrack
+      ? [{ id: publication.trackSid, track: publication.track }]
+      : [],
+  );
 
   if (audioTracks.length === 0) {
     return null;

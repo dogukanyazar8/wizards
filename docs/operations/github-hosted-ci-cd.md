@@ -20,7 +20,7 @@ The existing `railway.toml` and `railway.outbox-worker.toml`, web pre-deploy mig
 
 ## Windows release configuration
 
-Use protected `desktop-uat` and `desktop-stable` environments. Permit `uat` only for `desktop-uat`, `main` for stable; keep approval requirements for production publication. Dispatch UAT from `uat`, stable from `main`. UAT builds can start regardless of CI status, including pending or failed runs. Stable requires successful push CI for the exact SHA before the Windows signing job can start. Release-contract, signing, updater and publication checks still apply to both rings.
+Use protected `desktop-uat` and `desktop-stable` environments. Permit `uat` only for `desktop-uat`, `main` for stable; keep approval requirements for production publication. Dispatch UAT from `uat`, stable from `main`. Both rings can currently start regardless of CI status, including pending or failed runs; operators must review CI evidence separately before production publication. Release-contract, signing, updater and publication checks still apply to both rings.
 
 Secrets (environment or existing repository secrets):
 

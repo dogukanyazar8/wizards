@@ -183,7 +183,7 @@ macOS and Linux bundle targets are not enabled in Phase 5. Before enabling them,
 
 ## Required Manual CI Evidence Before Release
 
-Desktop native builds run on GitHub-hosted Windows runners. Signed Windows releases use the protected manual `Desktop Release` workflow. UAT builds can run while CI is pending or failed; stable releases require successful push CI for the exact commit. UAT artifacts still require the workflow's release, signing and updater checks; a build does not prove that CI passed. macOS builds and releases remain disabled. A workflow definition is not release evidence: retain the successful run URL and its signed artifacts.
+Desktop native builds run on GitHub-hosted Windows runners. Signed Windows releases use the protected manual `Desktop Release` workflow. UAT and stable builds can currently run while CI is pending or failed; CI evidence must be reviewed separately before production publication. Artifacts still require the workflow's release, signing and updater checks; a build does not prove that CI passed. macOS builds and releases remain disabled. A workflow definition is not release evidence: retain the successful run URL and its signed artifacts.
 
 The default UAT `push` path and all remaining manual CI use GitHub-hosted Linux runners. `e2e_scope` is the only `CI` workflow-dispatch input; select the candidate branch or tag in **Use workflow from**. Do not treat a scheduled run as release evidence: the schedule does not prove UAT runtime.
 
@@ -205,7 +205,7 @@ The GitHub Actions workflow has the following desktop layers:
 
 ## GitHub Actions Desktop Release Contract
 
-`.github/workflows/desktop-release.yml` is the Windows release entry point. Dispatch UAT from `uat`; stable from `main`. UAT does not wait for CI; stable requires successful push CI for the exact commit. Configure protected `desktop-uat` and `desktop-stable` environments with matching branch restrictions. Stable also requires its existing confirmation and OV/EV certificate guards. See [hosted CI/CD setup](../../docs/operations/github-hosted-ci-cd.md) for activation and secrets.
+`.github/workflows/desktop-release.yml` is the Windows release entry point. Dispatch UAT from `uat`; stable from `main`. Neither ring currently waits for CI; review CI evidence separately before production publication. Configure protected `desktop-uat` and `desktop-stable` environments with matching branch restrictions. Stable still requires its existing confirmation and OV/EV certificate guards. See [hosted CI/CD setup](../../docs/operations/github-hosted-ci-cd.md) for activation and secrets.
 
 ```text
 .github/workflows/desktop-release.yml
