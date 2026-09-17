@@ -37,9 +37,13 @@ describe("desktop Cargo security baseline", () => {
     const sources = await Promise.all(
       sourceFiles.map((sourceFile) => readFile(sourceFile, "utf8")),
     );
+    const productionDependencies = manifest
+      .split(/(?=^\[)/m)
+      .filter((section) => /^\[(?:dependencies|target\.[^\n]+\.dependencies)\]/.test(section))
+      .join("\n");
 
     assert.doesNotMatch(
-      manifest,
+      productionDependencies,
       /(?:^\s*(?:glib(?:-sys)?|gtk)\s*=|package\s*=\s*"(?:glib(?:-sys)?|gtk)")/m,
       "Whispr must not make the GTK3/GLib chain a direct dependency",
     );
@@ -50,7 +54,7 @@ describe("desktop Cargo security baseline", () => {
     );
   });
 
-  it("enables Tauri's macOS private API feature for transparent companion windows", async () => {
+  it("resolves the GLib backport and enables Tauri's macOS private API feature", async () => {
     const { stdout } = await execFileAsync(
       "cargo",
       ["metadata", "--locked", "--format-version", "1"],
@@ -59,6 +63,14 @@ describe("desktop Cargo security baseline", () => {
     const metadata = JSON.parse(stdout);
     const tauriPackage = metadata.packages.find((entry) => entry.name === "tauri");
     const tauriNode = metadata.resolve.nodes.find((entry) => entry.id === tauriPackage?.id);
+    const glibPackages = metadata.packages.filter((entry) => entry.name === "glib");
+
+    assert.equal(glibPackages.length, 1, "Every GTK3 consumer must resolve the same GLib backport");
+    assert.equal(glibPackages[0].source, null, "GLib must resolve the reviewed local source");
+    assert.equal(
+      path.resolve(glibPackages[0].manifest_path),
+      path.join(tauriDirectory, "vendor/glib/Cargo.toml"),
+    );
 
     assert.ok(
       tauriNode?.features.includes("macos-private-api"),

@@ -266,7 +266,8 @@ pub fn detect_cached(registered: &[RegisteredGame]) -> Result<Option<String>, St
         sync::Mutex,
         time::{Duration, Instant},
     };
-    static CACHE: Mutex<Option<(Instant, Vec<RegisteredGame>, Option<String>)>> = Mutex::new(None);
+    type DetectionCache = (Instant, Vec<RegisteredGame>, Option<String>);
+    static CACHE: Mutex<Option<DetectionCache>> = Mutex::new(None);
     let mut cache = CACHE
         .lock()
         .map_err(|_| "Game detection unavailable.".to_string())?;
@@ -291,7 +292,7 @@ mod tests {
             executable: "mygame.exe".into(),
             label: "My game".into(),
         };
-        let result = validate_registered(&[input.clone()]).unwrap();
+        let result = validate_registered(std::slice::from_ref(&input)).unwrap();
         assert!(result[0].id.starts_with("custom:"));
         assert_eq!(result[0].id.len(), 19);
         assert_eq!(

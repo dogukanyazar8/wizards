@@ -4907,7 +4907,6 @@ export const EN_MESSAGES = {
   "settings.account.banner.color4": "Purple",
   "settings.account.banner.color5": "Dark",
   "settings.account.banner.uploading": "Uploading banner: {progress}%",
-  "settings.account.banner.saving": "Saving banner…",
   "settings.account.banner.retry": "Retry",
   "settings.account.banner.errors.load": "Could not load your banner. Try again.",
   "settings.account.banner.errors.save":
@@ -5598,8 +5597,6 @@ export const EN_MESSAGES = {
   "shortcuts.help.title": "Keyboard shortcuts",
   "settings.block.shortcuts.appShortcuts": "Application shortcuts",
   "settings.block.shortcuts.viewAppShortcuts": "View all",
-  "settings.native.saved": "Saved.",
-  "settings.native.saving": "Working…",
   "settings.native.error": "The operation failed. Check your settings and try again.",
   "settings.native.loadError": "Desktop settings could not be loaded.",
   "settings.native.close.tray": "Minimize to tray",

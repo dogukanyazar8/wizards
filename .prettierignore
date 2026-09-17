@@ -10,3 +10,5 @@ package-lock.json
 yarn.lock
 # Canonical reference HTML: parity tests depend on the original inline formatting.
 apps/web/test-fixtures/design/
+# Preserve the audited upstream GLib archive; only the documented security delta changes it.
+apps/desktop/src-tauri/vendor/glib/

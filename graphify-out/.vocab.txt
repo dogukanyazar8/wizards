@@ -181,6 +181,7 @@ animated
 animation
 animations
 anket
+anl
 anlam
 anlamda
 anlamsal
@@ -206,6 +207,7 @@ appears
 append
 apple
 application
+applications
 applied
 apply
 approach
@@ -458,6 +460,7 @@ bildirme
 bile
 bilerek
 bilgi
+bilgiler
 bilgileri
 bilgisayar
 bilgisi
@@ -528,7 +531,6 @@ border
 boru
 bos
 bosluk
-both
 bottom
 bound
 boundaries
@@ -552,6 +554,8 @@ brace
 branch
 branchde
 branches
+branchine
+branchini
 brand
 breadcrumb
 breakdown
@@ -1005,6 +1009,7 @@ daralt
 daraltmadan
 daraltmas
 dark
+darwin
 dashboard
 data
 database
@@ -1536,6 +1541,7 @@ entegrasyon
 enter
 enterpolasyon
 enters
+entitlements
 entity
 entrance
 entries
@@ -1623,6 +1629,7 @@ etkisini
 etkisiz
 etkiye
 etme
+etmeden
 etmeyin
 etsin
 etti
@@ -1634,7 +1641,6 @@ event
 events
 eventual
 every
-everyday
 everyone
 evesi
 evict
@@ -1741,6 +1747,7 @@ fanout
 fark
 farkl
 farklar
+farklari
 farthest
 fatal
 fatih
@@ -1770,6 +1777,7 @@ fetching
 fetchsockets
 fetme
 fewer
+fgs
 fidelity
 field
 fields
@@ -1906,6 +1914,7 @@ future
 gain
 gallery
 game
+games
 gap
 gaps
 garip
@@ -1964,6 +1973,7 @@ gerilemesi
 gerilim
 geriye
 gesture
+gestures
 get
 getir
 getirdi
@@ -3760,6 +3770,7 @@ ordered
 ordering
 ordinary
 org
+orientation
 origin
 original
 origins
@@ -3971,6 +3982,7 @@ physical
 pick
 picked
 picker
+picture
 pictures
 pid
 piece
@@ -4028,6 +4040,7 @@ polish
 politika
 politikas
 poll
+polling
 polls
 polygon
 pool
@@ -4081,6 +4094,7 @@ prerequisites
 presence
 present
 presentation
+presenter
 preserve
 preset
 presets
@@ -4560,6 +4574,7 @@ risky
 rla
 rlama
 rlamay
+rlanan
 rland
 rlanm
 rlar
@@ -4701,6 +4716,7 @@ sal
 salt
 same
 sample
+sampler
 samples
 sampling
 sanal
@@ -4892,7 +4908,6 @@ settle
 settled
 setup
 sev
-seven
 seviyesi
 seviyesinde
 seviyeye
@@ -5164,6 +5179,7 @@ streak
 stream
 streamer
 streaming
+streams
 strength
 stri
 strict
@@ -5247,6 +5263,7 @@ swap
 swatch
 swatches
 sweep
+swift
 swipe
 switch
 switcher
@@ -5924,7 +5941,9 @@ warnings
 warns
 watch
 watchdog
+watcher
 watchers
+watching
 watermark
 wave
 waveform
@@ -5999,6 +6018,7 @@ written
 wrong
 wry
 wsl
+xcode
 xlarge
 xml
 xss

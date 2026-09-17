@@ -835,6 +835,10 @@ jobs:
         working-directory: apps/desktop/src-tauri
         run: cargo test --locked
 
+      - name: Test GLib security backport with optimizations
+        working-directory: apps/desktop/src-tauri
+        run: cargo test --locked --release --test glib_variant_security
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 

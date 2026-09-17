@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
+import { setImmediate } from "node:timers/promises";
 import {
   createMobilePerformanceSamplePersistence,
   discardPendingMobilePerformanceSamples,
@@ -124,22 +125,33 @@ describe("performance sample persistence", () => {
     );
   });
 
-  it("retries a failed debounced write without waiting for another measurement", async () => {
+  it("retries a failed debounced write without waiting for another measurement", async (context) => {
+    context.mock.timers.enable({ apis: ["setTimeout"] });
     const recorder = createRecorder();
     const persistence = createMobilePerformanceSamplePersistence({
       debounceMs: 1,
       persist: recorder.persist,
     });
+    context.after(() => persistence.dispose());
 
     recorder.failNext();
     persistence.capture(sample("a-1"));
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    context.mock.timers.tick(1);
+    await setImmediate();
+    assert.equal(recorder.batches.length, 0);
+    assert.equal(persistence.pendingCount(), 1);
+
+    // Retry uses twice the debounce; advancing only one millisecond must not write.
+    context.mock.timers.tick(1);
+    await setImmediate();
+    assert.equal(recorder.batches.length, 0);
+    context.mock.timers.tick(1);
+    await setImmediate();
 
     assert.deepEqual(
       recorder.batches[0]?.map((entry) => entry.sampleId),
       ["a-1"],
     );
-    persistence.dispose();
   });
 
   it("drops the pending batch when a run is reset", async () => {

@@ -4953,7 +4953,6 @@ export const TR_MESSAGES = {
   "settings.account.banner.color4": "Mor",
   "settings.account.banner.color5": "Koyu",
   "settings.account.banner.uploading": "Banner yükleniyor: %{progress}",
-  "settings.account.banner.saving": "Banner kaydediliyor…",
   "settings.account.banner.retry": "Yeniden dene",
   "settings.account.banner.errors.load": "Banner bilgisi alınamadı. Yeniden dene.",
   "settings.account.banner.errors.save":
@@ -5643,8 +5642,6 @@ export const TR_MESSAGES = {
   "shortcuts.help.title": "Klavye kısayolları",
   "settings.block.shortcuts.appShortcuts": "Uygulama içi kısayollar",
   "settings.block.shortcuts.viewAppShortcuts": "Tümünü gör",
-  "settings.native.saved": "Kaydedildi.",
-  "settings.native.saving": "İşlem sürüyor…",
   "settings.native.error": "İşlem tamamlanamadı. Ayarları kontrol edip yeniden dene.",
   "settings.native.loadError": "Masaüstü ayarları okunamadı.",
   "settings.native.close.tray": "Sistem tepsisine küçült",

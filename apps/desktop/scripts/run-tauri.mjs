@@ -66,6 +66,8 @@ const appCommandPermissions = [
   "allow-get-desktop-companion-surfaces-status",
   "allow-get-desktop-detected-game",
   "allow-get-desktop-foreground-process-name",
+  "allow-get-desktop-go-live-candidate",
+  "allow-list-desktop-running-applications",
   "allow-get-desktop-main-window-focused",
   "allow-get-desktop-platform-capabilities",
   "allow-get-desktop-voice-shortcut-status",

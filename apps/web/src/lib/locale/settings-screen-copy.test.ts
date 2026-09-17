@@ -249,7 +249,7 @@ const APPROVED_COPY_CHANGES: Record<string, string> = {
   "settings.action.desktopApp.manage": "Masaüstü ayarlarını aç",
   "settings.row.w8.title": "Oyun etkinliği",
   "settings.row.w8.description":
-    "Bu cihazdaki oyun algılamasını yönet. Paylaşım tercihi Hesabım · Gizlilik bölümünde.",
+    "Bu cihazdaki oyun algılamasını ve Yayına geç önerilerini yönet. Paylaşım tercihi Hesabım · Gizlilik bölümünde.",
   "settings.action.z7.1": "Yönet",
   "settings.section.updates.label": "Güncelleme",
   "settings.section.updates.lead":

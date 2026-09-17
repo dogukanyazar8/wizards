@@ -1,6 +1,8 @@
 node_modules
 packages/db/src/generated/prisma/
 .pnpm-store
+# Temporary Railway CLI configuration pulls are local-only.
+.railway-config-pull-*/
 .turbo
 .next
 dist
