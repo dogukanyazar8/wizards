@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { signIn, signOut } from "next-auth/react";
 
 import { AuthBanner } from "@/components/auth/auth-error-levels";
@@ -11,72 +11,121 @@ import {
   buildDesktopOAuthCompletePath,
   getDesktopOAuthGoogleAuthorizationParams,
 } from "@/lib/auth/desktop-oauth-start";
+import {
+  DESKTOP_OAUTH_BROWSER_KEY,
+  readDesktopOAuthBrowserAttempt,
+  startDesktopOAuthBrowserAttempt,
+} from "@/lib/auth/desktop-oauth-browser";
+import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
 
 interface DesktopOAuthStartClientProps {
   callbackUrl: string;
+  requestId?: string | undefined;
 }
 
-export function DesktopOAuthStartClient({ callbackUrl }: DesktopOAuthStartClientProps) {
+export function DesktopOAuthStartClient({ callbackUrl, requestId }: DesktopOAuthStartClientProps) {
   const { t } = useI18n();
   const [failed, setFailed] = useState(false);
   const [started, setStarted] = useState(true);
-  const desktopCompleteCallbackUrl = useMemo(
-    () => buildDesktopOAuthCompletePath(callbackUrl),
-    [callbackUrl],
-  );
+  const [blocked, setBlocked] = useState(false);
+  const [completed, setCompleted] = useState(false);
+  const initialized = useRef(false);
+  const starting = useRef(false);
 
-  const beginGoogleSignIn = useCallback(
-    async () =>
-      signOut({ redirect: false }).then(() =>
-        signIn(
-          "google",
-          { callbackUrl: desktopCompleteCallbackUrl },
-          getDesktopOAuthGoogleAuthorizationParams(),
-        ),
-      ),
-    [desktopCompleteCallbackUrl],
-  );
-
-  const startGoogleSignIn = useCallback(async () => {
-    setFailed(false);
-    setStarted(true);
-
-    try {
-      await beginGoogleSignIn();
-    } catch {
-      setStarted(false);
-      setFailed(true);
-    }
-  }, [beginGoogleSignIn]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void beginGoogleSignIn().catch(() => {
-      if (!cancelled) {
+  const startGoogleSignIn = useCallback(
+    async (restart = false) => {
+      if (starting.current) return;
+      starting.current = true;
+      setFailed(false);
+      setStarted(true);
+      setBlocked(false);
+      try {
+        const didStart = await startDesktopOAuthBrowserAttempt(
+          async (attemptId) => {
+            await signOut({ redirect: false });
+            await signIn(
+              "google",
+              { callbackUrl: buildDesktopOAuthCompletePath(callbackUrl, attemptId) },
+              getDesktopOAuthGoogleAuthorizationParams(),
+            );
+          },
+          restart,
+          requestId,
+        );
+        if (didStart !== "started") {
+          setBlocked(true);
+          setStarted(false);
+          setCompleted(didStart === "complete");
+        }
+      } catch {
         setStarted(false);
         setFailed(true);
+      } finally {
+        starting.current = false;
       }
-    });
+    },
+    [callbackUrl, requestId],
+  );
 
-    return () => {
-      cancelled = true;
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+    void startGoogleSignIn();
+  }, [startGoogleSignIn]);
+
+  useEffect(() => {
+    if (!blocked) return;
+    const syncAttempt = () => {
+      try {
+        setCompleted(readDesktopOAuthBrowserAttempt()?.status === "complete");
+      } catch {
+        setFailed(true);
+      }
     };
-  }, [beginGoogleSignIn]);
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === DESKTOP_OAUTH_BROWSER_KEY || event.key === null) syncAttempt();
+    };
+    syncAttempt();
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [blocked]);
 
   return (
     <OAuthHandoffLayout
-      title={t("auth.desktopOAuth.startTitle")}
-      description={t("auth.desktopOAuth.startDescription")}
+      title={t(completed ? "auth.desktopOAuth.title" : "auth.desktopOAuth.startTitle")}
+      description={t(
+        completed
+          ? "auth.desktopOAuth.description"
+          : blocked
+            ? "auth.desktopOAuth.pendingBrowser"
+            : "auth.desktopOAuth.startDescription",
+      )}
     >
       {failed ? <AuthBanner title={t("auth.login.oauthError")} /> : null}
-      <PrimaryButton
-        disabled={started && !failed}
-        loading={started && !failed}
-        onClick={() => void startGoogleSignIn()}
-        type="button"
-      >
-        {failed ? t("auth.desktopOAuth.startRetry") : t("auth.desktopOAuth.startButton")}
-      </PrimaryButton>
+      {blocked && !completed ? (
+        <p className="auth-description" role="status">
+          {t("auth.desktopOAuth.alreadyPending")}
+        </p>
+      ) : null}
+      {completed ? (
+        <a
+          className="auth-btn-primary"
+          href={`whispr://open${getSafeAuthRedirectPath(callbackUrl)}`}
+        >
+          {t("auth.desktopOAuth.button")}
+        </a>
+      ) : (
+        <PrimaryButton
+          disabled={started && !failed}
+          loading={started && !failed}
+          onClick={() => void startGoogleSignIn(blocked)}
+          type="button"
+        >
+          {failed || blocked
+            ? t("auth.desktopOAuth.startRetry")
+            : t("auth.desktopOAuth.startButton")}
+        </PrimaryButton>
+      )}
     </OAuthHandoffLayout>
   );
 }

@@ -102,6 +102,13 @@ export type SettingsRowDef = {
   defaultValue?: boolean | number | string;
   /** `select` / `segment` seçeneklerinin i18n anahtarları. */
   options?: readonly string[];
+  /**
+   * Ekran paylaşımı K2 — çalışma zamanı kapısına bağlı seçenek: seçenek dizini → kapalıyken
+   * çizilecek açıklamanın anahtarı. Hangi seçeneğin **o an** kapalı olduğunu ağaç bilemez;
+   * bölüm şeridi söyler (`e1` için `screenShare4kAllowed`). Anahtar `collectSettingsCopyKeys()`
+   * ile sözlük sözleşmesine girer.
+   */
+  optionGateKeys?: Readonly<Record<number, string>>;
   /** `slider`: [min, max, birim]. Birim referanstaki biçimiyle (` ms`, ` px`, `%`). */
   range?: readonly [number, number, string];
   actions?: readonly SettingsActionDef[];
@@ -650,24 +657,47 @@ export const SETTINGS_TREE: readonly SettingsSectionDef[] = [
           {
             titleKey: "settings.group.av.screen-share.1.title",
             rows: [
+              // Ekran paylaşımı K4 — kalite üç eksen: `e1` katman, `e8` kare hızı, `e9` mod.
               {
                 key: "e1",
                 type: "segment",
                 titleKey: "settings.row.e1.title",
                 defaultValue: 1,
-                options: ["settings.option.e1.1", "settings.option.e1.2", "settings.option.e1.3"],
+                options: [
+                  "settings.option.e1.1",
+                  "settings.option.e1.2",
+                  "settings.option.e1.3",
+                  "settings.option.e1.4",
+                ],
+                // K2 — 4K yalnız `screenShare4kAllowed` iken seçilebilir.
+                optionGateKeys: { 3: "settings.option.e1.4.disabled" },
               },
+              {
+                key: "e8",
+                type: "segment",
+                titleKey: "settings.row.e8.title",
+                defaultValue: 2,
+                options: ["settings.option.e8.1", "settings.option.e8.2", "settings.option.e8.3"],
+              },
+              {
+                key: "e9",
+                type: "segment",
+                titleKey: "settings.row.e9.title",
+                defaultValue: 0,
+                options: ["settings.option.e9.1", "settings.option.e9.2"],
+              },
+              // K20 — varsayılanlar store'dan (`voice-store.ts`): `e2` kapalı, `e3` %100.
               {
                 key: "e2",
                 type: "toggle",
                 titleKey: "settings.row.e2.title",
-                defaultValue: true,
+                defaultValue: false,
               },
               {
                 key: "e3",
                 type: "slider",
                 titleKey: "settings.row.e3.title",
-                defaultValue: 60,
+                defaultValue: 100,
                 range: [0, 100, "%"],
               },
             ],
@@ -1837,7 +1867,8 @@ export const SETTINGS_TREE_COUNTS = {
   sections: 7,
   tabs: 28,
   groups: 55,
-  rows: 151,
+  // 151 + `e8` + `e9` (ekran paylaşımı K4).
+  rows: 153,
   controlTypes: 13,
   blocks: 20,
   risky: 3,
@@ -1913,6 +1944,7 @@ export function collectSettingsCopyKeys(): string[] {
           if (row.navLabelKey) keys.add(row.navLabelKey);
           if (row.ownGroupTitleKey) keys.add(row.ownGroupTitleKey);
           for (const option of row.options ?? []) keys.add(option);
+          for (const gateKey of Object.values(row.optionGateKeys ?? {})) keys.add(gateKey);
           for (const action of row.actions ?? []) keys.add(action.labelKey);
         }
       }

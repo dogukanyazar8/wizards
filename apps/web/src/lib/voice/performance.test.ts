@@ -6,6 +6,7 @@ import {
   isVoicePerformanceMetricsEnabled,
   measureVoicePerformance,
   recordVoicePerformanceMetric,
+  SCREEN_SHARE_PERFORMANCE_OPERATIONS,
 } from "./performance";
 
 const originalConsoleInfo = console.info;
@@ -205,5 +206,32 @@ describe("voice performance metrics", () => {
 
     assert.equal(isVoicePerformanceMetricsEnabled("client"), true);
     assert.equal(isVoicePerformanceMetricsEnabled("server"), false);
+  });
+
+  it("carries the four screen share operations (Ş0.2) through the same format", () => {
+    assert.deepEqual(
+      [...SCREEN_SHARE_PERFORMANCE_OPERATIONS],
+      [
+        "screen_share_first_remote_frame",
+        "screen_share_mode_switch",
+        "screen_share_start",
+        "screen_share_stop_cleanup",
+      ],
+    );
+
+    for (const operation of SCREEN_SHARE_PERFORMANCE_OPERATIONS) {
+      const payload = JSON.parse(
+        formatVoicePerformanceMetric({
+          durationMs: 412.339,
+          operation,
+          result: "success",
+          runtime: "client",
+        }),
+      ) as { durationMs: number; operation: string; type: string };
+
+      assert.equal(payload.type, "voice_performance");
+      assert.equal(payload.operation, operation);
+      assert.equal(payload.durationMs, 412.34);
+    }
   });
 });

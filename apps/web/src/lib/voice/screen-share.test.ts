@@ -137,3 +137,38 @@ describe("web screen share audio capability probe", () => {
     );
   });
 });
+
+it("all independent axes use the shared bitrate ladder and preserve content intent", async () => {
+  const types = await import("@wizards/types");
+  const { getScreenSharePreset, resolveCapturedScreenShareResolution } =
+    await import("./screen-share");
+  for (const resolution of types.SCREEN_SHARE_RESOLUTIONS)
+    for (const frameRate of types.SCREEN_SHARE_FRAME_RATES)
+      for (const mode of types.SCREEN_SHARE_MODES) {
+        const preset = getScreenSharePreset(resolution, frameRate, mode);
+        assert.equal(
+          preset.encoding.maxBitrate,
+          types.getScreenShareBitrateKbps(mode, resolution, frameRate) * 1000,
+        );
+        assert.equal(
+          getScreenShareCaptureOptions({ resolution, frameRate, mode }).contentHint,
+          mode === "motion" ? "motion" : "detail",
+        );
+        const options = getScreenSharePublishOptions({
+          preset,
+          mode,
+          codecChoice: { codec: "h264", hardware: true, reason: "hardware" },
+        });
+        assert.equal(options.backupCodec, false);
+        assert.equal(
+          options.degradationPreference,
+          mode === "motion" ? "maintain-framerate" : "maintain-resolution",
+        );
+        assert.deepEqual(
+          options.screenShareSimulcastLayers?.map((layer) => layer.height),
+          [preset.height / 2, preset.height / 4],
+        );
+      }
+  assert.equal(resolveCapturedScreenShareResolution("h2160", 1440), "h1440");
+  assert.equal(resolveCapturedScreenShareResolution("h2160", 1080), "h1080");
+});

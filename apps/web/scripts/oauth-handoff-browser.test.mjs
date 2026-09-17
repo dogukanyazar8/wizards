@@ -34,15 +34,16 @@ test("Google handoff screens preserve retries, return paths, themes and responsi
         const query = new URLSearchParams(location.search);
         if (query.has("native")) window.__WHISPR_DESKTOP__ = { shell: "desktop" };
         const screens = {
-          "/desktop/start": <DesktopOAuthStartClient callbackUrl="/channels/@me" />,
-          "/desktop/complete": <DesktopOAuthCompleteClient callbackUrl="/channels/@me" desktopHandoffUrl="#handoff-fixture" />,
+          "/desktop/start": <DesktopOAuthStartClient callbackUrl="/channels/@me" requestId={query.get("request") ?? undefined} />,
+          "/desktop/complete": <DesktopOAuthCompleteClient callbackUrl="/channels/@me" desktopHandoffUrl="#handoff-fixture" attemptId={query.get("attempt") ?? undefined} />,
           "/desktop/claim": <DesktopOAuthClaimClient callbackUrl="/channels/@me" token="fixture-only" />,
           "/mobile/start": <MobileOAuthStartClient callbackUrl="/channels/@me" provider="google" state={"a".repeat(64)} />,
           "/mobile/complete": <MobileOAuthCompleteClient appHandoffUrl="#handoff-fixture" />,
         };
+        const screen = screens[location.pathname];
         createRoot(document.getElementById("root")).render(
           <LocaleProvider initialLocale="tr" initialMessages={getMessagesForLocale("tr")}>
-            {screens[location.pathname]}
+            {location.pathname.startsWith("/desktop/") ? <React.StrictMode>{screen}</React.StrictMode> : screen}
           </LocaleProvider>
         );
       `,
@@ -62,6 +63,7 @@ test("Google handoff screens preserve retries, return paths, themes and responsi
             "next/navigation":
               "const router = {replace(path){window.redirectPath=path}}; export const useRouter = () => router;",
             "./actions": `export const claimDesktopOAuthHandoffAction = async (...args) => {
+            window.claimCalls = (window.claimCalls ?? 0) + 1;
             window.claimArgs = args;
             return {success:false, error:"auth.desktopOAuth.invalid"};
           };`,
@@ -88,22 +90,26 @@ test("Google handoff screens preserve retries, return paths, themes and responsi
   const browser = await chromium.launch({ headless: true });
   const errors = [];
   try {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const page = await context.newPage();
     page.on("pageerror", (error) => errors.push(error.message));
     await page.route("**/*", (route) =>
       route.fulfill({ contentType: "text/html", body: '<div id="root"></div>' }),
     );
-    await page.addInitScript(() => {
+    await context.addInitScript(() => {
       window.close = () => {
         window.closeAttempts = (window.closeAttempts ?? 0) + 1;
       };
       window.open = () => null;
-      localStorage.clear();
+      localStorage.removeItem("wizards.locale");
     });
-    async function open(path) {
-      await page.goto(`https://oauth.invalid${path}`);
-      await page.addStyleTag({ content: css.css });
-      await page.addScriptTag({ content: bundle.outputFiles[0].text });
+    async function open(path, target = page, allowSignIn = false) {
+      await target.goto(`https://oauth.invalid${path}`);
+      await target.evaluate((allowed) => {
+        window.allowSignIn = allowed;
+      }, allowSignIn);
+      await target.addStyleTag({ content: css.css });
+      await target.addScriptTag({ content: bundle.outputFiles[0].text });
     }
     for (const platform of ["desktop", "mobile"]) {
       await open(`/${platform}/start`);
@@ -134,7 +140,12 @@ test("Google handoff screens preserve retries, return paths, themes and responsi
       await expect(page.locator("h1")).toHaveText("Secure Google sign-in");
       assert.equal(await page.evaluate(() => window.calls.length), 4);
 
-      await open(`/${platform}/complete`);
+      const finalCalls = await page.evaluate(() => window.calls);
+      const attempt = new URL(
+        finalCalls.at(-1)[2].callbackUrl,
+        "https://oauth.invalid",
+      ).searchParams.get("attempt");
+      await open(`/${platform}/complete${attempt ? `?attempt=${attempt}` : ""}`);
       await expect(page.locator(".auth-btn-primary")).toHaveAttribute("href", "#handoff-fixture");
       await expect.poll(() => page.evaluate(() => location.hash)).toBe("#handoff-fixture");
       await expect.poll(() => page.evaluate(() => window.closeAttempts)).toBe(1);
@@ -196,6 +207,102 @@ test("Google handoff screens preserve retries, return paths, themes and responsi
       "fixture-only",
       "/channels/@me",
     ]);
+    assert.equal(
+      await page.evaluate(() => window.claimCalls),
+      1,
+      "StrictMode must not consume a one-time token twice",
+    );
+
+    await page.evaluate(() => localStorage.clear());
+    const duplicate = await page.context().newPage();
+    duplicate.on("pageerror", (error) => errors.push(error.message));
+    await duplicate.route("**/*", (route) =>
+      route.fulfill({ contentType: "text/html", body: '<div id="root"></div>' }),
+    );
+    await Promise.all([
+      open("/desktop/start?request=desktop-request", page, true),
+      open("/desktop/start?request=desktop-request", duplicate, true),
+    ]);
+    await expect
+      .poll(async () => {
+        const calls = await Promise.all([
+          page.evaluate(() => window.calls ?? []),
+          duplicate.evaluate(() => window.calls ?? []),
+        ]);
+        return calls.flat().filter((call) => call[0] === "signIn").length;
+      })
+      .toBe(1);
+    const firstCalls = await page.evaluate(() => window.calls ?? []);
+    const owner = firstCalls.length ? page : duplicate;
+    const waiting = firstCalls.length ? duplicate : page;
+    await expect(waiting.getByRole("status")).toContainText("Başka bir sekmede");
+    assert.equal(await waiting.evaluate(() => window.calls?.length ?? 0), 0);
+    const ownerCalls = await owner.evaluate(() => window.calls);
+    const attempt = new URL(ownerCalls[1][2].callbackUrl, "https://oauth.invalid").searchParams.get(
+      "attempt",
+    );
+    assert.ok(attempt);
+    await open(`/desktop/complete?attempt=${attempt}`, owner);
+    await expect(waiting.locator(".auth-btn-primary")).toHaveAttribute(
+      "href",
+      "whispr://open/channels/@me",
+    );
+    assert.equal(await waiting.evaluate(() => window.calls?.length ?? 0), 0);
+    await owner.evaluate(() => {
+      const key = "whispr:desktop-oauth-browser";
+      const attempt = JSON.parse(localStorage.getItem(key));
+      attempt.expiresAt = Date.now() - 1;
+      localStorage.setItem(key, JSON.stringify(attempt));
+    });
+    await open("/desktop/start?request=desktop-request", waiting, true);
+    await expect(waiting.locator(".auth-btn-primary")).toHaveAttribute(
+      "href",
+      "whispr://open/channels/@me",
+    );
+    assert.equal(
+      await waiting.evaluate(() => window.calls?.length ?? 0),
+      0,
+      "a late duplicate must not sign out the successful browser session",
+    );
+    // A superseded completion must not launch an old account handoff.
+    await open("/desktop/complete?attempt=obsolete-attempt", waiting);
+    await expect(waiting.getByRole("alert")).toBeVisible();
+    await expect(waiting.locator('a[href="#handoff-fixture"]')).toHaveCount(0);
+    assert.equal(await waiting.evaluate(() => location.hash), "");
+
+    // A lost/closed Google tab can be explicitly restarted; the old completion is obsolete.
+    await open("/desktop/start?request=new-request", owner, true);
+    await expect.poll(() => owner.evaluate(() => window.calls?.length)).toBe(2);
+    const oldCalls = await owner.evaluate(() => window.calls);
+    const oldAttempt = new URL(
+      oldCalls[1][2].callbackUrl,
+      "https://oauth.invalid",
+    ).searchParams.get("attempt");
+    await open("/desktop/start?request=new-request", waiting, true);
+    await waiting.getByRole("button", { name: "Google girişini yeniden başlat" }).click();
+    await expect.poll(() => waiting.evaluate(() => window.calls?.length)).toBe(2);
+    const replacementCalls = await waiting.evaluate(() => window.calls);
+    const replacement = new URL(
+      replacementCalls[1][2].callbackUrl,
+      "https://oauth.invalid",
+    ).searchParams.get("attempt");
+    assert.notEqual(replacement, oldAttempt);
+    await open(`/desktop/complete?attempt=${oldAttempt}`, owner);
+    await expect(owner.getByRole("alert")).toBeVisible();
+    assert.equal(await owner.evaluate(() => location.hash), "");
+    await open(`/desktop/complete?attempt=${replacement}`, waiting);
+    await expect.poll(() => waiting.evaluate(() => location.hash)).toBe("#handoff-fixture");
+
+    // Expired pending attempts do not strand future sign-ins.
+    await owner.evaluate(() => {
+      localStorage.setItem(
+        "whispr:desktop-oauth-browser",
+        JSON.stringify({ id: "expired", status: "pending", expiresAt: Date.now() - 1 }),
+      );
+    });
+    await open("/desktop/start?request=after-expiry", owner, true);
+    await expect.poll(() => owner.evaluate(() => window.calls?.length)).toBe(2);
+    await duplicate.close();
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

@@ -205,7 +205,7 @@ test("all GitHub Actions pnpm jobs consume packageManager as their version sourc
     }
   }
 
-  assert.equal(setupPnpmSteps, 16, "unexpected pnpm/action-setup step count");
+  assert.equal(setupPnpmSteps, 17, "unexpected pnpm/action-setup step count");
 });
 
 test("CI pins supported Node 24 action runtimes to reviewed releases", () => {

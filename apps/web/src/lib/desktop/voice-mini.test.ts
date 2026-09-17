@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { ConnectionState } from "livekit-client";
+import { parseVoiceMiniSnapshot } from "@wizards/types";
 import {
   buildVoiceMiniSnapshot,
   resolveVoiceMiniConnectionQuality,
@@ -28,6 +29,26 @@ function participant(
 }
 
 describe("desktop voice mini snapshot", () => {
+  it("exports only the local share count and accepts older snapshots", () => {
+    const input = {
+      activeChannelId: "channel-1",
+      connectionState: ConnectionState.Connected,
+      isDeafened: false,
+      isMuted: false,
+      participants: [],
+      socketConnected: true,
+      screenShareViewerCount: 7,
+    };
+    const active = buildVoiceMiniSnapshot({ ...input, isScreenSharing: true });
+    assert.equal(active.isScreenSharing, true);
+    assert.equal(active.screenShareViewerCount, 7);
+    assert.equal(buildVoiceMiniSnapshot(input).screenShareViewerCount, 0);
+    const legacy = { ...active };
+    delete legacy.isScreenSharing;
+    delete legacy.screenShareViewerCount;
+    assert.ok(parseVoiceMiniSnapshot(legacy));
+    assert.equal(parseVoiceMiniSnapshot({ ...active, screenShareViewerCount: -1 }), null);
+  });
   it("sanitizes the exported participant payload", () => {
     const snapshot = buildVoiceMiniSnapshot({
       activeChannelId: "channel-1",

@@ -1794,6 +1794,17 @@ export const mobileCopy = {
     voiceScreenShareViewerLabel: "Ekran paylaşımı",
     voiceScreenShareViewerTitle: "{name} ekranını paylaşıyor",
     voiceScreenShareViewerWaiting: "Video yayını bağlanınca burada görünecek.",
+    // Ekran paylaşımı paketi (2026-09) — Ş0.1 sözleşme anahtarları; Dalga 1–2 adıyla tüketir.
+    voiceScreenShareUnsupportedIos:
+      "iPhone ve iPad'de ekran paylaşımı henüz desteklenmiyor. Sesli sohbete katılabilir ve paylaşımları izleyebilirsin.",
+    voiceScreenShareBackgroundContinues:
+      "Uygulama arka plandayken ekran paylaşımı ve mikrofon açık kalır; kamera durur.",
+    voiceScreenShareStoppedBySystem: "Ekran paylaşımı sistem tarafından durduruldu.",
+    voiceScreenSharePermissionDenied:
+      "Ekran kaydı izni verilmedi. Paylaşmak için sistem isteğini onayla.",
+    voiceScreenShareViewers: "{count} izliyor",
+    voiceScreenShareZoomHint: "Yakınlaştırmak için iki parmakla sık.",
+    voiceScreenShareStreamingTitle: "{name} {game} yayınlıyor",
     voiceRoomCheckingPermission: "Mikrofon izni kontrol ediliyor.",
     voiceDirectCallCameraPermissionDenied: "Görüntülü arama için kamera izni gerekli.",
     voiceDirectCallConnectionError: "Doğrudan arama bağlantısı kurulamadı.",
@@ -4749,6 +4760,17 @@ export const mobileCopy = {
     voiceScreenShareViewerLabel: "Screen share",
     voiceScreenShareViewerTitle: "{name} is sharing their screen",
     voiceScreenShareViewerWaiting: "The video stream will appear here once it connects.",
+    // Screen share package (2026-09) — Ş0.1 contract keys; waves 1–2 consume them by name.
+    voiceScreenShareUnsupportedIos:
+      "Screen sharing isn't available on iPhone and iPad yet. You can still join voice and watch other people's shares.",
+    voiceScreenShareBackgroundContinues:
+      "Screen share and microphone stay on while the app is in the background; the camera stops.",
+    voiceScreenShareStoppedBySystem: "The system stopped the screen share.",
+    voiceScreenSharePermissionDenied:
+      "Screen recording permission was not granted. Approve the system prompt to share.",
+    voiceScreenShareViewers: "{count} watching",
+    voiceScreenShareZoomHint: "Pinch with two fingers to zoom.",
+    voiceScreenShareStreamingTitle: "{name} is streaming {game}",
     voiceRoomCheckingPermission: "Checking microphone permission.",
     voiceDirectCallCameraPermissionDenied: "Camera permission is required for a video call.",
     voiceDirectCallConnectionError: "Direct call could not connect.",

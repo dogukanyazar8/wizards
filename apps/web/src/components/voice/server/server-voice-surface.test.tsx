@@ -609,3 +609,31 @@ it("the leave state uses shared typography and preserves the reconnect action", 
   assert.ok(html.includes(MESSAGES["voice.view.reconnectAction"] ?? ""));
   assert.ok(html.includes("hsl(var(--primary))"));
 });
+
+it("screen viewer counts and Go Live labels render from explicit metadata", () => {
+  const stage = (
+    viewerCount: number,
+    isLocalShare = false,
+    stream?: { kind: "game"; gameId: null; label: string | null },
+  ) =>
+    render(
+      <ServerScreenShareStage
+        fps={30}
+        onToggleFullscreen={() => undefined}
+        resolutionLabel="1080p"
+        sharerAvatarUrl={null}
+        sharerName="Alice"
+        strip={null}
+        videoSlot={null}
+        viewerCount={viewerCount}
+        isLocalShare={isLocalShare}
+        stream={stream}
+      />,
+    );
+  assert.doesNotMatch(stage(0), /voice-stage-viewer-count/);
+  assert.match(stage(0, true), /voice-stage-viewer-count/);
+  assert.match(stage(1), /voice-stage-viewer-count/);
+  assert.match(stage(5), /voice-stage-viewer-count/);
+  assert.match(stage(1, false, { kind: "game", gameId: null, label: "Test Game" }), /Test Game/);
+  assert.match(stage(1, false, { kind: "game", gameId: null, label: null }), /oyun/);
+});

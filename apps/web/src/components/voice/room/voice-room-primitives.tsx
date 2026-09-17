@@ -1,5 +1,7 @@
 "use client";
 
+import { ScreenShareVideo } from "../screen-share-video";
+export { ScreenShareVideo } from "../screen-share-video";
 // The default import is what the node test runner's classic JSX transform resolves these
 // components' elements against; Next's compiler does not need it.
 import React, {
@@ -15,7 +17,7 @@ import React, {
 import {
   ConnectionQuality,
   ConnectionState,
-  LocalVideoTrack,
+  type LocalVideoTrack,
   type RemoteVideoTrack,
   type Room,
 } from "livekit-client";
@@ -418,51 +420,6 @@ export function useVideoSourceAspect(track: LocalVideoTrack | RemoteVideoTrack |
   }
 
   return [state.aspect, setAspect] as const;
-}
-
-export function ScreenShareVideo({
-  onSourceAspectChange,
-  track,
-}: {
-  onSourceAspectChange?: (aspect: number) => void;
-  track: LocalVideoTrack | RemoteVideoTrack | null;
-}) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!track || !video) {
-      return;
-    }
-
-    const reportAspect = () => {
-      onSourceAspectChange?.(
-        resolveVideoAspect({ height: video.videoHeight, width: video.videoWidth }),
-      );
-    };
-
-    track.attach(video);
-    video.play().catch(() => undefined);
-    video.addEventListener("loadedmetadata", reportAspect);
-    video.addEventListener("resize", reportAspect);
-    reportAspect();
-
-    return () => {
-      video.removeEventListener("loadedmetadata", reportAspect);
-      video.removeEventListener("resize", reportAspect);
-      track.detach(video);
-    };
-  }, [onSourceAspectChange, track]);
-
-  return (
-    <video
-      autoPlay
-      className="h-full w-full rounded-[24px] bg-black object-contain"
-      muted={track instanceof LocalVideoTrack}
-      playsInline
-      ref={videoRef}
-    />
-  );
 }
 
 export function ParticipantCameraVideo({
@@ -980,8 +937,9 @@ export function ScreenShareStage({
   useEffect(() => {
     setVoiceVideoQualityCeiling(activeSharePublication, {
       isStage: primaryFocus === "screen",
+      videoQualityMode,
     });
-  }, [activeSharePublication, primaryFocus]);
+  }, [activeSharePublication, primaryFocus, videoQualityMode]);
 
   return (
     <div
@@ -1081,7 +1039,14 @@ export function ScreenShareStage({
           ) : (
             <div className="h-full min-h-0 w-full" data-testid="voice-stage-primary-screen">
               {activeShare?.track ? (
-                <ScreenShareVideo track={activeShare.track} />
+                <ScreenShareVideo
+                  interactive
+                  onToggleFullscreen={() => void toggleElementFullscreen(stageRef.current)}
+                  direct
+                  publication={activeShare.publication}
+                  track={activeShare.track}
+                  onStop={activeShare.isLocal ? onStopShare : undefined}
+                />
               ) : (
                 <div className="flex h-full min-h-0 items-center justify-center text-center">
                   <div>
@@ -1180,6 +1145,14 @@ export function ScreenShareStage({
                 onClick={() => onSelectShare(share.id)}
                 type="button"
               >
+                {share.track && (
+                  <div className="h-16 w-24 shrink-0">
+                    <ScreenShareVideo
+                      publication={isActive ? null : share.publication}
+                      track={share.track}
+                    />
+                  </div>
+                )}
                 <Avatar
                   alt={displayName}
                   className="h-9 w-9 border-none text-xs"

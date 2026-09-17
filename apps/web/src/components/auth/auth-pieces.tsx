@@ -18,7 +18,7 @@ export function AuthTurnstileRow({ verified }: { verified: boolean }) {
   const { t } = useI18n();
 
   return (
-    <div className="auth-turnstile">
+    <div className="auth-turnstile" role="status">
       <span
         aria-hidden="true"
         className="auth-turnstile-tile"
@@ -26,7 +26,9 @@ export function AuthTurnstileRow({ verified }: { verified: boolean }) {
       >
         {verified ? "✓" : null}
       </span>
-      <span className="auth-hint">{t("auth.register.turnstileTitle")}</span>
+      <span className="auth-hint">
+        {t(verified ? "auth.register.turnstileTitle" : "auth.turnstile.label")}
+      </span>
       <span className="auth-turnstile-hint">{t("auth.register.turnstileHint")}</span>
     </div>
   );

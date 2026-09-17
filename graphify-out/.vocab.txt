@@ -55,6 +55,7 @@ aday
 adb
 add
 added
+additional
 additive
 address
 addresses
@@ -66,6 +67,7 @@ admin
 administration
 administrator
 admins
+adresi
 adresler
 advance
 advanced
@@ -77,6 +79,7 @@ after
 against
 age
 agenda
+agent
 agents
 aggregate
 ago
@@ -109,6 +112,7 @@ ald
 alert
 alertable
 alerts
+alg
 ali
 alias
 aliased
@@ -189,6 +193,7 @@ anonymize
 answer
 answered
 any
+apartment
 api
 apierror
 apk
@@ -215,6 +220,7 @@ arac
 aral
 arama
 aramas
+aramaya
 aranacak
 arand
 aras
@@ -228,17 +234,20 @@ ard
 are
 area
 areas
+aret
 areti
 aretle
 aretleniyor
 arg
 args
+argument
 arguments
 aria
 aritmetik
 arka
 arkada
 arkadaslar
+arkas
 arketipi
 arketipleri
 arm
@@ -275,6 +284,7 @@ atlamas
 atlan
 atland
 atlanmayacak
+atlanmayan
 atlat
 atom
 atomic
@@ -331,6 +341,7 @@ awarded
 aware
 aws
 axe
+axes
 axis
 aya
 ayak
@@ -376,6 +387,7 @@ bang
 banned
 banner
 bans
+bant
 bar
 bare
 bari
@@ -389,6 +401,7 @@ basename
 bash
 baslatma
 baslik
+basmal
 bat
 batch
 batches
@@ -396,6 +409,7 @@ bayat
 bayra
 bayrak
 bayt
+baz
 bazl
 bba
 bcrypt
@@ -412,6 +426,9 @@ bekledi
 beklemeden
 bekleyen
 bekliyor
+belge
+belgeler
+belgesi
 belirtti
 bell
 belongs
@@ -427,6 +444,7 @@ bestekar
 beta
 beti
 between
+beyan
 beyaz
 big
 bildir
@@ -447,14 +465,17 @@ bilin
 bilinen
 bilinmesi
 bilmedi
+bilmesi
 bilmez
 bind
 bindi
 binding
 bindings
 biniyor
+bio
 biometric
 bir
+birbirinden
 birden
 birebir
 birebirlik
@@ -507,6 +528,7 @@ border
 boru
 bos
 bosluk
+both
 bottom
 bound
 boundaries
@@ -541,6 +563,7 @@ bridged
 brief
 broadcast
 broadcasts
+broker
 browser
 browserslist
 bubble
@@ -569,6 +592,7 @@ bulunan
 bulunanlar
 bulundu
 bulunmad
+bulunup
 bulup
 buna
 bundle
@@ -581,6 +605,7 @@ buradaki
 buraya
 bus
 busy
+but
 buton
 butonlar
 butonu
@@ -609,6 +634,7 @@ callable
 callback
 callbacks
 callers
+calling
 calls
 callstyle
 cam
@@ -625,6 +651,7 @@ candidates
 canl
 canland
 canli
+cannot
 canonical
 canvas
 cap
@@ -680,6 +707,7 @@ changing
 channel
 channels
 character
+characters
 chart
 chat
 check
@@ -764,6 +792,7 @@ cmap
 coalesce
 code
 codec
+codecs
 codename
 codepoints
 codes
@@ -782,7 +811,6 @@ color
 colors
 column
 columns
-combination
 combinations
 combine
 command
@@ -915,6 +943,8 @@ covers
 crash
 create
 created
+creates
+creating
 creation
 credential
 credentials
@@ -958,6 +988,7 @@ dalgada
 dalgal
 dalgalar
 dalgalara
+dalgan
 dalgas
 dalgaya
 dallar
@@ -1064,6 +1095,7 @@ denetim
 denetimi
 denetle
 denetlenip
+deneyimi
 deneyimini
 denials
 denied
@@ -1092,6 +1124,7 @@ describe
 description
 descriptions
 descriptor
+descriptors
 deseninin
 deserialize
 design
@@ -1099,6 +1132,7 @@ desktop
 deste
 destek
 destination
+destroyed
 destructive
 detach
 detail
@@ -1108,6 +1142,7 @@ detayi
 detayl
 detaylar
 detect
+detected
 detector
 deterministic
 deterministik
@@ -1134,6 +1169,7 @@ devredilenler
 devretti
 devri
 diagnose
+diagnosis
 diagnostic
 diagnostics
 dialog
@@ -1168,6 +1204,7 @@ directories
 directory
 dirilmesi
 dirname
+dirs
 dirty
 disable
 disabled
@@ -1175,6 +1212,7 @@ disappearing
 discard
 disclosure
 disconnect
+disconnected
 discord
 discover
 discoverable
@@ -1194,6 +1232,7 @@ disposition
 dist
 distance
 distinct
+distinguishes
 distribution
 divider
 diyalo
@@ -1220,6 +1259,7 @@ dogruluk
 doguk
 dogukan
 dokunan
+dokundu
 dokunma
 dokunmuyor
 dokunu
@@ -1236,6 +1276,7 @@ dolarlik
 dolayl
 doldurma
 dolgusu
+dolmu
 dolu
 dolumu
 dom
@@ -1292,6 +1333,7 @@ duran
 duration
 durations
 durdur
+durdurma
 durmuyor
 durum
 durumda
@@ -1300,6 +1342,7 @@ durumlar
 durumu
 durumun
 durumunun
+duruyor
 duvar
 duyarl
 duzeltilir
@@ -1322,6 +1365,7 @@ edece
 eden
 eder
 ederim
+edge
 edici
 edildi
 edilebilir
@@ -1331,6 +1375,7 @@ edilen
 edilenler
 edilir
 ediliyor
+edilmedi
 edilmeli
 edilmez
 edilmi
@@ -1353,6 +1398,7 @@ efor
 ehri
 eicar
 eki
+ekibi
 ekil
 ekilde
 ekillendirdi
@@ -1363,6 +1409,7 @@ ekl
 ekle
 ekledi
 ekleme
+eklemeli
 eklemem
 eklendi
 eklenebilirlik
@@ -1434,10 +1481,12 @@ emitter
 emitters
 emoji
 emojis
+emojisi
 emphasis
 empty
 emri
 emrullah
+emsalle
 emulator
 enable
 enabled
@@ -1460,6 +1509,7 @@ ene
 enek
 enekleri
 eneklerin
+eneklerinin
 enforce
 enforcement
 engagement
@@ -1485,12 +1535,12 @@ ensure
 entegrasyon
 enter
 enterpolasyon
+enters
 entity
 entrance
 entries
 entry
 enum
-enumerate
 enumeration
 env
 envanteri
@@ -1509,6 +1559,7 @@ eri
 eride
 eridi
 eridin
+eridinin
 erik
 eriklerin
 erisinde
@@ -1534,6 +1585,7 @@ erme
 error
 errored
 errors
+erse
 ersizleme
 ertele
 ertelemeler
@@ -1582,11 +1634,13 @@ event
 events
 eventual
 every
+everyday
 everyone
 evesi
 evict
 eviction
 evidence
+evirebilir
 evirir
 evirisi
 evirme
@@ -1598,6 +1652,7 @@ evrimi
 exact
 example
 examples
+exceeds
 exception
 exceptions
 excerpt
@@ -1650,10 +1705,12 @@ extractor
 extras
 eyebrow
 eyi
+eyl
 eylem
 eylemi
 eylemler
 eylemleri
+ezebilir
 eziliyor
 eziyor
 fab
@@ -1716,6 +1773,7 @@ fewer
 fidelity
 field
 fields
+fifteen
 figtree
 fikirlerini
 file
@@ -1753,6 +1811,7 @@ five
 fix
 fixed
 fixes
+fixme
 fixture
 fixtures
 flag
@@ -1824,6 +1883,7 @@ frame
 framer
 frames
 framework
+free
 freeze
 frekans
 frequency
@@ -1843,6 +1903,7 @@ functional
 functionality
 funnel
 future
+gain
 gallery
 game
 gap
@@ -1866,6 +1927,7 @@ gelir
 gelistirme
 geliyor
 gelmezse
+gelmiyor
 gen
 genel
 geneli
@@ -1886,11 +1948,14 @@ gercekten
 gere
 gerek
 gereken
+gerekenler
 gerekiyor
 gerekli
+gereklilik
 gerekmedi
 gerekmeyen
 gereksinimi
+gereksinimleri
 gereksiz
 gerektirdi
 gerektiren
@@ -1925,7 +1990,9 @@ gitleaks
 given
 gizlendi
 gizli
+gizlili
 gizlilik
+glass
 glifler
 glob
 global
@@ -1958,9 +2025,11 @@ grafik
 grant
 grantable
 granted
+granting
 grants
 graph
 graphify
+gray
 green
 greeting
 grep
@@ -2056,6 +2125,7 @@ headless
 headphones
 health
 healthy
+heap
 heartbeat
 hedef
 hedefi
@@ -2085,6 +2155,7 @@ hesaptan
 hex
 hexes
 hget
+hglobal
 hidden
 hide
 high
@@ -2103,7 +2174,9 @@ history
 hit
 hizalamas
 hizaland
+hizas
 hkdf
+hkey
 hold
 holds
 home
@@ -2115,6 +2188,7 @@ hops
 horizontal
 host
 hosted
+hosting
 hostname
 hostnames
 hosts
@@ -2136,11 +2210,13 @@ hub
 hwnd
 hybrid
 hydrate
+hydrated
 hydration
 hygiene
 hyphen
 iana
 iat
+icat
 icerik
 ici
 icin
@@ -2155,6 +2231,7 @@ idempotency
 idempotent
 identified
 identifier
+identify
 identities
 identity
 idiom
@@ -2169,12 +2246,16 @@ ignore
 ignores
 ihlal
 ihlali
+ihra
+ihracatlar
 ihtiyac
 iki
 ikinci
 ikisi
+ikisinde
 ikiye
 iklamasi
+ikler
 ikli
 iklik
 iklikler
@@ -2196,6 +2277,7 @@ ilen
 iler
 ilerleme
 ilet
+ileti
 ilgili
 ili
 ilk
@@ -2237,7 +2319,9 @@ imzalama
 imzalar
 imzas
 inactive
+inbound
 inbox
+ince
 inceleme
 incelemede
 incelemesi
@@ -2250,6 +2334,7 @@ incident
 incidents
 include
 incoming
+increase
 increment
 incremental
 increments
@@ -2287,10 +2372,12 @@ ini
 inin
 init
 initial
+initialization
 initialize
 initialized
 initializer
 initials
+inject
 injected
 ink
 inline
@@ -2302,12 +2389,14 @@ inserted
 inset
 insets
 inside
+inspect
 instagram
 install
 installation
 installed
 installer
 instance
+instances
 instant
 instream
 instrum
@@ -2361,6 +2450,7 @@ ionicon
 ionicons
 ioredis
 ios
+ipc
 ipi
 ipleri
 iptal
@@ -2398,6 +2488,7 @@ istemciler
 istemcileri
 istemcisi
 istenen
+isteniyor
 istisna
 istisnalar
 istisnas
@@ -2408,6 +2499,7 @@ items
 iterable
 iterasyonda
 iteration
+iterator
 iti
 itine
 itiraz
@@ -2426,11 +2518,17 @@ izgi
 izgileri
 izgisi
 izi
+izilemiyordu
 izilmiyor
 izim
+iziminde
 izin
 izinler
+iziyor
 izleme
+izleyen
+izleyici
+izliyor
 izmiyordu
 iznini
 izolasyonu
@@ -2438,8 +2536,10 @@ izole
 jailbroken
 jakarta
 january
+java
 jdk
 jest
+jitter
 job
 jobs
 join
@@ -2467,6 +2567,7 @@ kademe
 kademeli
 kademesi
 kal
+kalabilir
 kalan
 kalanlar
 kalar
@@ -2479,6 +2580,7 @@ kalitesi
 kalitesini
 kalkar
 kalkt
+kalm
 kalmayacak
 kamera
 kampanya
@@ -2487,8 +2589,10 @@ kan
 kanal
 kanali
 kanallar
+kanca
 kancada
 kancalardan
+kancas
 kanit
 kanitli
 kanon
@@ -2531,7 +2635,10 @@ karesi
 karesinin
 karma
 karmak
+karsili
+karsiligi
 kart
+karta
 karti
 kartlar
 kartmak
@@ -2585,6 +2692,7 @@ kaynaklan
 kaynaklar
 kazan
 kazanabilece
+kbps
 keep
 keeps
 ken
@@ -2610,7 +2718,10 @@ ketece
 ketici
 keticisiz
 ketilen
+ketilmiyor
 ketimi
+ketimlerinde
+ketir
 key
 keyboard
 keyring
@@ -2708,7 +2819,10 @@ konulamad
 konumu
 kopya
 kopyala
+kopyalan
+kopyalanabilir
 kopyalanan
+kopyalanm
 kopyalanmad
 kopyalanmadan
 korelasyonu
@@ -2748,6 +2862,7 @@ kullanmad
 kullanmak
 kur
 kural
+kuraldan
 kurallar
 kurallari
 kurma
@@ -2780,7 +2895,9 @@ ladder
 lag
 lam
 lama
+lamad
 lamal
+lamas
 lamayan
 lamayanlar
 lamdan
@@ -2795,6 +2912,7 @@ language
 languages
 lanlar
 lanmad
+lanmal
 lanmay
 lant
 lantilar
@@ -2807,13 +2925,18 @@ larken
 lasi
 last
 lat
+late
 latency
 later
 latest
 latma
 launch
+launched
 launcher
+launchers
 lay
+layabilir
+layaca
 layer
 layered
 layering
@@ -2850,6 +2973,7 @@ len
 lendir
 lendirmeler
 length
+lenler
 ler
 lerde
 leri
@@ -2877,6 +3001,8 @@ level
 levels
 levleri
 levsel
+leyen
+leyici
 lgan
 lge
 lgesel
@@ -2892,6 +3018,7 @@ lifetime
 lift
 light
 lightbox
+lik
 like
 likely
 likli
@@ -2952,9 +3079,11 @@ lmayacaklar
 lmayan
 lmaz
 lme
+lmedi
 lmeli
 lmesi
 load
+loaded
 loader
 loading
 loads
@@ -2990,6 +3119,7 @@ lokalimde
 lol
 long
 longest
+lookalike
 lookup
 loop
 loopback
@@ -3014,12 +3144,14 @@ maddenin
 maddesi
 maddesinin
 maestro
+mail
 main
 maintenance
 major
 makalesi
 make
 makine
+makinede
 makinesi
 makineye
 makineyi
@@ -3043,6 +3175,7 @@ manipulator
 mant
 mantasyonu
 manual
+manuel
 many
 map
 mapped
@@ -3066,6 +3199,7 @@ masked
 maskeleme
 masks
 mass
+master
 match
 matched
 matches
@@ -3090,6 +3224,7 @@ mede
 meden
 medi
 media
+median
 medium
 medya
 medyay
@@ -3135,6 +3270,7 @@ message
 messagelist
 messages
 messaging
+met
 meta
 metadata
 meter
@@ -3146,6 +3282,7 @@ metinler
 metinleri
 metni
 metnindeki
+metninin
 metodu
 metri
 metric
@@ -3154,6 +3291,7 @@ metrik
 metrikleri
 metro
 mevcut
+mevcutlar
 mey
 meye
 meyecek
@@ -3176,11 +3314,13 @@ migration
 migrations
 milestone
 millis
+mima
 mimari
 mimarisi
 mime
 min
 mine
+minecraft
 mini
 minimatch
 minimize
@@ -3198,6 +3338,7 @@ missing
 missingsecret
 mix
 miyiz
+miyor
 mjs
 mkdir
 mlama
@@ -3221,6 +3362,7 @@ mocks
 mod
 modal
 modali
+modality
 modallar
 modals
 mode
@@ -3254,6 +3396,7 @@ monitoring
 monkey
 monorepo
 month
+months
 more
 most
 motion
@@ -3269,10 +3412,12 @@ mounting
 mouse
 move
 msvc
+mts
 multi
 multipart
 multiplier
 must
+musun
 mutable
 mutasyon
 mutasyonu
@@ -3333,6 +3478,7 @@ ncellemeleri
 ncellemesi
 ncellendi
 ncellenmesi
+ncelli
 ncesi
 nda
 ndaki
@@ -3345,6 +3491,7 @@ nden
 nder
 nderildi
 nderim
+nderiyor
 nderme
 ndermez
 ndermiyor
@@ -3354,6 +3501,7 @@ neden
 nedendir
 nedenleri
 nedir
+needed
 needs
 negative
 nekini
@@ -3362,8 +3510,10 @@ nele
 neler
 nelerdir
 neleri
+nem
 nemli
 nen
+ner
 nered
 nerede
 nereden
@@ -3422,6 +3572,7 @@ node
 nodes
 noise
 nokta
+noktada
 noktalar
 noktas
 non
@@ -3475,6 +3626,7 @@ objective
 objects
 obse
 observability
+observations
 observe
 observer
 observers
@@ -3628,8 +3780,10 @@ oturuma
 oturumda
 oturumlar
 oturumu
+oturumun
 otuz
 out
+outbound
 outbox
 outcome
 outer
@@ -3656,6 +3810,8 @@ owners
 ownership
 oynuyor
 oyun
+oyunlar
+oyununu
 ozet
 ozeti
 pac
@@ -3684,6 +3840,7 @@ paketine
 paketini
 paketler
 paketlerde
+paketleri
 pakette
 palet
 paleti
@@ -3693,6 +3850,7 @@ pan
 pane
 panel
 panelde
+panelden
 paneli
 panelin
 paneller
@@ -3712,6 +3870,7 @@ param
 parameter
 parameterized
 parameters
+parametresi
 parametresinde
 params
 parantez
@@ -3730,6 +3889,7 @@ parser
 part
 parti
 partial
+partialize
 participant
 participants
 particle
@@ -3759,6 +3919,7 @@ pause
 pay
 payla
 paylasilan
+paylasimi
 payload
 payloads
 pazarl
@@ -3821,6 +3982,7 @@ pin
 pinleri
 pinned
 pins
+pip
 pipeline
 pixelmatch
 pkg
@@ -3925,6 +4087,7 @@ presets
 press
 pressable
 prettier
+prevent
 prevention
 preview
 previewed
@@ -3992,7 +4155,9 @@ promptu
 promptun
 promptuna
 promptunkini
+pronouns
 proof
+prop
 propagation
 proper
 properties
@@ -4091,6 +4256,7 @@ rarity
 ras
 ratchet
 rate
+rates
 rating
 ratio
 rationale
@@ -4127,16 +4293,19 @@ reauthenticate
 rebaseline
 receipt
 receipts
+receive
 received
 receiver
 recent
 reci
 recipient
 recipients
+recognizes
 recommended
 recompute
 reconcile
 reconciliation
+reconfigure
 reconnect
 reconnected
 reconnecting
@@ -4216,6 +4385,7 @@ rejects
 rekli
 related
 relation
+relations
 relationship
 relative
 relaunch
@@ -4227,13 +4397,16 @@ reli
 reliability
 reliable
 rem
+remain
 remaining
+remains
 remark
 remediation
 remember
 remembered
 reminder
 reminders
+remiyor
 remote
 removal
 remove
@@ -4251,6 +4424,7 @@ rengi
 renk
 renkleri
 renklerini
+reopen
 reopened
 reorder
 repair
@@ -4335,6 +4509,7 @@ retir
 retired
 retirement
 retiyor
+retme
 retmeler
 retmesi
 retmez
@@ -4345,6 +4520,7 @@ return
 returned
 returning
 reusable
+reuse
 rev
 revalidate
 revalidation
@@ -4365,6 +4541,7 @@ revoke
 revoked
 rework
 rewrite
+reyi
 rfc
 rgb
 rgba
@@ -4393,6 +4570,7 @@ rma
 rman
 rmas
 rme
+rmemeli
 rmemi
 rmez
 rms
@@ -4444,11 +4622,14 @@ rozetler
 rozetleri
 rozetlerim
 rozetlerin
+rpmas
+rprizler
 rprizleri
 rsak
 rsc
 rsel
 rsvp
+rtan
 rtc
 rtl
 rtp
@@ -4456,6 +4637,7 @@ rubber
 rulad
 rulama
 rulamada
+rulamadan
 rulamas
 rulan
 rulanabilir
@@ -4578,6 +4760,7 @@ scratch
 screen
 screencap
 screens
+screenshare
 screenshot
 script
 scripti
@@ -4592,7 +4775,9 @@ sdcard
 sdk
 seam
 search
+sebebi
 sebebiyet
+sebep
 sec
 second
 secondary
@@ -4659,7 +4844,9 @@ sentez
 sentinel
 sentry
 separator
+separators
 sequence
+sequential
 sequentially
 seri
 serial
@@ -4691,6 +4878,7 @@ sessions
 sessiz
 sessizce
 sessize
+sessizlik
 sesten
 set
 seti
@@ -4704,9 +4892,11 @@ settle
 settled
 setup
 sev
+seven
 seviyesi
 seviyesinde
 seviyeye
+sfu
 sha
 shadow
 shadows
@@ -4750,6 +4940,7 @@ significant
 signin
 signing
 sil
+silece
 silindi
 silinecek
 silinecekler
@@ -4823,6 +5014,7 @@ sohbetleri
 soket
 soketi
 sol
+solid
 solo
 son
 sona
@@ -4845,6 +5037,7 @@ sorguda
 sorgular
 sorguluyor
 sorgusu
+sorgusunun
 sorguya
 sort
 sortable
@@ -4911,6 +5104,7 @@ stages
 staging
 stale
 stalled
+stamp
 standard
 standartlar
 star
@@ -4936,6 +5130,7 @@ statuses
 stay
 ste
 stek
+stekler
 stemci
 stenen
 step
@@ -4947,7 +5142,6 @@ sterim
 sterir
 steriyor
 steriyorsa
-sticker
 sticky
 still
 stisnalar
@@ -4963,6 +5157,7 @@ storage
 store
 stored
 stores
+str
 strategy
 stratejisi
 streak
@@ -5097,6 +5292,7 @@ taki
 takibi
 takip
 taklidi
+takma
 takvim
 talimatl
 talimatlar
@@ -5107,6 +5303,7 @@ tamamen
 tamamla
 tamamlad
 tamamlama
+tamamlanan
 tamamland
 tamamlandi
 tamamlanmadan
@@ -5148,6 +5345,7 @@ tauri
 tavan
 tavuk
 tazeleme
+tazelemeli
 tcp
 tdd
 tea
@@ -5168,15 +5366,20 @@ tel
 telefon
 telemetri
 telemetrisi
+telemetrisiyle
 telemetry
 tema
 teman
+tembel
 temel
 temeli
 temiz
 temizle
 temizleme
+temizlemiyor
+temizleniyor
 temizleniyordu
+temizlenme
 temizlenmiyor
 temizli
 temizlik
@@ -5198,6 +5401,7 @@ terfi
 term
 terminal
 terminate
+terminator
 terms
 ters
 tersine
@@ -5210,6 +5414,7 @@ teste
 testi
 testid
 testin
+testinde
 testinden
 testing
 testler
@@ -5224,7 +5429,6 @@ tetikleyicisi
 text
 textarea
 than
-that
 the
 their
 theme
@@ -5273,6 +5477,7 @@ tip
 tipi
 tipler
 tipleri
+tiplerini
 tipografi
 tir
 tiraz
@@ -5283,6 +5488,7 @@ tirildi
 tirilecek
 tirilemez
 tirilen
+tirilmesi
 tirilmeyecek
 tirilmiyor
 tiriyor
@@ -5318,6 +5524,7 @@ tone
 tones
 tonlamas
 tonlar
+tonu
 too
 tool
 toolbar
@@ -5384,6 +5591,7 @@ trigram
 trigrams
 trim
 trimmed
+trip
 triple
 triples
 troubleshooting
@@ -5408,6 +5616,7 @@ ttl
 tum
 tun
 tunlar
+tunnel
 tunu
 tur
 turbo
@@ -5417,6 +5626,7 @@ turda
 turkish
 turlar
 turma
+turn
 turnstile
 turu
 turulacak
@@ -5486,6 +5696,8 @@ undo
 unexpired
 ungrouped
 unguarded
+unicode
+unification
 uninstaller
 union
 unique
@@ -5501,12 +5713,13 @@ unluk
 unmet
 unmocked
 unmount
+unmute
 unpin
 unpinned
+unpublish
 unreacted
 unread
 unregister
-unregistered
 unrelated
 unsafe
 unstable
@@ -5514,7 +5727,6 @@ unsubscribe
 unsupported
 until
 unu
-unusable
 unused
 unuttum
 unutulursa
@@ -5527,6 +5739,7 @@ updater
 updates
 updating
 upgrade
+upgrades
 upload
 uploaded
 uploader
@@ -5574,6 +5787,7 @@ uygulan
 uygulanabilir
 uygulanamaz
 uygulanan
+uygulananlar
 uyguland
 uygulanm
 uygulanmad
@@ -5582,6 +5796,7 @@ uygulanmaz
 uygulay
 uygulayabilirim
 uygulayan
+uyguluyor
 uygun
 uymas
 uyor
@@ -5589,8 +5804,12 @@ uyordu
 uyu
 uyulmazsa
 uyum
+uyumlu
 uyumlulu
 uyumluluk
+uzak
+uzaktaki
+uzatabilir
 uzla
 uzun
 vaka
@@ -5621,6 +5840,7 @@ vde
 vdesi
 vdesinde
 vdesine
+vdesiz
 vec
 vector
 ven
@@ -5643,6 +5863,7 @@ verify
 verildi
 veriler
 verilerim
+veriliyor
 verimli
 verir
 verisi
@@ -5653,6 +5874,7 @@ vermeden
 vermeni
 vermiyor
 version
+versioned
 versioning
 versions
 versiyon
@@ -5662,6 +5884,7 @@ veya
 via
 video
 view
+viewable
 viewer
 viewers
 viewport
@@ -5701,6 +5924,7 @@ warnings
 warns
 watch
 watchdog
+watchers
 watermark
 wave
 waveform
@@ -5773,8 +5997,10 @@ writers
 writes
 written
 wrong
+wry
 wsl
 xlarge
+xml
 xss
 yacak
 yakalama
@@ -5782,6 +6008,7 @@ yakalanmas
 yakalanmayan
 yakinda
 yakla
+yalan
 yaln
 yama
 yamas
@@ -5820,6 +6047,7 @@ yayin
 yayinlad
 yayinladim
 yaz
+yazaca
 yazam
 yazan
 yazar
@@ -5868,6 +6096,7 @@ yimser
 yirmi
 yla
 yle
+yledi
 yml
 yok
 yokken
@@ -5893,6 +6122,7 @@ yoruz
 yukar
 yumu
 yumurta
+yuva
 yuvas
 yuzeyi
 zafiyet
@@ -5902,6 +6132,7 @@ zamanl
 zamanlama
 zamanlamas
 zamanlanmam
+zamanlay
 zarar
 zararl
 zaten
@@ -5973,7 +6204,10 @@ zle
 zlem
 zlemlenebilirlik
 zlemler
+zlenen
 zleri
+zleyen
+zleyici
 zleyicinin
 zme
 zod

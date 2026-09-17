@@ -1,4 +1,13 @@
 import {
+  getScreenShareBitrateKbps,
+  SCREEN_SHARE_RESOLUTION_DIMENSIONS,
+  splitScreenShareQualityId,
+  type ScreenShareResolution,
+  type ScreenShareFrameRate,
+  type ScreenShareMode,
+} from "@wizards/types";
+import type { ScreenShareCodecChoice } from "./screen-share-codec";
+import {
   Track,
   VideoPreset,
   type ScalabilityMode,
@@ -19,15 +28,33 @@ export type ScreenShareQualityOption = {
 
 export const DEFAULT_SCREEN_SHARE_QUALITY_ID: ScreenShareQualityId = "h1080fps60";
 
-const H720_FPS60_PRESET = new VideoPreset(1280, 720, 3_500_000, 60);
-const H1080_FPS60_PRESET = new VideoPreset(1920, 1080, 6_000_000, 60);
-const H1440_FPS60_PRESET = new VideoPreset(2560, 1440, 12_000_000, 60);
+export function getScreenSharePreset(
+  resolution: ScreenShareResolution,
+  frameRate: ScreenShareFrameRate,
+  mode: ScreenShareMode,
+) {
+  const size = SCREEN_SHARE_RESOLUTION_DIMENSIONS[resolution];
+  return new VideoPreset(
+    size.width,
+    size.height,
+    getScreenShareBitrateKbps(mode, resolution, frameRate) * 1000,
+    frameRate,
+  );
+}
 
-const SCREEN_SHARE_PRESETS: Record<ScreenShareQualityId, VideoPreset> = {
-  h720fps60: H720_FPS60_PRESET,
-  h1080fps60: H1080_FPS60_PRESET,
-  h1440fps60: H1440_FPS60_PRESET,
+const SCREEN_SHARE_PRESETS = {
+  h720fps60: getScreenSharePreset("h720", 60, "text"),
+  h1080fps60: getScreenSharePreset("h1080", 60, "text"),
+  h1440fps60: getScreenSharePreset("h1440", 60, "text"),
 };
+
+export function resolveCapturedScreenShareResolution(
+  requested: ScreenShareResolution,
+  height: number | undefined,
+): ScreenShareResolution {
+  if (requested !== "h2160" || height === undefined || height >= 2160) return requested;
+  return height >= 1440 ? "h1440" : height >= 1080 ? "h1080" : "h720";
+}
 
 const LEGACY_SCREEN_SHARE_QUALITY_ALIASES: Record<string, ScreenShareQualityId> = {
   h720fps30: "h720fps60",
@@ -75,7 +102,8 @@ export function normalizeScreenShareQualityId(value: unknown): ScreenShareQualit
 }
 
 export function getScreenShareQualityPreset(qualityId: ScreenShareQualityId) {
-  return SCREEN_SHARE_PRESETS[qualityId];
+  const axes = splitScreenShareQualityId(qualityId)!;
+  return getScreenSharePreset(axes.resolution, axes.frameRate, "text");
 }
 
 /**
@@ -137,8 +165,16 @@ export function isScreenShareAudioSupported(
  * leaves the picker's audio checkbox unticked, simply produces a video-only
  * stream. That is a normal share, not a failure.
  */
+type CaptureAxes = {
+  resolution: ScreenShareResolution;
+  frameRate: ScreenShareFrameRate;
+  mode: ScreenShareMode;
+  shareSystemAudio?: boolean;
+  excludeSelfWindow?: boolean;
+  allowSourceSwitch?: boolean;
+};
 export function getScreenShareCaptureOptions(
-  qualityId: ScreenShareQualityId,
+  qualityId: ScreenShareQualityId | CaptureAxes,
   {
     shareSystemAudio = false,
     excludeSelfWindow = true,
@@ -149,12 +185,22 @@ export function getScreenShareCaptureOptions(
     allowSourceSwitch?: boolean;
   } = {},
 ): ScreenShareCaptureOptions {
-  const preset = getScreenShareQualityPreset(qualityId);
+  const axes =
+    typeof qualityId === "string"
+      ? { ...splitScreenShareQualityId(qualityId)!, mode: "text" as const }
+      : qualityId;
+  if (typeof qualityId !== "string") {
+    shareSystemAudio = qualityId.shareSystemAudio ?? false;
+    excludeSelfWindow = qualityId.excludeSelfWindow ?? true;
+    allowSourceSwitch = qualityId.allowSourceSwitch ?? true;
+  }
+  const preset = getScreenSharePreset(axes.resolution, axes.frameRate, axes.mode);
+  const contentHint = axes.mode === "motion" ? "motion" : "detail";
 
   if (!shareSystemAudio) {
     return {
       audio: false,
-      contentHint: "detail",
+      contentHint,
       resolution: preset.resolution,
       selfBrowserSurface: excludeSelfWindow ? "exclude" : "include",
       surfaceSwitching: allowSourceSwitch ? "include" : "exclude",
@@ -163,7 +209,7 @@ export function getScreenShareCaptureOptions(
 
   return {
     audio: true,
-    contentHint: "detail",
+    contentHint,
     resolution: preset.resolution,
     selfBrowserSurface: excludeSelfWindow ? "exclude" : "include",
     suppressLocalAudioPlayback: true,
@@ -184,16 +230,40 @@ export const SCREEN_SHARE_VIDEO_CODEC: VideoCodec = "vp9";
 /** Temporal + spatial SVC layers, key-frame aligned, so the SFU can drop layers. */
 export const SCREEN_SHARE_SCALABILITY_MODE: ScalabilityMode = "L3T3_KEY";
 
-export function getScreenSharePublishOptions(qualityId: ScreenShareQualityId): TrackPublishOptions {
-  const preset = getScreenShareQualityPreset(qualityId);
-
+export function getScreenSharePublishOptions(
+  input:
+    | ScreenShareQualityId
+    | { preset: VideoPreset; codecChoice: ScreenShareCodecChoice; mode: ScreenShareMode },
+): TrackPublishOptions {
+  const { preset, codecChoice, mode } =
+    typeof input === "string"
+      ? {
+          preset: getScreenShareQualityPreset(input),
+          codecChoice: { codec: "vp9" as const },
+          mode: "text",
+        }
+      : input;
+  const h264 = codecChoice.codec === "h264";
   return {
-    backupCodec: true,
-    degradationPreference: SCREEN_SHARE_DEGRADATION_PREFERENCE,
-    scalabilityMode: SCREEN_SHARE_SCALABILITY_MODE,
+    backupCodec: !h264,
+    degradationPreference: mode === "motion" ? "maintain-framerate" : "maintain-resolution",
+    ...(h264
+      ? {
+          simulcast: true,
+          screenShareSimulcastLayers: [2, 4].map(
+            (scale) =>
+              new VideoPreset(
+                Math.round(preset.width / scale),
+                Math.round(preset.height / scale),
+                Math.round(preset.encoding.maxBitrate / (scale * scale)),
+                preset.encoding.maxFramerate,
+              ),
+          ),
+        }
+      : { scalabilityMode: SCREEN_SHARE_SCALABILITY_MODE }),
     screenShareEncoding: preset.encoding,
     source: Track.Source.ScreenShare,
-    videoCodec: SCREEN_SHARE_VIDEO_CODEC,
+    videoCodec: codecChoice.codec,
   };
 }
 

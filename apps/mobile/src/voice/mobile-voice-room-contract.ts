@@ -11,6 +11,7 @@ import type {
   MobileVoiceOutputOption,
 } from "./mobile-voice-device-contract";
 import type { MobileCameraVideoCodec } from "./mobile-video-quality";
+import type { MobileScreenShareHealthSnapshot } from "./mobile-screen-share-health";
 
 export type MobileVoiceRoomConnectionStatus =
   | "checking-permission"
@@ -125,6 +126,14 @@ export interface MobileVoiceRoomState {
   readonly errorMessage: string | null;
   readonly noiseSuppressionEnabled: boolean;
   readonly participants: readonly MobileVoiceRoomParticipant[];
+  /**
+   * Ş0.2: last measured sample of the share on stage (own share first, else
+   * the watched one); null while nothing is shared or before the first read.
+   * Optional so test fixtures that spell the whole state keep compiling.
+   */
+  readonly screenShareHealth?: MobileScreenShareHealthSnapshot | null;
+  /** In-memory track identity for matching measurements to the displayed stream. */
+  readonly screenShareHealthTrack?: object | null;
   readonly screenShareStatus: MobileVoiceScreenShareStatus;
   readonly selectedAudioInputId: string | null;
   readonly selectedAudioOutputId: string | null;
@@ -157,6 +166,7 @@ export function createInitialMobileVoiceRoomState(): MobileVoiceRoomState {
     errorMessage: null,
     noiseSuppressionEnabled: true,
     participants: [],
+    screenShareHealth: null,
     screenShareStatus: "off",
     selectedAudioInputId: null,
     selectedAudioOutputId: null,

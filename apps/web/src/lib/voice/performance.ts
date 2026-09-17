@@ -12,10 +12,26 @@ export type VoicePerformanceOperation =
   | "livekit_token"
   | "livekit_token_fetch"
   | "noise_filter_tier_resolved"
+  /** Viewer: subscribed to the share → first `framesDecoded > 0` (Ş0.2). */
+  | "screen_share_first_remote_frame"
+  /** Ş1's live text/motion switch; recorded once the switch exists. */
+  | "screen_share_mode_switch"
+  /** Sharer: click → local screen track `live` (Ş0.2). */
+  | "screen_share_start"
+  /** Sharer: stop requested → session back to `idle` (Ş0.2). */
+  | "screen_share_stop_cleanup"
   | "voice_join_total"
   | "voice_leave_cleanup_total"
   | "voice_state_delete"
   | "voice_state_post";
+
+/** The operations the screen share telemetry strip records; locked by its test. */
+export const SCREEN_SHARE_PERFORMANCE_OPERATIONS = [
+  "screen_share_first_remote_frame",
+  "screen_share_mode_switch",
+  "screen_share_start",
+  "screen_share_stop_cleanup",
+] as const satisfies readonly VoicePerformanceOperation[];
 
 export type VoicePerformanceMetric = VoiceAudioHealthMetric & {
   durationMs: number;

@@ -24,6 +24,7 @@ export default async function DesktopOAuthCompletePage({
     ? queryParams.callbackUrl[0]
     : queryParams?.callbackUrl;
   const callbackUrl = getSafeAuthRedirectPath(callbackParam);
+  const attemptId = typeof queryParams?.attempt === "string" ? queryParams.attempt : undefined;
 
   if (!session?.user?.id) {
     redirect(
@@ -39,6 +40,7 @@ export default async function DesktopOAuthCompletePage({
   return (
     <DesktopOAuthCompleteClient
       callbackUrl={handoff.callbackUrl}
+      attemptId={attemptId}
       desktopHandoffUrl={buildDesktopOAuthHandoffUrl(handoff.token, handoff.callbackUrl)}
     />
   );

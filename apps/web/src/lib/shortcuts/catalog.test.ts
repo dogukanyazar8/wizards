@@ -48,7 +48,7 @@ function press(
 
 describe("application shortcut catalog", () => {
   it("keeps every discoverable in-app shortcut in one typed catalog", () => {
-    assert.equal(APP_SHORTCUT_IDS.length, 29);
+    assert.equal(APP_SHORTCUT_IDS.length, 33);
     assert.deepEqual(Object.keys(APP_SHORTCUT_CATALOG), [...APP_SHORTCUT_IDS]);
 
     for (const shortcut of Object.values(APP_SHORTCUT_CATALOG)) {

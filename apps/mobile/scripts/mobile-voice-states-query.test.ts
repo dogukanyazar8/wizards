@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import type { MobileVoiceStatesResponse } from "@wizards/types";
 
 import {
+  applyMobileScreenShareWatchersUpdate,
   applyMobileVoiceScreenShareUpdate,
   applyMobileVoiceStateUpdate,
 } from "../src/query/mobile-voice-states-query";
@@ -27,6 +28,43 @@ const initial: MobileVoiceStatesResponse = {
 };
 
 describe("mobile voice states query cache", () => {
+  it("keeps watcher updates scoped and accepts a newer snapshot count, including zero", () => {
+    const current: MobileVoiceStatesResponse = {
+      states: [
+        { channelId: "voice-general", participants: [{ ...participant, isScreenSharing: true }] },
+        { channelId: "voice-other", participants: [participant] },
+      ],
+    };
+    const watching = applyMobileScreenShareWatchersUpdate(current, {
+      channelId: "voice-general",
+      sharerUserId: participant.userId,
+      count: 3,
+      sample: [],
+    });
+    assert.equal(watching?.states[0]?.participants[0]?.screenShareViewerCount, 3);
+    assert.equal(watching?.states[1], current.states[1]);
+    assert.equal(
+      applyMobileScreenShareWatchersUpdate(undefined, {
+        channelId: "voice-general",
+        sharerUserId: participant.userId,
+        count: 3,
+        sample: [],
+      }),
+      undefined,
+    );
+    for (const count of [undefined, 5, 0]) {
+      const next = applyMobileVoiceStateUpdate(watching, {
+        action: "join",
+        channelId: "voice-general",
+        serverId: "server-1",
+        userId: participant.userId,
+        participants: [
+          { ...participant, ...(count === undefined ? {} : { screenShareViewerCount: count }) },
+        ],
+      });
+      assert.equal(next?.states[0]?.participants[0]?.screenShareViewerCount, count ?? 3);
+    }
+  });
   it("uses a server-scoped query key", () => {
     assert.deepEqual(mobileQueryKeys.voiceStates("server-1"), [
       "mobile",

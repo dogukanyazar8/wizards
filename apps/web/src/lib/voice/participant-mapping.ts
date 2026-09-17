@@ -1,3 +1,4 @@
+import type { ScreenShareStreamInfo } from "@wizards/types";
 import {
   Track,
   type LocalVideoTrack,
@@ -32,6 +33,7 @@ export type VoiceParticipantCameraState = {
 };
 
 export interface VoiceScreenShareViewModel {
+  stream?: ScreenShareStreamInfo | null;
   avatarUrl: string | null;
   displayName: string | null;
   id: string;

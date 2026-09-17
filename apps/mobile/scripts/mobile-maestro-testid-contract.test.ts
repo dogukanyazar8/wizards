@@ -36,6 +36,8 @@ const phase5OfflineFlowPath = path.join(
 const phase5OfflineFlowSource = existsSync(phase5OfflineFlowPath)
   ? readFileSync(phase5OfflineFlowPath, "utf8")
   : "";
+const phase6FlowPath = path.join(repositoryRoot, ".maestro", "phase6-screen-share.yml");
+const phase6FlowSource = existsSync(phase6FlowPath) ? readFileSync(phase6FlowPath, "utf8") : "";
 const rootGitignoreSource = readFileSync(path.join(repositoryRoot, ".gitignore"), "utf8");
 
 const testIdSources: Record<string, { file: string; needle: string }> = {
@@ -520,5 +522,52 @@ describe("Phase 0 Maestro testID contract", () => {
     }
     assert.doesNotMatch(phase5FlowSource, /claimId|inviteCode|MAESTRO_UAT_(?:EMAIL|PASSWORD)/);
     assert.ok(MOBILE_AUTOMATED_GATES.some((gate) => gate.id === "mobile-maestro-phase5-voice"));
+  });
+
+  /*
+   * Ekran paylaşımı Ş0.3 — Android MediaProjection akışı. Sistem onayı metinle
+   * (Start now|Şimdi başlat) geçilir; sahne kanıtı şimdilik mevcut paylaşım rozeti
+   * (`mobile-voice-participant-<userId>-share-badge`), Ş7 `mobile-voice-stage-screen-self`
+   * testid'ini sabitleyince akış ve bu sözleşme birlikte güncellenir. Ekran içeriği kaydedilmez.
+   */
+  it("binds the Phase 6 screen share flow to the share control and badge without capturing content", () => {
+    assert.ok(phase6FlowSource, ".maestro/phase6-screen-share.yml must exist");
+    assert.match(phase6FlowSource, /visible:\s*"Reload"[\s\S]*?pressKey:\s*BACK/);
+    assert.match(phase6FlowSource, /id:\s*"mobile-bottom-tab-settings"/);
+    assert.match(phase6FlowSource, /file:\s*"helpers\/login-uat\.yml"/);
+    assert.match(
+      phase6FlowSource,
+      /id:\s*"mobile-bottom-tab-overview"[\s\S]*?id:\s*"mobile-workspace-channel-voice"[\s\S]*?id:\s*"mobile-voice-room-screen"/,
+    );
+    assert.match(
+      phase6FlowSource,
+      /tapOn:\r?\n\s+id:\s*"mobile-voice-screen-share"[\s\S]{0,260}?tapOn:\r?\n\s+text:\s*"\.\*\(Start now\|Şimdi başlat\)\.\*"[\s\S]{0,200}?assertVisible:\r?\n\s+id:\s*"mobile-voice-participant-\.\*-share-badge"/,
+    );
+    assert.match(
+      phase6FlowSource,
+      /assertVisible:\r?\n\s+id:\s*"mobile-voice-participant-\.\*-share-badge"[\s\S]{0,120}?tapOn:\r?\n\s+id:\s*"mobile-voice-screen-share"[\s\S]{0,260}?assertNotVisible:\r?\n\s+id:\s*"mobile-voice-participant-\.\*-share-badge"/,
+    );
+    assert.equal(phase6FlowSource.match(/id:\s*"mobile-voice-screen-share"/g)?.length, 3);
+    assert.match(
+      phase6FlowSource,
+      /id:\s*"mobile-voice-leave"[\s\S]*?id:\s*"mobile-overview-screen"/,
+    );
+    assert.doesNotMatch(phase6FlowSource, /takeScreenshot|startRecording/);
+    assert.doesNotMatch(phase6FlowSource, /claimId|inviteCode|MAESTRO_UAT_(?:EMAIL|PASSWORD)/);
+
+    const productionContracts = [
+      ["src/app/screens/voice-screen.tsx", 'testID="mobile-voice-screen-share"'],
+      [
+        "src/app/screens/voice-screen.tsx",
+        "mobile-voice-participant-${participant.userId}-share-badge",
+      ],
+      ["src/app/screens/voice-screen.tsx", 'testID="mobile-voice-leave"'],
+    ] as const;
+    for (const [sourcePath, needle] of productionContracts) {
+      assert.ok(
+        readFileSync(path.join(process.cwd(), sourcePath), "utf8").includes(needle),
+        `${needle} is missing from ${sourcePath}`,
+      );
+    }
   });
 });

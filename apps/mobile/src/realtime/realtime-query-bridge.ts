@@ -1,3 +1,5 @@
+import { ScreenShareWatchersUpdateSchema } from "@wizards/types";
+import { applyMobileScreenShareWatchersUpdate } from "../query/mobile-voice-states-query";
 import type { InfiniteData, QueryClient, QueryKey } from "@tanstack/react-query";
 import {
   ChatMessageSchema,
@@ -554,6 +556,15 @@ export function createMobileRealtimeQueryBridge({
       return true;
     }
 
+    if (event.eventName === "voice:screenshare:watchers:update") {
+      const parsed = ScreenShareWatchersUpdateSchema.safeParse(event.payload);
+      if (parsed.success)
+        queryClient.setQueriesData<MobileVoiceStatesResponse>(
+          { queryKey: mobileQueryKeys.voiceStatesRoot() },
+          (current) => applyMobileScreenShareWatchersUpdate(current, parsed.data),
+        );
+      return true;
+    }
     if (event.eventName === "voice:screenshare:update") {
       const parsed = MobileVoiceScreenShareUpdateEventSchema.safeParse(event.payload);
       if (!parsed.success) return true;

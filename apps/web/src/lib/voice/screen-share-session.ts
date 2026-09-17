@@ -87,12 +87,14 @@ export class ScreenShareSession {
   start = async (
     room: Room,
     options: {
-      capture: ScreenShareCaptureOptions;
-      publish: TrackPublishOptions;
+      capture: ScreenShareCaptureOptions | (() => Promise<LocalTrack[]>);
+      publish:
+        TrackPublishOptions | ((tracks: readonly LocalTrack[]) => Promise<TrackPublishOptions>);
       replace: boolean;
       isCurrent: () => boolean;
       canPublish: () => boolean;
       onEnded: () => void;
+      onCaptured?: () => void;
     },
   ): Promise<boolean> => {
     if (this.request || this.stopping) return false;
@@ -109,12 +111,21 @@ export class ScreenShareSession {
     let replacing = false;
     try {
       // Calling capture before the first await preserves the user's activation.
-      request.tracks = await room.localParticipant.createScreenTracks(options.capture);
+      request.tracks = await (typeof options.capture === "function"
+        ? options.capture()
+        : room.localParticipant.createScreenTracks(options.capture));
       if (!current()) return false;
       if (!options.canPublish()) throw new Error("SCREEN_SHARE_NOT_ALLOWED");
       const video = request.tracks.find((track) => track.source === Track.Source.ScreenShare);
       if (!video || video.mediaStreamTrack.readyState !== "live")
         throw new Error("SCREEN_SHARE_SOURCE_ENDED");
+      options.onCaptured?.();
+      const publish =
+        typeof options.publish === "function"
+          ? await options.publish(request.tracks)
+          : options.publish;
+      if (!current()) return false;
+      if (!options.canPublish()) throw new Error("SCREEN_SHARE_NOT_ALLOWED");
       if (options.replace) {
         // Keep the old source until the picker succeeds. Cancel never interrupts the old share.
         replacing = true;
@@ -131,7 +142,7 @@ export class ScreenShareSession {
       for (const track of request.tracks) {
         if (!current()) return false;
         await room.localParticipant.publishTrack(track, {
-          ...options.publish,
+          ...publish,
           source: track.source,
         });
       }

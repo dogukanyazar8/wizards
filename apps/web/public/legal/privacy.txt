@@ -326,6 +326,8 @@ Bu üçüncü tarafların kendi gizlilik politikaları geçerli olabilir.
 
 Whispr, güvenlik, spam önleme, kötüye kullanım tespiti veya hesap koruma amacıyla otomatik sistemler kullanabilir.
 
+Whispr, otomatik kötüye kullanımı önlemek amacıyla Cloudflare Turnstile kullanır. Bu güvenlik kontrolü arka planda çalışabilir. Cloudflare Turnstile Gizlilik Eki: https://www.cloudflare.com/turnstile-privacy-policy/
+
 Bu sistemler:
 
 - Şüpheli giriş denemelerini tespit edebilir.

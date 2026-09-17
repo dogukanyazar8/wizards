@@ -527,7 +527,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
       isLocal: true,
       participantId: currentUser.id,
       publication: null,
-      track: null,
+      track: E2E_CAMERA_TRACK,
       trackSid: "e2e-screen-share",
       username: currentUser.username,
     };
@@ -667,7 +667,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
             isLocal: false,
             participantId: participant.userId,
             publication: null,
-            track: null,
+            track: E2E_CAMERA_TRACK,
             trackSid: "e2e-screen-share",
             username: participant.username,
           },

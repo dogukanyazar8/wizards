@@ -577,9 +577,6 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     openServerContextMenu,
     openServerModal,
     openServerSettings,
-    persistedActiveArea,
-    persistedActiveChannelId,
-    persistedActiveServerId,
     serverContextMenu,
     serverSettingsServerId,
     setActiveRoute,
@@ -600,9 +597,6 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       openServerContextMenu: state.openServerContextMenu,
       openServerModal: state.openServerModal,
       openServerSettings: state.openServerSettings,
-      persistedActiveArea: state.activeArea,
-      persistedActiveChannelId: state.activeChannelId,
-      persistedActiveServerId: state.activeServerId,
       serverContextMenu: state.serverContextMenu,
       serverSettingsServerId: state.serverSettingsServerId,
       setActiveRoute: state.setActiveRoute,
@@ -707,7 +701,6 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const activeServerId = shellRoute.serverId;
   const activeChannelId = shellRoute.channelId;
   const activeConversationId = selectActiveConversationId(shellPathname);
-  const isChannelsRootRoute = shellPathname === MESSAGES_ROUTE;
   const isFriendsRoute =
     shellPathname === MESSAGES_FRIENDS_ROUTE || shellPathname === MESSAGES_ROUTE;
   const isDmRoute = activeConversationId !== null;
@@ -1162,7 +1155,6 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     },
   });
 
-  const isServersLoading = serversQuery.isLoading;
   const isServersRefreshing = serversQuery.isLoading || serversQuery.isFetching;
   const servers = useMemo<WorkspaceServerSummary[]>(
     () => serversQuery.data ?? [],
@@ -1379,81 +1371,6 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       }) as CSSProperties,
     [densityMetrics, displayServerRailWidth, messageDensity, navPanelWidth, thirdColumnWidth],
   );
-
-  useEffect(() => {
-    if (!appearanceHydrated) {
-      return;
-    }
-
-    if (isChannelsRootRoute) {
-      if (isServersLoading) {
-        return;
-      }
-
-      const persistedServer = persistedActiveServerId
-        ? (servers.find((server) => server.id === persistedActiveServerId) ?? null)
-        : null;
-
-      if (persistedActiveArea === "server" && persistedActiveServerId) {
-        if (!persistedServer) {
-          forgetServerState(persistedActiveServerId);
-          router.replace(getWorkspaceFallbackHref(servers, persistedActiveServerId));
-          return;
-        }
-
-        const persistedServerDetail =
-          queryClient.getQueryData<Awaited<ReturnType<typeof fetchWorkspaceServer>>>(
-            workspaceQueryKeys.server(persistedServer.id),
-          ) ?? null;
-        const restoredChannelId = getServerRestoreChannelId(
-          persistedServer,
-          {
-            ...lastChannelByServerId,
-            ...(persistedActiveChannelId ? { [persistedServer.id]: persistedActiveChannelId } : {}),
-          },
-          activeVoiceRoute,
-          persistedServerDetail,
-        );
-
-        router.replace(
-          restoredChannelId
-            ? `/channels/${persistedActiveServerId}/${restoredChannelId}`
-            : `/channels/${persistedActiveServerId}`,
-        );
-        return;
-      }
-
-      if (persistedActiveArea === "dm" && persistedActiveChannelId) {
-        router.replace(`/messages/${persistedActiveChannelId}`);
-        return;
-      }
-
-      if (persistedActiveArea === "friends") {
-        /*
-         * Kök rota zaten Arkadaşlar (`/messages`); aynı yola `replace` gerçek bir navigasyondur.
-         * Etki `servers` değişince de koşar: sunucu listesi tazelenirken (ör. yeni sunucu kurma)
-         * sürmekte olan `push`'u iptal edip kullanıcıyı Mesajlar'da bırakıyordu — WebKit her
-         * seferinde, Firefox ara sıra. Gidilecek yer yok, çıkılır.
-         */
-        return;
-      }
-
-      router.replace(getWorkspaceFallbackHref(servers));
-    }
-  }, [
-    activeVoiceRoute,
-    appearanceHydrated,
-    forgetServerState,
-    isChannelsRootRoute,
-    lastChannelByServerId,
-    persistedActiveArea,
-    persistedActiveChannelId,
-    persistedActiveServerId,
-    queryClient,
-    router,
-    servers,
-    isServersLoading,
-  ]);
 
   useEffect(() => {
     if (!appearanceHydrated || !activeServerId || isServersRefreshing) {

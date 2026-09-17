@@ -1,5 +1,11 @@
 "use client";
 
+import { useScreenShareWatch } from "@/hooks/use-screen-share-watch";
+import { useVoiceStore } from "@/store/voice-store";
+import {
+  resolveScreenShareStageChipProps,
+  selectScreenShareStageChip,
+} from "@/lib/voice/screen-share-health";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConnectionQuality, RoomEvent, type Participant } from "livekit-client";
 import { useQuery } from "@tanstack/react-query";
@@ -76,6 +82,9 @@ export function VoiceChannelView(props: VoiceChannelViewProps) {
 
 function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps) {
   const { t } = useI18n();
+  const preferredResolution = useVoiceStore((state) => state.screenShareResolution);
+  const localStream = useVoiceStore((state) => state.screenShareStreamInfo);
+  const screenShareHealth = useVoiceStore((state) => state.screenShareHealth);
   const layout = useVoiceLayout((state) => state.layout);
   const {
     activeChannelId,
@@ -103,8 +112,21 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
     toggleDeafen,
     toggleMute,
     toggleScreenShare,
+    stopScreenShare,
+    setActiveScreenShareId,
   } = useVoiceState();
   const { participants, screenShares } = useVoiceParticipants();
+  const [shareVisible, setShareVisible] = useState(false);
+  const watchedShare =
+    screenShares.find((share) => share.id === activeScreenShareId) ?? screenShares[0];
+  const viewerCounts = useVoiceStore((state) => state.screenShareViewerCounts);
+  useScreenShareWatch({
+    channelId: activeChannelId,
+    serverId,
+    sharerUserId: watchedShare && !watchedShare.isLocal ? watchedShare.participantId : null,
+    visible: shareVisible,
+  });
+
   const [inviteError, setInviteError] = useState<string | null>(null);
   /**
    * §5.1 — `N dakikadır bağlı`. Sağlayıcı bir "bağlandı" damgası taşımıyor ve K5 gereği
@@ -354,18 +376,21 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
   const latencyTier = selectVoiceLatencyTierFromQuality(localConnectionQuality);
   const latency = latencyTier ? { ms: null, tier: latencyTier } : null;
 
-  /*
-    §5.3 — `1080p · 30 fps` çipi. Çözünürlük seçilen kalite ön ayarından geliyor
-    (`SCREEN_SHARE_QUALITY_OPTIONS`, `screen-share.ts` — dokunulmadı); fps aynı ön ayarın
-    kare hızıdır. Gerçek yayın çözünürlüğünü veren bir alan yok, o yüzden yazan şey
-    "seçilen kalite", "ölçülen kalite" değil.
-  */
+  // Prefer measured quality; use the preset only before the first sample.
   const shareQualityOption =
     SCREEN_SHARE_QUALITY_OPTIONS.find((option) => option.id === screenShareQuality) ?? null;
-  const shareResolutionLabel = shareQualityOption?.shortLabel ?? null;
-  const shareFps = shareQualityOption
-    ? (getScreenShareQualityPreset(shareQualityOption.id).encoding.maxFramerate ?? null)
-    : null;
+  const { fps: shareFps, resolutionLabel: shareResolutionLabel } = resolveScreenShareStageChipProps(
+    {
+      chip: selectScreenShareStageChip({
+        health: screenShareHealth,
+        presetFps: shareQualityOption
+          ? (getScreenShareQualityPreset(shareQualityOption.id).encoding.maxFramerate ?? null)
+          : null,
+        presetResolutionLabel: shareQualityOption?.shortLabel ?? null,
+      }),
+      t,
+    },
+  );
 
   const krispChipLabel = isKrispNoiseCancellationActive
     ? t("server.voice.header.krispActive")
@@ -426,6 +451,8 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
       {screenShares.length > 0 ? (
         /* §5.3 — tek büyük sahne + altında yatay katılımcı şeridi. */
         <ServerScreenShareStage
+          viewerCount={activeScreenShare ? (viewerCounts[activeScreenShare.participantId] ?? 0) : 0}
+          isLocalShare={activeScreenShare?.isLocal ?? false}
           cameraName={
             activeCameraParticipant
               ? (activeCameraParticipant.displayName ?? activeCameraParticipant.username)
@@ -457,7 +484,17 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
                 }
               : undefined
           }
-          resolutionLabel={shareResolutionLabel}
+          stream={activeScreenShare?.isLocal ? localStream : activeScreenShare?.stream}
+          resolutionLabel={
+            activeScreenShare?.isLocal &&
+            preferredResolution === "h2160" &&
+            screenShareHealth?.height &&
+            screenShareHealth.height < 2160
+              ? t("voice.screenShare.resolution.fallbackLabel", {
+                  resolution: shareResolutionLabel ?? `${screenShareHealth.height}p`,
+                })
+              : shareResolutionLabel
+          }
           sharerAvatarUrl={activeScreenShare?.avatarUrl ?? null}
           sharerName={
             activeScreenShare?.displayName ??
@@ -465,11 +502,43 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
             t("voice.screenShare.unknownSharer")
           }
           stageRef={stageRef}
-          strip={orderedParticipants.map((participant) => (
-            <ServerScreenShareStripCard key={participant.userId} participant={participant} />
-          ))}
+          strip={
+            <>
+              {screenShares.length > 1 &&
+                screenShares.map((share) => (
+                  <button
+                    key={share.id}
+                    type="button"
+                    data-testid="voice-share-thumbnail"
+                    aria-pressed={share.id === activeScreenShare?.id}
+                    onClick={() => setActiveScreenShareId(share.id)}
+                    className="h-24 w-40 shrink-0 overflow-hidden rounded-xl"
+                  >
+                    {share.track && (
+                      <ScreenShareVideo
+                        publication={share.id === activeScreenShare?.id ? null : share.publication}
+                        track={share.track}
+                      />
+                    )}
+                    <span>{share.displayName ?? share.username}</span>
+                  </button>
+                ))}
+              {orderedParticipants.map((participant) => (
+                <ServerScreenShareStripCard key={participant.userId} participant={participant} />
+              ))}
+            </>
+          }
           videoSlot={
-            activeScreenShare?.track ? <ScreenShareVideo track={activeScreenShare.track} /> : null
+            activeScreenShare?.track ? (
+              <ScreenShareVideo
+                interactive
+                onToggleFullscreen={toggleStageFullscreen}
+                publication={activeScreenShare.publication}
+                onVisibleChange={setShareVisible}
+                track={activeScreenShare.track}
+                onStop={activeScreenShare.isLocal ? () => void stopScreenShare() : undefined}
+              />
+            ) : null
           }
         />
       ) : participantCount > 0 ? (

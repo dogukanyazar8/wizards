@@ -1,3 +1,4 @@
+import type { ScreenShareWatchersUpdate } from "@wizards/types";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import type {
   MobileVoiceScreenShareUpdateEvent,
@@ -37,6 +38,10 @@ export function applyMobileVoiceStateUpdate(
       ...participant,
       displayName: participant.displayName ?? existing?.displayName ?? null,
       isScreenSharing: participant.isScreenSharing ?? existing?.isScreenSharing ?? false,
+      ...(participant.screenShareViewerCount === undefined &&
+      existing?.screenShareViewerCount !== undefined
+        ? { screenShareViewerCount: existing.screenShareViewerCount }
+        : {}),
     };
   });
 
@@ -72,4 +77,26 @@ export function applyMobileVoiceScreenShareUpdate(
   });
 
   return patched ? { states } : current;
+}
+
+export function applyMobileScreenShareWatchersUpdate(
+  current: MobileVoiceStatesResponse | undefined,
+  update: ScreenShareWatchersUpdate,
+): MobileVoiceStatesResponse | undefined {
+  if (!current) return current;
+  return {
+    ...current,
+    states: current.states.map((state) =>
+      state.channelId !== update.channelId
+        ? state
+        : {
+            ...state,
+            participants: state.participants.map((participant) =>
+              participant.userId !== update.sharerUserId
+                ? participant
+                : { ...participant, screenShareViewerCount: update.count },
+            ),
+          },
+    ),
+  };
 }

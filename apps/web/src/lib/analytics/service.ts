@@ -10,6 +10,7 @@ import { logError } from "@/lib/logger";
 import { getAnalyticsClientInfo, type AnalyticsClientInfo } from "@/lib/analytics/client-info";
 import {
   resolveVerifiedAttribution,
+  UNKNOWN_ATTRIBUTION,
   type ClientAttribution,
 } from "@/lib/analytics/client-attribution";
 
@@ -523,4 +524,136 @@ export async function setVoiceScreenShareUsage(args: {
 
 export function logAnalyticsError(scope: string, error: unknown) {
   logError(`[analytics] ${scope}`, error);
+}
+
+// ---------------------------------------------------------------------------
+// Screen share events (Ş0.2)
+// ---------------------------------------------------------------------------
+
+export const SCREEN_SHARE_ANALYTICS_EVENT_KINDS = [
+  "start",
+  "stop",
+  "fail",
+  "mode_change",
+  "quality_change",
+] as const;
+export type ScreenShareAnalyticsEventKind = (typeof SCREEN_SHARE_ANALYTICS_EVENT_KINDS)[number];
+
+const SCREEN_SHARE_ANALYTICS_CODECS = ["av1", "h264", "vp8", "vp9"] as const;
+const SCREEN_SHARE_ANALYTICS_ENCODER_CLASSES = ["hw", "sw", "unknown"] as const;
+const SCREEN_SHARE_ANALYTICS_FRAME_RATES = [15, 30, 60] as const;
+const SCREEN_SHARE_ANALYTICS_MODES = ["motion", "text"] as const;
+const SCREEN_SHARE_ANALYTICS_RESOLUTIONS = ["h720", "h1080", "h1440", "h2160"] as const;
+/** A reason is a code, never a message: no spaces, no punctuation a title could carry. */
+const SCREEN_SHARE_ANALYTICS_REASON_PATTERN = /^[a-z0-9_.-]{1,48}$/i;
+
+export type ScreenShareAnalyticsEvent = {
+  codec?: (typeof SCREEN_SHARE_ANALYTICS_CODECS)[number];
+  encoderClass?: (typeof SCREEN_SHARE_ANALYTICS_ENCODER_CLASSES)[number];
+  event: ScreenShareAnalyticsEventKind;
+  frameRate?: (typeof SCREEN_SHARE_ANALYTICS_FRAME_RATES)[number];
+  mode?: (typeof SCREEN_SHARE_ANALYTICS_MODES)[number];
+  reason?: string;
+  resolution?: (typeof SCREEN_SHARE_ANALYTICS_RESOLUTIONS)[number];
+};
+
+export type ScreenShareAnalyticsRecord = ScreenShareAnalyticsEvent & {
+  appVersion: string | null;
+  at: string;
+  clientType: ClientAttribution["clientType"];
+  type: "screen_share";
+};
+
+export type ScreenShareAnalyticsSink = (record: ScreenShareAnalyticsRecord) => Promise<void> | void;
+
+function pickEnum<const Values extends readonly (number | string)[]>(
+  value: unknown,
+  values: Values,
+): Values[number] | undefined {
+  return (values as readonly unknown[]).includes(value) ? (value as Values[number]) : undefined;
+}
+
+/**
+ * Only the fields the event can carry, only from their closed sets. Whatever
+ * else a caller passes — a channel id, a server id, a window title — is
+ * dropped here rather than trusted downstream (00 §1: no channel/server id in
+ * media telemetry).
+ */
+export function sanitizeScreenShareAnalyticsEvent(
+  input: unknown,
+): ScreenShareAnalyticsEvent | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return null;
+  }
+
+  const raw = input as Record<string, unknown>;
+  const event = pickEnum(raw.event, SCREEN_SHARE_ANALYTICS_EVENT_KINDS);
+  if (!event) {
+    return null;
+  }
+
+  const codec = pickEnum(raw.codec, SCREEN_SHARE_ANALYTICS_CODECS);
+  const encoderClass = pickEnum(raw.encoderClass, SCREEN_SHARE_ANALYTICS_ENCODER_CLASSES);
+  const frameRate = pickEnum(raw.frameRate, SCREEN_SHARE_ANALYTICS_FRAME_RATES);
+  const mode = pickEnum(raw.mode, SCREEN_SHARE_ANALYTICS_MODES);
+  const resolution = pickEnum(raw.resolution, SCREEN_SHARE_ANALYTICS_RESOLUTIONS);
+  const reason =
+    typeof raw.reason === "string" && SCREEN_SHARE_ANALYTICS_REASON_PATTERN.test(raw.reason)
+      ? raw.reason
+      : undefined;
+
+  return {
+    event,
+    ...(codec ? { codec } : {}),
+    ...(encoderClass ? { encoderClass } : {}),
+    ...(frameRate ? { frameRate } : {}),
+    ...(mode ? { mode } : {}),
+    ...(reason ? { reason } : {}),
+    ...(resolution ? { resolution } : {}),
+  };
+}
+
+function logScreenShareAnalyticsRecord(record: ScreenShareAnalyticsRecord) {
+  console.info("[analytics] screen_share", JSON.stringify(record));
+}
+
+/**
+ * One product signal per share lifecycle step. The duration counter
+ * (`setVoiceScreenShareUsage`) is untouched; this is the *why* next to it:
+ * which mode, which tier, which codec class, why it failed.
+ *
+ * There is no analytics event table yet, so the default sink is a structured
+ * log line; the sink is injectable so a store can replace it without touching
+ * the callers. Returns the record it wrote, or null when the event was invalid.
+ */
+export async function recordScreenShareEvent(
+  userId: string,
+  event: ScreenShareAnalyticsEvent,
+  options: {
+    attribution?: ClientAttribution;
+    now?: Date;
+    sink?: ScreenShareAnalyticsSink;
+  } = {},
+): Promise<ScreenShareAnalyticsRecord | null> {
+  const sanitized = sanitizeScreenShareAnalyticsEvent(event);
+  if (!sanitized || !userId) {
+    return null;
+  }
+
+  const attribution = options.attribution ?? UNKNOWN_ATTRIBUTION;
+  const record: ScreenShareAnalyticsRecord = {
+    ...sanitized,
+    appVersion: attribution.appVersion,
+    at: (options.now ?? new Date()).toISOString(),
+    clientType: attribution.clientType,
+    type: "screen_share",
+  };
+
+  try {
+    await (options.sink ?? logScreenShareAnalyticsRecord)(record);
+  } catch (error) {
+    logAnalyticsError("screen_share", error);
+  }
+
+  return record;
 }

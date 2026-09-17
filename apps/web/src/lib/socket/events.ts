@@ -9,6 +9,8 @@ import type {
   MessageReaction,
   NotifUnreadCounts,
   PresenceVisibility,
+  ScreenShareStreamInfo,
+  ScreenShareWatchersUpdate,
   SettingsUpdatedEvent,
   UploadedAttachmentInput,
 } from "@wizards/types";
@@ -213,6 +215,19 @@ export interface ClientToServerEvents {
     channelId: string;
     isScreenSharing: boolean;
     serverId: string;
+    /** K8 — Go Live presence (`kind` / `gameId` / `label`); yalnız paylaşım açıkken. */
+    stream?: ScreenShareStreamInfo;
+  }) => void;
+  /**
+   * K11 — bir paylaşımı izlemeye başladım / bıraktım. İzleyici 60 s'de bir `watching: true`
+   * yeniler; sunucu Redis SET'inde 120 s TTL tutar ve `voice:screenshare:watchers:update`
+   * yayar. Handler Ş3.
+   */
+  "voice:screenshare:watch": (data: {
+    channelId: string;
+    serverId: string;
+    sharerUserId: string;
+    watching: boolean;
   }) => void;
   /**
    * Etkinlikler Ş4. Herkese açık etkinlik odasına abonelik `/events` rotasında açılır ve
@@ -490,14 +505,27 @@ export interface ServerToClientEvents {
       avatarUrl: string | null;
       isDeafened: boolean;
       isScreenSharing?: boolean;
+      screenShareViewerCount?: number;
+      /** K8 — Go Live presence; yalnız `isScreenSharing` iken. */
+      stream?: ScreenShareStreamInfo;
     }>;
   }) => void;
   "voice:screenshare:update": (data: {
     channelId: string;
     isScreenSharing: boolean;
     serverId: string;
+    /**
+     * K8 — sunucu tarafından yayılır; paylaşanın `GameSharingSettings.enabled` tercihi
+     * kapalıysa `gameId: null`, `label: null`, `kind` olduğu gibi ("Bir oyun yayınlıyor").
+     */
+    stream?: ScreenShareStreamInfo;
     userId: string;
   }) => void;
+  /**
+   * K11 — `voice:screenshare:watch` fanout'u: `count` + en çok beş `userId`'lik `sample`.
+   * Paylaşım bitince set silinir ve `count: 0` yayılır. Overlay'e yalnız sayı gider (T17).
+   */
+  "voice:screenshare:watchers:update": (data: ScreenShareWatchersUpdate) => void;
   "voice:invite:accepted": (data: {
     channelId: string;
     inviteId: string;

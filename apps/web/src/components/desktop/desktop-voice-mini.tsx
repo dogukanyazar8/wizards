@@ -130,6 +130,11 @@ export function DesktopVoiceMiniView({ snapshot }: { snapshot: VoiceMiniSnapshot
           className="flex min-w-0 cursor-grab items-center gap-2 active:cursor-grabbing"
           data-tauri-drag-region
         >
+          {snapshot?.isScreenSharing && (
+            <span data-testid="voice-mini-share-count">
+              {t("voice.sidebar.liveChip")} · {snapshot.screenShareViewerCount ?? 0}
+            </span>
+          )}
           <GripVertical
             aria-hidden="true"
             className="pointer-events-none size-3.5 shrink-0 text-[hsl(var(--text-muted))]"

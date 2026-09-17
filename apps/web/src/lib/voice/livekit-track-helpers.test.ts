@@ -411,3 +411,40 @@ it("master output multiplies microphone and share gains without undoing deafen o
     assert.deepEqual(volumes.splice(0), [0, 0]);
   }
 });
+
+it("live mode and fps updates preserve sender transaction and SVC fields", async () => {
+  const { applyScreenShareModeToTrack, applyScreenShareFrameRateToTrack } =
+    await import("./livekit-track-helpers");
+  const { getScreenSharePreset } = await import("./screen-share");
+  const parameters = {
+    transactionId: "keep",
+    encodings: [{ scalabilityMode: "L3T3_KEY", active: true }],
+  };
+  const calls: unknown[] = [];
+  const media = {
+    contentHint: "detail",
+    getConstraints: () => ({ width: { ideal: 1920 } }),
+    applyConstraints: async (value: unknown) => {
+      calls.push(value);
+    },
+  };
+  const track = {
+    mediaStreamTrack: media,
+    sender: {
+      getParameters: () => parameters,
+      setParameters: async (value: unknown) => {
+        calls.push(value);
+      },
+    },
+  } as unknown as LocalVideoTrack;
+  await applyScreenShareModeToTrack(track, "motion");
+  assert.equal(media.contentHint, "motion");
+  assert.deepEqual(calls[0], { ...parameters, degradationPreference: "maintain-framerate" });
+  await applyScreenShareFrameRateToTrack(track, 15, getScreenSharePreset("h1080", 15, "motion"));
+  assert.deepEqual(calls[1], { width: { ideal: 1920 }, frameRate: { ideal: 15, max: 15 } });
+  assert.equal((calls[2] as RTCRtpSendParameters).transactionId, "keep");
+  assert.equal(
+    (calls[2] as { encodings: { scalabilityMode: string }[] }).encodings[0]?.scalabilityMode,
+    "L3T3_KEY",
+  );
+});

@@ -8,7 +8,7 @@ import { assertUnblockedDMParticipants } from "@/lib/dm/blocking";
 import { assertVoiceChannelCapacity } from "@/lib/voice/capacity";
 import { resolveVoiceParticipantLimit } from "@/lib/voice/capacity";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
-import { PermissionBits } from "@/lib/workspace/permissions";
+import { hasPermission, PermissionBits } from "@/lib/workspace/permissions";
 import type { CreateLiveKitTokenBody, LiveKitTokenResponse } from "./types";
 import { resolveLiveKitRtcUrl, parseLiveKitRtcRegionEndpoints } from "./rtc-regions";
 
@@ -170,7 +170,7 @@ export function getLiveKitRoomServiceClient() {
 }
 
 async function resolveVoiceRoomName(userId: string, channelId: string) {
-  const { channel } = await requireChannelPermissionForUser(
+  const { channel, permissions } = await requireChannelPermissionForUser(
     userId,
     channelId,
     PermissionBits.CONNECT_VOICE,
@@ -196,6 +196,7 @@ async function resolveVoiceRoomName(userId: string, channelId: string) {
       videoQualityMode: channel.videoQualityMode,
     },
     roomName,
+    canStream: hasPermission(permissions, PermissionBits.STREAM),
     rtcRegion: channel.rtcRegion,
     userLimit: channel.userLimit,
   };
@@ -227,13 +228,19 @@ async function resolveDMRoomName(userId: string, conversationId: string) {
   return {
     mediaPolicy: { audioBitrate: 64_000, videoQualityMode: "AUTO" as const },
     roomName: `dm:${conversationId}`,
+    canStream: true,
     rtcRegion: null,
     userLimit: 0,
   };
 }
 
 type VoiceRoomPolicyClient = {
-  createRoom(options: { maxParticipants: number; name: string }): Promise<unknown>;
+  createRoom(options: {
+    maxParticipants: number;
+    name: string;
+    emptyTimeout: number;
+    departureTimeout: number;
+  }): Promise<unknown>;
   listRooms(names: string[]): Promise<Array<{ name?: string }>>;
 };
 
@@ -248,6 +255,8 @@ export async function ensureVoiceRoomParticipantLimit(args: {
   }
 
   await args.client.createRoom({
+    emptyTimeout: 300,
+    departureTimeout: 20,
     maxParticipants: resolveVoiceParticipantLimit(args.userLimit),
     name: args.roomName,
   });
@@ -325,7 +334,7 @@ export async function createLiveKitToken(
     ttl: LIVEKIT_TOKEN_TTL,
   });
 
-  token.addGrant(buildLiveKitParticipantGrant(target.roomName));
+  token.addGrant(buildLiveKitParticipantGrant(target.roomName, target.canStream));
 
   return {
     mediaPolicy: target.mediaPolicy,
@@ -334,12 +343,34 @@ export async function createLiveKitToken(
   };
 }
 
-export function buildLiveKitParticipantGrant(roomName: string) {
+export function buildLiveKitParticipantGrant(roomName: string, canStream = false) {
   return {
     room: roomName,
     roomJoin: true,
-    canPublishSources: [...ALLOWED_PUBLISH_SOURCES],
+    canPublishSources: ALLOWED_PUBLISH_SOURCES.filter(
+      (source) =>
+        canStream ||
+        roomName.startsWith("dm:") ||
+        (source !== TrackSource.SCREEN_SHARE && source !== TrackSource.SCREEN_SHARE_AUDIO),
+    ),
     canPublishData: true,
     canSubscribe: true,
   };
+}
+
+export async function updateLiveKitScreenSharePermission(
+  channelId: string,
+  userId: string,
+  canStream: boolean,
+  client: Pick<RoomServiceClient, "updateParticipant"> = getLiveKitRoomServiceClient(),
+) {
+  const grant = buildLiveKitParticipantGrant(`voice:${channelId}`, canStream);
+  await client.updateParticipant(grant.room, userId, {
+    permission: {
+      canPublish: true,
+      canSubscribe: true,
+      canPublishData: true,
+      canPublishSources: grant.canPublishSources,
+    },
+  });
 }

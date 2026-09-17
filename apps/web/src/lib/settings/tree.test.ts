@@ -93,7 +93,8 @@ describe("içerik ağacı — hacim", () => {
 
     assert.deepEqual(perSection, [
       { key: "account", tabs: 6, groups: 13, rows: 27 },
-      { key: "av", tabs: 3, groups: 7, rows: 21 },
+      // 21 + `e8` + `e9` — ekran paylaşımı K4 (kare hızı ve mod satırları).
+      { key: "av", tabs: 3, groups: 7, rows: 23 },
       { key: "appearance", tabs: 6, groups: 9, rows: 25 },
       { key: "notifications", tabs: 7, groups: 14, rows: 50 },
       { key: "desktop", tabs: 4, groups: 6, rows: 18 },

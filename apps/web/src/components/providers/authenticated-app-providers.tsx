@@ -12,6 +12,7 @@ import { SoundEffectsProvider } from "@/components/providers/sound-effects-provi
 import { ToastProvider } from "@/components/providers/toast-provider";
 import { VoiceProvider } from "@/components/providers/voice-provider";
 import type { VoiceProviderProps } from "@/components/providers/voice-context";
+import { ScreenShareStatusBar } from "@/components/voice/screen-share-status-bar";
 import { ActiveVoiceReminder } from "@/components/voice/active-voice-reminder";
 import { useVoiceStore } from "@/store/voice-store";
 
@@ -73,6 +74,7 @@ export function AuthenticatedAppProviders({
                   <DesktopExperience />
                   {content}
                   <ActiveVoiceReminder />
+                  <ScreenShareStatusBar />
                 </DMCallProvider>
               </VoiceProvider>
             ) : (

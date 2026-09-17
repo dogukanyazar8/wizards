@@ -229,6 +229,21 @@ const APPROVED_COPY_CHANGES: Record<string, string> = {
   "settings.row.e5.description":
     "Kaynak değiştir düğmesini açar. Tarayıcının sekme değiştirme kontrolüne ilişkin tercih, sonraki paylaşımda uygulanır.",
   "settings.action.e7.1": "Paylaşımı başlat",
+  // Ekran paylaşımı paketi (2026-09) Ş0.1 — K4: kalite üç eksene ayrıldı. `e1` artık yalnız
+  // çözünürlük (fps eki düştü, 4K katmanı geldi); `e8` kare hızı ve `e9` mod yeni satırlar.
+  "settings.option.e1.1": "720p",
+  "settings.option.e1.2": "1080p",
+  "settings.option.e1.3": "1440p",
+  "settings.option.e1.4": "4K (kaynak)",
+  "settings.option.e1.4.disabled":
+    "4K için bu cihazda verimli bir video kodlayıcı ve 4K çözünürlükte bir kaynak gerekir.",
+  "settings.row.e8.title": "Kare hızı",
+  "settings.option.e8.1": "15 fps",
+  "settings.option.e8.2": "30 fps",
+  "settings.option.e8.3": "60 fps",
+  "settings.row.e9.title": "Paylaşım modu",
+  "settings.option.e9.1": "Net metin",
+  "settings.option.e9.2": "Akıcı görüntü",
   "settings.tab.appearance.language": "Dil ve bölge",
   "settings.group.notifications.exceptions.defaults.title": "Varsayılanlar",
   "settings.action.desktopApp.manage": "Masaüstü ayarlarını aç",

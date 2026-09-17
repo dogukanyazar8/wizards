@@ -508,6 +508,8 @@ export type SettingsRowRuntime = {
    * var olduğunu **bölüm** bilir, motor değil.
    */
   disabledRows?: Readonly<Record<string, boolean>>;
+  hiddenOptions?: Readonly<Record<string, readonly number[]>>;
+  disabledOptions?: Readonly<Record<string, readonly number[]>>;
   /** Eylem satırının hangi düğmesine basıldığı; gövde bölüm şeridinin işi. */
   onAction: (rowKey: string, actionIndex: number) => void;
   onJump: (target: { section: SettingsSection; tab: SettingsTab }) => void;
@@ -566,6 +568,7 @@ export function useSettingsRowRuntimeState(
   return {
     data: overrides.data ?? NOOP_RUNTIME.data,
     disabledRows: overrides.disabledRows ?? NO_DISABLED_ROWS,
+    disabledOptions: overrides.disabledOptions ?? {},
     onAction: overrides.onAction ?? NOOP_RUNTIME.onAction,
     onJump: overrides.onJump ?? NOOP_RUNTIME.onJump,
     onNavigate: overrides.onNavigate ?? NOOP_RUNTIME.onNavigate,

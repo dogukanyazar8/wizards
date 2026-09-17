@@ -10,6 +10,8 @@ import { SettingsRow } from "@/components/settings/rows/settings-row";
 import {
   AvSettingsProvider,
   useAvSettingsBridge,
+  SCREEN_SHARE_FRAME_RATE_ROW_ORDER,
+  SCREEN_SHARE_MODE_ROW_ORDER,
 } from "@/components/settings/sections/av/av-settings-bridge";
 import { SectionTabBody } from "@/components/settings/sections/av/av-tab-body";
 import { findSettingsTab, type SettingsTabDef } from "@/lib/settings/tree";
@@ -19,6 +21,7 @@ import {
 } from "@/lib/voice/screen-share";
 import { DEFAULT_SCREEN_SHARE_VOLUME, useVoiceStore } from "@/store/voice-store";
 import { SETTINGS_METRICS, pxToRem } from "@/lib/settings/metrics";
+import { DEFAULT_SCREEN_SHARE_FRAME_RATE, DEFAULT_SCREEN_SHARE_MODE } from "@wizards/types";
 
 /**
  * Ses ve Video › Ekran paylaşımı (`screen-share`) — 2 grup, 6 satır.
@@ -61,6 +64,11 @@ export function AvScreenShareTab({ tab }: { readonly tab?: SettingsTabDef }) {
     bridge.store.setValue("e3", DEFAULT_SCREEN_SHARE_VOLUME);
     bridge.store.setValue("e4", true);
     bridge.store.setValue("e5", true);
+    bridge.store.setValue(
+      "e8",
+      SCREEN_SHARE_FRAME_RATE_ROW_ORDER.indexOf(DEFAULT_SCREEN_SHARE_FRAME_RATE),
+    );
+    bridge.store.setValue("e9", SCREEN_SHARE_MODE_ROW_ORDER.indexOf(DEFAULT_SCREEN_SHARE_MODE));
   }, [bridge.store]);
 
   const description =

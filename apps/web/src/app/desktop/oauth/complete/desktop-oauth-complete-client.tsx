@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 
 import { useI18n } from "@/components/providers/locale-provider";
 import { OAuthHandoffLayout } from "@/components/auth/oauth-handoff-layout";
+import { AuthBanner } from "@/components/auth/auth-error-levels";
+import { completeDesktopOAuthBrowserAttempt } from "@/lib/auth/desktop-oauth-browser";
 
 const DESKTOP_HANDOFF_DELAY_MS = 250;
 const BROWSER_TAB_CLOSE_DELAY_MS = 1600;
@@ -14,15 +16,18 @@ const BROWSER_TAB_CLOSE_DELAY_MS = 1600;
 interface DesktopOAuthCompleteClientProps {
   callbackUrl: string;
   desktopHandoffUrl: string;
+  attemptId?: string | undefined;
 }
 
 export function DesktopOAuthCompleteClient({
   callbackUrl,
   desktopHandoffUrl,
+  attemptId,
 }: DesktopOAuthCompleteClientProps) {
   const { t } = useI18n();
   const router = useRouter();
   const closeTimeoutRef = useRef<number | null>(null);
+  const [superseded, setSuperseded] = useState(false);
 
   const clearBrowserCloseTimers = useCallback(() => {
     if (closeTimeoutRef.current !== null) {
@@ -42,9 +47,20 @@ export function DesktopOAuthCompleteClient({
   }, [clearBrowserCloseTimers]);
 
   const requestDesktopHandoff = useCallback(() => {
+    if (attemptId) {
+      try {
+        if (!completeDesktopOAuthBrowserAttempt(attemptId)) {
+          setSuperseded(true);
+          return;
+        }
+      } catch {
+        setSuperseded(true);
+        return;
+      }
+    }
     window.location.href = desktopHandoffUrl;
     scheduleBrowserTabClose();
-  }, [desktopHandoffUrl, scheduleBrowserTabClose]);
+  }, [attemptId, desktopHandoffUrl, scheduleBrowserTabClose]);
 
   useEffect(() => {
     if (isWhisprDesktopRuntime()) {
@@ -65,9 +81,20 @@ export function DesktopOAuthCompleteClient({
       title={t("auth.desktopOAuth.title")}
       description={t("auth.desktopOAuth.description")}
     >
-      <a className="auth-btn-primary" href={desktopHandoffUrl} onClick={scheduleBrowserTabClose}>
-        {t("auth.desktopOAuth.button")}
-      </a>
+      {superseded ? (
+        <AuthBanner title={t("auth.desktopOAuth.superseded")} />
+      ) : (
+        <a
+          className="auth-btn-primary"
+          href={desktopHandoffUrl}
+          onClick={(event) => {
+            event.preventDefault();
+            requestDesktopHandoff();
+          }}
+        >
+          {t("auth.desktopOAuth.button")}
+        </a>
+      )}
     </OAuthHandoffLayout>
   );
 }

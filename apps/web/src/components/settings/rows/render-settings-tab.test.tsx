@@ -36,6 +36,20 @@ import {
 
 const MESSAGES = getMessagesForLocale("tr");
 
+it("renders the gated 4K option disabled with an explanation while keeping lower tiers enabled", () => {
+  const markup = renderTab("av", "screen-share", { disabledOptions: { e1: [3] } });
+  const buttons = [...markup.matchAll(/<button\b[^>]*>/g)].map((match) => match[0]);
+  assert.match(
+    buttons.find((button) => button.includes('data-testid="setting-segment-e1-3"')) ?? "",
+    /disabled=""/,
+  );
+  assert.doesNotMatch(
+    buttons.find((button) => button.includes('data-testid="setting-segment-e1-0"')) ?? "",
+    / disabled=""/,
+  );
+  assert.ok(markup.includes(MESSAGES["settings.option.e1.4.disabled"] ?? "missing-copy"));
+});
+
 function renderTab(
   section: SettingsSection,
   tab: string,

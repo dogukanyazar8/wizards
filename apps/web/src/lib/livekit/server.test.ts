@@ -61,7 +61,7 @@ describe("LiveKit channel room policy", () => {
 
     assert.deepEqual(calls, [
       { list: ["voice:channel-1"] },
-      { maxParticipants: 4, name: "voice:channel-1" },
+      { maxParticipants: 4, name: "voice:channel-1", emptyTimeout: 300, departureTimeout: 20 },
     ]);
   });
 
@@ -81,5 +81,54 @@ describe("LiveKit channel room policy", () => {
       userLimit: 2,
     });
     assert.equal(createCalls, 0);
+  });
+});
+
+it("screen sources require channel STREAM permission; direct rooms keep sharing", async () => {
+  const { TrackSource } = await import("livekit-server-sdk");
+  for (const allowed of [false, true]) {
+    assert.equal(
+      liveKitServer
+        .buildLiveKitParticipantGrant("voice:test", allowed)
+        .canPublishSources.includes(TrackSource.SCREEN_SHARE),
+      allowed,
+    );
+    assert.equal(
+      liveKitServer
+        .buildLiveKitParticipantGrant("voice:test", allowed)
+        .canPublishSources.includes(TrackSource.SCREEN_SHARE_AUDIO),
+      allowed,
+    );
+    assert.equal(
+      liveKitServer
+        .buildLiveKitParticipantGrant("dm:test", allowed)
+        .canPublishSources.includes(TrackSource.SCREEN_SHARE),
+      true,
+    );
+  }
+  assert.equal(
+    liveKitServer
+      .buildLiveKitParticipantGrant("voice:test")
+      .canPublishSources.includes(TrackSource.SCREEN_SHARE),
+    false,
+  );
+});
+
+it("updates an existing participant grant atomically without screen sources", async () => {
+  const calls: unknown[][] = [];
+  await liveKitServer.updateLiveKitScreenSharePermission("c1", "u1", false, {
+    updateParticipant: async (...args: unknown[]) => {
+      calls.push(args);
+      return {};
+    },
+  } as never);
+  assert.equal(calls[0]?.[0], "voice:c1");
+  assert.equal(calls[0]?.[1], "u1");
+  assert.deepEqual((calls[0]?.[2] as { permission: unknown }).permission, {
+    canPublish: true,
+    canSubscribe: true,
+    canPublishData: true,
+    canPublishSources: liveKitServer.buildLiveKitParticipantGrant("voice:c1", false)
+      .canPublishSources,
   });
 });

@@ -49,7 +49,8 @@ register("av/audio", "runtime", "av-bridge", "i5 i6 u2 p4 p5 p7");
 register("av/camera", "platform", "media-device", "k1 k4");
 register("av/camera", "runtime", "camera-preview", "k2");
 register("av/camera", "unavailable", "av-disabled", "k3");
-register("av/screen-share", "runtime", "screen-share", "e1 e2 e3");
+// Ekran paylaşımı K4 — `e8` (kare hızı) ve `e9` (mod) da av-bridge üzerinden voice-store'a yazar.
+register("av/screen-share", "runtime", "screen-share", "e1 e2 e3 e8 e9");
 register("av/screen-share", "platform", "screen-share-capture", "e4 e5");
 register("av/screen-share", "platform", "screen-share-session", "e7");
 

@@ -70,6 +70,21 @@ test("publishes video and audio; stop releases both without touching the call mi
   assert.equal(f.session.getSnapshot(), "idle");
 });
 
+test("reports a live local capture before waiting for publication", async () => {
+  const f = fixture();
+  let captured = false;
+  f.localParticipant.publishTrack = async () => {
+    assert.equal(captured, true);
+  };
+  await f.session.start(f.room, {
+    ...f.options,
+    onCaptured: () => {
+      captured = true;
+    },
+  });
+  assert.equal(captured, true);
+});
+
 test("cancelling a source picker preserves the existing share", async () => {
   const f = fixture();
   const old = track(Track.Source.ScreenShare);
@@ -199,4 +214,23 @@ test("only the currently published video ending stops the share", async () => {
   assert.equal(ended, 1);
   next[0]!.mediaStreamTrack.dispatchEvent(new Event("ended"));
   assert.equal(ended, 2);
+});
+
+test("capture factory runs immediately and async publish resolution cleans up on failure", async () => {
+  const f = fixture();
+  let called = false;
+  const work = f.session.start(f.room, {
+    ...f.options,
+    capture: () => {
+      called = true;
+      return Promise.resolve(f.tracks);
+    },
+    publish: async () => {
+      throw Error("probe failure");
+    },
+  });
+  assert.equal(called, true);
+  await assert.rejects(work, /probe failure/);
+  assert.ok(f.tracks.every((track) => track.mediaStreamTrack.readyState === "ended"));
+  assert.equal(f.session.getSnapshot(), "idle");
 });

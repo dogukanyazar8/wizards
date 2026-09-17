@@ -418,6 +418,39 @@ jobs:
         if: (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) || (github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'realtime')
         run: pnpm --filter @wizards/web e2e:realtime
 
+      # Screen share real media (K18): never on pull requests; branch pushes, the realtime
+      # dispatch scope, and the nightly schedule. LiveKit is the docker-compose.yml image and
+      # digest. The `services:` block must stay byte-identical across the four Playwright jobs
+      # (governance contract), so the container starts here, only when this step will run.
+      - name: Start LiveKit for real-media tests
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) || (github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'realtime') || github.event_name == 'schedule'
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name whispr-livekit --network host \
+            livekit/livekit-server:v1.13.7@sha256:6fd3b7088874c4d119160dd688798dfec852bc014786d392caad15f6f63912a3 \
+            --dev --bind 0.0.0.0 --node-ip 127.0.0.1
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:7880/ >/dev/null; then
+              echo "LiveKit is up after ${attempt} attempt(s)."
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs whispr-livekit || true
+          echo "LiveKit did not answer on 7880." >&2
+          exit 1
+
+      - name: Run screen share real-media tests
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) || (github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'realtime') || github.event_name == 'schedule'
+        env:
+          LIVEKIT_API_KEY: devkey
+          LIVEKIT_API_SECRET: secret
+          LIVEKIT_URL: ws://127.0.0.1:7880
+          NEXT_PUBLIC_E2E_VOICE_REAL_MEDIA: "true"
+          NEXT_PUBLIC_LIVEKIT_URL: ws://127.0.0.1:7880
+        run: pnpm --filter @wizards/web e2e:real-media
+
       - name: Run Playwright full suite
         if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'full')
         run: pnpm --filter @wizards/web e2e
@@ -613,8 +646,8 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter @wizards/web exec playwright install --with-deps chromium
 
-      - name: Test auth challenges and voice composer UI
-        run: pnpm --filter @wizards/web exec node --test scripts/login-turnstile-browser.test.mjs scripts/voice-composer-browser.test.mjs
+      - name: Test auth challenges, desktop OAuth and voice composer UI
+        run: pnpm --filter @wizards/web exec node --test scripts/login-turnstile-browser.test.mjs scripts/oauth-handoff-browser.test.mjs scripts/desktop-oauth-claim.test.mjs scripts/voice-composer-browser.test.mjs
 
       - name: Run accessibility scan
         run: pnpm --filter @wizards/web e2e:a11y

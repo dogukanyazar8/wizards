@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 
 import { SplashScreen } from "@/components/splash/splash-screen";
 import { AuthBanner } from "@/components/auth/auth-error-levels";
@@ -27,6 +28,7 @@ export function DesktopOAuthClaimClient({ callbackUrl, token }: DesktopOAuthClai
     getServerDesktopRuntimeSnapshot,
   );
   const formRef = useRef<HTMLFormElement>(null);
+  const submittedTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!desktopRuntime) {
@@ -34,7 +36,7 @@ export function DesktopOAuthClaimClient({ callbackUrl, token }: DesktopOAuthClai
     }
 
     formRef.current?.requestSubmit();
-  }, [desktopRuntime]);
+  }, [desktopRuntime, token]);
 
   if (desktopRuntime !== false) {
     return (
@@ -43,6 +45,9 @@ export function DesktopOAuthClaimClient({ callbackUrl, token }: DesktopOAuthClai
         <form
           ref={formRef}
           action={async () => {
+            if (submittedTokenRef.current === token) return;
+            submittedTokenRef.current = token;
+            setError(null);
             const result = await claimDesktopOAuthHandoffAction(token, callbackUrl);
             if (!result.success) {
               setError(result.error ?? "auth.desktopOAuth.failed");
@@ -64,6 +69,9 @@ export function DesktopOAuthClaimClient({ callbackUrl, token }: DesktopOAuthClai
                   : t("auth.desktopOAuth.failed")
               }
             />
+            <Link className="auth-btn-primary" href="/login">
+              {t("auth.common.backToLogin")}
+            </Link>
           </div>
         ) : null}
       </>

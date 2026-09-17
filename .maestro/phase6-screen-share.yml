@@ -1,0 +1,93 @@
+appId: team.whispr.mobile
+---
+# Ekran paylaşımı Ş0.3 — Android emülatörü (API 34+), gerçek MediaProjection onayı.
+# Yakalanan ekran içeriği kaydedilmez; yalnız durum testid'leri doğrulanır.
+- launchApp
+- tapOn:
+    text: "http://10.0.2.2:8081"
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true
+- tapOn:
+    text: "http://.*:8081"
+    index: 0
+    optional: true
+- runFlow:
+    when:
+      visible: "Reload"
+    commands:
+      - pressKey: BACK
+- extendedWaitUntil:
+    visible:
+      id: "mobile-bottom-tab-settings"
+    timeout: 60000
+- openLink: "whispr://settings"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-settings-screen"
+    timeout: 60000
+- runFlow:
+    file: "helpers/login-uat.yml"
+
+# Join a real voice channel.
+- tapOn:
+    id: "mobile-bottom-tab-overview"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-workspace-channel-voice|mobile-voice-room-screen"
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: "mobile-workspace-channel-voice"
+    commands:
+      - tapOn:
+          id: "mobile-workspace-channel-voice"
+          index: 0
+- extendedWaitUntil:
+    visible:
+      id: "mobile-voice-room-screen"
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: "mobile-voice-screen-share"
+    timeout: 30000
+
+# Start sharing: the system MediaProjection consent dialog is accepted, then the local tile
+# shows the share badge. Ş7 pins `mobile-voice-stage-screen-self`; until then the existing
+# participant share badge is the stage proof.
+- tapOn:
+    id: "mobile-voice-screen-share"
+- extendedWaitUntil:
+    visible:
+      text: ".*(Start now|Şimdi başlat).*"
+    timeout: 15000
+- tapOn:
+    text: ".*(Start now|Şimdi başlat).*"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-voice-participant-.*-share-badge"
+    timeout: 30000
+- assertVisible:
+    id: "mobile-voice-participant-.*-share-badge"
+
+# Stop sharing: the badge disappears without leaving the room.
+- tapOn:
+    id: "mobile-voice-screen-share"
+- extendedWaitUntil:
+    notVisible:
+      id: "mobile-voice-participant-.*-share-badge"
+    timeout: 15000
+- assertNotVisible:
+    id: "mobile-voice-participant-.*-share-badge"
+- assertVisible:
+    id: "mobile-voice-room-screen"
+
+# Leave LiveKit cleanly.
+- tapOn:
+    id: "mobile-voice-leave"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-overview-screen"
+    timeout: 30000

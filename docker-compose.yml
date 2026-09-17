@@ -32,6 +32,7 @@ services:
     volumes:
       - clamav_data:/var/lib/clamav
 
+  # Production/UAT use LiveKit Cloud. This configuration is local development only.
   livekit:
     image: livekit/livekit-server:v1.13.7@sha256:6fd3b7088874c4d119160dd688798dfec852bc014786d392caad15f6f63912a3
     container_name: wizards-livekit

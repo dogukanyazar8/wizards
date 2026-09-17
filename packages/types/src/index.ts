@@ -49,3 +49,4 @@ export * from "./splash";
 export * from "./voice-mini";
 export * from "./voice-media-policy";
 export * from "./game-activity";
+export * from "./screen-share";

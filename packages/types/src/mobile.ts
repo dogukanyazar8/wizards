@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { PASSWORD_MIN_LENGTH, meetsPasswordPolicy } from "./auth-password-policy";
 import { VoiceMediaPolicySchema } from "./voice-media-policy";
+import { ScreenShareStreamInfoSchema } from "./screen-share";
 import { DMSystemMessageTypeSchema } from "./dm-system-message";
 import { BadgeIdSchema } from "./badges";
 import {
@@ -493,6 +494,9 @@ export const MobileVoiceStateParticipantSchema = z.object({
   avatarUrl: z.string().url().nullable(),
   displayName: z.string().min(1).max(120).nullable(),
   isScreenSharing: z.boolean().default(false),
+  screenShareViewerCount: z.number().int().min(0).optional(),
+  /** K8 — Go Live presence: `kind` + `gameId` + `label`; yalnız paylaşım açıkken gelir. */
+  stream: ScreenShareStreamInfoSchema.optional(),
   userId: z.string().min(1).max(128),
   username: z.string().min(1).max(80),
 });
@@ -518,6 +522,8 @@ export const MobileVoiceScreenShareUpdateEventSchema = z.object({
   channelId: z.string().min(1).max(128),
   isScreenSharing: z.boolean(),
   serverId: z.string().min(1).max(128),
+  /** K8 — sunucu `GameSharingSettings.enabled` kapalıyken `gameId: null`, `label: null` yazar. */
+  stream: ScreenShareStreamInfoSchema.optional(),
   userId: z.string().min(1).max(128),
 });
 

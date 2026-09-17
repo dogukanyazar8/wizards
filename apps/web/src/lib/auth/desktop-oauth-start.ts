@@ -9,16 +9,20 @@ export function getDesktopOAuthGoogleAuthorizationParams() {
   } as const;
 }
 
-export function buildDesktopOAuthCompletePath(callbackUrl: string) {
+export function buildDesktopOAuthCompletePath(callbackUrl: string, attemptId?: string) {
   const safeCallbackUrl = getSafeAuthRedirectPath(callbackUrl);
-  return `${DESKTOP_OAUTH_COMPLETE_PATH}?callbackUrl=${encodeURIComponent(safeCallbackUrl)}`;
+  return `${DESKTOP_OAUTH_COMPLETE_PATH}?callbackUrl=${encodeURIComponent(safeCallbackUrl)}${
+    attemptId ? `&attempt=${encodeURIComponent(attemptId)}` : ""
+  }`;
 }
 
-export function buildDesktopOAuthStartPath(callbackUrl: string) {
+export function buildDesktopOAuthStartPath(callbackUrl: string, requestId?: string) {
   const safeCallbackUrl = getSafeAuthRedirectPath(callbackUrl);
-  return `${DESKTOP_OAUTH_START_PATH}?callbackUrl=${encodeURIComponent(safeCallbackUrl)}`;
+  return `${DESKTOP_OAUTH_START_PATH}?callbackUrl=${encodeURIComponent(safeCallbackUrl)}${
+    requestId ? `&request=${encodeURIComponent(requestId)}` : ""
+  }`;
 }
 
-export function buildDesktopOAuthStartUrl(callbackUrl: string, origin: string) {
-  return new URL(buildDesktopOAuthStartPath(callbackUrl), origin).toString();
+export function buildDesktopOAuthStartUrl(callbackUrl: string, origin: string, requestId?: string) {
+  return new URL(buildDesktopOAuthStartPath(callbackUrl, requestId), origin).toString();
 }

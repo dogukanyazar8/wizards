@@ -333,6 +333,11 @@ function SegmentControl({ ids, row }: ControlProps) {
     <SettingSegment
       describedById={ids.describedById}
       disabled={runtime.disabledRows?.[row.key] ?? false}
+      disabledOptions={runtime.disabledOptions?.[row.key] ?? []}
+      hiddenOptions={runtime.hiddenOptions?.[row.key] ?? []}
+      optionDescriptions={Object.fromEntries(
+        Object.entries(row.optionGateKeys ?? {}).map(([index, key]) => [index, t(key)]),
+      )}
       labelledById={ids.labelledById}
       onChange={setValue}
       options={(row.options ?? []).map((optionKey) => t(optionKey))}

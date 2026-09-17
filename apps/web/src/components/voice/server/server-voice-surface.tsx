@@ -1,5 +1,7 @@
 "use client";
 
+import { screenSharePresenterLabel } from "@/lib/voice/screen-share-label";
+import type { ScreenShareStreamInfo } from "@wizards/types";
 import React from "react";
 import Link from "next/link";
 import { buildSettingsHref } from "@/lib/settings/navigation";
@@ -736,6 +738,9 @@ export function ServerVoiceGrid({
 /* ------------------------------------------------- §5.3 ekran paylaşımı sahnesi */
 
 export type ServerScreenShareStageProps = {
+  readonly stream?: ScreenShareStreamInfo | null | undefined;
+  readonly viewerCount?: number;
+  readonly isLocalShare?: boolean;
   readonly cameraName?: string | undefined;
   readonly cameraSlot?: React.ReactNode | null | undefined;
   readonly fps: number | null;
@@ -758,6 +763,9 @@ export type ServerScreenShareStageProps = {
 };
 
 export function ServerScreenShareStage({
+  stream,
+  viewerCount = 0,
+  isLocalShare = false,
   cameraName,
   cameraSlot,
   fps,
@@ -892,7 +900,7 @@ export function ServerScreenShareStage({
               lineHeight: 1.4,
             }}
           >
-            {t("server.voice.share.presenter", { name: sharerName })}
+            {screenSharePresenterLabel(stream, sharerName, t)}
           </span>
           <span
             className="flex-none font-semibold uppercase"
@@ -911,6 +919,14 @@ export function ServerScreenShareStage({
           >
             {t("server.voice.share.live")}
           </span>
+          {(viewerCount > 0 || isLocalShare) && (
+            <span data-testid="voice-stage-viewer-count">
+              {t(
+                viewerCount ? "voice.screenShare.viewers.count" : "voice.screenShare.viewers.none",
+                { count: viewerCount },
+              )}
+            </span>
+          )}
         </span>
 
         <span

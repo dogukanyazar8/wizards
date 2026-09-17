@@ -1,6 +1,28 @@
 "use client";
 
 import {
+  createScreenShareModeChangeEvent,
+  publishScreenShareHealthEvents,
+} from "@/lib/telemetry/screen-share-health-events";
+
+import { useScreenShare4kFlag } from "@/hooks/use-screen-share-4k-flag";
+import {
+  browserScreenShareEncodingProbe,
+  resolveScreenShareCodec,
+  isScreenShare4kAllowed,
+  type ScreenShareCodecChoice,
+} from "@/lib/voice/screen-share-codec";
+import {
+  getScreenSharePreset,
+  resolveCapturedScreenShareResolution,
+} from "@/lib/voice/screen-share";
+import {
+  applyScreenShareModeToTrack,
+  applyScreenShareFrameRateToTrack,
+  applyScreenShareResolutionToTrack,
+} from "@/lib/voice/livekit-track-helpers";
+import { useScreenShareHealthSampler } from "@/hooks/use-screen-share-health";
+import {
   ConnectionState,
   type AudioProcessorOptions,
   type LocalAudioTrack,
@@ -73,7 +95,6 @@ import {
 } from "@/lib/voice/media-capabilities";
 import {
   applyRemoteAudioState,
-  applyScreenShareQualityToTrack,
   getLocalCameraTrack,
   getLocalMicrophoneTrack,
   getLocalScreenShareTrack,
@@ -223,6 +244,40 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const preferredKrispQuality = getPreferredKrispQuality();
   const fallbackKrispQuality = getFallbackKrispQuality(preferredKrispQuality);
   const roomRef = useRef<Room | null>(null);
+  const screenShare4kEnabled = useScreenShare4kFlag();
+  const screenCodecChoices = useRef(new WeakMap<Room, Promise<ScreenShareCodecChoice>>());
+  const screenQualityQueue = useRef(Promise.resolve());
+  const screenAxes = useVoiceStore(
+    useShallow((state) => ({
+      resolution: state.screenShareResolution,
+      frameRate: state.screenShareFrameRate,
+      mode: state.screenShareContentMode,
+    })),
+  );
+  useEffect(() => {
+    let cancelled = false;
+    if (screenShare4kEnabled) {
+      void resolveScreenShareCodec(
+        { mode: "motion", width: 3840, height: 2160, frameRate: 60, bitrateKbps: 24000 },
+        browserScreenShareEncodingProbe(),
+      ).then((choice) => {
+        if (!cancelled)
+          useVoiceStore
+            .getState()
+            .setScreenShare4kAllowed(
+              isScreenShare4kAllowed(
+                screenShare4kEnabled,
+                { width: screen.width, height: screen.height, dpr: devicePixelRatio },
+                choice.hardware,
+              ),
+            );
+      });
+    }
+    return () => {
+      cancelled = true;
+      useVoiceStore.getState().setScreenShare4kAllowed(false);
+    };
+  }, [screenShare4kEnabled]);
   const cameraRestartQueue = useRef<Promise<void>>(Promise.resolve());
   /** Remote video this client paused while the tab was hidden, and only that. */
   const backgroundSuspendedRemoteVideoSidsRef = useRef<Set<string>>(new Set());
@@ -267,6 +322,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   );
   useEffect(() => () => screenShareSession.cancel(), [screenShareSession]);
   const [activeScreenShareId, setActiveScreenShareIdState] = useState<string | null>(null);
+  useScreenShareHealthSampler(screenShares, activeScreenShareId, room);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [cameraStatus, setCameraStatus] = useState<VoiceCameraStatus>("disabled");
   const [connectionState, setConnectionState] = useState<ConnectionState>(
@@ -1492,7 +1548,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       }
 
       try {
-        await screenShareSession.stop(activeRoom);
+        await measureVoicePerformance(
+          { operation: "screen_share_stop_cleanup", runtime: "client" },
+          () => screenShareSession.stop(activeRoom),
+        );
       } catch (error) {
         logWarning("[voice] Screen share unpublish failed; local capture stopped", error);
       }
@@ -1504,38 +1563,64 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     [screenShareSession, syncScreenShares],
   );
 
-  const setScreenShareQuality = useCallback(
-    async (qualityId: ScreenShareQualityId) => {
-      useVoiceStore.getState().setScreenShareQuality(qualityId);
+  const setScreenShareQuality = useCallback(async (qualityId: ScreenShareQualityId) => {
+    useVoiceStore.getState().setScreenShareQuality(qualityId);
+  }, []);
 
-      const activeRoom = roomRef.current;
-      const localScreenShareTrack = getLocalScreenShareTrack(activeRoom);
-      if (
-        !activeRoom ||
-        activeRoom.state === ConnectionState.Disconnected ||
-        !localScreenShareTrack ||
-        !isLocalScreenShareTrackLive(localScreenShareTrack)
-      ) {
+  const previousScreenShareMode = useRef(screenAxes.mode);
+  useEffect(() => {
+    // LiveKit can override contentHint for SVC; compare user intent, not the SDK hint.
+    const modeChanged = previousScreenShareMode.current !== screenAxes.mode;
+    previousScreenShareMode.current = screenAxes.mode;
+    const activeRoom = roomRef.current;
+    const track = getLocalScreenShareTrack(activeRoom);
+    if (!activeRoom || !track || !isLocalScreenShareTrackLive(track)) return;
+    let cancelled = false;
+    screenQualityQueue.current = screenQualityQueue.current.then(async () => {
+      if (cancelled || roomRef.current !== activeRoom || !isLocalScreenShareTrackLive(track))
         return;
-      }
-
       setIsApplyingScreenShareQuality(true);
+      const startedAt = performance.now();
+      let result: "success" | "error" = "error";
       try {
-        await applyScreenShareQualityToTrack(localScreenShareTrack, qualityId);
-        setErrorMessage(null);
-        if (roomRef.current === activeRoom) {
-          syncScreenShares(activeRoom);
+        const height = track.mediaStreamTrack.getSettings().height;
+        const effective = resolveCapturedScreenShareResolution(screenAxes.resolution, height);
+        const preset = getScreenSharePreset(effective, screenAxes.frameRate, screenAxes.mode);
+        await measureVoicePerformance(
+          { operation: "screen_share_mode_switch", runtime: "client" },
+          async () => {
+            await applyScreenShareModeToTrack(track, screenAxes.mode);
+            // Raising capture resolution requires selecting the source again.
+            if (height && preset.height <= height)
+              await applyScreenShareResolutionToTrack(track, preset);
+            await applyScreenShareFrameRateToTrack(track, screenAxes.frameRate, preset);
+          },
+        );
+        if (!cancelled) useVoiceStore.getState().setScreenShareError(null);
+        result = "success";
+      } catch (error) {
+        logWarning("[voice] Live screen share quality update failed", error);
+        if (!cancelled) {
+          const message = t("screenShare.errors.qualityFailed");
+          useVoiceStore.getState().setScreenShareError(message);
+          setTransientErrorMessage(message);
         }
-      } catch {
-        const message = t("screenShare.errors.qualityFailed");
-        useVoiceStore.getState().setScreenShareError(message);
-        setTransientErrorMessage(message);
       } finally {
+        if (modeChanged)
+          publishScreenShareHealthEvents([
+            createScreenShareModeChangeEvent({
+              mode: screenAxes.mode,
+              durationMs: performance.now() - startedAt,
+              result,
+            }),
+          ]);
         setIsApplyingScreenShareQuality(false);
       }
-    },
-    [setTransientErrorMessage, syncScreenShares, t],
-  );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [screenAxes, setTransientErrorMessage, t]);
 
   const stopCamera = useCallback(
     async (targetRoom?: Room | null, options: { clearError?: boolean } = {}) => {
@@ -1723,18 +1808,68 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
 
       store.setScreenShareError(null);
       try {
-        const currentQuality = useVoiceStore.getState().screenShareQuality;
+        if (
+          store.screenShareResolution === "h2160" &&
+          (!screenShare4kEnabled || !store.screenShare4kAllowed)
+        ) {
+          const message = t("screenShare.errors.hardwareRequired4k");
+          store.setScreenShareError(message);
+          setTransientErrorMessage(message);
+          return;
+        }
+        const axes = {
+          resolution: store.screenShareResolution,
+          frameRate: store.screenShareFrameRate,
+          mode: store.screenShareContentMode,
+        };
         // A browser without the feature is asked for video only, so the share can
         // never fail over a preference the browser cannot honour.
         const shareSystemAudio =
           useVoiceStore.getState().screenShareAudioEnabled && isScreenShareAudioSupported();
+        const captureStartedAt = getVoicePerformanceNow();
         const started = await screenShareSession.start(activeRoom, {
-          capture: getScreenShareCaptureOptions(currentQuality, {
+          onCaptured: () =>
+            recordVoicePerformanceMetric({
+              operation: "screen_share_start",
+              runtime: "client",
+              result: "success",
+              durationMs: getVoicePerformanceDurationMs(captureStartedAt),
+            }),
+          capture: getScreenShareCaptureOptions({
+            ...axes,
             shareSystemAudio,
             excludeSelfWindow: store.screenShareExcludeSelfWindow,
             allowSourceSwitch: store.screenShareAllowSourceSwitch,
           }),
-          publish: getScreenSharePublishOptions(currentQuality),
+          publish: async (tracks) => {
+            const height = tracks
+              .find((track) => track.source === Track.Source.ScreenShare)
+              ?.mediaStreamTrack.getSettings().height;
+            const preset = getScreenSharePreset(
+              resolveCapturedScreenShareResolution(axes.resolution, height),
+              axes.frameRate,
+              axes.mode,
+            );
+            let choice = screenCodecChoices.current.get(activeRoom);
+            if (!choice) {
+              choice = resolveScreenShareCodec(
+                {
+                  mode: axes.mode,
+                  width: preset.width,
+                  height: preset.height,
+                  frameRate: axes.frameRate,
+                  bitrateKbps: preset.encoding.maxBitrate / 1000,
+                },
+                browserScreenShareEncodingProbe(),
+              );
+              screenCodecChoices.current.set(activeRoom, choice);
+            }
+            return getScreenSharePublishOptions({
+              preset,
+              codecChoice: await choice,
+              mode: axes.mode,
+            });
+          },
           replace,
           isCurrent: () =>
             roomRef.current === activeRoom && activeRoom.state === ConnectionState.Connected,
@@ -1768,6 +1903,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     },
     [
       isDesktopRuntime,
+      screenShare4kEnabled,
       screenShareSession,
       setTransientErrorMessage,
       stopScreenShare,

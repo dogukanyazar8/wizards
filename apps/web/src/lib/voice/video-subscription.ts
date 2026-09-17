@@ -124,3 +124,26 @@ export function setVoiceVideoQualityCeiling(
 
   return quality;
 }
+
+export function resolveScreenShareViewerQuality({
+  elementHeightPx,
+  dpr,
+  sourceHeight,
+  decodeSmooth,
+}: {
+  elementHeightPx: number;
+  dpr: number;
+  sourceHeight: number;
+  decodeSmooth: boolean | null;
+}): VideoQuality {
+  const height = elementHeightPx * dpr;
+  let quality =
+    sourceHeight > 0 && height < sourceHeight / 4
+      ? VideoQuality.LOW
+      : sourceHeight > 0 && height < sourceHeight / 2
+        ? VideoQuality.MEDIUM
+        : VideoQuality.HIGH;
+  if (decodeSmooth === false)
+    quality = quality === VideoQuality.HIGH ? VideoQuality.MEDIUM : VideoQuality.LOW;
+  return quality;
+}

@@ -24,13 +24,16 @@ describe("screen share audio wiring", () => {
     );
     assert.match(
       providerSource,
-      /getScreenShareCaptureOptions\(currentQuality, \{\s*shareSystemAudio,\s*excludeSelfWindow: store\.screenShareExcludeSelfWindow,\s*allowSourceSwitch: store\.screenShareAllowSourceSwitch,/,
+      /getScreenShareCaptureOptions\(\{\s*\.\.\.axes,\s*shareSystemAudio,\s*excludeSelfWindow: store\.screenShareExcludeSelfWindow,\s*allowSourceSwitch: store\.screenShareAllowSourceSwitch,/,
     );
   });
 
   it("tears the share down through the helper that covers both sources", () => {
     const sessionSource = readSource("lib/voice/screen-share-session.ts");
-    assert.match(providerSource, /await screenShareSession\.stop\(activeRoom\)/);
+    assert.match(
+      providerSource,
+      /await measureVoicePerformance\(\s*\{ operation: "screen_share_stop_cleanup", runtime: "client" \},\s*\(\) => screenShareSession\.stop\(activeRoom\)/,
+    );
     assert.match(sessionSource, /publication\.source === Track\.Source\.ScreenShareAudio/);
   });
 

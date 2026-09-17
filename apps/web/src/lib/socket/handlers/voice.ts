@@ -18,6 +18,7 @@ import {
   SocketVoiceInviteDeclinePayloadSchema,
   SocketVoiceInvitePayloadSchema,
   SocketVoiceScreenSharePayloadSchema,
+  SocketVoiceScreenShareWatchPayloadSchema,
   SocketVoiceStatesWatchPayloadSchema,
 } from "@/lib/socket/schemas";
 import {
@@ -25,9 +26,17 @@ import {
   getVoiceInviteKey,
   parseStoredVoiceInvite,
 } from "@/lib/voice/invite-service";
-import { emitVoiceScreenShareUpdate } from "@/lib/voice/service";
+import {
+  emitScreenShareWatchers,
+  clearScreenShareWatchers,
+  removeScreenShareWatcher,
+  emitVoiceScreenShareUpdate,
+} from "@/lib/voice/service";
 import {
   getVoiceScreenShareStateKey,
+  getScreenShareWatchersKey,
+  SCREEN_SHARE_WATCHERS_TTL_SECONDS,
+  UPDATE_SCREEN_SHARE_WATCHERS_SCRIPT,
   VOICE_SCREEN_SHARE_STATE_TTL_SECONDS,
 } from "@/lib/voice/screen-share-state";
 import {
@@ -95,11 +104,12 @@ export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistr
     }
   });
 
-  socket.on("voice:leave", (rawData) => {
+  socket.on("voice:leave", async (rawData) => {
     try {
       const data = parseSocketPayload(SocketVoiceChannelPayloadSchema, rawData);
       socket.leave(getVoiceParticipantRoomName(data.channelId));
       socket.data.voiceRooms.delete(data.channelId);
+      await removeScreenShareWatcher(data.channelId, userId);
     } catch (error) {
       emitSocketError("VALIDATION_ERROR", "Invalid voice room payload.", error);
     }
@@ -341,6 +351,7 @@ export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistr
             await redis.set(screenShareStateKey, "1", "EX", VOICE_SCREEN_SHARE_STATE_TTL_SECONDS);
           } else {
             await redis.del(screenShareStateKey);
+            await clearScreenShareWatchers(data.channelId, userId);
           }
         },
       });
@@ -353,5 +364,72 @@ export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistr
     }
   });
 
-  return {};
+  socket.on("voice:screenshare:watch", async (rawData) => {
+    try {
+      const data = parseSocketPayload(SocketVoiceScreenShareWatchPayloadSchema, rawData);
+      await runScreenShareWatch({
+        watching: data.watching,
+        isParticipant: socket.data.voiceRooms.has(data.channelId),
+        isSelf: data.sharerUserId === userId,
+        checkRateLimit: () =>
+          checkRateLimit(rateRedis, `rate:voice:screenshare:watch:${userId}`, 20, 60),
+        authorize: async () => {
+          await requireChannelPermissionForUser(
+            userId,
+            data.channelId,
+            PermissionBits.CONNECT_VOICE,
+            {
+              requiredServerId: data.serverId,
+              requiredType: ChannelType.VOICE,
+              respectLocked: true,
+            },
+          );
+        },
+        update: async () =>
+          Number(
+            await redis.eval(
+              UPDATE_SCREEN_SHARE_WATCHERS_SCRIPT,
+              2,
+              getVoiceScreenShareStateKey(data.channelId, data.sharerUserId),
+              getScreenShareWatchersKey(data.channelId, data.sharerUserId),
+              userId,
+              data.watching ? "1" : "0",
+              SCREEN_SHARE_WATCHERS_TTL_SECONDS,
+            ),
+          ),
+        emit: () => emitScreenShareWatchers(data.channelId, data.sharerUserId),
+      });
+    } catch (error) {
+      emitSocketError(
+        "VOICE_SCREENSHARE_WATCH_ERROR",
+        "Unable to update screen share viewers.",
+        error,
+      );
+    }
+  });
+  return {
+    cleanup: async () => {
+      await Promise.all(
+        [...socket.data.voiceRooms].map((channelId) => removeScreenShareWatcher(channelId, userId)),
+      );
+    },
+  };
+}
+
+export async function runScreenShareWatch(input: {
+  watching: boolean;
+  isParticipant: boolean;
+  isSelf: boolean;
+  checkRateLimit(): Promise<boolean>;
+  authorize(): Promise<void>;
+  update(): Promise<number>;
+  emit(): Promise<void>;
+}) {
+  if (!(await input.checkRateLimit())) return;
+  if (!input.isParticipant || input.isSelf)
+    throw new ApiError("Not allowed to watch this share", 403, "FORBIDDEN");
+  await input.authorize();
+  const changed = await input.update();
+  if (changed < 0) throw new ApiError("Screen share is not active", 409, "SCREEN_SHARE_INACTIVE");
+  if (changed > 0) await input.emit();
 }

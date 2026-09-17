@@ -1,6 +1,7 @@
 import {
   MESSAGE_CONTENT_DEFAULT_LIMIT,
   MESSAGE_CONTENT_HARD_LIMIT,
+  ScreenShareStreamInfoSchema,
   UploadedAttachmentInputSchema,
 } from "@wizards/types";
 import { z } from "zod";
@@ -118,6 +119,27 @@ export const SocketVoiceScreenSharePayloadSchema = z
     channelId: SocketIdSchema,
     isScreenSharing: z.boolean(),
     serverId: SocketIdSchema,
+    /**
+     * K8 — Go Live presence. `kind` gerçek yüzeyi yazar (`screen` | `window` | `game`);
+     * `gameId` katalog id'si veya `custom:<id>`, `label` yalnız kayıtlı oyunlarda. Sunucu
+     * `GameSharingSettings.enabled` kapalıyken `gameId` ve `label`'ı `null`'a çeker (handler Ş3).
+     * Exe adı ve pencere başlığı bu payload'a hiç girmez.
+     */
+    stream: ScreenShareStreamInfoSchema.optional(),
+  })
+  .strict();
+
+/**
+ * K11 — izleyen listesi socket ile, LiveKit abonelik olayıyla değil. `watching: true` izleyici
+ * Redis SET'ine girer (TTL 120 s, 60 s'de bir yenilenir), `false` çıkar; fanout
+ * `voice:screenshare:watchers:update` (`ScreenShareWatchersUpdateSchema`).
+ */
+export const SocketVoiceScreenShareWatchPayloadSchema = z
+  .object({
+    channelId: SocketIdSchema,
+    serverId: SocketIdSchema,
+    sharerUserId: SocketIdSchema,
+    watching: z.boolean(),
   })
   .strict();
 

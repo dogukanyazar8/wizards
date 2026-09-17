@@ -1,3 +1,4 @@
+import { ScreenShareWatchersUpdateSchema } from "@wizards/types";
 export const MOBILE_REALTIME_SERVER_EVENTS = [
   "message:new",
   "message:updated",
@@ -48,6 +49,7 @@ export const MOBILE_REALTIME_SERVER_EVENTS = [
   "notification:new",
   "voice:state:update",
   "voice:screenshare:update",
+  "voice:screenshare:watchers:update",
   "voice:invite:accepted",
   "voice:invite:error",
   "voice:invite:received",
@@ -162,6 +164,7 @@ const WORKSPACE_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
   "server:settings:updated",
   "voice:state:update",
   "voice:screenshare:update",
+  "voice:screenshare:watchers:update",
 ]);
 
 const BOOTSTRAP_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
@@ -349,6 +352,12 @@ const MOBILE_REALTIME_PAYLOAD_PARSERS = {
     const parsed = MobileVoiceStateUpdateEventSchema.safeParse(payload);
     return parsed.success
       ? { channelId: parsed.data.channelId, payload: parsed.data, serverId: parsed.data.serverId }
+      : null;
+  },
+  "voice:screenshare:watchers:update": (payload) => {
+    const parsed = ScreenShareWatchersUpdateSchema.safeParse(payload);
+    return parsed.success
+      ? { channelId: parsed.data.channelId, payload: parsed.data, serverId: null }
       : null;
   },
   "voice:screenshare:update": (payload) => {

@@ -12,5 +12,9 @@ export default async function DesktopOAuthStartPage({ searchParams }: DesktopOAu
     : queryParams?.callbackUrl;
   const callbackUrl = getSafeAuthRedirectPath(callbackParam);
 
-  return <DesktopOAuthStartClient callbackUrl={callbackUrl} />;
+  const requestId =
+    typeof queryParams?.request === "string" && queryParams.request.length <= 64
+      ? queryParams.request
+      : undefined;
+  return <DesktopOAuthStartClient callbackUrl={callbackUrl} requestId={requestId} />;
 }

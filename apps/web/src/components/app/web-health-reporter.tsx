@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { SCREEN_SHARE_HEALTH_EVENT } from "@/lib/telemetry/screen-share-health-events";
+import type { ScreenShareTelemetryEvent } from "@/lib/telemetry/screen-share-health-events";
 
 const CLIENT_HEALTH_PATH = "/api/v1/telemetry/client-health";
 /** Per page load. A render loop that throws must not become a request loop. */
@@ -20,6 +22,23 @@ function summarize(value: unknown) {
  * here beyond what failed.
  */
 export function WebHealthReporter() {
+  useEffect(() => {
+    function reportSummary(event: Event) {
+      const events = (event as CustomEvent<ScreenShareTelemetryEvent[]>).detail;
+      if (!Array.isArray(events) || events.length === 0 || events.length > 50) return;
+      const body = JSON.stringify({ events });
+      if (new TextEncoder().encode(body).byteLength > 32 * 1024) return;
+      void fetch(CLIENT_HEALTH_PATH, {
+        body,
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+        method: "POST",
+      }).catch(() => undefined);
+    }
+    window.addEventListener(SCREEN_SHARE_HEALTH_EVENT, reportSummary);
+    return () => window.removeEventListener(SCREEN_SHARE_HEALTH_EVENT, reportSummary);
+  }, []);
+
   useEffect(() => {
     let reported = 0;
 

@@ -35,6 +35,7 @@ import {
   VoiceScreen,
 } from "../src/app/screens/voice-screen";
 import { createInitialMobileVoiceRuntimeState } from "../src/voice/mobile-voice-contract";
+import { collectMobileScreenShareHealthFromStats } from "../src/voice/mobile-screen-share-health";
 import {
   getMobileVoiceInputMeterSegments,
   MobileVoiceSettingsSheet,
@@ -382,34 +383,57 @@ describe("mobile voice component rendering", () => {
     expect(view.getByTestId("mobile-voice-rail-listener")).toBeTruthy();
   });
 
-  it("promotes a screen share to a stage tile that opens the fullscreen viewer", async () => {
-    const trackRef = {
-      participant: {},
-      publication: {},
-      source: "screen_share",
-    } as MobileScreenShareTrackReference;
-    const view = await renderVoiceScreen(
-      createVoiceScreenProps({
-        voiceRoomState: createConnectedVoiceRoom({
-          participants: [
-            createParticipant({
-              isScreenSharing: true,
-              isSelf: true,
-              joinedAt: 1,
-              screenShareTrackRef: trackRef,
-              userId: "self",
-              username: "me",
-            }),
-          ],
+  it.each([true, false])(
+    "opens fullscreen with measured quality only for its own track (matches=%s)",
+    async (matches) => {
+      const track = {};
+      const trackRef = {
+        participant: {},
+        publication: { track },
+        source: "screen_share",
+      } as MobileScreenShareTrackReference;
+      const view = await renderVoiceScreen(
+        createVoiceScreenProps({
+          voiceRoomState: createConnectedVoiceRoom({
+            screenShareHealthTrack: matches ? track : {},
+            screenShareHealth:
+              collectMobileScreenShareHealthFromStats(
+                new Map([
+                  [
+                    "video",
+                    {
+                      type: "inbound-rtp",
+                      kind: "video",
+                      frameWidth: 1920,
+                      frameHeight: 1080,
+                      framesPerSecond: 27,
+                    },
+                  ],
+                ]),
+                "receive",
+              )?.snapshot ?? null,
+            participants: [
+              createParticipant({
+                isScreenSharing: true,
+                isSelf: true,
+                joinedAt: 1,
+                screenShareTrackRef: trackRef,
+                userId: "self",
+                username: "me",
+              }),
+            ],
+          }),
         }),
-      }),
-    );
+      );
 
-    const tile = view.getByTestId("mobile-voice-participant-self-screen");
-    expect(tile).toBeTruthy();
-    await fireEvent.press(tile);
-    expect(view.getByTestId("mobile-voice-screen-share-fullscreen")).toBeTruthy();
-  });
+      const tile = view.getByTestId("mobile-voice-participant-self-screen");
+      expect(tile).toBeTruthy();
+      await fireEvent.press(tile);
+      expect(view.getByTestId("mobile-voice-screen-share-fullscreen")).toBeTruthy();
+      if (matches) expect(view.getByText(/1080p · 27 fps/)).toBeTruthy();
+      else expect(view.queryByText(/1080p · 27 fps/)).toBeNull();
+    },
+  );
 
   it("shows the real DM title for a direct call without a server", async () => {
     const view = await renderVoiceScreen(

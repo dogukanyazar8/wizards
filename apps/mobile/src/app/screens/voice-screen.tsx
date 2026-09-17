@@ -1,3 +1,4 @@
+import { formatMobileScreenShareHealthLabel } from "../../voice/mobile-screen-share-health";
 import { VideoTrack } from "@livekit/react-native";
 import { createContext, useContext, useLayoutEffect } from "react";
 import Animated, {
@@ -107,10 +108,12 @@ import {
   useOverlayPhase,
 } from "../components/kit/overlay-surface";
 
-const MobileVoiceVideoQualityModeContext = createContext<"AUTO" | "FULL">("AUTO");
+const MobileVoiceMediaContext = createContext<
+  Pick<MobileVoiceRoomState, "screenShareHealth" | "screenShareHealthTrack" | "videoQualityMode">
+>({ videoQualityMode: "AUTO" });
 
 function useMobileVoiceVideoQualityMode() {
-  return useContext(MobileVoiceVideoQualityModeContext);
+  return useContext(MobileVoiceMediaContext).videoQualityMode;
 }
 
 export function VoiceScreen({
@@ -232,7 +235,7 @@ export function VoiceScreen({
   const stageMode = getMobileVoiceStageMode(model.participants);
 
   return (
-    <MobileVoiceVideoQualityModeContext.Provider value={voiceRoomState.videoQualityMode}>
+    <MobileVoiceMediaContext.Provider value={voiceRoomState}>
       <View style={styles.activeVoiceRoomScreen} testID={testID}>
         <View style={styles.activeVoiceRoomHeader}>
           <Pressable
@@ -430,7 +433,7 @@ export function VoiceScreen({
           selectedAudioOutputId={voiceRoomState.selectedAudioOutputId}
         />
       </View>
-    </MobileVoiceVideoQualityModeContext.Provider>
+    </MobileVoiceMediaContext.Provider>
   );
 }
 
@@ -1175,6 +1178,12 @@ function VoiceStageScreenFullscreen({
   const bottomSystemInset = useMobileBottomSystemSpacing(12);
   const title = getScreenShareViewerTitle(participant);
 
+  const health = useContext(MobileVoiceMediaContext);
+  const healthLabel =
+    health.screenShareHealthTrack === participant.screenShareTrackRef?.publication.track
+      ? formatMobileScreenShareHealthLabel(health.screenShareHealth)
+      : null;
+
   return (
     <ScreenShareFullscreenOverlay onClose={onClose} open={open}>
       <View
@@ -1187,7 +1196,7 @@ function VoiceStageScreenFullscreen({
               {copy.voiceScreenShareViewerLabel}
             </Text>
             <Text style={styles.mobileVoiceScreenShareFullscreenTitle} numberOfLines={1}>
-              {title}
+              {healthLabel ? `${title} · ${healthLabel}` : title}
             </Text>
           </View>
           {onToggleScreenShareAudioMuted ? (

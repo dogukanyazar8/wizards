@@ -18,6 +18,7 @@ Use live discovery instead of hardcoded counts:
 pnpm --filter @wizards/web e2e -- --list
 pnpm --filter @wizards/web e2e:smoke -- --list
 pnpm --filter @wizards/web e2e:realtime -- --list
+pnpm --filter @wizards/web e2e:real-media -- --list
 pnpm --filter @wizards/web e2e:mobile -- --list
 pnpm --filter @wizards/web e2e:a11y -- --list
 pnpm --filter @wizards/web e2e:visual -- --list
@@ -153,7 +154,59 @@ Implementation notes:
 
 - Chromium fake media flags are enabled in Playwright config.
 - LiveKit-heavy behavior is test-gated where needed.
-- These tests validate Whispr media state, UI, and cleanup flows. They do not validate real microphone audio quality, real screen pixels, or real LiveKit infrastructure quality.
+- These tests validate Whispr media state, UI, and cleanup flows. They do not validate real microphone audio quality, real screen pixels, or real LiveKit infrastructure quality. Real screen pixels and a real LiveKit server are covered by the separate real-media project below.
+
+### Screen Share Real Media
+
+Spec file: `apps/web/e2e/specs/voice/screen-share-real-media.spec.ts`
+Fixture: `apps/web/e2e/fixtures/screen-share.ts`
+Playwright project: `chromium-real-media` (only project that matches the spec)
+
+The fake voice provider never talks to LiveKit, so this project builds the web server
+with `NEXT_PUBLIC_E2E_VOICE_REAL_MEDIA=true`, which keeps every other E2E mock but
+mounts the live voice provider. `playwright.config.ts` sets that flag automatically
+when `--project=chromium-real-media` is requested, and defaults the LiveKit
+credentials to the `livekit-server --dev` keys (`devkey` / `secret`,
+`ws://127.0.0.1:7880`).
+
+Chromium flags (`REAL_MEDIA_CHROMIUM_ARGS`):
+
+- `--use-fake-ui-for-media-stream`
+- `--use-fake-device-for-media-stream`
+- `--auto-select-desktop-capture-source=Entire screen`
+- `--window-size=1920,1080` (headless captures its virtual screen at this size)
+- `--autoplay-policy=no-user-gesture-required`
+
+Covered (two browser contexts in the seeded `e2e-voice` channel):
+
+- Viewer decodes the sharer's screen: `videoWidth > 0`, `framesDecoded` grows within 3 s.
+- Resolution contract: the sender's `outbound-rtp.frameHeight` equals the preset (1080).
+- Stop: the viewer's track ends within 2 s; the stage hides.
+- Source switch (settings row e7): the viewer keeps decoding.
+- Two-share cap: a third context is refused with the `maxReached` error.
+- Pattern group (separate browser, `--auto-select-tab-capture-source-by-title="Whispr screen pattern"`): captures the test-only `/e2e/screen-pattern` tab, reads the binary clock strip back from the viewer's `<video>` pixels (glass-to-glass latency) and computes a grayscale SSIM against the pattern tab's screenshot. Thresholds (latency < 300 ms, SSIM >= 0.9) are soft in this round: they are attached to the report and logged, not asserted.
+
+Stats come from `RTCPeerConnection.getStats()`: the fixture wraps the constructor with a
+context init script and reads every connection, so no product hook is needed.
+
+Local run (LiveKit from `docker compose up -d livekit`, Postgres/Redis as usual):
+
+```bash
+docker compose up -d livekit
+pnpm --filter @wizards/web e2e:real-media
+pnpm --filter @wizards/web e2e:real-media -- --list
+```
+
+Headless notes: `requestPictureInPicture` / Document PiP do not open in headless
+Chromium and stay `test.skip` material; frame rate on a CI software encoder is a
+recorded baseline, not an assertion.
+
+CI cadence: never on pull requests. Branch pushes to `main`, `staging`, and `uat`,
+`workflow_dispatch` with `e2e_scope=realtime`, and the nightly schedule start a
+`livekit/livekit-server` container pinned to the same digest as `docker-compose.yml`
+inside the `Playwright E2E` job and run `e2e:real-media`. The separate
+`screen-share-network-nightly.yml` workflow shapes the LiveKit media ports with
+`tc netem` (40 ms delay, 2% loss, 2 Mbit) before running the same spec.
 
 ### Settings And Preferences
 
@@ -242,7 +295,7 @@ These are not blockers for the current E2E foundation, but they are good next st
 - Real Cloudflare Turnstile challenge. CI should not depend on third-party challenge availability.
 - Real UploadThing uploads. Current E2E validates Whispr behavior through a safe mock.
 - Real GIPHY API. Current E2E validates Whispr GIF UI through a deterministic mock.
-- Real LiveKit media infrastructure and audio/video quality. Current E2E validates app state and fake media flows.
+- Real LiveKit audio quality. Screen share video now runs against a local `livekit-server --dev` in the `chromium-real-media` project; microphone audio quality and the hosted LiveKit Cloud path remain unverified by automation.
 - Percentage-based unit/integration coverage thresholds.
 
 ## Environment
@@ -460,8 +513,9 @@ Then it runs:
 - run smoke E2E tests
 - upload Playwright report and test results on failure
 
-Branch pushes to `main`, `staging`, and `uat` also run the realtime/voice suite.
-Scheduled nightly runs execute the full Playwright suite.
+Branch pushes to `main`, `staging`, and `uat` also run the realtime/voice suite and
+the screen share real-media project (against a LiveKit container started in the job).
+Scheduled nightly runs execute the full Playwright suite plus the real-media project.
 
 Manual GitHub Actions run:
 

@@ -9,12 +9,106 @@ const ROLLUP_BATCH_SIZE = 5_000;
 export type ClientHealthRawRow = {
   appVersion: string | null;
   clientType: AnalyticsClientType;
+  /** JSON column; carries `{ value, unit }` for measurements that are not milliseconds. */
+  context?: unknown;
   createdAt: Date;
   id: string;
   kind: ClientHealthKind;
   surface: string | null;
   valueMs: number | null;
 };
+
+export const CLIENT_HEALTH_MEASURED_UNITS = ["ms", "fps", "kbps", "count", "pct"] as const;
+export type ClientHealthMeasuredUnit = (typeof CLIENT_HEALTH_MEASURED_UNITS)[number];
+
+/**
+ * The number a row measured, whatever its unit: the `valueMs` column when the
+ * client sent milliseconds, otherwise `context.value` (see
+ * `client-health-service.ts` — the table has no `value` column yet).
+ */
+export function readClientHealthMeasuredValue(
+  row: Pick<ClientHealthRawRow, "context" | "valueMs">,
+): number | null {
+  if (row.valueMs !== null && row.valueMs !== undefined) {
+    return row.valueMs;
+  }
+
+  const context = row.context;
+  if (!context || typeof context !== "object" || Array.isArray(context)) {
+    return null;
+  }
+
+  const value = (context as Record<string, unknown>).value;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+export function readClientHealthMeasuredUnit(
+  row: Pick<ClientHealthRawRow, "context" | "valueMs">,
+): ClientHealthMeasuredUnit | null {
+  const context = row.context;
+  const unit =
+    context && typeof context === "object" && !Array.isArray(context)
+      ? (context as Record<string, unknown>).unit
+      : undefined;
+
+  if (
+    typeof unit === "string" &&
+    (CLIENT_HEALTH_MEASURED_UNITS as readonly string[]).includes(unit)
+  ) {
+    return unit as ClientHealthMeasuredUnit;
+  }
+
+  return row.valueMs === null || row.valueMs === undefined ? null : "ms";
+}
+
+/** Prefix every screen share health metric name carries (`screen_share.send.fps`, …). */
+export const SCREEN_SHARE_HEALTH_SURFACE_PREFIX = "screen_share.";
+
+export type ScreenShareHealthSummaryRow = {
+  count: number;
+  metric: string;
+  p50: number | null;
+  p95: number | null;
+  unit: ClientHealthMeasuredUnit | null;
+};
+
+/**
+ * One row per screen share metric name, percentiles over every window the
+ * clients reported. Rows without a measured value only add to the count.
+ */
+export function summarizeScreenShareHealthRows(
+  rows: readonly Pick<ClientHealthRawRow, "context" | "surface" | "valueMs">[],
+): ScreenShareHealthSummaryRow[] {
+  const buckets = new Map<
+    string,
+    { unit: ClientHealthMeasuredUnit | null; values: number[]; count: number }
+  >();
+
+  for (const row of rows) {
+    if (!row.surface || !row.surface.startsWith(SCREEN_SHARE_HEALTH_SURFACE_PREFIX)) {
+      continue;
+    }
+
+    const bucket = buckets.get(row.surface) ?? { count: 0, unit: null, values: [] };
+    bucket.count += 1;
+    bucket.unit ??= readClientHealthMeasuredUnit(row);
+    const value = readClientHealthMeasuredValue(row);
+    if (value !== null) {
+      bucket.values.push(value);
+    }
+    buckets.set(row.surface, bucket);
+  }
+
+  return [...buckets.entries()]
+    .map(([metric, bucket]) => ({
+      count: bucket.count,
+      metric,
+      p50: percentileMs(bucket.values, 50),
+      p95: percentileMs(bucket.values, 95),
+      unit: bucket.unit,
+    }))
+    .sort((left, right) => left.metric.localeCompare(right.metric));
+}
 
 export type ClientHealthSummaryRow = {
   /** Empty string stands for "the client did not report a version". */
@@ -85,8 +179,11 @@ export function summarizeClientHealthRows(rows: ClientHealthRawRow[]): ClientHea
 
     bucket.row.count += 1;
 
-    if (row.valueMs !== null) {
-      bucket.values.push(row.valueMs);
+    // `valueMs` or the measured `context.value`: a screen share fps row rolls
+    // into the same percentile columns, keyed apart by its surface.
+    const value = readClientHealthMeasuredValue(row);
+    if (value !== null) {
+      bucket.values.push(value);
     }
 
     buckets.set(key, bucket);
@@ -124,6 +221,7 @@ export async function rollUpClientHealthEvents(
         select: {
           appVersion: true,
           clientType: true,
+          context: true,
           createdAt: true,
           id: true,
           kind: true,
@@ -152,6 +250,7 @@ export async function rollUpClientHealthEvents(
             select: {
               appVersion: true,
               clientType: true,
+              context: true,
               createdAt: true,
               id: true,
               kind: true,

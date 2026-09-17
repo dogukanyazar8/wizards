@@ -1,6 +1,10 @@
 import type { AnalyticsClientType, PrismaClient } from "@wizards/db";
 import { prisma } from "@wizards/db";
-import { percentileMs } from "@/lib/telemetry/client-health-rollup";
+import {
+  percentileMs,
+  SCREEN_SHARE_HEALTH_SURFACE_PREFIX,
+  summarizeScreenShareHealthRows,
+} from "@/lib/telemetry/client-health-rollup";
 import {
   ACTIVE_SESSION_WINDOW_MS,
   DAY_MS,
@@ -65,41 +69,61 @@ export async function loadAdminHealthSnapshot(
   const activeSince = new Date(now.getTime() - ACTIVE_SESSION_WINDOW_MS);
   const tickStart = new Date(now.getTime() - HEALTH_TICK_DAYS * DAY_MS);
 
-  const [healthEvents, activeSessionGroups, sessionGroups, versionGroups, tickEvents, pushGroups] =
-    await Promise.all([
-      client.clientHealthEvent.findMany({
-        orderBy: { createdAt: "desc" },
-        take: HEALTH_EVENT_SCAN_LIMIT,
-        where: { createdAt: { gte: rangeStart, lt: rangeEnd } },
-        select: { clientType: true, kind: true, valueMs: true },
-      }),
-      client.appSession.groupBy({
-        by: ["clientType"],
-        _count: { _all: true },
-        where: { endedAt: null, lastSeenAt: { gte: activeSince } },
-      }),
-      client.appSession.groupBy({
-        by: ["clientType"],
-        _count: { _all: true },
-        where: { startedAt: { gte: rangeStart, lt: rangeEnd } },
-      }),
-      client.appSession.groupBy({
-        by: ["clientType", "appVersion"],
-        _count: { _all: true },
-        where: { startedAt: { gte: rangeStart, lt: rangeEnd } },
-      }),
-      client.clientHealthEvent.findMany({
-        orderBy: { createdAt: "desc" },
-        take: HEALTH_EVENT_SCAN_LIMIT,
-        where: { createdAt: { gte: tickStart }, kind: { in: ["CRASH", "ERROR"] } },
-        select: { createdAt: true, kind: true },
-      }),
-      client.pushDeliveryAttempt.groupBy({
-        by: ["platform", "success"],
-        _count: { _all: true },
-        where: { createdAt: { gte: rangeStart, lt: rangeEnd }, stage: "TICKET" },
-      }),
-    ]);
+  const [
+    healthEvents,
+    activeSessionGroups,
+    sessionGroups,
+    versionGroups,
+    tickEvents,
+    pushGroups,
+    screenShareEvents,
+  ] = await Promise.all([
+    client.clientHealthEvent.findMany({
+      orderBy: { createdAt: "desc" },
+      take: HEALTH_EVENT_SCAN_LIMIT,
+      where: { createdAt: { gte: rangeStart, lt: rangeEnd } },
+      select: { clientType: true, kind: true, valueMs: true },
+    }),
+    client.appSession.groupBy({
+      by: ["clientType"],
+      _count: { _all: true },
+      where: { endedAt: null, lastSeenAt: { gte: activeSince } },
+    }),
+    client.appSession.groupBy({
+      by: ["clientType"],
+      _count: { _all: true },
+      where: { startedAt: { gte: rangeStart, lt: rangeEnd } },
+    }),
+    client.appSession.groupBy({
+      by: ["clientType", "appVersion"],
+      _count: { _all: true },
+      where: { startedAt: { gte: rangeStart, lt: rangeEnd } },
+    }),
+    client.clientHealthEvent.findMany({
+      orderBy: { createdAt: "desc" },
+      take: HEALTH_EVENT_SCAN_LIMIT,
+      where: { createdAt: { gte: tickStart }, kind: { in: ["CRASH", "ERROR"] } },
+      select: { createdAt: true, kind: true },
+    }),
+    client.pushDeliveryAttempt.groupBy({
+      by: ["platform", "success"],
+      _count: { _all: true },
+      where: { createdAt: { gte: rangeStart, lt: rangeEnd }, stage: "TICKET" },
+    }),
+    // Ş0.2 / K16: the 60 s screen share summaries. Their number lives in the
+    // JSON context (no `value` column yet), so the context comes along.
+    client.clientHealthEvent.findMany({
+      orderBy: { createdAt: "desc" },
+      take: HEALTH_EVENT_SCAN_LIMIT,
+      where: {
+        createdAt: { gte: rangeStart, lt: rangeEnd },
+        surface: { startsWith: SCREEN_SHARE_HEALTH_SURFACE_PREFIX },
+      },
+      select: { context: true, surface: true, valueMs: true },
+    }),
+  ]);
+
+  const screenShareMetrics = summarizeScreenShareHealthRows(screenShareEvents);
 
   const platforms = REPORTED_PLATFORMS.map((platform) => {
     const events = healthEvents.filter((event) => event.clientType === platform);
@@ -159,6 +183,12 @@ export async function loadAdminHealthSnapshot(
       .sort((left, right) => right.acceptedCount - left.acceptedCount),
     platforms,
     range: { days, end: rangeEnd.toISOString(), start: rangeStart.toISOString() },
+    /**
+     * Present only when a client reported a screen share window in the range:
+     * "no section" is the honest reading of "nobody shared", not a table of
+     * zeros. Rows are `screen_share.send.fps` etc. with p50/p95 in their unit.
+     */
+    ...(screenShareMetrics.length > 0 ? { screenShare: { metrics: screenShareMetrics } } : {}),
     ticks: buildHealthDailyTicks(tickEvents, now),
   };
 }

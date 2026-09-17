@@ -32,10 +32,37 @@ type VoiceProfileUpdate = {
   username: string;
 };
 
-function isE2EVoiceMockEnabled() {
+type E2EVoiceProviderGateInput = {
+  allowProductionBuild: string | undefined;
+  nodeEnv: string | undefined;
+  /** `NEXT_PUBLIC_E2E_VOICE_REAL_MEDIA` — the `chromium-real-media` Playwright project. */
+  realMedia: string | undefined;
+  testMode: string | undefined;
+};
+
+/**
+ * Ekran paylaşımı Ş0.3 (T13): `E2E_TEST_MODE` sahte sağlayıcıyı takar ve LiveKit'e hiç gidilmez.
+ * Gerçek-medya projesi aynı test modunda koşar (seed, `/api/e2e` oturumu) ama gerçek
+ * `getDisplayMedia` + gerçek LiveKit ister; bunu yalnız bu ikinci, açıkça `"true"` olan bayrak
+ * açar. Bayrak yokken karar birebir eski `isExplicitE2ETestMode` kararıdır.
+ */
+export function shouldUseE2EVoiceMock(input: E2EVoiceProviderGateInput): boolean {
+  if (input.realMedia === "true") {
+    return false;
+  }
+
   return isExplicitE2ETestMode({
+    allowProductionBuild: input.allowProductionBuild,
+    nodeEnv: input.nodeEnv,
+    testMode: input.testMode,
+  });
+}
+
+function isE2EVoiceMockEnabled() {
+  return shouldUseE2EVoiceMock({
     allowProductionBuild: process.env.NEXT_PUBLIC_E2E_ALLOW_PRODUCTION_BUILD,
     nodeEnv: process.env.NODE_ENV,
+    realMedia: process.env.NEXT_PUBLIC_E2E_VOICE_REAL_MEDIA,
     testMode: process.env.NEXT_PUBLIC_E2E_TEST_MODE,
   });
 }

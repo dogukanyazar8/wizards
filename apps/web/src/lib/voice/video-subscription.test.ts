@@ -113,3 +113,19 @@ describe("web voice subscription contract", () => {
     assert.deepEqual(publication.requested, []);
   });
 });
+
+it("4K DM viewer uses physical pixels and reduces unsmooth decoding", async () => {
+  const { resolveScreenShareViewerQuality } = await import("./video-subscription");
+  const resolve = (height: number, dpr = 1, smooth: boolean | null = null) =>
+    resolveScreenShareViewerQuality({
+      elementHeightPx: height,
+      dpr,
+      sourceHeight: 2160,
+      decodeSmooth: smooth,
+    });
+  assert.equal(resolve(400), VideoQuality.LOW);
+  assert.equal(resolve(700), VideoQuality.MEDIUM);
+  assert.equal(resolve(700, 2), VideoQuality.HIGH);
+  assert.equal(resolve(700, 2, false), VideoQuality.MEDIUM);
+  assert.equal(resolve(700, 1, false), VideoQuality.LOW);
+});

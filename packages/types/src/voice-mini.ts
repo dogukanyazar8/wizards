@@ -50,6 +50,8 @@ export type VoiceMiniSnapshotPrivacyMode = z.infer<typeof VoiceMiniSnapshotPriva
 
 export const VoiceMiniSnapshotSchema = z.object({
   active: z.boolean(),
+  isScreenSharing: z.boolean().optional(),
+  screenShareViewerCount: z.number().int().min(0).optional(),
   connection: z.object({
     quality: VoiceMiniConnectionQualitySchema,
     rttMs: z.number().min(0).max(60_000).nullable(),

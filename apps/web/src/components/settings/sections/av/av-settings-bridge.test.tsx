@@ -7,6 +7,10 @@ import { fileURLToPath } from "node:url";
 import {
   applyAvSettingsPatch,
   readAvSettingsValues,
+  SCREEN_SHARE_4K_OPTION_INDEX,
+  SCREEN_SHARE_FRAME_RATE_ROW_ORDER,
+  SCREEN_SHARE_MODE_ROW_ORDER,
+  SCREEN_SHARE_RESOLUTION_ROW_ORDER,
   type AvVoiceSnapshot,
   type AvVoiceWriter,
 } from "@/components/settings/sections/av/av-settings-bridge";
@@ -42,7 +46,10 @@ function snapshot(overrides: Partial<AvVoiceSnapshot> = {}): AvVoiceSnapshot {
     screenShareAllowSourceSwitch: true,
     screenShareAudioEnabled: true,
     screenShareExcludeSelfWindow: true,
-    screenShareQuality: "h1080fps60",
+    screenShare4kAllowed: false,
+    screenShareContentMode: "text",
+    screenShareFrameRate: 60,
+    screenShareResolution: "h1080",
     screenShareVolume: 60,
     voiceInputMode: "voice-activity",
     ...overrides,
@@ -58,9 +65,9 @@ function recorder() {
     setCameraPreference: (key, value) => calls.push(["setCameraPreference", key, value]),
     setPushToTalkHangoverMs: (value) => calls.push(["setPushToTalkHangoverMs", value, null]),
     setScreenShareAudioEnabled: (value) => calls.push(["setScreenShareAudioEnabled", value, null]),
-    setScreenShareQuality: async (value) => {
-      calls.push(["setScreenShareQuality", value, null]);
-    },
+    setScreenShareContentMode: (value) => calls.push(["setScreenShareContentMode", value, null]),
+    setScreenShareFrameRate: (value) => calls.push(["setScreenShareFrameRate", value, null]),
+    setScreenShareResolution: (value) => calls.push(["setScreenShareResolution", value, null]),
     setScreenShareVolume: (value) => calls.push(["setScreenShareVolume", value, null]),
     setMasterOutputVolume: (value) => calls.push(["setMasterOutputVolume", value, null]),
     setScreenShareAllowSourceSwitch: (value) =>
@@ -120,7 +127,7 @@ describe("AV köprüsü — yazma", () => {
     );
 
     assert.deepEqual(calls, [
-      ["setScreenShareQuality", "h1440fps60", null],
+      ["setScreenShareResolution", "h1440", null],
       ["setScreenShareAudioEnabled", false, null],
       ["setScreenShareVolume", 25, null],
       ["setVoiceInputMode", "push-to-talk", null],
@@ -152,6 +159,81 @@ describe("AV köprüsü — yazma", () => {
       () => applyAvSettingsPatch({ zz9: true }, snapshot(), writer),
       /SETTINGS_WRITE_UNSUPPORTED:zz9/,
     );
+  });
+});
+
+/** Ekran paylaşımı Ş0.1 — K4 üç eksen (`e1` / `e8` / `e9`), K2 4K kapısı, K20 varsayılanları. */
+describe("AV köprüsü — ekran paylaşımı eksenleri", () => {
+  it("segment sırası ağaçtaki seçenek sırasıyla birebir", () => {
+    const tab = findSettingsTab("av", "screen-share");
+    assert.ok(tab);
+    const rows = new Map(tab.groups.flatMap((group) => group.rows).map((row) => [row.key, row]));
+
+    assert.deepEqual([...SCREEN_SHARE_RESOLUTION_ROW_ORDER], ["h720", "h1080", "h1440", "h2160"]);
+    assert.equal(rows.get("e1")?.options?.length, SCREEN_SHARE_RESOLUTION_ROW_ORDER.length);
+    assert.deepEqual([...SCREEN_SHARE_FRAME_RATE_ROW_ORDER], [15, 30, 60]);
+    assert.equal(rows.get("e8")?.options?.length, SCREEN_SHARE_FRAME_RATE_ROW_ORDER.length);
+    assert.deepEqual([...SCREEN_SHARE_MODE_ROW_ORDER], ["text", "motion"]);
+    assert.equal(rows.get("e9")?.options?.length, SCREEN_SHARE_MODE_ROW_ORDER.length);
+
+    // Ağaç varsayılanı store varsayılanıyla aynı: 1080p (dizin 1), 60 fps (dizin 2), text (0).
+    assert.equal(rows.get("e1")?.defaultValue, 1);
+    assert.equal(rows.get("e8")?.defaultValue, 2);
+    assert.equal(rows.get("e9")?.defaultValue, 0);
+    // K20 — `e2` kapalı, `e3` %100.
+    assert.equal(rows.get("e2")?.defaultValue, false);
+    assert.equal(rows.get("e3")?.defaultValue, 100);
+    // K2 — 4K seçeneği kapı anahtarını taşır.
+    assert.equal(SCREEN_SHARE_4K_OPTION_INDEX, 3);
+    assert.deepEqual(rows.get("e1")?.optionGateKeys, { 3: "settings.option.e1.4.disabled" });
+  });
+
+  it("üç ekseni store'dan dizine çevirir", () => {
+    const values = readAvSettingsValues(
+      snapshot({ screenShareContentMode: "motion", screenShareFrameRate: 15 }),
+    );
+
+    assert.equal(values.e1, 1);
+    assert.equal(values.e8, 0);
+    assert.equal(values.e9, 1);
+    assert.equal(readAvSettingsValues(snapshot({ screenShareResolution: "h2160" })).e1, 3);
+  });
+
+  it("her eksen kendi setter'ına gidiyor", () => {
+    const { calls, writer } = recorder();
+
+    applyAvSettingsPatch({ e1: 0, e8: 1, e9: 1 }, snapshot(), writer);
+
+    assert.deepEqual(calls, [
+      ["setScreenShareResolution", "h720", null],
+      ["setScreenShareFrameRate", 30, null],
+      ["setScreenShareContentMode", "motion", null],
+    ]);
+  });
+
+  it("K2 — 4K yalnız probe izin verince yazılır; aksi halde yama düşer, sessizce kırpılmaz", () => {
+    const { calls, writer } = recorder();
+
+    assert.throws(
+      () => applyAvSettingsPatch({ e1: 3 }, snapshot({ screenShare4kAllowed: false }), writer),
+      /SETTINGS_WRITE_INVALID:e1/,
+    );
+    assert.deepEqual(calls, []);
+
+    applyAvSettingsPatch({ e1: 3 }, snapshot({ screenShare4kAllowed: true }), writer);
+    assert.deepEqual(calls, [["setScreenShareResolution", "h2160", null]]);
+  });
+
+  it("dizin dışı seçenek yazılmaz", () => {
+    const { calls, writer } = recorder();
+
+    for (const patch of [{ e1: 4 }, { e8: 3 }, { e9: 2 }, { e1: -1 }]) {
+      assert.throws(
+        () => applyAvSettingsPatch(patch, snapshot(), writer),
+        /SETTINGS_WRITE_INVALID/,
+      );
+    }
+    assert.deepEqual(calls, []);
   });
 });
 

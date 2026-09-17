@@ -258,6 +258,11 @@ export function DesktopGameOverlay() {
         )}
         data-testid="desktop-game-overlay"
       >
+        {snapshot?.isScreenSharing && (
+          <span data-testid="overlay-share-count">
+            {t("voice.sidebar.liveChip")} · {snapshot.screenShareViewerCount ?? 0}
+          </span>
+        )}
         <ul className="grid gap-2">
           {visibleParticipants.map((participant) => (
             <OverlayParticipant

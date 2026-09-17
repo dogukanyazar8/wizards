@@ -22,6 +22,9 @@ const { segment } = SETTINGS_METRICS.controls;
 export type SettingSegmentProps = {
   readonly describedById?: string | undefined;
   readonly disabled?: boolean;
+  readonly hiddenOptions?: readonly number[];
+  readonly disabledOptions?: readonly number[];
+  readonly optionDescriptions?: Readonly<Record<number, string>>;
   readonly labelledById?: string | undefined;
   readonly onChange: (index: number) => void;
   readonly options: readonly string[];
@@ -32,6 +35,9 @@ export type SettingSegmentProps = {
 export function SettingSegment({
   describedById,
   disabled = false,
+  disabledOptions = [],
+  hiddenOptions = [],
+  optionDescriptions = {},
   labelledById,
   onChange,
   options,
@@ -39,32 +45,40 @@ export function SettingSegment({
   value,
 }: SettingSegmentProps) {
   const refs = useRef(new Map<number, HTMLButtonElement>());
+  const enabledIndices = options
+    .map((_, index) => index)
+    .filter((index) => !disabledOptions.includes(index) && !hiddenOptions.includes(index));
+  const tabStop = enabledIndices.includes(value) ? value : enabledIndices[0];
 
   const move = (index: number) => {
-    if (disabled) return;
+    if (disabled || disabledOptions.includes(index)) return;
     onChange(index);
     refs.current.get(index)?.focus();
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
-    const last = options.length - 1;
+    if (!enabledIndices.length) return;
 
     if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
       event.preventDefault();
       const step = event.key === "ArrowRight" ? 1 : -1;
-      move((index + step + options.length) % options.length);
+      move(
+        enabledIndices[
+          (enabledIndices.indexOf(index) + step + enabledIndices.length) % enabledIndices.length
+        ]!,
+      );
       return;
     }
 
     if (event.key === "Home") {
       event.preventDefault();
-      move(0);
+      move(enabledIndices[0]!);
       return;
     }
 
     if (event.key === "End") {
       event.preventDefault();
-      move(last);
+      move(enabledIndices[enabledIndices.length - 1]!);
     }
   };
 
@@ -84,15 +98,20 @@ export function SettingSegment({
       }}
     >
       {options.map((label, index) => {
+        if (hiddenOptions.includes(index)) return null;
         const active = index === value;
+        const optionDisabled = disabled || disabledOptions.includes(index);
 
         return (
           <button
             aria-checked={active}
-            aria-disabled={disabled || undefined}
+            aria-disabled={optionDisabled || undefined}
+            disabled={optionDisabled}
+            title={optionDisabled ? optionDescriptions[index] : undefined}
             className={cn(
               "whitespace-nowrap transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
               active ? "bg-[hsl(var(--primary))]" : "text-[hsl(var(--text-secondary))]",
+              optionDisabled && "cursor-not-allowed opacity-50",
             )}
             data-testid={testId ? `${testId}-${index}` : undefined}
             key={label}
@@ -112,7 +131,7 @@ export function SettingSegment({
               padding: `0 ${pxToRem(segment.optionPaddingX)}`,
               transitionDuration: `${SETTINGS_METRICS.motion.transitionSeconds}s`,
             }}
-            tabIndex={disabled ? -1 : active ? 0 : -1}
+            tabIndex={!optionDisabled && index === tabStop ? 0 : -1}
             type="button"
           >
             {label}

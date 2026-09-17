@@ -87,8 +87,20 @@ test("desktop login and register share compact verification without hiding requi
               const button = document.createElement("button");
               button.type = "button";
               button.textContent = "Complete security challenge";
-              button.onclick = () => options.callback("fixture-token");
+              button.hidden = true;
+              window.beginChallenge = () => {
+                options["before-interactive-callback"]();
+                button.hidden = false;
+              };
+              button.onclick = () => {
+                button.hidden = true;
+                options.callback("fixture-token");
+                options["after-interactive-callback"]();
+              };
               container.appendChild(button);
+              if (location.search === "?invisible=1") {
+                queueMicrotask(() => options.callback("fixture-token"));
+              }
               return "fixture-widget";
             },
             remove() { document.querySelector(".auth-reference-turnstile-mount")?.replaceChildren(); }
@@ -120,15 +132,20 @@ test("desktop login and register share compact verification without hiding requi
       }
       await expect(submit).toBeDisabled();
       await expect(page.locator('.auth-turnstile-tile[data-state="pending"]')).toBeVisible();
+      await expect(page.locator(".auth-turnstile")).not.toContainText("İnsan olduğun doğrulandı");
       const challenge = page.getByRole("button", { name: "Complete security challenge" });
-      await expect(challenge).toBeInViewport();
+      await expect(challenge).toBeHidden();
       assert.equal(
         await page.evaluate(() => window.challengeOptions.appearance),
         "interaction-only",
       );
+      await page.evaluate(() => window.beginChallenge());
+      await expect(page.locator(".auth-turnstile")).toHaveCount(0);
+      await expect(challenge).toBeInViewport();
       await challenge.click();
       await expect(submit).toBeEnabled();
       await expect(page.locator('.auth-turnstile-tile[data-state="verified"]')).toBeVisible();
+      await expect(page.locator(".auth-turnstile")).toContainText("İnsan olduğun doğrulandı");
       await page.evaluate(() => window.challengeOptions["expired-callback"]());
       await expect(submit).toBeDisabled();
       await expect(page.locator('.auth-turnstile-tile[data-state="pending"]')).toBeVisible();
@@ -138,6 +155,7 @@ test("desktop login and register share compact verification without hiding requi
         await expect(page.getByRole("alert")).toContainText(
           "Güvenlik doğrulaması şu anda kullanılamıyor",
         );
+        await page.evaluate(() => window.beginChallenge());
         await challenge.click();
         await expect(submit).toBeEnabled();
         await expect(page.getByRole("alert")).toHaveCount(0);
@@ -157,7 +175,10 @@ test("desktop login and register share compact verification without hiding requi
           };
         });
         const google = page.getByRole("button", { name: /Google/ });
-        await google.click();
+        await google.evaluate((button) => {
+          for (let index = 0; index < 5; index++) button.click();
+        });
+        assert.equal(await page.evaluate(() => window.oauthWindows.length), 1);
         const dialog = page.getByRole("dialog");
         await expect(dialog).toBeVisible();
         for (const theme of ["light", "dark"]) {
@@ -235,14 +256,36 @@ test("desktop login and register share compact verification without hiding requi
         const start = new URL(windows[0][0]);
         assert.equal(start.pathname, "/desktop/oauth/start");
         assert.equal(start.searchParams.get("callbackUrl"), "/channels");
+        assert.ok(start.searchParams.get("request"));
         await dialog.getByRole("button", { name: "İptal et", exact: true }).click();
         await expect(dialog).toHaveCount(0);
         await expect(google).toBeEnabled();
         await google.click();
+        const freshRequest = await page.evaluate(() =>
+          new URL(window.oauthWindows.at(-1)[0]).searchParams.get("request"),
+        );
+        assert.notEqual(freshRequest, start.searchParams.get("request"));
         await dialog.getByRole("button", { name: "Kapat", exact: true }).click();
         await expect(dialog).toHaveCount(0);
         await page.setViewportSize({ width: 1280, height: 1000 });
       }
+    }
+    for (const screen of ["login", "register"]) {
+      await page.goto(`https://login.invalid/${screen}?invisible=1`);
+      await page.addStyleTag({ content: css.css });
+      await page.addScriptTag({ content: bundle.outputFiles[0].text });
+      await expect(page.locator('.auth-turnstile-tile[data-state="verified"]')).toBeVisible();
+      await expect(page.getByRole("button", { name: "Complete security challenge" })).toBeHidden();
+      await expect(page.locator(".auth-turnstile")).toHaveCount(1);
+      if (process.env.AUTH_VERIFICATION_SCREENSHOT_DIR) {
+        await mkdir(process.env.AUTH_VERIFICATION_SCREENSHOT_DIR, { recursive: true });
+        await page.locator(".auth-turnstile").screenshot({
+          path: join(process.env.AUTH_VERIFICATION_SCREENSHOT_DIR, `${screen}-invisible.png`),
+        });
+      }
+      await page.evaluate(() => window.challengeOptions["expired-callback"]());
+      await expect(page.locator('.auth-turnstile-tile[data-state="pending"]')).toBeVisible();
+      await expect(page.locator('form button[type="submit"]')).toBeDisabled();
     }
     assert.deepEqual(errors, []);
   } finally {

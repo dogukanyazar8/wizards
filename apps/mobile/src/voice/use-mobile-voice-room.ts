@@ -103,6 +103,11 @@ import {
 } from "./mobile-voice-device-contract";
 import { hasMobileVoiceAudioRouteInputChanged } from "./mobile-voice-audio-route";
 import {
+  createMobileScreenShareHealthSampler,
+  resolveMobileScreenShareHealthSource,
+  shouldSampleMobileScreenShareHealthOnTick,
+} from "./mobile-screen-share-health";
+import {
   createMobileVoiceAudioActivityFromPeer,
   getFreshMobileVoiceAudioActivity,
   measureMobileVoiceAudioActivity,
@@ -474,6 +479,28 @@ export function useMobileVoiceRoom({
   const audioActivityRef = useRef<Map<string, MobileVoiceAudioActivity>>(new Map());
   /** Guards the stats batch so a slow device throttles itself by dropping ticks. */
   const audioSampleInFlightRef = useRef(false);
+  // Ş0.2: screen share health rides the level ticker (T7 — no timer of its own).
+  // Tick counter picks every 22nd tick; the baseline turns counters into rates;
+  // the in-flight flag drops a tick while the previous native read resolves.
+  const screenShareHealthTickRef = useRef(0);
+  const screenShareHealthSampler = useMemo(
+    () =>
+      createMobileScreenShareHealthSampler({
+        onSample: (screenShareHealth, screenShareHealthTrack) => {
+          setRoomState((current) =>
+            current.screenShareHealth === screenShareHealth &&
+            current.screenShareHealthTrack === screenShareHealthTrack
+              ? current
+              : {
+                  ...current,
+                  screenShareHealth,
+                  screenShareHealthTrack,
+                },
+          );
+        },
+      }),
+    [],
+  );
   const sessionIdRef = useRef<string | null>(null);
   const sessionModeRef = useRef<"channel" | "direct" | null>(null);
   const joinPendingRef = useRef(false);
@@ -539,6 +566,8 @@ export function useMobileVoiceRoom({
   }, []);
 
   const clearLevelTicker = useCallback(() => {
+    screenShareHealthTickRef.current = 0;
+    screenShareHealthSampler.stop();
     audioActivityRef.current.clear();
     audioSampleInFlightRef.current = false;
 
@@ -548,7 +577,7 @@ export function useMobileVoiceRoom({
 
     clearInterval(levelTickerRef.current);
     levelTickerRef.current = null;
-  }, []);
+  }, [screenShareHealthSampler]);
 
   const updateParticipantsFromRoom = useCallback(
     (generation?: number) => {
@@ -933,6 +962,24 @@ export function useMobileVoiceRoom({
     [isCurrentSessionGeneration],
   );
 
+  /**
+   * Ş0.2 / K16: one `getStats` on the share on stage about every 2 s, riding
+   * the level ticker. The sample lands in `roomState.screenShareHealth` for the
+   * viewer title and in the shared tracker the health reporter drains.
+   */
+  const sampleScreenShareHealthOnTick = useCallback(
+    async (generation: number): Promise<void> => {
+      screenShareHealthTickRef.current += 1;
+      if (
+        !shouldSampleMobileScreenShareHealthOnTick(screenShareHealthTickRef.current) ||
+        !isCurrentSessionGeneration(generation)
+      )
+        return;
+      await screenShareHealthSampler.sample(resolveMobileScreenShareHealthSource(roomRef.current));
+    },
+    [isCurrentSessionGeneration, screenShareHealthSampler],
+  );
+
   const startLevelTicker = useCallback(
     (generation: number) => {
       clearLevelTicker();
@@ -950,11 +997,17 @@ export function useMobileVoiceRoom({
                 : Promise.resolve(false),
             updateParticipants: () => updateParticipantsFromRoom(generation),
           });
+          void sampleScreenShareHealthOnTick(generation);
         },
         setTimer: setInterval,
       });
     },
-    [clearLevelTicker, sampleRoomAudioActivity, updateParticipantsFromRoom],
+    [
+      clearLevelTicker,
+      sampleRoomAudioActivity,
+      sampleScreenShareHealthOnTick,
+      updateParticipantsFromRoom,
+    ],
   );
 
   const startHeartbeat = useCallback(

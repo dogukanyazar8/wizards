@@ -2,11 +2,7 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import {
-  DEFAULT_SCREEN_SHARE_QUALITY_ID,
-  normalizeScreenShareQualityId,
-  type ScreenShareQualityId,
-} from "@/lib/voice/screen-share";
+import type { ScreenShareQualityId } from "@/lib/voice/screen-share";
 import {
   DEFAULT_DESKTOP_GAME_OVERLAY_ANCHOR,
   DEFAULT_DESKTOP_GAME_OVERLAY_SIZE,
@@ -21,7 +17,22 @@ import {
   sanitizeDesktopGameOverlayGameSettings,
   normalizeDesktopExecutableName,
 } from "@/lib/desktop/game-overlay-process";
-import type { VoiceOverlayAnchor, VoiceOverlaySize } from "@wizards/types";
+import {
+  DEFAULT_SCREEN_SHARE_FRAME_RATE,
+  DEFAULT_SCREEN_SHARE_MODE,
+  DEFAULT_SCREEN_SHARE_RESOLUTION,
+  ScreenShareFrameRateSchema,
+  ScreenShareModeSchema,
+  ScreenShareResolutionSchema,
+  splitScreenShareQualityId,
+  type ScreenShareFrameRate,
+  type ScreenShareHealthSnapshot,
+  type ScreenShareMode,
+  type ScreenShareResolution,
+  type ScreenShareStreamInfo,
+  type VoiceOverlayAnchor,
+  type VoiceOverlaySize,
+} from "@wizards/types";
 import { isEnhancedNoiseFilterMode, type EnhancedNoiseFilterMode } from "@/lib/voice/noise-filter";
 import { isApplicationShortcutAccelerator } from "@/lib/shortcuts/reserved";
 
@@ -220,8 +231,95 @@ function applyCleanVoiceDefaults(preferences: VoiceAudioPreferences) {
   };
 }
 
-function sanitizeScreenShareQuality(value: unknown): ScreenShareQualityId {
-  return normalizeScreenShareQualityId(value);
+/**
+ * K4 — kalite üç eksene ayrıldı: katman (`h720…h2160`), kare hızı (`15|30|60`) ve mod
+ * (`text|motion`). Üçü de cihazda kalır; sunucuya gitmez.
+ */
+export function sanitizeScreenShareResolution(value: unknown): ScreenShareResolution {
+  const parsed = ScreenShareResolutionSchema.safeParse(value);
+  return parsed.success ? parsed.data : DEFAULT_SCREEN_SHARE_RESOLUTION;
+}
+
+export function sanitizeScreenShareFrameRate(value: unknown): ScreenShareFrameRate {
+  const parsed = ScreenShareFrameRateSchema.safeParse(value);
+  return parsed.success ? parsed.data : DEFAULT_SCREEN_SHARE_FRAME_RATE;
+}
+
+export function sanitizeScreenShareContentMode(value: unknown): ScreenShareMode {
+  const parsed = ScreenShareModeSchema.safeParse(value);
+  return parsed.success ? parsed.data : DEFAULT_SCREEN_SHARE_MODE;
+}
+
+/**
+ * Geçiş köprüsü. Eski `screenShareQuality` tüketicileri (`voice-context.tsx`,
+ * `live-voice-provider.tsx`, `voice-channel-view.tsx`) üç değerli `ScreenShareQualityId`
+ * tipini okuyor; Ş1 onları iki eksene geçirene kadar store bu alanı türetilmiş olarak taşır.
+ * Eski presetlerin tek kare hızı 60 ve tavanı 1440p: 4K katmanı 1440p60'a, her fps 60'a
+ * kırpılır. Tam preset id'si için `resolveScreenSharePresetId(resolution, frameRate)`.
+ */
+const LEGACY_SCREEN_SHARE_QUALITY_BY_RESOLUTION: Readonly<
+  Record<ScreenShareResolution, ScreenShareQualityId>
+> = {
+  h720: "h720fps60",
+  h1080: "h1080fps60",
+  h1440: "h1440fps60",
+  h2160: "h1440fps60",
+};
+
+export function toLegacyScreenShareQualityId(
+  resolution: ScreenShareResolution,
+): ScreenShareQualityId {
+  return LEGACY_SCREEN_SHARE_QUALITY_BY_RESOLUTION[resolution];
+}
+
+function screenShareAxesPatch(resolution: ScreenShareResolution, frameRate: ScreenShareFrameRate) {
+  return {
+    screenShareFrameRate: frameRate,
+    screenShareQuality: toLegacyScreenShareQualityId(resolution),
+    screenShareResolution: resolution,
+  };
+}
+
+/**
+ * Rehydrate: yeni eksen alanları varsa onlar kazanır; yoksa eski tek alan `screenShareQuality`
+ * (`h1080fps60`, alias'lı `h720fps30` …) `splitScreenShareQualityId` ile ikiye ayrıştırılır ve
+ * bir daha yazılmaz (`partialize` dışında). Alias artık gerçek 30 fps'e çözülür: web eskiden
+ * `h720fps30`'u 60'a alias'lıyordu, ama kare hızı ayrı bir eksen olduğundan kullanıcının
+ * seçtiği 30 korunur.
+ */
+export function resolvePersistedScreenShareAxes(persisted: unknown): {
+  frameRate: ScreenShareFrameRate;
+  resolution: ScreenShareResolution;
+} {
+  if (!isRecord(persisted)) {
+    return {
+      frameRate: DEFAULT_SCREEN_SHARE_FRAME_RATE,
+      resolution: DEFAULT_SCREEN_SHARE_RESOLUTION,
+    };
+  }
+
+  const resolution = ScreenShareResolutionSchema.safeParse(persisted.screenShareResolution);
+  const frameRate = ScreenShareFrameRateSchema.safeParse(persisted.screenShareFrameRate);
+  if (resolution.success || frameRate.success) {
+    return {
+      frameRate: frameRate.success ? frameRate.data : DEFAULT_SCREEN_SHARE_FRAME_RATE,
+      resolution: resolution.success ? resolution.data : DEFAULT_SCREEN_SHARE_RESOLUTION,
+    };
+  }
+
+  const legacy = splitScreenShareQualityId(persisted.screenShareQuality);
+  return legacy
+    ? { frameRate: legacy.frameRate, resolution: legacy.resolution }
+    : {
+        frameRate: DEFAULT_SCREEN_SHARE_FRAME_RATE,
+        resolution: DEFAULT_SCREEN_SHARE_RESOLUTION,
+      };
+}
+
+export interface VoiceGoLiveSession {
+  /** Katalog id'si veya `custom:<id>` (K22). Exe adı **asla**. */
+  gameId: string;
+  label: string;
 }
 
 export function sanitizeVoiceInputMode(value: unknown): VoiceInputMode {
@@ -365,13 +463,23 @@ type PersistedVoiceStoreState = {
   screenShareAudioEnabled: boolean;
   /** Listener-side ceiling on remote share audio, in percent. */
   screenShareVolume: number;
-  screenShareQuality: ScreenShareQualityId;
+  /** K4 `e1` — çözünürlük katmanı. Eski `screenShareQuality` rehydrate'te buraya ayrışır. */
+  screenShareResolution: ScreenShareResolution;
+  /** K4 `e8` — kare hızı. */
+  screenShareFrameRate: ScreenShareFrameRate;
+  /**
+   * K4/K7 `e9` — `text` (okunurluk) | `motion` (akıcılık).
+   *
+   * Adı `screenShareMode` **değil**: o alan zaten oturum yüzeyini (`"dm" | "voice" | null`)
+   * taşıyor ve `live-voice-provider`, `e2e-voice-provider`, `page-exit` onu okuyor.
+   */
+  screenShareContentMode: ScreenShareMode;
   toggleDeafenShortcut: string;
   toggleMuteShortcut: string;
   voiceInputMode: VoiceInputMode;
 };
 
-interface VoiceStoreState extends PersistedVoiceStoreState {
+export interface VoiceStoreState extends PersistedVoiceStoreState {
   activeChannelId: string | null;
   /** Conversation whose DM call owns the current session, when sessionMode is "direct". */
   activeConversationId: string | null;
@@ -392,6 +500,21 @@ interface VoiceStoreState extends PersistedVoiceStoreState {
   screenShareConversationId: string | null;
   screenShareError: string | null;
   screenShareMode: "dm" | "voice" | null;
+  /**
+   * Geçiş köprüsü — `toLegacyScreenShareQualityId(screenShareResolution)`; setter'lar türetir,
+   * persist edilmez. Ş1 tüketicileri eksenlere geçirince silinir.
+   */
+  screenShareQuality: ScreenShareQualityId;
+  /** K2 — codec probe'u (`powerEfficient`) yazar; persist edilmez. */
+  screenShare4kAllowed: boolean;
+  /** K16 — son `getStats` örneği (2 s); Ş0.2 yazar; persist edilmez. */
+  screenShareHealth: ScreenShareHealthSnapshot | null;
+  /** K11 — `sharerUserId` → izleyen sayısı; persist edilmez. */
+  screenShareViewerCounts: Record<string, number>;
+  /** K1 — aktif Go Live oturumu; persist edilmez. */
+  goLive: VoiceGoLiveSession | null;
+  /** K8 — yerel paylaşımın presence bilgisi (`kind`/`gameId`/`label`); persist edilmez. */
+  screenShareStreamInfo: ScreenShareStreamInfo | null;
   serverId: string | null;
   sessionId: string | null;
   sessionMode: "channel" | "direct" | null;
@@ -453,7 +576,17 @@ interface VoiceStoreState extends PersistedVoiceStoreState {
   setScreenShareAllowSourceSwitch: (enabled: boolean) => void;
   setScreenShareAudioEnabled: (enabled: boolean) => void;
   setScreenShareVolume: (volume: number) => void;
+  /** Geçiş köprüsü: eski id'yi `splitScreenShareQualityId` ile iki eksene yazar. */
   setScreenShareQuality: (quality: ScreenShareQualityId) => void;
+  setScreenShareResolution: (resolution: ScreenShareResolution) => void;
+  setScreenShareFrameRate: (frameRate: ScreenShareFrameRate) => void;
+  setScreenShareContentMode: (mode: ScreenShareMode) => void;
+  setScreenShare4kAllowed: (allowed: boolean) => void;
+  setScreenShareHealth: (snapshot: ScreenShareHealthSnapshot | null) => void;
+  setScreenShareViewerCount: (sharerUserId: string, count: number) => void;
+  clearScreenShareViewerCount: (sharerUserId: string) => void;
+  setGoLive: (goLive: VoiceGoLiveSession | null) => void;
+  setScreenShareStreamInfo: (streamInfo: ScreenShareStreamInfo | null) => void;
   setScreenShareState: (input: {
     activeSharerId?: string | null;
     channelId?: string | null;
@@ -461,6 +594,106 @@ interface VoiceStoreState extends PersistedVoiceStoreState {
     isSharing: boolean;
     mode: "dm" | "voice" | null;
   }) => void;
+}
+
+/**
+ * Persist edilen dilim. `screenShareQuality` bilerek yok: rehydrate onu okuyup iki eksene
+ * ayırıyor (`resolvePersistedScreenShareAxes`), sonraki yazımda anahtar düşüyor. Oturum
+ * alanları (`screenShareHealth`, `goLive` …) hiç girmez.
+ */
+export function partializeVoiceState(state: VoiceStoreState): PersistedVoiceStoreState {
+  return {
+    audioProcessingVersion: state.audioProcessingVersion,
+    audioPreferences: state.audioPreferences,
+    cameraPreferences: state.cameraPreferences,
+    desktopGlobalShortcutsEnabled: state.desktopGlobalShortcutsEnabled,
+    desktopGameOverlayAnchor: state.desktopGameOverlayAnchor,
+    desktopGameOverlayEnabled: state.desktopGameOverlayEnabled,
+    desktopGameOverlayGameSettings: state.desktopGameOverlayGameSettings,
+    desktopGameOverlayProcessDetectionEnabled: state.desktopGameOverlayProcessDetectionEnabled,
+    desktopGameOverlaySize: state.desktopGameOverlaySize,
+    desktopGameOverlaySpeakingOnly: state.desktopGameOverlaySpeakingOnly,
+    desktopVoiceMiniEnabled: state.desktopVoiceMiniEnabled,
+    adminConsoleShortcut: state.adminConsoleShortcut,
+    gameOverlayPanicShortcut: state.gameOverlayPanicShortcut,
+    hasConfiguredKrispPreference: state.hasConfiguredKrispPreference,
+    participantVolumes: state.participantVolumes,
+    pushToTalkHangoverMs: state.pushToTalkHangoverMs,
+    pushToTalkShortcut: state.pushToTalkShortcut,
+    masterOutputVolume: state.masterOutputVolume,
+    screenShareExcludeSelfWindow: state.screenShareExcludeSelfWindow,
+    screenShareAllowSourceSwitch: state.screenShareAllowSourceSwitch,
+    screenShareAudioEnabled: state.screenShareAudioEnabled,
+    screenShareVolume: state.screenShareVolume,
+    // Eski `screenShareQuality` bilerek yazılmıyor: rehydrate onu okuyup ikiye ayırıyor,
+    // sonraki yazımda anahtar düşüyor.
+    screenShareResolution: state.screenShareResolution,
+    screenShareFrameRate: state.screenShareFrameRate,
+    screenShareContentMode: state.screenShareContentMode,
+    toggleDeafenShortcut: state.toggleDeafenShortcut,
+    toggleMuteShortcut: state.toggleMuteShortcut,
+    voiceInputMode: state.voiceInputMode,
+  };
+}
+
+/** Rehydrate: her alan sanitize edilir; eksik ya da bozuk değer varsayılana döner. */
+export function mergePersistedVoiceState(
+  persistedState: unknown,
+  currentState: VoiceStoreState,
+): VoiceStoreState {
+  if (!isRecord(persistedState)) {
+    return currentState;
+  }
+
+  const desktopShortcuts = sanitizeDesktopVoiceShortcutSet(persistedState);
+  const screenShareAxes = resolvePersistedScreenShareAxes(persistedState);
+
+  return {
+    ...currentState,
+    audioPreferences: needsCleanVoiceMigration(persistedState)
+      ? applyCleanVoiceDefaults(sanitizeAudioPreferences(persistedState.audioPreferences))
+      : persistedState.hasConfiguredKrispPreference === true
+        ? sanitizeAudioPreferences(persistedState.audioPreferences)
+        : {
+            ...sanitizeAudioPreferences(persistedState.audioPreferences),
+            krispNoiseCancellation: true,
+          },
+    audioProcessingVersion: CLEAN_VOICE_PROCESSING_VERSION,
+    hasConfiguredKrispPreference: needsCleanVoiceMigration(persistedState)
+      ? false
+      : persistedState.hasConfiguredKrispPreference === true,
+    cameraPreferences: sanitizeCameraPreferences(persistedState.cameraPreferences),
+    desktopGlobalShortcutsEnabled: persistedState.desktopGlobalShortcutsEnabled === true,
+    desktopGameOverlayAnchor: sanitizeDesktopGameOverlayAnchor(
+      persistedState.desktopGameOverlayAnchor,
+    ),
+    desktopGameOverlayEnabled: persistedState.desktopGameOverlayEnabled === true,
+    desktopGameOverlayGameSettings: sanitizeDesktopGameOverlayGameSettings(
+      persistedState.desktopGameOverlayGameSettings,
+    ),
+    desktopGameOverlayProcessDetectionEnabled:
+      persistedState.desktopGameOverlayProcessDetectionEnabled === true,
+    desktopGameOverlaySize: sanitizeDesktopGameOverlaySize(persistedState.desktopGameOverlaySize),
+    desktopGameOverlaySpeakingOnly: persistedState.desktopGameOverlaySpeakingOnly === true,
+    desktopVoiceMiniEnabled: persistedState.desktopVoiceMiniEnabled === true,
+    adminConsoleShortcut: desktopShortcuts.adminConsoleShortcut,
+    gameOverlayPanicShortcut: desktopShortcuts.gameOverlayPanicShortcut,
+    participantVolumes: sanitizeParticipantVolumes(persistedState.participantVolumes),
+    pushToTalkHangoverMs: sanitizePushToTalkHangoverMs(persistedState.pushToTalkHangoverMs),
+    pushToTalkShortcut: desktopShortcuts.pushToTalkShortcut,
+    masterOutputVolume: sanitizeScreenShareVolume(persistedState.masterOutputVolume),
+    screenShareExcludeSelfWindow: persistedState.screenShareExcludeSelfWindow !== false,
+    screenShareAllowSourceSwitch: persistedState.screenShareAllowSourceSwitch !== false,
+    screenShareAudioEnabled: persistedState.screenShareAudioEnabled === true,
+    screenShareVolume: sanitizeScreenShareVolume(persistedState.screenShareVolume),
+    screenShareResolution: screenShareAxes.resolution,
+    screenShareFrameRate: screenShareAxes.frameRate,
+    screenShareQuality: toLegacyScreenShareQualityId(screenShareAxes.resolution),
+    screenShareContentMode: sanitizeScreenShareContentMode(persistedState.screenShareContentMode),
+    toggleDeafenShortcut: desktopShortcuts.toggleDeafenShortcut,
+    toggleMuteShortcut: desktopShortcuts.toggleMuteShortcut,
+    voiceInputMode: sanitizeVoiceInputMode(persistedState.voiceInputMode),
+  };
 }
 
 export const useVoiceStore = create<VoiceStoreState>()(
@@ -472,14 +705,19 @@ export const useVoiceStore = create<VoiceStoreState>()(
       audioPreferences: DEFAULT_VOICE_AUDIO_PREFERENCES,
       cameraPreferences: DEFAULT_VOICE_CAMERA_PREFERENCES,
       clearScreenShareState: () =>
-        set({
+        set((state) => ({
           isScreenSharing: false,
           screenShareActiveSharerId: null,
           screenShareChannelId: null,
           screenShareConversationId: null,
           screenShareError: null,
           screenShareMode: null,
-        }),
+          // Yerel paylaşım bitti: gönderim örneği bayat, izlenen paylaşımın örneği değil.
+          screenShareHealth:
+            state.screenShareHealth?.direction === "send" ? null : state.screenShareHealth,
+          goLive: null,
+          screenShareStreamInfo: null,
+        })),
       clearParticipantVolumes: () =>
         set((state) => {
           if (Object.keys(state.participantVolumes).length === 0) {
@@ -514,9 +752,18 @@ export const useVoiceStore = create<VoiceStoreState>()(
       masterOutputVolume: 78,
       screenShareExcludeSelfWindow: true,
       screenShareAllowSourceSwitch: true,
+      // K20 — `e2` kapalı, `e3` %100: ağaç değil store otoritedir (persist edilen o).
       screenShareAudioEnabled: false,
       screenShareVolume: DEFAULT_SCREEN_SHARE_VOLUME,
-      screenShareQuality: DEFAULT_SCREEN_SHARE_QUALITY_ID,
+      screenShareResolution: DEFAULT_SCREEN_SHARE_RESOLUTION,
+      screenShareFrameRate: DEFAULT_SCREEN_SHARE_FRAME_RATE,
+      screenShareContentMode: DEFAULT_SCREEN_SHARE_MODE,
+      screenShareQuality: toLegacyScreenShareQualityId(DEFAULT_SCREEN_SHARE_RESOLUTION),
+      screenShare4kAllowed: false,
+      screenShareHealth: null,
+      screenShareViewerCounts: {},
+      goLive: null,
+      screenShareStreamInfo: null,
       serverId: null,
       sessionId: null,
       sessionMode: null,
@@ -548,6 +795,10 @@ export const useVoiceStore = create<VoiceStoreState>()(
           screenShareConversationId: null,
           screenShareError: null,
           screenShareMode: null,
+          screenShareHealth: null,
+          screenShareViewerCounts: {},
+          goLive: null,
+          screenShareStreamInfo: null,
         }),
       resetParticipantVolume: (userId) =>
         set((state) => {
@@ -780,14 +1031,74 @@ export const useVoiceStore = create<VoiceStoreState>()(
         }),
       setScreenShareQuality: (quality) =>
         set((state) => {
-          if (state.screenShareQuality === quality) {
+          const split = splitScreenShareQualityId(quality);
+          if (!split) {
+            return state;
+          }
+
+          if (
+            state.screenShareResolution === split.resolution &&
+            state.screenShareFrameRate === split.frameRate
+          ) {
+            return state;
+          }
+
+          return screenShareAxesPatch(split.resolution, split.frameRate);
+        }),
+      setScreenShareResolution: (resolution) =>
+        set((state) => {
+          const next = sanitizeScreenShareResolution(resolution);
+
+          return state.screenShareResolution === next
+            ? state
+            : screenShareAxesPatch(next, state.screenShareFrameRate);
+        }),
+      setScreenShareFrameRate: (frameRate) =>
+        set((state) => {
+          const next = sanitizeScreenShareFrameRate(frameRate);
+
+          return state.screenShareFrameRate === next
+            ? state
+            : screenShareAxesPatch(state.screenShareResolution, next);
+        }),
+      setScreenShareContentMode: (mode) =>
+        set((state) => {
+          const next = sanitizeScreenShareContentMode(mode);
+
+          return state.screenShareContentMode === next ? state : { screenShareContentMode: next };
+        }),
+      setScreenShare4kAllowed: (allowed) =>
+        set((state) =>
+          state.screenShare4kAllowed === allowed ? state : { screenShare4kAllowed: allowed },
+        ),
+      setScreenShareHealth: (snapshot) =>
+        set((state) =>
+          state.screenShareHealth === snapshot ? state : { screenShareHealth: snapshot },
+        ),
+      setScreenShareViewerCount: (sharerUserId, count) =>
+        set((state) => {
+          const next = Number.isFinite(count) ? Math.max(0, Math.round(count)) : 0;
+          if (state.screenShareViewerCounts[sharerUserId] === next) {
             return state;
           }
 
           return {
-            screenShareQuality: quality,
+            screenShareViewerCounts: { ...state.screenShareViewerCounts, [sharerUserId]: next },
           };
         }),
+      clearScreenShareViewerCount: (sharerUserId) =>
+        set((state) => {
+          if (!(sharerUserId in state.screenShareViewerCounts)) {
+            return state;
+          }
+
+          const nextCounts = { ...state.screenShareViewerCounts };
+          delete nextCounts[sharerUserId];
+
+          return { screenShareViewerCounts: nextCounts };
+        }),
+      setGoLive: (goLive) => set({ goLive }),
+      setScreenShareStreamInfo: (streamInfo) => set({ screenShareStreamInfo: streamInfo }),
       setScreenShareState: ({
         activeSharerId = null,
         channelId = null,
@@ -805,88 +1116,9 @@ export const useVoiceStore = create<VoiceStoreState>()(
         }),
     }),
     {
-      merge: (persistedState, currentState) => {
-        if (!isRecord(persistedState)) {
-          return currentState;
-        }
-
-        const desktopShortcuts = sanitizeDesktopVoiceShortcutSet(persistedState);
-
-        return {
-          ...currentState,
-          audioPreferences: needsCleanVoiceMigration(persistedState)
-            ? applyCleanVoiceDefaults(sanitizeAudioPreferences(persistedState.audioPreferences))
-            : persistedState.hasConfiguredKrispPreference === true
-              ? sanitizeAudioPreferences(persistedState.audioPreferences)
-              : {
-                  ...sanitizeAudioPreferences(persistedState.audioPreferences),
-                  krispNoiseCancellation: true,
-                },
-          audioProcessingVersion: CLEAN_VOICE_PROCESSING_VERSION,
-          hasConfiguredKrispPreference: needsCleanVoiceMigration(persistedState)
-            ? false
-            : persistedState.hasConfiguredKrispPreference === true,
-          cameraPreferences: sanitizeCameraPreferences(persistedState.cameraPreferences),
-          desktopGlobalShortcutsEnabled: persistedState.desktopGlobalShortcutsEnabled === true,
-          desktopGameOverlayAnchor: sanitizeDesktopGameOverlayAnchor(
-            persistedState.desktopGameOverlayAnchor,
-          ),
-          desktopGameOverlayEnabled: persistedState.desktopGameOverlayEnabled === true,
-          desktopGameOverlayGameSettings: sanitizeDesktopGameOverlayGameSettings(
-            persistedState.desktopGameOverlayGameSettings,
-          ),
-          desktopGameOverlayProcessDetectionEnabled:
-            persistedState.desktopGameOverlayProcessDetectionEnabled === true,
-          desktopGameOverlaySize: sanitizeDesktopGameOverlaySize(
-            persistedState.desktopGameOverlaySize,
-          ),
-          desktopGameOverlaySpeakingOnly: persistedState.desktopGameOverlaySpeakingOnly === true,
-          desktopVoiceMiniEnabled: persistedState.desktopVoiceMiniEnabled === true,
-          adminConsoleShortcut: desktopShortcuts.adminConsoleShortcut,
-          gameOverlayPanicShortcut: desktopShortcuts.gameOverlayPanicShortcut,
-          participantVolumes: sanitizeParticipantVolumes(persistedState.participantVolumes),
-          pushToTalkHangoverMs: sanitizePushToTalkHangoverMs(persistedState.pushToTalkHangoverMs),
-          pushToTalkShortcut: desktopShortcuts.pushToTalkShortcut,
-          masterOutputVolume: sanitizeScreenShareVolume(persistedState.masterOutputVolume),
-          screenShareExcludeSelfWindow: persistedState.screenShareExcludeSelfWindow !== false,
-          screenShareAllowSourceSwitch: persistedState.screenShareAllowSourceSwitch !== false,
-          screenShareAudioEnabled: persistedState.screenShareAudioEnabled === true,
-          screenShareVolume: sanitizeScreenShareVolume(persistedState.screenShareVolume),
-          screenShareQuality: sanitizeScreenShareQuality(persistedState.screenShareQuality),
-          toggleDeafenShortcut: desktopShortcuts.toggleDeafenShortcut,
-          toggleMuteShortcut: desktopShortcuts.toggleMuteShortcut,
-          voiceInputMode: sanitizeVoiceInputMode(persistedState.voiceInputMode),
-        };
-      },
+      merge: mergePersistedVoiceState,
       name: VOICE_PREFERENCES_STORAGE_KEY,
-      partialize: (state): PersistedVoiceStoreState => ({
-        audioProcessingVersion: state.audioProcessingVersion,
-        audioPreferences: state.audioPreferences,
-        cameraPreferences: state.cameraPreferences,
-        desktopGlobalShortcutsEnabled: state.desktopGlobalShortcutsEnabled,
-        desktopGameOverlayAnchor: state.desktopGameOverlayAnchor,
-        desktopGameOverlayEnabled: state.desktopGameOverlayEnabled,
-        desktopGameOverlayGameSettings: state.desktopGameOverlayGameSettings,
-        desktopGameOverlayProcessDetectionEnabled: state.desktopGameOverlayProcessDetectionEnabled,
-        desktopGameOverlaySize: state.desktopGameOverlaySize,
-        desktopGameOverlaySpeakingOnly: state.desktopGameOverlaySpeakingOnly,
-        desktopVoiceMiniEnabled: state.desktopVoiceMiniEnabled,
-        adminConsoleShortcut: state.adminConsoleShortcut,
-        gameOverlayPanicShortcut: state.gameOverlayPanicShortcut,
-        hasConfiguredKrispPreference: state.hasConfiguredKrispPreference,
-        participantVolumes: state.participantVolumes,
-        pushToTalkHangoverMs: state.pushToTalkHangoverMs,
-        pushToTalkShortcut: state.pushToTalkShortcut,
-        masterOutputVolume: state.masterOutputVolume,
-        screenShareExcludeSelfWindow: state.screenShareExcludeSelfWindow,
-        screenShareAllowSourceSwitch: state.screenShareAllowSourceSwitch,
-        screenShareAudioEnabled: state.screenShareAudioEnabled,
-        screenShareVolume: state.screenShareVolume,
-        screenShareQuality: state.screenShareQuality,
-        toggleDeafenShortcut: state.toggleDeafenShortcut,
-        toggleMuteShortcut: state.toggleMuteShortcut,
-        voiceInputMode: state.voiceInputMode,
-      }),
+      partialize: partializeVoiceState,
       storage: createJSONStorage(() => localStorage),
     },
   ),

@@ -24,6 +24,8 @@ type TurnstileApi = {
       "expired-callback": () => void;
       "timeout-callback": () => void;
       "unsupported-callback": () => void;
+      "before-interactive-callback": () => void;
+      "after-interactive-callback": () => void;
       action: string;
       appearance: "always" | "interaction-only";
       callback: (token: string) => void;
@@ -68,6 +70,7 @@ export function TurnstileWidget({
   const [scriptReady, setScriptReady] = useState(false);
   const [scriptFailed, setScriptFailed] = useState(false);
   const [challengeFailed, setChallengeFailed] = useState(false);
+  const [interactive, setInteractive] = useState(false);
   const isE2EBypass = isE2ETurnstileBypassEnabled();
 
   useEffect(() => {
@@ -103,6 +106,11 @@ export function TurnstileWidget({
     };
 
     widgetIdRef.current = window.turnstile.render(containerRef.current, {
+      "before-interactive-callback": () => {
+        setInteractive(true);
+        onTokenChange("");
+      },
+      "after-interactive-callback": () => setInteractive(false),
       "error-callback": handleChallengeError,
       "expired-callback": () => {
         onTokenChange("");
@@ -112,6 +120,7 @@ export function TurnstileWidget({
       action,
       appearance: compact ? "interaction-only" : "always",
       callback: (token) => {
+        setInteractive(false);
         setChallengeFailed(false);
         onTokenChange(token);
       },
@@ -158,7 +167,7 @@ export function TurnstileWidget({
         className={compact ? "auth-turnstile-group" : "auth-reference-turnstile-box"}
         role="group"
       >
-        {compact ? <AuthTurnstileRow verified={verified} /> : null}
+        {compact && !interactive ? <AuthTurnstileRow verified={verified} /> : null}
         <div className="auth-reference-turnstile-mount" ref={containerRef} />
         {!scriptReady && !scriptFailed ? (
           <p className="auth-reference-turnstile-state" role="status">

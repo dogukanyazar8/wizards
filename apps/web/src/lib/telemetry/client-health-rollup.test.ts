@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   percentileMs,
+  readClientHealthMeasuredUnit,
+  readClientHealthMeasuredValue,
   rollUpClientHealthEvents,
   summarizeClientHealthRows,
+  summarizeScreenShareHealthRows,
   type ClientHealthRawRow,
   type ClientHealthRollupStore,
   type ClientHealthSummaryRow,
@@ -212,5 +215,85 @@ describe("client health rollup keeps surfaces apart", () => {
     assert.equal(summaries.length, 1);
     assert.equal(summaries[0]?.surface, "");
     assert.equal(summaries[0]?.count, 2);
+  });
+});
+
+describe("client health measured values (Ş0.2)", () => {
+  function fpsRow(value: number, overrides: Partial<ClientHealthRawRow> = {}) {
+    return rawRow({
+      context: { unit: "fps", value },
+      kind: "API_LATENCY",
+      surface: "screen_share.send.fps",
+      valueMs: null,
+      ...overrides,
+    });
+  }
+
+  it("reads valueMs first and the context value as the fallback", () => {
+    assert.equal(readClientHealthMeasuredValue(rawRow({ valueMs: 500 })), 500);
+    assert.equal(readClientHealthMeasuredValue(fpsRow(58.5)), 58.5);
+    assert.equal(readClientHealthMeasuredValue(rawRow({ valueMs: null })), null);
+    assert.equal(
+      readClientHealthMeasuredValue(rawRow({ context: { value: "58" }, valueMs: null })),
+      null,
+    );
+    assert.equal(readClientHealthMeasuredValue(rawRow({ context: [1, 2], valueMs: null })), null);
+
+    assert.equal(readClientHealthMeasuredUnit(fpsRow(58.5)), "fps");
+    assert.equal(readClientHealthMeasuredUnit(rawRow({ valueMs: 500 })), "ms");
+    assert.equal(readClientHealthMeasuredUnit(rawRow({ valueMs: null })), null);
+    assert.equal(
+      readClientHealthMeasuredUnit(
+        rawRow({ context: { unit: "furlongs", value: 1 }, valueMs: null }),
+      ),
+      null,
+    );
+  });
+
+  it("rolls a context value into the same percentile columns, keyed apart by surface", () => {
+    const summaries = summarizeClientHealthRows([
+      fpsRow(60, { id: "1" }),
+      fpsRow(58, { id: "2" }),
+      fpsRow(30, { id: "3" }),
+      fpsRow(59, { id: "4" }),
+      rawRow({ id: "5", valueMs: 700 }),
+    ]);
+
+    const fps = summaries.find((summary) => summary.surface === "screen_share.send.fps");
+    const startup = summaries.find((summary) => summary.kind === "STARTUP");
+
+    assert.equal(fps?.count, 4);
+    assert.equal(fps?.p50Ms, 58);
+    assert.equal(fps?.p95Ms, 60);
+    assert.equal(fps?.p99Ms, 60);
+    assert.equal(startup?.p50Ms, 700);
+  });
+
+  it("summarizes screen share rows per metric with their unit and ignores other surfaces", () => {
+    const rows = summarizeScreenShareHealthRows([
+      fpsRow(60),
+      fpsRow(58),
+      fpsRow(30),
+      rawRow({
+        context: { unit: "kbps", value: 5_900 },
+        surface: "screen_share.send.bitrate_kbps",
+        valueMs: null,
+      }),
+      rawRow({
+        context: { unit: "count", value: 2 },
+        surface: "screen_share.encoder",
+        valueMs: null,
+      }),
+      rawRow({ context: { phase: "start" }, surface: "screen_share.encoder", valueMs: null }),
+      rawRow({ surface: "dm-inbox", valueMs: 140 }),
+      rawRow({ surface: null, valueMs: 140 }),
+    ]);
+
+    assert.deepEqual(rows, [
+      { count: 2, metric: "screen_share.encoder", p50: 2, p95: 2, unit: "count" },
+      { count: 1, metric: "screen_share.send.bitrate_kbps", p50: 5_900, p95: 5_900, unit: "kbps" },
+      { count: 3, metric: "screen_share.send.fps", p50: 58, p95: 60, unit: "fps" },
+    ]);
+    assert.deepEqual(summarizeScreenShareHealthRows([]), []);
   });
 });

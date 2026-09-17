@@ -10,7 +10,10 @@ import {
 import type { ClientAttribution } from "@/lib/analytics/client-attribution";
 import { broadcastVoiceRoomUpdateToFriends } from "@/lib/friends/service";
 import { isExplicitE2ETestMode } from "@/lib/e2e/mode";
-import { getLiveKitRoomServiceClient } from "@/lib/livekit/server";
+import {
+  updateLiveKitScreenSharePermission,
+  getLiveKitRoomServiceClient,
+} from "@/lib/livekit/server";
 import { logError } from "@/lib/logger";
 import { getRedis } from "@/lib/redis";
 import { getVoiceParticipantRoomName, getVoiceStateViewerRoomName } from "@/lib/socket/rooms";
@@ -24,6 +27,7 @@ import { PermissionBits } from "@/lib/workspace/permissions";
 import { assertVoiceChannelCapacity } from "@/lib/voice/capacity";
 import {
   getVoiceScreenShareStateKey,
+  getScreenShareWatchersKey,
   VOICE_SCREEN_SHARE_STATE_TTL_SECONDS,
 } from "@/lib/voice/screen-share-state";
 import {
@@ -543,6 +547,10 @@ export async function buildVoiceStateParticipantsForChannel(
           .catch(() => [])
       : [];
 
+  const viewerCounts = await readScreenShareViewerCounts(
+    states.map((state) => ({ channelId, userId: state.user.id })),
+  );
+
   return states.map((state, index) => ({
     userId: state.user.id,
     username: state.user.username,
@@ -550,6 +558,7 @@ export async function buildVoiceStateParticipantsForChannel(
     avatarUrl: state.user.avatarUrl,
     isDeafened: state.selfDeaf,
     isScreenSharing: screenShareValues[index] === "1",
+    screenShareViewerCount: screenShareValues[index] === "1" ? (viewerCounts[index] ?? 0) : 0,
   }));
 }
 
@@ -561,6 +570,7 @@ function mapSocketParticipants(participants: VoiceStateParticipantDTO[]) {
     avatarUrl: participant.avatarUrl,
     isDeafened: participant.isDeafened,
     isScreenSharing: participant.isScreenSharing === true,
+    screenShareViewerCount: participant.screenShareViewerCount ?? 0,
   }));
 }
 
@@ -690,6 +700,35 @@ export async function disconnectUnauthorizedVoiceParticipants(channelId: string)
     ),
   );
   const unauthorizedStates = states.filter((state) => !allowedUserIds.has(state.userId));
+  const streamingUserIds = new Set(
+    await filterUserIdsByChannelPermission(channelId, [...allowedUserIds], PermissionBits.STREAM),
+  );
+  await Promise.all(
+    states
+      .filter((state) => allowedUserIds.has(state.userId))
+      .map(async (state) => {
+        if (isE2ETestMode()) return;
+        const canStream = streamingUserIds.has(state.userId);
+        try {
+          await updateLiveKitScreenSharePermission(channelId, state.userId, canStream);
+        } catch (error) {
+          // Fall back to participant removal; remote enforcement still requires a reachable SFU.
+          logError("[voice] Media grant update failed; detaching participant", error);
+          await detachUserFromVoiceSurface(state.userId, { expectedSessionId: state.sessionId });
+          return;
+        }
+        if (!canStream) {
+          await getRedis().del(getVoiceScreenShareStateKey(channelId, state.userId));
+          await clearScreenShareWatchers(channelId, state.userId);
+          await emitVoiceScreenShareUpdate({
+            channelId,
+            serverId: state.serverId,
+            userId: state.userId,
+            isScreenSharing: false,
+          });
+        }
+      }),
+  );
 
   if (unauthorizedStates.length === 0) {
     return;
@@ -750,6 +789,9 @@ export async function listVoiceStatesForServer(
           .catch(() => [])
       : [];
 
+  const viewerCounts = await readScreenShareViewerCounts(
+    states.map((state) => ({ channelId: state.channelId, userId: state.user.id })),
+  );
   const grouped = new Map<string, VoiceStateParticipantDTO[]>();
   for (const [index, state] of states.entries()) {
     const participants = grouped.get(state.channelId) ?? [];
@@ -760,6 +802,7 @@ export async function listVoiceStatesForServer(
       avatarUrl: state.user.avatarUrl,
       isDeafened: state.selfDeaf,
       isScreenSharing: screenShareValues[index] === "1",
+      screenShareViewerCount: screenShareValues[index] === "1" ? (viewerCounts[index] ?? 0) : 0,
     });
     grouped.set(state.channelId, participants);
   }
@@ -943,6 +986,9 @@ export async function clearVoiceState(
   await getRedis()
     .del(getVoiceScreenShareStateKey(existingState.channelId, userId))
     .catch(() => undefined);
+
+  await clearScreenShareWatchers(existingState.channelId, userId);
+  await removeScreenShareWatcher(existingState.channelId, userId);
 
   if (options.removeLiveKitParticipant !== false) {
     void removeLiveKitVoiceParticipant(existingState.channelId, userId).catch((error) => {
@@ -1157,4 +1203,47 @@ export async function heartbeatVoiceState(
   }
 
   return existingState;
+}
+
+export async function emitScreenShareWatchers(channelId: string, sharerUserId: string) {
+  const redis = getRedis();
+  const key = getScreenShareWatchersKey(channelId, sharerUserId);
+  const [count, sample] = await Promise.all([redis.scard(key), redis.srandmember(key, 5)]);
+  getSocketServer()
+    ?.to(getVoiceParticipantRoomName(channelId))
+    .to(getVoiceStateViewerRoomName(channelId))
+    .emit("voice:screenshare:watchers:update", { channelId, sharerUserId, count, sample });
+}
+
+export async function clearScreenShareWatchers(channelId: string, sharerUserId: string) {
+  await getRedis().del(getScreenShareWatchersKey(channelId, sharerUserId));
+  await emitScreenShareWatchers(channelId, sharerUserId);
+}
+
+export async function removeScreenShareWatcher(channelId: string, userId: string) {
+  const participants = await prisma.voiceState.findMany({
+    where: { channelId },
+    select: { userId: true },
+  });
+  await Promise.all(
+    participants.map(async (participant) => {
+      const changed = await getRedis().srem(
+        getScreenShareWatchersKey(channelId, participant.userId),
+        userId,
+      );
+      if (changed) await emitScreenShareWatchers(channelId, participant.userId);
+    }),
+  );
+}
+
+async function readScreenShareViewerCounts(participants: { channelId: string; userId: string }[]) {
+  if (!participants.length) return [];
+  const pipeline = getRedis().pipeline();
+  for (const participant of participants)
+    pipeline.scard(getScreenShareWatchersKey(participant.channelId, participant.userId));
+  const results = await pipeline.exec();
+  return participants.map((_, index) => {
+    const result = results?.[index];
+    return result && !result[0] && typeof result[1] === "number" ? result[1] : 0;
+  });
 }

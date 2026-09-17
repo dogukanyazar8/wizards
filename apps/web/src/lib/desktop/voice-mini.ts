@@ -26,6 +26,8 @@ export const DEFAULT_DESKTOP_GAME_OVERLAY_PREFERENCES: VoiceOverlayPreferences =
 };
 
 export interface VoiceMiniSnapshotInput {
+  isScreenSharing?: boolean;
+  screenShareViewerCount?: number;
   activeChannelId: string | null;
   connectionState: ConnectionState;
   isDeafened: boolean;
@@ -142,6 +144,10 @@ export function buildVoiceMiniSnapshot(input: VoiceMiniSnapshotInput): VoiceMini
 
   return VoiceMiniSnapshotSchema.parse({
     active: Boolean(input.activeChannelId),
+    isScreenSharing: input.isScreenSharing ?? false,
+    screenShareViewerCount: input.isScreenSharing
+      ? Math.max(0, Math.floor(input.screenShareViewerCount ?? 0))
+      : 0,
     connection: {
       quality: resolveVoiceMiniConnectionQuality(input),
       rttMs: null,

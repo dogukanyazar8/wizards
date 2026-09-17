@@ -10,7 +10,10 @@ import {
   getUtcDayStart,
   incrementMetricAcrossInterval,
   incrementUserDailyMetric,
+  recordScreenShareEvent,
+  sanitizeScreenShareAnalyticsEvent,
   splitIntervalByUtcDay,
+  type ScreenShareAnalyticsRecord,
 } from "@/lib/analytics/service";
 
 const MOBILE: ClientAttribution = { appVersion: "0.8.15", clientType: "MOBILE" };
@@ -147,5 +150,118 @@ describe("historical attribution cutoff", () => {
       }),
       MOBILE,
     );
+  });
+});
+
+describe("screen share analytics events (Ş0.2)", () => {
+  it("never includes the authenticated user id in media telemetry", async () => {
+    let serialized = "";
+    await recordScreenShareEvent(
+      "private-user-id",
+      { event: "start" },
+      {
+        sink: (record) => {
+          serialized = JSON.stringify(record);
+        },
+      },
+    );
+    assert.equal(serialized.includes("private-user-id"), false);
+    assert.equal(serialized.includes("userId"), false);
+  });
+  it("keeps only the closed-set fields and drops ids and free text", () => {
+    const sanitized = sanitizeScreenShareAnalyticsEvent({
+      channelId: "channel-1",
+      codec: "vp9",
+      encoderClass: "hw",
+      event: "start",
+      frameRate: 60,
+      mode: "text",
+      reason: "user_stop",
+      resolution: "h1080",
+      serverId: "server-1",
+      windowTitle: "Bank statement — Chrome",
+    });
+
+    assert.deepEqual(sanitized, {
+      codec: "vp9",
+      encoderClass: "hw",
+      event: "start",
+      frameRate: 60,
+      mode: "text",
+      reason: "user_stop",
+      resolution: "h1080",
+    });
+  });
+
+  it("refuses an unknown event and strips values outside their sets", () => {
+    assert.equal(sanitizeScreenShareAnalyticsEvent({ event: "pause" }), null);
+    assert.equal(sanitizeScreenShareAnalyticsEvent(null), null);
+    assert.deepEqual(
+      sanitizeScreenShareAnalyticsEvent({
+        codec: "nvenc-h264",
+        event: "fail",
+        frameRate: 24,
+        reason: "NotAllowedError: Permission denied by <user>",
+        resolution: "4k",
+      }),
+      { event: "fail" },
+    );
+  });
+
+  it("writes one attributed record through the sink and never a channel or server id", async () => {
+    const written: ScreenShareAnalyticsRecord[] = [];
+
+    const record = await recordScreenShareEvent(
+      "user-1",
+      { event: "mode_change", mode: "motion", reason: "user" },
+      {
+        attribution: MOBILE,
+        now: new Date("2026-09-17T10:00:00.000Z"),
+        sink: (entry) => {
+          written.push(entry);
+        },
+      },
+    );
+
+    assert.deepEqual(record, {
+      appVersion: "0.8.15",
+      at: "2026-09-17T10:00:00.000Z",
+      clientType: "MOBILE",
+      event: "mode_change",
+      mode: "motion",
+      reason: "user",
+      type: "screen_share",
+    });
+    assert.deepEqual(written, [record]);
+    assert.equal(JSON.stringify(record).includes("channel"), false);
+    assert.equal(JSON.stringify(record).includes("server"), false);
+  });
+
+  it("returns null for an invalid event or a missing user without calling the sink", async () => {
+    let calls = 0;
+    const sink = () => {
+      calls += 1;
+    };
+
+    assert.equal(await recordScreenShareEvent("", { event: "start" }, { sink }), null);
+    assert.equal(
+      await recordScreenShareEvent("user-1", { event: "nope" as "start" }, { sink }),
+      null,
+    );
+    assert.equal(calls, 0);
+  });
+
+  it("survives a sink that throws so the share itself is never blocked", async () => {
+    const record = await recordScreenShareEvent(
+      "user-1",
+      { event: "stop" },
+      {
+        sink: () => {
+          throw new Error("sink offline");
+        },
+      },
+    );
+
+    assert.equal(record?.event, "stop");
   });
 });

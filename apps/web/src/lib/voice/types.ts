@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ScreenShareStreamInfoSchema, type ScreenShareStreamInfo } from "@wizards/types";
 
 export const MAX_VOICE_PARTICIPANTS = 10;
 export const VOICE_HEARTBEAT_INTERVAL_MS = 30_000;
@@ -21,6 +22,8 @@ export interface VoiceStateParticipantDTO {
   avatarUrl: string | null;
   isDeafened: boolean;
   isScreenSharing?: boolean;
+  screenShareViewerCount?: number | undefined;
+  stream?: ScreenShareStreamInfo | null | undefined;
 }
 
 export interface VoiceChannelStateDTO {
@@ -46,6 +49,8 @@ export const VoiceStateParticipantSchema = z.object({
   avatarUrl: z.string().nullable(),
   isDeafened: z.boolean().default(false),
   isScreenSharing: z.boolean().optional().default(false),
+  stream: ScreenShareStreamInfoSchema.nullable().optional(),
+  screenShareViewerCount: z.number().int().min(0).optional(),
 });
 
 export const VoiceChannelStateSchema = z.object({

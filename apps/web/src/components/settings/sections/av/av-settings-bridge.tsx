@@ -1,5 +1,6 @@
 "use client";
 
+import { useScreenShare4kFlag } from "@/hooks/use-screen-share-4k-flag";
 import React, { useEffect, useLayoutEffect, useMemo, type ReactNode } from "react";
 
 import {
@@ -8,10 +9,10 @@ import {
 } from "@/components/settings/settings-ladder";
 import { getNoiseSuppressionChoice, getNoiseSuppressionPreset } from "@/lib/voice/noise-filter";
 import {
-  DEFAULT_SCREEN_SHARE_QUALITY_ID,
-  SCREEN_SHARE_QUALITY_OPTIONS,
-  type ScreenShareQualityId,
-} from "@/lib/voice/screen-share";
+  SCREEN_SHARE_FRAME_RATES,
+  SCREEN_SHARE_MODES,
+  SCREEN_SHARE_RESOLUTIONS,
+} from "@wizards/types";
 import {
   SettingsRowRuntimeContext,
   SettingsValueContext,
@@ -46,7 +47,10 @@ export type AvVoiceSnapshot = Pick<
   | "masterOutputVolume"
   | "screenShareAllowSourceSwitch"
   | "screenShareExcludeSelfWindow"
-  | "screenShareQuality"
+  | "screenShare4kAllowed"
+  | "screenShareContentMode"
+  | "screenShareFrameRate"
+  | "screenShareResolution"
   | "screenShareVolume"
   | "voiceInputMode"
 >;
@@ -60,20 +64,32 @@ export type AvVoiceWriter = {
   setCameraPreference: VoiceStoreState["setCameraPreference"];
   setPushToTalkHangoverMs: VoiceStoreState["setPushToTalkHangoverMs"];
   setScreenShareAudioEnabled: VoiceStoreState["setScreenShareAudioEnabled"];
-  setScreenShareQuality: VoiceStoreState["setScreenShareQuality"];
+  setScreenShareContentMode: VoiceStoreState["setScreenShareContentMode"];
+  setScreenShareFrameRate: VoiceStoreState["setScreenShareFrameRate"];
+  setScreenShareResolution: VoiceStoreState["setScreenShareResolution"];
   setScreenShareVolume: VoiceStoreState["setScreenShareVolume"];
   setVoiceInputMode: VoiceStoreState["setVoiceInputMode"];
 };
+
+/**
+ * Ekran paylaşımı K4 — `e1` / `e8` / `e9` segment dizinleri ile store eksenleri arasındaki
+ * sıra. Ağaçtaki seçenek sırası (`settings.option.e1.1…4`, `e8.1…3`, `e9.1…2`) bu üç listeyle
+ * aynı olmak zorunda; `av-settings-bridge.test.tsx` bunu kilitler.
+ */
+export const SCREEN_SHARE_RESOLUTION_ROW_ORDER = SCREEN_SHARE_RESOLUTIONS;
+export const SCREEN_SHARE_FRAME_RATE_ROW_ORDER = SCREEN_SHARE_FRAME_RATES;
+export const SCREEN_SHARE_MODE_ROW_ORDER = SCREEN_SHARE_MODES;
+/** `e1` dizini 3 = `h2160`; K2 kapısı (`screenShare4kAllowed`) bu dizine bakar. */
+export const SCREEN_SHARE_4K_OPTION_INDEX = SCREEN_SHARE_RESOLUTION_ROW_ORDER.indexOf("h2160");
 
 /** Device state, including live device selections, projected into settings rows. */
 export function readAvSettingsValues(state: AvVoiceSnapshot): SettingsPatch {
   const { audioPreferences: audio } = state;
 
   return {
-    e1: Math.max(
-      0,
-      SCREEN_SHARE_QUALITY_OPTIONS.findIndex((option) => option.id === state.screenShareQuality),
-    ),
+    e1: Math.max(0, SCREEN_SHARE_RESOLUTION_ROW_ORDER.indexOf(state.screenShareResolution)),
+    e8: Math.max(0, SCREEN_SHARE_FRAME_RATE_ROW_ORDER.indexOf(state.screenShareFrameRate)),
+    e9: Math.max(0, SCREEN_SHARE_MODE_ROW_ORDER.indexOf(state.screenShareContentMode)),
     e2: state.screenShareAudioEnabled,
     e3: state.screenShareVolume,
     e4: state.screenShareExcludeSelfWindow,
@@ -99,7 +115,7 @@ const AUDIO_FILTER_ROWS = {
 /** Write only supported settings keys; unknown keys must not report success. */
 export function applyAvSettingsPatch(
   patch: SettingsPatch,
-  _snapshot: AvVoiceSnapshot,
+  snapshot: AvVoiceSnapshot,
   writer: AvVoiceWriter,
 ): void {
   for (const [key, value] of Object.entries(patch)) {
@@ -143,9 +159,30 @@ export function applyAvSettingsPatch(
         break;
 
       case "e1": {
-        const quality: ScreenShareQualityId =
-          SCREEN_SHARE_QUALITY_OPTIONS[Number(value)]?.id ?? DEFAULT_SCREEN_SHARE_QUALITY_ID;
-        void writer.setScreenShareQuality(quality);
+        const index = Number(value);
+        const resolution = SCREEN_SHARE_RESOLUTION_ROW_ORDER[index];
+        if (!resolution) throw new Error(`SETTINGS_WRITE_INVALID:${key}`);
+
+        // K2 — renderer disables 4K; enforce the same gate for programmatic writes.
+        if (index === SCREEN_SHARE_4K_OPTION_INDEX && !snapshot.screenShare4kAllowed) {
+          throw new Error(`SETTINGS_WRITE_INVALID:${key}`);
+        }
+
+        writer.setScreenShareResolution(resolution);
+        break;
+      }
+
+      case "e8": {
+        const frameRate = SCREEN_SHARE_FRAME_RATE_ROW_ORDER[Number(value)];
+        if (!frameRate) throw new Error(`SETTINGS_WRITE_INVALID:${key}`);
+        writer.setScreenShareFrameRate(frameRate);
+        break;
+      }
+
+      case "e9": {
+        const mode = SCREEN_SHARE_MODE_ROW_ORDER[Number(value)];
+        if (!mode) throw new Error(`SETTINGS_WRITE_INVALID:${key}`);
+        writer.setScreenShareContentMode(mode);
         break;
       }
 
@@ -198,6 +235,7 @@ export type AvSettingsBridge = {
 
 export function useAvSettingsBridge(overrides: Partial<SettingsRowRuntime> = {}): AvSettingsBridge {
   const snapshot = useVoiceStore(selectAvSnapshot);
+  const screenShare4kEnabled = useScreenShare4kFlag();
 
   const store = useMemo(() => getAvStore(), []);
 
@@ -222,6 +260,14 @@ export function useAvSettingsBridge(overrides: Partial<SettingsRowRuntime> = {})
     ...ladder,
     ...overrides,
     disabledRows: { ...AV_UNAVAILABLE_ROWS, ...overrides.disabledRows },
+    hiddenOptions: {
+      ...overrides.hiddenOptions,
+      e1: screenShare4kEnabled ? [] : [SCREEN_SHARE_4K_OPTION_INDEX],
+    },
+    disabledOptions: {
+      ...overrides.disabledOptions,
+      e1: snapshot.screenShare4kAllowed ? [] : [SCREEN_SHARE_4K_OPTION_INDEX],
+    },
     data: {
       ...overrides.data,
     },

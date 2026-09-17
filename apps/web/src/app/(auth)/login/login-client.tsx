@@ -5,7 +5,7 @@ import { LoginSchema, type LoginFormInput, type LoginInput } from "@wizards/type
 import { ExternalLink, Loader2, ShieldCheck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { useCallback, useState, type CSSProperties } from "react";
+import { useCallback, useRef, useState, type CSSProperties } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { storeTwoFactorChallenge } from "@/app/(auth)/login/challenge-transport";
@@ -135,6 +135,8 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
   const [oauthLoading, setOauthLoading] = useState<OAuthProvider | null>(null);
   const [showDesktopOAuthPending, setShowDesktopOAuthPending] = useState(false);
   const [showDesktopStartup, setShowDesktopStartup] = useState(false);
+  const oauthPendingRef = useRef(false);
+  const desktopOAuthRequestRef = useRef<string | null>(null);
 
   const {
     control,
@@ -194,30 +196,33 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
   };
 
   const openDesktopOAuthBrowser = useCallback(() => {
+    const requestId = desktopOAuthRequestRef.current ?? crypto.randomUUID();
+    desktopOAuthRequestRef.current = requestId;
     window.open(
-      buildDesktopOAuthStartUrl(callbackUrl, window.location.origin),
+      buildDesktopOAuthStartUrl(callbackUrl, window.location.origin, requestId),
       "_blank",
       "noopener,noreferrer",
     );
   }, [callbackUrl]);
 
   const handleOAuthSignIn = async (provider: OAuthProvider) => {
+    if (oauthPendingRef.current) return;
+    oauthPendingRef.current = true;
     setResult(null);
     setOauthLoading(provider);
-
-    if (isWhisprDesktopRuntime()) {
-      setShowDesktopStartup(false);
-      setShowDesktopOAuthPending(true);
-      openDesktopOAuthBrowser();
-      setOauthLoading(null);
-      return;
-    }
 
     setShowDesktopStartup(false);
 
     try {
+      if (isWhisprDesktopRuntime()) {
+        setShowDesktopOAuthPending(true);
+        openDesktopOAuthBrowser();
+        setOauthLoading(null);
+        return;
+      }
       await signIn(provider, { callbackUrl });
     } catch {
+      oauthPendingRef.current = false;
       setShowDesktopOAuthPending(false);
       setResult({ error: "auth.login.oauthError", success: false });
       setOauthLoading(null);
@@ -240,6 +245,8 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
       {showDesktopOAuthPending ? (
         <DesktopOAuthPendingDialog
           onCancel={() => {
+            oauthPendingRef.current = false;
+            desktopOAuthRequestRef.current = null;
             setShowDesktopOAuthPending(false);
             setOauthLoading(null);
           }}

@@ -3,6 +3,8 @@
 import React from "react";
 import { Eye, Hash, Lock, MicOff, Volume2 } from "lucide-react";
 
+import { screenShareGameLabel } from "@/lib/voice/screen-share-label";
+import { useVoiceStore } from "@/store/voice-store";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import { DISPLAY_FONT } from "@/components/servers/shared/typography";
@@ -79,6 +81,7 @@ export function ChannelItem({
   voiceState = null,
 }: ChannelItemProps) {
   const { t } = useI18n();
+  const viewerCounts = useVoiceStore((state) => state.screenShareViewerCounts);
   const { sidebar } = SERVER_METRICS;
   const Icon = type === "VOICE" ? Volume2 : Hash;
   const isLocked = !canAccess;
@@ -344,7 +347,14 @@ export function ChannelItem({
                     }}
                     title={t("voice.sidebar.screenSharing")}
                   >
-                    {t("voice.sidebar.liveChip")}
+                    {screenShareGameLabel(participant.stream)
+                      ? t("voice.sidebar.streamingGame", {
+                          game: screenShareGameLabel(participant.stream)!,
+                        })
+                      : t("voice.sidebar.liveChip")}{" "}
+                    <span data-testid={`voice-sidebar-screen-share-count-${participant.username}`}>
+                      {viewerCounts[participant.userId] ?? participant.screenShareViewerCount ?? 0}
+                    </span>
                   </span>
                 ) : null}
               </div>

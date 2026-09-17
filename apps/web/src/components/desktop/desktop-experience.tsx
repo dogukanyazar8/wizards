@@ -196,6 +196,8 @@ function recordDesktopShortcutLatency(detail: WhisprDesktopCommandDetail) {
 }
 
 export function DesktopExperience() {
+  const screenShareViewerCounts = useVoiceStore((state) => state.screenShareViewerCounts);
+  const sharingScreen = useVoiceStore((state) => state.isScreenSharing);
   const router = useRouter();
   const socket = useSocket();
   const queryClient = useQueryClient();
@@ -438,7 +440,10 @@ export function DesktopExperience() {
       return;
     }
 
+    const localUserId = participants.find((participant) => participant.isLocal)?.userId;
     const snapshot = buildVoiceMiniSnapshot({
+      isScreenSharing: sharingScreen,
+      screenShareViewerCount: localUserId ? (screenShareViewerCounts[localUserId] ?? 0) : 0,
       activeChannelId,
       connectionState,
       isDeafened,
@@ -459,13 +464,18 @@ export function DesktopExperience() {
     isMuted,
     participants,
     socketConnected,
+    sharingScreen,
+    screenShareViewerCounts,
   ]);
   const publishVoiceMiniSnapshot = useCallback(() => {
     if (!activeChannelId) {
       return;
     }
 
+    const localUserId = participants.find((participant) => participant.isLocal)?.userId;
     const snapshot = buildVoiceMiniSnapshot({
+      isScreenSharing: sharingScreen,
+      screenShareViewerCount: localUserId ? (screenShareViewerCounts[localUserId] ?? 0) : 0,
       activeChannelId,
       connectionState,
       isDeafened,
@@ -475,7 +485,16 @@ export function DesktopExperience() {
     });
 
     void publishDesktopVoiceMiniSnapshot(snapshot).catch(() => undefined);
-  }, [activeChannelId, connectionState, isDeafened, isMuted, participants, socketConnected]);
+  }, [
+    activeChannelId,
+    connectionState,
+    isDeafened,
+    isMuted,
+    participants,
+    socketConnected,
+    sharingScreen,
+    screenShareViewerCounts,
+  ]);
 
   const hideDesktopCompanionSurfaces = useCallback(
     async (_reason: DesktopCompanionSurfaceHideReason) => {

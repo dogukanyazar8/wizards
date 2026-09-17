@@ -1,3 +1,5 @@
+import type { ScreenShareMode, ScreenShareFrameRate } from "@wizards/types";
+import type { VideoPreset } from "livekit-client";
 import { masterOutputGain } from "./output-volume";
 import { LocalAudioTrack, LocalTrack, LocalVideoTrack, type Room, Track } from "livekit-client";
 
@@ -223,4 +225,35 @@ export function runNonFatalVoiceJoinStep(step: string, action: () => void) {
   } catch (error) {
     logError(`[voice] Non-fatal join step failed: ${step}`, error);
   }
+}
+
+export async function applyScreenShareModeToTrack(track: LocalVideoTrack, mode: ScreenShareMode) {
+  track.mediaStreamTrack.contentHint = mode === "motion" ? "motion" : "detail";
+  if (track.sender)
+    await track.sender.setParameters({
+      ...track.sender.getParameters(),
+      degradationPreference: mode === "motion" ? "maintain-framerate" : "maintain-resolution",
+    });
+}
+export async function applyScreenShareFrameRateToTrack(
+  track: LocalVideoTrack,
+  frameRate: ScreenShareFrameRate,
+  preset: VideoPreset,
+) {
+  await track.mediaStreamTrack.applyConstraints({
+    ...track.mediaStreamTrack.getConstraints(),
+    frameRate: { ideal: frameRate, max: frameRate },
+  });
+  if (track.sender) await applyScreenShareEncodingToSender(track.sender, preset.encoding);
+}
+export async function applyScreenShareResolutionToTrack(
+  track: LocalVideoTrack,
+  preset: VideoPreset,
+) {
+  await track.mediaStreamTrack.applyConstraints({
+    ...track.mediaStreamTrack.getConstraints(),
+    width: { ideal: preset.width },
+    height: { ideal: preset.height },
+  });
+  if (track.sender) await applyScreenShareEncodingToSender(track.sender, preset.encoding);
 }

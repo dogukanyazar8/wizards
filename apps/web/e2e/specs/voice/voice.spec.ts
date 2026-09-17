@@ -358,6 +358,40 @@ test.describe("voice and screen share", () => {
     await expect(page.getByTestId("server-voice-share-stage")).toBeVisible();
   });
 
+  test("screen viewer fit and zoom controls and the outside-room sharing bar work", async ({
+    page,
+  }) => {
+    await loginAs(page, "alice");
+    const route = await openVoiceChannel(page);
+    await page.getByTestId("server-voice-control-share").click();
+    const viewport = page.getByTestId("voice-stage-viewport");
+    await expect(viewport).toBeVisible();
+    await viewport.focus();
+    await viewport.press("=");
+    await expect(page.getByTestId("voice-stage-zoom-reset")).toHaveText("125%");
+    await viewport.press("0");
+    await expect(page.getByTestId("voice-stage-zoom-reset")).toHaveText("100%");
+    await page.getByTestId("voice-stage-fit").click();
+    await expect(viewport.locator("video")).toHaveCSS("object-fit", "cover");
+    await expect(page.getByTestId("screen-share-status-bar")).toBeHidden();
+    await clickChannelSidebarChannelAndWait(
+      page,
+      route.textChannelId,
+      new RegExp(`/channels/${route.serverId}/${route.textChannelId}$`),
+      { readyTestId: "message-input", waitForMessages: true },
+    );
+    await expect(page.getByTestId("screen-share-status-bar")).toBeVisible();
+    await clickChannelSidebarChannelAndWait(
+      page,
+      route.voiceChannelId,
+      new RegExp(`/channels/${route.serverId}/${route.voiceChannelId}$`),
+      { readyTestId: "voice-channel-view" },
+    );
+    await expect(page.getByTestId("screen-share-status-bar")).toBeHidden();
+  });
+
+  test.skip("native PiP requires a visible OS window and manual WebView2/browser acceptance", async () => {});
+
   test("screen share does not break microphone controls", async ({ page }) => {
     const { voiceChannelId } = await getE2EServerRoute();
 

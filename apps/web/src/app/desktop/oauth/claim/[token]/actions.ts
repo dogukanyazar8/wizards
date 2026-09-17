@@ -1,8 +1,9 @@
 "use server";
 
 import { AuthError } from "next-auth";
+import { redirect } from "next/navigation";
 
-import { signIn } from "@/auth";
+import { auth, signIn } from "@/auth";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
 import { isDesktopOAuthHandoffToken } from "@/lib/auth/desktop-oauth-handoff";
 
@@ -15,14 +16,19 @@ export async function claimDesktopOAuthHandoffAction(
   token: string,
   callbackUrl: string,
 ): Promise<ClaimDesktopOAuthHandoffResult> {
+  const safeCallbackUrl = getSafeAuthRedirectPath(callbackUrl);
+  // A repeated deep link must never replace an established desktop session.
+  const session = await auth();
+  if (session?.user?.id) {
+    redirect(safeCallbackUrl);
+  }
+
   if (!isDesktopOAuthHandoffToken(token)) {
     return {
       error: "auth.desktopOAuth.invalid",
       success: false,
     };
   }
-
-  const safeCallbackUrl = getSafeAuthRedirectPath(callbackUrl);
 
   try {
     await signIn("credentials", {

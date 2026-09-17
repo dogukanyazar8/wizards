@@ -35,12 +35,17 @@ export const APP_SHORTCUT_IDS = [
   "voice.leave",
   "voice.toggleCamera",
   "voice.toggleScreenShare",
+  "voice.screenShare.zoomIn",
+  "voice.screenShare.zoomOut",
+  "voice.screenShare.zoomReset",
+  "voice.screenShare.toggleFit",
 ] as const;
 
 export type AppShortcutId = (typeof APP_SHORTCUT_IDS)[number];
 export type AppShortcutPlatform = KeyboardPlatform;
 export type AppShortcutScope = "app" | "context" | "global";
 export type AppShortcutHandler =
+  | "ScreenShareVideo"
   | "ChatArea"
   | "AppShortcutController"
   | "ContextualOverlay"
@@ -310,6 +315,38 @@ export const APP_SHORTCUT_CATALOG = {
     handler: "AppShortcutController",
     labelKey: "shortcuts.app.toggleScreenShare",
     scope: "app",
+    typingTarget: "ignore",
+  },
+  "voice.screenShare.zoomIn": {
+    bindings: [{ key: "=" }],
+    category: "voice",
+    handler: "ScreenShareVideo",
+    labelKey: "voice.screenShare.zoom.in",
+    scope: "context",
+    typingTarget: "ignore",
+  },
+  "voice.screenShare.zoomOut": {
+    bindings: [{ key: "-" }],
+    category: "voice",
+    handler: "ScreenShareVideo",
+    labelKey: "voice.screenShare.zoom.out",
+    scope: "context",
+    typingTarget: "ignore",
+  },
+  "voice.screenShare.zoomReset": {
+    bindings: [{ key: "0" }],
+    category: "voice",
+    handler: "ScreenShareVideo",
+    labelKey: "voice.screenShare.zoom.reset",
+    scope: "context",
+    typingTarget: "ignore",
+  },
+  "voice.screenShare.toggleFit": {
+    bindings: [{ key: "v" }],
+    category: "voice",
+    handler: "ScreenShareVideo",
+    labelKey: "voice.screenShare.fit.contain",
+    scope: "context",
     typingTarget: "ignore",
   },
 } as const satisfies Readonly<Record<AppShortcutId, AppShortcutDefinition>>;
