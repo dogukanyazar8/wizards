@@ -4075,8 +4075,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/providers/e2e-voice-provider.tsx": {
-    "mtime": 1789652828.2316725,
-    "ast_hash": "06f91fb081e0a9d85a04f24c0f4b31d9",
+    "mtime": 1789653315.451492,
+    "ast_hash": "a059855b762f5aaf0f600f7689283fa9",
     "semantic_hash": ""
   },
   "apps/web/src/components/providers/live-voice-provider.tsx": {
@@ -25260,8 +25260,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/desktop-release.yml": {
-    "mtime": 1789652483.280299,
-    "ast_hash": "7e9662e2f95efab402e4ca5a9d90ffa7",
+    "mtime": 1789657054.7354643,
+    "ast_hash": "7d9fc51cae7b0d6b39600c8845ecd504",
     "semantic_hash": ""
   },
   ".github/scripts/prepare-hosted-android.sh": {

@@ -5,49 +5,49 @@ on:
     inputs:
       ring:
         default: uat
-        description: Desktop release ring to validate
+        description: Release channel (UAT or Stable)
         options:
           - uat
           - stable
         required: true
         type: choice
       version:
-        description: Desktop native version, without a leading v
+        description: "App version without v (example: 0.9.0)"
         required: true
         type: string
       web_url:
         default: https://wizardsweb-uat.up.railway.app/
-        description: HTTPS Whispr web origin embedded into the desktop build
+        description: Web address opened by the desktop app
         required: true
         type: string
       enable_updater:
         default: true
-        description: Build with signed updater support and local manifest evidence, even when R2 publishing is disabled
+        description: Enable secure automatic updates
         required: true
         type: boolean
       windows_signing:
         default: false
-        description: Sign the Windows installer with Authenticode (optional; stable requires an OV/EV certificate when enabled). Updater signatures are independent.
+        description: Sign the Windows installer (optional; requires a certificate)
         required: true
         type: boolean
       publish_github_release:
         default: false
-        description: Publish a GitHub Release after R2 updater evidence is produced
+        description: Publish the build as a GitHub Release
         required: true
         type: boolean
       publish_r2:
         default: false
-        description: Publish updater artifacts to Cloudflare R2 after build evidence is produced
+        description: Publish automatic-update files to Cloudflare R2
         required: true
         type: boolean
       updater_base_url:
         default: ""
-        description: Optional HTTPS updater feed directory. Artifacts are published below releases/<tag>/ and latest.json stays at the feed root. Defaults to https://updates.whispr.team/desktop/<ring>/
+        description: Optional update address; leave blank for the default
         required: false
         type: string
       confirm_stable_release:
         default: false
-        description: Required extra guard for stable ring dispatches from main
+        description: Confirm a Stable release from main
         required: true
         type: boolean
 
