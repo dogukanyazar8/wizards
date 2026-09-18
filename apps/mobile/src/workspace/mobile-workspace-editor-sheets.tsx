@@ -73,10 +73,6 @@ export function MobileWorkspaceEditorSheets({
     editor?.kind === "category-edit"
       ? (detail.categories.find((category) => category.id === editor.categoryId) ?? null)
       : null;
-  const editingChannel =
-    editor?.kind === "channel-edit"
-      ? (channels.find((channel) => channel.id === editor.channelId) ?? null)
-      : null;
   const isCategoryEditor = editor?.kind === "category-create" || editor?.kind === "category-edit";
   const isOpen = editor !== null;
 

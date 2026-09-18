@@ -22,14 +22,8 @@ import {
   type MobileBootstrapPayload,
   type MobileBootstrapViewState,
   type MobileChannelMessagesViewState,
-  type MobileLocale,
   type MobileMediaRuntimeState,
   type MobileMessageSearchViewState,
-  type MobilePushToTalkPhase,
-  type MobileVoiceAudioOutputMode,
-  type MobileVoiceInputMode,
-  type MobileVoiceInviteSendState,
-  type MobileVoiceRoomState,
   type MobileWorkspaceChannelSummary,
   type MobileWorkspaceServerViewState,
 } from "../mobile-root-screen-shared";
@@ -100,7 +94,6 @@ import {
 } from "../components/kit";
 import { MobileLineIcon } from "../../design/mobile-line-icons";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
-import type { MobileChannelTypingUser } from "../../realtime/mobile-typing-state";
 import type {
   MobileForwardSendInput,
   MobileForwardTarget,
@@ -112,12 +105,10 @@ export function MobileWorkspaceBrowser({
   canRenderChannelChat = false,
   channelMessagesState,
   isReactionMutationPending,
-  locale,
   mediaState,
   messageSearchFeature,
   messageSearchState,
   activeWorkspaceTextChannelId,
-  activeWorkspaceVoiceChannelId,
   selectedChannelId,
   selectedServerId,
   serverState,
@@ -130,7 +121,6 @@ export function MobileWorkspaceBrowser({
   onRefreshChannel,
   onRefreshServer,
   onRequestDocumentPicker,
-  onRequestPhotoLibraryPicker,
   onChannelDraftChange,
   onSearchMessages,
   onSendChannelMessage,
@@ -170,12 +160,10 @@ export function MobileWorkspaceBrowser({
   };
   channelMessagesState: MobileChannelMessagesViewState;
   isReactionMutationPending: boolean;
-  locale: MobileLocale;
   mediaState: MobileMediaRuntimeState;
   messageSearchFeature: MobileBootstrapFeature | null;
   messageSearchState: MobileMessageSearchViewState;
   activeWorkspaceTextChannelId: string | null;
-  activeWorkspaceVoiceChannelId: string | null;
   selectedChannelId: string | null;
   selectedServerId: string | null;
   serverState: MobileWorkspaceServerViewState;
@@ -188,7 +176,6 @@ export function MobileWorkspaceBrowser({
   onRefreshChannel(): void;
   onRefreshServer(): void;
   onRequestDocumentPicker(): Promise<void>;
-  onRequestPhotoLibraryPicker(): Promise<void>;
   onChannelDraftChange(content: string): void;
   onSearchMessages(input: {
     conversationId: string;
@@ -619,7 +606,6 @@ export function MobileWorkspaceBrowser({
             onLoadMore={onLoadMoreChannelMessages}
             onRefresh={onRefreshChannel}
             onRequestDocumentPicker={onRequestDocumentPicker}
-            onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
             onSearchMessages={onSearchMessages}
             onSendMessage={onSendChannelMessage}
             {...(onSendChannelGif ? { onSendGif: onSendChannelGif } : {})}

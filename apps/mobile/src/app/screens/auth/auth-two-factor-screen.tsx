@@ -98,7 +98,6 @@ export function AuthTwoFactorScreen({
   onUseBackupCode,
 }: AuthTwoFactorScreenProps) {
   const styles = useThemedStyles(createStyles);
-  const theme = useTheme();
   const { locale } = useMobileLocaleRuntime();
   const copy = mobileCopy[locale];
   const [code, setCode] = useState("");

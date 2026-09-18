@@ -21,6 +21,7 @@ import {
   releaseVoiceJoinLocks,
   releaseVoiceCleanupLock,
   runBoundedVoiceStateCleanup,
+  runLockedVoiceStateUpsertMutation,
   runVoiceStateClearMutation,
   runVoiceStateUpsertMutation,
   shouldAttemptVoiceCleanup,
@@ -33,6 +34,7 @@ type VoiceStateUpsertCall = Parameters<UpsertMutationInput["tx"]["voiceState"]["
 type ExistingVoiceState = Awaited<
   ReturnType<UpsertMutationInput["tx"]["voiceState"]["findUnique"]>
 >;
+type LockedUpsertMutationInput = Parameters<typeof runLockedVoiceStateUpsertMutation>[0];
 
 type ClearMutationInput = Parameters<typeof runVoiceStateClearMutation>[0];
 type VoiceStateClearRecord = Awaited<ReturnType<ClearMutationInput["voiceState"]["findUnique"]>>;
@@ -880,6 +882,40 @@ describe("voice service concurrency helpers", () => {
     assert.equal(upsertCalls[0]?.update.channelId, "new-channel");
     assert.equal(upsertCalls[0]?.update.joinedAt, now);
     assert.equal(upsertCalls[0]?.update.sessionId, "11111111-1111-4111-8111-111111111111");
+  });
+
+  it("takes the event channel transaction lock before creating voice membership", async () => {
+    const order: string[] = [];
+    const tx: LockedUpsertMutationInput["tx"] = {
+      $queryRaw: <T>() => {
+        order.push("channel:lock");
+        return Promise.resolve(undefined as T);
+      },
+      voiceState: {
+        async findUnique() {
+          order.push("voice:read");
+          return null;
+        },
+        async upsert() {
+          order.push("voice:upsert");
+        },
+      },
+    };
+
+    const result = await runLockedVoiceStateUpsertMutation({
+      channel: { id: "channel-1", serverId: "server-1" },
+      input: {
+        channelId: "channel-1",
+        serverId: "server-1",
+        sessionId: "11111111-1111-4111-8111-111111111111",
+      },
+      now: new Date("2026-05-12T10:00:00.000Z"),
+      tx,
+      userId: "user-1",
+    });
+
+    assert.deepEqual(order, ["channel:lock", "voice:read", "voice:upsert"]);
+    assert.equal(result.shouldStartVoiceUsageSession, true);
   });
 
   it("does not restart analytics for an idempotent same-session rejoin", async () => {

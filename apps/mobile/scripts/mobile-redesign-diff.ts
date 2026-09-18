@@ -246,7 +246,7 @@ function findComponents(diffMask: Uint8Array, excluded: Uint8Array) {
 }
 
 function drawRectangle(data: Buffer, region: Region, color: readonly [number, number, number]) {
-  const { width, height } = CANONICAL_PHYSICAL_VIEWPORT;
+  const { width } = CANONICAL_PHYSICAL_VIEWPORT;
   for (let x = region.x; x < region.x + region.width; x += 1) {
     for (const y of [region.y, region.y + region.height - 1]) {
       const index = (y * width + x) * 4;

@@ -592,17 +592,3 @@ export function toggleMobileRoadmapVote(state: MobileRoadmapVoteState): MobileRo
     ? { voteCount: Math.max(0, state.voteCount - 1), votedByViewer: false }
     : { voteCount: state.voteCount + 1, votedByViewer: true };
 }
-
-export interface MobileFeedbackStatusLabels {
-  readonly IN_PROGRESS: string;
-  readonly PLANNED: string;
-  readonly REVIEWING: string;
-  readonly SHIPPED: string;
-}
-
-export function getMobileFeedbackStatusLabel(
-  status: FeedbackStatus,
-  labels: MobileFeedbackStatusLabels,
-): string {
-  return labels[status];
-}

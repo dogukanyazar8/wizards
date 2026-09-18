@@ -17,6 +17,8 @@ import { publishCommittedAuthorizationRevision } from "@/lib/workspace/authoriza
 import { decrementServerMemberCounts } from "@/lib/workspace/server-member-counter";
 import { enqueueAccountStorageCleanupJob } from "@/lib/outbox/service";
 import { deleteUploadThingFileKeys } from "@/lib/account/uploadthing-cleanup";
+import { syncAndPublishEventLiveStateForChannel } from "@/lib/events/live-lifecycle";
+import { defaultEventRealtimePublisher } from "@/lib/events/realtime";
 
 export const ACCOUNT_DELETION_CONFIRMATION = ACCOUNT_DELETION_CONFIRMATION_PHRASE;
 const DELETED_ACCOUNT_DISPLAY_NAME = "Deleted User";
@@ -28,8 +30,23 @@ export type AccountAnonymizationDependencies = {
   client: Pick<typeof prisma, "$transaction" | "user">;
   deleteUploadThingFiles: (input: { fileKeys: string[]; userId: string }) => Promise<void>;
   now: () => Date;
+  reconcileEventLiveState?: (channelId: string) => Promise<void>;
   revokeSessions: typeof revokeUserSessions;
 };
+
+async function reconcileDeletedAccountEventLiveState(channelId: string) {
+  try {
+    await syncAndPublishEventLiveStateForChannel(
+      prisma,
+      { channelId, now: new Date() },
+      defaultEventRealtimePublisher,
+    );
+  } catch (error) {
+    // Account deletion is already committed. Projection repair is best effort;
+    // surfacing it as a deletion failure would incorrectly invite a retry.
+    logError("[account-privacy] Event live-state reconciliation failed", error);
+  }
+}
 
 const defaultAccountAnonymizationDependencies: AccountAnonymizationDependencies = {
   collectUploadThingFileKeys: loadAccountUploadThingFileKeys,
@@ -37,6 +54,7 @@ const defaultAccountAnonymizationDependencies: AccountAnonymizationDependencies 
   client: prisma,
   deleteUploadThingFiles: deleteAccountUploadThingFiles,
   now: () => new Date(),
+  reconcileEventLiveState: reconcileDeletedAccountEventLiveState,
   revokeSessions: revokeUserSessions,
 };
 
@@ -505,6 +523,11 @@ export async function anonymizeAccount(
           serverId: true,
         },
       },
+      voiceState: {
+        select: {
+          channelId: true,
+        },
+      },
     },
   });
 
@@ -527,6 +550,7 @@ export async function anonymizeAccount(
   const now = dependencies.now();
   const identity = buildDeletedAccountIdentity(userId);
   const serverIds = user.serverMembers.map((membership) => membership.serverId);
+  const voiceChannelIds = user.voiceState ? [user.voiceState.channelId] : [];
   // Capture immutable storage references while the account rows still exist.
   // The destructive transaction removes those rows before irreversible storage cleanup.
   const uploadThingFileKeys = dependencies.collectUploadThingFileKeys
@@ -698,6 +722,9 @@ export async function anonymizeAccount(
   });
 
   await Promise.all(authorizationRevisions.map(publishCommittedAuthorizationRevision));
+  await Promise.all(
+    voiceChannelIds.map((channelId) => dependencies.reconcileEventLiveState?.(channelId)),
+  );
 
   // Storage deletion cannot roll back. Running it only after the database
   // commit prevents a transient transaction failure from orphaning live media.

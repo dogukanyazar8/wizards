@@ -58,7 +58,7 @@ import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { AboutIdentityCard } from "./about/about-identity-card";
-import { AboutChevronRightIcon, AboutClipboardIcon, AboutStarIcon } from "./about/about-icons";
+import { AboutClipboardIcon, AboutStarIcon } from "./about/about-icons";
 import { AboutRatingSheet } from "./about/about-rating-sheet";
 import {
   AboutCard,

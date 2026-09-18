@@ -109,10 +109,7 @@ describe("desktop Tauri config generation", () => {
     assert.ok(
       !desktopControlCapability.permissions.includes("allow-export-desktop-diagnostics-bundle"),
     );
-    assert.ok(
-      capability.permissions.includes("allow-record-desktop-update-failure"),
-      "Expected updater failure logs to be available only through the main window capability.",
-    );
+    assert.ok(!capability.permissions.includes("allow-record-desktop-update-failure"));
     assert.ok(
       !voiceMiniCapability.permissions.some((permission) => permission.startsWith("allow-")),
       "The voice mini window must not receive custom app command permissions.",
@@ -264,7 +261,7 @@ describe("desktop Tauri config generation", () => {
     assert.ok(!desktopControlCapability.permissions.includes("updater:allow-check"));
     assert.ok(!desktopControlCapability.permissions.includes("updater:allow-download-and-install"));
     assert.ok(!desktopControlCapability.permissions.includes("process:allow-restart"));
-    assert.ok(mainCapability.permissions.includes("allow-record-desktop-update-failure"));
+    assert.ok(!mainCapability.permissions.includes("allow-record-desktop-update-failure"));
     assert.ok(!mainCapability.permissions.includes("process:allow-exit"));
     assert.ok(
       !voiceMiniCapability.permissions.some((permission) => permission.startsWith("updater:")),
@@ -364,6 +361,7 @@ describe("desktop Tauri config generation", () => {
 
   it("registers updater runtime plugins only when the signed updater is enabled", async () => {
     const rustSource = await readFile(path.join(desktopRoot, "src-tauri", "src", "lib.rs"), "utf8");
+    const cargoManifest = await readFile(path.join(desktopRoot, "src-tauri", "Cargo.toml"), "utf8");
 
     assert.match(
       rustSource,
@@ -374,6 +372,11 @@ describe("desktop Tauri config generation", () => {
       rustSource,
       /tauri_plugin_process::init\(\)/,
       "The frontend process plugin must not expose a restart bypass around the confirmed Rust updater command.",
+    );
+    assert.doesNotMatch(
+      cargoManifest,
+      /^tauri-plugin-process\s*=/mu,
+      "The unused process plugin must not remain in the desktop binary dependency graph.",
     );
   });
 

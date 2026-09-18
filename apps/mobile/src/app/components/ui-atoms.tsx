@@ -20,7 +20,6 @@ import { Avatar as KitAvatar, Button as KitButton, EmptyState as KitEmptyState }
 import { useUiAtomStyles } from "./ui-atoms.styles";
 import { isMobileConnectivityDegradedPhase } from "../mobile-connectivity-presentation";
 import { useMobileConnectivityPhase } from "../providers/mobile-connectivity-context";
-import { useTheme } from "../providers/mobile-theme-provider";
 
 function getMobilePermissionLabel(intentId: MobilePermissionIntentId): string {
   switch (intentId) {
@@ -435,7 +434,6 @@ export function PermissionReadinessCard({
 }
 
 export function EmptyState({ label, tone }: { label: string; tone: "accent" | "success" }) {
-  const styles = useUiAtomStyles();
   return (
     <KitEmptyState
       icon={tone === "success" ? "checkmark-circle-outline" : "sparkles-outline"}
@@ -467,7 +465,6 @@ export function ActionButton({
   testID?: string;
   variant: "danger" | "primary" | "secondary";
 }) {
-  const styles = useUiAtomStyles();
   return (
     <KitButton
       disabled={disabled}

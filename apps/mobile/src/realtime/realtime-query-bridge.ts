@@ -23,6 +23,7 @@ import {
   MobileServerMembershipAddedEventSchema,
   MobileServerMembershipRemovedEventSchema,
   MobileServerSettingsUpdatedEventSchema,
+  SettingsUpdatedEventSchema,
   MobileUserProfileUpdatedEventSchema,
   MobileVoiceScreenShareUpdateEventSchema,
   MobileVoiceStateUpdateEventSchema,
@@ -724,6 +725,51 @@ export function createMobileRealtimeQueryBridge({
     return false;
   };
 
+  const applyClientInvalidationEvent = (event: MobileRealtimeEventEnvelope): void => {
+    if (event.eventName === "settings:updated") {
+      const parsed = SettingsUpdatedEventSchema.safeParse(event.payload);
+      if (parsed.success && parsed.data.scope === "notifications") {
+        void queryClient.invalidateQueries({
+          exact: true,
+          queryKey: mobileQueryKeys.accountPreferences(),
+        });
+        void queryClient.invalidateQueries({
+          exact: true,
+          queryKey: mobileQueryKeys.accountSettings(),
+        });
+      }
+      return;
+    }
+
+    if (
+      event.eventName !== "dm:conversation:history_cleared" &&
+      event.eventName !== "dm:conversation:pins" &&
+      event.eventName !== "dm:conversation:mute"
+    ) {
+      return;
+    }
+
+    const conversationId = event.conversationId;
+    if (!conversationId) {
+      return;
+    }
+
+    void queryClient.invalidateQueries({
+      exact: true,
+      queryKey: mobileQueryKeys.groupDetails(conversationId),
+    });
+    void queryClient.invalidateQueries({
+      exact: true,
+      queryKey: mobileQueryKeys.dmDetails(conversationId),
+    });
+
+    if (event.eventName === "dm:conversation:history_cleared") {
+      void queryClient.invalidateQueries({
+        queryKey: mobileQueryKeys.dmAttachmentsRoot(conversationId),
+      });
+    }
+  };
+
   /**
    * Which channel stream an event should reconcile.
    *
@@ -1326,6 +1372,8 @@ export function createMobileRealtimeQueryBridge({
       if (applyValidatedManagementEvent(event)) {
         return;
       }
+
+      applyClientInvalidationEvent(event);
 
       const workspaceChannelPreviewPatched = patchWorkspaceChannelLastMessageFromEvent(event);
       const channelEventHandled = applyActiveChannelEvent(event);

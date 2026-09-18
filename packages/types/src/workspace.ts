@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { DiscoverLanguagesSchema, DiscoverServerCategoryKeySchema } from "./discover-screen";
-import { SERVER_ICON_TONES, ServerIconToneSchema } from "./server-icon";
+import { ServerIconToneSchema } from "./server-icon";
 import { CHANNEL_BITRATE_OPTIONS, CHANNEL_VIDEO_QUALITY_MODES } from "./voice-media-policy";
 
 function emptyStringToNull(value: string | null | undefined) {

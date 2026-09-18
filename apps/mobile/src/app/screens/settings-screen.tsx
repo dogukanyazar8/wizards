@@ -178,8 +178,6 @@ export function MobileProfileSettingsHub({
   onSignOut,
   onUpdatePresence,
   sessionDiagnostics,
-  signedInUserLabel,
-  status,
   themeMode,
 }: {
   appVersion: string;
@@ -189,8 +187,6 @@ export function MobileProfileSettingsHub({
   onSignOut(): void;
   onUpdatePresence: ((status: MobileFriendPresenceStatus) => Promise<void>) | undefined;
   sessionDiagnostics: MobileSessionDiagnostics;
-  signedInUserLabel: string | null;
-  status: string;
   themeMode: MobileThemeMode;
 }) {
   const styles = useSettingsScreenStyles();
@@ -718,7 +714,6 @@ export function SettingsMobileOverviewCard({
   lastDeepLink: MobileDeepLinkParseResult | null;
   permissionSummary: MobilePermissionSummary;
 }) {
-  const styles = useSettingsScreenStyles();
   const hasHealthySession = diagnostics.hasSession && !diagnostics.isExpired;
   const messagesFeature =
     bootstrapState.status === "ready" ? bootstrapState.payload.features.messages : null;
@@ -1270,7 +1265,6 @@ export function SettingsFeatureReadinessCard({
 }
 
 export function SettingsPermissionEvidenceCard({ summary }: { summary: MobilePermissionSummary }) {
-  const styles = useSettingsScreenStyles();
   const evidence = getMobilePermissionEvidence(summary, getSettingsEvidenceLabels());
 
   return (
@@ -2037,10 +2031,7 @@ export function ProfileSettingsScreen({
   voiceInputMode,
   onOpenWebRegister,
   onOpenWebSignIn,
-  onOpenCookies,
-  onOpenPrivacyPolicy,
   onOpenSupport,
-  onOpenTerms,
   onRefresh,
   onRefreshBootstrap,
   onRefreshVisibleData,
@@ -2075,10 +2066,7 @@ export function ProfileSettingsScreen({
   voiceInputMode: MobileVoiceInputMode;
   onOpenWebRegister(): void;
   onOpenWebSignIn(): void;
-  onOpenCookies(): void;
-  onOpenPrivacyPolicy(): void;
   onOpenSupport(): void;
-  onOpenTerms(): void;
   onRefresh(): void;
   onRefreshBootstrap(): void;
   onRefreshVisibleData(): void;
@@ -2241,8 +2229,6 @@ export function ProfileSettingsScreen({
         onSignOut={onSignOut}
         onUpdatePresence={onUpdatePresence}
         sessionDiagnostics={sessionDiagnostics}
-        signedInUserLabel={signedInUserLabel}
-        status={status}
         themeMode={themeMode}
       />
     );

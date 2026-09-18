@@ -7,9 +7,6 @@ import { mobileCopy } from "../../locale/mobile-copy";
 import { peekMobilePerformanceSamples } from "../../performance/mobile-performance-metrics";
 import {
   MOBILE_PERFORMANCE_SUMMARY_METRICS,
-  summarizeMobileChatContentClasses,
-  summarizeMobileChatOpenCohorts,
-  summarizeMobileChatOpenPhases,
   summarizeMobileChatOpenRoutes,
   summarizeMobileChatOpenSources,
   summarizeMobileChatOpenStages,
@@ -215,9 +212,6 @@ export function MobilePerformanceDiagnosticsScreen({
 
   const rows = summarizeMobilePerformanceSamples(samples);
   const chatOpenStages = summarizeMobileChatOpenStages(samples);
-  const chatOpenPhases = summarizeMobileChatOpenPhases(samples);
-  const chatOpenCohorts = summarizeMobileChatOpenCohorts(samples);
-  const chatContentClasses = summarizeMobileChatContentClasses(samples);
   const chatOpenRoutes = summarizeMobileChatOpenRoutes(samples);
   const chatOpenSources = summarizeMobileChatOpenSources(samples);
   const chatTransitions = summarizeMobileChatTransitions(samples);

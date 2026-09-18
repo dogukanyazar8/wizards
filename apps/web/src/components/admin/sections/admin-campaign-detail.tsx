@@ -9,6 +9,7 @@ import {
 } from "@/components/admin/kit/admin-primitives";
 import { formatAdminInt, formatAdminPercent } from "@/components/admin/format/admin-format";
 import type { AdminCampaignDetail } from "@/lib/admin/snapshots/campaigns";
+import { AdminCampaignActions } from "@/components/admin/admin-campaign-actions";
 
 const STATUS_LABEL: Record<string, string> = {
   CANCELLED: "İptal",
@@ -27,19 +28,50 @@ function formatDateTime(value: string | null) {
     : "—";
 }
 
-export function AdminCampaignDetailView({ campaign }: { campaign: AdminCampaignDetail }) {
+export function AdminCampaignDetailView({
+  campaign,
+  canApprove = false,
+  canSend = false,
+  currentAdminId,
+}: {
+  campaign: AdminCampaignDetail;
+  canApprove?: boolean;
+  canSend?: boolean;
+  currentAdminId?: string;
+}) {
   const { report } = campaign;
+  const showApprove =
+    canApprove &&
+    campaign.status === "PENDING_APPROVAL" &&
+    campaign.approvedAt === null &&
+    campaign.creator?.id !== currentAdminId;
+  const showSend =
+    canSend &&
+    (campaign.status === "DRAFT" ||
+      campaign.status === "FAILED" ||
+      (campaign.status === "PENDING_APPROVAL" && campaign.approvedAt !== null));
 
   return (
     <section className="space-y-5">
       <AdminPageHeader
         actions={
-          <Link
-            className="text-app-muted rounded-[12px] border border-[hsl(var(--border)/0.7)] px-3 py-[7px] text-[12.5px] font-semibold hover:bg-[var(--surface-hover)]"
-            href="/admin/notifications"
-          >
-            Kampanyalara dön
-          </Link>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {showApprove || showSend ? (
+              <AdminCampaignActions
+                campaignId={campaign.id}
+                canApprove={canApprove}
+                canSend={canSend}
+                showApprove={showApprove}
+                showSend={showSend}
+              />
+            ) : null}
+            <Link
+              className="text-app-muted rounded-[12px] border border-[hsl(var(--border)/0.7)] px-3 py-[7px] text-[12.5px] font-semibold hover:bg-[var(--surface-hover)]"
+              href="/admin/notifications"
+            >
+              Kampanyalara dön
+            </Link>
+          </div>
         }
         subtitle={STATUS_LABEL[campaign.status] ?? campaign.status}
         title={campaign.title}

@@ -1,6 +1,6 @@
 import { FlashList } from "@shopify/flash-list";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 
 import { Avatar, ContextMenu, EmptyState, Icon, Skeleton, useToast } from "../app/components/kit";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
@@ -504,7 +504,7 @@ export function FriendsHub({
   onBack?(): void;
   onSelectMode?(mode: Exclude<FriendsHubMode, "all">): void;
 }) {
-  const { apiClient, session, status } = useMobileAuth();
+  const { apiClient, status } = useMobileAuth();
   const { locale } = useMobileLocaleRuntime();
   const theme = useTheme();
   const styles = useFriendsHubStyles();

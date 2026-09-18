@@ -21,11 +21,9 @@ export function createMobileQueryClient(): QueryClient {
         gcTime: MOBILE_MEMORY_QUERY_GC_TIME_MS,
         refetchOnReconnect: true,
         /**
-         * A resume refreshes the screen the reader came back to, not the cache.
-         *
          * Focus-driven refetching marked every stale query with an observer, and
-         * the app comes back to a tree full of them. The provider invalidates the
-         * active chat, its server and bootstrap instead; see `mobile-resume-refresh`.
+         * the app comes back to a tree full of them. Missed realtime events are
+         * reconciled by the gap-backfill owner instead.
          */
         refetchOnWindowFocus: false,
         // One retry recovers transient blips without stacking exponential

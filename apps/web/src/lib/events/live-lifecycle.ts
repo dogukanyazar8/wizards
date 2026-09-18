@@ -8,9 +8,9 @@ import { SERVER_SCHEDULED_EVENT_JOIN_WINDOW_MS } from "@wizards/types";
  * `Canlı` sekmesi, ajanda rayındaki nokta ve gezinme panelindeki `--danger` işareti hep bu
  * kolonu okuyor. Bu modül onu yazan tek yer.
  *
- * Geçiş kaynağı **doluluk**tur, olay değil: bir katılma isteği kaybolsa bile bir sonraki
- * çağrı aynı sonucu üretir. Bütün geçişler `updateMany` + `where: { status: <önceki> }` ile
- * korunur, dolayısıyla yarışan iki katılım tek geçiş üretir ve ikinci çağrı 0 satır günceller.
+ * Geçiş kaynağı **doluluk**tur, olay değil. Voice üyelik yazılarıyla eşitleme aynı kanalın
+ * PostgreSQL advisory transaction lock'ını alır; böylece geç kalan bir ayrılma, yeni katılımı
+ * `COMPLETED` durumuyla ezemez. Durum filtresi de yinelenen yayınları engeller.
  */
 
 /** Katılma penceresi web ve mobilde tek sabittir; ikinci bir 15 dakika tanımlanmaz. */
@@ -26,8 +26,14 @@ export type EventLiveTransitionKind = "end" | "start";
 
 export type EventLiveTransition = {
   readonly eventId: string;
+  readonly isPublic: boolean;
   readonly serverId: string;
   readonly transition: EventLiveTransitionKind;
+};
+
+export type EventLivePublisher = {
+  publishEventLiveEnded(payload: { eventId: string; serverId: string }, isPublic?: boolean): void;
+  publishEventLiveStarted(payload: { eventId: string; serverId: string }, isPublic?: boolean): void;
 };
 
 export type EventLiveLifecycleClient = {
@@ -36,16 +42,18 @@ export type EventLiveLifecycleClient = {
       select: {
         entityType: true;
         id: true;
+        isPublic: true;
         scheduledEndAt: true;
         scheduledStartAt: true;
         serverId: true;
         status: true;
       };
-      where: { channelId: string; status: { in: readonly ScheduledEventStatus[] } };
+      where: { channelId: string; status: { in: ScheduledEventStatus[] } };
     }): Promise<
       readonly {
         readonly entityType: ScheduledEventEntityType;
         readonly id: string;
+        readonly isPublic: boolean;
         readonly scheduledEndAt: Date | null;
         readonly scheduledStartAt: Date;
         readonly serverId: string;
@@ -57,6 +65,14 @@ export type EventLiveLifecycleClient = {
   readonly voiceState: {
     count(args: { where: { channelId: string } }): Promise<number>;
   };
+};
+
+export type EventLiveLifecycleTransaction = EventLiveLifecycleClient & {
+  $queryRaw<T = unknown>(query: TemplateStringsArray, ...values: unknown[]): PromiseLike<T>;
+};
+
+export type EventLiveLifecycleDatabase = {
+  $transaction<T>(callback: (transaction: EventLiveLifecycleTransaction) => Promise<T>): Promise<T>;
 };
 
 export type EventLiveTransitionInput = {
@@ -89,7 +105,18 @@ export function resolveEventLiveTransition(
   const startMs = input.startsAt.getTime();
 
   if (input.status === "SCHEDULED") {
-    return input.occupancy > 0 && startMs - nowMs <= EVENT_LIVE_START_WINDOW_MS ? "start" : null;
+    if (input.occupancy === 0 || startMs - nowMs > EVENT_LIVE_START_WINDOW_MS) {
+      return null;
+    }
+
+    if (input.durationMinutes !== null) {
+      const expiresAtMs = startMs + input.durationMinutes * 60_000 + EVENT_LIVE_COMPLETE_GRACE_MS;
+      if (nowMs > expiresAtMs) {
+        return null;
+      }
+    }
+
+    return "start";
   }
 
   if (input.status !== "ACTIVE") {
@@ -118,11 +145,6 @@ const NEXT_STATUS: Readonly<Record<EventLiveTransitionKind, ScheduledEventStatus
   start: "ACTIVE",
 };
 
-const PREVIOUS_STATUS: Readonly<Record<EventLiveTransitionKind, ScheduledEventStatus>> = {
-  end: "ACTIVE",
-  start: "SCHEDULED",
-};
-
 function durationMinutesOf(startsAt: Date, endsAt: Date | null): number | null {
   return endsAt === null ? null : Math.round((endsAt.getTime() - startsAt.getTime()) / 60_000);
 }
@@ -130,13 +152,9 @@ function durationMinutesOf(startsAt: Date, endsAt: Date | null): number | null {
 /**
  * Bir sesli/sahne kanalının bütün etkinliklerini bugünkü durumuyla eşitler.
  *
- * Çağrı yeri sesli katılma ve ayrılma yollarıdır (`lib/voice/service.ts` →
- * `upsertVoiceState`, `clearVoiceState`, `detachUserFromVoiceSurface`). O dosya bu şeritte
- * **okunur, yazılmaz** olduğu için bağlama Ş4'e devrediliyor; modül ve sözleşmesi burada
- * hazır ve tek satırlık bir çağrıyla takılıyor.
- *
- * TODO(Ş4): `syncEventLiveStateForChannel` çağrısını sesli yaşam döngüsüne bağla ve dönen
- * geçişleri `event:live:started` / `event:live:ended` olarak yayınla.
+ * Sesli katılma, ayrılma ve zaman aşımı temizliği bu fonksiyonu doluluk değiştikten sonra
+ * çağırır. Böylece durum bir socket olayının teslimine değil, veritabanındaki gerçek doluluğa
+ * dayanır.
  */
 export async function syncEventLiveStateForChannel(
   client: EventLiveLifecycleClient,
@@ -146,12 +164,13 @@ export async function syncEventLiveStateForChannel(
     select: {
       entityType: true,
       id: true,
+      isPublic: true,
       scheduledEndAt: true,
       scheduledStartAt: true,
       serverId: true,
       status: true,
     },
-    where: { channelId: input.channelId, status: { in: LIVE_LIFECYCLE_STATUSES } },
+    where: { channelId: input.channelId, status: { in: [...LIVE_LIFECYCLE_STATUSES] } },
   });
 
   if (events.length === 0) {
@@ -175,17 +194,72 @@ export async function syncEventLiveStateForChannel(
       continue;
     }
 
-    // `where` önceki durumu taşıyor: iki eşzamanlı katılımın ikincisi 0 satır günceller ve
-    // olay iki kez yayılmaz.
+    // Durum ve doluluk aynı UPDATE snapshot'ında doğrulanır. Ayrı `count()` yalnızca geçiş
+    // kararını ucuzlatır; arada biri katılır/ayrılırsa ilişki filtresi eski kararı reddeder.
+    const occupancyGuard: Prisma.ScheduledEventWhereInput =
+      kind === "start"
+        ? { channel: { is: { voiceStates: { some: {} } } } }
+        : occupancy === 0
+          ? { channel: { is: { voiceStates: { none: {} } } } }
+          : {};
+
     const { count } = await client.scheduledEvent.updateMany({
       data: { status: NEXT_STATUS[kind] },
-      where: { id: event.id, status: PREVIOUS_STATUS[kind] },
+      where: { id: event.id, status: event.status, ...occupancyGuard },
     });
 
     if (count > 0) {
-      transitions.push({ eventId: event.id, serverId: event.serverId, transition: kind });
+      transitions.push({
+        eventId: event.id,
+        isPublic: event.isPublic,
+        serverId: event.serverId,
+        transition: kind,
+      });
     }
   }
+
+  return transitions;
+}
+
+/**
+ * Transaction-scoped and connection-local. A hash collision only serializes two unrelated
+ * channels; it cannot mix their data. The lock is released automatically on commit/rollback.
+ */
+export async function lockEventLiveChannel(
+  client: Pick<EventLiveLifecycleTransaction, "$queryRaw">,
+  channelId: string,
+): Promise<void> {
+  await client.$queryRaw`
+    SELECT 1 AS "locked"
+    FROM (SELECT pg_advisory_xact_lock(hashtextextended(${channelId}, 0))) AS channel_lock
+  `;
+}
+
+export function publishEventLiveTransitions(
+  transitions: readonly EventLiveTransition[],
+  publisher: EventLivePublisher,
+): void {
+  for (const { eventId, isPublic, serverId, transition } of transitions) {
+    const payload = { eventId, serverId };
+    if (transition === "start") {
+      publisher.publishEventLiveStarted(payload, isPublic);
+    } else {
+      publisher.publishEventLiveEnded(payload, isPublic);
+    }
+  }
+}
+
+export async function syncAndPublishEventLiveStateForChannel(
+  database: EventLiveLifecycleDatabase,
+  input: { readonly channelId: string; readonly now: Date },
+  publisher: EventLivePublisher,
+): Promise<EventLiveTransition[]> {
+  const transitions = await database.$transaction(async (transaction) => {
+    await lockEventLiveChannel(transaction, input.channelId);
+    return syncEventLiveStateForChannel(transaction, input);
+  });
+
+  publishEventLiveTransitions(transitions, publisher);
 
   return transitions;
 }

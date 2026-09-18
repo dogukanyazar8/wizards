@@ -142,10 +142,6 @@ jest.mock("../src/voice/use-mobile-voice-room", () => ({
   },
 }));
 
-jest.mock("../src/deep-link/use-mobile-deep-links", () => ({
-  useMobileDeepLinks: jest.fn(),
-}));
-
 import { MobileAppProviders } from "../src/app/providers/mobile-app-providers";
 import { useMobileDeepLinkRuntime } from "../src/app/providers/mobile-deep-link-provider";
 import { useMobileLocaleRuntime } from "../src/app/providers/mobile-locale-provider";

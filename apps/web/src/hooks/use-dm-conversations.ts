@@ -27,6 +27,8 @@ import {
   type MessagePages,
 } from "@/hooks/use-messages";
 import type { DMConversationsPageResponse } from "@/lib/dm/types";
+import { groupProfileQueryKeys } from "@/lib/dm/group-profile-client";
+import { dmProfileQueryKeys } from "@/lib/dm/profile-client";
 import { selectActiveConversationId } from "@/lib/messages/routes";
 import { useSocket } from "./use-socket";
 
@@ -151,10 +153,54 @@ export function useDMConversations(currentUserId: string, options: UseDMConversa
       }
     };
 
+    const handleHistoryCleared = (event: { conversationId: string }) => {
+      void queryClient.invalidateQueries({ queryKey: dmQueryKeys.list });
+      void queryClient.invalidateQueries({
+        queryKey: getMessagesQueryKey("dm", event.conversationId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: dmQueryKeys.conversation(event.conversationId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: groupProfileQueryKeys.panel(event.conversationId),
+      });
+    };
+
+    const handlePinsChanged = (event: { conversationId: string }) => {
+      void queryClient.invalidateQueries({
+        queryKey: groupProfileQueryKeys.panel(event.conversationId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: getMessagesQueryKey("dm", event.conversationId),
+      });
+    };
+
+    const handleMuteChanged = (event: { conversationId: string; muted: boolean }) => {
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
+        dmQueryKeys.list,
+        (current) =>
+          setDMConversationMutedInPageData(
+            current,
+            event.conversationId,
+            currentUserId,
+            event.muted,
+          ),
+      );
+      void queryClient.invalidateQueries({
+        queryKey: dmProfileQueryKeys.profile(event.conversationId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: groupProfileQueryKeys.panel(event.conversationId),
+      });
+    };
+
     socket.on("dm:conversation:updated", handleConversationUpdated);
     socket.on("dm:conversation:created", handleConversationCreated);
     socket.on("dm:conversation:members_changed", handleMembersChanged);
     socket.on("dm:conversation:removed", handleConversationRemoved);
+    socket.on("dm:conversation:history_cleared", handleHistoryCleared);
+    socket.on("dm:conversation:pins", handlePinsChanged);
+    socket.on("dm:conversation:mute", handleMuteChanged);
     socket.on("presence:update", handlePresenceUpdate);
 
     return () => {
@@ -162,6 +208,9 @@ export function useDMConversations(currentUserId: string, options: UseDMConversa
       socket.off("dm:conversation:created", handleConversationCreated);
       socket.off("dm:conversation:members_changed", handleMembersChanged);
       socket.off("dm:conversation:removed", handleConversationRemoved);
+      socket.off("dm:conversation:history_cleared", handleHistoryCleared);
+      socket.off("dm:conversation:pins", handlePinsChanged);
+      socket.off("dm:conversation:mute", handleMuteChanged);
       socket.off("presence:update", handlePresenceUpdate);
     };
   }, [activeConversationId, autoMarkActiveAsRead, currentUserId, queryClient, router, socket]);

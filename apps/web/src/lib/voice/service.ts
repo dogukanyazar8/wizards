@@ -11,6 +11,14 @@ import {
 } from "@/lib/analytics/service";
 import type { ClientAttribution } from "@/lib/analytics/client-attribution";
 import { broadcastVoiceRoomUpdateToFriends } from "@/lib/friends/service";
+import {
+  lockEventLiveChannel,
+  publishEventLiveTransitions,
+  syncAndPublishEventLiveStateForChannel,
+  syncEventLiveStateForChannel,
+  type EventLiveLifecycleTransaction,
+} from "@/lib/events/live-lifecycle";
+import { defaultEventRealtimePublisher } from "@/lib/events/realtime";
 import { isExplicitE2ETestMode } from "@/lib/e2e/mode";
 import {
   updateLiveKitScreenSharePermission,
@@ -83,6 +91,20 @@ export async function readVoiceScreenShareStreams(
 
 function getVoiceRoomName(channelId: string) {
   return `voice:${channelId}`;
+}
+
+async function reconcileEventLiveStateForChannel(channelId: string): Promise<void> {
+  try {
+    await syncAndPublishEventLiveStateForChannel(
+      prisma,
+      { channelId, now: new Date() },
+      defaultEventRealtimePublisher,
+    );
+  } catch (error) {
+    // Voice membership is already committed. Event projection failure must not
+    // turn a successful join/leave into a misleading client error.
+    logError("[voice] Event live-state reconciliation failed", error);
+  }
 }
 
 const VOICE_CLEANUP_DEBOUNCE_KEY = "voice:cleanup:last";
@@ -297,6 +319,15 @@ export async function runVoiceStateUpsertMutation(args: {
   };
 }
 
+export async function runLockedVoiceStateUpsertMutation(
+  args: Parameters<typeof runVoiceStateUpsertMutation>[0] & {
+    tx: VoiceStateUpsertTx & Pick<EventLiveLifecycleTransaction, "$queryRaw">;
+  },
+) {
+  await lockEventLiveChannel(args.tx, args.channel.id);
+  return runVoiceStateUpsertMutation(args);
+}
+
 export async function runVoiceStateClearMutation(args: {
   expectedSessionId?: string;
   userId: string;
@@ -440,14 +471,16 @@ async function handleDeletedStaleVoiceStates(staleStates: StaleVoiceStateRecord[
 
   await Promise.all(
     [...channelsToRefresh.values()].map((state) =>
-      emitVoiceStateUpdate({
-        action: "leave",
-        channelId: state.channelId,
-        serverId: state.serverId,
-        userId: state.userId,
-      }).catch((error) => {
-        logError("[voice] Stale voice cleanup emit failed", error);
-      }),
+      reconcileEventLiveStateForChannel(state.channelId).then(() =>
+        emitVoiceStateUpdate({
+          action: "leave",
+          channelId: state.channelId,
+          serverId: state.serverId,
+          userId: state.userId,
+        }).catch((error) => {
+          logError("[voice] Stale voice cleanup emit failed", error);
+        }),
+      ),
     ),
   );
 }
@@ -958,6 +991,7 @@ export async function upsertVoiceState(
   };
   let replacedState: ReplacedVoiceState | null = null;
   let shouldStartVoiceUsageSession = true;
+  let eventTransitions: Awaited<ReturnType<typeof syncEventLiveStateForChannel>> = [];
 
   try {
     acquiredLockKeys = await acquireVoiceJoinLocks(redis, lockSpecs, lockToken);
@@ -966,8 +1000,11 @@ export async function upsertVoiceState(
       await enforceVoiceRoomCapacity(channel.id, userId, channel.userLimit);
     }
 
-    const mutation = await prisma.$transaction((tx) =>
-      runVoiceStateUpsertMutation({
+    const mutation = await prisma.$transaction(async (tx) => {
+      // Membership creation and every event reconciliation share this transaction lock.
+      // A leave projection therefore cannot commit after this join without the join's
+      // own reconciliation observing and repairing that final status.
+      const mutation = await runLockedVoiceStateUpsertMutation({
         channel: {
           id: channel.id,
           serverId: channel.serverId!,
@@ -976,13 +1013,24 @@ export async function upsertVoiceState(
         now,
         tx,
         userId,
-      }),
-    );
+      });
+      const transitions = await syncEventLiveStateForChannel(tx, {
+        channelId: channel.id,
+        now,
+      });
+      return { ...mutation, transitions };
+    });
     replacedState = mutation.replacedState;
     shouldStartVoiceUsageSession = mutation.shouldStartVoiceUsageSession;
+    eventTransitions = mutation.transitions;
   } finally {
     await releaseVoiceJoinLocks(redis, acquiredLockKeys, lockToken);
   }
+
+  if (replacedState && replacedState.channelId !== channel.id) {
+    await reconcileEventLiveStateForChannel(replacedState.channelId);
+  }
+  publishEventLiveTransitions(eventTransitions, defaultEventRealtimePublisher);
 
   if (replacedState) {
     await endAllMediaUsageSessionsForVoiceSession(userId, replacedState.sessionId).catch(
@@ -1054,6 +1102,8 @@ export async function clearVoiceState(
   if (!existingState) {
     return null;
   }
+
+  await reconcileEventLiveStateForChannel(existingState.channelId);
 
   await endAllMediaUsageSessionsForVoiceSession(userId, existingState.sessionId).catch((error) => {
     logAnalyticsError("voice session end", error);

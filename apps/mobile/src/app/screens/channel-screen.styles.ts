@@ -13,8 +13,6 @@ const metrics = mobileMessagingMetrics;
  */
 export const createChannelScreenStyles = (theme: MobileTheme) => {
   const mobileRadii = theme.radii;
-  const mobileSizing = theme.sizing;
-
   return {
     channelScrollToBottomButton: {
       position: "absolute",

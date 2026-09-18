@@ -494,7 +494,6 @@ export function ChannelStackScreenContainer({
       key={`${serverId}:${channelId}`}
       {...screenProps}
       activeWorkspaceTextChannelId={channelId}
-      activeWorkspaceVoiceChannelId={null}
       canRenderChannelChat
       channelAnchorMessageId={anchorMessageId}
       channelFirstUnreadMessageId={routeState.firstUnreadMessageId}

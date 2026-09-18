@@ -3,49 +3,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { createMobileQueryClient } from "../src/query/mobile-query-client";
-import { mobileQueryKeys } from "../src/query/mobile-query-keys";
-import { selectMobileResumeRefreshKeys } from "../src/query/mobile-resume-refresh";
 import { MOBILE_WORKSPACE_STALE_TIME_MS } from "../src/query/mobile-workspace-query";
 
 describe("resume refresh", () => {
-  it("refreshes the channel the reader came back to, and its server", () => {
-    assert.deepEqual(
-      selectMobileResumeRefreshKeys({
-        channelId: "channel-1",
-        conversationId: null,
-        serverId: "server-1",
-      }),
-      [
-        mobileQueryKeys.bootstrap(),
-        mobileQueryKeys.workspace("server-1"),
-        mobileQueryKeys.channelMessages("channel-1"),
-      ],
-    );
-  });
-
-  it("refreshes the conversation the reader came back to", () => {
-    assert.deepEqual(
-      selectMobileResumeRefreshKeys({
-        channelId: null,
-        conversationId: "conversation-1",
-        serverId: null,
-      }),
-      [mobileQueryKeys.bootstrap(), mobileQueryKeys.dmMessages("conversation-1")],
-    );
-  });
-
-  it("still refreshes the root when no chat is open", () => {
-    // The unread counts are what the reader sees first on a resume into the tabs.
-    assert.deepEqual(
-      selectMobileResumeRefreshKeys({ channelId: null, conversationId: null, serverId: null }),
-      [mobileQueryKeys.bootstrap()],
-    );
-    assert.deepEqual(
-      selectMobileResumeRefreshKeys({ channelId: "", conversationId: "", serverId: "" }),
-      [mobileQueryKeys.bootstrap()],
-    );
-  });
-
   it("stops focus from refetching the whole cache by itself", () => {
     const defaults = createMobileQueryClient().getDefaultOptions().queries;
 

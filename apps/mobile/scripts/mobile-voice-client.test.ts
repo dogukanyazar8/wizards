@@ -81,7 +81,7 @@ describe("mobile voice client", () => {
 
   it("rejects ambiguous token targets before sending a request", async () => {
     const client: MobileApiClient = {
-      async requestJson<TResponse>() {
+      async requestJson() {
         throw new Error("request must not be sent");
       },
     };

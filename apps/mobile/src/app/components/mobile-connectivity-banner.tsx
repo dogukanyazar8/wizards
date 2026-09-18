@@ -143,8 +143,6 @@ const createStyles = (theme: MobileTheme) => ({
   actionPressed: { opacity: theme.layout.opacity.pressed },
 });
 
-type BannerStyles = ReturnType<typeof useThemedStyles<ReturnType<typeof createStyles>>>;
-
 function getPhaseTitle(phase: Exclude<MobileConnectivityPhase, "hidden">): string {
   switch (phase) {
     case "failed":

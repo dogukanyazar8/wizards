@@ -15,16 +15,10 @@ import {
   type MobileBootstrapViewState,
   type MobileChannelMessagesViewState,
   type MobileHomeQuickAction,
-  type MobileLocale,
   type MobileMediaRuntimeState,
   type MobileMessageSearchViewState,
-  type MobilePushToTalkPhase,
   type MobileSyncHealthSummary,
   type MobileTabId,
-  type MobileVoiceAudioOutputMode,
-  type MobileVoiceInputMode,
-  type MobileVoiceInviteSendState,
-  type MobileVoiceRoomState,
   type MobileWorkspaceChannelSummary,
   type MobileWorkspaceServerViewState,
 } from "../mobile-root-screen-shared";
@@ -60,11 +54,9 @@ export function OverviewScreen({
   channelPinnedMessages = [],
   canRenderChannelChat = false,
   isReactionMutationPending,
-  locale,
   mediaState,
   messageSearchState,
   activeWorkspaceTextChannelId,
-  activeWorkspaceVoiceChannelId,
   selectedWorkspaceChannelId,
   selectedWorkspaceServerId,
   syncHealth,
@@ -80,7 +72,6 @@ export function OverviewScreen({
   onRefreshVisibleData,
   onRefreshWorkspaceServer,
   onRequestDocumentPicker,
-  onRequestPhotoLibraryPicker,
   onChannelDraftChange,
   onSearchMessages,
   onSendChannelMessage,
@@ -105,11 +96,9 @@ export function OverviewScreen({
   /** Set only by the pushed ChannelChat route — see MobileWorkspaceBrowser. */
   canRenderChannelChat?: boolean;
   isReactionMutationPending: boolean;
-  locale: MobileLocale;
   mediaState: MobileMediaRuntimeState;
   messageSearchState: MobileMessageSearchViewState;
   activeWorkspaceTextChannelId: string | null;
-  activeWorkspaceVoiceChannelId: string | null;
   selectedWorkspaceChannelId: string | null;
   selectedWorkspaceServerId: string | null;
   syncHealth: MobileSyncHealthSummary;
@@ -125,7 +114,6 @@ export function OverviewScreen({
   onRefreshVisibleData(): void;
   onRefreshWorkspaceServer(): void;
   onRequestDocumentPicker(): Promise<void>;
-  onRequestPhotoLibraryPicker(): Promise<void>;
   onChannelDraftChange(content: string): void;
   onSearchMessages(input: {
     conversationId: string;
@@ -172,12 +160,10 @@ export function OverviewScreen({
           channelMessagesState={channelMessagesState}
           channelPinnedMessages={channelPinnedMessages}
           isReactionMutationPending={isReactionMutationPending}
-          locale={locale}
           mediaState={mediaState}
           messageSearchFeature={messageSearchFeature}
           messageSearchState={messageSearchState}
           activeWorkspaceTextChannelId={activeWorkspaceTextChannelId}
-          activeWorkspaceVoiceChannelId={activeWorkspaceVoiceChannelId}
           selectedChannelId={selectedWorkspaceChannelId}
           selectedServerId={selectedWorkspaceServerId}
           serverState={workspaceServerState}
@@ -190,7 +176,6 @@ export function OverviewScreen({
           onRefreshChannel={onRefreshChannelMessages}
           onRefreshServer={onRefreshWorkspaceServer}
           onRequestDocumentPicker={onRequestDocumentPicker}
-          onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
           onChannelDraftChange={onChannelDraftChange}
           onSearchMessages={onSearchMessages}
           onSendChannelMessage={onSendChannelMessage}

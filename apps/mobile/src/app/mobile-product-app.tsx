@@ -113,12 +113,10 @@ export function MobileProductApp({
   const voiceInputMode = useMobileVoiceRuntimeState((state) => state.voiceInputMode);
   const {
     activeWorkspaceTextChannelId,
-    activeWorkspaceVoiceChannelId,
     bootstrapState,
     channelFirstUnreadMessageId,
     channelMessagesState,
     channelPinnedMessages,
-    currentTab,
     directMessageUnreadCount,
     dmConversations,
     dmConversationsQuery,
@@ -140,7 +138,6 @@ export function MobileProductApp({
     handlePinMessage,
     handleCloseDMConversation,
     handleCloseWorkspaceChannel,
-    handleCloseWorkspaceVoiceChannel,
     handleLeaveWorkspaceVoiceChannel,
     handleOpenDMConversation,
     handleOpenVoiceInvite,
@@ -216,9 +213,7 @@ export function MobileProductApp({
         ? copy.authSignedIn
         : copy.authSignedOut;
   const signedInUserLabel = session ? (session.user.displayName ?? session.user.username) : null;
-  const { openCookies, openPrivacyPolicy, openSupport, openTerms } = useMobileProductLinks(
-    runtimeConfig.webUrl,
-  );
+  const { openSupport } = useMobileProductLinks(runtimeConfig.webUrl);
   const {
     acceptCall: handleAcceptDMCall,
     declineCall: handleDeclineDMCall,
@@ -326,13 +321,11 @@ export function MobileProductApp({
   const overviewScreenProps = useMemo<MobileOverviewScreenProps>(
     () => ({
       activeWorkspaceTextChannelId,
-      activeWorkspaceVoiceChannelId,
       bootstrapState,
       channelFirstUnreadMessageId,
       channelMessagesState,
       channelPinnedMessages,
       isReactionMutationPending: isChannelReactionPending || isChannelMessageActionPending,
-      locale: mobileLocale,
       mediaState,
       ...messageSearchProps,
       onChannelDraftChange: handleChannelDraftChange,
@@ -346,7 +339,6 @@ export function MobileProductApp({
       onRefreshVisibleData: refreshVisibleMobileData,
       onRefreshWorkspaceServer: refreshWorkspaceServer,
       onRequestDocumentPicker: handleRequestDocumentPicker,
-      onRequestPhotoLibraryPicker: handleRequestPhotoLibraryPicker,
       onSendChannelMessage: handleSendChannelMessage,
       onSendChannelGif: handleSendChannelGif,
       onDeleteMessage: handleDeleteChannelMessage,
@@ -363,14 +355,12 @@ export function MobileProductApp({
     }),
     [
       activeWorkspaceTextChannelId,
-      activeWorkspaceVoiceChannelId,
       bootstrapState,
       channelFirstUnreadMessageId,
       channelMessagesState,
       channelPinnedMessages,
       isChannelReactionPending,
       isChannelMessageActionPending,
-      mobileLocale,
       mediaState,
       messageSearchProps,
       handleChannelDraftChange,
@@ -384,7 +374,6 @@ export function MobileProductApp({
       refreshVisibleMobileData,
       refreshWorkspaceServer,
       handleRequestDocumentPicker,
-      handleRequestPhotoLibraryPicker,
       handleSendChannelMessage,
       handleSendChannelGif,
       handleDeleteChannelMessage,
@@ -413,8 +402,6 @@ export function MobileProductApp({
         onRefreshBootstrap: refreshBootstrap,
         onRefreshVisibleData: refreshVisibleMobileData,
         onRequestNotificationPermission: handleRequestNotificationPermission,
-        permissionReadiness,
-        permissionSummary,
         syncHealth: notificationsSyncHealth,
       }),
     [
@@ -424,8 +411,6 @@ export function MobileProductApp({
       refreshBootstrap,
       refreshVisibleMobileData,
       handleRequestNotificationPermission,
-      permissionReadiness,
-      permissionSummary,
       notificationsSyncHealth,
     ],
   );
@@ -437,10 +422,7 @@ export function MobileProductApp({
     error,
     locale: mobileLocale,
     mediaState,
-    onOpenCookies: openCookies,
-    onOpenPrivacyPolicy: openPrivacyPolicy,
     onOpenSupport: openSupport,
-    onOpenTerms: openTerms,
     onRefreshBootstrap: refreshBootstrap,
     onRefreshSession: refreshSessionFromStorage,
     onRefreshVisibleData: refreshVisibleMobileData,

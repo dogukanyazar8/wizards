@@ -23,6 +23,9 @@ export const MOBILE_REALTIME_SERVER_EVENTS = [
   "dm:conversation:created",
   "dm:conversation:members_changed",
   "dm:conversation:removed",
+  "dm:conversation:history_cleared",
+  "dm:conversation:pins",
+  "dm:conversation:mute",
   /**
    * Grup sohbetleri 2a–2f §B7. Six group events plus the purge and the call
    * roster. Every one is patch-only: `getMobileRealtimeRefreshSources` returns
@@ -47,6 +50,7 @@ export const MOBILE_REALTIME_SERVER_EVENTS = [
   "user:profile:updated",
   "typing:update",
   "notification:new",
+  "settings:updated",
   "voice:state:update",
   "voice:screenshare:update",
   "voice:screenshare:watchers:update",
@@ -150,6 +154,9 @@ const DM_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
   "dm:conversation:created",
   "dm:conversation:members_changed",
   "dm:conversation:removed",
+  "dm:conversation:history_cleared",
+  "dm:conversation:pins",
+  "dm:conversation:mute",
   "dm:message:new",
   "dm:message:updated",
   "dm:message:deleted",
@@ -229,6 +236,9 @@ function parseMobileDMCallSignal(payload: unknown): MobileValidatedRealtimePaylo
 }
 
 const MOBILE_REALTIME_PAYLOAD_PARSERS = {
+  "dm:conversation:history_cleared": (payload) => parseMobileConversationIdPayload(payload),
+  "dm:conversation:pins": (payload) => parseMobileConversationIdPayload(payload),
+  "dm:conversation:mute": (payload) => parseMobileConversationIdPayload(payload),
   "dm:call:incoming": (payload) => {
     const parsed = MobileDMCallIncomingEventSchema.safeParse(payload);
     return parsed.success
@@ -344,6 +354,10 @@ const MOBILE_REALTIME_PAYLOAD_PARSERS = {
       ? { channelId: null, payload: parsed.data, serverId: parsed.data.serverId }
       : null;
   },
+  "settings:updated": (payload) => {
+    const parsed = SettingsUpdatedEventSchema.safeParse(payload);
+    return parsed.success ? { channelId: null, payload: parsed.data, serverId: null } : null;
+  },
   "user:profile:updated": (payload) => {
     const parsed = MobileUserProfileUpdatedEventSchema.safeParse(payload);
     return parsed.success ? { channelId: null, payload: parsed.data, serverId: null } : null;
@@ -391,6 +405,11 @@ function getStringProperty(payload: unknown, key: string): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+function parseMobileConversationIdPayload(payload: unknown): MobileValidatedRealtimePayload | null {
+  const conversationId = getStringProperty(payload, "conversationId");
+  return conversationId ? { channelId: null, conversationId, payload, serverId: null } : null;
+}
+
 export function getMobileRealtimeRefreshSources(
   eventName: MobileRealtimeServerEventName,
 ): readonly MobileRealtimeRefreshSource[] {
@@ -401,6 +420,7 @@ export function getMobileRealtimeRefreshSources(
     eventName === "dm:call:cancelled" ||
     eventName === "dm:call:ended" ||
     eventName === "friends:voice:update" ||
+    eventName === "settings:updated" ||
     isMobileRealtimeGroupPatchEvent(eventName) ||
     eventName === "voice:audio-level:update" ||
     eventName === "voice:invite:accepted" ||
@@ -562,6 +582,7 @@ export function validateMobileRealtimeContract(): string[] {
       eventName === "dm:call:ended" ||
       eventName === "friends:voice:update" ||
       isMobileRealtimeGroupPatchEvent(eventName) ||
+      eventName === "settings:updated" ||
       eventName === "voice:audio-level:update" ||
       eventName === "voice:invite:accepted" ||
       eventName === "voice:invite:error" ||
@@ -621,6 +642,7 @@ import {
   MobileServerMembershipAddedEventSchema,
   MobileServerMembershipRemovedEventSchema,
   MobileServerSettingsUpdatedEventSchema,
+  SettingsUpdatedEventSchema,
   MobileUserProfileUpdatedEventSchema,
   MobileVoiceScreenShareUpdateEventSchema,
   MobileVoiceStateUpdateEventSchema,

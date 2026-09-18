@@ -144,7 +144,6 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   // `notifications/[id]/read` bu listeden **çıktı**: Ayarlar Ş2 §4 ile uç `{ read: boolean }`
   // gövdesi alıyor (çevirme kipi) ve iki metodu da `parseJsonBody`den geçiyor. Gövdesiz çağrı
   // hâlâ geçerli — boş gövde `{}` olarak okunup şemanın `.default(true)`una düşüyor.
-  "DELETE notifications/clear",
   "PATCH notifications/read-all",
   "DELETE servers/[serverId]/invites/[inviteId]",
   "DELETE servers/[serverId]/categories/[categoryId]",

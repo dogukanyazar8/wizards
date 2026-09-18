@@ -36,7 +36,6 @@ tauri-plugin-window-state = "2.4.1"
 tauri-plugin-autostart = "2.5.1"
 tauri-plugin-global-shortcut = "2.3.1"
 tauri-plugin-updater = "2.11.0"
-tauri-plugin-process = "2.3.1"
 
 # Backport upstream gtk-rs-core#1343 without changing the GTK3 ABI.
 # Provenance and removal criteria: vendor/glib/WHISPR-PATCH.md.

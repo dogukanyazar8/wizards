@@ -21,7 +21,6 @@ import {
 } from "../../design/mobile-appearance-preferences";
 import {
   MOBILE_MESSAGE_FONT_SIZES,
-  getMobileMessageBodyStyle,
   type MobileMessageFontSize,
 } from "../../design/mobile-message-typography";
 import { MobileLineIcon } from "../../design/mobile-line-icons";

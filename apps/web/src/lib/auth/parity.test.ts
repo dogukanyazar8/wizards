@@ -65,6 +65,22 @@ function readCssBlock(selector: string) {
   return GLOBALS_CSS.slice(start, end);
 }
 
+function readBalancedCssBlock(marker: string) {
+  const start = GLOBALS_CSS.indexOf(marker);
+  assert.notEqual(start, -1, `${marker} globals.css içinde yok.`);
+  const openingBrace = GLOBALS_CSS.indexOf("{", start);
+  assert.notEqual(openingBrace, -1, `${marker} bloğu açılamadı.`);
+
+  let depth = 0;
+  for (let index = openingBrace; index < GLOBALS_CSS.length; index += 1) {
+    if (GLOBALS_CSS[index] === "{") depth += 1;
+    if (GLOBALS_CSS[index] === "}") depth -= 1;
+    if (depth === 0) return GLOBALS_CSS.slice(start, index + 1);
+  }
+
+  assert.fail(`${marker} bloğu kapanmadı.`);
+}
+
 // --- renk yardımcıları: SPEC §12/6 kontrast ölçümü --------------------------
 
 function parseHslTriple(value: string): [number, number, number] {
@@ -177,12 +193,7 @@ describe("auth parity gate — SPEC §12", () => {
       [...AUTH_METRICS.logo.barHeights],
     );
 
-    const keyframeStart = GLOBALS_CSS.indexOf("@keyframes auth-equalizer");
-    assert.notEqual(keyframeStart, -1, "auth-equalizer kareleri yok.");
-    const logoBlock = GLOBALS_CSS.slice(
-      keyframeStart,
-      GLOBALS_CSS.indexOf("@keyframes", keyframeStart + 10),
-    );
+    const logoBlock = readBalancedCssBlock("@keyframes auth-equalizer");
 
     assert.match(logoBlock, /scaleY\(/);
     // Yükseklik animasyonu düzeni her karede yeniden kurar; SPEC yalnız `scale()` istiyor.

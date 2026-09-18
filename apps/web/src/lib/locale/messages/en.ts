@@ -553,8 +553,6 @@ export const EN_MESSAGES = {
   "dm.group.nameLabel": "Group name",
   "dm.group.namePlaceholder": "Group name (optional)",
   "dm.group.nameHint": "Leave it blank and the title uses the members' names",
-  "dm.group.photoAction": "Add a group photo",
-  "dm.group.photoClearAction": "Remove the group photo",
   "dm.group.addMembersHint": "Pick a friend to add",
   "dm.group.noCandidates": "No friends left to add",
   "dm.group.nextAction": "Next",
@@ -1630,13 +1628,6 @@ export const EN_MESSAGES = {
 
   "auth.reauthEmail.title": "Confirm account deletion",
 
-  "settings.account.badges.title": "My badges",
-  "settings.account.badges.description":
-    "The badges you have earned, and how far along the locked ones are.",
-  "settings.account.badges.summary": "{earned}/{total}",
-  "settings.account.badges.earned": "Earned",
-  "settings.account.badges.locked": "Not earned yet",
-  "settings.account.badges.empty": "You have no badges yet.",
   "settings.account.badges.family.identity": "Identity",
   "settings.account.badges.family.contribution": "Contribution",
   "settings.account.badges.family.activity": "Activity",
@@ -1672,44 +1663,6 @@ export const EN_MESSAGES = {
   "settings.account.twoFactor.manualKey": "Manual setup key",
   "settings.account.twoFactor.passwordPlaceholder": "Current password",
   "settings.account.twoFactor.qrAlt": "Two-factor authenticator QR code",
-  "settings.account.security.sessions.title": "Active sessions & devices",
-  "settings.account.security.sessions.description":
-    "See signed-in devices and revoke sessions from a dedicated device center.",
-  "settings.account.security.sessions.loading": "Loading active sessions…",
-  "settings.account.security.sessions.error": "Active sessions could not be loaded.",
-  "settings.account.security.sessions.empty": "No active session record is available yet.",
-  "settings.account.security.sessions.refresh": "Refresh active sessions",
-  "settings.account.security.sessions.current": "This device",
-  "settings.account.security.sessions.unknown": "Device details unavailable",
-  "settings.account.security.sessions.lastSeen": "Last active: {date}",
-  "settings.account.security.sessions.revoke": "Sign out",
-  "settings.account.security.sessions.revokeOthers": "Sign out all other sessions",
-  "settings.account.security.sessions.confirmOne": "Sign out this device?",
-  "settings.account.security.sessions.confirmCurrent": "This will sign out the current device.",
-  "settings.account.security.sessions.confirmOthers": "Sign out {count} other sessions?",
-  "settings.account.security.sessions.client.WEB": "Web browser",
-  "settings.account.security.sessions.client.DESKTOP": "Whispr Desktop",
-  "settings.account.security.sessions.client.MOBILE": "Whispr Mobile",
-  "settings.account.security.sessions.client.UNKNOWN": "Unknown client",
-  "settings.account.data.export.title": "Download your data",
-  "settings.account.data.export.description":
-    "Create a private JSON copy of your profile, settings, relationships, messages, and activity.",
-  "settings.account.data.export.action": "Download data",
-  "settings.account.data.export.downloading": "Preparing download...",
-  "settings.account.data.export.success": "Your download is ready.",
-  "settings.account.data.export.error": "The export could not be downloaded. Try again.",
-  "settings.account.data.export.openBrowser": "Open settings in browser",
-  "settings.account.data.delete.title": "Delete account",
-  "settings.account.data.delete.description":
-    "Permanently anonymize your account and remove private account data.",
-  "settings.account.data.delete.open": "Review account deletion",
-  "settings.account.data.delete.dialogTitle": "Permanently delete your account?",
-  "settings.account.data.delete.consequences":
-    "Your identity, settings, memberships, sessions, uploads, and private account data will be removed. This cannot be undone.",
-  "settings.account.data.delete.blocked": "Transfer or delete these owned servers first:",
-  "settings.account.data.delete.password": "Current password",
-  "settings.account.data.delete.emailReauth":
-    "This account uses provider sign-in. We will email a short-lived confirmation link.",
   "settings.account.data.delete.reauth": "Verify identity",
   "settings.account.data.delete.reauthReady":
     "Identity verified. Complete the exact confirmation below.",
@@ -1719,13 +1672,6 @@ export const EN_MESSAGES = {
   "settings.account.data.delete.reauthChecking": "Confirming your email link...",
   "settings.account.data.delete.return": "Return to settings",
   "settings.account.data.delete.preflightError": "Account deletion details could not be loaded.",
-  "settings.account.data.delete.confirmation": "Type {phrase} exactly",
-  "settings.account.data.delete.action": "Continue to final confirmation",
-  "settings.account.data.delete.finalTitle": "Final confirmation",
-  "settings.account.data.delete.finalDescription":
-    "Deletion starts immediately and cannot be undone.",
-  "settings.account.data.delete.finalAction": "Delete my account",
-  "settings.account.data.delete.deleting": "Deleting account...",
   "settings.account.data.delete.error":
     "Account deletion failed. No success was recorded. Try again.",
   "settings.account.avatar.uploadsDisabled":

@@ -114,7 +114,6 @@ export function MobileChannelChatScreen({
   onPinMessage,
   onRefresh,
   onRequestDocumentPicker,
-  onRequestPhotoLibraryPicker,
   onSearchMessages,
   onSendMessage,
   onSendGif,
@@ -164,7 +163,6 @@ export function MobileChannelChatScreen({
   onPinMessage?(messageId: string, shouldPin: boolean): Promise<boolean>;
   onRefresh(): void;
   onRequestDocumentPicker(): Promise<void>;
-  onRequestPhotoLibraryPicker(): Promise<void>;
   onSearchMessages(input: {
     conversationId: string;
     query: string;

@@ -38,7 +38,6 @@ fn main() {
         "promote_desktop_main_window",
         "publish_desktop_game_overlay_snapshot",
         "publish_desktop_voice_mini_snapshot",
-        "record_desktop_update_failure",
         "refresh_desktop_companion_surfaces",
         "request_desktop_media_permission",
         "resolve_desktop_media_permission",

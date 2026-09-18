@@ -17,9 +17,8 @@ import {
   AuthSocialProviderIcon,
   AuthTextField,
 } from "../../components/kit/auth";
-import { Icon } from "../../components/kit/icon";
 import { useMobileLocaleRuntime } from "../../providers/mobile-locale-provider";
-import { useTheme, useThemedStyles } from "../../providers/mobile-theme-provider";
+import { useThemedStyles } from "../../providers/mobile-theme-provider";
 import { createAuthLoginScreenStyles } from "./auth-login-screen.styles";
 
 const MOBILE_AUTH_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -59,7 +58,6 @@ export function AuthLoginScreen({
   onSignIn,
   onSocialSignIn,
 }: AuthLoginScreenProps) {
-  const theme = useTheme();
   const { locale } = useMobileLocaleRuntime();
   const styles = useThemedStyles(createAuthLoginScreenStyles);
   const copy = mobileCopy[locale];

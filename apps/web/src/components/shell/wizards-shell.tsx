@@ -5,7 +5,12 @@ import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { ArrowLeft, Link, LogOut, Settings2, UserPlus, Users } from "lucide-react";
 import React, { type CSSProperties } from "react";
 import { useEffect, useMemo, useSyncExternalStore } from "react";
-import type { WorkspaceServerDetail, WorkspaceServerSummary } from "@wizards/types";
+import type {
+  NotificationPrefs,
+  SettingsUpdatedEvent,
+  WorkspaceServerDetail,
+  WorkspaceServerSummary,
+} from "@wizards/types";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Button } from "@wizards/ui";
 import { useShallow } from "zustand/react/shallow";
@@ -62,6 +67,7 @@ import {
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
 import { fetchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
+import { notificationPrefsQueryKeys } from "@/lib/settings/notification-prefs-client";
 import { dmQueryKeys, type DMConversationsInfiniteData } from "@/lib/dm/client";
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import { HOME_METRICS, pxToRem } from "@/lib/home/metrics";
@@ -1042,6 +1048,23 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       });
     };
 
+    const handleSettingsUpdated = (event: SettingsUpdatedEvent) => {
+      if (
+        event.scope !== "notifications" ||
+        event.patch === null ||
+        typeof event.patch !== "object" ||
+        Array.isArray(event.patch)
+      ) {
+        return;
+      }
+
+      queryClient.setQueryData<NotificationPrefs | undefined>(
+        notificationPrefsQueryKeys.root,
+        (current) =>
+          current ? { ...current, ...(event.patch as Partial<NotificationPrefs>) } : current,
+      );
+    };
+
     socket.on("server:unread:update", handleServerUnreadUpdate);
     socket.on("channel:messages:stale", handleChannelMessagesStale);
     socket.on("server:membership:added", handleServerMembershipAdded);
@@ -1049,6 +1072,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     socket.on("notification:new", handleNotificationNew);
     socket.on("presence:update", handlePresenceUpdate);
     socket.on("user:profile:updated", applyUserProfileUpdate);
+    socket.on("settings:updated", handleSettingsUpdated);
     window.addEventListener("whispr:account-updated", handleAccountUpdated);
     return () => {
       socket.off("server:unread:update", handleServerUnreadUpdate);
@@ -1058,6 +1082,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       socket.off("notification:new", handleNotificationNew);
       socket.off("presence:update", handlePresenceUpdate);
       socket.off("user:profile:updated", applyUserProfileUpdate);
+      socket.off("settings:updated", handleSettingsUpdated);
       window.removeEventListener("whispr:account-updated", handleAccountUpdated);
     };
   }, [

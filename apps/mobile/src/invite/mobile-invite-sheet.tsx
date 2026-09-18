@@ -17,7 +17,6 @@ import { BottomSheet, Skeleton, useSheetPresentation, useToast } from "../app/co
 import { AvatarMark } from "../app/components/ui-atoms";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
-import { MobileLineIcon } from "../design/mobile-line-icons";
 import { mobileCopy } from "../locale/mobile-copy";
 import { useMobileServerManagementMutations } from "../query/use-mobile-server-management-mutations";
 import { useMobileUserSearchQuery } from "../social/mobile-social-query";
@@ -339,8 +338,6 @@ export function MobileInviteSheet({
   );
 
   const now = Date.now();
-  const metaLabels = buildMetaLabels(labels);
-
   return (
     <>
       <BottomSheet

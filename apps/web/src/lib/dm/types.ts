@@ -12,8 +12,6 @@ import {
 } from "@wizards/types";
 import { z } from "zod";
 
-export type DMErrorCode = "NOT_FRIENDS" | "BLOCKED" | "NOT_FOUND";
-
 export interface DMMessagesResponse {
   messages: DMMessagePayload[];
   nextCursor: string | null;

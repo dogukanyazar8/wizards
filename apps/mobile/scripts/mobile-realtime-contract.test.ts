@@ -19,9 +19,13 @@ describe("mobile realtime contract", () => {
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("message:new"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("dm:message:new"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("dm:conversation:read"));
+    assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("dm:conversation:history_cleared"));
+    assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("dm:conversation:pins"));
+    assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("dm:conversation:mute"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("presence:update"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("friends:updated"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("user:profile:updated"));
+    assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("settings:updated"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("voice:state:update"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("voice:invite:received"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("voice:invite:sent"));
@@ -35,6 +39,10 @@ describe("mobile realtime contract", () => {
     assert.deepEqual(getMobileRealtimeRefreshSources("dm:conversation:updated"), ["dm"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("dm:conversation:read"), ["dm"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("dm:conversation:delivered"), ["dm"]);
+    assert.deepEqual(getMobileRealtimeRefreshSources("dm:conversation:history_cleared"), ["dm"]);
+    assert.deepEqual(getMobileRealtimeRefreshSources("dm:conversation:pins"), ["dm"]);
+    assert.deepEqual(getMobileRealtimeRefreshSources("dm:conversation:mute"), ["dm"]);
+    assert.deepEqual(getMobileRealtimeRefreshSources("settings:updated"), []);
     assert.deepEqual(getMobileRealtimeRefreshSources("voice:state:update"), ["workspace"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("voice:audio-level:update"), []);
     assert.deepEqual(getMobileRealtimeRefreshSources("voice:invite:received"), []);
@@ -95,6 +103,23 @@ describe("mobile realtime contract", () => {
   });
 
   it("retains only schema-validated server management and social payloads", () => {
+    const historyCleared = createMobileRealtimeEventEnvelope(
+      "dm:conversation:history_cleared",
+      { clearedAt: "2026-09-18T08:00:00.000Z", conversationId: "conversation-1" },
+      2_050,
+    );
+    assert.equal(historyCleared.conversationId, "conversation-1");
+
+    const settings = createMobileRealtimeEventEnvelope(
+      "settings:updated",
+      { patch: { mentions: false }, scope: "notifications" },
+      2_075,
+    );
+    assert.deepEqual(settings.payload, {
+      patch: { mentions: false },
+      scope: "notifications",
+    });
+
     const membership = createMobileRealtimeEventEnvelope(
       "server:membership:removed",
       { reason: "kicked", serverId: "server-1" },

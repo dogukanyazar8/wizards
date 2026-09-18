@@ -65,7 +65,6 @@ import {
 import {
   applyMobileMentionSelection,
   filterMobileMentionCandidates,
-  resolveMobileCaretAfterChange,
   resolveMobileMentionQuery,
   type MobileMentionCandidate,
 } from "../mobile-mention";

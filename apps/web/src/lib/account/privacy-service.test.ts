@@ -305,6 +305,7 @@ describe("account privacy service", { concurrency: false }, () => {
               id: "user-1",
               ownedServers: [],
               serverMembers: [{ serverId: "server-surviving" }],
+              voiceState: { channelId: "voice-1" },
             };
           },
         },
@@ -313,6 +314,9 @@ describe("account privacy service", { concurrency: false }, () => {
         operations.push("storage.delete");
       },
       now: () => now,
+      async reconcileEventLiveState(channelId: string) {
+        operations.push(`event.reconcile:${channelId}`);
+      },
       async revokeSessions() {
         operations.push("sessions.revoke");
       },
@@ -325,6 +329,13 @@ describe("account privacy service", { concurrency: false }, () => {
       assert.ok(operations.indexOf("storage.collect") < operations.indexOf("transaction.begin"));
       assert.ok(operations.indexOf("outbox.upsert") < operations.indexOf("transaction.commit"));
       assert.ok(operations.indexOf("transaction.commit") < operations.indexOf("storage.delete"));
+      assert.ok(
+        operations.indexOf("transaction.commit") < operations.indexOf("event.reconcile:voice-1"),
+      );
+      assert.equal(
+        operations.filter((operation) => operation === "event.reconcile:voice-1").length,
+        1,
+      );
       assert.ok(
         operations.indexOf("mobilePushToken.deleteMany") < operations.indexOf("transaction.commit"),
       );
@@ -389,6 +400,7 @@ describe("account privacy service", { concurrency: false }, () => {
               id: "user-1",
               ownedServers: [],
               serverMembers: [],
+              voiceState: null,
             }),
           },
         },

@@ -554,6 +554,46 @@ describe("mobile realtime query bridge", () => {
     assert.equal(queryClient.getQueryState(streamKey)?.isInvalidated, false);
   });
 
+  it("invalidates conversation metadata and media after a remote history clear", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const keys = [
+      mobileQueryKeys.groupDetails("conversation-1"),
+      mobileQueryKeys.dmDetails("conversation-1"),
+      mobileQueryKeys.dmAttachments("conversation-1", "media"),
+    ] as const;
+    keys.forEach((key) => queryClient.setQueryData(key, { ready: true }));
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("dm:conversation:history_cleared", {
+        clearedAt: "2026-09-18T08:00:00.000Z",
+        conversationId: "conversation-1",
+      }),
+    );
+
+    keys.forEach((key) => assert.equal(queryClient.getQueryState(key)?.isInvalidated, true));
+    queryClient.clear();
+  });
+
+  it("invalidates both mobile settings reads after a notification preference update", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const keys = [mobileQueryKeys.accountPreferences(), mobileQueryKeys.accountSettings()] as const;
+    keys.forEach((key) => queryClient.setQueryData(key, { ready: true }));
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("settings:updated", {
+        patch: { mentions: false },
+        scope: "notifications",
+      }),
+    );
+
+    keys.forEach((key) => assert.equal(queryClient.getQueryState(key)?.isInvalidated, true));
+    queryClient.clear();
+  });
+
   it("patches a complete conversation update into the paginated inbox", () => {
     const queryClient = new QueryClient();
     const fake = createFakeScheduler();

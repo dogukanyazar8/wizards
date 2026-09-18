@@ -95,7 +95,6 @@ const createStyles = (theme: ReturnType<typeof useTheme>) => ({
 
 export function AuthBackupCodeScreen({ onBackToSignIn, onSubmit }: AuthBackupCodeScreenProps) {
   const styles = useThemedStyles(createStyles);
-  const theme = useTheme();
   const { locale } = useMobileLocaleRuntime();
   const copy = mobileCopy[locale];
   const [value, setValue] = useState("");

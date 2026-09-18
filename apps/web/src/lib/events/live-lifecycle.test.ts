@@ -4,8 +4,11 @@ import { describe, it } from "node:test";
 import {
   EVENT_LIVE_COMPLETE_GRACE_MS,
   resolveEventLiveTransition,
+  syncAndPublishEventLiveStateForChannel,
   syncEventLiveStateForChannel,
   type EventLiveLifecycleClient,
+  type EventLiveLifecycleDatabase,
+  type EventLiveLifecycleTransaction,
   type EventLiveTransition,
 } from "./live-lifecycle";
 
@@ -19,6 +22,7 @@ function row(overrides: Record<string, unknown> = {}) {
     id: "evt-1",
     scheduledEndAt: null,
     scheduledStartAt: START,
+    isPublic: false,
     serverId: "srv-1",
     status: "SCHEDULED" as const,
     ...overrides,
@@ -48,6 +52,28 @@ function client(
   return { lifecycle, updates };
 }
 
+function transactionalDatabase(
+  lifecycle: EventLiveLifecycleClient,
+  trace: string[] = [],
+): EventLiveLifecycleDatabase {
+  return {
+    $transaction: async <T>(
+      callback: (transaction: EventLiveLifecycleTransaction) => Promise<T>,
+    ): Promise<T> => {
+      trace.push("transaction:begin");
+      const result = await callback({
+        ...lifecycle,
+        $queryRaw: <R>() => {
+          trace.push("channel:lock");
+          return Promise.resolve(undefined as R);
+        },
+      });
+      trace.push("transaction:commit");
+      return result;
+    },
+  };
+}
+
 describe("events live-lifecycle — SCHEDULED ↔ ACTIVE ↔ COMPLETED", () => {
   describe("resolveEventLiveTransition (saf)", () => {
     it("pencere içinde ve kanal doluyken başlatır", () => {
@@ -61,6 +87,20 @@ describe("events live-lifecycle — SCHEDULED ↔ ACTIVE ↔ COMPLETED", () => {
           status: "SCHEDULED",
         }),
         "start",
+      );
+    });
+
+    it("kilit yarışına bağlı olmayan COMPLETED etkinliği terminal tutar", () => {
+      assert.equal(
+        resolveEventLiveTransition({
+          durationMinutes: null,
+          entityType: "VOICE",
+          occupancy: 3,
+          now: new Date(START.getTime() + 17 * 24 * 60 * 60_000),
+          startsAt: START,
+          status: "COMPLETED",
+        }),
+        null,
       );
     });
 
@@ -99,6 +139,20 @@ describe("events live-lifecycle — SCHEDULED ↔ ACTIVE ↔ COMPLETED", () => {
           entityType: "VOICE",
           occupancy: 0,
           now: START,
+          startsAt: START,
+          status: "SCHEDULED",
+        }),
+        null,
+      );
+    });
+
+    it("süresi ve payı geçmiş SCHEDULED etkinliği sonradan başlatmaz", () => {
+      assert.equal(
+        resolveEventLiveTransition({
+          durationMinutes: 45,
+          entityType: "VOICE",
+          occupancy: 1,
+          now: new Date(START.getTime() + 45 * 60_000 + EVENT_LIVE_COMPLETE_GRACE_MS + 1),
           startsAt: START,
           status: "SCHEDULED",
         }),
@@ -176,20 +230,18 @@ describe("events live-lifecycle — SCHEDULED ↔ ACTIVE ↔ COMPLETED", () => {
       );
     });
 
-    it("COMPLETED ve CANCELLED hiçbir geçiş üretmez", () => {
-      for (const status of ["COMPLETED", "CANCELLED"] as const) {
-        assert.equal(
-          resolveEventLiveTransition({
-            durationMinutes: 45,
-            entityType: "VOICE",
-            occupancy: 3,
-            now: START,
-            startsAt: START,
-            status,
-          }),
-          null,
-        );
-      }
+    it("CANCELLED etkinlik hiçbir geçiş üretmez", () => {
+      assert.equal(
+        resolveEventLiveTransition({
+          durationMinutes: 45,
+          entityType: "VOICE",
+          occupancy: 3,
+          now: START,
+          startsAt: START,
+          status: "CANCELLED",
+        }),
+        null,
+      );
     });
   });
 
@@ -203,11 +255,20 @@ describe("events live-lifecycle — SCHEDULED ↔ ACTIVE ↔ COMPLETED", () => {
       });
 
       assert.deepEqual(transitions, [
-        { eventId: "evt-1", serverId: "srv-1", transition: "start" } satisfies EventLiveTransition,
+        {
+          eventId: "evt-1",
+          isPublic: false,
+          serverId: "srv-1",
+          transition: "start",
+        } satisfies EventLiveTransition,
       ]);
       assert.deepEqual(updates[0]?.data, { status: "ACTIVE" });
       // Idempotent: `where` önceki durumu taşır, yarışan iki katılım tek geçiş üretir.
-      assert.deepEqual(updates[0]?.where, { id: "evt-1", status: "SCHEDULED" });
+      assert.deepEqual(updates[0]?.where, {
+        channel: { is: { voiceStates: { some: {} } } },
+        id: "evt-1",
+        status: "SCHEDULED",
+      });
     });
 
     it("yarışan ikinci geçiş 0 satır günceller ve olay yayılmaz", async () => {
@@ -230,9 +291,86 @@ describe("events live-lifecycle — SCHEDULED ↔ ACTIVE ↔ COMPLETED", () => {
         now: new Date(START.getTime() + 60_000),
       });
 
-      assert.deepEqual(transitions, [{ eventId: "evt-1", serverId: "srv-1", transition: "end" }]);
+      assert.deepEqual(transitions, [
+        { eventId: "evt-1", isPublic: false, serverId: "srv-1", transition: "end" },
+      ]);
       assert.deepEqual(updates[0]?.data, { status: "COMPLETED" });
-      assert.deepEqual(updates[0]?.where, { id: "evt-1", status: "ACTIVE" });
+      assert.deepEqual(updates[0]?.where, {
+        channel: { is: { voiceStates: { none: {} } } },
+        id: "evt-1",
+        status: "ACTIVE",
+      });
+    });
+
+    it("doluluk okumasından sonra biri katılırsa ACTIVE etkinliği bitirmez", async () => {
+      const updates: Recorded[] = [];
+      const lifecycle: EventLiveLifecycleClient = {
+        scheduledEvent: {
+          findMany: () => Promise.resolve([row({ status: "ACTIVE" })]),
+          updateMany: (args) => {
+            updates.push({ data: args.data, where: args.where });
+
+            // `count()` boş döndükten sonra eşzamanlı bir katılım commit oldu. Gerçek DB'de
+            // ilişki filtresi aynı UPDATE snapshot'ında bu satırı artık eşleştirmemeli.
+            const relation = args.where?.channel;
+            const guardedByCurrentOccupancy =
+              typeof relation === "object" &&
+              relation !== null &&
+              "is" in relation &&
+              relation.is !== null &&
+              typeof relation.is === "object" &&
+              "voiceStates" in relation.is;
+
+            return Promise.resolve({ count: guardedByCurrentOccupancy ? 0 : 1 });
+          },
+        },
+        voiceState: {
+          count: () => Promise.resolve(0),
+        },
+      };
+
+      const transitions = await syncEventLiveStateForChannel(lifecycle, {
+        channelId: CHANNEL_ID,
+        now: new Date(START.getTime() + 60_000),
+      });
+
+      assert.deepEqual(transitions, []);
+      assert.equal(updates.length, 1);
+    });
+
+    it("geçişi sunucu ve public odalarına doğru görünürlükle yayınlar", async () => {
+      const { lifecycle } = client([row({ isPublic: true })], { occupancy: 1 });
+      const published: unknown[] = [];
+      const trace: string[] = [];
+
+      await syncAndPublishEventLiveStateForChannel(
+        transactionalDatabase(lifecycle, trace),
+        { channelId: CHANNEL_ID, now: START },
+        {
+          publishEventLiveEnded: (payload, isPublic) => {
+            trace.push("publish");
+            published.push({ event: "ended", isPublic, payload });
+          },
+          publishEventLiveStarted: (payload, isPublic) => {
+            trace.push("publish");
+            published.push({ event: "started", isPublic, payload });
+          },
+        },
+      );
+
+      assert.deepEqual(published, [
+        {
+          event: "started",
+          isPublic: true,
+          payload: { eventId: "evt-1", serverId: "srv-1" },
+        },
+      ]);
+      assert.deepEqual(trace, [
+        "transaction:begin",
+        "channel:lock",
+        "transaction:commit",
+        "publish",
+      ]);
     });
 
     it("geçiş gerekmiyorsa hiç yazmaz", async () => {

@@ -33,6 +33,10 @@ graphify-out/cache/
 
 # Graphify dated backup snapshots are local and reproducible; keep only current outputs tracked.
 /graphify-out/20??-??-??/
+/apps/mobile/graphify-out/
+
+# Browser-test screenshots are generated evidence, not source.
+/output/playwright/
 
 # TypeScript incremental build output
 *.tsbuildinfo

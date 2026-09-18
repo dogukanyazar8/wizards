@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { View } from "react-native";
-import { copy, getMobileConversationTitle, useState } from "../mobile-root-screen-shared";
+import { copy, useState } from "../mobile-root-screen-shared";
 import { BootstrapStateNotice, MobileSyncHealthBanner } from "../components/ui-atoms";
 import { useDmScreenStyles } from "./dm-screen.styles";
 import { DMConversationBootSkeleton } from "./dm-conversation-screen";

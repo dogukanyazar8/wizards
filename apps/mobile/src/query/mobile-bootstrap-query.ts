@@ -22,12 +22,3 @@ export function getMobileBootstrapQueryOptions(client: MobileApiClient, enabled 
 export function useMobileBootstrapQuery(client: MobileApiClient, enabled = true) {
   return useQuery(getMobileBootstrapQueryOptions(client, enabled));
 }
-
-export function useMobileDMConversationsQuery(client: MobileApiClient, enabled = true) {
-  const query = useMobileBootstrapQuery(client, enabled);
-
-  return {
-    ...query,
-    data: query.data?.home.directMessages ?? null,
-  };
-}

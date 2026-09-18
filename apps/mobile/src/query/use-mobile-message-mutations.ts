@@ -115,8 +115,6 @@ type MobileOptimisticMutationOptions<
   TVariables,
   TResponse,
   TMessage extends MobileSendableCacheMessage,
-  TPage extends MobileMessagePage<TMessage>,
-  TPageParam,
 > = {
   readonly createOptimisticMessage: (variables: TVariables, clientId: string) => TMessage;
   readonly getResponseMessage: (response: TResponse) => TMessage;
@@ -143,12 +141,7 @@ type MobileReactionMessage = {
   readonly reactions: readonly MessageReaction[];
 };
 
-type MobileOptimisticReactionMutationOptions<
-  TResponse,
-  TMessage extends MobileReactionMessage,
-  TPage extends MobileMessagePage<TMessage>,
-  TPageParam,
-> = {
+type MobileOptimisticReactionMutationOptions<TResponse> = {
   readonly getUserId: () => string;
   readonly getResponseReactions: (response: TResponse) => readonly MessageReaction[];
   readonly mutationFn: MutationFunction<TResponse, MobileMessageReactionMutationVariables>;
@@ -178,8 +171,6 @@ type MobileOptimisticEditMutationOptions<
     readonly editedAt?: string | null;
     readonly id: string;
   },
-  TPage extends MobileMessagePage<TMessage>,
-  TPageParam,
 > = {
   readonly getResponseMessage: (response: TResponse) => TMessage;
   readonly mutationFn: MutationFunction<TResponse, MobileMessageEditMutationVariables>;
@@ -230,7 +221,7 @@ export function createMobileOptimisticMutationOptions<
   TMessage extends MobileSendableCacheMessage,
   TPage extends MobileMessagePage<TMessage>,
   TPageParam = string | null,
->(options: MobileOptimisticMutationOptions<TVariables, TResponse, TMessage, TPage, TPageParam>) {
+>(options: MobileOptimisticMutationOptions<TVariables, TResponse, TMessage>) {
   type TData = InfiniteData<TPage, TPageParam>;
   type TContext = MobileOptimisticMutationContext<TMessage>;
 
@@ -294,7 +285,7 @@ export function createMobileOptimisticReactionMutationOptions<
   TMessage extends MobileReactionMessage,
   TPage extends MobileMessagePage<TMessage>,
   TPageParam = string | null,
->(options: MobileOptimisticReactionMutationOptions<TResponse, TMessage, TPage, TPageParam>) {
+>(options: MobileOptimisticReactionMutationOptions<TResponse>) {
   type TData = InfiniteData<TPage, TPageParam>;
   type TContext = MobileOptimisticReactionMutationContext<TData>;
 
@@ -376,7 +367,7 @@ export function createMobileOptimisticEditMutationOptions<
   },
   TPage extends MobileMessagePage<TMessage>,
   TPageParam = string | null,
->(options: MobileOptimisticEditMutationOptions<TResponse, TMessage, TPage, TPageParam>) {
+>(options: MobileOptimisticEditMutationOptions<TResponse, TMessage>) {
   type TData = InfiniteData<TPage, TPageParam>;
   type TContext = MobileOptimisticReactionMutationContext<TData>;
 

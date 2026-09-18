@@ -17,13 +17,10 @@ import {
   shouldOfferMobileNotificationPermission,
   summarizeMobileMediaRuntimeState,
   summarizeMobileNotificationRuntimeState,
-  type MobileBootstrapFeature,
   type MobileBootstrapViewState,
   type MobileMediaRuntimeState,
   type MobileNotificationRuntimeState,
   type MobileNotificationItem,
-  type MobilePermissionReadiness,
-  type MobilePermissionSummary,
   type MobileSyncHealthSummary,
 } from "../mobile-root-screen-shared";
 import {
@@ -95,8 +92,6 @@ const getMobileNotificationFeedItemType = (item: MobileNotificationFeedItem) => 
 export function NotificationsScreen({
   bootstrapState,
   notificationState,
-  permissionReadiness,
-  permissionSummary,
   syncHealth,
   onRequestNotificationPermission,
   onRefreshBootstrap,
@@ -106,8 +101,6 @@ export function NotificationsScreen({
 }: {
   bootstrapState: MobileBootstrapViewState;
   notificationState: MobileNotificationRuntimeState;
-  permissionReadiness: readonly MobilePermissionReadiness[];
-  permissionSummary: MobilePermissionSummary;
   syncHealth: MobileSyncHealthSummary;
   onRequestNotificationPermission(): Promise<void>;
   onRefreshBootstrap(): void;

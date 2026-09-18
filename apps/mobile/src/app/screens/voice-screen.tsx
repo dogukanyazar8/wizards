@@ -16,26 +16,19 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import {
-  MobileVoiceRoomPanel,
   Ionicons,
   Pressable,
   ScrollView,
   Text,
   View,
   copy,
-  getMobileVoiceChannelScreenModel,
   summarizeMobileVoiceRuntimeState,
   useEffect,
   useMemo,
   useState,
   type ReactNode,
-  type MobileBootstrapViewState,
   type MobileIoniconName,
-  type MobileLocale,
-  type MobilePermissionReadiness,
-  type MobilePermissionSummary,
   type MobilePushToTalkPhase,
-  type MobileSyncHealthSummary,
   type MobileVoiceAudioOutputMode,
   type MobileVoiceInputMode,
   type MobileVoiceInviteCandidate,
@@ -43,9 +36,8 @@ import {
   type MobileVoiceRoomParticipant,
   type MobileVoiceRoomState,
   type MobileVoiceRuntimeState,
-  type MobileWorkspaceChannelSummary,
 } from "../mobile-root-screen-shared";
-import { ActionButton, AvatarMark, StatusChip } from "../components/ui-atoms";
+import { ActionButton, AvatarMark } from "../components/ui-atoms";
 import { Avatar } from "../components/kit/avatar";
 import { Toggle } from "../components/kit/toggle";
 import { DEFAULT_MOBILE_VOICE_INPUT_MODE } from "../../voice/mobile-voice-ptt-contract";
@@ -1725,28 +1717,6 @@ function getMobileVoiceRuntimeText(state: MobileVoiceRuntimeState) {
         description: copy.voiceSetupDescription,
         title: copy.voiceSetupTitle,
       };
-  }
-}
-
-function getVoiceRoomScreenStatus(room: MobileVoiceRoomState): string {
-  switch (room.status) {
-    case "checking-permission":
-      return copy.voiceRoomCheckingPermission;
-    case "connected":
-      return copy.voiceRoomConnected;
-    case "connecting":
-      return copy.voiceRoomConnecting;
-    case "reconnecting":
-      return copy.voiceRoomReconnecting;
-    case "error":
-      return copy.voiceRoomError;
-    case "leaving":
-      return copy.voiceRoomLeaving;
-    case "permission-denied":
-      return copy.voiceRoomPermissionDenied;
-    case "idle":
-    default:
-      return copy.voiceRoomIdle;
   }
 }
 
