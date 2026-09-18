@@ -132,7 +132,7 @@ describe("mobile release workflow contract", () => {
     assert.doesNotMatch(workflow, /\$\{\{\s*inputs\.version_code\s*\}\}/);
     assert.equal(
       workflow.match(/runs-on: ubuntu-24\.04/g)?.length,
-      4,
+      5,
       "every mobile release job must use the GitHub-hosted Linux runner",
     );
     assert.doesNotMatch(workflow, /runs-on: \[self-hosted/u);
@@ -140,7 +140,7 @@ describe("mobile release workflow contract", () => {
     assert.match(workflow, /github\.ref_name.*uat/);
     assert.equal(
       workflow.match(/persist-credentials: false/g)?.length,
-      4,
+      5,
       "every checkout that handles release state must avoid persisting GITHUB_TOKEN",
     );
     assert.equal(
@@ -235,10 +235,11 @@ describe("mobile release workflow contract", () => {
     assert.match(workflow, /stat -c%s/);
     assert.match(workflow, /Content-Length/i);
     assert.match(workflow, /Range: bytes=0-1023/);
-    assert.match(workflow, /api\/v1\/mobile\/app\/update/);
-    assert.match(workflow, /installed=\$\{VALUE_STEPS_VERIFY_OUTPUTS_VERSION_NAME\}/);
-    assert.doesNotMatch(workflow, /installed=0\.0\.0/);
-    assert.match(workflow, /\.updateKind == "apk"/);
+
+    assert.match(workflow, /finalize-release:/);
+    assert.match(workflow, /id-token: write/);
+    assert.match(workflow, /scripts\/releases\/publish-release\.mjs/);
+
     assert.match(workflow, /artifact_key="\$\{VALUE_STEPS_VERIFY_OUTPUTS_ARTIFACT_KEY\}"/);
     assert.match(workflow, /r2\.cloudflarestorage\.com/);
     assert.match(workflow, /Authorization: Bearer/);
@@ -260,4 +261,16 @@ it("rejects a removed publishing environment before preparing any artifact", () 
       /environment must be uat or production/,
     );
   }
+});
+
+it("APK no longer needs a manually published release while OTA still does", () => {
+  const input = {
+    environment: "uat",
+    rollout: 100,
+    runNumber: 1,
+    sourceSha: "a".repeat(40),
+    version: "1.0.0",
+  };
+  assert.equal(buildMobileReleaseContract({ ...input, kind: "apk" }).version, "1.0.0");
+  assert.throws(() => buildMobileReleaseContract({ ...input, kind: "ota" }), /releaseId/u);
 });

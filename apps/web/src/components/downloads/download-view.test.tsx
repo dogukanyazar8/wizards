@@ -123,6 +123,7 @@ describe("download section card", () => {
 
 describe("admin download console", () => {
   const adminArtifact: AdminDownloadArtifact = {
+    releaseId: null,
     buildLabel: "1187",
     channel: "STABLE",
     createdAt: "2026-08-26T09:00:00.000Z",

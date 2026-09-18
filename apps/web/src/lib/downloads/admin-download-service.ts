@@ -19,6 +19,7 @@ export type AdminDownloadArtifactInput = z.infer<typeof AdminDownloadArtifactInp
 export type AdminDownloadArtifactPatch = z.infer<typeof AdminDownloadArtifactPatchSchema>;
 
 const adminDownloadSelect = {
+  releaseId: true,
   buildLabel: true,
   channel: true,
   createdAt: true,
@@ -95,10 +96,14 @@ const defaultDependencies: AdminDownloadServiceDependencies = {
   isUniqueViolation: isDownloadUniqueViolation,
   now: () => new Date(),
   remove: async (id) => {
-    await prisma.downloadArtifact.delete({ where: { id } });
+    await prisma.downloadArtifact.delete({ where: { id, releaseId: null } });
   },
   update: (id, data) =>
-    prisma.downloadArtifact.update({ data, select: adminDownloadSelect, where: { id } }),
+    prisma.downloadArtifact.update({
+      data,
+      select: adminDownloadSelect,
+      where: { id, releaseId: null },
+    }),
 };
 
 export async function listAdminDownloadArtifacts(

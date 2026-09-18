@@ -13,6 +13,11 @@ import {
 } from "./admin-support-reports";
 
 const draftRelease = {
+  product: "MOBILE" as const,
+  active: true,
+  withdrawnAt: null,
+  sourceSha: null,
+  sourceRunId: null,
   changeCount: 2,
   channel: "UAT" as const,
   codename: "Kuzey",
@@ -37,11 +42,11 @@ describe("admin content management panels", () => {
       <AdminReleases releases={[draftRelease, publishedRelease]} />,
     );
 
-    for (const label of ["Sürümler", "Yeni taslak", "0.9.0", "0.8.15", "Taslak", "Yayında"]) {
+    for (const label of ["Yayın Merkezi", "Yeni taslak", "0.9.0", "0.8.15", "Taslak", "Yayında"]) {
       assert.match(markup, new RegExp(label, "u"));
     }
 
-    assert.equal((markup.match(/Yayınla/gu) ?? []).length, 1);
+    assert.equal((markup.match(/>Yayınla</gu) ?? []).length, 1);
     assert.doesNotMatch(markup, /useRouter/u);
   });
 
@@ -50,6 +55,9 @@ describe("admin content management panels", () => {
       <AdminReleaseEditor
         release={{
           ...draftRelease,
+          sourceRunUrl: null,
+          managed: false,
+          packages: [],
           buildNumber: 42,
           changes: [
             {

@@ -80,9 +80,9 @@ const defaultDependencies: AdminOtaServiceDependencies = {
       where: { bundleKey },
     }),
   findRelease: (releaseId) =>
-    prisma.release.findUnique({
+    prisma.release.findFirst({
       select: { channel: true, id: true, publishedAt: true },
-      where: { id: releaseId },
+      where: { id: releaseId, product: "MOBILE", withdrawnAt: null },
     }),
   now: () => new Date(),
   async setBundleEnabled(releaseId, bundleId, enabled) {
@@ -96,7 +96,7 @@ const defaultDependencies: AdminOtaServiceDependencies = {
     return prisma.otaBundle.update({
       data: { enabled },
       select: { enabled: true, id: true, releaseId: true },
-      where: { id: bundleId },
+      where: { id: bundleId, release: { withdrawnAt: null, product: "MOBILE" } },
     });
   },
 };

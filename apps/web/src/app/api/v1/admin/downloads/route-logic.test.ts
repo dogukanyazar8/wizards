@@ -32,6 +32,7 @@ const input = {
 };
 const artifact: AdminDownloadArtifact = {
   ...input,
+  releaseId: null,
   id: "artifact-1",
   publishedAt: null,
   createdAt: input.releasedAt,

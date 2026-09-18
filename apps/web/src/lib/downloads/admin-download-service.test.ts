@@ -15,6 +15,7 @@ import {
 const now = new Date("2026-08-26T09:00:00.000Z");
 
 const row = {
+  releaseId: null,
   buildLabel: "1187",
   channel: "STABLE" as const,
   createdAt: now,

@@ -16,6 +16,14 @@ const admin: AdminAccessUser = {
 };
 
 const release = {
+  product: "MOBILE" as const,
+  active: true,
+  withdrawnAt: null,
+  sourceSha: null,
+  sourceRunId: null,
+  sourceRunUrl: null,
+  managed: false,
+  packages: [],
   buildNumber: null,
   changeCount: 0,
   changes: [],
@@ -75,7 +83,7 @@ describe("admin releases collection route", () => {
         },
         list: async () => {
           listed = true;
-          return { releases: [] };
+          return { releases: [], page: 1, hasMore: false };
         },
       }),
     );

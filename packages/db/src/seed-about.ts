@@ -39,7 +39,9 @@ async function upsertRelease(release: SeedRelease) {
     create: { ...data, version: release.version },
     select: { id: true },
     update: data,
-    where: { version: release.version },
+    where: {
+      product_channel_version: { product: "MOBILE", channel: "STABLE", version: release.version },
+    },
   });
 
   // The change list is authored as a whole, so replacing it is what keeps a

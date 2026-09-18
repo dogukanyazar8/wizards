@@ -20,7 +20,7 @@ export function buildMobileReleaseContract(input) {
   if (!KINDS.has(input.kind)) {
     throw new Error("kind must be ota or apk.");
   }
-  const releaseId = requireSafeId(input.releaseId, "releaseId");
+  const releaseId = input.kind === "ota" ? requireSafeId(input.releaseId, "releaseId") : undefined;
   if (!Number.isInteger(input.rollout) || input.rollout < 0 || input.rollout > 100) {
     throw new Error("rollout must be an integer from 0 through 100.");
   }
@@ -43,7 +43,7 @@ export function buildMobileReleaseContract(input) {
     apiBaseUrl,
     environment: input.environment,
     kind: input.kind,
-    releaseId,
+    ...(releaseId ? { releaseId } : {}),
     rollout: input.rollout,
   };
   if (input.kind === "ota") {

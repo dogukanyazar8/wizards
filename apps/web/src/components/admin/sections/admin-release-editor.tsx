@@ -21,6 +21,7 @@ export function AdminReleaseEditor({
   release: AdminRelease;
 }) {
   const [form, setForm] = useState({
+    product: release.product,
     channel: release.channel,
     codename: release.codename ?? "",
     highlight: release.highlight ?? "",
@@ -30,7 +31,7 @@ export function AdminReleaseEditor({
     version: release.version,
   });
   const [changes, setChanges] = useState<AdminReleaseChange[]>(release.changes);
-  const [busy, setBusy] = useState<"delete" | "publish" | "save" | null>(null);
+  const [busy, setBusy] = useState<"delete" | "publish" | "save" | "withdraw" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function requestJson(url: string, init: RequestInit) {
@@ -51,11 +52,14 @@ export function AdminReleaseEditor({
     try {
       await requestJson(`/api/v1/admin/releases/${release.id}`, {
         body: JSON.stringify({
+          product: form.product,
           channel: form.channel,
           codename: form.codename.trim() || null,
           highlight: form.highlight.trim() || null,
           mandatory: form.mandatory,
-          releasedAt: new Date(`${form.releasedAt}T12:00:00.000Z`).toISOString(),
+          releasedAt: release.managed
+            ? release.releasedAt
+            : new Date(`${form.releasedAt}T12:00:00.000Z`).toISOString(),
           summary: form.summary.trim() || null,
           version: form.version.trim(),
         }),
@@ -89,6 +93,25 @@ export function AdminReleaseEditor({
       window.location.reload();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Sürüm yayınlanamadı.");
+      setBusy(null);
+    }
+  }
+
+  async function withdraw() {
+    if (
+      !(await confirmAction(
+        "Bu yayının indirmeleri ve yeni güncellemeleri durdurulacak. Kurulu uygulamalar eski sürüme dönmez. Devam edilsin mi?",
+        true,
+      ))
+    )
+      return;
+    setBusy("withdraw");
+    setError(null);
+    try {
+      await requestJson(`/api/v1/admin/releases/${release.id}/withdraw`, { method: "POST" });
+      window.location.reload();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Yayın geri çekilemedi.");
       setBusy(null);
     }
   }
@@ -152,15 +175,15 @@ export function AdminReleaseEditor({
           canWrite ? (
             <>
               <Button
-                disabled={busy !== null}
-                onClick={() => void removeRelease()}
+                disabled={busy !== null || Boolean(release.withdrawnAt)}
+                onClick={() => void (release.publishedAt ? withdraw() : removeRelease())}
                 type="button"
                 variant="outline"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Sil
+                {release.publishedAt ? "Yayını geri çek" : "Sil"}
               </Button>
-              {!release.publishedAt ? (
+              {!release.publishedAt && release.product === "MOBILE" ? (
                 <Button
                   disabled={busy !== null}
                   onClick={() => void publish()}
@@ -182,7 +205,7 @@ export function AdminReleaseEditor({
             </>
           ) : undefined
         }
-        subtitle={release.publishedAt ? "Yayındaki sürüm" : "Taslak sürüm"}
+        subtitle={`${release.product === "DESKTOP" ? "Masaüstü" : "Mobil"} · ${release.withdrawnAt ? "Geri çekildi" : release.publishedAt ? "Yayınlandı" : "Taslak"}`}
         title={`${release.version} sürümünü düzenle`}
       />
 
@@ -200,6 +223,45 @@ export function AdminReleaseEditor({
         </p>
       ) : null}
 
+      {release.sourceRunUrl ? (
+        <a
+          href={release.sourceRunUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="text-[hsl(var(--primary))] text-sm"
+        >
+          GitHub yayın çalışması · {release.sourceSha?.slice(0, 12)} · Başarısız finalizasyon için
+          “Re-run failed jobs”
+        </a>
+      ) : null}
+      {release.packages.length ? (
+        <AdminCard>
+          <h2 className="mb-3 font-semibold">Yayın paketleri</h2>
+          <div className="space-y-3">
+            {release.packages.map((item) => (
+              <div key={item.platform} className="app-panel-soft rounded-lg border p-3 text-sm">
+                <p>
+                  {item.platform} · {item.arch} · {(item.sizeBytes / 1048576).toFixed(1)} MB
+                  {item.versionCode ? ` · Build ${item.versionCode}` : ""}
+                </p>
+                <a className="break-all text-[hsl(var(--primary))]" href={item.url}>
+                  {item.url}
+                </a>
+                <p className="break-all text-xs">SHA-256: {item.sha256}</p>
+                {item.signature ? (
+                  <details>
+                    <summary>Güncelleme imzası</summary>
+                    <p className="break-all text-xs">{item.signature}</p>
+                  </details>
+                ) : null}
+                {item.signingCertSha256 ? (
+                  <p className="break-all text-xs">Sertifika: {item.signingCertSha256}</p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </AdminCard>
+      ) : null}
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
         <div className="space-y-5">
           <AdminCard className="grid gap-4 md:grid-cols-2">
@@ -227,6 +289,7 @@ export function AdminReleaseEditor({
                 onChange={(event) =>
                   setForm({ ...form, channel: event.target.value as AdminRelease["channel"] })
                 }
+                disabled={!canWrite || Boolean(release.publishedAt)}
                 value={form.channel}
               >
                 <option value="STABLE">Stable</option>
@@ -239,6 +302,7 @@ export function AdminReleaseEditor({
                 className="app-input h-11 rounded-[12px] border px-3"
                 onChange={(event) => setForm({ ...form, releasedAt: event.target.value })}
                 type="date"
+                disabled={!canWrite || release.managed}
                 value={form.releasedAt}
               />
             </label>
@@ -386,7 +450,7 @@ export function AdminReleaseEditor({
         <aside>
           <div className="sticky top-4">
             <p className="text-app-muted mb-2 text-xs font-bold tracking-wide uppercase">
-              Mobil önizleme
+              Sürüm notları önizlemesi
             </p>
             <div
               className="rounded-[24px] border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--card))] p-5"

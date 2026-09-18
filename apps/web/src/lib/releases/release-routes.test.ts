@@ -59,7 +59,12 @@ it("validates pagination and carries the installed version without caching perso
   );
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("Cache-Control"), "no-store");
-  assert.deepEqual(input, { limit: 10, installedVersion: "0.9.0", cursor: "next" });
+  assert.deepEqual(input, {
+    scope: { product: "DESKTOP", channel: "STABLE" },
+    limit: 10,
+    installedVersion: "0.9.0",
+    cursor: "next",
+  });
   assert.deepEqual(limits, [["user-1", "app:releases"]]);
   const invalid = await releaseListRoute(
     new Request("https://whispr.test/api/v1/app/releases?limit=-1"),

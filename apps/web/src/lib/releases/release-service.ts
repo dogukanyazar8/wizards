@@ -1,3 +1,4 @@
+import { parsePublishedReleaseChannel } from "@/lib/build-release-channel";
 import { prisma, type Prisma, type ReleaseChangeType, type ReleaseChannel } from "@wizards/db";
 import {
   MOBILE_RELEASE_PAGE_MAX_SIZE,
@@ -183,7 +184,14 @@ export function decodeReleaseCursor(cursor: string) {
   return Number.isNaN(releasedAt.getTime()) || id.length === 0 ? null : { id, releasedAt };
 }
 
+export type ReleaseScope = { product: "DESKTOP" | "MOBILE"; channel: ReleaseChannel };
+const defaultScope = (): ReleaseScope => ({
+  product: "MOBILE",
+  channel: parsePublishedReleaseChannel(process.env.WHISPR_RELEASE_CHANNEL) ?? "STABLE",
+});
+
 export type ListMobileReleasesInput = {
+  scope?: ReleaseScope;
   cursor?: string;
   installedVersion?: string;
   limit?: number;
@@ -194,32 +202,41 @@ export type MobileReleaseServiceDependencies = {
   findReleases: (
     args: Prisma.ReleaseFindManyArgs & { select: typeof releaseSummarySelect },
   ) => Promise<ReleaseSummaryRow[]>;
-  findRelease: (version: string) => Promise<ReleaseDetailRow | null>;
+  findRelease: (version: string, scope?: ReleaseScope) => Promise<ReleaseDetailRow | null>;
   findLatestRelease: (channel: ReleaseChannel) => Promise<ReleaseDetailRow | null>;
 };
 
 const defaultDependencies: MobileReleaseServiceDependencies = {
   countReleases: (where) => prisma.release.count({ where }),
   findReleases: (args) => prisma.release.findMany(args) as unknown as Promise<ReleaseSummaryRow[]>,
-  findRelease: (version) =>
+  findRelease: (version, scope = defaultScope()) =>
     prisma.release.findFirst({
       select: releaseDetailSelect,
-      where: { publishedAt: { not: null }, version },
+      where: { ...scope, withdrawnAt: null, publishedAt: { not: null }, version },
     }),
   findLatestRelease: (channel) =>
     prisma.release.findFirst({
       orderBy: [{ releasedAt: "desc" }, { id: "desc" }],
       select: releaseDetailSelect,
-      where: { channel, publishedAt: { not: null } },
+      where: {
+        product: "MOBILE",
+        active: true,
+        withdrawnAt: null,
+        channel,
+        publishedAt: { not: null },
+      },
     }),
 };
 
-const PUBLISHED_ONLY = { publishedAt: { not: null } } satisfies Prisma.ReleaseWhereInput;
-
 export async function listMobileReleases(
-  { cursor, installedVersion, limit }: ListMobileReleasesInput = {},
+  { cursor, installedVersion, limit, scope = defaultScope() }: ListMobileReleasesInput = {},
   dependencies: MobileReleaseServiceDependencies = defaultDependencies,
 ): Promise<MobileReleaseListResponse> {
+  const PUBLISHED_ONLY = {
+    ...scope,
+    withdrawnAt: null,
+    publishedAt: { not: null },
+  } satisfies Prisma.ReleaseWhereInput;
   const pageSize = Math.min(
     Math.max(Math.trunc(limit ?? MOBILE_RELEASE_PAGE_SIZE), 1),
     MOBILE_RELEASE_PAGE_MAX_SIZE,
@@ -264,8 +281,9 @@ export async function getMobileRelease(
   version: string,
   installedVersion?: string,
   dependencies: MobileReleaseServiceDependencies = defaultDependencies,
+  scope: ReleaseScope = defaultScope(),
 ): Promise<MobileReleaseDetail | null> {
-  const row = await dependencies.findRelease(version);
+  const row = await dependencies.findRelease(version, scope);
 
   return row ? toMobileReleaseDetail(row, installedVersion) : null;
 }

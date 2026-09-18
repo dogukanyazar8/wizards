@@ -1,5 +1,7 @@
 "use client";
 
+import { AdminDownloads } from "./admin-downloads";
+import type { AdminDownloadArtifact } from "@/lib/downloads/admin-download-service";
 import React, { useState } from "react";
 import Link from "next/link";
 import { Loader2, PackagePlus, Rocket } from "lucide-react";
@@ -22,10 +24,34 @@ function formatDate(value: string) {
 export function AdminReleases({
   canWrite = true,
   releases,
+  artifacts = [],
+  page = 1,
+  hasMore = false,
+  initialFilters = { product: "ALL", channel: "ALL", status: "ALL" },
 }: {
   canWrite?: boolean;
   releases: AdminReleaseList;
+  artifacts?: AdminDownloadArtifact[];
+  page?: number;
+  hasMore?: boolean;
+  initialFilters?: { product: string; channel: string; status: string };
 }) {
+  const [product, setProduct] = useState(initialFilters.product);
+  const [channel, setChannel] = useState(initialFilters.channel);
+  const [status, setStatus] = useState(initialFilters.status);
+  const pageHref = (target: number) =>
+    `/admin/releases?${new URLSearchParams({ page: String(target), product, channel, status })}`;
+  const filtered = releases.filter(
+    (release) =>
+      (product === "ALL" || release.product === product) &&
+      (channel === "ALL" || release.channel === channel) &&
+      (status === "ALL" ||
+        (status === "WITHDRAWN"
+          ? Boolean(release.withdrawnAt)
+          : status === "DRAFT"
+            ? !release.publishedAt
+            : Boolean(release.publishedAt && !release.withdrawnAt))),
+  );
   const [busyId, setBusyId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +85,7 @@ export function AdminReleases({
     const data = new FormData(event.currentTarget);
     const releasedAt = String(data.get("releasedAt") ?? "");
     const payload = {
+      product: String(data.get("product") ?? "MOBILE"),
       channel: String(data.get("channel") ?? "STABLE"),
       mandatory: false,
       releasedAt: new Date(`${releasedAt}T12:00:00.000Z`).toISOString(),
@@ -89,7 +116,58 @@ export function AdminReleases({
 
   return (
     <section className="space-y-5">
-      <AdminPageHeader subtitle="Mobil Yenilikler ve sürüm geçmişi içeriği" title="Sürümler" />
+      <AdminPageHeader
+        subtitle="Masaüstü ve mobil paketler, sürüm notları ve yayın geçmişi"
+        title="Yayın Merkezi"
+      />
+      <form action="/admin/releases" method="get" className="flex flex-wrap items-end gap-3">
+        <label>
+          Ürün{" "}
+          <select
+            name="product"
+            aria-label="Ürün filtresi"
+            className="app-input rounded-lg border p-2"
+            value={product}
+            onChange={(event) => setProduct(event.target.value)}
+          >
+            <option value="ALL">Tümü</option>
+            <option value="DESKTOP">Masaüstü</option>
+            <option value="MOBILE">Mobil</option>
+          </select>
+        </label>
+        <label>
+          Kanal{" "}
+          <select
+            name="channel"
+            aria-label="Kanal filtresi"
+            className="app-input rounded-lg border p-2"
+            value={channel}
+            onChange={(event) => setChannel(event.target.value)}
+          >
+            <option value="ALL">Tümü</option>
+            <option value="STABLE">Stable</option>
+            <option value="UAT">Beta</option>
+          </select>
+        </label>
+        <label>
+          Durum{" "}
+          <select
+            name="status"
+            aria-label="Durum filtresi"
+            className="app-input rounded-lg border p-2"
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+          >
+            <option value="ALL">Tümü</option>
+            <option value="PUBLISHED">Yayınlandı</option>
+            <option value="DRAFT">Taslak</option>
+            <option value="WITHDRAWN">Geri çekildi</option>
+          </select>
+        </label>
+        <Button type="submit" variant="outline">
+          Tüm geçmişi filtrele
+        </Button>
+      </form>
 
       {error ? (
         <p aria-live="polite" className="text-app-danger text-sm">
@@ -100,10 +178,21 @@ export function AdminReleases({
       {canWrite ? (
         <AdminCard>
           <h2 className="text-app-foreground text-base font-semibold">Yeni taslak</h2>
+          <p className="text-app-muted mt-2 text-sm">
+            Başarılı masaüstü ve Android yayınları otomatik eklenir. Taslak, önceden not hazırlamak
+            içindir.
+          </p>
           <form
             className="mt-4 grid gap-3 md:grid-cols-[1fr_170px_180px_auto]"
             onSubmit={createDraft}
           >
+            <label className="grid gap-1.5 text-sm">
+              <span>Ürün</span>
+              <select className="app-input h-11 rounded-[12px] border px-3" name="product">
+                <option value="MOBILE">Mobil</option>
+                <option value="DESKTOP">Masaüstü</option>
+              </select>
+            </label>
             <label className="grid gap-1.5 text-sm">
               <span className="text-app-muted text-xs font-semibold">Versiyon</span>
               <input
@@ -142,14 +231,14 @@ export function AdminReleases({
           columns="1.2fr 1fr 1.2fr .8fr 1fr 150px"
           emptyLabel="Henüz sürüm yok."
           headers={["Sürüm", "Kanal", "Tarih", "Madde", "Durum", "Eylem"]}
-          rows={releases.map((release) => ({
+          rows={filtered.map((release) => ({
             cells: [
               <div key="version">
                 <Link
                   className="text-app-foreground font-semibold hover:underline"
                   href={`/admin/releases/${release.id}`}
                 >
-                  {release.version}
+                  {release.product === "DESKTOP" ? "Masaüstü" : "Mobil"} · {release.version}
                 </Link>
                 {release.codename ? (
                   <p className="text-app-muted text-xs">{release.codename}</p>
@@ -163,9 +252,15 @@ export function AdminReleases({
               </span>,
               <span key="changes">{release.changeCount}</span>,
               <AdminPill key="status" tone={release.publishedAt ? "success" : "warning"}>
-                {release.publishedAt ? "Yayında" : "Taslak"}
+                {release.withdrawnAt
+                  ? "Geri çekildi"
+                  : release.publishedAt
+                    ? release.active
+                      ? "Yayında"
+                      : "Geçmiş"
+                    : "Taslak"}
               </AdminPill>,
-              release.publishedAt || !canWrite ? (
+              release.publishedAt || !canWrite || release.product === "DESKTOP" ? (
                 <Link
                   className="text-[hsl(var(--primary))] text-sm font-semibold"
                   href={`/admin/releases/${release.id}`}
@@ -194,6 +289,23 @@ export function AdminReleases({
           }))}
         />
       </AdminCard>
+      <nav aria-label="Yayın geçmişi sayfaları" className="flex gap-4 text-sm">
+        {page > 1 ? <Link href={pageHref(page - 1)}>Önceki</Link> : null}
+        <span>Sayfa {page}</span>
+        {hasMore ? <Link href={pageHref(page + 1)}>Sonraki</Link> : null}
+      </nav>
+      <div id="packages">
+        <AdminDownloads
+          key={`${product}:${channel}`}
+          artifacts={artifacts.filter(
+            (item) =>
+              (channel === "ALL" || item.channel === channel) &&
+              (product === "ALL" ||
+                (["ANDROID", "IOS"].includes(item.platform) ? "MOBILE" : "DESKTOP") === product),
+          )}
+          canWrite={canWrite}
+        />
+      </div>
     </section>
   );
 }

@@ -5,6 +5,7 @@ const nullableTrimmedText = (maximum: number) =>
 
 export const AdminReleaseInputSchema = z
   .object({
+    product: z.enum(["DESKTOP", "MOBILE"]).optional(),
     buildNumber: z.number().int().nonnegative().nullable().optional(),
     channel: z.enum(["STABLE", "UAT"]),
     codename: nullableTrimmedText(48),

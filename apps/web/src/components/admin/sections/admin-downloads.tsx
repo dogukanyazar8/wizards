@@ -183,7 +183,15 @@ export function AdminDownloads({
                     ? "Taslak"
                     : `Yayında · ${formatDate(artifact.publishedAt)}`}
                 </AdminPill>,
-                canWrite ? (
+                artifact.releaseId ? (
+                  <a
+                    className="text-[hsl(var(--primary))] text-sm"
+                    href={`/admin/releases/${artifact.releaseId}`}
+                    key="release"
+                  >
+                    Yayını yönet
+                  </a>
+                ) : canWrite ? (
                   <div className="flex flex-wrap gap-2" key="action">
                     <Button
                       disabled={busyId !== null || editor !== undefined}

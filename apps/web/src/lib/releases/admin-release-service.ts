@@ -1,10 +1,17 @@
 import { prisma, type Prisma, type ReleaseChangeType, type ReleaseChannel } from "@wizards/db";
 
+import { lockPublication } from "./publication-service";
+import { PublicationSchema } from "./publication-contract";
 import { ApiError } from "@/lib/api";
 
 const adminReleaseListSelect = {
   _count: { select: { changes: true } },
   channel: true,
+  product: true,
+  active: true,
+  withdrawnAt: true,
+  sourceSha: true,
+  sourceRunId: true,
   codename: true,
   createdAt: true,
   id: true,
@@ -16,6 +23,7 @@ const adminReleaseListSelect = {
 
 const adminReleaseDetailSelect = {
   ...adminReleaseListSelect,
+  publication: true,
   buildNumber: true,
   changes: {
     orderBy: [{ position: "asc" }, { id: "asc" }],
@@ -31,6 +39,7 @@ type AdminReleaseListRow = Prisma.ReleaseGetPayload<{ select: typeof adminReleas
 type AdminReleaseDetailRow = Prisma.ReleaseGetPayload<{ select: typeof adminReleaseDetailSelect }>;
 
 export type AdminReleaseInput = {
+  product?: "DESKTOP" | "MOBILE" | undefined;
   buildNumber?: number | null | undefined;
   channel: ReleaseChannel;
   codename?: string | null | undefined;
@@ -54,6 +63,11 @@ export type AdminReleaseChangeInput = {
 
 function toAdminReleaseListItem(row: AdminReleaseListRow) {
   return {
+    product: row.product,
+    active: row.active,
+    withdrawnAt: row.withdrawnAt?.toISOString() ?? null,
+    sourceSha: row.sourceSha,
+    sourceRunId: row.sourceRunId,
     changeCount: row._count.changes,
     channel: row.channel,
     codename: row.codename,
@@ -69,6 +83,13 @@ function toAdminReleaseListItem(row: AdminReleaseListRow) {
 function toAdminReleaseDetail(row: AdminReleaseDetailRow) {
   return {
     ...toAdminReleaseListItem(row),
+    managed: row.publication !== null,
+    packages: PublicationSchema.safeParse(row.publication).data?.packages ?? [],
+    sourceRunUrl:
+      row.sourceRunId &&
+      /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(process.env.WHISPR_RELEASE_GITHUB_REPOSITORY ?? "")
+        ? `https://github.com/${process.env.WHISPR_RELEASE_GITHUB_REPOSITORY}/actions/runs/${row.sourceRunId}`
+        : null,
     buildNumber: row.buildNumber,
     changes: row.changes,
     highlight: row.highlight,
@@ -80,6 +101,7 @@ function toAdminReleaseDetail(row: AdminReleaseDetailRow) {
 
 function releaseData(input: AdminReleaseInput): Prisma.ReleaseUncheckedCreateInput {
   return {
+    product: input.product ?? "MOBILE",
     buildNumber: input.buildNumber ?? null,
     channel: input.channel,
     codename: input.codename ?? null,
@@ -94,6 +116,7 @@ function releaseData(input: AdminReleaseInput): Prisma.ReleaseUncheckedCreateInp
 
 function releasePatchData(input: AdminReleasePatchInput): Prisma.ReleaseUpdateInput {
   return {
+    ...(input.product === undefined ? {} : { product: input.product }),
     ...(input.buildNumber === undefined ? {} : { buildNumber: input.buildNumber }),
     ...(input.channel === undefined ? {} : { channel: input.channel }),
     ...(input.codename === undefined ? {} : { codename: input.codename }),
@@ -106,13 +129,37 @@ function releasePatchData(input: AdminReleasePatchInput): Prisma.ReleaseUpdateIn
   };
 }
 
-export async function listAdminReleases() {
+export type AdminReleaseFilters = { product?: string; channel?: string; status?: string };
+
+export async function listAdminReleases(page = 1, filters: AdminReleaseFilters = {}) {
+  const currentPage = Math.max(1, Math.min(10000, Math.trunc(page) || 1));
   const rows = await prisma.release.findMany({
+    where: {
+      ...(["DESKTOP", "MOBILE"].includes(filters.product ?? "")
+        ? { product: filters.product as "DESKTOP" | "MOBILE" }
+        : {}),
+      ...(["STABLE", "UAT"].includes(filters.channel ?? "")
+        ? { channel: filters.channel as "STABLE" | "UAT" }
+        : {}),
+      ...(filters.status === "WITHDRAWN"
+        ? { withdrawnAt: { not: null } }
+        : filters.status === "DRAFT"
+          ? { publishedAt: null, withdrawnAt: null }
+          : filters.status === "PUBLISHED"
+            ? { publishedAt: { not: null }, withdrawnAt: null }
+            : {}),
+    },
     orderBy: [{ releasedAt: "desc" }, { id: "desc" }],
     select: adminReleaseListSelect,
+    take: 51,
+    skip: (currentPage - 1) * 50,
   });
 
-  return { releases: rows.map(toAdminReleaseListItem) };
+  return {
+    releases: rows.slice(0, 50).map(toAdminReleaseListItem),
+    page: currentPage,
+    hasMore: rows.length > 50,
+  };
 }
 
 export async function getAdminRelease(releaseId: string) {
@@ -138,9 +185,14 @@ export async function createAdminRelease(input: AdminReleaseInput) {
 }
 
 export type UpdateAdminReleaseDependencies = {
-  findReleaseForUpdate: (
-    releaseId: string,
-  ) => Promise<{ publishedAt: Date | null; version: string } | null>;
+  findReleaseForUpdate: (releaseId: string) => Promise<{
+    publishedAt: Date | null;
+    version: string;
+    channel?: string;
+    product?: string;
+    publicationDigest?: string | null;
+    releasedAt?: Date;
+  } | null>;
   updateRelease: (
     releaseId: string,
     data: Prisma.ReleaseUpdateInput,
@@ -150,14 +202,42 @@ export type UpdateAdminReleaseDependencies = {
 const updateDependencies: UpdateAdminReleaseDependencies = {
   findReleaseForUpdate: (releaseId) =>
     prisma.release.findUnique({
-      select: { publishedAt: true, version: true },
+      select: {
+        publishedAt: true,
+        version: true,
+        channel: true,
+        product: true,
+        publicationDigest: true,
+        releasedAt: true,
+      },
       where: { id: releaseId },
     }),
   updateRelease: (releaseId, data) =>
     prisma.release.update({
       data,
       select: adminReleaseDetailSelect,
-      where: { id: releaseId },
+      // Re-check immutable fields in the write itself: publication may commit
+      // between the earlier read and this update of a formerly draft release.
+      where: {
+        id: releaseId,
+        OR: [
+          { publishedAt: null },
+          {
+            publishedAt: { not: null },
+            ...(typeof data.version === "string" ? { version: data.version } : {}),
+            ...(typeof data.channel === "string" ? { channel: data.channel } : {}),
+            ...(typeof data.product === "string" ? { product: data.product } : {}),
+            ...(data.buildNumber !== undefined || data.sizeBytes !== undefined
+              ? { publicationDigest: null }
+              : {}),
+            ...(data.releasedAt instanceof Date
+              ? {
+                  OR: [{ publicationDigest: null }, { releasedAt: data.releasedAt }],
+                }
+              : {}),
+          },
+        ],
+      },
     }),
 };
 
@@ -184,6 +264,22 @@ export async function updateAdminRelease(
     );
   }
 
+  if (
+    existing.publishedAt &&
+    ((input.channel !== undefined && input.channel !== existing.channel) ||
+      (input.product !== undefined && input.product !== existing.product) ||
+      (existing.publicationDigest &&
+        ((input.releasedAt !== undefined &&
+          new Date(input.releasedAt).getTime() !== existing.releasedAt?.getTime()) ||
+          input.buildNumber !== undefined ||
+          input.sizeBytes !== undefined)))
+  ) {
+    throw new ApiError(
+      "Published package metadata cannot be changed",
+      409,
+      "PUBLICATION_IMMUTABLE",
+    );
+  }
   const row = await dependencies.updateRelease(releaseId, releasePatchData(input));
 
   return { release: toAdminReleaseDetail(row) };
@@ -191,7 +287,7 @@ export async function updateAdminRelease(
 
 export async function deleteAdminRelease(releaseId: string) {
   const existing = await prisma.release.findUnique({
-    select: { id: true },
+    select: { id: true, publishedAt: true },
     where: { id: releaseId },
   });
 
@@ -199,7 +295,13 @@ export async function deleteAdminRelease(releaseId: string) {
     throw new ApiError("Release not found", 404, "RELEASE_NOT_FOUND");
   }
 
-  await prisma.release.delete({ where: { id: releaseId } });
+  if (existing.publishedAt)
+    throw new ApiError(
+      "Withdraw published releases instead of deleting history",
+      409,
+      "PUBLISHED_RELEASE_IMMUTABLE",
+    );
+  await prisma.release.delete({ where: { id: releaseId, publishedAt: null } });
 
   return { deleted: true as const };
 }
@@ -207,7 +309,13 @@ export async function deleteAdminRelease(releaseId: string) {
 export async function publishAdminRelease(releaseId: string) {
   const row = await prisma.$transaction(async (transaction) => {
     const existing = await transaction.release.findUnique({
-      select: { publishedAt: true },
+      select: {
+        publishedAt: true,
+        publicationDigest: true,
+        withdrawnAt: true,
+        product: true,
+        channel: true,
+      },
       where: { id: releaseId },
     });
 
@@ -215,10 +323,26 @@ export async function publishAdminRelease(releaseId: string) {
       throw new ApiError("Release not found", 404, "RELEASE_NOT_FOUND");
     }
 
+    if (existing.withdrawnAt || existing.publicationDigest || existing.product === "DESKTOP")
+      throw new ApiError(
+        "Packages must be published by the verified release workflow",
+        409,
+        "PUBLICATION_WORKFLOW_REQUIRED",
+      );
+    await lockPublication(transaction, existing);
+    const managed = await transaction.release.findFirst({
+      where: {
+        product: existing.product,
+        channel: existing.channel,
+        publicationDigest: { not: null },
+        active: true,
+      },
+      select: { id: true },
+    });
     return transaction.release.update({
-      data: { publishedAt: existing.publishedAt ?? new Date() },
+      data: { publishedAt: existing.publishedAt ?? new Date(), active: !managed },
       select: adminReleaseDetailSelect,
-      where: { id: releaseId },
+      where: { id: releaseId, publicationDigest: null, withdrawnAt: null, product: "MOBILE" },
     });
   });
 

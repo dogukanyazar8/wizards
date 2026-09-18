@@ -82,7 +82,13 @@ const defaultDependencies: MobileUpdateDecisionDependencies = {
         sizeBytes: true,
         version: true,
       },
-      where: { channel, publishedAt: { not: null } },
+      where: {
+        product: "MOBILE",
+        active: true,
+        withdrawnAt: null,
+        channel,
+        publishedAt: { not: null },
+      },
     }),
 };
 

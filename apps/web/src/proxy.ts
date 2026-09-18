@@ -76,6 +76,13 @@ export function isMutatingApiRequestAllowed({
   }
 
   const isMobileApiPath = pathname.startsWith("/api/v1/mobile/");
+  // Publication accepts only a verified GitHub OIDC token, never session cookies.
+  if (
+    pathname === "/api/v1/releases/publish" &&
+    /^Bearer\s+\S+$/iu.test(authorizationHeader?.trim() ?? "")
+  ) {
+    return true;
+  }
   const isPublicMobileAuthPath = pathname.startsWith("/api/v1/mobile/auth/");
   if (
     isMobileApiPath &&

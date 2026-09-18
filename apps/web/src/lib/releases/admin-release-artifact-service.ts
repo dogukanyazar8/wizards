@@ -104,7 +104,7 @@ const defaultDependencies: AdminReleaseArtifactServiceDependencies = {
   findRelease: (releaseId) =>
     prisma.release.findUnique({
       select: { channel: true, id: true, publishedAt: true },
-      where: { id: releaseId },
+      where: { id: releaseId, product: "MOBILE", withdrawnAt: null, publicationDigest: null },
     }),
   now: () => new Date(),
 };

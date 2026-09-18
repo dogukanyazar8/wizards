@@ -132,6 +132,9 @@ jobs:
       - name: Validate desktop release operations contract
         run: pnpm --filter @wizards/desktop release:ops
 
+      - name: Test unified release publisher
+        run: node --test scripts/releases/*.test.mjs
+
       - name: Run desktop release script tests
         run: pnpm --filter @wizards/desktop test
 
@@ -196,7 +199,7 @@ jobs:
       WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
       WHISPR_DESKTOP_RELEASE_RING: ${{ needs.release-contract.outputs.release_ring }}
       WHISPR_DESKTOP_UPDATER_ENABLED: ${{ needs.release-contract.outputs.enable_updater }}
-      WHISPR_DESKTOP_UPDATER_ENDPOINTS: ${{ needs.release-contract.outputs.updater_manifest_url }}
+      WHISPR_DESKTOP_UPDATER_ENDPOINTS: ${{ needs.release-contract.outputs.release_ring == 'uat' && 'https://wizardsweb-uat.up.railway.app' || 'https://whispr.team' }}/api/v1/releases/desktop/${{ needs.release-contract.outputs.release_ring }}/latest.json
       WHISPR_DESKTOP_UPDATER_PUBLIC_KEY: ${{ vars.WHISPR_DESKTOP_UPDATER_PUBLIC_KEY }}
       WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND: ${{ vars.WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND }}
       WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED: ${{ inputs.windows_signing && 'true' || 'false' }}
@@ -828,16 +831,11 @@ jobs:
             --content-type "application/json" \
             --cache-control "public, max-age=31536000, immutable"
 
-          aws --endpoint-url "$endpoint_url" s3 cp "$manifest" "s3://${R2_BUCKET}/desktop/${ring}/latest.json" \
-            --content-type "application/json" \
-            --cache-control "no-cache, no-store, must-revalidate" \
-            --no-progress
-
       - name: Validate remote updater feed
         if: needs.release-contract.outputs.publish_r2 == 'true'
         shell: bash
         env:
-          VALUE_NEEDS_RELEASE_CONTRACT_OUTPUTS_UPDATER_MANIFEST_URL: ${{ needs.release-contract.outputs.updater_manifest_url }}
+          VALUE_NEEDS_RELEASE_CONTRACT_OUTPUTS_UPDATER_MANIFEST_URL: ${{ needs.release-contract.outputs.updater_base_url }}latest.json
           VALUE_STEPS_ASSETS_OUTPUTS_INSTALLER: ${{ steps.assets.outputs.installer }}
           VALUE_STEPS_ASSETS_OUTPUTS_SIGNATURE: ${{ steps.assets.outputs.signature }}
           VALUE_NEEDS_RELEASE_CONTRACT_OUTPUTS_RELEASE_RING: ${{ needs.release-contract.outputs.release_ring }}
@@ -963,7 +961,7 @@ jobs:
             echo "| Artifact SHA-256 | \`$artifact_sha\` |"
             echo "| Artifact size | \`$artifact_size bytes\` |"
             echo ""
-            echo "#### Manual QA next steps"
+            echo "#### Manual QA after finalize-release succeeds"
             echo ""
             echo "- Install the previous desktop version for \`${VALUE_NEEDS_RELEASE_CONTRACT_OUTPUTS_RELEASE_RING}\`."
             echo "- Confirm the updater card sees \`${VALUE_NEEDS_RELEASE_CONTRACT_OUTPUTS_VERSION}\` from \`${VALUE_NEEDS_RELEASE_CONTRACT_OUTPUTS_UPDATER_MANIFEST_URL}\`."
@@ -980,12 +978,40 @@ jobs:
             echo ""
             echo "#### Rollback"
             echo ""
-            echo "Rollback remains manifest-based. Restore the previous signed manifest with:"
-            echo ""
-            echo "\`\`\`bash"
-            echo "aws --endpoint-url <r2-endpoint> s3 cp <previous-latest.json> s3://<R2_BUCKET>/desktop/${VALUE_NEEDS_RELEASE_CONTRACT_OUTPUTS_RELEASE_RING}/latest.json --content-type application/json --cache-control \"no-cache, no-store, must-revalidate\""
-            echo "\`\`\`"
+            echo "Withdraw the release from /admin/releases to stop download and update offers."
+            echo "Publish a higher corrective version for installed clients; native downgrades are not automatic."
+            echo "The legacy latest.json URL redirects to the registry. Do not overwrite a mutable R2 manifest."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  finalize-release:
+    name: Publish verified desktop release and download catalog
+    needs: [release-contract, publish-release]
+    if: needs.release-contract.outputs.publish_r2 == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: desktop-${{ needs.release-contract.outputs.release_ring }}
+    permissions:
+      contents: read
+      pull-requests: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: desktop-build-${{ needs.release-contract.outputs.release_ring }}-${{ needs.release-contract.outputs.version }}-windows
+          path: ${{ runner.temp }}/desktop-build
+      - name: Prepare immutable publication manifest
+        run: node scripts/releases/prepare-publication.mjs desktop "$RUNNER_TEMP/desktop-publication.json" "$RUNNER_TEMP/desktop-build"
+      - name: Verify public bytes and finalize publication
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/releases/publish-release.mjs "$RUNNER_TEMP/desktop-publication.json"
 
   timing-summary:
     name: Summarize desktop release timing

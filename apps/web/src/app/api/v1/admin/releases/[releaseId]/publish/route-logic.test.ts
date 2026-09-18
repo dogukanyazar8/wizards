@@ -20,6 +20,14 @@ const request = new Request("https://whispr.test/api/v1/admin/releases/release-1
 });
 const context = { params: Promise.resolve({ releaseId: "release-1" }) };
 const publishedRelease = {
+  product: "MOBILE" as const,
+  active: true,
+  withdrawnAt: null,
+  sourceSha: null,
+  sourceRunId: null,
+  sourceRunUrl: null,
+  managed: false,
+  packages: [],
   buildNumber: null,
   changeCount: 0,
   changes: [],

@@ -100,7 +100,7 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
         href: "/admin/releases",
         icon: "package",
         key: "releases",
-        label: "Sürümler",
+        label: "Yayın Merkezi",
       },
       {
         capability: "help.write",
@@ -108,15 +108,6 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
         icon: "book",
         key: "help",
         label: "Yardım Makaleleri",
-      },
-      {
-        // SPEC-INDIRME §B kataloğu bir yayın malzemesidir; kendi yetkisi yok,
-        // sürümlerle aynı kapıdan geçer.
-        capability: "release.read",
-        href: "/admin/downloads",
-        icon: "download",
-        key: "downloads",
-        label: "İndirme Paketleri",
       },
       {
         capability: "support.read",

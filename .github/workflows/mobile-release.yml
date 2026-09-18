@@ -12,7 +12,7 @@ on:
         type: choice
       release_id:
         default: ""
-        description: Published Release row id
+        description: Published mobile Release id (OTA only; APK creates its release automatically)
         required: false
         type: string
       rollout:
@@ -202,6 +202,7 @@ jobs:
 
       - name: Run release contract tests
         run: |
+          node --test scripts/releases/*.test.mjs
           node --test apps/mobile/scripts/mobile-release-workflow.test.mjs
           node --test apps/mobile/scripts/publish-ota-bundle.test.mjs
 
@@ -421,7 +422,6 @@ jobs:
       R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
       R2_BUCKET: ${{ secrets.R2_BUCKET }}
       R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-      WHISPR_RELEASE_PUBLISH_TOKEN: ${{ secrets.WHISPR_RELEASE_PUBLISH_TOKEN }}
       WHISPR_MOBILE_BUILD_ID: ${{ github.sha }}
 
     steps:
@@ -471,7 +471,6 @@ jobs:
           set -euo pipefail
           missing=()
           [[ -n "${EXPO_TOKEN:-}" ]] || missing+=("EXPO_TOKEN")
-          [[ -n "${WHISPR_RELEASE_PUBLISH_TOKEN:-}" ]] || missing+=("WHISPR_RELEASE_PUBLISH_TOKEN")
           [[ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]] || missing+=("CLOUDFLARE_ACCOUNT_ID")
           [[ -n "${R2_ACCESS_KEY_ID:-}" ]] || missing+=("R2_ACCESS_KEY_ID")
           [[ -n "${R2_SECRET_ACCESS_KEY:-}" ]] || missing+=("R2_SECRET_ACCESS_KEY")
@@ -655,67 +654,23 @@ jobs:
             -H 'Range: bytes=0-1023' "$artifact_url")"
           [[ "$status" == "206" ]] || { echo "::error::APK host did not preserve Range requests."; exit 1; }
 
-      - name: Register verified APK and update parity manifest
-        shell: bash
+      - name: Prepare verified APK publication
         env:
-          VALUE_STEPS_VERIFY_OUTPUTS_ARTIFACT_KEY: ${{ steps.verify.outputs.artifact_key }}
-          VALUE_STEPS_VERIFY_OUTPUTS_SHA256: ${{ steps.verify.outputs.sha256 }}
-          VALUE_STEPS_VERIFY_OUTPUTS_SIGNING_FINGERPRINT: ${{ steps.verify.outputs.signing_fingerprint }}
-          VALUE_STEPS_VERIFY_OUTPUTS_SIZE_BYTES: ${{ steps.verify.outputs.size_bytes }}
-          VALUE_STEPS_VERIFY_OUTPUTS_VERSION_CODE: ${{ steps.verify.outputs.version_code }}
-          VALUE_NEEDS_CONTRACT_OUTPUTS_API_BASE_URL: ${{ needs.contract.outputs.api_base_url }}
-          VALUE_INPUTS_RELEASE_ID: ${{ inputs.release_id }}
-          VALUE_INPUTS_ENVIRONMENT: ${{ inputs.environment }}
-          VALUE_STEPS_VERIFY_OUTPUTS_VERSION_NAME: ${{ steps.verify.outputs.version_name }}
-          VALUE_STEPS_VERIFY_OUTPUTS_LATEST_KEY: ${{ steps.verify.outputs.latest_key }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_DEFAULT_REGION: auto
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: |
-          set -euo pipefail
-          artifact_url="https://updates.whispr.team/${VALUE_STEPS_VERIFY_OUTPUTS_ARTIFACT_KEY}"
-          jq -n \
-            --arg sha256 "${VALUE_STEPS_VERIFY_OUTPUTS_SHA256}" \
-            --arg signingCertSha256 "${VALUE_STEPS_VERIFY_OUTPUTS_SIGNING_FINGERPRINT}" \
-            --arg url "$artifact_url" \
-            --argjson sizeBytes "${VALUE_STEPS_VERIFY_OUTPUTS_SIZE_BYTES}" \
-            --argjson versionCode "${VALUE_STEPS_VERIFY_OUTPUTS_VERSION_CODE}" \
-            '{kind:"APK",platform:"ANDROID",sha256:$sha256,signingCertSha256:$signingCertSha256,sizeBytes:$sizeBytes,url:$url,versionCode:$versionCode}' \
-            > "$RUNNER_TEMP/mobile-apk-registration.json"
-          curl --fail-with-body --silent --show-error \
-            -H "Authorization: Bearer ${WHISPR_RELEASE_PUBLISH_TOKEN}" \
-            -H "Content-Type: application/json" \
-            --data-binary "@$RUNNER_TEMP/mobile-apk-registration.json" \
-            "${VALUE_NEEDS_CONTRACT_OUTPUTS_API_BASE_URL}/api/v1/admin/releases/${VALUE_INPUTS_RELEASE_ID}/artifact" \
-            > "$RUNNER_TEMP/mobile-apk-registration-response.json"
+          RELEASE_VERSION: ${{ steps.verify.outputs.version_name }}
+          ARTIFACT_KEY: ${{ steps.verify.outputs.artifact_key }}
+          ARTIFACT_SHA256: ${{ steps.verify.outputs.sha256 }}
+          ARTIFACT_CERT_SHA256: ${{ steps.verify.outputs.signing_fingerprint }}
+          ARTIFACT_SIZE: ${{ steps.verify.outputs.size_bytes }}
+          ARTIFACT_VERSION_CODE: ${{ steps.verify.outputs.version_code }}
+        run: node scripts/releases/prepare-publication.mjs android "$RUNNER_TEMP/mobile-publication.json"
 
-          environment="${VALUE_INPUTS_ENVIRONMENT}"
-          mobile_channel="$([[ "$environment" == "uat" ]] && printf 'uat' || printf 'beta')"
-          version_code="${VALUE_STEPS_VERIFY_OUTPUTS_VERSION_CODE}"
-          previous_version_code="$((version_code - 1))"
-          curl --fail-with-body --silent --show-error \
-            -H "Authorization: Bearer ${WHISPR_RELEASE_PUBLISH_TOKEN}" \
-            "${VALUE_NEEDS_CONTRACT_OUTPUTS_API_BASE_URL}/api/v1/mobile/app/update?buildEnvironment=${environment}&channel=${mobile_channel}&installed=${VALUE_STEPS_VERIFY_OUTPUTS_VERSION_NAME}&platform=android&runtimeVersion=publication-verification&versionCode=${previous_version_code}" \
-            > "$RUNNER_TEMP/mobile-apk-decision.json"
-          jq -e \
-            --arg url "$artifact_url" \
-            --argjson versionCode "${VALUE_STEPS_VERIFY_OUTPUTS_VERSION_CODE}" \
-            '.updateKind == "apk" and .androidArtifact.url == $url and .androidArtifact.versionCode == $versionCode' \
-            "$RUNNER_TEMP/mobile-apk-decision.json" >/dev/null
-
-          jq -n \
-            --arg sha256 "${VALUE_STEPS_VERIFY_OUTPUTS_SHA256}" \
-            --arg url "$artifact_url" \
-            --arg version "${VALUE_STEPS_VERIFY_OUTPUTS_VERSION_NAME}" \
-            --argjson sizeBytes "${VALUE_STEPS_VERIFY_OUTPUTS_SIZE_BYTES}" \
-            --argjson versionCode "${VALUE_STEPS_VERIFY_OUTPUTS_VERSION_CODE}" \
-            '{sha256:$sha256,sizeBytes:$sizeBytes,url:$url,version:$version,versionCode:$versionCode}' \
-            > "$RUNNER_TEMP/mobile-latest.json"
-          endpoint_url="https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
-          aws --endpoint-url "$endpoint_url" s3 cp "$RUNNER_TEMP/mobile-latest.json" \
-            "s3://${R2_BUCKET}/${VALUE_STEPS_VERIFY_OUTPUTS_LATEST_KEY}" \
-            --content-type "application/json" \
-            --cache-control "public, max-age=60" --no-progress
+      - name: Save retryable publication manifest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mobile-publication
+          path: ${{ runner.temp }}/mobile-publication.json
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Scrub mobile release material
         if: always()
@@ -737,3 +692,31 @@ jobs:
             "$RUNNER_TEMP/android-sdk-download" \
             "$RUNNER_TEMP/aws-cli" \
             "$RUNNER_TEMP/aws-cli-download"
+
+  finalize-release:
+    name: Publish verified Android release and download catalog
+    needs: [contract, apk]
+    if: inputs.kind == 'apk' && !inputs.preflight_only
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: mobile-${{ inputs.environment }}
+    permissions:
+      contents: read
+      pull-requests: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: mobile-publication
+          path: ${{ runner.temp }}/publication
+      - name: Verify public bytes and finalize publication
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/releases/publish-release.mjs "$RUNNER_TEMP/publication/mobile-publication.json"

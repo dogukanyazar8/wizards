@@ -2855,6 +2855,8 @@ enum DownloadDelivery {
 /// modelindeki sozlesmenin aynisi.
 model DownloadArtifact {
   id               String           @id @default(uuid())
+  releaseId        String?
+  release          Release?         @relation(fields: [releaseId], references: [id], onDelete: Restrict)
   /// STABLE = PROD (Stable), UAT = UAT (Beta).
   channel          ReleaseChannel
   platform         DownloadPlatform
@@ -2879,6 +2881,7 @@ model DownloadArtifact {
   /// Bir ortamda bir platformun tek guncel satiri olur; pencere ayni karti iki kez cizemez.
   @@unique([channel, platform])
   @@index([channel, publishedAt])
+  @@index([releaseId])
 }
 
 enum HelpCategory {
@@ -2903,36 +2906,51 @@ enum BugReportStatus {
   DISCARDED
 }
 
+enum ReleaseProduct {
+  DESKTOP
+  MOBILE
+}
+
 /// One shipped app version. The "Yenilikler" card, the release history and the
 /// update banner all read this table, so a version the team has not announced
 /// yet must stay invisible rather than live behind a client-side filter:
 /// `publishedAt = NULL` is a draft and no mobile endpoint returns it.
 model Release {
-  id          String         @id @default(uuid())
-  /// Semver text, for example "0.8.15". Unique because the detail route and the
-  /// installed-version comparison both address a release by it.
-  version     String         @unique @db.VarChar(32)
-  codename    String?        @db.VarChar(48)
-  channel     ReleaseChannel @default(STABLE)
-  releasedAt  DateTime
-  buildNumber Int?
+  id                      String         @id @default(uuid())
+  /// Semver text scoped to product and channel; client detail routes supply their product/channel.
+  version                 String         @db.VarChar(32)
+  product                 ReleaseProduct @default(MOBILE)
+  sourceSha               String?        @db.VarChar(40)
+  sourceRunId             String?        @db.VarChar(20)
+  publicationDigest       String?        @db.VarChar(64)
+  /// Immutable CI package manifest; DownloadArtifact and ReleaseArtifact are projections.
+  publication             Json?
+  withdrawnAt             DateTime?
+  active                  Boolean        @default(true)
+  codename                String?        @db.VarChar(48)
+  channel                 ReleaseChannel @default(STABLE)
+  releasedAt              DateTime
+  buildNumber             Int?
   /// Download size of the build. BigInt in the column, plain number on the wire.
-  sizeBytes   BigInt?
+  sizeBytes               BigInt?
   /// The paragraph 2a prints under the version heading.
-  summary     String?        @db.VarChar(600)
+  summary                 String?        @db.VarChar(600)
   /// One line for the history row; shorter than `summary` on purpose.
-  highlight   String?        @db.VarChar(160)
-  mandatory   Boolean        @default(false)
+  highlight               String?        @db.VarChar(160)
+  mandatory               Boolean        @default(false)
   /// Old native builds below this code must install a new binary before OTA.
   minSupportedVersionCode Int?
-  publishedAt DateTime?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  publishedAt             DateTime?
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
 
   artifacts  ReleaseArtifact[]
   changes    ReleaseChange[]
   otaBundles OtaBundle[]
+  downloads  DownloadArtifact[]
 
+  @@unique([product, channel, version])
+  @@index([product, channel, active, publishedAt])
   @@index([publishedAt, releasedAt])
   @@index([channel, releasedAt])
 }
