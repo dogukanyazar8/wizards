@@ -10,6 +10,9 @@ import type {
   MobileServiceStatusLevel,
 } from "@wizards/types";
 
+import packageJson from "../package.json";
+import { MOBILE_RELEASE_CODENAME } from "../src/about/mobile-app-identity";
+
 const mockUseMobileAuth = jest.fn();
 
 jest.mock("../src/auth/mobile-auth-context", () => ({
@@ -227,16 +230,19 @@ describe("1a + 1b About screen", () => {
     });
   });
 
-  it("shows Resonance for the installed 0.9.0 binary when release details are unavailable", async () => {
+  it("shows the release codename for the installed current binary when release details are unavailable", async () => {
+    // The current binary is whatever this bundle ships; restating the number
+    // here turned every release bump into a red About screen test.
+    const installedVersion = packageJson.version;
     const nativeVersion = jest.replaceProperty(
       require("expo-application"),
       "nativeApplicationVersion",
-      "0.9.0",
+      installedVersion,
     );
     const apiClient = createApiClient();
     const requestJson = apiClient.requestJson.getMockImplementation()!;
     apiClient.requestJson.mockImplementation(async (path: string) => {
-      if (path.startsWith("/api/v1/mobile/app/releases/0.9.0")) {
+      if (path.startsWith(`/api/v1/mobile/app/releases/${installedVersion}`)) {
         throw new Error("Release detail unavailable");
       }
       return requestJson(path);
@@ -250,11 +256,11 @@ describe("1a + 1b About screen", () => {
     try {
       const view = await renderScreen();
       const metadata = view.getByTestId("mobile-about-version-metadata");
-      expect(within(metadata).getByText("0.9.0")).toBeTruthy();
-      expect(within(metadata).getByText("“Resonance”")).toBeTruthy();
+      expect(within(metadata).getByText(installedVersion)).toBeTruthy();
+      expect(within(metadata).getByText(`“${MOBILE_RELEASE_CODENAME}”`)).toBeTruthy();
       await waitFor(() =>
         expect(apiClient.requestJson).toHaveBeenCalledWith(
-          expect.stringContaining("/api/v1/mobile/app/releases/0.9.0"),
+          expect.stringContaining(`/api/v1/mobile/app/releases/${installedVersion}`),
           { method: "GET" },
         ),
       );

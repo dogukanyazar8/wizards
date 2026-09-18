@@ -30,6 +30,11 @@ const UNAUTHENTICATED_ROUTE_PATHS = new Set([
   "mobile/auth/revoke",
   "mobile/auth/two-factor",
   "mobile/auth/verification-email",
+  // Tauri updater feed: installed desktop apps poll it before any session exists.
+  // Read-only, it serves only the published, signed release of the ring this
+  // deployment runs — every other ring answers 404. See
+  // lib/releases/publication-service.ts#desktopPublicationFeed.
+  "releases/desktop/[ring]/latest.json",
   // S2 binding decision: the profile card is readable without a session — a
   // signed-in caller's viewerId is still passed through when present, but
   // this route never throws 401 for its absence. See
@@ -60,6 +65,9 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "POST admin/notification-campaigns/[campaignId]/send",
   // Publishing records the authenticated admin and current server time.
   "POST admin/releases/[releaseId]/publish",
+  // Withdrawing names only the release in the path; the admin session is the
+  // actor and the audit row records who pulled it.
+  "POST admin/releases/[releaseId]/withdraw",
   "POST auth/desktop-session",
   "DELETE channels/[channelId]",
   "DELETE channels/[channelId]/messages",
@@ -175,6 +183,12 @@ const AUTH_GUARD_NAMES = [
   "requireAdminCapability",
   "requireMobileAdminCapability",
   "authorizeMobileApiRequest",
+  // Machine identity, not a user session: the release publisher proves itself
+  // with a GitHub Actions OIDC token pinned to this repository, the release
+  // workflow file, its branch and its protected environment. Listing it here
+  // keeps `releases/publish` off the unauthenticated allowlist, so dropping the
+  // call still fails this contract.
+  "requirePublicationIdentity",
 ] as const;
 const AUTH_GUARD_ALTERNATION = AUTH_GUARD_NAMES.join("|");
 const AUTH_GUARD_CALL_PATTERN = new RegExp(`\\b(?:${AUTH_GUARD_ALTERNATION})\\s*\\(`);

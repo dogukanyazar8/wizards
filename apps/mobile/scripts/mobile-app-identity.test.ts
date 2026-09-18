@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import packageJson from "../package.json";
 import {
   getMobileAppCodename,
+  MOBILE_RELEASE_CODENAME,
   normalizeMobileAppVersion,
   resolveMobileAppReleaseChannel,
 } from "../src/about/mobile-app-identity";
@@ -29,10 +31,15 @@ describe("mobile app release channel", () => {
 
 describe("mobile app version", () => {
   it("labels the current release without relabeling older installed binaries", () => {
-    assert.equal(getMobileAppCodename("0.9.0"), "Resonance");
-    assert.equal(getMobileAppCodename("v0.9.0+9001"), "Resonance");
+    // The shipped version is read, not restated: a release bump must not turn
+    // this test red, while a codename leaking onto other binaries still must.
+    const current = packageJson.version;
+    const nextMajor = `${Number(current.split(".")[0]) + 1}.0.0`;
+
+    assert.equal(getMobileAppCodename(current), MOBILE_RELEASE_CODENAME);
+    assert.equal(getMobileAppCodename(`v${current}+9001`), MOBILE_RELEASE_CODENAME);
     assert.equal(getMobileAppCodename("0.8.15"), undefined);
-    assert.equal(getMobileAppCodename("1.0.0"), undefined);
+    assert.equal(getMobileAppCodename(nextMajor), undefined);
   });
 
   it("prints one version string regardless of the tag or build suffix it arrives as", () => {

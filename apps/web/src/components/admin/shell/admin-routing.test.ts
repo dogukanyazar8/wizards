@@ -9,6 +9,8 @@ import { isAdminNavPathActive } from "./admin-shell-nav-link";
 
 const adminAppRoot = join(process.cwd(), "src", "app", "admin");
 
+// Download packages live in Yayın Merkezi (`/admin/releases?view=packages`);
+// the old `/admin/downloads` page only redirects there, so it has no rail item.
 const expectedNavKeys: Record<AdminRole, string[]> = {
   ADMIN: [
     "overview",
@@ -19,7 +21,6 @@ const expectedNavKeys: Record<AdminRole, string[]> = {
     "audit",
     "releases",
     "help",
-    "downloads",
     "support",
     "voice",
     "health",
@@ -27,7 +28,7 @@ const expectedNavKeys: Record<AdminRole, string[]> = {
     "flags",
     "feedback",
   ],
-  ANALYST: ["overview", "analytics", "releases", "downloads", "voice", "health", "feedback"],
+  ANALYST: ["overview", "analytics", "releases", "voice", "health", "feedback"],
   MODERATOR: [
     "overview",
     "users",
@@ -35,7 +36,6 @@ const expectedNavKeys: Record<AdminRole, string[]> = {
     "servers",
     "moderation",
     "releases",
-    "downloads",
     "voice",
     "health",
     "feedback",
@@ -49,7 +49,6 @@ const expectedNavKeys: Record<AdminRole, string[]> = {
     "audit",
     "releases",
     "help",
-    "downloads",
     "support",
     "voice",
     "health",
@@ -64,7 +63,6 @@ const expectedNavKeys: Record<AdminRole, string[]> = {
     "servers",
     "moderation",
     "releases",
-    "downloads",
     "support",
     "voice",
     "health",

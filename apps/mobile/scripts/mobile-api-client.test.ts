@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createMobileApiClient, MobileApiError } from "../src/api/mobile-api-client";
+import { MOBILE_CLIENT_VERSION } from "../src/api/mobile-client-headers";
 import { MobileOfflineError } from "../src/network/mobile-network-contract";
 
 describe("mobile API client", () => {
@@ -48,7 +49,7 @@ describe("mobile API client", () => {
     assert.equal(headers.get("accept"), "application/json");
     assert.equal(headers.get("authorization"), "Bearer access-token-1234567890");
     assert.equal(headers.get("x-whispr-client"), "mobile");
-    assert.equal(headers.get("x-whispr-client-version"), "0.9.0");
+    assert.equal(headers.get("x-whispr-client-version"), MOBILE_CLIENT_VERSION);
   });
 
   it("rejects absolute, protocol-relative, and traversal paths", async () => {
