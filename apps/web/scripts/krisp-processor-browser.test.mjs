@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import { build } from "esbuild";
@@ -62,6 +63,94 @@ for (const concurrent of [false, true]) {
         destroyed: 0,
         enabled: true,
         results: [true, true],
+      });
+    } finally {
+      await browser.close();
+    }
+  });
+}
+
+// Import the real SDK as ESM (strict mode), after the native initialization script.
+// Krisp bundles a WebRTC adapter that wraps getUserMedia during module evaluation.
+const desktopBridge = await readFile(
+  new URL("../../desktop/src-tauri/assets/desktop-media-permission-bridge.js", import.meta.url),
+  "utf8",
+);
+const krispModule = await build({
+  absWorkingDir: fileURLToPath(new URL("../", import.meta.url)),
+  bundle: true,
+  write: false,
+  platform: "browser",
+  format: "esm",
+  stdin: {
+    resolveDir: fileURLToPath(new URL("../", import.meta.url)),
+    contents: 'export { isKrispNoiseFilterSupported } from "@livekit/krisp-noise-filter";',
+  },
+});
+
+for (const allowed of [false, true]) {
+  test(`real Krisp module loads after desktop bridge and respects microphone ${allowed ? "approval" : "denial"}`, async () => {
+    const browser = await chromium.launch({
+      args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
+    });
+    try {
+      const page = await browser.newPage();
+      await page.route("**/*", (route) => route.abort());
+      await page.route("https://voice.test/", (route) =>
+        route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Krisp</title>" }),
+      );
+      await page.route("https://voice.test/krisp.js", (route) =>
+        route.fulfill({ contentType: "text/javascript", body: krispModule.outputFiles[0].text }),
+      );
+      await page.addInitScript((allowed) => {
+        window.__WHISPR_DESKTOP__ = { shell: "desktop" };
+        window.prompts = [];
+        window.captureCalls = 0;
+        const capture = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+        navigator.mediaDevices.getUserMedia = (constraints) => {
+          window.captureCalls++;
+          return capture(constraints);
+        };
+        // Exercise the trusted prompt even though Chromium's fake device is preapproved.
+        navigator.permissions.query = async () => ({ state: "prompt" });
+        window.__TAURI_INTERNALS__ = {
+          async invoke(command, { kind }) {
+            window.prompts.push({ command, kind });
+            const requestId = "media-permission-1";
+            queueMicrotask(() =>
+              window.__WHISPR_DESKTOP_MEDIA_PERMISSION_RESOLVE__(requestId, allowed),
+            );
+            return { kind, requestId };
+          },
+        };
+      }, allowed);
+      await page.goto("https://voice.test/");
+      await page.evaluate(desktopBridge);
+      const result = await page.evaluate(async () => {
+        const bridgeCapture = navigator.mediaDevices.getUserMedia;
+        const krisp = await import("/krisp.js");
+        let outcome;
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          outcome = stream.getAudioTracks()[0].readyState;
+          stream.getTracks().forEach((track) => track.stop());
+        } catch (error) {
+          outcome = error.name;
+        }
+        return {
+          supported: krisp.isKrispNoiseFilterSupported(),
+          wrapped: navigator.mediaDevices.getUserMedia !== bridgeCapture,
+          outcome,
+          captureCalls: window.captureCalls,
+          prompts: window.prompts,
+        };
+      });
+      assert.deepEqual(result, {
+        supported: true,
+        wrapped: true,
+        outcome: allowed ? "live" : "NotAllowedError",
+        captureCalls: allowed ? 1 : 0,
+        prompts: [{ command: "request_desktop_media_permission", kind: "microphone" }],
       });
     } finally {
       await browser.close();

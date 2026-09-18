@@ -117,6 +117,9 @@
 
       return Reflect.apply(originalGetUserMedia, mediaDevices, [constraints]);
     },
-    writable: false,
+    // WebRTC adapters (including Krisp's) wrap this method during ESM import.
+    // The wrapper must stay assignable; WebView2's native permission handler
+    // remains the authorization boundary, even if JavaScript replaces it.
+    writable: true,
   });
 })();
