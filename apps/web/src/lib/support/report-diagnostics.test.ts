@@ -76,6 +76,33 @@ describe("report diagnostics", () => {
     assert.equal(collectReportDiagnostics(source({ isDesktop: true })).platform, "desktop");
   });
 
+  it("uses native OS details without exposing the desktop webview browser", () => {
+    const desktopSource = {
+      ...source({ isDesktop: true, userAgent: EDGE_WINDOWS }),
+      desktopOsName: "Windows 11 Pro",
+      desktopOsVersion: "10.0.26100",
+    };
+    const diagnostics = collectReportDiagnostics(desktopSource);
+
+    assert.deepEqual(diagnostics.deviceInfo, {
+      locale: "tr",
+      osName: "Windows 11 Pro",
+      osVersion: "10.0.26100",
+    });
+    assert.equal(
+      formatReportDeviceLine(
+        {
+          ...diagnostics,
+          appBuild: "0.9.0-2026-09-18T08-21-20-206Z",
+          appVersion: "0.9.0",
+          releaseChannel: "beta",
+        },
+        "bilinmiyor",
+      ),
+      "Windows 11 Pro 10.0.26100 · 0.9.0 (20260918.082120) · beta",
+    );
+  });
+
   it("falls back to the platform label when the agent string says nothing", () => {
     const diagnostics = collectReportDiagnostics(
       source({ platformLabel: "Windows", userAgent: "curl/8.4.0" }),

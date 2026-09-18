@@ -13,17 +13,16 @@ test("automatic desktop CI runs portable locked Rust quality gates", async () =>
     "utf8",
   );
   const desktopOpsStart = workflow.indexOf("\n  desktop-ops:");
-  const desktopBuildStart = workflow.indexOf("\n  desktop-build:");
+  const verifyStart = workflow.indexOf("\n  verify:", desktopOpsStart);
 
   assert.notEqual(desktopOpsStart, -1);
 
-  const desktopOps = workflow.slice(
-    desktopOpsStart,
-    desktopBuildStart === -1 ? workflow.length : desktopBuildStart,
-  );
+  assert.notEqual(verifyStart, -1);
+  const desktopOps = workflow.slice(desktopOpsStart, verifyStart);
   const desktopOpsConfiguration = desktopOps.slice(0, desktopOps.indexOf("    steps:"));
 
-  assert.match(desktopOps, /^    needs: verify$/m);
+  assert.doesNotMatch(desktopOpsConfiguration, /^    needs:/m);
+  assert.match(workflow.slice(verifyStart), /^      - desktop-ops$/m);
   assert.match(desktopOpsConfiguration, /^    runs-on: ubuntu-24\.04$/mu);
   assert.doesNotMatch(desktopOpsConfiguration, /matrix|windows-latest|macos-latest/u);
   assert.doesNotMatch(desktopOpsConfiguration, /^    if: github\.event_name != 'pull_request'$/m);
@@ -36,14 +35,17 @@ test("automatic desktop CI runs portable locked Rust quality gates", async () =>
   assert.match(desktopOps, /CARGO_AUDIT_VERSION: 0\.22\.2/);
   assert.match(
     desktopOps,
-    /cargo install cargo-audit --version "\$CARGO_AUDIT_VERSION" --locked --force/,
+    /cargo install cargo-audit --version "\$CARGO_AUDIT_VERSION" --locked --root "\$CARGO_AUDIT_ROOT" --force/,
   );
   assert.match(desktopOps, /^        shell: bash$/m);
   assert.match(
     desktopOps,
     /^          cargo metadata --locked --format-version 1 --no-deps > \/dev\/null$/m,
   );
-  assert.match(desktopOps, /^          cargo audit --file Cargo\.lock$/m);
+  assert.match(
+    desktopOps,
+    /^          "\$CARGO_AUDIT_ROOT\/bin\/cargo-audit" audit --file Cargo\.lock$/m,
+  );
   assert.match(desktopOps, /^        run: cargo fmt -- --check$/m);
   assert.match(desktopOps, /^        run: pnpm --filter @wizards\/desktop lint:rust$/m);
   assert.match(desktopOps, /^        run: cargo test --locked$/m);

@@ -388,7 +388,8 @@ describe("Playwright E2E governance", () => {
       smokeRuntime.replaceAll("\r\n", "\n"),
     );
     assert.match(crossBrowserJob, /name:\s*Playwright Firefox\/WebKit Smoke/);
-    assert.match(crossBrowserJob, /needs:\s*verify/);
+    assert.doesNotMatch(crossBrowserJob, /needs:\s*verify/);
+    assert.match(workflow.slice(workflow.indexOf("\n  verify:")), /- e2e-cross-browser/);
     assert.match(crossBrowserJob, /playwright install --with-deps firefox webkit/);
     assert.match(crossBrowserJob, /@wizards\/web e2e:smoke:cross-browser/);
     assert.doesNotMatch(crossBrowserJob, /continue-on-error:/);
@@ -417,7 +418,8 @@ describe("Playwright E2E governance", () => {
 
     assert.equal(a11yRuntime.replaceAll("\r\n", "\n"), smokeRuntime.replaceAll("\r\n", "\n"));
     assert.match(a11yJob, /name:\s*Playwright Accessibility Scan/);
-    assert.match(a11yJob, /needs:\s*verify/);
+    assert.doesNotMatch(a11yJob, /needs:\s*verify/);
+    assert.match(workflow.slice(workflow.indexOf("\n  verify:")), /- e2e-a11y/);
     assert.match(a11yJob, /playwright install --with-deps chromium/);
     assert.match(a11yJob, /@wizards\/web e2e:a11y/);
     assert.doesNotMatch(a11yJob, /continue-on-error:/);
@@ -508,7 +510,8 @@ describe("Playwright E2E governance", () => {
 
     assert.equal(visualRuntime.replaceAll("\r\n", "\n"), smokeRuntime.replaceAll("\r\n", "\n"));
     assert.match(visualJob, /name:\s*Playwright Visual Regression/);
-    assert.match(visualJob, /needs:\s*verify/);
+    assert.doesNotMatch(visualJob, /needs:\s*verify/);
+    assert.match(workflow.slice(workflow.indexOf("\n  verify:")), /- e2e-visual/);
     assert.doesNotMatch(visualJob, /continue-on-error:/);
     assert.match(visualJob, /playwright install --with-deps chromium/);
     assert.match(visualJob, /@wizards\/web e2e:visual/);

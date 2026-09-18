@@ -1,12 +1,12 @@
-/// Tracks one overlay document without holding a lock across native window calls.
+/// Tracks one companion document without holding a lock across native window calls.
 #[derive(Default)]
-pub(crate) struct GameOverlayLifecycle {
+pub(crate) struct CompanionSurfaceLifecycle {
     generation: u64,
     requested: bool,
     ready: bool,
 }
 
-impl GameOverlayLifecycle {
+impl CompanionSurfaceLifecycle {
     pub(crate) fn request_visibility(&mut self, visible: bool) {
         self.requested = visible;
     }
@@ -40,18 +40,18 @@ impl GameOverlayLifecycle {
     }
 
     pub(crate) fn closed(&mut self) {
-        self.requested = false;
+        // Closing a document must not overwrite a newer visibility request.
         self.begin_load();
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::GameOverlayLifecycle;
+    use super::CompanionSurfaceLifecycle;
 
     #[test]
     fn creation_and_navigation_stay_hidden_until_loaded() {
-        let mut state = GameOverlayLifecycle::default();
+        let mut state = CompanionSurfaceLifecycle::default();
         state.request_visibility(true);
         let generation = state.begin_load();
         assert!(!state.can_show());
@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn a_late_load_cannot_reopen_a_hidden_window() {
-        let mut state = GameOverlayLifecycle::default();
+        let mut state = CompanionSurfaceLifecycle::default();
         state.request_visibility(true);
         let generation = state.begin_load();
         state.request_visibility(false);
@@ -72,8 +72,36 @@ mod tests {
     }
 
     #[test]
+    fn completing_an_old_close_preserves_a_newer_show_request() {
+        let mut state = CompanionSurfaceLifecycle::default();
+        state.request_visibility(true);
+        let old = state.begin_load();
+        assert!(state.loaded(old));
+        state.request_visibility(false);
+        // The hide worker has started; a newer request arrives before close completes.
+        state.request_visibility(true);
+        state.closed();
+        assert!(state.requested());
+        assert!(!state.can_show());
+        let replacement = state.begin_load();
+        assert!(!state.loaded(old));
+        assert!(state.loaded(replacement));
+    }
+
+    #[test]
+    fn a_hidden_loaded_document_can_be_shown_without_reloading() {
+        let mut state = CompanionSurfaceLifecycle::default();
+        state.request_visibility(true);
+        let document = state.begin_load();
+        state.request_visibility(false);
+        assert!(!state.loaded(document));
+        state.request_visibility(true);
+        assert!(state.can_show());
+    }
+
+    #[test]
     fn events_from_a_destroyed_document_cannot_show_its_replacement() {
-        let mut state = GameOverlayLifecycle::default();
+        let mut state = CompanionSurfaceLifecycle::default();
         state.request_visibility(true);
         let old = state.begin_load();
         state.closed();

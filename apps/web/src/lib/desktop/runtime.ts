@@ -9,6 +9,8 @@ declare global {
       };
       platform: "tauri";
       os?: string;
+      osName?: string | null;
+      osVersion?: string | null;
       launchMode?: "autostart" | "interactive";
       releaseRing?: "dev" | "stable" | "production" | "uat";
       shell: "desktop";

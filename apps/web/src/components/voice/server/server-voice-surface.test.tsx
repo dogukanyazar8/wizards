@@ -140,6 +140,17 @@ describe("§5.1 ses kanalı başlığı", () => {
     );
   });
 
+  it("Krisp etkinleştirme hatasının açıklamasını rozette gösterir", () => {
+    const html = renderHeader({
+      krispActive: false,
+      krispLabel: MESSAGES["server.voice.header.krispUnavailable"] ?? "",
+      krispDescription: MESSAGES["voice.settings.krispRequiresCloud"] ?? "",
+    });
+    assert.match(html, /Krisp kullanılamıyor/u);
+    assert.match(html, /title="Krisp bir LiveKit Cloud odası gerektirir/u);
+    assert.match(html, /data-krisp-active="false"/u);
+  });
+
   it("gecikme çipi dört çubuk çizer ve kademeyi taşır", () => {
     const html = renderHeader();
 

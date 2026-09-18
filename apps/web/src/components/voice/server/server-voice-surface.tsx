@@ -128,6 +128,7 @@ export type ServerVoiceHeaderProps = {
   readonly categoryName: string | null;
   readonly krispActive: boolean;
   readonly krispLabel: string;
+  readonly krispDescription?: string;
   /**
    * §5.1 gecikme çipi. `tier` LiveKit'in gerçek bağlantı kalitesinden gelir; `ms` **yok**
    * (Ş4 TODO 1 — odanın RTT'sini veren bir alan yok) ve `null` iken sayı yazılmaz.
@@ -145,6 +146,7 @@ export function ServerVoiceHeader({
   categoryName,
   krispActive,
   krispLabel,
+  krispDescription,
   latency,
   membersActive,
   onOpenMembers,
@@ -239,6 +241,7 @@ export function ServerVoiceHeader({
           className="flex items-center font-semibold whitespace-nowrap"
           data-krisp-active={krispActive ? "true" : "false"}
           data-testid="server-voice-krisp-chip"
+          title={krispDescription ?? krispLabel}
           style={{
             background: krispActive
               ? `hsl(var(--success)/${voiceHeader.krispChipBackgroundAlpha})`

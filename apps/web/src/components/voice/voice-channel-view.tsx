@@ -2,6 +2,7 @@
 
 import { useScreenShareWatch } from "@/hooks/use-screen-share-watch";
 import { useVoiceStore } from "@/store/voice-store";
+import { getKrispStatus } from "@/lib/voice/krisp-status";
 import {
   resolveScreenShareStageChipProps,
   selectScreenShareStageChip,
@@ -89,6 +90,7 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
   const {
     activeChannelId,
     activeScreenShareId,
+    audioPreferences,
     cameraError,
     cameraStatus,
     connectionState,
@@ -96,11 +98,14 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
     getParticipantVolume,
     isCameraEnabled,
     isApplyingScreenShareQuality,
+    isApplyingAudioPreferences,
     isDeafened,
     isJoining,
     isKrispNoiseCancellationActive,
+    isRecoveringKrispNoiseCancellation,
     isMuted,
     isScreenSharing,
+    krispAvailability,
     goLiveLabel,
     joinChannel,
     leaveChannel,
@@ -365,10 +370,6 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
   }
 
   /*
-    §5.1 — Krisp çipi gerçek durumdan (`krisp-quality.ts`); "kontrol ediliyor" ara durumu
-    SPEC'te yok, çip o an **kapalı** yazar ve durum netleşince kendiliğinden düzelir.
-  */
-  /*
     §5.1 gecikme çipi. Sözcük **gerçek** veriden: LiveKit'in `ConnectionQuality`si. Sayı
     (`32 ms`) yok — TODO(api), odanın RTT'sini veren bir alan yok (Ş4 TODO 1) ve
     `ConnectionQuality` bir sınıf, milisaniye değil. Sayı geldiği gün `ms` dolar; çip
@@ -393,9 +394,16 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
     },
   );
 
-  const krispChipLabel = isKrispNoiseCancellationActive
-    ? t("server.voice.header.krispActive")
-    : t("server.voice.header.krispInactive");
+  const krispStatus = getKrispStatus({
+    audioPreferences,
+    krispAvailability,
+    isKrispNoiseCancellationActive,
+    isMuted,
+    isApplyingAudioPreferences,
+    isRecoveringKrispNoiseCancellation,
+    isJoining,
+    isConnected: activeChannelId === channelId && connectionState === "connected",
+  });
 
   // Oda yokken ya da saat ilk tikini atmadan süre yazılmaz: ölçüm yokluğu bir süre değildir.
   const clock = room ? connectionClock : null;
@@ -430,8 +438,9 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
         layoutControl={<ServerVoiceLayoutMenu sharing={screenShares.length > 0} />}
         categoryName={categoryName}
         channelName={channelName}
-        krispActive={isKrispNoiseCancellationActive}
-        krispLabel={krispChipLabel}
+        krispActive={krispStatus.active}
+        krispLabel={t(krispStatus.labelKey)}
+        krispDescription={t(krispStatus.descriptionKey)}
         latency={latency}
         membersActive={isMembersPanelOpen}
         onOpenMembers={openMembersPanel}

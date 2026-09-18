@@ -10,7 +10,8 @@ import { collectWebBugReportLogLines } from "@/lib/observability/fault-log";
 import { REPORT_LOG_LINE_COUNT } from "@/lib/support/report-metrics";
 
 /**
- * SPEC §A.5 üçüncü satırının içeriği: `{tarayıcı} · {OS} · {sürüm} ({build}) · {kanal}`.
+ * SPEC §A.5 üçüncü satırının içeriği. Web tarayıcıyı da gösterir; masaüstü,
+ * WebView markasını değil native işletim sistemi adını ve sürümünü gösterir.
  *
  * Mobil `collectDeviceInfo`'nun web karşılığı ve aynı sözü verir: **kullanıcı
  * kimliği girmez**. Buradan çıkan nesne hem görünen satırın hem de istek
@@ -28,6 +29,8 @@ export type ReportDiagnostics = {
 };
 
 export type ReportDiagnosticsSource = {
+  readonly desktopOsName?: string | null;
+  readonly desktopOsVersion?: string | null;
   readonly desktopReleaseRing?: unknown;
   readonly isDesktop: boolean;
   readonly locale: string;
@@ -111,14 +114,24 @@ export function stripReleaseCodename(version: string): string {
 }
 
 function readRuntimeSource(): ReportDiagnosticsSource {
-  const desktop = (globalThis as { __WHISPR_DESKTOP__?: { releaseRing?: unknown; shell?: string } })
-    .__WHISPR_DESKTOP__;
+  const desktop = (
+    globalThis as {
+      __WHISPR_DESKTOP__?: {
+        osName?: string | null;
+        osVersion?: string | null;
+        releaseRing?: unknown;
+        shell?: string;
+      };
+    }
+  ).__WHISPR_DESKTOP__;
   const navigatorRef =
     typeof navigator === "undefined"
       ? null
       : (navigator as Navigator & { userAgentData?: { platform?: string } });
 
   return {
+    ...(desktop?.osName === undefined ? {} : { desktopOsName: desktop.osName }),
+    ...(desktop?.osVersion === undefined ? {} : { desktopOsVersion: desktop.osVersion }),
     desktopReleaseRing: desktop?.releaseRing,
     isDesktop: desktop?.shell === "desktop",
     locale: navigatorRef?.language ?? "tr",
@@ -130,9 +143,14 @@ function readRuntimeSource(): ReportDiagnosticsSource {
 export function collectReportDiagnostics(
   source: ReportDiagnosticsSource = readRuntimeSource(),
 ): ReportDiagnostics {
-  const browser = parseBrowserLabel(source.userAgent);
-  const operatingSystem = parseOperatingSystem(source.userAgent);
-  const osName = operatingSystem?.name ?? source.platformLabel;
+  const browser = source.isDesktop ? null : parseBrowserLabel(source.userAgent);
+  const agentOperatingSystem = parseOperatingSystem(source.userAgent);
+  const osName = source.isDesktop
+    ? (source.desktopOsName ?? agentOperatingSystem?.name ?? source.platformLabel)
+    : (agentOperatingSystem?.name ?? source.platformLabel);
+  const osVersion = source.isDesktop
+    ? (source.desktopOsVersion ?? agentOperatingSystem?.version)
+    : agentOperatingSystem?.version;
 
   return {
     appBuild: WHISPR_BUILD_ID,
@@ -141,7 +159,7 @@ export function collectReportDiagnostics(
       ...(browser === null ? {} : { deviceModel: browser }),
       locale: source.locale,
       ...(osName === null ? {} : { osName }),
-      ...(operatingSystem?.version == null ? {} : { osVersion: operatingSystem.version }),
+      ...(osVersion == null ? {} : { osVersion }),
     },
     platform: source.isDesktop ? "desktop" : "web",
     // Masaüstü kabuğu kendi halkasını bilir; tarayıcı yalnız derleme kanalını.
@@ -162,10 +180,23 @@ function normalizeReleaseChannel(value: string): MobileReleaseChannel {
   return "stable";
 }
 
+function formatDesktopBuildId(buildId: string, appVersion: string): string {
+  const versionPrefix = `${appVersion}-`;
+  if (!buildId.startsWith(versionPrefix)) return buildId;
+
+  const timestamp = buildId
+    .slice(versionPrefix.length)
+    .match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})(?:-\d+)?Z$/u);
+  if (!timestamp) return buildId;
+
+  return `${timestamp[1]}${timestamp[2]}${timestamp[3]}.${timestamp[4]}${timestamp[5]}${timestamp[6]}`;
+}
+
 /**
- * `{tarayıcı} · {OS} · {sürüm} ({build}) · {kanal}` — toggle kapalıyken de
- * görünür (SPEC §A.5), o yüzden bilinmeyen parçalar cümleyi bozmadan
- * `unknownLabel` ile dolar.
+ * Web: `{tarayıcı} · {OS} · {sürüm} ({build}) · {kanal}`.
+ * Masaüstü: `{native OS} · {sürüm} ({kısa build}) · {kanal}`. Tam build rapor
+ * payload'ında kalır. Toggle kapalıyken de görünür (SPEC §A.5); bilinmeyen
+ * parçalar `unknownLabel` ile dolar.
  */
 export function formatReportDeviceLine(
   diagnostics: ReportDiagnostics,
@@ -174,6 +205,15 @@ export function formatReportDeviceLine(
   const operatingSystem = [diagnostics.deviceInfo.osName, diagnostics.deviceInfo.osVersion]
     .filter((part) => typeof part === "string" && part.length > 0)
     .join(" ");
+
+  if (diagnostics.platform === "desktop") {
+    const buildId = formatDesktopBuildId(diagnostics.appBuild, diagnostics.appVersion);
+    return [
+      operatingSystem.length > 0 ? operatingSystem : unknownLabel,
+      `${diagnostics.appVersion} (${buildId})`,
+      diagnostics.releaseChannel,
+    ].join(" · ");
+  }
 
   return [
     diagnostics.deviceInfo.deviceModel ?? unknownLabel,

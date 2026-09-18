@@ -30,12 +30,10 @@ import {
 import { useScreenShareHealthSampler } from "@/hooks/use-screen-share-health";
 import {
   ConnectionState,
-  type AudioProcessorOptions,
   type LocalAudioTrack,
   LocalVideoTrack,
   Room,
   Track,
-  type TrackProcessor,
 } from "livekit-client";
 import {
   useCallback,
@@ -145,6 +143,7 @@ import {
   getPreferredKrispQuality,
   shouldPrewarmKrispProcessor,
 } from "@/lib/voice/krisp-quality";
+import { detachKrispProcessor, enableKrispProcessor } from "@/lib/voice/krisp-processor";
 import {
   deleteVoiceState,
   fetchLiveKitToken,
@@ -199,7 +198,6 @@ const RECONNECT_TIMEOUT_MS = 30_000;
 const MICROPHONE_HEALTH_CHECK_INTERVAL_MS = 2_500;
 const MICROPHONE_AUTO_RECOVERY_MAX_ATTEMPTS = 3;
 const VOICE_AUDIO_HEALTH_METRICS_INTERVAL_MS = 30_000;
-const KRISP_PROCESSOR_NAME = "livekit-noise-filter";
 const KRISP_BUFFER_DROP_MS = 300;
 const KRISP_BUFFER_OVERFLOW_MS = 200;
 
@@ -898,7 +896,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         return null;
       }
 
-      setKrispAvailability("available");
+      // Module support alone must not erase a failed activation during idle preloading.
+      setKrispAvailability((current) =>
+        current === "checking" || current === "requires_livekit_cloud" ? "available" : current,
+      );
       return krispModule;
     } catch (error) {
       setKrispAvailability(
@@ -966,8 +967,8 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         await processor.setEnabled(false).catch(() => undefined);
       }
 
-      if (track?.getProcessor()?.name === KRISP_PROCESSOR_NAME) {
-        await track.stopProcessor().catch((error) => {
+      if (track) {
+        await detachKrispProcessor(track).catch((error) => {
           logError("[voice] Krisp processor cleanup failed", error);
         });
       }
@@ -1012,25 +1013,11 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
             runtime: "client",
             tier,
           },
-          async () => {
-            const currentProcessor = track.getProcessor();
-            if (currentProcessor?.name === KRISP_PROCESSOR_NAME && currentProcessor !== processor) {
-              await track.stopProcessor().catch(() => undefined);
-            }
-
-            if (track.getProcessor()?.name !== KRISP_PROCESSOR_NAME) {
-              await track.setProcessor(
-                processor as unknown as TrackProcessor<Track.Kind.Audio, AudioProcessorOptions>,
-              );
-            }
-
-            const nextEnabled = await processor.setEnabled(true);
-            return nextEnabled ?? processor.isEnabled();
-          },
+          () => enableKrispProcessor(track, processor),
         );
         setIsKrispNoiseCancellationActive(isActive === true);
         setActiveKrispQuality(isActive === true ? quality : null);
-        setKrispAvailability("available");
+        setKrispAvailability(isActive ? "available" : "unavailable");
         return isActive === true;
       };
 
@@ -1093,7 +1080,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       const isKrispActive = await syncKrispNoiseCancellation(track, shouldEnableKrisp);
       const captureConfig = getAudioCaptureConfig(preferences);
 
-      if (!isKrispActive && captureConfig.enhancedNoiseFilterActive) {
+      if (!isKrispActive && shouldEnableKrisp) {
+        // Krisp init disables native suppression itself, even when capture started
+        // with the native profile. Remove the inactive processor before restoring it.
+        await detachKrispNoiseCancellation(track);
         const nativeCaptureConfig = getAudioCaptureConfig(preferences, {
           forceNativeProcessing: true,
         });
@@ -1114,7 +1104,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         processingProfile: captureConfig.processingProfile,
       };
     },
-    [getAudioCaptureConfig, syncKrispNoiseCancellation],
+    [detachKrispNoiseCancellation, getAudioCaptureConfig, syncKrispNoiseCancellation],
   );
 
   const enableLocalMicrophone = useCallback(

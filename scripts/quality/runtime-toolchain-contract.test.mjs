@@ -205,7 +205,7 @@ test("all GitHub Actions pnpm jobs consume packageManager as their version sourc
     }
   }
 
-  assert.equal(setupPnpmSteps, 17, "unexpected pnpm/action-setup step count");
+  assert.equal(setupPnpmSteps, 19, "unexpected pnpm/action-setup step count");
 });
 
 test("CI pins supported Node 24 action runtimes to reviewed releases", () => {
@@ -244,7 +244,7 @@ test("Turbo exposes the LiveKit URL to unit and coverage tests", () => {
 
 test("CI declares the mobile environment before validating it", () => {
   const workflow = readText(join(".github", "workflows", "ci.yml"));
-  const verifyJob = readWorkflowJob(workflow, "verify");
+  const verifyJob = readWorkflowJob(workflow, "mobile-quality");
 
   assert.match(
     verifyJob,
@@ -254,7 +254,7 @@ test("CI declares the mobile environment before validating it", () => {
 
 test("CI provides a non-routable LiveKit URL to coverage tests", () => {
   const workflow = readText(join(".github", "workflows", "ci.yml"));
-  const verifyJob = readWorkflowJob(workflow, "verify");
+  const verifyJob = readWorkflowJob(workflow, "web-tests");
 
   assert.match(
     verifyJob,
@@ -378,7 +378,9 @@ test("Node 22 native compatibility runs manually on the GitHub-hosted Linux runn
 test("hosted CI restores the pnpm store through GitHub cache archives", () => {
   const workflow = readText(join(".github", "workflows", "ci.yml"));
   const hostedJobs = [
-    "verify",
+    "quality",
+    "web-tests",
+    "mobile-quality",
     "typescript-native-shadow",
     "e2e-smoke",
     "e2e-cross-browser",

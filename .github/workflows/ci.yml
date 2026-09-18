@@ -33,8 +33,8 @@ permissions:
   pull-requests: read
 
 jobs:
-  verify:
-    name: Verify
+  quality:
+    name: Static checks and build
     runs-on: ubuntu-24.04
     timeout-minutes: 60
 
@@ -70,13 +70,6 @@ jobs:
       - name: Check E2E password guard
         run: node scripts/quality/e2e-password-guard.mjs
 
-      - name: Secret scan
-        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Keep scanner temporary files inside the job directory.
-          TMPDIR: ${{ runner.temp }}
-
       - name: Dependency audit
         run: pnpm audit --audit-level moderate
 
@@ -91,14 +84,81 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Install mobile visual Chromium
-        run: pnpm --filter @wizards/mobile exec playwright install --with-deps chromium
-
       - name: Test shared types package
         run: pnpm --filter @wizards/types test
 
       - name: Test shared UI package
         run: pnpm --filter @wizards/ui test
+
+      - name: Build
+        run: pnpm build
+
+  web-tests:
+    name: Web tests and coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm db:generate
+
+      - name: Test with coverage baseline
+        env:
+          LIVEKIT_URL: ws://127.0.0.1:7880
+          WEB_COVERAGE_API_E2E: "0"
+        timeout-minutes: 30
+        # This uncached single-package gate needs live output, not Turbo's CI buffering.
+        # Bound each test file as well as the whole coverage/report step.
+        run: pnpm --filter @wizards/web test:coverage --test-concurrency=2 --test-timeout=120000
+
+      - name: Upload coverage summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: web-coverage
+          path: apps/web/coverage/coverage-summary.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  mobile-quality:
+    name: Mobile quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm db:generate
+
+      - name: Install mobile visual Chromium
+        run: pnpm --filter @wizards/mobile exec playwright install --with-deps chromium
 
       - name: Mobile quality gate
         env:
@@ -110,17 +170,23 @@ jobs:
           pnpm --filter @wizards/mobile release:check
           pnpm --filter @wizards/mobile quality:check
 
-      - name: Test with coverage baseline
-        env:
-          LIVEKIT_URL: ws://127.0.0.1:7880
-          WEB_COVERAGE_API_E2E: "0"
-        timeout-minutes: 30
-        # This uncached single-package gate needs live output, not Turbo's CI buffering.
-        # Bound each test file as well as the whole coverage/report step.
-        run: pnpm --filter @wizards/web test:coverage --test-concurrency=2 --test-timeout=120000
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
 
-      - name: Build
-        run: pnpm build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Keep scanner temporary files inside the job directory.
+          TMPDIR: ${{ runner.temp }}
 
   actionlint:
     name: actionlint
@@ -326,8 +392,12 @@ jobs:
   e2e-smoke:
     name: Playwright E2E
     runs-on: ubuntu-24.04
-    needs: verify
     timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON((github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'full')) && '[1,2]' || '[1]') }}
 
     services:
       postgres:
@@ -407,16 +477,20 @@ jobs:
         run: pnpm --filter @wizards/web exec playwright install --with-deps chromium
 
       - name: Run Playwright API tests
-        if: github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) || (github.event_name == 'workflow_dispatch' && (inputs.e2e_scope == 'api' || inputs.e2e_scope == 'smoke' || inputs.e2e_scope == 'realtime'))
-        run: pnpm --filter @wizards/web e2e:api
+        if: github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'api'
+        run: pnpm --filter @wizards/web e2e e2e/specs/api
 
-      - name: Run Playwright smoke tests
-        if: github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) || (github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'smoke')
-        run: pnpm --filter @wizards/web e2e:smoke
+      - name: Run Playwright API and smoke tests
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'smoke')
+        run: pnpm --filter @wizards/web e2e e2e/specs/api e2e/specs/smoke
 
       - name: Run Playwright realtime and voice tests
-        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) || (github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'realtime')
-        run: pnpm --filter @wizards/web e2e:realtime
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')
+        run: pnpm --filter @wizards/web e2e e2e/specs/api e2e/specs/smoke e2e/specs/realtime e2e/specs/voice
+
+      - name: Run Playwright API and realtime tests
+        if: github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'realtime'
+        run: pnpm --filter @wizards/web e2e e2e/specs/api e2e/specs/realtime e2e/specs/voice
 
       # Screen share real media (K18): never on pull requests; branch pushes, the realtime
       # dispatch scope, and the nightly schedule. LiveKit is the docker-compose.yml image and
@@ -427,7 +501,7 @@ jobs:
       # `enable_loopback_candidate`, or every ICE check goes unanswered and the server drops
       # the participant with CONNECTION_TIMEOUT after 15 s.
       - name: Start LiveKit for real-media tests
-        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) || (github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'realtime') || github.event_name == 'schedule'
+        if: matrix.shard == 1 && ((github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) || (github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'realtime') || github.event_name == 'schedule')
         shell: bash
         run: |
           set -euo pipefail
@@ -447,7 +521,7 @@ jobs:
           exit 1
 
       - name: Run screen share real-media tests
-        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) || (github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'realtime') || github.event_name == 'schedule'
+        if: matrix.shard == 1 && ((github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) || (github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'realtime') || github.event_name == 'schedule')
         env:
           LIVEKIT_API_KEY: devkey
           LIVEKIT_API_SECRET: secret
@@ -458,14 +532,14 @@ jobs:
 
       - name: Run Playwright full suite
         if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.e2e_scope == 'full')
-        run: pnpm --filter @wizards/web e2e
+        run: pnpm --filter @wizards/web e2e --shard=${{ matrix.shard }}/2
 
       - name: Upload Playwright report
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           if-no-files-found: ignore
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: |
             apps/web/playwright-report
             apps/web/test-results
@@ -474,7 +548,6 @@ jobs:
   e2e-cross-browser:
     name: Playwright Firefox/WebKit Smoke
     runs-on: ubuntu-24.04
-    needs: verify
     timeout-minutes: 60
 
     services:
@@ -571,7 +644,6 @@ jobs:
   e2e-a11y:
     name: Playwright Accessibility Scan
     runs-on: ubuntu-24.04
-    needs: verify
     timeout-minutes: 60
 
     services:
@@ -651,8 +723,8 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter @wizards/web exec playwright install --with-deps chromium
 
-      - name: Test auth challenges, desktop OAuth, voice composer and audio playback
-        run: pnpm --filter @wizards/web exec node --test scripts/login-turnstile-browser.test.mjs scripts/oauth-handoff-browser.test.mjs scripts/desktop-oauth-claim.test.mjs scripts/settings-two-factor-browser.test.mjs scripts/trusted-device-actions.test.mjs scripts/trusted-device-browser.test.mjs scripts/voice-composer-browser.test.mjs scripts/voice-audio-renderer.test.mjs
+      - name: Test auth challenges, desktop OAuth and voice processing
+        run: pnpm --filter @wizards/web exec node --test scripts/login-turnstile-browser.test.mjs scripts/oauth-handoff-browser.test.mjs scripts/desktop-oauth-claim.test.mjs scripts/settings-two-factor-browser.test.mjs scripts/trusted-device-actions.test.mjs scripts/trusted-device-browser.test.mjs scripts/voice-composer-browser.test.mjs scripts/voice-audio-renderer.test.mjs scripts/krisp-processor-browser.test.mjs scripts/voice-krisp-browser.test.mjs
 
       - name: Run accessibility scan
         run: pnpm --filter @wizards/web e2e:a11y
@@ -671,7 +743,6 @@ jobs:
   e2e-visual:
     name: Playwright Visual Regression
     runs-on: ubuntu-24.04
-    needs: verify
     timeout-minutes: 60
 
     services:
@@ -768,10 +839,13 @@ jobs:
   desktop-ops:
     name: Desktop Ops (Linux)
     runs-on: ubuntu-24.04
-    needs: verify
     timeout-minutes: 60
 
     env:
+      CARGO_AUDIT_VERSION: 0.22.2
+      # Keep backtrace line numbers without the large full-debug GTK/Tauri artifacts.
+      CARGO_PROFILE_DEV_DEBUG: "line-tables-only"
+      CARGO_PROFILE_TEST_DEBUG: "line-tables-only"
       TAURI_WEB_URL: https://whispr.team
       TURBO_TELEMETRY_DISABLED: "1"
       WHISPR_DESKTOP_RELEASE_RING: uat
@@ -780,6 +854,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Record initial desktop disk space
+        run: df -h .
 
       - name: Setup pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
@@ -806,26 +883,42 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri
 
-      - name: Audit Rust dependencies
-        # Keep the Linux audit command POSIX-compatible.
+      - name: Resolve cargo-audit cache directory
+        run: echo "CARGO_AUDIT_ROOT=$RUNNER_TOOL_CACHE/whispr-cargo-audit" >> "$GITHUB_ENV"
+
+      - name: Restore cargo-audit binary
+        id: cargo-audit-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.CARGO_AUDIT_ROOT }}
+          key: cargo-audit-ubuntu-24.04-${{ runner.arch }}-${{ env.CARGO_AUDIT_VERSION }}
+
+      - name: Install and verify cargo-audit
         shell: bash
-        working-directory: apps/desktop/src-tauri
-        env:
-          CARGO_AUDIT_VERSION: 0.22.2
         run: |
           expected_version="cargo-audit $CARGO_AUDIT_VERSION"
           current_version=""
-
-          if command -v cargo-audit >/dev/null 2>&1; then
-            current_version="$(cargo audit --version)"
+          if [ -x "$CARGO_AUDIT_ROOT/bin/cargo-audit" ]; then
+            current_version="$("$CARGO_AUDIT_ROOT/bin/cargo-audit" --version)"
           fi
-
           if [ "$current_version" != "$expected_version" ]; then
-            cargo install cargo-audit --version "$CARGO_AUDIT_VERSION" --locked --force
+            cargo install cargo-audit --version "$CARGO_AUDIT_VERSION" --locked --root "$CARGO_AUDIT_ROOT" --force
           fi
+          test "$("$CARGO_AUDIT_ROOT/bin/cargo-audit" --version)" = "$expected_version"
 
+      - name: Save cargo-audit binary
+        if: steps.cargo-audit-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.CARGO_AUDIT_ROOT }}
+          key: cargo-audit-ubuntu-24.04-${{ runner.arch }}-${{ env.CARGO_AUDIT_VERSION }}
+
+      - name: Audit Rust dependencies
+        shell: bash
+        working-directory: apps/desktop/src-tauri
+        run: |
           cargo metadata --locked --format-version 1 --no-deps > /dev/null
-          cargo audit --file Cargo.lock
+          "$CARGO_AUDIT_ROOT/bin/cargo-audit" audit --file Cargo.lock
 
       - name: Check Rust formatting
         working-directory: apps/desktop/src-tauri
@@ -835,15 +928,23 @@ jobs:
         working-directory: apps/desktop/src-tauri
         run: cargo test --locked
 
-      - name: Test GLib security backport with optimizations
-        working-directory: apps/desktop/src-tauri
-        run: cargo test --locked --release --test glib_variant_security
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Lint Rust with Clippy
         run: pnpm --filter @wizards/desktop lint:rust
+
+      # Debug checks are complete; retain release dependencies for the remaining builds.
+      - name: Release debug build disk space
+        working-directory: apps/desktop/src-tauri
+        run: |
+          df -h .
+          cargo clean --profile dev
+          df -h .
+
+      - name: Test GLib security backport with optimizations
+        working-directory: apps/desktop/src-tauri
+        run: cargo test --locked --release --test glib_variant_security
 
       - name: Validate desktop release operations contract
         run: pnpm --filter @wizards/desktop release:ops
@@ -856,3 +957,47 @@ jobs:
 
       - name: Build unsigned desktop native signal
         run: pnpm --filter @wizards/desktop build:desktop -- --no-bundle
+
+      - name: Record final desktop disk space
+        if: always()
+        run: df -h .
+
+  verify:
+    name: Verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    if: ${{ always() }}
+    needs:
+      - quality
+      - web-tests
+      - mobile-quality
+      - secret-scan
+      - actionlint
+      - semgrep
+      - typescript-native-shadow
+      - node22-compatibility
+      - e2e-smoke
+      - e2e-cross-browser
+      - e2e-a11y
+      - e2e-visual
+      - desktop-ops
+    steps:
+      - name: Require successful checks
+        env:
+          REQUIRED_RESULTS: ${{ toJSON(needs) }}
+          NODE22_REQUIRED: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          node --input-type=module <<'NODE'
+          const results = JSON.parse(process.env.REQUIRED_RESULTS);
+          const required = ["quality", "web-tests", "mobile-quality", "secret-scan", "actionlint", "semgrep", "typescript-native-shadow", "e2e-smoke", "e2e-cross-browser", "e2e-a11y", "e2e-visual", "desktop-ops"];
+          const failed = required.filter((id) => results[id]?.result !== "success");
+          const compatibility = results["node22-compatibility"]?.result;
+          if (compatibility !== "success" && !(compatibility === "skipped" && process.env.NODE22_REQUIRED === "false")) {
+            failed.push("node22-compatibility");
+          }
+          if (failed.length) {
+            console.error(`Required checks did not succeed: ${failed.join(", ")}`);
+            process.exit(1);
+          }
+          console.log("All required CI checks passed.");
+          NODE

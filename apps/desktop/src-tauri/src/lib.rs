@@ -26,7 +26,7 @@ use media_permissions::{
 
 mod game_activity;
 mod game_overlay_lifecycle;
-use game_overlay_lifecycle::GameOverlayLifecycle;
+use game_overlay_lifecycle::CompanionSurfaceLifecycle;
 mod ipc;
 mod media_permissions;
 mod notifications;
@@ -70,6 +70,8 @@ Object.defineProperty(window, "__WHISPR_DESKTOP__", {
   value: Object.freeze({
     platform: "tauri",
     os: __WHISPR_DESKTOP_OS__,
+    osName: __WHISPR_DESKTOP_OS_NAME__,
+    osVersion: __WHISPR_DESKTOP_OS_VERSION__,
     launchMode: __WHISPR_DESKTOP_LAUNCH_MODE__,
     releaseRing: __WHISPR_DESKTOP_RELEASE_RING__,
     shell: "desktop",
@@ -182,12 +184,18 @@ fn desktop_init_script(
 ) -> String {
     let release_ring_json =
         serde_json::to_string(release_ring).unwrap_or_else(|_| "\"uat\"".into());
+    let os_name_json =
+        serde_json::to_string(&sysinfo::System::name()).unwrap_or_else(|_| "null".to_string());
+    let os_version_json = serde_json::to_string(&sysinfo::System::os_version())
+        .unwrap_or_else(|_| "null".to_string());
 
     DESKTOP_INIT_SCRIPT_TEMPLATE
         .replace(
             "__WHISPR_DESKTOP_OS__",
             &format!("\"{}\"", std::env::consts::OS),
         )
+        .replace("__WHISPR_DESKTOP_OS_NAME__", os_name_json.as_str())
+        .replace("__WHISPR_DESKTOP_OS_VERSION__", os_version_json.as_str())
         .replace(
             "__WHISPR_DESKTOP_UPDATER_ENABLED__",
             if updater_enabled { "true" } else { "false" },
@@ -421,18 +429,30 @@ impl DesktopTrayBadgeState {
 #[derive(Clone, Default)]
 struct DesktopCompanionSurfaceState {
     last_error: Arc<Mutex<Option<String>>>,
-    game_overlay: Arc<Mutex<GameOverlayLifecycle>>,
+    game_overlay: Arc<Mutex<CompanionSurfaceLifecycle>>,
+    voice_mini: Arc<Mutex<CompanionSurfaceLifecycle>>,
 }
 
 impl DesktopCompanionSurfaceState {
     fn update_game_overlay<T>(
         &self,
-        update: impl FnOnce(&mut GameOverlayLifecycle) -> T,
+        update: impl FnOnce(&mut CompanionSurfaceLifecycle) -> T,
     ) -> Result<T, String> {
         let mut lifecycle = self
             .game_overlay
             .lock()
             .map_err(|_| "Desktop overlay lifecycle is unavailable.".to_string())?;
+        Ok(update(&mut lifecycle))
+    }
+
+    fn update_voice_mini<T>(
+        &self,
+        update: impl FnOnce(&mut CompanionSurfaceLifecycle) -> T,
+    ) -> Result<T, String> {
+        let mut lifecycle = self
+            .voice_mini
+            .lock()
+            .map_err(|_| "Desktop voice mini lifecycle is unavailable.".to_string())?;
         Ok(update(&mut lifecycle))
     }
 
@@ -1752,6 +1772,17 @@ async fn desktop_control_recover(
 ) -> Result<DesktopControlOperationResult, String> {
     assert_desktop_settings_command_window(&window)?;
 
+    let surface_state = app.state::<DesktopCompanionSurfaceState>();
+    match action {
+        DesktopControlRecoveryAction::ReopenVoiceMini => {
+            surface_state.update_voice_mini(|lifecycle| lifecycle.request_visibility(true))?;
+        }
+        DesktopControlRecoveryAction::HideOverlay => {
+            surface_state.update_game_overlay(|lifecycle| lifecycle.request_visibility(false))?;
+        }
+        _ => {}
+    }
+
     let tasks = app.state::<DesktopWindowTasks>().inner().clone();
     tasks
         .run(move || {
@@ -2105,7 +2136,7 @@ fn get_desktop_companion_surfaces_status(
 }
 
 #[tauri::command]
-fn refresh_desktop_companion_surfaces(
+async fn refresh_desktop_companion_surfaces(
     window: WebviewWindow,
     app: AppHandle,
     surface_state: tauri::State<'_, DesktopCompanionSurfaceState>,
@@ -2116,9 +2147,9 @@ fn refresh_desktop_companion_surfaces(
     let layout = layout.unwrap_or_default();
     let state_for_task = surface_state.inner().clone();
 
-    schedule_desktop_companion_surface_task(&app, "refresh", state_for_task, move |app_handle| {
+    run_desktop_companion_surface_task(&app, "refresh", state_for_task, move |app_handle| {
         let (overlay_width, overlay_height) = desktop_game_overlay_size(layout.size());
-        refresh_desktop_companion_surface_window(
+        let overlay_result = refresh_desktop_companion_surface_window(
             &app_handle,
             DESKTOP_GAME_OVERLAY_WINDOW_LABEL,
             overlay_width,
@@ -2126,9 +2157,9 @@ fn refresh_desktop_companion_surfaces(
             desktop_game_overlay_bottom_offset(layout.anchor()),
             layout.anchor(),
             true,
-        )?;
+        );
 
-        refresh_desktop_companion_surface_window(
+        let voice_mini_result = refresh_desktop_companion_surface_window(
             &app_handle,
             DESKTOP_VOICE_MINI_WINDOW_LABEL,
             DESKTOP_VOICE_MINI_WIDTH,
@@ -2136,12 +2167,13 @@ fn refresh_desktop_companion_surfaces(
             0,
             DesktopGameOverlayAnchor::BottomRight,
             false,
-        )?;
+        );
 
-        Ok(())
-    });
+        overlay_result.and(voice_mini_result)
+    })
+    .await?;
 
-    Ok(desktop_companion_surfaces_queued_status(
+    Ok(desktop_companion_surfaces_status(
         &app,
         surface_state.inner(),
     ))
@@ -2243,20 +2275,19 @@ async fn set_desktop_game_overlay_visible(
     let layout = layout.unwrap_or_default();
     let state = surface_state.inner().clone();
     state.update_game_overlay(|lifecycle| lifecycle.request_visibility(visible))?;
-    let tasks = app.state::<DesktopWindowTasks>().inner().clone();
-    tasks
-        .run(move || {
-            // A newer focus/visibility request supersedes queued work.
-            if state.update_game_overlay(|lifecycle| lifecycle.requested())? != visible {
-                return Ok(());
-            }
-            if visible {
-                show_or_create_desktop_game_overlay_window(&app, layout)
-            } else {
-                hide_desktop_game_overlay_window(&app)
-            }
-        })
-        .await?;
+    let state_for_task = state.clone();
+    run_desktop_companion_surface_task(&app, "game-overlay-visibility", state, move |app| {
+        // A newer focus/visibility request supersedes queued work.
+        if state_for_task.update_game_overlay(|lifecycle| lifecycle.requested())? != visible {
+            return Ok(());
+        }
+        if visible {
+            show_or_create_desktop_game_overlay_window(&app, layout)
+        } else {
+            hide_desktop_game_overlay_window(&app)
+        }
+    })
+    .await?;
     Ok(visible)
 }
 
@@ -2278,7 +2309,7 @@ fn publish_desktop_game_overlay_snapshot(
 }
 
 #[tauri::command]
-fn set_desktop_voice_mini_visible(
+async fn set_desktop_voice_mini_visible(
     window: WebviewWindow,
     app: AppHandle,
     surface_state: tauri::State<'_, DesktopCompanionSurfaceState>,
@@ -2287,18 +2318,24 @@ fn set_desktop_voice_mini_visible(
     assert_desktop_main_command_window(&window)?;
 
     let state_for_task = surface_state.inner().clone();
-    schedule_desktop_companion_surface_task(
+    surface_state.update_voice_mini(|lifecycle| lifecycle.request_visibility(visible))?;
+    let current_state = state_for_task.clone();
+    run_desktop_companion_surface_task(
         &app,
         "voice-mini-visibility",
         state_for_task,
         move |app_handle| {
+            if current_state.update_voice_mini(|lifecycle| lifecycle.requested())? != visible {
+                return Ok(());
+            }
             if visible {
                 show_or_create_desktop_voice_mini_window(&app_handle)
             } else {
                 hide_desktop_voice_mini_window(&app_handle)
             }
         },
-    );
+    )
+    .await?;
 
     Ok(visible)
 }
@@ -2383,12 +2420,13 @@ fn publish_desktop_snapshot_to_window(
     Ok(DesktopCompanionSnapshotPublishResultV1::new(true))
 }
 
-fn schedule_desktop_companion_surface_task<F>(
+async fn run_desktop_companion_surface_task<F>(
     app: &AppHandle,
     label: &'static str,
     surface_state: DesktopCompanionSurfaceState,
     task: F,
-) where
+) -> Result<(), String>
+where
     F: FnOnce(AppHandle) -> Result<(), String> + Send + 'static,
 {
     surface_state.clear_error();
@@ -2400,45 +2438,28 @@ fn schedule_desktop_companion_surface_task<F>(
     );
 
     let app_for_task = app.clone();
-    let state_for_task = surface_state.clone();
-    let spawn_result = std::thread::Builder::new()
-        .name(format!("whispr-desktop-surface-{label}"))
-        .spawn(move || {
-            eprintln!("Desktop companion surface task started: {label}");
-            match task(app_for_task.clone()) {
-                Ok(()) => {
-                    eprintln!("Desktop companion surface task succeeded: {label}");
-                    record_desktop_native_log(
-                        &app_for_task,
-                        "info",
-                        "companion_surface",
-                        format!("Task succeeded: {label}").as_str(),
-                    );
-                    state_for_task.clear_error();
-                }
-                Err(error) => {
-                    record_desktop_native_log(
-                        &app_for_task,
-                        "error",
-                        "companion_surface",
-                        format!("Task failed: {label}: {error}").as_str(),
-                    );
-                    state_for_task.set_error(error);
-                }
-            };
-        });
-
-    if let Err(error) = spawn_result {
-        record_desktop_native_log(
-            app,
-            "error",
-            "companion_surface",
-            format!("Unable to start task: {label}: {error}").as_str(),
-        );
-        surface_state.set_error(format!(
-            "Unable to start desktop companion surface task: {error}"
-        ));
+    let tasks = app.state::<DesktopWindowTasks>().inner().clone();
+    let result = tasks.run(move || task(app_for_task)).await;
+    match &result {
+        Ok(()) => {
+            record_desktop_native_log(
+                app,
+                "info",
+                "companion_surface",
+                format!("Task succeeded: {label}").as_str(),
+            );
+        }
+        Err(error) => {
+            record_desktop_native_log(
+                app,
+                "error",
+                "companion_surface",
+                format!("Task failed: {label}: {error}").as_str(),
+            );
+            surface_state.set_error(error.clone());
+        }
     }
+    result
 }
 
 fn current_unix_ms() -> u64 {
@@ -4463,34 +4484,6 @@ fn desktop_companion_surface_info(
     }
 }
 
-fn desktop_companion_surface_queued_info(
-    app: &tauri::AppHandle,
-    label: &str,
-) -> DesktopCompanionSurfaceInfo {
-    DesktopCompanionSurfaceInfo {
-        exists: app.get_webview_window(label).is_some(),
-        height: None,
-        minimized: false,
-        visible: false,
-        width: None,
-        x: None,
-        y: None,
-    }
-}
-
-fn desktop_companion_surfaces_queued_status(
-    app: &tauri::AppHandle,
-    surface_state: &DesktopCompanionSurfaceState,
-) -> DesktopCompanionSurfacesStatus {
-    DesktopCompanionSurfacesStatus {
-        game_overlay: desktop_companion_surface_queued_info(app, DESKTOP_GAME_OVERLAY_WINDOW_LABEL),
-        last_error: surface_state
-            .last_error()
-            .map(|error| sanitize_diagnostic_text(&error)),
-        voice_mini: desktop_companion_surface_queued_info(app, DESKTOP_VOICE_MINI_WINDOW_LABEL),
-    }
-}
-
 fn desktop_companion_surfaces_status(
     app: &tauri::AppHandle,
     surface_state: &DesktopCompanionSurfaceState,
@@ -4666,9 +4659,20 @@ fn hide_desktop_game_overlay_window(app: &tauri::AppHandle) -> Result<(), String
             eprintln!("Unable to park desktop game overlay before destroy: {error}");
         }
 
+        // close() only queues a native event. Hold the worker gate until Tauri has
+        // removed the old window, so a subsequent show cannot reuse its handle.
+        let (destroyed_tx, destroyed_rx) = std::sync::mpsc::channel();
+        window.on_window_event(move |event| {
+            if matches!(event, WindowEvent::Destroyed) {
+                let _ = destroyed_tx.send(());
+            }
+        });
         window
             .close()
             .map_err(|error| format!("Unable to destroy desktop game overlay window: {error}"))?;
+        destroyed_rx
+            .recv_timeout(Duration::from_secs(5))
+            .map_err(|error| format!("Desktop game overlay did not finish closing: {error}"))?;
     }
 
     Ok(())
@@ -4777,7 +4781,7 @@ fn show_or_create_desktop_game_overlay_window(
     let overlay_bottom_offset = desktop_game_overlay_bottom_offset(overlay_anchor);
 
     if let Some(window) = app.get_webview_window(DESKTOP_GAME_OVERLAY_WINDOW_LABEL) {
-        if let Err(error) = refresh_desktop_companion_surface_window(
+        refresh_desktop_companion_surface_window(
             app,
             DESKTOP_GAME_OVERLAY_WINDOW_LABEL,
             overlay_width,
@@ -4785,11 +4789,9 @@ fn show_or_create_desktop_game_overlay_window(
             overlay_bottom_offset,
             overlay_anchor,
             true,
-        ) {
-            eprintln!("Unable to refresh desktop game overlay before show: {error}");
-        }
+        )?;
         show_desktop_game_overlay_window(&window)?;
-        if let Err(error) = refresh_desktop_companion_surface_window(
+        refresh_desktop_companion_surface_window(
             app,
             DESKTOP_GAME_OVERLAY_WINDOW_LABEL,
             overlay_width,
@@ -4797,9 +4799,7 @@ fn show_or_create_desktop_game_overlay_window(
             overlay_bottom_offset,
             overlay_anchor,
             true,
-        ) {
-            eprintln!("Unable to refresh desktop game overlay after show: {error}");
-        }
+        )?;
         return Ok(());
     }
 
@@ -4869,23 +4869,25 @@ fn show_or_create_desktop_game_overlay_window(
         }
         match state.update_game_overlay(|lifecycle| lifecycle.loaded(generation)) {
             Ok(true) => {
-                let result = refresh_desktop_companion_surface_window(
-                    window.app_handle(),
-                    DESKTOP_GAME_OVERLAY_WINDOW_LABEL,
-                    overlay_width,
-                    overlay_height,
-                    overlay_bottom_offset,
-                    overlay_anchor,
-                    true,
-                )
-                .and_then(|_| show_desktop_game_overlay_window(&window));
-                if let Err(error) = result {
-                    state.set_error(error);
-                }
-                dispatch_desktop_surface_ready(
-                    window.app_handle(),
-                    DESKTOP_GAME_OVERLAY_WINDOW_LABEL,
-                );
+                let app = window.app_handle().clone();
+                let state = state.inner().clone();
+                tauri::async_runtime::spawn(async move {
+                    // The callback must not block the event loop on the window-task lock.
+                    let _ = run_desktop_companion_surface_task(
+                        &app,
+                        "game-overlay-loaded",
+                        state.clone(),
+                        move |app| {
+                            if !state.update_game_overlay(|lifecycle| lifecycle.can_show())? {
+                                return Ok(());
+                            }
+                            show_or_create_desktop_game_overlay_window(&app, layout)?;
+                            dispatch_desktop_surface_ready(&app, DESKTOP_GAME_OVERLAY_WINDOW_LABEL);
+                            Ok(())
+                        },
+                    )
+                    .await;
+                });
             }
             Ok(false) => {}
             Err(error) => state.set_error(error),
@@ -4937,6 +4939,12 @@ fn show_or_create_desktop_game_overlay_window(
 
 fn show_or_create_desktop_voice_mini_window(app: &tauri::AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(DESKTOP_VOICE_MINI_WINDOW_LABEL) {
+        if !app
+            .state::<DesktopCompanionSurfaceState>()
+            .update_voice_mini(|lifecycle| lifecycle.can_show())?
+        {
+            return Ok(());
+        }
         refresh_desktop_companion_surface_window(
             app,
             DESKTOP_VOICE_MINI_WINDOW_LABEL,
@@ -4962,6 +4970,9 @@ fn show_or_create_desktop_voice_mini_window(app: &tauri::AppHandle) -> Result<()
         return Ok(());
     }
 
+    let generation = app
+        .state::<DesktopCompanionSurfaceState>()
+        .update_voice_mini(|lifecycle| lifecycle.begin_load())?;
     let app_url = desktop_app_url_with_path(DESKTOP_VOICE_MINI_PATH);
     let allowed_origin = configured_app_origin_url();
     #[cfg(windows)]
@@ -4977,6 +4988,7 @@ fn show_or_create_desktop_voice_mini_window(app: &tauri::AppHandle) -> Result<()
         WebviewUrl::External(initial_url),
     )
     .title("Whispr Voice")
+    .focused(false)
     .decorations(false)
     .transparent(true)
     .always_on_top(true)
@@ -4999,34 +5011,49 @@ fn show_or_create_desktop_voice_mini_window(app: &tauri::AppHandle) -> Result<()
         open_external_url(url);
         false
     })
-    .on_page_load(|window, payload| {
-        if payload.url().as_str() != "about:blank"
-            && matches!(payload.event(), PageLoadEvent::Finished)
-        {
-            if refresh_desktop_companion_surface_window(
-                window.app_handle(),
-                DESKTOP_VOICE_MINI_WINDOW_LABEL,
-                DESKTOP_VOICE_MINI_WIDTH,
-                DESKTOP_VOICE_MINI_HEIGHT,
-                0,
-                DesktopGameOverlayAnchor::BottomRight,
-                false,
-            )
-            .is_err()
-            {
-                return;
+    .on_page_load(move |window, payload| {
+        if payload.url().as_str() == "about:blank" {
+            return;
+        }
+        let state = window.app_handle().state::<DesktopCompanionSurfaceState>();
+        if matches!(payload.event(), PageLoadEvent::Started) {
+            if let Err(error) = state.update_voice_mini(|lifecycle| lifecycle.loading(generation)) {
+                state.set_error(error);
             }
-            let _ = window.show();
-            let _ = refresh_desktop_companion_surface_window(
-                window.app_handle(),
-                DESKTOP_VOICE_MINI_WINDOW_LABEL,
-                DESKTOP_VOICE_MINI_WIDTH,
-                DESKTOP_VOICE_MINI_HEIGHT,
-                0,
-                DesktopGameOverlayAnchor::BottomRight,
-                false,
-            );
-            dispatch_desktop_surface_ready(window.app_handle(), DESKTOP_VOICE_MINI_WINDOW_LABEL);
+            if let Err(error) = window.hide() {
+                state.set_error(format!(
+                    "Unable to hide loading desktop voice mini window: {error}"
+                ));
+            }
+            return;
+        }
+        if payload.url().path() != DESKTOP_VOICE_MINI_PATH {
+            state.set_error("Desktop voice mini did not load its application page.".to_string());
+            return;
+        }
+        match state.update_voice_mini(|lifecycle| lifecycle.loaded(generation)) {
+            Ok(true) => {
+                let app = window.app_handle().clone();
+                let state = state.inner().clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = run_desktop_companion_surface_task(
+                        &app,
+                        "voice-mini-loaded",
+                        state.clone(),
+                        move |app| {
+                            if !state.update_voice_mini(|lifecycle| lifecycle.can_show())? {
+                                return Ok(());
+                            }
+                            show_or_create_desktop_voice_mini_window(&app)?;
+                            dispatch_desktop_surface_ready(&app, DESKTOP_VOICE_MINI_WINDOW_LABEL);
+                            Ok(())
+                        },
+                    )
+                    .await;
+                });
+            }
+            Ok(false) => {}
+            Err(error) => state.set_error(error),
         }
     })
     .on_new_window(|url, _features| {
@@ -6136,7 +6163,11 @@ mod tests {
     fn desktop_initialization_exposes_the_native_os_for_presentation() {
         let script = desktop_init_script(false, "uat", false);
         assert!(script.contains(&format!("os: \"{}\"", std::env::consts::OS)));
+        assert!(script.contains("osName:"));
+        assert!(script.contains("osVersion:"));
         assert!(!script.contains("__WHISPR_DESKTOP_OS__"));
+        assert!(!script.contains("__WHISPR_DESKTOP_OS_NAME__"));
+        assert!(!script.contains("__WHISPR_DESKTOP_OS_VERSION__"));
     }
 
     #[test]

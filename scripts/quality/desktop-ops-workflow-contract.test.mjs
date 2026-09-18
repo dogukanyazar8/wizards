@@ -88,17 +88,24 @@ test("automatic Linux Desktop Ops runs its cargo audit step with Bash", () => {
   assert.doesNotMatch(desktopOps, /matrix\.os|windows-latest|macos-latest/u);
   assert.match(desktopOps, /Install Tauri Linux system dependencies/u);
   assert.match(cargoAudit, /^        shell: bash$/mu);
-  assert.match(cargoAudit, /^          expected_version="cargo-audit \$CARGO_AUDIT_VERSION"$/mu);
-  assert.match(cargoAudit, /^          if command -v cargo-audit >\/dev\/null 2>&1; then$/mu);
+  const install = readWorkflowStep(desktopOps, "Install and verify cargo-audit");
+  assert.match(install, /expected_version="cargo-audit \$CARGO_AUDIT_VERSION"/u);
   assert.match(
-    cargoAudit,
-    /^            cargo install cargo-audit --version "\$CARGO_AUDIT_VERSION" --locked --force$/mu,
+    install,
+    /cargo install cargo-audit --version "\$CARGO_AUDIT_VERSION" --locked --root "\$CARGO_AUDIT_ROOT" --force/u,
+  );
+  assert.match(
+    install,
+    /test "\$\("\$CARGO_AUDIT_ROOT\/bin\/cargo-audit" --version\)" = "\$expected_version"/u,
   );
   assert.match(
     cargoAudit,
     /^          cargo metadata --locked --format-version 1 --no-deps > \/dev\/null$/mu,
   );
-  assert.match(cargoAudit, /^          cargo audit --file Cargo\.lock$/mu);
+  assert.match(
+    cargoAudit,
+    /^          "\$CARGO_AUDIT_ROOT\/bin\/cargo-audit" audit --file Cargo\.lock$/mu,
+  );
   assert.doesNotMatch(cargoAudit, /Get-Command|\$env:|\$LASTEXITCODE/u);
 });
 
@@ -164,4 +171,55 @@ test("automatic Linux Desktop Ops runs fail-closed Clippy through the local comm
   );
   assert.match(clippy, /^        run: pnpm --filter @wizards\/desktop lint:rust$/mu);
   assert.doesNotMatch(clippy, /continue-on-error|(?:-A|--cap-lints)\s+warnings/u);
+});
+
+test("Linux CI retains backtrace lines without full debug symbols or weaker checks", () => {
+  const desktopOps = readWorkflowJob(readFileSync(workflowPath, "utf8"), "desktop-ops");
+  for (const profile of ["DEV", "TEST"]) {
+    assert.match(
+      desktopOps,
+      new RegExp(`^      CARGO_PROFILE_${profile}_DEBUG: "line-tables-only"$`, "mu"),
+    );
+  }
+  assert.doesNotMatch(
+    desktopOps,
+    /CARGO_PROFILE_\w+_(?:DEBUG_ASSERTIONS|OVERFLOW_CHECKS|OPT_LEVEL)|RUSTFLAGS/u,
+  );
+});
+
+test("Linux CI releases debug artifacts only after debug checks and before release compilation", () => {
+  const desktopOps = readWorkflowJob(readFileSync(workflowPath, "utf8"), "desktop-ops");
+  const cleanup = readWorkflowStep(desktopOps, "Release debug build disk space");
+  assert.match(cleanup, /working-directory: apps\/desktop\/src-tauri/u);
+  assert.match(cleanup, /^          cargo clean --profile dev$/mu);
+  assert.doesNotMatch(cleanup, /--release|rm\s+-rf|continue-on-error/u);
+  const steps = [
+    "Test Rust",
+    "Lint Rust with Clippy",
+    "Release debug build disk space",
+    "Test GLib security backport with optimizations",
+    "Build unsigned desktop native signal",
+  ];
+  for (let index = 1; index < steps.length; index += 1) {
+    assert.ok(
+      desktopOps.indexOf(`- name: ${steps[index - 1]}\n`) <
+        desktopOps.indexOf(`- name: ${steps[index]}\n`),
+    );
+  }
+  assert.match(
+    readWorkflowStep(desktopOps, steps[3]),
+    /cargo test --locked --release --test glib_variant_security/u,
+  );
+});
+
+test("Linux CI records disk usage even after a failed build", () => {
+  const desktopOps = readWorkflowJob(readFileSync(workflowPath, "utf8"), "desktop-ops");
+  assert.match(readWorkflowStep(desktopOps, "Record initial desktop disk space"), /run: df -h \./u);
+  const finalDisk = readWorkflowStep(desktopOps, "Record final desktop disk space");
+  assert.match(finalDisk, /if: always\(\)/u);
+  assert.match(finalDisk, /run: df -h \./u);
+  assert.ok(
+    desktopOps.indexOf("- name: Record final desktop disk space") >
+      desktopOps.indexOf("- name: Build unsigned desktop native signal"),
+  );
 });

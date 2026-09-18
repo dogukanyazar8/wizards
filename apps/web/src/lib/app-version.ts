@@ -33,7 +33,7 @@ function formatWhisprVersion(version: string, codename: string) {
 }
 
 /** Çıplak semver — süslenmemiş hâli açılış ekranının sürüm satırına girer. */
-export const WHISPR_VERSION_NUMBER = process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.9.0";
+export const WHISPR_VERSION_NUMBER = process.env.NEXT_PUBLIC_WHISPR_VERSION ?? "0.9.1";
 export const WHISPR_RELEASE_CODENAME =
   process.env.NEXT_PUBLIC_WHISPR_RELEASE_CODENAME ?? "Resonance";
 export const WHISPR_APP_VERSION = formatWhisprVersion(

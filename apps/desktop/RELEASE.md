@@ -13,7 +13,7 @@ Keep these versions aligned for each release:
 - Tauri package version: `apps/desktop/src-tauri/Cargo.toml`
 - Tauri app version: `apps/desktop/src-tauri/tauri.conf.json`
 
-The current desktop version is `0.9.0`.
+The current desktop version is `0.9.1`.
 The release codename is Resonance.
 
 ## Build Commands
