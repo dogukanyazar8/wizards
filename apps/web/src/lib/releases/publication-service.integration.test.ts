@@ -165,12 +165,10 @@ test(
   { skip: !enabled },
   async () => {
     await service!.publishRelease(input());
-    await db!.$executeRawUnsafe(
-      `CREATE FUNCTION release_test_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected projection failure'; END $$`,
-    );
-    await db!.$executeRawUnsafe(
-      `CREATE TRIGGER release_test_fail BEFORE INSERT OR UPDATE ON "DownloadArtifact" FOR EACH ROW EXECUTE FUNCTION release_test_fail()`,
-    );
+    await db!
+      .$executeRaw`CREATE FUNCTION release_test_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected projection failure'; END $$`;
+    await db!
+      .$executeRaw`CREATE TRIGGER release_test_fail BEFORE INSERT OR UPDATE ON "DownloadArtifact" FOR EACH ROW EXECUTE FUNCTION release_test_fail()`;
     try {
       await assert.rejects(
         () => service!.publishRelease({ ...input("1.1.0", "b"), baselineSha: "a".repeat(40) }),
@@ -180,8 +178,8 @@ test(
       assert.equal((await service!.desktopPublicationFeed("UAT"))!.version, "1.0.0");
       assert.equal((await db!.downloadArtifact.findFirst())!.versionLabel, "1.0.0");
     } finally {
-      await db!.$executeRawUnsafe(`DROP TRIGGER release_test_fail ON "DownloadArtifact"`);
-      await db!.$executeRawUnsafe(`DROP FUNCTION release_test_fail()`);
+      await db!.$executeRaw`DROP TRIGGER release_test_fail ON "DownloadArtifact"`;
+      await db!.$executeRaw`DROP FUNCTION release_test_fail()`;
     }
   },
 );
