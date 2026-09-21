@@ -37,7 +37,7 @@
     "@types/node": "^24.13.4",
     "@types/pg": "^8.23.1",
     "dotenv": "^17.4.2",
-    "prettier": "3.9.6",
+    "prettier": "3.9.8",
     "prisma": "7.10.0",
     "tsx": "^4.23.13",
     "typescript": "catalog:"
