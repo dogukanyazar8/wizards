@@ -30,7 +30,7 @@ Yerel başarı; remote CI, Railway deployment, EAS teslimi, Windows imzalama, up
 | Web/API/Socket.IO | `apps/web`           | Next.js custom HTTP server            | `3000`                     |
 | Outbox worker     | `apps/web`           | Web içinde veya ayrı headless worker  | Port açmaz                 |
 | PostgreSQL        | `docker-compose.yml` | `postgres:18.6-alpine` (digest pinli) | `5432`                     |
-| Redis             | `docker-compose.yml` | `redis:8.10.1-alpine` (digest pinli)  | `6379`                     |
+| Redis             | `docker-compose.yml` | `redis:8.10.2-alpine` (digest pinli)  | `6379`                     |
 | ClamAV            | `docker-compose.yml` | Attachment malware scanner            | `3310`                     |
 | LiveKit           | `docker-compose.yml` | Voice/video server                    | `7880`, `7881`, `7882/udp` |
 | Mobile Metro      | `apps/mobile`        | Expo dev server                       | `8081`                     |
@@ -86,11 +86,11 @@ Kurulumdan sonra yeni terminal açın. Git Credential Manager'ı etkin bırakın
 
 Repository sürümü:
 
-- `.nvmrc`: `24.21.0`
-- `package.json` engine: `>=24.21.0 <25`
-- `package.json` packageManager: `pnpm@12.4.2`
+- `.nvmrc`: `26.10.0`
+- `package.json` engine: `>=26.10.0 <27`
+- `package.json` packageManager: `pnpm@12.5.1`
 
-Tam sürümü [Node.js 24.21.0 resmi release sayfasından](https://nodejs.org/en/blog/release/v24.21.0) kurun. Winget'in güncel LTS sürümünü körlemesine kullanmayın; zamanla repository aralığının dışına çıkabilir.
+Tam sürümü [Node.js 26.10.0 resmi release sayfasından](https://nodejs.org/en/blog/release/v26.10.0) kurun. Winget'in güncel LTS sürümünü körlemesine kullanmayın; zamanla repository aralığının dışına çıkabilir.
 
 ```powershell
 node --version
@@ -101,8 +101,8 @@ corepack pnpm --version
 Beklenen:
 
 ```text
-v24.21.0
-12.4.2
+v26.10.0
+12.5.1
 ```
 
 `corepack enable` için erişim reddedilirse yalnız bu adımı yönetici PowerShell'de bir kez çalıştırın; günlük geliştirmeyi yönetici terminalinde yapmayın.
@@ -1022,7 +1022,7 @@ Get-Content .nvmrc
 (Get-Content package.json -Raw | ConvertFrom-Json).packageManager
 ```
 
-Beklenen: Node `24.21.0`, pnpm `12.4.2`.
+Beklenen: Node `26.10.0`, pnpm `12.5.1`.
 
 ### Docker çalışmıyor
 
@@ -1196,8 +1196,8 @@ Bu boşlukları geçici özel komutlarla saklamayın. Ayrı engineering task ile
 ### Makine
 
 - [ ] Git erişimi ve GitHub SSO çalışıyor.
-- [ ] Node `24.21.0`.
-- [ ] pnpm `12.4.2`.
+- [ ] Node `26.10.0`.
+- [ ] pnpm `12.5.1`.
 - [ ] Docker + WSL 2 çalışıyor.
 - [ ] JDK 17.
 - [ ] Android SDK/adb/emulator çalışıyor.
@@ -1265,7 +1265,7 @@ Repository içi:
 
 Resmi platform kaynakları:
 
-- [Node.js 24.21.0](https://nodejs.org/en/blog/release/v24.21.0)
+- [Node.js 26.10.0](https://nodejs.org/en/blog/release/v26.10.0)
 - [Git for Windows](https://git-scm.com/install/windows.html)
 - [Docker Desktop on Windows](https://docs.docker.com/desktop/setup/install/windows-install/)
 - [Android Studio installation](https://developer.android.com/studio/install)

@@ -1,0 +1,326 @@
+{
+  "checkedAt": "2026-09-21T10:31:36.716673+00:00",
+  "actionVerification": {
+    "actions/checkout": {
+      "label": "v7.0.1",
+      "remote": "3d3c42e5aac5ba805825da76410c181273ba90b1\trefs/tags/v7.0.1",
+      "matches": true,
+      "error": null
+    },
+    "pnpm/action-setup": {
+      "label": "v6.1.0",
+      "remote": "d9184bf108216479bc5a137cc391f4d7b14c870b\trefs/tags/v6.1.0\nea17c68df8912ef543352723c149a84f56e3d413\trefs/tags/v6.1.0^{}",
+      "matches": true,
+      "error": null
+    },
+    "actions/setup-node": {
+      "label": "v7.0.0",
+      "remote": "820762786026740c76f36085b0efc47a31fe5020\trefs/tags/v7.0.0",
+      "matches": true,
+      "error": null
+    },
+    "actions/upload-artifact": {
+      "label": "v7.0.1",
+      "remote": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a\trefs/tags/v7.0.1",
+      "matches": true,
+      "error": null
+    },
+    "gitleaks/gitleaks-action": {
+      "label": "v3.0.0",
+      "remote": "e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e\trefs/tags/v3.0.0",
+      "matches": true,
+      "error": null
+    },
+    "dtolnay/rust-toolchain": {
+      "label": "stable",
+      "remote": "6bed0761d98439e5a578e2877258200ad565ba87\trefs/heads/stable",
+      "matches": true,
+      "error": null
+    },
+    "Swatinem/rust-cache": {
+      "label": "v2.9.2",
+      "remote": "63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7\trefs/tags/v2.9.2\n6323deb102c322ba6fcbdcafc7e3dddab59af2b6\trefs/tags/v2.9.2^{}",
+      "matches": true,
+      "error": null
+    },
+    "actions/cache": {
+      "label": "v6.1.0",
+      "remote": "55cc8345863c7cc4c66a329aec7e433d2d1c52a9\trefs/tags/v6.1.0",
+      "matches": true,
+      "error": null
+    },
+    "actions/download-artifact": {
+      "label": "v8.0.1",
+      "remote": "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c\trefs/tags/v8.0.1",
+      "matches": true,
+      "error": null
+    },
+    "actions/github-script": {
+      "label": "v9.0.0",
+      "remote": "d746ffe35508b1917358783b479e04febd2b8f71\trefs/tags/v9.0.0\n3a2844b7e9c422d3c10d287c895573f7108da1b3\trefs/tags/v9.0.0^{}",
+      "matches": true,
+      "error": null
+    },
+    "actions/setup-java": {
+      "label": "v6.0.1",
+      "remote": "de7274f081f381c8f8158605e0321c36c376e2e6\trefs/tags/v6.0.1",
+      "matches": true,
+      "error": null
+    }
+  },
+  "extra": {
+    "gradle": {
+      "source": "https://services.gradle.org/versions/current",
+      "result": {
+        "version": "9.7.1",
+        "buildTime": "20260819141609+0000",
+        "commitId": "92f0512e7f06d84621afba191f75e265363890cf",
+        "current": true,
+        "snapshot": false,
+        "nightly": false,
+        "releaseNightly": false,
+        "activeRc": false,
+        "rcFor": "",
+        "milestoneFor": "",
+        "broken": false,
+        "downloadUrl": "https://services.gradle.org/distributions/gradle-9.7.1-bin.zip",
+        "checksumUrl": "https://services.gradle.org/distributions/gradle-9.7.1-bin.zip.sha256",
+        "checksum": "acd53f1edaf02f1a8ff99879f8a34b302661a057d9b063ae9e35b552f804d20a",
+        "wrapperChecksumUrl": "https://services.gradle.org/distributions/gradle-9.7.1-wrapper.jar.sha256",
+        "wrapperChecksum": "7a9ce74cff467ca1bf60a4fcd9f05185acceda4d0f382434d393e17864262c5d",
+        "released": true,
+        "releasedOrActiveRc": true,
+        "publicationSlot": "9.7.1",
+        "final": true
+      }
+    },
+    "agp": {
+      "source": "https://dl.google.com/dl/android/maven2/com/android/tools/build/gradle/maven-metadata.xml",
+      "result": {
+        "latestStable": "9.4.1"
+      }
+    },
+    "jdk17": {
+      "source": "https://api.adoptium.net/v3/assets/latest/17/hotspot?architecture=x64&image_type=jdk&os=windows&vendor=eclipse",
+      "result": [
+        {
+          "release": "jdk-17.0.20.1+1",
+          "version": {
+            "build": 1,
+            "major": 17,
+            "minor": 0,
+            "openjdk_version": "17.0.20.1+1",
+            "patch": 1,
+            "security": 20,
+            "semver": "17.0.20+101"
+          },
+          "updated": null
+        }
+      ]
+    },
+    "gitWindows": {
+      "source": "https://api.github.com/repos/git-for-windows/git/releases/latest",
+      "result": {
+        "tag_name": "v2.55.0.windows.5",
+        "published_at": "2026-08-20T16:21:31Z",
+        "html_url": "https://github.com/git-for-windows/git/releases/tag/v2.55.0.windows.5",
+        "body": "Changes since Git for Windows v2.55.0(4) (August 11th 2026)\r\n\r\nFollowing the [MSYS2 project](https://www.msys2.org/news/#2026-02-28-dropping-support-for-windows-81), on which Git for Windows is based, Windows 8.1 support will be dropped after Git for Windows v2.55.\r\n\r\n### New Features\r\n\r\n* Comes with the MSYS2 runtime (Git for Windows flavor) based on [Cygwin v3.6.10](https://inbox.sourceware.org/cygwin-announce/f9d2b89b-c99c-4d02-b0cf-61adea84566b@dronecode.org.uk/).\r\n* Comes with [OpenSSH v10.5.P1](https://github.com/openssh/openssh-portable/releases/tag/V_10_5_P1).\r\n\r\n### Bug Fixes\r\n\r\n* The long-standing [bug](https://github.com/git-for-windows/git/issues/5303) where Git Bash's screen was cleared after `git.exe` called `vim` (e.g. to edit a commit message) [was fixed](https://github.com/git-for-windows/msys2-runtime/pull/131).\r\n* The Bash executables in the 64-bit and ARM64 distributions no longer carry an invalid Authenticode signature.\r\n\r\nFilename | SHA-256\r\n-------- | -------\r\nGit-2.55.0.5-64-bit.exe | d065a4e23c3d9a6b5073d609b5be0830227ec3ca053c083ba385061ddfaf94c6\r\nGit-2.55.0.5-arm64.exe | c955de342b1465bc637f0e71fddf4e28e8d0b829668ec1866ab32a839303e8e3\r\nPortableGit-2.55.0.5-64-bit.7z.exe | 5aa8a20f6e9abb2c755f0e73c91c687701a46b309ad84a0ca6509380fa4ae290\r\nPortableGit-2.55.0.5-arm64.7z.exe | 49d1dd3158017fa9805d07268433dbab7021b2ec1c1cc3fbabaf8b8255764dd0\r\nMinGit-2.55.0.5-64-bit.zip | 56d7b226b7693196cfc71fef26568f536c4a021ab6c37ff2db4287bed908e96e\r\nMinGit-2.55.0.5-arm64.zip | 05843f9d6e60306c3ab886799e2c67200caab921571f10512df3493049179ddb\r\nMinGit-2.55.0.5-32-bit.zip | 2c5c030d18fc6a6437c6d3f85895302e67995507db740afb415648306c6b450d\r\nMinGit-2.55.0.5-busybox-64-bit.zip | a0287b54d3ead0c5abd0d15094f5b4c909867aae6bf8b9f2aee7109d24fa0081\r\nMinGit-2.55.0.5-busybox-arm64.zip | 5adf5203ba3b4706c21687ea1bcd871c727917d913773a41b0af69b86c997d6f\r\nMinGit-2.55.0.5-busybox-32-bit.zip | da123203a73a05038790645a436d078f69c5670e7e2104335df267006d203439\r\nGit-2.55.0.5-64-bit.tar.bz2 | 58fdf5679db11901697d2257cd076c8cdc49d64fe641b3e64ad158f1c5bf9b8d\r\nGit-2.55.0.5-arm64.tar.bz2 | 5bf4618b6391069282d60437d3c4b26623d77dc7384b161c82f402517cde71b7\r\n"
+      }
+    },
+    "powershell": {
+      "source": "https://api.github.com/repos/PowerShell/PowerShell/releases/latest",
+      "result": {
+        "tag_name": "v7.6.6",
+        "published_at": "2026-09-08T20:28:01Z",
+        "html_url": "https://github.com/PowerShell/PowerShell/releases/tag/v7.6.6",
+        "body": "\ufeff## [7.6.6]\r\n\r\n### Engine Updates and Fixes\r\n\r\n- Fix `FileOnlyEntry` crashing on older versions of Windows (#27931)\r\n- Add support for new WLDP setting `EnableFileOnlyEntry` (#27922)\r\n\r\n### General Cmdlet Updates and Fixes\r\n\r\n- Remove the `<assembly>` element from `CmdletizationCoreResources.resx` (#27932)\r\n\r\n### Tests\r\n\r\n- Fix the localization tests for Release Automation (#27945)\r\n\r\n### Build and Packaging Improvements\r\n\r\n<details>\r\n\r\n<summary>\r\n\r\n<p>Update to .NET SDK 10.0.401</p>\r\n\r\n</summary>\r\n\r\n<ul>\r\n<li>Update <code>AppxManifest.xml</code> to only declare <code>en-US</code> for the <code>&lt;Resources&gt;</code> element (#27941)</li>\r\n<li>Localized file check-in by OneLocBuild Task: Build definition ID 13420: Build ID 2701735 (#27895) (#27942)</li>\r\n<li>Produce satellite assemblies in Windows release build and properly remove them when they are not required (#27943)</li>\r\n<li>Update the manifest resource names for the localized resources embedded in satellite assemblies (#27921)</li>\r\n<li>Update LocProject.json to list each English resource file directly (#27937)</li>\r\n<li>Localized file check-in by OneLocBuild Task: Build definition ID 13420: Build ID 2691582 (#27936)</li>\r\n<li>Localized file check-in by OneLocBuild Task: Build definition ID 13420: Build ID 2684623 (#27935)</li>\r\n<li>Localized file check-in by OneLocBuild Task: Build definition ID 13420: Build ID 2674492 (#27930)</li>\r\n<li>Localized file check-in by OneLocBuild Task: Build definition ID 13420: Build ID 2670960 (#27929)</li>\r\n<li>Localized file check-in by OneLocBuild Task: Build definition ID 13420: Build ID 2661935 (#27928)</li>\r\n<li>Use Custom Validation Policy for vPack Pipeline (#27914)</li>\r\n<li>Fix comments in <code>CmdletizationCoreResources.resx</code> (#27924)</li>\r\n<li>Localized file check-in by OneLocBuild Task: Build definition ID 13420: Build ID 2660148 (#27923)</li>\r\n<li>Fix install dotnet for non early access release (#27927)</li>\r\n<li>Fix the W3C URIs in <code>.resx</code> resource files (#27917)</li>\r\n<li>Localized file check-in by OneLocBuild Task: Build definition ID 13420: Build ID 2652124 (#27918)</li>\r\n<li>Prepare for onboarding PowerShell to the Native2Native localization pipeline (#27916)</li>\r\n<li>Add the group 'mscodehub-feed-read-akv' (#27894)</li>\r\n<li>Add the group 'mscodehub-feed-read-general' for MSIXBundle-vpack pipeline (#27893)</li>\r\n<li>Add debug statement for <code>ResGen</code> build (#27890)</li>\r\n</ul>\r\n\r\n</details>\r\n\r\n[7.6.6]: https://github.com/PowerShell/PowerShell/compare/v7.6.5...v7.6.6\r\n\r\n\r\n### SHA256 Hashes of the release artifacts\r\n\r\n- hashes.sha256\r\n  - 388B105A0F329EF7CE9739166CA8E86D3FEE6D31698137099E0558C9EB63C9F5\r\n- powershell-7.6.6-1.cm.aarch64.rpm\r\n  - C52EABA0C0A69189E0B3D0CDA84D161DDD4C159C64A6954149B9E7A32D97418B\r\n- powershell-7.6.6-1.cm.x86_64.rpm\r\n  - 6D3106E57A4262A1B4482253BDD75DC7CB51C1A7F3A13666E4BA3D094CAF8F53\r\n- powershell-7.6.6-1.rh.x86_64.rpm\r\n  - D3F9BCE6B6F0723DB49DDB4681FDEE2A332492BFD1238A305B0FBDB7825E786F\r\n- powershell-7.6.6-linux-arm32.tar.gz\r\n  - 7652B53EA39CA3EA2DB4FF3D63769FCCCB858BDE0EB0EC6BE4E927A47544EE55\r\n- powershell-7.6.6-linux-arm64.tar.gz\r\n  - 924829E54C983648F6F1419A2DC7F9433C861B2FB5BD57736FF096C24F133729\r\n- powershell-7.6.6-linux-musl-x64.tar.gz\r\n  - 9537C256A60C34F6BC2DD60C1C10B31A0C2EF26E96799D066BE78325AB4947CC\r\n- powershell-7.6.6-linux-x64-fxdependent.tar.gz\r\n  - 7E851D01DBA116269D1E7F4505EF7B54BFA6C0B5B08965B67AC229503154A9DA\r\n- powershell-7.6.6-linux-x64-musl-noopt-fxdependent.tar.gz\r\n  - 29A3D89B5D54F3AA67DECAF64BD9CBF72CEA469AA9E69330E5DC2C5FFDB37F38\r\n- powershell-7.6.6-linux-x64.tar.gz\r\n  - DDBC4A2D113BBD46D283CFEDCBCD117A70CAEFD7673F41F2B4E0000BADF103BC\r\n- powershell-7.6.6-osx-arm64.pkg\r\n  - 64950D0F9A11F890C57199EC5E0F340F8F5FE2BBC9DF43C35AED66E3D16D76BB\r\n- powershell-7.6.6-osx-arm64.tar.gz\r\n  - 6DF833D094EBAC1C1A74340D7B3437F4AAF5E03CE640484A1C4359F3CE8B3DB1\r\n- powershell-7.6.6-osx-x64.pkg\r\n  - 68FD85010F02E5E16634F811DA8D72A5EE58E01C24B353DF5BF4ACD3A645F56E\r\n- powershell-7.6.6-osx-x64.tar.gz\r\n  - E325ED9F666894EB39A5EA52800B602DA2FB4242BBE9747CEDDB39CDC66DE805\r\n- PowerShell-7.6.6-win-arm64.msi\r\n  - 387D0AF8E92BA97F73616C91FA8F29A284E8F82EE6C40FE12DADE971BB05BAC4\r\n- PowerShell-7.6.6-win-arm64.zip\r\n  - BBDE9DDA31D148415ECCB5FBE1638E6400A144187B006E5B3FD8EC2F39D781BE\r\n- PowerShell-7.6.6-win-fxdependent.zip\r\n  - EA3C73AC3BF7AFA07432C65B8D9F16B8945BEFA216CEC38A51B6E213DC8FA709\r\n- PowerShell-7.6.6-win-fxdependentWinDesktop.zip\r\n  - DDB00F3B371D0691F7CFB5B7D5D5CF1B0E4D22F2CC1ECE04261009C2E53B3791\r\n- PowerShell-7.6.6-win-x64.msi\r\n  - 958838FF55091E1C8705D89EFED0CC7E8245A3A6EF6C0CCFAE20015227108AD8\r\n- PowerShell-7.6.6-win-x64.zip\r\n  - 02FE458BE20493FBDF43F61EA20610B811EE6C738AB1676C61B9CFCD1A33C860\r\n- PowerShell-7.6.6-win-x86.msi\r\n  - 34CFD071B83D5BBA4F7E913D3545A35E8CCE97B5E7B46A3B44D167D48C361DD6\r\n- PowerShell-7.6.6-win-x86.zip\r\n  - 2B644D9CB695FE221AF212E23F1C38D3310655B37760EF7741B0FA453B32011E\r\n- PowerShell-7.6.6.msixbundle\r\n  - AD992BC654AD8E6FA7070BAEDFBC0EDBF8CAB5B6BCB4F9F7A891FD2438FAFE4B\r\n- powershell-lts-7.6.6-1.cm.aarch64.rpm\r\n  - 4F9C925F9892362997B27FD03B01340013822D7298F6AF0495348BFFF8ECC538\r\n- powershell-lts-7.6.6-1.cm.x86_64.rpm\r\n  - C40FD466B0EAA906E991127EEBEDA6631D4152D0B3B3339F5B6FD8D956ED3467\r\n- powershell-lts-7.6.6-1.rh.x86_64.rpm\r\n  - A1CF9B3F414DB878B93DA8E2A1DF0531A5FC1D8BD2691EEFD3CF6B49A0277DEE\r\n- powershell-lts-7.6.6-osx-arm64.pkg\r\n  - C17D02CB0C936DF9062DC971D17F1761A2FB082C7D6478441DC5B9B514600082\r\n- powershell-lts-7.6.6-osx-x64.pkg\r\n  - A41E08D08E77EFA9DA293ADC84A4DCCFF0870A11C27D16E55AB05E3A4D81F622\r\n- PowerShell-LTS-7.6.6.msixbundle\r\n  - 43D3D1FFCF9F7D9FBDBD62F8DCA28A1126365CDE319B98C845C25B173BD60EE7\r\n- powershell-lts_7.6.6-1.deb_amd64.deb\r\n  - 40445854085082B23624D7E437EF17D89DD9C67A72895843297EEAFD5D0163DE\r\n- powershell-lts_7.6.6-1.deb_arm64.deb\r\n  - 5FA9DE7F76713E88D85D94E28C39F1577F6AFC86D6DF4FA07723CC193C31B81B\r\n- powershell_7.6.6-1.deb_amd64.deb\r\n  - 9585F38AB5A026C3FC0995486E26E12050777960FEF47A22DCA98B577C5D27A7\r\n- powershell_7.6.6-1.deb_arm64.deb\r\n  - 56AA313D5474602233E97A57104B661DAF4A8C35FC91F1EB664938BCCE8E11DA\r\n\r\n"
+      }
+    },
+    "swift": {
+      "source": "https://api.github.com/repos/swiftlang/swift/releases/latest",
+      "result": {
+        "tag_name": "swift-6.4.0-RELEASE",
+        "published_at": "2026-09-15T04:50:03Z",
+        "html_url": "https://github.com/swiftlang/swift/releases/tag/swift-6.4.0-RELEASE",
+        "body": ""
+      }
+    },
+    "ssim": {
+      "source": "https://registry.npmjs.org/ssim.js",
+      "result": {
+        "tags": {
+          "latest": "3.5.0"
+        },
+        "latestStable": "4.0.1",
+        "installedVersionMetadata": {
+          "name": "ssim.js",
+          "description": "JavaScript implementation of the SSIM algorithm",
+          "main": "dist/index",
+          "typings": "dist/index",
+          "browser": "dist/ssim.web",
+          "version": "4.0.1",
+          "scripts": {
+            "format-all": "git ls-files {src,spec}*.{js,json} | xargs yarn format",
+            "format": "prettier --write --single-quote --no-semi --trailing-comma es5",
+            "commit": "git-cz",
+            "test": "jest --testTimeout=500000",
+            "lint": "eslint .",
+            "build": "rm -rf dist && tsc && webpack --mode=production",
+            "codeclimate": "cat ./coverage/lcov.info | codeclimate-test-reporter",
+            "semantic-release": "semantic-release pre && npm publish && semantic-release post"
+          },
+          "repository": {
+            "url": "git+https://github.com/obartra/ssim.git",
+            "type": "git"
+          },
+          "keywords": [
+            "ssim",
+            "mssim",
+            "ssim_map",
+            "image",
+            "compare",
+            "structural",
+            "similarity",
+            "processing"
+          ],
+          "author": {
+            "name": "Oscar Bartra"
+          },
+          "license": "MIT",
+          "bugs": {
+            "url": "https://github.com/obartra/ssim/issues"
+          },
+          "homepage": "https://github.com/obartra/ssim#readme",
+          "devDependencies": {
+            "@bubltechnology/customizable-commit-analyzer": "1.0.2-0",
+            "@types/jest": "24.0.25",
+            "@types/node": "13.1.1",
+            "benchmark": "2.1.4",
+            "bmp-js": "0.1.0",
+            "canvas": "2.6.1",
+            "codeclimate-test-reporter": "0.5.0",
+            "commitizen": "2.9.6",
+            "condition-circle": "1.5.0",
+            "core-js": "2.5.1",
+            "cz-conventional-changelog": "2.1.0",
+            "eslint": "4.18.2",
+            "eslint-config-airbnb": "16.1.0",
+            "eslint-config-prettier": "2.7.0",
+            "eslint-plugin-import": "2.8.0",
+            "eslint-plugin-jsx-a11y": "6.0.2",
+            "eslint-plugin-react": "7.4.0",
+            "image-type": "4.1.0",
+            "jest": "24.9.0",
+            "nodemon": "1.12.1",
+            "prettier": "1.8.2",
+            "request": "2.83.0",
+            "semantic-release": "8.2.0",
+            "semantic-release-cli": "3.2.5",
+            "ts-jest": "24.2.0",
+            "ts-loader": "6.2.1",
+            "typescript": "3.7.4",
+            "webpack": "4.41.4",
+            "webpack-cli": "3.3.10"
+          },
+          "release": {
+            "verifyConditions": "condition-circle",
+            "analyzeCommits": "@bubltechnology/customizable-commit-analyzer"
+          },
+          "config": {
+            "commitizen": {
+              "path": "node_modules/cz-conventional-changelog"
+            }
+          },
+          "gitHead": "dcaa3a8653197923aa9f5613e2065a10f1e30208",
+          "_id": "ssim.js@4.0.1",
+          "_npmVersion": "5.10.0",
+          "_nodeVersion": "13.5.0",
+          "_npmUser": {
+            "name": "obartra",
+            "email": "obartra@gmail.com"
+          },
+          "dist": {
+            "integrity": "sha512-JAfZZvK2Wv/2VMn5kEZUqufCX0pwaQMjXUVydSEEHES878HKcKPaUW/bYxe2/wDDVQU2+5JsSsPU6nji1z4J9g==",
+            "shasum": "9b0ca525765fee95aa598a49b02950030c95998e",
+            "tarball": "https://registry.npmjs.org/ssim.js/-/ssim.js-4.0.1.tgz",
+            "fileCount": 102,
+            "unpackedSize": 320009,
+            "npm-signature": "-----BEGIN PGP SIGNATURE-----\r\nVersion: OpenPGP.js v3.0.4\r\nComment: https://openpgpjs.org\r\n\r\nwsFcBAEBCAAQBQJeBmImCRA9TVsSAnZWagAAwhAP/26jwcsj3+5jgVZhdZdp\n2uC1I9XL6luYEbOt974rVGNYRoAeAQ4TZQbj8EhteOBibmvWeTMUavhqVRpz\n0dyxzV9ntKuCEqkQbmsiT5l23WGpQClia/q1vc9loizNHpyOr+GoLwDTov4K\n9hMVJEd+GIn+ewIxt1l6YvDywwUtsTthT0KqUx7L3xpSTLKybPsvNu5OUumL\nuZpHxizJ31FgwQCRjmZSZWhigFeiTd+Bor6zvpeT3np+3oJo9tBniNFWR+uN\nLwPVjIggUjI7hsDY6GQrTl3Fq3zpLDt6jp15huvPEcsoyMQ7raP4eFrt0QdD\nbZRIlaC2+/t4ufzESJ0cOUDpr1DbLF02GBQ/bdEZdEA6UjPbnPFBaAYeuSoc\nHXN8AW7UBj0GYz44rAqSwZ/Bua+xkrc8i42FKOG4lbsitw1H95i3jbIkfRgC\n4Ge0evVhtC8FX9fwq3VCtQod9+6X4doAxAzhGkPtzJlKkcau5hw3Mpq6Dy47\nbq4c6nYcAOPFg36AYw0T8oh6hqU55Nhr71uziFxaxuCzdPS9TfnFwDjom4fS\nKLSCPG8of9DEQ0VD85P+Jf8YcAp06SExP6m41DXN6PDZz3FwoU7fgFVp7C5z\nObMFZe6raywSsGHbfw+pWVIhPysM0dcprTE5BqxkWxJGL3MgdOMvjQ9+hWPH\nfE1s\r\n=e3lB\r\n-----END PGP SIGNATURE-----\r\n",
+            "signatures": [
+              {
+                "keyid": "SHA256:jl3bwswu80PjjokCgh0o2w5c2U4LhQAE57gj9cz1kzA",
+                "sig": "MEYCIQCda7U2liiEnas+F9+1sQVE/7mqpPvD/rObKjw+mKMI9gIhAPuOfcztF6tdMFONSmQE1s/vAb/RRL++mDO8JMYpv5cG"
+              }
+            ]
+          },
+          "maintainers": [
+            {
+              "name": "obartra",
+              "email": "obartra@gmail.com"
+            }
+          ],
+          "directories": {},
+          "_npmOperationalInternal": {
+            "host": "s3://npm-registry-packages",
+            "tmp": "tmp/ssim.js_4.0.1_1577476645588_0.9544200314650588"
+          },
+          "_hasShrinkwrap": false
+        },
+        "time": {
+          "modified": "2022-06-26T23:33:35.245Z",
+          "created": "2016-10-05T17:58:50.882Z",
+          "4.0.1": "2019-12-27T19:57:25.755Z",
+          "3.5.0": "2020-10-12T14:34:47.641Z"
+        }
+      }
+    },
+    "prisma": {
+      "source": "https://registry.npmjs.org/prisma",
+      "result": {
+        "tags": {
+          "turso": "5.4.0-dev.61",
+          "early-access": "5.12.0-dev.21",
+          "optimize": "5.17.0-dev.33",
+          "typed-sql": "5.19.0-integration-feat-typed-sql.14",
+          "patch-dev": "7.9.1-dev.1",
+          "integration": "7.10.0-integration-fix-prisma-publish-token.1",
+          "next": "8.0.0-rc.10",
+          "prev": "7.10.0",
+          "latest": "8.0.0-rc.15",
+          "dev": "8.0.0-rc.15-dev.109"
+        },
+        "latestStable": "7.10.0",
+        "installedVersionMetadata": null,
+        "time": {
+          "created": "2016-06-03T13:26:09.663Z",
+          "modified": "2026-09-16T15:14:15.162Z",
+          "3.5.0": "2021-11-16T13:19:27.188Z",
+          "7.10.0": "2026-08-25T12:47:51.307Z",
+          "8.0.0-rc.15": "2026-09-14T07:01:35.643Z"
+        }
+      }
+    },
+    "tauriNotes": {
+      "source": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri/CHANGELOG.md",
+      "result": "# Changelog\n\n## \\[2.11.5]\n\n### Dependencies\n\n- [`44594d6f1`](https://www.github.com/tauri-apps/tauri/commit/44594d6f1b83856c2c0aec9c5021d7bb9db51a42) ([#15631](https://www.github.com/tauri-apps/tauri/pull/15631) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Unpin `time` as a new fixed version `0.3.53` has been published\n\n## \\[2.11.4]\n\n### Dependencies\n\n- Upgraded to `tauri-runtime-wry@2.11.4`\n- [`0299da0d3`](https://www.github.com/tauri-apps/tauri/commit/0299da0d391d6ebcd1c29d4f6de677d5cb586e56) ([#15616](https://www.github.com/tauri-apps/tauri/pull/15616) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Pinning `time` to `<0.3.52` used by `cookie` to mitigate a compilation error, see\n\n  - https://github.com/tauri-apps/tauri/issues/15615\n  - https://github.com/rwf2/cookie-rs/issues/255\n\n## \\[2.11.3]\n\n### Bug Fixes\n\n- [`5075c81a1`](https://www.github.com/tauri-apps/tauri/commit/5075c81a1c7c5e19e648df47766df7ffdb495b0f) ([#15550](https://www.github.com/tauri-apps/tauri/pull/15550) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix double clicking `data-tauri-drag-region` maximizes the window even when `is_maximizable` is set to false\n- [`7af245c60`](https://www.github.com/tauri-apps/tauri/commit/7af245c60b3e7620158499db06545e284461925b) ([#15474](https://www.github.com/tauri-apps/tauri/pull/15474) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `tauri::scope::fs::Scope::once` deadlocks\n- [`4c8bb98cd`](https://www.github.com/tauri-apps/tauri/commit/4c8bb98cd504e9bdca712deb904a0479726dfa15) ([#15475](https://www.github.com/tauri-apps/tauri/pull/15475) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `Listener::once` can be called multiple times if they trigger `emit`(s) inside the handler\n- [`66f873d62`](https://www.github.com/tauri-apps/tauri/commit/66f873d623ee3325179047efba85bd0cce0a6658) ([#15491](https://www.github.com/tauri-apps/tauri/pull/15491) by [@bclarke123](https://www.github.com/tauri-apps/tauri/../../bclarke123)) Adjust mutex locking in `send_channel_data_handler`, `handle_android_plugin_response`, `send_channel_data` to avoid deadlocks\n\n### Performance Improvements\n\n- [`e6083a111`](https://www.github.com/tauri-apps/tauri/commit/e6083a1119aba0674743e2e7d27cf12d28968cbf) ([#15220](https://www.github.com/tauri-apps/tauri/pull/15220) by [@DeTeam](https://www.github.com/tauri-apps/tauri/../../DeTeam)) Load `tauri://` custom protocol handlers asynchronously to speed up load time\n- [`800eade58`](https://www.github.com/tauri-apps/tauri/commit/800eade58d1c09d19f283d0a014b9e00bef9cc81) ([#15444](https://www.github.com/tauri-apps/tauri/pull/15444) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Reuse proxy reqwest client in mobile dev, improving the dev load speed\n\n### Dependencies\n\n- Upgraded to `tauri-utils@2.9.3`\n- Upgraded to `tauri-runtime-wry@2.11.3`\n- Upgraded to `tauri-runtime@2.11.3`\n- Upgraded to `tauri-macros@2.6.3`\n- Upgraded to `tauri-build@2.6.3`\n- [`504ff3f44`](https://www.github.com/tauri-apps/tauri/commit/504ff3f44eff2c0627eae6664e91e77b838e7ed3) ([#15364](https://www.github.com/tauri-apps/tauri/pull/15364) by [@renovate](https://www.github.com/tauri-apps/tauri/../../renovate)) Updated dependency `tray-icon` to 0.24\n\n## \\[2.11.2]\n\n### Bug Fixes\n\n- [`47e1b7549`](https://www.github.com/tauri-apps/tauri/commit/47e1b754951bffeedbcd6400928d60755fb954de) ([#15386](https://www.github.com/tauri-apps/tauri/pull/15386) by [@DominikPeters](https://www.github.com/tauri-apps/tauri/../../DominikPeters)) Fixed `Submenu.setAsWindowsMenuForNSApp()` calling the Help menu setter instead of the Window menu setter.\n\n### Dependencies\n\n- Upgraded to `tauri-utils@2.9.2`\n- Upgraded to `tauri-runtime@2.11.2`\n- Upgraded to `tauri-runtime-wry@2.11.2`\n- Upgraded to `tauri-macros@2.6.2`\n- Upgraded to `tauri-build@2.6.2`\n\n## \\[2.11.1]\n\n### Enhancements\n\n- [`5e3126ff7`](https://www.github.com/tauri-apps/tauri/commit/5e3126ff7045aec54811b227cb4d33d78b3957b5) ([#15338](https://www.github.com/tauri-apps/tauri/pull/15338)) Expose the monitor (display) APIs on mobile.\n\n### Bug Fixes\n\n- [`5f479c0c3`](https://www.github.com/tauri-apps/tauri/commit/5f479c0c364d7f5d89a83eaff66fbb7ef5045ce9) ([#15336](https://www.github.com/tauri-apps/tauri/pull/15336)) Fix crash when using the requestPermission API on Android.\n\n### Security fixes\n\n- [`1b26769f9`](https://www.github.com/tauri-apps/tauri/commit/1b26769f92b54b158777a35a7f548f870f4e7901) ([#15266](https://www.github.com/tauri-apps/tauri/pull/15266)) Enforce ACL checks for IPC requests from remote origins even when no `AppManifest` is configured. Previously, custom (non-plugin) commands bypassed ACL entirely without an `AppManifest`, allowing any origin to invoke them. Now, remote origins are always subject to ACL resolution, and can only reach custom commands if an explicit `remote` capability has been granted.\n- [`ba025588f`](https://www.github.com/tauri-apps/tauri/commit/ba025588f3559858f43547e8c04424c47a3c445b) Correctly handle .localhost suffix in local origins on Windows and Android to fix a security issue that made tauri think remote websites that started with a registered scheme were local websites.\n  For example, when registering an `app` custom protocol, Tauri would think `http://app.evil.com/` would be a local URL on Windows/Android.\n\n### Dependencies\n\n- Upgraded to `tauri-utils@2.9.1`\n- Upgraded to `tauri-runtime@2.11.1`\n- Upgraded to `tauri-runtime-wry@2.11.1`\n- Upgraded to `tauri-macros@2.6.1`\n- Upgraded to `tauri-build@2.6.1`\n\n## \\[2.11.0]\n\n### New Features\n\n- [`074299c08`](https://www.github.com/tauri-apps/tauri/commit/074299c08dd99d2e1c57796f55ab24bc1d3976cc) ([#14307](https://www.github.com/tauri-apps/tauri/pull/14307)) Add Bring All to Front predefined menu item type\n- [`c00a3dbff`](https://www.github.com/tauri-apps/tauri/commit/c00a3dbffccd6e051d3b7332f706b6c63759865d) ([#14473](https://www.github.com/tauri-apps/tauri/pull/14473)) Add support for the `rename` attribute in the `tauri::command` macro to allow renaming the command to something other than the function name.\n- [`a12142a48`](https://www.github.com/tauri-apps/tauri/commit/a12142a481f7a19b69e88ee36a438b1db71b36f5) ([#14357](https://www.github.com/tauri-apps/tauri/pull/14357)) Add macos support for setting the icon and icon template state in the same step of the main thread, to prevent flickering.\n- [`2dd9b15a2`](https://www.github.com/tauri-apps/tauri/commit/2dd9b15a2bcab8e52c87b03a919b4a75567ad3ce) ([#15062](https://www.github.com/tauri-apps/tauri/pull/15062)) Add `data-tauri-drag-region=\"deep\"` so clicks on non-clickable children will drag as well. Can still opt out of drag on some regions using `data-tauri-drag-region=\"false\"`\n- [`001c8fe3d`](https://www.github.com/tauri-apps/tauri/commit/001c8fe3d288802de9a8c29cfd2f46f9220d97c5) ([#14722](https://www.github.com/tauri-apps/tauri/pull/14722)) Add a WebView option to control browser-level general autofill behavior. This option does not disable password or credit card autofill. On Windows (WebView2), setting it to true disables the general autofill \"Suggestions\" UI, which may appear even when `autocomplete=\"off\"` is specified on input elements. On Linux, macOS, iOS, and Android, this option is currently unsupported and performs no operation.\n- [`b27be063f`](https://www.github.com/tauri-apps/tauri/commit/b27be063ff3052cb1071ac3ec719cfa104460fa4) ([#14925](https://www.github.com/tauri-apps/tauri/pull/14925)) Add `eval_with_callback` to the Tauri webview APIs and runtime dispatch layers.\n- [`d83d2d92b`](https://www.github.com/tauri-apps/tauri/commit/d83d2d92b4327da3dbac60f83cada36c8ec194dc) ([#14905](https://www.github.com/tauri-apps/tauri/pull/14905)) Enable track_caller attribute for async_runtime to provide better location information in logs and panics.\n- [`cc5c97602`](https://www.github.com/tauri-apps/tauri/commit/cc5c976027b0ab2431c13ec5b2e201d4414a8a6e) ([#14486](https://www.github.com/tauri-apps/tauri/pull/14486)) Implement file association for Android and iOS.\n- [`cc5c97602`](https://www.github.com/tauri-apps/tauri/commit/cc5c976027b0ab2431c13ec5b2e201d4414a8a6e) ([#14486](https://www.github.com/tauri-apps/tauri/pull/14486)) Trigger `RunEvent::Opened` on Android.\n- [`eb0312ea9`](https://www.github.com/tauri-apps/tauri/commit/eb0312ea9e493954298ac0b3fdaae7eafb52750e) ([#15199](https://www.github.com/tauri-apps/tauri/pull/15199)) Propagates the `Event::Suspended` and `Event::Resumed` events from `tao` when they are emitted on mobile targets.\n- [`093e2b47c`](https://www.github.com/tauri-apps/tauri/commit/093e2b47c01361c18783e9ff18750388e41650c5) ([#14484](https://www.github.com/tauri-apps/tauri/pull/14484)) Support creating multiple windows on Android (activity embedding) and iOS (scenes).\n- [`093e2b47c`](https://www.github.com/tauri-apps/tauri/commit/093e2b47c01361c18783e9ff18750388e41650c5) ([#14484](https://www.github.com/tauri-apps/tauri/pull/14484)) Added `dbus` feature flag (enabled by default) which is required for theme detection on Linux.\n- [`1063c48c5`](https://www.github.com/tauri-apps/tauri/commit/1063c48c5e7d099ad74d28a937edf42e3f5c9f03) ([#14523](https://www.github.com/tauri-apps/tauri/pull/14523)) Add handler for web content process termination on macOS and iOS.\n\n### Enhancements\n\n- [`d730770bb`](https://www.github.com/tauri-apps/tauri/commit/d730770bb93d77358cfc6f1286f10187cef37362) ([#15117](https://www.github.com/tauri-apps/tauri/pull/15117)) Simplify async-sync code boundaries, no externally visible changes\n- [`c69d5ca4b`](https://www.github.com/tauri-apps/tauri/commit/c69d5ca4b1a646843c3f250a0d1b13414c5e8223) ([#15262](https://www.github.com/tauri-apps/tauri/pull/15262)) Remove a clone, no user-facing changes.\n- [`4017a7ed7`](https://www.github.com/tauri-apps/tauri/commit/4017a7ed7313cebf912ef3af1e3b280855b6f100) ([#14908](https://www.github.com/tauri-apps/tauri/pull/14908)) Implement retrieving inner PathBuf from SafePathBuf to ease using APIs that require an owned PathBuf\n\n### Bug Fixes\n\n- [`110336c88`](https://www.github.com/tauri-apps/tauri/commit/110336c88a8c0a04476619db0a5c8f7694d969a5) ([#15250](https://www.github.com/tauri-apps/tauri/pull/15250)) Fix initial window position when positioning it to another monitor.\n- [`9808236eb`](https://www.github.com/tauri-apps/tauri/commit/9808236ebf7755d498d674b614f3fc75eeac1ec4) ([#14655](https://www.github.com/tauri-apps/tauri/pull/14655)) Fix monitor work area Y position on macOS.\n\n### What's Changed\n\n- [`d34497ef1`](https://www.github.com/tauri-apps/tauri/commit/d34497ef154eddcc36327a30dda06dc4748f6b20) ([#14862](https://www.github.com/tauri-apps/tauri/pull/14862)) The new window handler passed to `on_new_window` no longer requires `Sync`, and runs on main thread on Windows, aligning with other platforms\n\n### Dependencies\n\n- Upgraded to `tauri-macros@2.6.0`\n- Upgraded to `tauri-build@2.6.0`\n- Upgraded to `tauri-runtime@2.11.0`\n- Upgraded to `tauri-runtime-wry@2.11.0`\n- Upgraded to `tauri-utils@2.9.0`\n- [`373b7e677`](https://www.github.com/tauri-apps/tauri/commit/373b7e677ec498899759de9fcd35941fe792b58b) ([#15177](https://www.github.com/tauri-apps/tauri/pull/15177)) Update Specta in lockfile and upgrade dependencies using the removed `doc_auto_cfg` attribute to fix errors building documentation\n- [`a219ede00`](https://www.github.com/tauri-apps/tauri/commit/a219ede0003bb8073d8002be42bcf343538c42f8) ([#15203](https://www.github.com/tauri-apps/tauri/pull/15203)) Updated `tray-icon` to v0.22\n\n## \\[2.10.3]\n\n### Dependencies\n\n- Upgraded to `tauri-utils@2.8.3`\n- Upgraded to `tauri-runtime@2.10.1`\n- Upgraded to `tauri-runtime-wry@2.10.1`\n- Upgraded to `tauri-macros@2.5.5`\n- Upgraded to `tauri-build@2.5.6`\n\n## \\[2.10.2]\n\n### Dependencies\n\n- Upgraded to `tauri-macros@2.5.4`\n- Upgraded to `tauri-build@2.5.5`\n\n## \\[2.10.1]\n\n### Dependencies\n\n- [`ce8fddb46`](https://www.github.com/tauri-apps/tauri/commit/ce8fddb4648d6421579d43c7dd44959bc57a74e0) ([#14873](https://www.github.com/tauri-apps/tauri/pull/14873)) Unlocked version range for webkit2gtk-rs dependency.\n\n## \\[2.10.0]\n\n### New Features\n\n- [`e919a760e`](https://www.github.com/tauri-apps/tauri/commit/e919a760edfc115f9e4b5d841e29cc38d5535ed1) ([#14619](https://www.github.com/tauri-apps/tauri/pull/14619) by [@NaamuKim](https://www.github.com/tauri-apps/tauri/../../NaamuKim)) Add `set_simple_fullscreen` method to `WebviewWindow`.\n\n  This method was already available on the `Window` type and is now also available on `WebviewWindow` for consistency. On macOS, it toggles fullscreen mode without creating a new macOS Space. On other platforms, it falls back to regular fullscreen.\n\n### Bug Fixes\n\n- [`853ed4642`](https://www.github.com/tauri-apps/tauri/commit/853ed4642ff77154ccd380dd9289d90815d42691) ([#14442](https://www.github.com/tauri-apps/tauri/pull/14442) by [@ish1416](https://www.github.com/tauri-apps/tauri/../../ish1416)) Fixed 500 error when accessing local video files in Android external storage directory via `convertFileSrc`. Added better error handling and logging for Android external storage access to help diagnose permission and accessibility issues.\n- [`4d5d78daf`](https://www.github.com/tauri-apps/tauri/commit/4d5d78daf636feaac20c5bc48a6071491c4291ee) ([#14812](https://www.github.com/tauri-apps/tauri/pull/14812) by [@oscartbeaumont](https://www.github.com/tauri-apps/tauri/../../oscartbeaumont)) fix(specta): don't use `#[specta(rename = ...)]` with `tauri::ipc::Channel`\n- [`ff5d76ca2`](https://www.github.com/tauri-apps/tauri/commit/ff5d76ca214b94a7b6e88aa4f0f797bbf747824d) ([#14653](https://www.github.com/tauri-apps/tauri/pull/14653) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) `WindowConfig::focus` is set to `false` in `WindowConfig::default()`\n\n### What's Changed\n\n- [`0575dd287`](https://www.github.com/tauri-apps/tauri"
+    },
+    "singleInstance": {
+      "source": "https://api.github.com/repos/tauri-apps/plugins-workspace/releases/tags/single-instance-v2.4.5",
+      "result": {
+        "tag_name": "single-instance-v2.4.5",
+        "published_at": "2026-09-20T01:34:39Z",
+        "html_url": "https://github.com/tauri-apps/plugins-workspace/releases/tag/single-instance-v2.4.5",
+        "body": "## [2.4.5]\n\n- [`67cd25a1`](https://github.com/tauri-apps/plugins-workspace/commit/67cd25a10ce3deb1b935e725228e528766f24ad7) ([#3592](https://github.com/tauri-apps/plugins-workspace/pull/3592)) On Windows, the second instance now allows the first instance to bring its window to the front before exiting, so focusing a window from the callback no longer gets refused by Windows.\n\n<details>\n<summary><em><h4>Cargo Publish</h4></em></summary>\n\n```\nUpdating crates.io index\n   Packaging tauri-plugin-single-instance v2.4.5 (/home/runner/work/plugins-workspace/plugins-workspace/plugins/single-instance)\n    Updating crates.io index\n    Packaged 15 files, 162.5KiB (44.4KiB compressed)\n   Uploading tauri-plugin-single-instance v2.4.5 (/home/runner/work/plugins-workspace/plugins-workspace/plugins/single-instance)\n    Uploaded tauri-plugin-single-instance v2.4.5 to registry `crates-io`\nnote: waiting for tauri-plugin-single-instance v2.4.5 to be available at registry `crates-io`\nhelp: you may press ctrl-c to skip waiting; the crate should be available shortly\n   Published tauri-plugin-single-instance v2.4.5 at registry `crates-io`\n```\n\n</details>\n\n"
+      }
+    },
+    "livekitServerSdk": {
+      "source": "https://api.github.com/repos/livekit/node-sdks/releases/latest",
+      "result": {
+        "tag_name": "livekit-server-sdk@2.19.1",
+        "published_at": "2026-09-20T23:23:01Z",
+        "html_url": "https://github.com/livekit/node-sdks/releases/tag/livekit-server-sdk%402.19.1",
+        "body": "### Patch Changes\n\n-   Add `enabled` option to `createIngress` and `updateIngress`. Setting `enabled: false` lets you disable an ingress session (reject new connection attempts) without deleting it, so the stream key is preserved. The field already exists on the protobuf `CreateIngressRequest`/`UpdateIngressRequest`; this exposes it through the typed `CreateIngressOptions`/`UpdateIngressOptions`. - [#692](https://github.com/livekit/node-sdks/pull/692) ([@stefanking-difference](https://github.com/stefanking-difference))\n\n-   Require the exp claim when verifying access tokens, matching livekit/protocol#1706. - [#710](https://github.com/livekit/node-sdks/pull/710) ([@SashaMIT](https://github.com/SashaMIT))\n"
+      }
+    }
+  }
+}

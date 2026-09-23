@@ -1,0 +1,6290 @@
+{
+  "checkedAt": "2026-09-21T10:22:49.715Z",
+  "manifests": [
+    "package.json",
+    "apps/desktop/package.json",
+    "apps/mobile/package.json",
+    "apps/web/package.json",
+    "packages/db/package.json",
+    "packages/types/package.json",
+    "packages/ui/package.json"
+  ],
+  "rows": [
+    {
+      "file": "package.json",
+      "workspace": "wizards",
+      "group": "devDependencies",
+      "name": "@typescript/native",
+      "registryName": "typescript",
+      "declared": "catalog:",
+      "specifier": "npm:typescript@7.0.2",
+      "resolved": "typescript@7.0.2",
+      "installed": {
+        "name": "typescript",
+        "version": "7.0.2"
+      },
+      "internal": false,
+      "latest": "7.0.2",
+      "status": "current"
+    },
+    {
+      "file": "package.json",
+      "workspace": "wizards",
+      "group": "devDependencies",
+      "name": "prettier",
+      "registryName": "prettier",
+      "declared": "3.9.6",
+      "specifier": "3.9.6",
+      "resolved": "3.9.6",
+      "installed": {
+        "name": "prettier",
+        "version": "3.9.6"
+      },
+      "internal": false,
+      "latest": "3.9.8",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "package.json",
+      "workspace": "wizards",
+      "group": "devDependencies",
+      "name": "turbo",
+      "registryName": "turbo",
+      "declared": "2.10.13",
+      "specifier": "2.10.13",
+      "resolved": "2.10.13",
+      "installed": {
+        "name": "turbo",
+        "version": "2.10.13"
+      },
+      "internal": false,
+      "latest": "2.11.2",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "package.json",
+      "workspace": "wizards",
+      "group": "devDependencies",
+      "name": "typescript",
+      "registryName": "@typescript/typescript6",
+      "declared": "catalog:",
+      "specifier": "npm:@typescript/typescript6@6.0.2",
+      "resolved": "@typescript/typescript6@6.0.2",
+      "installed": {
+        "name": "@typescript/typescript6",
+        "version": "6.0.2"
+      },
+      "internal": false,
+      "latest": "6.0.2",
+      "status": "current"
+    },
+    {
+      "file": "apps/desktop/package.json",
+      "workspace": "@wizards/desktop",
+      "group": "devDependencies",
+      "name": "@tauri-apps/cli",
+      "registryName": "@tauri-apps/cli",
+      "declared": "2.11.4",
+      "specifier": "2.11.4",
+      "resolved": "2.11.4",
+      "installed": {
+        "name": "@tauri-apps/cli",
+        "version": "2.11.4"
+      },
+      "internal": false,
+      "latest": "2.11.5",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@babel/runtime",
+      "registryName": "@babel/runtime",
+      "declared": "7.29.7",
+      "specifier": "7.29.7",
+      "resolved": "7.29.7",
+      "installed": {
+        "name": "@babel/runtime",
+        "version": "7.29.7"
+      },
+      "internal": false,
+      "latest": "8.0.5",
+      "status": "major-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@expo/vector-icons",
+      "registryName": "@expo/vector-icons",
+      "declared": "^15.1.1",
+      "specifier": "^15.1.1",
+      "resolved": "15.1.1",
+      "installed": {
+        "name": "@expo/vector-icons",
+        "version": "15.1.1"
+      },
+      "internal": false,
+      "latest": "15.1.1",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@livekit/react-native",
+      "registryName": "@livekit/react-native",
+      "declared": "^2.12.0",
+      "specifier": "^2.12.0",
+      "resolved": "2.12.0",
+      "installed": {
+        "name": "@livekit/react-native",
+        "version": "2.12.0"
+      },
+      "internal": false,
+      "latest": "3.0.0",
+      "status": "major-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@livekit/react-native-expo-plugin",
+      "registryName": "@livekit/react-native-expo-plugin",
+      "declared": "^1.0.2",
+      "specifier": "^1.0.2",
+      "resolved": "1.0.2",
+      "installed": {
+        "name": "@livekit/react-native-expo-plugin",
+        "version": "1.0.2"
+      },
+      "internal": false,
+      "latest": "1.0.2",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@livekit/react-native-webrtc",
+      "registryName": "@livekit/react-native-webrtc",
+      "declared": "144.1.2",
+      "specifier": "144.1.2",
+      "resolved": "144.1.2",
+      "installed": {
+        "name": "@livekit/react-native-webrtc",
+        "version": "144.1.2"
+      },
+      "internal": false,
+      "latest": "144.2.0",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@react-native-async-storage/async-storage",
+      "registryName": "@react-native-async-storage/async-storage",
+      "declared": "^2.2.0",
+      "specifier": "^2.2.0",
+      "resolved": "2.2.0",
+      "installed": {
+        "name": "@react-native-async-storage/async-storage",
+        "version": "2.2.0"
+      },
+      "internal": false,
+      "latest": "3.1.1",
+      "status": "major-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@react-native-community/netinfo",
+      "registryName": "@react-native-community/netinfo",
+      "declared": "12.0.1",
+      "specifier": "12.0.1",
+      "resolved": "12.0.1",
+      "installed": {
+        "name": "@react-native-community/netinfo",
+        "version": "12.0.1"
+      },
+      "internal": false,
+      "latest": "12.0.1",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@react-native-google-signin/google-signin",
+      "registryName": "@react-native-google-signin/google-signin",
+      "declared": "^16.1.5",
+      "specifier": "^16.1.5",
+      "resolved": "16.1.5",
+      "installed": {
+        "name": "@react-native-google-signin/google-signin",
+        "version": "16.1.5"
+      },
+      "internal": false,
+      "latest": "16.1.5",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@react-navigation/bottom-tabs",
+      "registryName": "@react-navigation/bottom-tabs",
+      "declared": "^7.19.1",
+      "specifier": "^7.19.1",
+      "resolved": "7.19.1",
+      "installed": {
+        "name": "@react-navigation/bottom-tabs",
+        "version": "7.19.1"
+      },
+      "internal": false,
+      "latest": "7.19.2",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@react-navigation/native",
+      "registryName": "@react-navigation/native",
+      "declared": "^7.4.1",
+      "specifier": "^7.4.1",
+      "resolved": "7.4.1",
+      "installed": {
+        "name": "@react-navigation/native",
+        "version": "7.4.1"
+      },
+      "internal": false,
+      "latest": "7.4.1",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@react-navigation/native-stack",
+      "registryName": "@react-navigation/native-stack",
+      "declared": "^7.19.1",
+      "specifier": "^7.19.1",
+      "resolved": "7.19.1",
+      "installed": {
+        "name": "@react-navigation/native-stack",
+        "version": "7.19.1"
+      },
+      "internal": false,
+      "latest": "7.19.2",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@sentry/cli",
+      "registryName": "@sentry/cli",
+      "declared": "3.7.0",
+      "specifier": "3.7.0",
+      "resolved": "3.7.0",
+      "installed": {
+        "name": "@sentry/cli",
+        "version": "3.7.0"
+      },
+      "internal": false,
+      "latest": "3.8.0",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@sentry/react-native",
+      "registryName": "@sentry/react-native",
+      "declared": "^8.26.0",
+      "specifier": "^8.26.0",
+      "resolved": "8.26.0",
+      "installed": {
+        "name": "@sentry/react-native",
+        "version": "8.26.0"
+      },
+      "internal": false,
+      "latest": "8.27.0",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@shopify/flash-list",
+      "registryName": "@shopify/flash-list",
+      "declared": "2.0.2",
+      "specifier": "2.0.2",
+      "resolved": "2.0.2",
+      "installed": {
+        "name": "@shopify/flash-list",
+        "version": "2.0.2"
+      },
+      "internal": false,
+      "latest": "2.3.2",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@tanstack/query-async-storage-persister",
+      "registryName": "@tanstack/query-async-storage-persister",
+      "declared": "5.102.8",
+      "specifier": "5.102.8",
+      "resolved": "5.102.8",
+      "installed": {
+        "name": "@tanstack/query-async-storage-persister",
+        "version": "5.102.8"
+      },
+      "internal": false,
+      "latest": "5.103.2",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@tanstack/react-query",
+      "registryName": "@tanstack/react-query",
+      "declared": "5.102.8",
+      "specifier": "5.102.8",
+      "resolved": "5.102.8",
+      "installed": {
+        "name": "@tanstack/react-query",
+        "version": "5.102.8"
+      },
+      "internal": false,
+      "latest": "5.103.2",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@tanstack/react-query-persist-client",
+      "registryName": "@tanstack/react-query-persist-client",
+      "declared": "5.102.8",
+      "specifier": "5.102.8",
+      "resolved": "5.102.8",
+      "installed": {
+        "name": "@tanstack/react-query-persist-client",
+        "version": "5.102.8"
+      },
+      "internal": false,
+      "latest": "5.103.2",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@uploadthing/react",
+      "registryName": "@uploadthing/react",
+      "declared": "7.3.3",
+      "specifier": "7.3.3",
+      "resolved": "7.3.3",
+      "installed": {
+        "name": "@uploadthing/react",
+        "version": "7.3.3"
+      },
+      "internal": false,
+      "latest": "7.3.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "@wizards/types",
+      "registryName": "@wizards/types",
+      "declared": "workspace:*",
+      "specifier": "workspace:*",
+      "resolved": "link:../../packages/types",
+      "installed": {
+        "name": "@wizards/types",
+        "version": "0.1.0"
+      },
+      "internal": true,
+      "status": "workspace"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo",
+      "registryName": "expo",
+      "declared": "~57.0.22",
+      "specifier": "~57.0.22",
+      "resolved": "57.0.22",
+      "installed": {
+        "name": "expo",
+        "version": "57.0.22"
+      },
+      "internal": false,
+      "latest": "57.0.24",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-application",
+      "registryName": "expo-application",
+      "declared": "~57.0.3",
+      "specifier": "~57.0.3",
+      "resolved": "57.0.3",
+      "installed": {
+        "name": "expo-application",
+        "version": "57.0.3"
+      },
+      "internal": false,
+      "latest": "57.0.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-asset",
+      "registryName": "expo-asset",
+      "declared": "~57.0.17",
+      "specifier": "~57.0.17",
+      "resolved": "57.0.17",
+      "installed": {
+        "name": "expo-asset",
+        "version": "57.0.17"
+      },
+      "internal": false,
+      "latest": "57.0.18",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-audio",
+      "registryName": "expo-audio",
+      "declared": "~57.0.5",
+      "specifier": "~57.0.5",
+      "resolved": "57.0.5",
+      "installed": {
+        "name": "expo-audio",
+        "version": "57.0.5"
+      },
+      "internal": false,
+      "latest": "57.0.5",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-blur",
+      "registryName": "expo-blur",
+      "declared": "~57.0.3",
+      "specifier": "~57.0.3",
+      "resolved": "57.0.3",
+      "installed": {
+        "name": "expo-blur",
+        "version": "57.0.3"
+      },
+      "internal": false,
+      "latest": "57.0.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-clipboard",
+      "registryName": "expo-clipboard",
+      "declared": "~57.0.2",
+      "specifier": "~57.0.2",
+      "resolved": "57.0.2",
+      "installed": {
+        "name": "expo-clipboard",
+        "version": "57.0.2"
+      },
+      "internal": false,
+      "latest": "57.0.2",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-constants",
+      "registryName": "expo-constants",
+      "declared": "~57.0.18",
+      "specifier": "~57.0.18",
+      "resolved": "57.0.18",
+      "installed": {
+        "name": "expo-constants",
+        "version": "57.0.18"
+      },
+      "internal": false,
+      "latest": "57.0.19",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-crypto",
+      "registryName": "expo-crypto",
+      "declared": "~57.0.3",
+      "specifier": "~57.0.3",
+      "resolved": "57.0.3",
+      "installed": {
+        "name": "expo-crypto",
+        "version": "57.0.3"
+      },
+      "internal": false,
+      "latest": "57.0.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-dev-client",
+      "registryName": "expo-dev-client",
+      "declared": "~57.0.19",
+      "specifier": "~57.0.19",
+      "resolved": "57.0.19",
+      "installed": {
+        "name": "expo-dev-client",
+        "version": "57.0.19"
+      },
+      "internal": false,
+      "latest": "57.0.19",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-device",
+      "registryName": "expo-device",
+      "declared": "~57.0.2",
+      "specifier": "~57.0.2",
+      "resolved": "57.0.2",
+      "installed": {
+        "name": "expo-device",
+        "version": "57.0.2"
+      },
+      "internal": false,
+      "latest": "57.0.2",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-document-picker",
+      "registryName": "expo-document-picker",
+      "declared": "~57.0.2",
+      "specifier": "~57.0.2",
+      "resolved": "57.0.2",
+      "installed": {
+        "name": "expo-document-picker",
+        "version": "57.0.2"
+      },
+      "internal": false,
+      "latest": "57.0.2",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-file-system",
+      "registryName": "expo-file-system",
+      "declared": "~57.0.7",
+      "specifier": "~57.0.7",
+      "resolved": "57.0.7",
+      "installed": {
+        "name": "expo-file-system",
+        "version": "57.0.7"
+      },
+      "internal": false,
+      "latest": "57.0.7",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-font",
+      "registryName": "expo-font",
+      "declared": "~57.0.4",
+      "specifier": "~57.0.4",
+      "resolved": "57.0.4",
+      "installed": {
+        "name": "expo-font",
+        "version": "57.0.4"
+      },
+      "internal": false,
+      "latest": "57.0.4",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-haptics",
+      "registryName": "expo-haptics",
+      "declared": "~57.0.3",
+      "specifier": "~57.0.3",
+      "resolved": "57.0.3",
+      "installed": {
+        "name": "expo-haptics",
+        "version": "57.0.3"
+      },
+      "internal": false,
+      "latest": "57.0.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-image",
+      "registryName": "expo-image",
+      "declared": "~57.0.5",
+      "specifier": "~57.0.5",
+      "resolved": "57.0.5",
+      "installed": {
+        "name": "expo-image",
+        "version": "57.0.5"
+      },
+      "internal": false,
+      "latest": "57.0.5",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-image-manipulator",
+      "registryName": "expo-image-manipulator",
+      "declared": "~57.0.17",
+      "specifier": "~57.0.17",
+      "resolved": "57.0.17",
+      "installed": {
+        "name": "expo-image-manipulator",
+        "version": "57.0.17"
+      },
+      "internal": false,
+      "latest": "57.0.19",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-image-picker",
+      "registryName": "expo-image-picker",
+      "declared": "~57.0.17",
+      "specifier": "~57.0.17",
+      "resolved": "57.0.17",
+      "installed": {
+        "name": "expo-image-picker",
+        "version": "57.0.17"
+      },
+      "internal": false,
+      "latest": "57.0.19",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-intent-launcher",
+      "registryName": "expo-intent-launcher",
+      "declared": "~57.0.1",
+      "specifier": "~57.0.1",
+      "resolved": "57.0.1",
+      "installed": {
+        "name": "expo-intent-launcher",
+        "version": "57.0.1"
+      },
+      "internal": false,
+      "latest": "57.0.1",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-linear-gradient",
+      "registryName": "expo-linear-gradient",
+      "declared": "~57.0.2",
+      "specifier": "~57.0.2",
+      "resolved": "57.0.2",
+      "installed": {
+        "name": "expo-linear-gradient",
+        "version": "57.0.2"
+      },
+      "internal": false,
+      "latest": "57.0.2",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-local-authentication",
+      "registryName": "expo-local-authentication",
+      "declared": "~57.0.3",
+      "specifier": "~57.0.3",
+      "resolved": "57.0.3",
+      "installed": {
+        "name": "expo-local-authentication",
+        "version": "57.0.3"
+      },
+      "internal": false,
+      "latest": "57.0.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-localization",
+      "registryName": "expo-localization",
+      "declared": "~57.0.2",
+      "specifier": "~57.0.2",
+      "resolved": "57.0.2",
+      "installed": {
+        "name": "expo-localization",
+        "version": "57.0.2"
+      },
+      "internal": false,
+      "latest": "57.0.2",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-navigation-bar",
+      "registryName": "expo-navigation-bar",
+      "declared": "~57.0.2",
+      "specifier": "~57.0.2",
+      "resolved": "57.0.2",
+      "installed": {
+        "name": "expo-navigation-bar",
+        "version": "57.0.2"
+      },
+      "internal": false,
+      "latest": "57.0.2",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-notifications",
+      "registryName": "expo-notifications",
+      "declared": "~57.0.18",
+      "specifier": "~57.0.18",
+      "resolved": "57.0.18",
+      "installed": {
+        "name": "expo-notifications",
+        "version": "57.0.18"
+      },
+      "internal": false,
+      "latest": "57.0.20",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-screen-orientation",
+      "registryName": "expo-screen-orientation",
+      "declared": "~57.0.2",
+      "specifier": "~57.0.2",
+      "resolved": "57.0.2",
+      "installed": {
+        "name": "expo-screen-orientation",
+        "version": "57.0.2"
+      },
+      "internal": false,
+      "latest": "57.0.2",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-secure-store",
+      "registryName": "expo-secure-store",
+      "declared": "~57.0.4",
+      "specifier": "~57.0.4",
+      "resolved": "57.0.4",
+      "installed": {
+        "name": "expo-secure-store",
+        "version": "57.0.4"
+      },
+      "internal": false,
+      "latest": "57.0.4",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-sqlite",
+      "registryName": "expo-sqlite",
+      "declared": "~57.0.3",
+      "specifier": "~57.0.3",
+      "resolved": "57.0.3",
+      "installed": {
+        "name": "expo-sqlite",
+        "version": "57.0.3"
+      },
+      "internal": false,
+      "latest": "57.0.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-status-bar",
+      "registryName": "expo-status-bar",
+      "declared": "~57.0.1",
+      "specifier": "~57.0.1",
+      "resolved": "57.0.1",
+      "installed": {
+        "name": "expo-status-bar",
+        "version": "57.0.1"
+      },
+      "internal": false,
+      "latest": "57.0.1",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-system-ui",
+      "registryName": "expo-system-ui",
+      "declared": "~57.0.4",
+      "specifier": "~57.0.4",
+      "resolved": "57.0.4",
+      "installed": {
+        "name": "expo-system-ui",
+        "version": "57.0.4"
+      },
+      "internal": false,
+      "latest": "57.0.4",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-updates",
+      "registryName": "expo-updates",
+      "declared": "~57.0.22",
+      "specifier": "~57.0.22",
+      "resolved": "57.0.22",
+      "installed": {
+        "name": "expo-updates",
+        "version": "57.0.22"
+      },
+      "internal": false,
+      "latest": "57.0.23",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "expo-web-browser",
+      "registryName": "expo-web-browser",
+      "declared": "~57.0.3",
+      "specifier": "~57.0.3",
+      "resolved": "57.0.3",
+      "installed": {
+        "name": "expo-web-browser",
+        "version": "57.0.3"
+      },
+      "internal": false,
+      "latest": "57.0.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "js-sha256",
+      "registryName": "js-sha256",
+      "declared": "1.0.0",
+      "specifier": "1.0.0",
+      "resolved": "1.0.0",
+      "installed": {
+        "name": "js-sha256",
+        "version": "1.0.0"
+      },
+      "internal": false,
+      "latest": "1.0.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "livekit-client",
+      "registryName": "livekit-client",
+      "declared": "^2.22.3",
+      "specifier": "^2.22.3",
+      "resolved": "2.22.3",
+      "installed": {
+        "name": "livekit-client",
+        "version": "2.22.3"
+      },
+      "internal": false,
+      "latest": "2.22.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "react",
+      "registryName": "react",
+      "declared": "19.2.3",
+      "specifier": "19.2.3",
+      "resolved": "19.2.3",
+      "installed": {
+        "name": "react",
+        "version": "19.2.3"
+      },
+      "internal": false,
+      "latest": "19.3.0",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "react-native",
+      "registryName": "react-native",
+      "declared": "0.86.3",
+      "specifier": "0.86.3",
+      "resolved": "0.86.3",
+      "installed": {
+        "name": "react-native",
+        "version": "0.86.3"
+      },
+      "internal": false,
+      "latest": "0.87.1",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "react-native-gesture-handler",
+      "registryName": "react-native-gesture-handler",
+      "declared": "~2.32.0",
+      "specifier": "~2.32.0",
+      "resolved": "2.32.0",
+      "installed": {
+        "name": "react-native-gesture-handler",
+        "version": "2.32.0"
+      },
+      "internal": false,
+      "latest": "3.3.0",
+      "status": "major-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "react-native-keyboard-controller",
+      "registryName": "react-native-keyboard-controller",
+      "declared": "1.21.9",
+      "specifier": "1.21.9",
+      "resolved": "1.21.9",
+      "installed": {
+        "name": "react-native-keyboard-controller",
+        "version": "1.21.9"
+      },
+      "internal": false,
+      "latest": "1.22.5",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "react-native-reanimated",
+      "registryName": "react-native-reanimated",
+      "declared": "4.5.1",
+      "specifier": "4.5.1",
+      "resolved": "4.5.1",
+      "installed": {
+        "name": "react-native-reanimated",
+        "version": "4.5.1"
+      },
+      "internal": false,
+      "latest": "4.7.0",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "react-native-safe-area-context",
+      "registryName": "react-native-safe-area-context",
+      "declared": "~5.7.0",
+      "specifier": "~5.7.0",
+      "resolved": "5.7.0",
+      "installed": {
+        "name": "react-native-safe-area-context",
+        "version": "5.7.0"
+      },
+      "internal": false,
+      "latest": "5.10.0",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "react-native-screens",
+      "registryName": "react-native-screens",
+      "declared": "4.26.2",
+      "specifier": "4.26.2",
+      "resolved": "4.26.2",
+      "installed": {
+        "name": "react-native-screens",
+        "version": "4.26.2"
+      },
+      "internal": false,
+      "latest": "4.28.0",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "react-native-svg",
+      "registryName": "react-native-svg",
+      "declared": "15.15.4",
+      "specifier": "15.15.4",
+      "resolved": "15.15.4",
+      "installed": {
+        "name": "react-native-svg",
+        "version": "15.15.4"
+      },
+      "internal": false,
+      "latest": "15.15.5",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "react-native-view-shot",
+      "registryName": "react-native-view-shot",
+      "declared": "5.1.0",
+      "specifier": "5.1.0",
+      "resolved": "5.1.0",
+      "installed": {
+        "name": "react-native-view-shot",
+        "version": "5.1.0"
+      },
+      "internal": false,
+      "latest": "6.0.1",
+      "status": "major-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "react-native-worklets",
+      "registryName": "react-native-worklets",
+      "declared": "0.10.1",
+      "specifier": "0.10.1",
+      "resolved": "0.10.1",
+      "installed": {
+        "name": "react-native-worklets",
+        "version": "0.10.1"
+      },
+      "internal": false,
+      "latest": "0.12.2",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "socket.io-client",
+      "registryName": "socket.io-client",
+      "declared": "^4.8.3",
+      "specifier": "^4.8.3",
+      "resolved": "4.8.3",
+      "installed": {
+        "name": "socket.io-client",
+        "version": "4.8.3"
+      },
+      "internal": false,
+      "latest": "4.8.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "uploadthing",
+      "registryName": "uploadthing",
+      "declared": "7.7.4",
+      "specifier": "7.7.4",
+      "resolved": "7.7.4",
+      "installed": {
+        "name": "uploadthing",
+        "version": "7.7.4"
+      },
+      "internal": false,
+      "latest": "7.7.4",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "dependencies",
+      "name": "zustand",
+      "registryName": "zustand",
+      "declared": "5.0.15",
+      "specifier": "5.0.15",
+      "resolved": "5.0.15",
+      "installed": {
+        "name": "zustand",
+        "version": "5.0.15"
+      },
+      "internal": false,
+      "latest": "5.0.15",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "@playwright/test",
+      "registryName": "@playwright/test",
+      "declared": "1.63.0",
+      "specifier": "1.63.0",
+      "resolved": "1.63.0",
+      "installed": {
+        "name": "@playwright/test",
+        "version": "1.63.0"
+      },
+      "internal": false,
+      "latest": "1.63.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "@react-native/jest-preset",
+      "registryName": "@react-native/jest-preset",
+      "declared": "0.86.3",
+      "specifier": "0.86.3",
+      "resolved": "0.86.3",
+      "installed": {
+        "name": "@react-native/jest-preset",
+        "version": "0.86.3"
+      },
+      "internal": false,
+      "latest": "0.87.1",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "@testing-library/react-native",
+      "registryName": "@testing-library/react-native",
+      "declared": "14.0.1",
+      "specifier": "14.0.1",
+      "resolved": "14.0.1",
+      "installed": {
+        "name": "@testing-library/react-native",
+        "version": "14.0.1"
+      },
+      "internal": false,
+      "latest": "14.0.1",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "@types/jest",
+      "registryName": "@types/jest",
+      "declared": "29.5.14",
+      "specifier": "29.5.14",
+      "resolved": "29.5.14",
+      "installed": {
+        "name": "@types/jest",
+        "version": "29.5.14"
+      },
+      "internal": false,
+      "latest": "30.0.0",
+      "status": "major-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "@types/node",
+      "registryName": "@types/node",
+      "declared": "^24.13.4",
+      "specifier": "^24.13.4",
+      "resolved": "24.13.4",
+      "installed": {
+        "name": "@types/node",
+        "version": "24.13.4"
+      },
+      "internal": false,
+      "latest": "26.6.2",
+      "status": "major-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "@types/react",
+      "registryName": "@types/react",
+      "declared": "19.2.18",
+      "specifier": "19.2.18",
+      "resolved": "19.2.18",
+      "installed": {
+        "name": "@types/react",
+        "version": "19.2.18"
+      },
+      "internal": false,
+      "latest": "19.3.0",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "babel-preset-expo",
+      "registryName": "babel-preset-expo",
+      "declared": "~57.0.11",
+      "specifier": "~57.0.11",
+      "resolved": "57.0.11",
+      "installed": {
+        "name": "babel-preset-expo",
+        "version": "57.0.11"
+      },
+      "internal": false,
+      "latest": "57.0.12",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "eslint",
+      "registryName": "eslint",
+      "declared": "^10.10.0",
+      "specifier": "^10.10.0",
+      "resolved": "10.10.0",
+      "installed": {
+        "name": "eslint",
+        "version": "10.10.0"
+      },
+      "internal": false,
+      "latest": "10.11.0",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "eslint-plugin-react-hooks",
+      "registryName": "eslint-plugin-react-hooks",
+      "declared": "^7.1.1",
+      "specifier": "^7.1.1",
+      "resolved": "7.1.1",
+      "installed": {
+        "name": "eslint-plugin-react-hooks",
+        "version": "7.1.1"
+      },
+      "internal": false,
+      "latest": "7.1.1",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "jest",
+      "registryName": "jest",
+      "declared": "29.7.0",
+      "specifier": "29.7.0",
+      "resolved": "29.7.0",
+      "installed": {
+        "name": "jest",
+        "version": "29.7.0"
+      },
+      "internal": false,
+      "latest": "30.5.2",
+      "status": "major-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "jest-expo",
+      "registryName": "jest-expo",
+      "declared": "~57.0.5",
+      "specifier": "~57.0.5",
+      "resolved": "57.0.5",
+      "installed": {
+        "name": "jest-expo",
+        "version": "57.0.5"
+      },
+      "internal": false,
+      "latest": "57.0.5",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "pixelmatch",
+      "registryName": "pixelmatch",
+      "declared": "7.2.0",
+      "specifier": "7.2.0",
+      "resolved": "7.2.0",
+      "installed": {
+        "name": "pixelmatch",
+        "version": "7.2.0"
+      },
+      "internal": false,
+      "latest": "7.2.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "react-dom",
+      "registryName": "react-dom",
+      "declared": "19.2.3",
+      "specifier": "19.2.3",
+      "resolved": "19.2.3",
+      "installed": {
+        "name": "react-dom",
+        "version": "19.2.3"
+      },
+      "internal": false,
+      "latest": "19.3.0",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "sharp",
+      "registryName": "sharp",
+      "declared": "0.35.4",
+      "specifier": "0.35.4",
+      "resolved": "0.35.4",
+      "installed": {
+        "name": "sharp",
+        "version": "0.35.4"
+      },
+      "internal": false,
+      "latest": "0.35.4",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "ssim.js",
+      "registryName": "ssim.js",
+      "declared": "4.0.1",
+      "specifier": "4.0.1",
+      "resolved": "4.0.1",
+      "installed": {
+        "name": "ssim.js",
+        "version": "4.0.1"
+      },
+      "internal": false,
+      "latest": "3.5.0",
+      "status": "different-release-channel"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "test-renderer",
+      "registryName": "test-renderer",
+      "declared": "1.2.0",
+      "specifier": "1.2.0",
+      "resolved": "1.2.0",
+      "installed": {
+        "name": "test-renderer",
+        "version": "1.2.0"
+      },
+      "internal": false,
+      "latest": "1.3.0",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "tsx",
+      "registryName": "tsx",
+      "declared": "^4.23.13",
+      "specifier": "^4.23.13",
+      "resolved": "4.23.13",
+      "installed": {
+        "name": "tsx",
+        "version": "4.23.13"
+      },
+      "internal": false,
+      "latest": "4.23.15",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "typescript",
+      "registryName": "@typescript/typescript6",
+      "declared": "catalog:",
+      "specifier": "npm:@typescript/typescript6@6.0.2",
+      "resolved": "@typescript/typescript6@6.0.2",
+      "installed": {
+        "name": "@typescript/typescript6",
+        "version": "6.0.2"
+      },
+      "internal": false,
+      "latest": "6.0.2",
+      "status": "current"
+    },
+    {
+      "file": "apps/mobile/package.json",
+      "workspace": "@wizards/mobile",
+      "group": "devDependencies",
+      "name": "typescript-eslint",
+      "registryName": "typescript-eslint",
+      "declared": "^8.70.0",
+      "specifier": "^8.70.0",
+      "resolved": "8.70.0",
+      "installed": {
+        "name": "typescript-eslint",
+        "version": "8.70.0"
+      },
+      "internal": false,
+      "latest": "8.70.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@auth/prisma-adapter",
+      "registryName": "@auth/prisma-adapter",
+      "declared": "2.11.3",
+      "specifier": "2.11.3",
+      "resolved": "2.11.3",
+      "installed": {
+        "name": "@auth/prisma-adapter",
+        "version": "2.11.3"
+      },
+      "internal": false,
+      "latest": "2.11.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@dnd-kit/core",
+      "registryName": "@dnd-kit/core",
+      "declared": "^6.3.1",
+      "specifier": "^6.3.1",
+      "resolved": "6.3.1",
+      "installed": {
+        "name": "@dnd-kit/core",
+        "version": "6.3.1"
+      },
+      "internal": false,
+      "latest": "6.3.1",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@dnd-kit/sortable",
+      "registryName": "@dnd-kit/sortable",
+      "declared": "^10.0.0",
+      "specifier": "^10.0.0",
+      "resolved": "10.0.0",
+      "installed": {
+        "name": "@dnd-kit/sortable",
+        "version": "10.0.0"
+      },
+      "internal": false,
+      "latest": "10.0.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@dnd-kit/utilities",
+      "registryName": "@dnd-kit/utilities",
+      "declared": "^3.2.2",
+      "specifier": "^3.2.2",
+      "resolved": "3.2.2",
+      "installed": {
+        "name": "@dnd-kit/utilities",
+        "version": "3.2.2"
+      },
+      "internal": false,
+      "latest": "3.2.2",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@emoji-mart/data",
+      "registryName": "@emoji-mart/data",
+      "declared": "^1.2.1",
+      "specifier": "^1.2.1",
+      "resolved": "1.2.1",
+      "installed": {
+        "name": "@emoji-mart/data",
+        "version": "1.2.1"
+      },
+      "internal": false,
+      "latest": "1.2.1",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@emoji-mart/react",
+      "registryName": "@emoji-mart/react",
+      "declared": "^1.1.1",
+      "specifier": "^1.1.1",
+      "resolved": "1.1.1",
+      "installed": {
+        "name": "@emoji-mart/react",
+        "version": "1.1.1"
+      },
+      "internal": false,
+      "latest": "1.1.1",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@hookform/resolvers",
+      "registryName": "@hookform/resolvers",
+      "declared": "^5.9.1",
+      "specifier": "^5.9.1",
+      "resolved": "5.9.1",
+      "installed": {
+        "name": "@hookform/resolvers",
+        "version": "5.9.1"
+      },
+      "internal": false,
+      "latest": "5.9.1",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@livekit/components-react",
+      "registryName": "@livekit/components-react",
+      "declared": "^2.9.24",
+      "specifier": "^2.9.24",
+      "resolved": "2.9.24",
+      "installed": {
+        "name": "@livekit/components-react",
+        "version": "2.9.24"
+      },
+      "internal": false,
+      "latest": "2.9.24",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@livekit/krisp-noise-filter",
+      "registryName": "@livekit/krisp-noise-filter",
+      "declared": "^0.4.4",
+      "specifier": "^0.4.4",
+      "resolved": "0.4.4",
+      "installed": {
+        "name": "@livekit/krisp-noise-filter",
+        "version": "0.4.4"
+      },
+      "internal": false,
+      "latest": "0.4.5",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@prisma/adapter-pg",
+      "registryName": "@prisma/adapter-pg",
+      "declared": "7.10.0",
+      "specifier": "7.10.0",
+      "resolved": "7.10.0",
+      "installed": {
+        "name": "@prisma/adapter-pg",
+        "version": "7.10.0"
+      },
+      "internal": false,
+      "latest": "7.10.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@prisma/client",
+      "registryName": "@prisma/client",
+      "declared": "7.10.0",
+      "specifier": "7.10.0",
+      "resolved": "7.10.0",
+      "installed": {
+        "name": "@prisma/client",
+        "version": "7.10.0"
+      },
+      "internal": false,
+      "latest": "7.10.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@prisma/instrumentation",
+      "registryName": "@prisma/instrumentation",
+      "declared": "7.10.0",
+      "specifier": "7.10.0",
+      "resolved": "7.10.0",
+      "installed": {
+        "name": "@prisma/instrumentation",
+        "version": "7.10.0"
+      },
+      "internal": false,
+      "latest": "7.10.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@sentry/nextjs",
+      "registryName": "@sentry/nextjs",
+      "declared": "10.74.0",
+      "specifier": "10.74.0",
+      "resolved": "10.74.0",
+      "installed": {
+        "name": "@sentry/nextjs",
+        "version": "10.74.0"
+      },
+      "internal": false,
+      "latest": "10.75.0",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@socket.io/redis-adapter",
+      "registryName": "@socket.io/redis-adapter",
+      "declared": "^8.3.0",
+      "specifier": "^8.3.0",
+      "resolved": "8.3.0",
+      "installed": {
+        "name": "@socket.io/redis-adapter",
+        "version": "8.3.0"
+      },
+      "internal": false,
+      "latest": "8.3.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@tanstack/react-query",
+      "registryName": "@tanstack/react-query",
+      "declared": "5.102.8",
+      "specifier": "5.102.8",
+      "resolved": "5.102.8",
+      "installed": {
+        "name": "@tanstack/react-query",
+        "version": "5.102.8"
+      },
+      "internal": false,
+      "latest": "5.103.2",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@tanstack/react-virtual",
+      "registryName": "@tanstack/react-virtual",
+      "declared": "3.14.13",
+      "specifier": "3.14.13",
+      "resolved": "3.14.13",
+      "installed": {
+        "name": "@tanstack/react-virtual",
+        "version": "3.14.13"
+      },
+      "internal": false,
+      "latest": "3.14.13",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@tauri-apps/api",
+      "registryName": "@tauri-apps/api",
+      "declared": "2.11.1",
+      "specifier": "2.11.1",
+      "resolved": "2.11.1",
+      "installed": {
+        "name": "@tauri-apps/api",
+        "version": "2.11.1"
+      },
+      "internal": false,
+      "latest": "2.11.1",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@uploadthing/react",
+      "registryName": "@uploadthing/react",
+      "declared": "^7.3.3",
+      "specifier": "^7.3.3",
+      "resolved": "7.3.3",
+      "installed": {
+        "name": "@uploadthing/react",
+        "version": "7.3.3"
+      },
+      "internal": false,
+      "latest": "7.3.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@wizards/db",
+      "registryName": "@wizards/db",
+      "declared": "workspace:*",
+      "specifier": "workspace:*",
+      "resolved": "link:../../packages/db",
+      "installed": {
+        "name": "@wizards/db",
+        "version": "0.1.0"
+      },
+      "internal": true,
+      "status": "workspace"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@wizards/types",
+      "registryName": "@wizards/types",
+      "declared": "workspace:*",
+      "specifier": "workspace:*",
+      "resolved": "link:../../packages/types",
+      "installed": {
+        "name": "@wizards/types",
+        "version": "0.1.0"
+      },
+      "internal": true,
+      "status": "workspace"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "@wizards/ui",
+      "registryName": "@wizards/ui",
+      "declared": "workspace:*",
+      "specifier": "workspace:*",
+      "resolved": "link:../../packages/ui",
+      "installed": {
+        "name": "@wizards/ui",
+        "version": "0.1.0"
+      },
+      "internal": true,
+      "status": "workspace"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "bcryptjs",
+      "registryName": "bcryptjs",
+      "declared": "^3.0.3",
+      "specifier": "^3.0.3",
+      "resolved": "3.0.3",
+      "installed": {
+        "name": "bcryptjs",
+        "version": "3.0.3"
+      },
+      "internal": false,
+      "latest": "3.0.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "clsx",
+      "registryName": "clsx",
+      "declared": "^2.1.1",
+      "specifier": "^2.1.1",
+      "resolved": "2.1.1",
+      "installed": {
+        "name": "clsx",
+        "version": "2.1.1"
+      },
+      "internal": false,
+      "latest": "2.1.1",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "emoji-mart",
+      "registryName": "emoji-mart",
+      "declared": "^5.6.0",
+      "specifier": "^5.6.0",
+      "resolved": "5.6.0",
+      "installed": {
+        "name": "emoji-mart",
+        "version": "5.6.0"
+      },
+      "internal": false,
+      "latest": "5.6.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "framer-motion",
+      "registryName": "framer-motion",
+      "declared": "^13.3.0",
+      "specifier": "^13.3.0",
+      "resolved": "13.3.0",
+      "installed": {
+        "name": "framer-motion",
+        "version": "13.3.0"
+      },
+      "internal": false,
+      "latest": "13.4.0",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "ioredis",
+      "registryName": "ioredis",
+      "declared": "^6.0.0",
+      "specifier": "^6.0.0",
+      "resolved": "6.0.0",
+      "installed": {
+        "name": "ioredis",
+        "version": "6.0.0"
+      },
+      "internal": false,
+      "latest": "6.0.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "jose",
+      "registryName": "jose",
+      "declared": "^6.2.12",
+      "specifier": "^6.2.12",
+      "resolved": "6.2.12",
+      "installed": {
+        "name": "jose",
+        "version": "6.2.12"
+      },
+      "internal": false,
+      "latest": "6.2.12",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "livekit-client",
+      "registryName": "livekit-client",
+      "declared": "^2.22.3",
+      "specifier": "^2.22.3",
+      "resolved": "2.22.3",
+      "installed": {
+        "name": "livekit-client",
+        "version": "2.22.3"
+      },
+      "internal": false,
+      "latest": "2.22.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "livekit-server-sdk",
+      "registryName": "livekit-server-sdk",
+      "declared": "^2.19.0",
+      "specifier": "^2.19.0",
+      "resolved": "2.19.0",
+      "installed": {
+        "name": "livekit-server-sdk",
+        "version": "2.19.0"
+      },
+      "internal": false,
+      "latest": "2.19.1",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "lucide-react",
+      "registryName": "lucide-react",
+      "declared": "^1.46.0",
+      "specifier": "^1.46.0",
+      "resolved": "1.46.0",
+      "installed": {
+        "name": "lucide-react",
+        "version": "1.46.0"
+      },
+      "internal": false,
+      "latest": "1.47.0",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "next",
+      "registryName": "next",
+      "declared": "16.3.5",
+      "specifier": "16.3.5",
+      "resolved": "16.3.5",
+      "installed": {
+        "name": "next",
+        "version": "16.3.5"
+      },
+      "internal": false,
+      "latest": "16.3.5",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "next-auth",
+      "registryName": "next-auth",
+      "declared": "5.0.0-beta.32",
+      "specifier": "5.0.0-beta.32",
+      "resolved": "5.0.0-beta.32",
+      "installed": {
+        "name": "next-auth",
+        "version": "5.0.0-beta.32"
+      },
+      "internal": false,
+      "latest": "4.24.15",
+      "status": "different-release-channel"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "next-themes",
+      "registryName": "next-themes",
+      "declared": "^0.4.6",
+      "specifier": "^0.4.6",
+      "resolved": "0.4.6",
+      "installed": {
+        "name": "next-themes",
+        "version": "0.4.6"
+      },
+      "internal": false,
+      "latest": "0.4.6",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "parse5",
+      "registryName": "parse5",
+      "declared": "^8.0.1",
+      "specifier": "^8.0.1",
+      "resolved": "8.0.1",
+      "installed": {
+        "name": "parse5",
+        "version": "8.0.1"
+      },
+      "internal": false,
+      "latest": "8.0.1",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "pg",
+      "registryName": "pg",
+      "declared": "^8.23.0",
+      "specifier": "^8.23.0",
+      "resolved": "8.23.0",
+      "installed": {
+        "name": "pg",
+        "version": "8.23.0"
+      },
+      "internal": false,
+      "latest": "8.23.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "qrcode",
+      "registryName": "qrcode",
+      "declared": "1.5.4",
+      "specifier": "1.5.4",
+      "resolved": "1.5.4",
+      "installed": {
+        "name": "qrcode",
+        "version": "1.5.4"
+      },
+      "internal": false,
+      "latest": "1.5.4",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "react",
+      "registryName": "react",
+      "declared": "19.3.0",
+      "specifier": "19.3.0",
+      "resolved": "19.3.0",
+      "installed": {
+        "name": "react",
+        "version": "19.3.0"
+      },
+      "internal": false,
+      "latest": "19.3.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "react-dom",
+      "registryName": "react-dom",
+      "declared": "19.3.0",
+      "specifier": "19.3.0",
+      "resolved": "19.3.0",
+      "installed": {
+        "name": "react-dom",
+        "version": "19.3.0"
+      },
+      "internal": false,
+      "latest": "19.3.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "react-hook-form",
+      "registryName": "react-hook-form",
+      "declared": "^7.88.0",
+      "specifier": "^7.88.0",
+      "resolved": "7.88.0",
+      "installed": {
+        "name": "react-hook-form",
+        "version": "7.88.0"
+      },
+      "internal": false,
+      "latest": "7.88.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "react-markdown",
+      "registryName": "react-markdown",
+      "declared": "^10.1.0",
+      "specifier": "^10.1.0",
+      "resolved": "10.1.0",
+      "installed": {
+        "name": "react-markdown",
+        "version": "10.1.0"
+      },
+      "internal": false,
+      "latest": "10.1.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "remark-gfm",
+      "registryName": "remark-gfm",
+      "declared": "^4.0.1",
+      "specifier": "^4.0.1",
+      "resolved": "4.0.1",
+      "installed": {
+        "name": "remark-gfm",
+        "version": "4.0.1"
+      },
+      "internal": false,
+      "latest": "4.0.1",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "resend",
+      "registryName": "resend",
+      "declared": "^6.28.0",
+      "specifier": "^6.28.0",
+      "resolved": "6.28.0",
+      "installed": {
+        "name": "resend",
+        "version": "6.28.0"
+      },
+      "internal": false,
+      "latest": "6.28.1",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "sharp",
+      "registryName": "sharp",
+      "declared": "0.35.4",
+      "specifier": "0.35.4",
+      "resolved": "0.35.4",
+      "installed": {
+        "name": "sharp",
+        "version": "0.35.4"
+      },
+      "internal": false,
+      "latest": "0.35.4",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "socket.io",
+      "registryName": "socket.io",
+      "declared": "^4.8.3",
+      "specifier": "^4.8.3",
+      "resolved": "4.8.3",
+      "installed": {
+        "name": "socket.io",
+        "version": "4.8.3"
+      },
+      "internal": false,
+      "latest": "4.8.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "socket.io-client",
+      "registryName": "socket.io-client",
+      "declared": "^4.8.3",
+      "specifier": "^4.8.3",
+      "resolved": "4.8.3",
+      "installed": {
+        "name": "socket.io-client",
+        "version": "4.8.3"
+      },
+      "internal": false,
+      "latest": "4.8.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "tailwind-merge",
+      "registryName": "tailwind-merge",
+      "declared": "^3.7.0",
+      "specifier": "^3.7.0",
+      "resolved": "3.7.0",
+      "installed": {
+        "name": "tailwind-merge",
+        "version": "3.7.0"
+      },
+      "internal": false,
+      "latest": "3.7.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "uploadthing",
+      "registryName": "uploadthing",
+      "declared": "^7.7.4",
+      "specifier": "^7.7.4",
+      "resolved": "7.7.4",
+      "installed": {
+        "name": "uploadthing",
+        "version": "7.7.4"
+      },
+      "internal": false,
+      "latest": "7.7.4",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "zod",
+      "registryName": "zod",
+      "declared": "^4.6.5",
+      "specifier": "^4.6.5",
+      "resolved": "4.6.5",
+      "installed": {
+        "name": "zod",
+        "version": "4.6.5"
+      },
+      "internal": false,
+      "latest": "4.6.5",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "dependencies",
+      "name": "zustand",
+      "registryName": "zustand",
+      "declared": "5.0.15",
+      "specifier": "5.0.15",
+      "resolved": "5.0.15",
+      "installed": {
+        "name": "zustand",
+        "version": "5.0.15"
+      },
+      "internal": false,
+      "latest": "5.0.15",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "@tailwindcss/postcss",
+      "registryName": "@tailwindcss/postcss",
+      "declared": "4.3.3",
+      "specifier": "4.3.3",
+      "resolved": "4.3.3",
+      "installed": {
+        "name": "@tailwindcss/postcss",
+        "version": "4.3.3"
+      },
+      "internal": false,
+      "latest": "4.3.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "@axe-core/playwright",
+      "registryName": "@axe-core/playwright",
+      "declared": "^4.13.0",
+      "specifier": "^4.13.0",
+      "resolved": "4.13.0",
+      "installed": {
+        "name": "@axe-core/playwright",
+        "version": "4.13.0"
+      },
+      "internal": false,
+      "latest": "4.13.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "@next/bundle-analyzer",
+      "registryName": "@next/bundle-analyzer",
+      "declared": "16.3.5",
+      "specifier": "16.3.5",
+      "resolved": "16.3.5",
+      "installed": {
+        "name": "@next/bundle-analyzer",
+        "version": "16.3.5"
+      },
+      "internal": false,
+      "latest": "16.3.5",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "@next/eslint-plugin-next",
+      "registryName": "@next/eslint-plugin-next",
+      "declared": "16.3.5",
+      "specifier": "16.3.5",
+      "resolved": "16.3.5",
+      "installed": {
+        "name": "@next/eslint-plugin-next",
+        "version": "16.3.5"
+      },
+      "internal": false,
+      "latest": "16.3.5",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "@playwright/test",
+      "registryName": "@playwright/test",
+      "declared": "^1.63.0",
+      "specifier": "^1.63.0",
+      "resolved": "1.63.0",
+      "installed": {
+        "name": "@playwright/test",
+        "version": "1.63.0"
+      },
+      "internal": false,
+      "latest": "1.63.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "@types/node",
+      "registryName": "@types/node",
+      "declared": "^24.13.4",
+      "specifier": "^24.13.4",
+      "resolved": "24.13.4",
+      "installed": {
+        "name": "@types/node",
+        "version": "24.13.4"
+      },
+      "internal": false,
+      "latest": "26.6.2",
+      "status": "major-available"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "@types/qrcode",
+      "registryName": "@types/qrcode",
+      "declared": "1.5.6",
+      "specifier": "1.5.6",
+      "resolved": "1.5.6",
+      "installed": {
+        "name": "@types/qrcode",
+        "version": "1.5.6"
+      },
+      "internal": false,
+      "latest": "1.5.6",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "@types/react",
+      "registryName": "@types/react",
+      "declared": "19.3.0",
+      "specifier": "19.3.0",
+      "resolved": "19.3.0",
+      "installed": {
+        "name": "@types/react",
+        "version": "19.3.0"
+      },
+      "internal": false,
+      "latest": "19.3.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "@types/react-dom",
+      "registryName": "@types/react-dom",
+      "declared": "19.3.0",
+      "specifier": "19.3.0",
+      "resolved": "19.3.0",
+      "installed": {
+        "name": "@types/react-dom",
+        "version": "19.3.0"
+      },
+      "internal": false,
+      "latest": "19.3.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "babel-plugin-react-compiler",
+      "registryName": "babel-plugin-react-compiler",
+      "declared": "1.0.0",
+      "specifier": "1.0.0",
+      "resolved": "1.0.0",
+      "installed": {
+        "name": "babel-plugin-react-compiler",
+        "version": "1.0.0"
+      },
+      "internal": false,
+      "latest": "1.0.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "c8",
+      "registryName": "c8",
+      "declared": "12.0.0",
+      "specifier": "12.0.0",
+      "resolved": "12.0.0",
+      "installed": {
+        "name": "c8",
+        "version": "12.0.0"
+      },
+      "internal": false,
+      "latest": "12.0.0",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "esbuild",
+      "registryName": "esbuild",
+      "declared": "0.28.2",
+      "specifier": "0.28.2",
+      "resolved": "0.28.2",
+      "installed": {
+        "name": "esbuild",
+        "version": "0.28.2"
+      },
+      "internal": false,
+      "latest": "0.28.2",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "eslint",
+      "registryName": "eslint",
+      "declared": "^10.10.0",
+      "specifier": "^10.10.0",
+      "resolved": "10.10.0",
+      "installed": {
+        "name": "eslint",
+        "version": "10.10.0"
+      },
+      "internal": false,
+      "latest": "10.11.0",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "eslint-plugin-react-hooks",
+      "registryName": "eslint-plugin-react-hooks",
+      "declared": "^7.1.1",
+      "specifier": "^7.1.1",
+      "resolved": "7.1.1",
+      "installed": {
+        "name": "eslint-plugin-react-hooks",
+        "version": "7.1.1"
+      },
+      "internal": false,
+      "latest": "7.1.1",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "postcss",
+      "registryName": "postcss",
+      "declared": "8.5.28",
+      "specifier": "8.5.28",
+      "resolved": "8.5.28",
+      "installed": {
+        "name": "postcss",
+        "version": "8.5.28"
+      },
+      "internal": false,
+      "latest": "8.5.28",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "prettier",
+      "registryName": "prettier",
+      "declared": "3.9.6",
+      "specifier": "3.9.6",
+      "resolved": "3.9.6",
+      "installed": {
+        "name": "prettier",
+        "version": "3.9.6"
+      },
+      "internal": false,
+      "latest": "3.9.8",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "tailwindcss",
+      "registryName": "tailwindcss",
+      "declared": "4.3.3",
+      "specifier": "4.3.3",
+      "resolved": "4.3.3",
+      "installed": {
+        "name": "tailwindcss",
+        "version": "4.3.3"
+      },
+      "internal": false,
+      "latest": "4.3.3",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "tsx",
+      "registryName": "tsx",
+      "declared": "^4.23.13",
+      "specifier": "^4.23.13",
+      "resolved": "4.23.13",
+      "installed": {
+        "name": "tsx",
+        "version": "4.23.13"
+      },
+      "internal": false,
+      "latest": "4.23.15",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "typescript",
+      "registryName": "@typescript/typescript6",
+      "declared": "catalog:",
+      "specifier": "npm:@typescript/typescript6@6.0.2",
+      "resolved": "@typescript/typescript6@6.0.2",
+      "installed": {
+        "name": "@typescript/typescript6",
+        "version": "6.0.2"
+      },
+      "internal": false,
+      "latest": "6.0.2",
+      "status": "current"
+    },
+    {
+      "file": "apps/web/package.json",
+      "workspace": "@wizards/web",
+      "group": "devDependencies",
+      "name": "typescript-eslint",
+      "registryName": "typescript-eslint",
+      "declared": "8.70.0",
+      "specifier": "8.70.0",
+      "resolved": "8.70.0",
+      "installed": {
+        "name": "typescript-eslint",
+        "version": "8.70.0"
+      },
+      "internal": false,
+      "latest": "8.70.0",
+      "status": "current"
+    },
+    {
+      "file": "packages/db/package.json",
+      "workspace": "@wizards/db",
+      "group": "dependencies",
+      "name": "@prisma/adapter-pg",
+      "registryName": "@prisma/adapter-pg",
+      "declared": "7.10.0",
+      "specifier": "7.10.0",
+      "resolved": "7.10.0",
+      "installed": {
+        "name": "@prisma/adapter-pg",
+        "version": "7.10.0"
+      },
+      "internal": false,
+      "latest": "7.10.0",
+      "status": "current"
+    },
+    {
+      "file": "packages/db/package.json",
+      "workspace": "@wizards/db",
+      "group": "dependencies",
+      "name": "@prisma/client",
+      "registryName": "@prisma/client",
+      "declared": "7.10.0",
+      "specifier": "7.10.0",
+      "resolved": "7.10.0",
+      "installed": {
+        "name": "@prisma/client",
+        "version": "7.10.0"
+      },
+      "internal": false,
+      "latest": "7.10.0",
+      "status": "current"
+    },
+    {
+      "file": "packages/db/package.json",
+      "workspace": "@wizards/db",
+      "group": "dependencies",
+      "name": "bcryptjs",
+      "registryName": "bcryptjs",
+      "declared": "^3.0.3",
+      "specifier": "^3.0.3",
+      "resolved": "3.0.3",
+      "installed": {
+        "name": "bcryptjs",
+        "version": "3.0.3"
+      },
+      "internal": false,
+      "latest": "3.0.3",
+      "status": "current"
+    },
+    {
+      "file": "packages/db/package.json",
+      "workspace": "@wizards/db",
+      "group": "dependencies",
+      "name": "pg",
+      "registryName": "pg",
+      "declared": "^8.23.0",
+      "specifier": "^8.23.0",
+      "resolved": "8.23.0",
+      "installed": {
+        "name": "pg",
+        "version": "8.23.0"
+      },
+      "internal": false,
+      "latest": "8.23.0",
+      "status": "current"
+    },
+    {
+      "file": "packages/db/package.json",
+      "workspace": "@wizards/db",
+      "group": "devDependencies",
+      "name": "@types/node",
+      "registryName": "@types/node",
+      "declared": "^24.13.4",
+      "specifier": "^24.13.4",
+      "resolved": "24.13.4",
+      "installed": {
+        "name": "@types/node",
+        "version": "24.13.4"
+      },
+      "internal": false,
+      "latest": "26.6.2",
+      "status": "major-available"
+    },
+    {
+      "file": "packages/db/package.json",
+      "workspace": "@wizards/db",
+      "group": "devDependencies",
+      "name": "@types/pg",
+      "registryName": "@types/pg",
+      "declared": "^8.23.1",
+      "specifier": "^8.23.1",
+      "resolved": "8.23.1",
+      "installed": {
+        "name": "@types/pg",
+        "version": "8.23.1"
+      },
+      "internal": false,
+      "latest": "8.23.1",
+      "status": "current"
+    },
+    {
+      "file": "packages/db/package.json",
+      "workspace": "@wizards/db",
+      "group": "devDependencies",
+      "name": "dotenv",
+      "registryName": "dotenv",
+      "declared": "^17.4.2",
+      "specifier": "^17.4.2",
+      "resolved": "17.4.2",
+      "installed": {
+        "name": "dotenv",
+        "version": "17.4.2"
+      },
+      "internal": false,
+      "latest": "18.0.1",
+      "status": "major-available"
+    },
+    {
+      "file": "packages/db/package.json",
+      "workspace": "@wizards/db",
+      "group": "devDependencies",
+      "name": "prettier",
+      "registryName": "prettier",
+      "declared": "3.9.6",
+      "specifier": "3.9.6",
+      "resolved": "3.9.6",
+      "installed": {
+        "name": "prettier",
+        "version": "3.9.6"
+      },
+      "internal": false,
+      "latest": "3.9.8",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "packages/db/package.json",
+      "workspace": "@wizards/db",
+      "group": "devDependencies",
+      "name": "prisma",
+      "registryName": "prisma",
+      "declared": "7.10.0",
+      "specifier": "7.10.0",
+      "resolved": "7.10.0",
+      "installed": {
+        "name": "prisma",
+        "version": "7.10.0"
+      },
+      "internal": false,
+      "latest": "8.0.0-rc.15",
+      "status": "major-available"
+    },
+    {
+      "file": "packages/db/package.json",
+      "workspace": "@wizards/db",
+      "group": "devDependencies",
+      "name": "tsx",
+      "registryName": "tsx",
+      "declared": "^4.23.13",
+      "specifier": "^4.23.13",
+      "resolved": "4.23.13",
+      "installed": {
+        "name": "tsx",
+        "version": "4.23.13"
+      },
+      "internal": false,
+      "latest": "4.23.15",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "packages/db/package.json",
+      "workspace": "@wizards/db",
+      "group": "devDependencies",
+      "name": "typescript",
+      "registryName": "@typescript/typescript6",
+      "declared": "catalog:",
+      "specifier": "npm:@typescript/typescript6@6.0.2",
+      "resolved": "@typescript/typescript6@6.0.2",
+      "installed": {
+        "name": "@typescript/typescript6",
+        "version": "6.0.2"
+      },
+      "internal": false,
+      "latest": "6.0.2",
+      "status": "current"
+    },
+    {
+      "file": "packages/types/package.json",
+      "workspace": "@wizards/types",
+      "group": "dependencies",
+      "name": "zod",
+      "registryName": "zod",
+      "declared": "^4.6.5",
+      "specifier": "^4.6.5",
+      "resolved": "4.6.5",
+      "installed": {
+        "name": "zod",
+        "version": "4.6.5"
+      },
+      "internal": false,
+      "latest": "4.6.5",
+      "status": "current"
+    },
+    {
+      "file": "packages/types/package.json",
+      "workspace": "@wizards/types",
+      "group": "devDependencies",
+      "name": "@types/node",
+      "registryName": "@types/node",
+      "declared": "^24.13.4",
+      "specifier": "^24.13.4",
+      "resolved": "24.13.4",
+      "installed": {
+        "name": "@types/node",
+        "version": "24.13.4"
+      },
+      "internal": false,
+      "latest": "26.6.2",
+      "status": "major-available"
+    },
+    {
+      "file": "packages/types/package.json",
+      "workspace": "@wizards/types",
+      "group": "devDependencies",
+      "name": "prettier",
+      "registryName": "prettier",
+      "declared": "3.9.6",
+      "specifier": "3.9.6",
+      "resolved": "3.9.6",
+      "installed": {
+        "name": "prettier",
+        "version": "3.9.6"
+      },
+      "internal": false,
+      "latest": "3.9.8",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "packages/types/package.json",
+      "workspace": "@wizards/types",
+      "group": "devDependencies",
+      "name": "tsx",
+      "registryName": "tsx",
+      "declared": "^4.23.13",
+      "specifier": "^4.23.13",
+      "resolved": "4.23.13",
+      "installed": {
+        "name": "tsx",
+        "version": "4.23.13"
+      },
+      "internal": false,
+      "latest": "4.23.15",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "packages/types/package.json",
+      "workspace": "@wizards/types",
+      "group": "devDependencies",
+      "name": "typescript",
+      "registryName": "@typescript/typescript6",
+      "declared": "catalog:",
+      "specifier": "npm:@typescript/typescript6@6.0.2",
+      "resolved": "@typescript/typescript6@6.0.2",
+      "installed": {
+        "name": "@typescript/typescript6",
+        "version": "6.0.2"
+      },
+      "internal": false,
+      "latest": "6.0.2",
+      "status": "current"
+    },
+    {
+      "file": "packages/ui/package.json",
+      "workspace": "@wizards/ui",
+      "group": "dependencies",
+      "name": "class-variance-authority",
+      "registryName": "class-variance-authority",
+      "declared": "^0.7.1",
+      "specifier": "^0.7.1",
+      "resolved": "0.7.1",
+      "installed": {
+        "name": "class-variance-authority",
+        "version": "0.7.1"
+      },
+      "internal": false,
+      "latest": "0.7.1",
+      "status": "current"
+    },
+    {
+      "file": "packages/ui/package.json",
+      "workspace": "@wizards/ui",
+      "group": "dependencies",
+      "name": "clsx",
+      "registryName": "clsx",
+      "declared": "^2.1.1",
+      "specifier": "^2.1.1",
+      "resolved": "2.1.1",
+      "installed": {
+        "name": "clsx",
+        "version": "2.1.1"
+      },
+      "internal": false,
+      "latest": "2.1.1",
+      "status": "current"
+    },
+    {
+      "file": "packages/ui/package.json",
+      "workspace": "@wizards/ui",
+      "group": "dependencies",
+      "name": "tailwind-merge",
+      "registryName": "tailwind-merge",
+      "declared": "^3.7.0",
+      "specifier": "^3.7.0",
+      "resolved": "3.7.0",
+      "installed": {
+        "name": "tailwind-merge",
+        "version": "3.7.0"
+      },
+      "internal": false,
+      "latest": "3.7.0",
+      "status": "current"
+    },
+    {
+      "file": "packages/ui/package.json",
+      "workspace": "@wizards/ui",
+      "group": "devDependencies",
+      "name": "@types/node",
+      "registryName": "@types/node",
+      "declared": "^24.13.4",
+      "specifier": "^24.13.4",
+      "resolved": "24.13.4",
+      "installed": {
+        "name": "@types/node",
+        "version": "24.13.4"
+      },
+      "internal": false,
+      "latest": "26.6.2",
+      "status": "major-available"
+    },
+    {
+      "file": "packages/ui/package.json",
+      "workspace": "@wizards/ui",
+      "group": "devDependencies",
+      "name": "@types/react",
+      "registryName": "@types/react",
+      "declared": "19.3.0",
+      "specifier": "19.3.0",
+      "resolved": "19.3.0",
+      "installed": {
+        "name": "@types/react",
+        "version": "19.3.0"
+      },
+      "internal": false,
+      "latest": "19.3.0",
+      "status": "current"
+    },
+    {
+      "file": "packages/ui/package.json",
+      "workspace": "@wizards/ui",
+      "group": "devDependencies",
+      "name": "prettier",
+      "registryName": "prettier",
+      "declared": "3.9.6",
+      "specifier": "3.9.6",
+      "resolved": "3.9.6",
+      "installed": {
+        "name": "prettier",
+        "version": "3.9.6"
+      },
+      "internal": false,
+      "latest": "3.9.8",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "packages/ui/package.json",
+      "workspace": "@wizards/ui",
+      "group": "devDependencies",
+      "name": "react",
+      "registryName": "react",
+      "declared": "19.3.0",
+      "specifier": "19.3.0",
+      "resolved": "19.3.0",
+      "installed": {
+        "name": "react",
+        "version": "19.3.0"
+      },
+      "internal": false,
+      "latest": "19.3.0",
+      "status": "current"
+    },
+    {
+      "file": "packages/ui/package.json",
+      "workspace": "@wizards/ui",
+      "group": "devDependencies",
+      "name": "tsx",
+      "registryName": "tsx",
+      "declared": "^4.23.13",
+      "specifier": "^4.23.13",
+      "resolved": "4.23.13",
+      "installed": {
+        "name": "tsx",
+        "version": "4.23.13"
+      },
+      "internal": false,
+      "latest": "4.23.15",
+      "status": "minor-or-patch-available"
+    },
+    {
+      "file": "packages/ui/package.json",
+      "workspace": "@wizards/ui",
+      "group": "devDependencies",
+      "name": "typescript",
+      "registryName": "@typescript/typescript6",
+      "declared": "catalog:",
+      "specifier": "npm:@typescript/typescript6@6.0.2",
+      "resolved": "@typescript/typescript6@6.0.2",
+      "installed": {
+        "name": "@typescript/typescript6",
+        "version": "6.0.2"
+      },
+      "internal": false,
+      "latest": "6.0.2",
+      "status": "current"
+    }
+  ],
+  "metadata": {
+    "turbo": {
+      "source": "https://registry.npmjs.org/turbo",
+      "tags": {
+        "next": "0.9.0-next.22",
+        "turbo-2.3": "2.3.7",
+        "latest": "2.11.2",
+        "canary": "2.11.3-canary.2"
+      },
+      "latest": "2.11.2",
+      "repository": {
+        "url": "git+https://github.com/vercel/turborepo.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "prettier": {
+      "source": "https://registry.npmjs.org/prettier",
+      "tags": {
+        "next": "4.0.0-alpha.13",
+        "latest": "3.9.8"
+      },
+      "latest": "3.9.8",
+      "engines": {
+        "node": ">=14"
+      },
+      "repository": {
+        "url": "git+https://github.com/prettier/prettier.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "@expo/vector-icons": {
+      "source": "https://registry.npmjs.org/%40expo%2Fvector-icons",
+      "tags": {
+        "next": "15.0.0",
+        "latest": "15.1.1"
+      },
+      "latest": "15.1.1",
+      "peers": {
+        "react": "*",
+        "expo-font": ">=14.0.4",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/vector-icons.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "@babel/runtime": {
+      "source": "https://registry.npmjs.org/%40babel%2Fruntime",
+      "tags": {
+        "broken": "7.12.17",
+        "esm": "7.21.4-esm.4",
+        "next": "8.0.0-rc.6",
+        "latest": "8.0.5"
+      },
+      "latest": "8.0.5",
+      "repository": {
+        "url": "https://github.com/babel/babel.git",
+        "type": "git",
+        "directory": "packages/babel-runtime"
+      },
+      "license": "MIT"
+    },
+    "@typescript/typescript6": {
+      "source": "https://registry.npmjs.org/%40typescript%2Ftypescript6",
+      "tags": {
+        "latest": "6.0.2"
+      },
+      "latest": "6.0.2",
+      "repository": {
+        "url": "git+https://github.com/microsoft/TypeScript.git",
+        "type": "git"
+      },
+      "license": "Apache-2.0"
+    },
+    "@tauri-apps/cli": {
+      "source": "https://registry.npmjs.org/%40tauri-apps%2Fcli",
+      "tags": {
+        "latest": "2.11.5",
+        "next": "3.0.0-alpha.1"
+      },
+      "latest": "2.11.5",
+      "engines": {
+        "node": ">= 10"
+      },
+      "repository": {
+        "url": "git+https://github.com/tauri-apps/tauri.git",
+        "type": "git"
+      },
+      "license": "Apache-2.0 OR MIT"
+    },
+    "typescript": {
+      "source": "https://registry.npmjs.org/typescript",
+      "tags": {
+        "dev": "3.9.4",
+        "tag-for-publishing-older-releases": "4.1.6",
+        "insiders": "4.6.2-insiders.20220225",
+        "beta": "6.0.0-beta",
+        "rc": "7.0.1-rc",
+        "latest": "7.0.2",
+        "next": "7.1.0-dev.20260921.1"
+      },
+      "latest": "7.0.2",
+      "engines": {
+        "node": ">=16.20.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/microsoft/TypeScript.git",
+        "type": "git"
+      },
+      "license": "Apache-2.0"
+    },
+    "@livekit/react-native": {
+      "source": "https://registry.npmjs.org/%40livekit%2Freact-native",
+      "tags": {
+        "beta": "2.11.0-beta.1",
+        "latest": "3.0.0"
+      },
+      "latest": "3.0.0",
+      "engines": {
+        "node": ">=20"
+      },
+      "peers": {
+        "react": "*",
+        "react-native": "*",
+        "livekit-client": "^2.19.0",
+        "@livekit/react-native-webrtc": "^144.2.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/livekit/client-sdk-react-native.git",
+        "type": "git"
+      },
+      "license": "Apache-2.0"
+    },
+    "@react-native-async-storage/async-storage": {
+      "source": "https://registry.npmjs.org/%40react-native-async-storage%2Fasync-storage",
+      "tags": {
+        "next": "3.0.0-next.3",
+        "latest": "3.1.1"
+      },
+      "latest": "3.1.1",
+      "peers": {
+        "react": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/react-native-async-storage/async-storage.git",
+        "type": "git",
+        "directory": "packages/async-storage"
+      },
+      "license": "MIT"
+    },
+    "@livekit/react-native-expo-plugin": {
+      "source": "https://registry.npmjs.org/%40livekit%2Freact-native-expo-plugin",
+      "tags": {
+        "latest": "1.0.2"
+      },
+      "latest": "1.0.2",
+      "peers": {
+        "expo": "*",
+        "react": "*",
+        "react-native": "*",
+        "@livekit/react-native": "^2.1.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/livekit/client-sdk-react-native-expo-plugin.git",
+        "type": "git"
+      },
+      "license": "Apache-2.0"
+    },
+    "@react-native-community/netinfo": {
+      "source": "https://registry.npmjs.org/%40react-native-community%2Fnetinfo",
+      "tags": {
+        "next": "5.0.0-rc.1",
+        "latest": "12.0.1"
+      },
+      "latest": "12.0.1",
+      "peers": {
+        "react": "*",
+        "react-native": ">=0.59"
+      },
+      "repository": {
+        "url": "git+https://github.com/react-native-netinfo/react-native-netinfo.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "@react-native-google-signin/google-signin": {
+      "source": "https://registry.npmjs.org/%40react-native-google-signin%2Fgoogle-signin",
+      "tags": {
+        "latest": "16.1.5"
+      },
+      "latest": "16.1.5",
+      "peers": {
+        "expo": ">=52.0.40",
+        "react": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/react-native-google-signin/google-signin.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "@livekit/react-native-webrtc": {
+      "source": "https://registry.npmjs.org/%40livekit%2Freact-native-webrtc",
+      "tags": {
+        "latest": "144.2.0"
+      },
+      "latest": "144.2.0",
+      "peers": {
+        "react-native": ">=0.60.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/livekit/react-native-webrtc.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "@react-navigation/bottom-tabs": {
+      "source": "https://registry.npmjs.org/%40react-navigation%2Fbottom-tabs",
+      "tags": {
+        "5.x": "5.11.15",
+        "next": "8.0.0-alpha.53",
+        "latest": "7.19.2"
+      },
+      "latest": "7.19.2",
+      "peers": {
+        "react": ">= 18.2.0",
+        "react-native": "*",
+        "react-native-screens": ">= 4.0.0",
+        "@react-navigation/native": "^7.4.1",
+        "react-native-safe-area-context": ">= 4.0.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/react-navigation/react-navigation.git",
+        "type": "git",
+        "directory": "packages/bottom-tabs"
+      },
+      "license": "MIT"
+    },
+    "@react-navigation/native": {
+      "source": "https://registry.npmjs.org/%40react-navigation%2Fnative",
+      "tags": {
+        "4.x": "3.8.4",
+        "5.x": "5.9.8",
+        "latest": "7.4.1",
+        "next": "8.0.0-alpha.47"
+      },
+      "latest": "7.4.1",
+      "peers": {
+        "react": ">= 18.2.0",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/react-navigation/react-navigation.git",
+        "type": "git",
+        "directory": "packages/native"
+      },
+      "license": "MIT"
+    },
+    "@react-navigation/native-stack": {
+      "source": "https://registry.npmjs.org/%40react-navigation%2Fnative-stack",
+      "tags": {
+        "next": "8.0.0-alpha.55",
+        "latest": "7.19.2"
+      },
+      "latest": "7.19.2",
+      "peers": {
+        "react": ">= 18.2.0",
+        "react-native": "*",
+        "react-native-screens": ">= 4.0.0",
+        "@react-navigation/native": "^7.4.1",
+        "react-native-safe-area-context": ">= 4.0.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/react-navigation/react-navigation.git",
+        "type": "git",
+        "directory": "packages/native-stack"
+      },
+      "license": "MIT"
+    },
+    "@sentry/cli": {
+      "source": "https://registry.npmjs.org/%40sentry%2Fcli",
+      "tags": {
+        "v1": "1.77.3",
+        "next": "2.58.3-alpha0",
+        "latest": "3.8.0"
+      },
+      "latest": "3.8.0",
+      "engines": {
+        "node": ">= 18"
+      },
+      "repository": {
+        "url": "git://github.com/getsentry/sentry-cli.git",
+        "type": "git"
+      },
+      "license": "FSL-1.1-MIT"
+    },
+    "@shopify/flash-list": {
+      "source": "https://registry.npmjs.org/%40shopify%2Fflash-list",
+      "tags": {
+        "rc": "2.0.2-rc.1",
+        "alpha": "2.0.4-alpha.1",
+        "latest": "2.3.2"
+      },
+      "latest": "2.3.2",
+      "peers": {
+        "react": "*",
+        "react-native": "*",
+        "@babel/runtime": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/Shopify/flash-list.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "@tanstack/react-query": {
+      "source": "https://registry.npmjs.org/%40tanstack%2Freact-query",
+      "tags": {
+        "alpha": "5.0.0-alpha.91",
+        "beta": "5.0.0-beta.35",
+        "rc": "5.0.0-rc.16",
+        "previous": "4.44.0",
+        "latest": "5.103.2"
+      },
+      "latest": "5.103.2",
+      "peers": {
+        "react": "^18 || ^19"
+      },
+      "repository": {
+        "url": "git+https://github.com/TanStack/query.git",
+        "type": "git",
+        "directory": "packages/react-query"
+      },
+      "license": "MIT"
+    },
+    "expo": {
+      "source": "https://registry.npmjs.org/expo",
+      "tags": {
+        "sdk-52": "52.0.49",
+        "sdk-53": "53.0.27",
+        "canary-sdk-55": "55.0.3-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.6-canary-20260701-9100865",
+        "sdk-54": "54.0.37",
+        "sdk-55": "55.0.31",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "latest": "57.0.24",
+        "next": "58.0.0-preview.3",
+        "sdk-56": "56.0.22",
+        "sdk-57": "57.0.24"
+      },
+      "latest": "57.0.24",
+      "peers": {
+        "react": "*",
+        "react-dom": "*",
+        "react-native": "*",
+        "react-native-web": "*",
+        "@expo/dom-webview": "*",
+        "@expo/metro-runtime": "*",
+        "react-native-webview": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo"
+      },
+      "license": "MIT"
+    },
+    "@sentry/react-native": {
+      "source": "https://registry.npmjs.org/%40sentry%2Freact-native",
+      "tags": {
+        "next": "8.18.0-alpha.3",
+        "v8.14": "8.14.3",
+        "latest": "8.27.0"
+      },
+      "latest": "8.27.0",
+      "peers": {
+        "expo": ">=49.0.0",
+        "react": ">=17.0.0",
+        "react-native": ">=0.65.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/getsentry/sentry-react-native.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "@tanstack/query-async-storage-persister": {
+      "source": "https://registry.npmjs.org/%40tanstack%2Fquery-async-storage-persister",
+      "tags": {
+        "alpha": "5.0.0-alpha.91",
+        "beta": "5.0.0-beta.35",
+        "rc": "5.0.0-rc.12",
+        "previous": "4.44.0",
+        "latest": "5.103.2"
+      },
+      "latest": "5.103.2",
+      "repository": {
+        "url": "git+https://github.com/TanStack/query.git",
+        "type": "git",
+        "directory": "packages/query-async-storage-persister"
+      },
+      "license": "MIT"
+    },
+    "@tanstack/react-query-persist-client": {
+      "source": "https://registry.npmjs.org/%40tanstack%2Freact-query-persist-client",
+      "tags": {
+        "alpha": "5.0.0-alpha.91",
+        "beta": "5.0.0-beta.35",
+        "rc": "5.0.0-rc.16",
+        "previous": "4.44.0",
+        "latest": "5.103.2"
+      },
+      "latest": "5.103.2",
+      "peers": {
+        "react": "^18 || ^19",
+        "@tanstack/react-query": "^5.103.2"
+      },
+      "repository": {
+        "url": "git+https://github.com/TanStack/query.git",
+        "type": "git",
+        "directory": "packages/react-query-persist-client"
+      },
+      "license": "MIT"
+    },
+    "@uploadthing/react": {
+      "source": "https://registry.npmjs.org/%40uploadthing%2Freact",
+      "tags": {
+        "canary": "7.3.2-canary.112f5c8",
+        "latest": "7.3.3"
+      },
+      "latest": "7.3.3",
+      "peers": {
+        "next": "*",
+        "react": "^17.0.2 || ^18.0.0 || ^19.0.0",
+        "uploadthing": "^7.2.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/pingdotgg/uploadthing.git",
+        "type": "git",
+        "directory": "packages/react"
+      },
+      "license": "MIT"
+    },
+    "expo-application": {
+      "source": "https://registry.npmjs.org/expo-application",
+      "tags": {
+        "sdk-50": "5.8.3",
+        "sdk-51": "5.9.1",
+        "canary-sdk-55": "55.0.9-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.4-canary-20260701-9100865",
+        "sdk-55": "55.0.19",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "next": "58.0.1",
+        "latest": "57.0.3",
+        "sdk-57": "57.0.3"
+      },
+      "latest": "57.0.3",
+      "peers": {
+        "expo": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-application"
+      },
+      "license": "MIT"
+    },
+    "expo-asset": {
+      "source": "https://registry.npmjs.org/expo-asset",
+      "tags": {
+        "sdk-50": "9.0.2",
+        "sdk-51": "10.0.6",
+        "sdk-54": "12.0.13",
+        "canary-sdk-55": "55.0.8-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.16-canary-20260701-9100865",
+        "sdk-55": "55.0.20",
+        "sdk-56": "56.0.24",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "latest": "57.0.18",
+        "next": "58.0.3",
+        "sdk-57": "57.0.18"
+      },
+      "latest": "57.0.18",
+      "peers": {
+        "expo": "*",
+        "react": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-asset"
+      },
+      "license": "MIT"
+    },
+    "expo-constants": {
+      "source": "https://registry.npmjs.org/expo-constants",
+      "tags": {
+        "sdk-50": "15.4.5",
+        "sdk-51": "16.0.1",
+        "sdk-53": "17.1.8",
+        "canary-sdk-55": "55.0.8-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.17-canary-20260701-9100865",
+        "sdk-55": "55.0.17",
+        "sdk-54": "18.0.14",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "latest": "57.0.19",
+        "next": "58.0.3",
+        "sdk-56": "56.0.26",
+        "sdk-57": "57.0.19"
+      },
+      "latest": "57.0.19",
+      "peers": {
+        "expo": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-constants"
+      },
+      "license": "MIT"
+    },
+    "expo-audio": {
+      "source": "https://registry.npmjs.org/expo-audio",
+      "tags": {
+        "sdk-51": "0.1.0",
+        "canary-sdk-55": "55.0.9-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.12-canary-20260701-9100865",
+        "sdk-56": "56.0.13",
+        "latest": "57.0.5",
+        "sdk-55": "55.0.18",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "next": "58.0.0",
+        "sdk-57": "57.0.5"
+      },
+      "latest": "57.0.5",
+      "peers": {
+        "expo": "*",
+        "react": "*",
+        "expo-asset": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-audio"
+      },
+      "license": "MIT"
+    },
+    "expo-blur": {
+      "source": "https://registry.npmjs.org/expo-blur",
+      "tags": {
+        "sdk-50": "12.9.2",
+        "sdk-51": "13.0.3",
+        "canary-sdk-55": "55.0.9-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.4-canary-20260701-9100865",
+        "latest": "57.0.3",
+        "sdk-56": "56.0.4",
+        "sdk-55": "55.0.18",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "next": "58.0.0",
+        "sdk-57": "57.0.3"
+      },
+      "latest": "57.0.3",
+      "peers": {
+        "expo": "*",
+        "react": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-blur"
+      },
+      "license": "MIT"
+    },
+    "expo-clipboard": {
+      "source": "https://registry.npmjs.org/expo-clipboard",
+      "tags": {
+        "sdk-50": "5.0.1",
+        "sdk-51": "6.0.3",
+        "canary-sdk-55": "55.0.9-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.4-canary-20260701-9100865",
+        "latest": "57.0.2",
+        "sdk-55": "55.0.17",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "next": "58.0.0",
+        "sdk-57": "57.0.2"
+      },
+      "latest": "57.0.2",
+      "peers": {
+        "expo": "*",
+        "react": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-clipboard"
+      },
+      "license": "MIT"
+    },
+    "expo-crypto": {
+      "source": "https://registry.npmjs.org/expo-crypto",
+      "tags": {
+        "sdk-50": "12.8.1",
+        "sdk-51": "13.0.2",
+        "sdk-54": "15.0.9",
+        "canary-sdk-55": "55.0.9-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.5-canary-20260701-9100865",
+        "sdk-55": "55.0.19",
+        "sdk-56": "56.0.5",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "next": "58.0.1",
+        "latest": "57.0.3",
+        "sdk-57": "57.0.3"
+      },
+      "latest": "57.0.3",
+      "peers": {
+        "expo": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-crypto"
+      },
+      "license": "MIT"
+    },
+    "expo-file-system": {
+      "source": "https://registry.npmjs.org/expo-file-system",
+      "tags": {
+        "sdk-50": "16.0.8",
+        "sdk-51": "17.0.1",
+        "canary-sdk-55": "55.0.10-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.8-canary-20260701-9100865",
+        "sdk-54": "19.0.24",
+        "sdk-55": "55.0.26",
+        "latest": "57.0.7",
+        "sdk-56": "56.0.11",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "next": "58.0.0",
+        "sdk-57": "57.0.7"
+      },
+      "latest": "57.0.7",
+      "peers": {
+        "expo": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-file-system"
+      },
+      "license": "MIT"
+    },
+    "expo-image": {
+      "source": "https://registry.npmjs.org/expo-image",
+      "tags": {
+        "sdk-50": "1.10.6",
+        "sdk-51": "1.12.9",
+        "sdk-52": "2.0.3",
+        "canary-sdk-55": "55.0.6-canary-20260429-a5e59cf",
+        "sdk-55": "55.0.11",
+        "canary-sdk-56": "56.0.10-canary-20260701-9100865",
+        "sdk-56": "56.0.13",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "latest": "57.0.5",
+        "sdk-57": "57.0.5",
+        "next": "58.0.2"
+      },
+      "latest": "57.0.5",
+      "peers": {
+        "expo": "*",
+        "react": "*",
+        "react-native": "*",
+        "react-native-web": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-image"
+      },
+      "license": "MIT"
+    },
+    "expo-font": {
+      "source": "https://registry.npmjs.org/expo-font",
+      "tags": {
+        "sdk-50": "11.10.3",
+        "sdk-51": "12.0.5",
+        "canary-sdk-55": "55.0.5-canary-20260429-a5e59cf",
+        "sdk-55": "55.0.8",
+        "sdk-54": "14.0.12",
+        "canary-sdk-56": "56.0.6-canary-20260701-9100865",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "next": "58.0.1",
+        "latest": "57.0.4",
+        "sdk-57": "57.0.4"
+      },
+      "latest": "57.0.4",
+      "peers": {
+        "expo": "*",
+        "react": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-font"
+      },
+      "license": "MIT"
+    },
+    "expo-haptics": {
+      "source": "https://registry.npmjs.org/expo-haptics",
+      "tags": {
+        "sdk-50": "12.8.1",
+        "sdk-51": "13.0.1",
+        "canary-sdk-55": "55.0.9-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.4-canary-20260701-9100865",
+        "sdk-55": "55.0.18",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "next": "58.0.1",
+        "sdk-57": "57.0.3",
+        "latest": "57.0.3"
+      },
+      "latest": "57.0.3",
+      "peers": {
+        "expo": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-haptics"
+      },
+      "license": "MIT"
+    },
+    "expo-document-picker": {
+      "source": "https://registry.npmjs.org/expo-document-picker",
+      "tags": {
+        "sdk-50": "11.10.1",
+        "sdk-51": "12.0.1",
+        "canary-sdk-55": "55.0.9-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.5-canary-20260701-9100865",
+        "latest": "57.0.2",
+        "sdk-55": "55.0.17",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "next": "58.0.0",
+        "sdk-57": "57.0.2"
+      },
+      "latest": "57.0.2",
+      "peers": {
+        "expo": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-document-picker"
+      },
+      "license": "MIT"
+    },
+    "expo-dev-client": {
+      "source": "https://registry.npmjs.org/expo-dev-client",
+      "tags": {
+        "sdk-50": "3.3.9",
+        "sdk-54": "6.0.21",
+        "canary-sdk-55": "55.0.10-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.17-canary-20260701-9100865",
+        "sdk-56": "56.0.27",
+        "sdk-55": "55.0.40",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "sdk-57": "57.0.19",
+        "latest": "57.0.19",
+        "next": "58.0.3"
+      },
+      "latest": "57.0.19",
+      "peers": {
+        "expo": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-dev-client"
+      },
+      "license": "MIT"
+    },
+    "expo-image-manipulator": {
+      "source": "https://registry.npmjs.org/expo-image-manipulator",
+      "tags": {
+        "sdk-50": "11.8.0",
+        "sdk-51": "12.0.5",
+        "canary-sdk-55": "55.0.10-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.16-canary-20260701-9100865",
+        "sdk-55": "55.0.21",
+        "sdk-56": "56.0.26",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "latest": "57.0.19",
+        "next": "58.0.4",
+        "sdk-57": "57.0.19"
+      },
+      "latest": "57.0.19",
+      "peers": {
+        "expo": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-image-manipulator"
+      },
+      "license": "MIT"
+    },
+    "expo-device": {
+      "source": "https://registry.npmjs.org/expo-device",
+      "tags": {
+        "sdk-50": "5.9.3",
+        "sdk-51": "6.0.2",
+        "canary-sdk-55": "55.0.10-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.5-canary-20260701-9100865",
+        "latest": "57.0.2",
+        "sdk-55": "55.0.21",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "next": "58.0.0",
+        "sdk-57": "57.0.2"
+      },
+      "latest": "57.0.2",
+      "peers": {
+        "expo": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-device"
+      },
+      "license": "MIT"
+    },
+    "expo-image-picker": {
+      "source": "https://registry.npmjs.org/expo-image-picker",
+      "tags": {
+        "sdk-50": "14.7.1",
+        "sdk-51": "15.1.0",
+        "sdk-54": "17.0.11",
+        "canary-sdk-55": "55.0.10-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.15-canary-20260701-9100865",
+        "sdk-55": "55.0.24",
+        "sdk-56": "56.0.25",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "latest": "57.0.19",
+        "next": "58.0.3",
+        "sdk-57": "57.0.19"
+      },
+      "latest": "57.0.19",
+      "peers": {
+        "expo": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-image-picker"
+      },
+      "license": "MIT"
+    },
+    "expo-intent-launcher": {
+      "source": "https://registry.npmjs.org/expo-intent-launcher",
+      "tags": {
+        "sdk-50": "10.11.0",
+        "sdk-51": "11.0.1",
+        "canary-sdk-55": "55.0.9-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.5-canary-20260701-9100865",
+        "latest": "57.0.1",
+        "next": "58.0.0",
+        "sdk-55": "55.0.16",
+        "canary": "58.0.0-canary-20260909-ea7a89a"
+      },
+      "latest": "57.0.1",
+      "peers": {
+        "expo": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-intent-launcher"
+      },
+      "license": "MIT"
+    },
+    "expo-linear-gradient": {
+      "source": "https://registry.npmjs.org/expo-linear-gradient",
+      "tags": {
+        "sdk-50": "12.7.2",
+        "sdk-51": "13.0.2",
+        "canary-sdk-55": "55.0.9-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.5-canary-20260701-9100865",
+        "latest": "57.0.2",
+        "sdk-55": "55.0.18",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "next": "58.0.0",
+        "sdk-57": "57.0.2"
+      },
+      "latest": "57.0.2",
+      "peers": {
+        "expo": "*",
+        "react": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-linear-gradient"
+      },
+      "license": "MIT"
+    },
+    "expo-local-authentication": {
+      "source": "https://registry.npmjs.org/expo-local-authentication",
+      "tags": {
+        "sdk-50": "13.8.0",
+        "sdk-51": "14.0.1",
+        "canary-sdk-55": "55.0.9-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.5-canary-20260701-9100865",
+        "latest": "57.0.3",
+        "sdk-56": "56.0.5",
+        "sdk-54": "17.0.9",
+        "sdk-55": "55.0.18",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "next": "58.0.0",
+        "sdk-57": "57.0.3"
+      },
+      "latest": "57.0.3",
+      "peers": {
+        "expo": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-local-authentication"
+      },
+      "license": "MIT"
+    },
+    "expo-localization": {
+      "source": "https://registry.npmjs.org/expo-localization",
+      "tags": {
+        "sdk-50": "14.8.3",
+        "sdk-51": "15.0.3",
+        "canary-sdk-55": "55.0.9-canary-20260429-a5e59cf",
+        "sdk-54": "17.0.9",
+        "canary-sdk-56": "56.0.7-canary-20260701-9100865",
+        "latest": "57.0.2",
+        "sdk-55": "55.0.19",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "next": "58.0.0",
+        "sdk-57": "57.0.2"
+      },
+      "latest": "57.0.2",
+      "peers": {
+        "expo": "*",
+        "react": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-localization"
+      },
+      "license": "MIT"
+    },
+    "expo-navigation-bar": {
+      "source": "https://registry.npmjs.org/expo-navigation-bar",
+      "tags": {
+        "sdk-50": "2.8.1",
+        "sdk-51": "3.0.4",
+        "canary-sdk-55": "55.0.9-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.4-canary-20260701-9100865",
+        "latest": "57.0.2",
+        "next": "58.0.0",
+        "sdk-55": "55.0.17",
+        "canary": "58.0.0-canary-20260909-ea7a89a"
+      },
+      "latest": "57.0.2",
+      "peers": {
+        "expo": "*",
+        "react": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-navigation-bar"
+      },
+      "license": "MIT"
+    },
+    "expo-notifications": {
+      "source": "https://registry.npmjs.org/expo-notifications",
+      "tags": {
+        "sdk-50": "0.27.6",
+        "sdk-51": "0.28.3",
+        "sdk-53": "0.31.5",
+        "sdk-54": "0.32.17",
+        "canary-sdk-55": "55.0.11-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.15-canary-20260701-9100865",
+        "sdk-55": "55.0.27",
+        "sdk-56": "56.0.25",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "latest": "57.0.20",
+        "next": "58.0.3",
+        "sdk-57": "57.0.20"
+      },
+      "latest": "57.0.20",
+      "peers": {
+        "expo": "*",
+        "react": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-notifications"
+      },
+      "license": "MIT"
+    },
+    "expo-secure-store": {
+      "source": "https://registry.npmjs.org/expo-secure-store",
+      "tags": {
+        "sdk-50": "12.8.1",
+        "sdk-51": "13.0.1",
+        "canary-sdk-55": "55.0.9-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.5-canary-20260701-9100865",
+        "sdk-55": "55.0.18",
+        "latest": "57.0.4",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "next": "58.0.0",
+        "sdk-57": "57.0.4"
+      },
+      "latest": "57.0.4",
+      "peers": {
+        "expo": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-secure-store"
+      },
+      "license": "MIT"
+    },
+    "expo-sqlite": {
+      "source": "https://registry.npmjs.org/expo-sqlite",
+      "tags": {
+        "sdk-50": "13.3.0",
+        "sdk-51": "14.0.3",
+        "canary-sdk-55": "55.0.11-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.5-canary-20260701-9100865",
+        "sdk-55": "55.0.20",
+        "sdk-56": "56.0.6",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "sdk-57": "57.0.3",
+        "latest": "57.0.3",
+        "next": "58.0.3"
+      },
+      "latest": "57.0.3",
+      "peers": {
+        "expo": "*",
+        "react": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-sqlite"
+      },
+      "license": "MIT"
+    },
+    "expo-screen-orientation": {
+      "source": "https://registry.npmjs.org/expo-screen-orientation",
+      "tags": {
+        "sdk-50": "6.4.1",
+        "sdk-51": "7.0.5",
+        "sdk-54": "9.0.9",
+        "canary-sdk-55": "55.0.9-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.6-canary-20260701-9100865",
+        "sdk-55": "55.0.20",
+        "latest": "57.0.2",
+        "next": "58.0.0",
+        "canary": "58.0.0-canary-20260909-ea7a89a"
+      },
+      "latest": "57.0.2",
+      "peers": {
+        "expo": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-screen-orientation"
+      },
+      "license": "MIT"
+    },
+    "expo-system-ui": {
+      "source": "https://registry.npmjs.org/expo-system-ui",
+      "tags": {
+        "sdk-50": "2.9.3",
+        "sdk-51": "3.0.4",
+        "canary-sdk-55": "55.0.10-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.6-canary-20260701-9100865",
+        "sdk-55": "55.0.22",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "next": "58.0.1",
+        "latest": "57.0.4",
+        "sdk-57": "57.0.4"
+      },
+      "latest": "57.0.4",
+      "peers": {
+        "expo": "*",
+        "react-native": "*",
+        "react-native-web": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-system-ui"
+      },
+      "license": "MIT"
+    },
+    "expo-status-bar": {
+      "source": "https://registry.npmjs.org/expo-status-bar",
+      "tags": {
+        "sdk-50": "1.11.1",
+        "sdk-51": "1.12.1",
+        "canary-sdk-55": "55.0.5-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.5-canary-20260701-9100865",
+        "latest": "57.0.1",
+        "next": "58.0.0",
+        "canary": "58.0.0-canary-20260909-ea7a89a"
+      },
+      "latest": "57.0.1",
+      "peers": {
+        "expo": "*",
+        "react": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-status-bar"
+      },
+      "license": "MIT"
+    },
+    "expo-updates": {
+      "source": "https://registry.npmjs.org/expo-updates",
+      "tags": {
+        "sdk-50": "0.24.11",
+        "sdk-53": "0.28.18",
+        "sdk-52": "0.27.5",
+        "canary-sdk-55": "55.0.12-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.18-canary-20260701-9100865",
+        "sdk-54": "29.0.20",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "latest": "57.0.23",
+        "next": "58.0.5",
+        "sdk-55": "55.0.31",
+        "sdk-56": "56.0.27",
+        "sdk-57": "57.0.23"
+      },
+      "latest": "57.0.23",
+      "peers": {
+        "expo": "*",
+        "react": "*",
+        "react-native": "*",
+        "expo-dev-client": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-updates"
+      },
+      "license": "MIT"
+    },
+    "expo-web-browser": {
+      "source": "https://registry.npmjs.org/expo-web-browser",
+      "tags": {
+        "sdk-50": "12.8.2",
+        "sdk-51": "13.0.3",
+        "sdk-54": "15.0.11",
+        "canary-sdk-55": "55.0.10-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.6-canary-20260701-9100865",
+        "latest": "57.0.3",
+        "sdk-56": "56.0.6",
+        "sdk-55": "55.0.20",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "next": "58.0.0",
+        "sdk-57": "57.0.3"
+      },
+      "latest": "57.0.3",
+      "peers": {
+        "expo": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-web-browser"
+      },
+      "license": "MIT"
+    },
+    "js-sha256": {
+      "source": "https://registry.npmjs.org/js-sha256",
+      "tags": {
+        "latest": "1.0.0"
+      },
+      "latest": "1.0.0",
+      "repository": {
+        "url": "git+https://github.com/emn178/js-sha256.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "react": {
+      "source": "https://registry.npmjs.org/react",
+      "tags": {
+        "beta": "19.0.0-beta-26f2496093-20240514",
+        "rc": "19.0.0-rc.1",
+        "next": "19.3.0-canary-d5736f09-20260507",
+        "backport": "19.0.8",
+        "latest": "19.3.0",
+        "experimental": "0.0.0-experimental-59aff3e1-20260918",
+        "canary": "19.3.0-canary-59aff3e1-20260918"
+      },
+      "latest": "19.3.0",
+      "engines": {
+        "node": ">=0.10.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/react/react.git",
+        "type": "git",
+        "directory": "packages/react"
+      },
+      "license": "MIT"
+    },
+    "react-native": {
+      "source": "https://registry.npmjs.org/react-native",
+      "tags": {
+        "0.67-stable": "0.67.5",
+        "0.66-stable": "0.66.5",
+        "0.65-stable": "0.65.3",
+        "0.64-stable": "0.64.4",
+        "0.63-stable": "0.63.5",
+        "0.68-stable": "0.68.7",
+        "0.70-stable": "0.70.15",
+        "0.71-stable": "0.71.19",
+        "0.72-stable": "0.72.17",
+        "0.73-stable": "0.73.11",
+        "0.74-stable": "0.74.7",
+        "0.75-stable": "0.75.5",
+        "0.76-stable": "0.76.9",
+        "0.78-stable": "0.78.3",
+        "0.77-stable": "0.77.3",
+        "0.79-stable": "0.79.7",
+        "0.80-stable": "0.80.3",
+        "0.81-stable": "0.81.6",
+        "0.83-stable": "0.83.10",
+        "0.86-stable": "0.86.3",
+        "latest": "0.87.1",
+        "next": "0.88.0-rc.1",
+        "nightly": "0.89.0-nightly-20260920-6019ea14b"
+      },
+      "latest": "0.87.1",
+      "engines": {
+        "node": "^22.13.0 || ^24.3.0 || >= 26.0.0"
+      },
+      "peers": {
+        "react": "^19.2.3",
+        "@types/react": "^19.1.1"
+      },
+      "repository": {
+        "url": "git+https://github.com/react/react-native.git",
+        "type": "git",
+        "directory": "packages/react-native"
+      },
+      "license": "MIT"
+    },
+    "livekit-client": {
+      "source": "https://registry.npmjs.org/livekit-client",
+      "tags": {
+        "legacy": "1.15.13",
+        "next": "0.0.0-20251124144849",
+        "dev": "0.0.0-sm-20260820093314",
+        "latest": "2.22.3"
+      },
+      "latest": "2.22.3",
+      "peers": {
+        "@types/dom-mediacapture-record": "^1"
+      },
+      "repository": {
+        "url": "git+ssh://git@github.com/livekit/client-sdk-js.git",
+        "type": "git"
+      },
+      "license": "Apache-2.0"
+    },
+    "react-native-keyboard-controller": {
+      "source": "https://registry.npmjs.org/react-native-keyboard-controller",
+      "tags": {
+        "beta": "1.21.0-beta.3",
+        "latest": "1.22.5"
+      },
+      "latest": "1.22.5",
+      "peers": {
+        "react": "*",
+        "react-native": "*",
+        "react-native-reanimated": ">=3.0.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/kirillzyusko/react-native-keyboard-controller.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "react-native-reanimated": {
+      "source": "https://registry.npmjs.org/react-native-reanimated",
+      "tags": {
+        "reanimated-1": "1.13.4",
+        "reanimated-2": "2.17.0",
+        "reanimated-3": "3.19.5",
+        "latest": "4.7.0",
+        "nightly": "4.7.0-nightly-20260917-20294e0e2"
+      },
+      "latest": "4.7.0",
+      "peers": {
+        "react": "*",
+        "react-native": "0.86 - 0.88",
+        "react-native-worklets": "0.13.x"
+      },
+      "repository": {
+        "url": "git+https://github.com/software-mansion/react-native-reanimated.git",
+        "type": "git",
+        "directory": "packages/react-native-reanimated"
+      },
+      "license": "MIT"
+    },
+    "react-native-safe-area-context": {
+      "source": "https://registry.npmjs.org/react-native-safe-area-context",
+      "tags": {
+        "next": "4.8.0-rc.0",
+        "rc": "4.10.0-rc.2",
+        "beta": "5.2.0-beta.0",
+        "latest": "5.10.0"
+      },
+      "latest": "5.10.0",
+      "peers": {
+        "react": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/AppAndFlow/react-native-safe-area-context.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "react-native-screens": {
+      "source": "https://registry.npmjs.org/react-native-screens",
+      "tags": {
+        "next": "5.0.0-alpha.3",
+        "latest": "4.28.0",
+        "nightly": "4.29.0-nightly-20260916-7db05401d"
+      },
+      "latest": "4.28.0",
+      "peers": {
+        "react": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/software-mansion/react-native-screens.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "react-native-svg": {
+      "source": "https://registry.npmjs.org/react-native-svg",
+      "tags": {
+        "latest": "15.15.5"
+      },
+      "latest": "15.15.5",
+      "peers": {
+        "react": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/software-mansion/react-native-svg.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "socket.io-client": {
+      "source": "https://registry.npmjs.org/socket.io-client",
+      "tags": {
+        "beta": "3.0.0-rc4",
+        "v3-latest": "3.1.3",
+        "v2-latest": "2.5.0",
+        "alpha": "4.6.0-alpha2",
+        "latest": "4.8.3"
+      },
+      "latest": "4.8.3",
+      "engines": {
+        "node": ">=10.0.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/socketio/socket.io.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "react-native-worklets": {
+      "source": "https://registry.npmjs.org/react-native-worklets",
+      "tags": {
+        "legacy": "0.10.4",
+        "latest": "0.12.2",
+        "nightly": "0.13.0-nightly-20260917-20294e0e2",
+        "next": "0.13.0"
+      },
+      "latest": "0.12.2",
+      "peers": {
+        "react": "*",
+        "@babel/core": "*",
+        "react-native": "0.83 - 0.87",
+        "@react-native/metro-config": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/software-mansion/react-native-reanimated.git",
+        "type": "git",
+        "directory": "packages/react-native-worklets"
+      },
+      "license": "MIT"
+    },
+    "react-native-view-shot": {
+      "source": "https://registry.npmjs.org/react-native-view-shot",
+      "tags": {
+        "next": "3.3.0-next.0",
+        "alpha": "5.0.0-alpha.4",
+        "latest": "6.0.1"
+      },
+      "latest": "6.0.1",
+      "engines": {
+        "npm": ">=10",
+        "node": ">=20.19.4"
+      },
+      "peers": {
+        "react": ">=18.0.0",
+        "react-native": ">=0.80.0",
+        "html2canvas-pro": "^2.0.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/gre/react-native-view-shot.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "react-native-gesture-handler": {
+      "source": "https://registry.npmjs.org/react-native-gesture-handler",
+      "tags": {
+        "latest": "3.3.0",
+        "legacy": "2.33.0",
+        "nightly": "3.4.0-nightly-20260917-4c001cb7a"
+      },
+      "latest": "3.3.0",
+      "peers": {
+        "react": "*",
+        "react-native": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/software-mansion/react-native-gesture-handler.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "zustand": {
+      "source": "https://registry.npmjs.org/zustand",
+      "tags": {
+        "latest": "5.0.15"
+      },
+      "latest": "5.0.15",
+      "engines": {
+        "node": ">=12.20.0"
+      },
+      "peers": {
+        "immer": ">=9.0.6",
+        "react": ">=18.0.0",
+        "@types/react": ">=18.0.0",
+        "use-sync-external-store": ">=1.2.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/pmndrs/zustand.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "uploadthing": {
+      "source": "https://registry.npmjs.org/uploadthing",
+      "tags": {
+        "canary": "7.7.3-canary.112f5c8",
+        "latest": "7.7.4"
+      },
+      "latest": "7.7.4",
+      "engines": {
+        "node": ">=18.13.0"
+      },
+      "peers": {
+        "h3": "*",
+        "express": "*",
+        "tailwindcss": "^3.0.0 || ^4.0.0-beta.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/pingdotgg/uploadthing.git",
+        "type": "git",
+        "directory": "packages/uploadthing"
+      },
+      "license": "MIT"
+    },
+    "@playwright/test": {
+      "source": "https://registry.npmjs.org/%40playwright%2Ftest",
+      "tags": {
+        "rc": "1.18.0-rc1",
+        "latest": "1.63.0",
+        "beta": "1.63.0-beta-1789413634000",
+        "next": "1.64.0-alpha-2026-09-21"
+      },
+      "latest": "1.63.0",
+      "engines": {
+        "node": ">=20"
+      },
+      "repository": {
+        "url": "git+https://github.com/microsoft/playwright.git",
+        "type": "git"
+      },
+      "license": "Apache-2.0"
+    },
+    "@testing-library/react-native": {
+      "source": "https://registry.npmjs.org/%40testing-library%2Freact-native",
+      "tags": {
+        "next": "14.0.0-rc.3",
+        "latest": "14.0.1"
+      },
+      "latest": "14.0.1",
+      "engines": {
+        "node": "^22.13.0 || >=24"
+      },
+      "peers": {
+        "jest": ">=29.0.0",
+        "react": ">=19.0.0",
+        "react-native": ">=0.78",
+        "test-renderer": "^1.0.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/callstack/react-native-testing-library.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "@types/jest": {
+      "source": "https://registry.npmjs.org/%40types%2Fjest",
+      "tags": {
+        "ts2.0": "16.0.5",
+        "ts2.1": "20.0.3",
+        "ts2.2": "21.1.2",
+        "ts2.8": "23.3.13",
+        "ts2.4": "23.3.13",
+        "ts2.9": "23.3.13",
+        "ts2.5": "23.3.13",
+        "ts2.7": "23.3.13",
+        "ts2.3": "23.3.13",
+        "ts2.6": "23.3.13",
+        "ts3.0": "25.1.5",
+        "ts3.1": "26.0.13",
+        "ts3.5": "26.0.14",
+        "ts3.3": "26.0.14",
+        "ts3.2": "26.0.14",
+        "ts3.6": "26.0.14",
+        "ts3.7": "26.0.14",
+        "ts3.4": "26.0.14",
+        "ts3.8": "27.4.1",
+        "ts4.1": "28.1.1",
+        "ts4.0": "28.1.1",
+        "ts3.9": "28.1.1",
+        "ts4.2": "28.1.1",
+        "ts4.3": "29.5.4",
+        "ts4.4": "29.5.4",
+        "ts4.5": "29.5.10",
+        "ts4.6": "29.5.12",
+        "ts4.7": "29.5.12",
+        "ts4.9": "29.5.14",
+        "ts4.8": "29.5.14",
+        "ts5.0": "29.5.14",
+        "ts5.8": "30.0.0",
+        "ts5.7": "30.0.0",
+        "latest": "30.0.0",
+        "ts5.5": "30.0.0",
+        "ts5.2": "30.0.0",
+        "ts5.9": "30.0.0",
+        "ts5.1": "30.0.0",
+        "ts5.6": "30.0.0",
+        "ts5.3": "30.0.0",
+        "ts5.4": "30.0.0",
+        "ts6.0": "30.0.0"
+      },
+      "latest": "30.0.0",
+      "peers": {},
+      "repository": {
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "type": "git",
+        "directory": "types/jest"
+      },
+      "license": "MIT"
+    },
+    "@react-native/jest-preset": {
+      "source": "https://registry.npmjs.org/%40react-native%2Fjest-preset",
+      "tags": {
+        "0.86-stable": "0.86.3",
+        "latest": "0.87.1",
+        "next": "0.88.0-rc.1",
+        "nightly": "0.89.0-nightly-20260920-6019ea14b"
+      },
+      "latest": "0.87.1",
+      "engines": {
+        "node": ">= 22.13.0"
+      },
+      "peers": {
+        "react": "^19.2.3"
+      },
+      "repository": {
+        "url": "git+https://github.com/react/react-native.git",
+        "type": "git",
+        "directory": "packages/jest-preset"
+      },
+      "license": "MIT"
+    },
+    "@types/node": {
+      "source": "https://registry.npmjs.org/%40types%2Fnode",
+      "tags": {
+        "ts2.2": "12.12.6",
+        "ts2.6": "12.12.6",
+        "ts2.0": "12.12.6",
+        "ts2.1": "12.12.6",
+        "ts2.5": "12.12.6",
+        "ts2.7": "12.12.6",
+        "ts2.3": "12.12.6",
+        "ts2.4": "12.12.6",
+        "ts2.8": "13.13.4",
+        "ts2.9": "14.0.1",
+        "ts3.0": "14.6.0",
+        "ts3.1": "14.10.1",
+        "ts3.2": "14.14.9",
+        "ts3.3": "14.14.20",
+        "ts3.4": "14.14.31",
+        "ts3.5": "15.6.1",
+        "ts3.6": "16.6.2",
+        "ts3.7": "16.11.7",
+        "ts3.8": "17.0.21",
+        "ts3.9": "17.0.41",
+        "ts4.0": "18.7.14",
+        "ts4.1": "18.11.9",
+        "ts4.2": "18.15.3",
+        "ts4.4": "20.6.0",
+        "ts4.3": "20.6.0",
+        "ts4.5": "20.10.0",
+        "ts4.6": "20.11.25",
+        "ts4.7": "20.14.8",
+        "ts4.8": "22.9.0",
+        "ts4.9": "22.9.3",
+        "ts5.0": "22.13.14",
+        "ts5.1": "24.1.0",
+        "ts5.2": "25.5.0",
+        "ts5.5": "25.9.3",
+        "ts5.3": "25.9.3",
+        "ts5.4": "25.9.3",
+        "ts5.8": "26.6.2",
+        "ts5.7": "26.6.2",
+        "ts6.0": "26.6.2",
+        "ts5.6": "26.6.2",
+        "latest": "26.6.2",
+        "ts5.9": "26.6.2",
+        "old-version": "22.20.4"
+      },
+      "latest": "26.6.2",
+      "peers": {},
+      "repository": {
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "type": "git",
+        "directory": "types/node"
+      },
+      "license": "MIT"
+    },
+    "babel-preset-expo": {
+      "source": "https://registry.npmjs.org/babel-preset-expo",
+      "tags": {
+        "sdk-50": "10.0.1",
+        "sdk-51": "11.0.6",
+        "sdk-53": "13.2.5",
+        "sdk-52": "12.0.12",
+        "canary-sdk-55": "55.0.9-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.14-canary-20260701-9100865",
+        "sdk-54": "54.0.12",
+        "sdk-55": "55.0.25",
+        "sdk-56": "56.0.20",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "sdk-57": "57.0.12",
+        "latest": "57.0.12",
+        "next": "58.0.3"
+      },
+      "latest": "57.0.12",
+      "peers": {
+        "expo": "*",
+        "expo-widgets": "^57.0.19",
+        "react-refresh": ">=0.14.0 <1.0.0",
+        "@babel/runtime": "^7.20.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/babel-preset-expo"
+      },
+      "license": "MIT"
+    },
+    "eslint": {
+      "source": "https://registry.npmjs.org/eslint",
+      "tags": {
+        "es6jsx": "0.11.0-alpha.0",
+        "next": "10.0.0-rc.2",
+        "maintenance": "9.39.5",
+        "latest": "10.11.0"
+      },
+      "latest": "10.11.0",
+      "engines": {
+        "node": "^20.19.0 || ^22.13.0 || >=24"
+      },
+      "peers": {
+        "jiti": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/eslint/eslint.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "@types/react": {
+      "source": "https://registry.npmjs.org/%40types%2Freact",
+      "tags": {
+        "ts2.0": "15.0.1",
+        "ts2.1": "15.0.20",
+        "ts2.2": "15.0.30",
+        "ts2.4": "16.0.36",
+        "ts2.5": "16.0.36",
+        "ts2.3": "16.0.36",
+        "ts2.6": "16.4.7",
+        "ts2.7": "16.4.7",
+        "ts2.8": "16.9.34",
+        "ts2.9": "16.9.35",
+        "ts3.0": "16.9.46",
+        "ts3.1": "16.9.49",
+        "ts3.2": "16.9.56",
+        "ts3.3": "17.0.0",
+        "ts3.4": "17.0.2",
+        "ts3.5": "17.0.8",
+        "ts3.6": "17.0.19",
+        "ts3.7": "17.0.35",
+        "ts3.8": "17.0.39",
+        "ts3.9": "18.0.12",
+        "ts4.0": "18.0.18",
+        "ts4.1": "18.0.25",
+        "ts4.2": "18.0.28",
+        "ts4.4": "18.2.21",
+        "ts4.3": "18.2.21",
+        "ts4.5": "18.2.39",
+        "ts4.6": "18.2.64",
+        "ts4.7": "18.3.3",
+        "ts4.8": "18.3.12",
+        "ts4.9": "18.3.12",
+        "ts5.0": "19.0.12",
+        "ts5.1": "19.1.9",
+        "ts5.2": "19.2.14",
+        "ts5.3": "19.2.17",
+        "ts5.4": "19.2.17",
+        "ts5.5": "19.2.17",
+        "ts5.9": "19.3.0",
+        "latest": "19.3.0",
+        "ts5.7": "19.3.0",
+        "ts5.8": "19.3.0",
+        "ts5.6": "19.3.0",
+        "ts6.0": "19.3.0"
+      },
+      "latest": "19.3.0",
+      "peers": {},
+      "repository": {
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "type": "git",
+        "directory": "types/react"
+      },
+      "license": "MIT"
+    },
+    "eslint-plugin-react-hooks": {
+      "source": "https://registry.npmjs.org/eslint-plugin-react-hooks",
+      "tags": {
+        "beta": "5.1.0-beta-26f2496093-20240514",
+        "rc": "6.0.0-rc.2",
+        "latest": "7.1.1",
+        "next": "7.1.1-canary-d5736f09-20260507",
+        "experimental": "0.0.0-experimental-59aff3e1-20260918",
+        "canary": "7.1.1-canary-59aff3e1-20260918"
+      },
+      "latest": "7.1.1",
+      "engines": {
+        "node": ">=18"
+      },
+      "peers": {
+        "eslint": "^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0 || ^9.0.0 || ^10.0.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/facebook/react.git",
+        "type": "git",
+        "directory": "packages/eslint-plugin-react-hooks"
+      },
+      "license": "MIT"
+    },
+    "pixelmatch": {
+      "source": "https://registry.npmjs.org/pixelmatch",
+      "tags": {
+        "latest": "7.2.0"
+      },
+      "latest": "7.2.0",
+      "repository": {
+        "url": "git+https://github.com/mapbox/pixelmatch.git",
+        "type": "git"
+      },
+      "license": "ISC"
+    },
+    "jest": {
+      "source": "https://registry.npmjs.org/jest",
+      "tags": {
+        "next": "30.0.0-rc.1",
+        "latest": "30.5.2"
+      },
+      "latest": "30.5.2",
+      "engines": {
+        "node": "^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0"
+      },
+      "peers": {
+        "node-notifier": "^8.0.1 || ^9.0.0 || ^10.0.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/jestjs/jest.git",
+        "type": "git",
+        "directory": "packages/jest"
+      },
+      "license": "MIT"
+    },
+    "jest-expo": {
+      "source": "https://registry.npmjs.org/jest-expo",
+      "tags": {
+        "sdk-50": "50.0.3",
+        "sdk-51": "51.0.2",
+        "sdk-52": "52.0.6",
+        "sdk-53": "53.0.14",
+        "canary-sdk-55": "55.0.10-canary-20260429-a5e59cf",
+        "canary-sdk-56": "56.0.5-canary-20260701-9100865",
+        "sdk-54": "54.0.18",
+        "sdk-55": "55.0.22",
+        "latest": "57.0.5",
+        "canary": "58.0.0-canary-20260909-ea7a89a",
+        "next": "58.0.2"
+      },
+      "latest": "57.0.5",
+      "peers": {
+        "expo": "*",
+        "react-native": "*",
+        "react-server-dom-webpack": "~19.0.4 || ~19.1.5 || ~19.2.4",
+        "@react-native/jest-preset": "^0.86.3"
+      },
+      "repository": {
+        "url": "git://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/jest-expo"
+      },
+      "license": "MIT"
+    },
+    "sharp": {
+      "source": "https://registry.npmjs.org/sharp",
+      "tags": {
+        "latest": "0.35.4",
+        "next": "0.35.4-rc.0"
+      },
+      "latest": "0.35.4",
+      "engines": {
+        "node": ">=20.9.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/lovell/sharp.git",
+        "type": "git"
+      },
+      "license": "Apache-2.0"
+    },
+    "react-dom": {
+      "source": "https://registry.npmjs.org/react-dom",
+      "tags": {
+        "beta": "19.0.0-beta-26f2496093-20240514",
+        "rc": "19.0.0-rc.1",
+        "next": "19.3.0-canary-d5736f09-20260507",
+        "backport": "19.0.8",
+        "latest": "19.3.0",
+        "canary": "19.3.0-canary-59aff3e1-20260918",
+        "experimental": "0.0.0-experimental-59aff3e1-20260918"
+      },
+      "latest": "19.3.0",
+      "peers": {
+        "react": "^19.3.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/react/react.git",
+        "type": "git",
+        "directory": "packages/react-dom"
+      },
+      "license": "MIT"
+    },
+    "ssim.js": {
+      "source": "https://registry.npmjs.org/ssim.js",
+      "tags": {
+        "latest": "3.5.0"
+      },
+      "latest": "3.5.0",
+      "repository": {
+        "url": "git+https://github.com/obartra/ssim.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "test-renderer": {
+      "source": "https://registry.npmjs.org/test-renderer",
+      "tags": {
+        "latest": "1.3.0"
+      },
+      "latest": "1.3.0",
+      "peers": {
+        "react": "^19.0.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/mdjastrzebski/test-renderer.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "tsx": {
+      "source": "https://registry.npmjs.org/tsx",
+      "tags": {
+        "latest": "4.23.15"
+      },
+      "latest": "4.23.15",
+      "engines": {
+        "node": ">=18.0.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/privatenumber/tsx.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "typescript-eslint": {
+      "source": "https://registry.npmjs.org/typescript-eslint",
+      "tags": {
+        "rc-v8": "8.0.0-alpha.62",
+        "latest": "8.70.0",
+        "canary": "8.70.1-alpha.28"
+      },
+      "latest": "8.70.0",
+      "engines": {
+        "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
+      },
+      "peers": {
+        "eslint": "^8.57.0 || ^9.0.0 || ^10.0.0",
+        "typescript": ">=4.8.4 <6.1.0"
+      },
+      "repository": {
+        "url": "https://github.com/typescript-eslint/typescript-eslint.git",
+        "type": "git",
+        "directory": "packages/typescript-eslint"
+      },
+      "license": "MIT"
+    },
+    "@auth/prisma-adapter": {
+      "source": "https://registry.npmjs.org/%40auth%2Fprisma-adapter",
+      "tags": {
+        "experimental": "0.0.0-manual.050e484a",
+        "latest": "2.11.3"
+      },
+      "latest": "2.11.3",
+      "peers": {
+        "@prisma/client": ">=2.26.0 || >=3 || >=4 || >=5 || >=6"
+      },
+      "repository": {
+        "url": "git+https://github.com/nextauthjs/next-auth.git",
+        "type": "git"
+      },
+      "license": "ISC"
+    },
+    "@dnd-kit/core": {
+      "source": "https://registry.npmjs.org/%40dnd-kit%2Fcore",
+      "tags": {
+        "latest": "6.3.1",
+        "next": "6.3.1-next-202411517925"
+      },
+      "latest": "6.3.1",
+      "peers": {
+        "react": ">=16.8.0",
+        "react-dom": ">=16.8.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/clauderic/dnd-kit.git",
+        "type": "git",
+        "directory": "packages/core"
+      },
+      "license": "MIT"
+    },
+    "@dnd-kit/sortable": {
+      "source": "https://registry.npmjs.org/%40dnd-kit%2Fsortable",
+      "tags": {
+        "latest": "10.0.0",
+        "next": "10.0.0-next-202410244445"
+      },
+      "latest": "10.0.0",
+      "peers": {
+        "react": ">=16.8.0",
+        "@dnd-kit/core": "^6.3.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/clauderic/dnd-kit.git",
+        "type": "git",
+        "directory": "packages/sortable"
+      },
+      "license": "MIT"
+    },
+    "@dnd-kit/utilities": {
+      "source": "https://registry.npmjs.org/%40dnd-kit%2Futilities",
+      "tags": {
+        "latest": "3.2.2",
+        "next": "3.2.2-next-2023106221355"
+      },
+      "latest": "3.2.2",
+      "peers": {
+        "react": ">=16.8.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/clauderic/dnd-kit.git",
+        "type": "git",
+        "directory": "packages/utilities"
+      },
+      "license": "MIT"
+    },
+    "@emoji-mart/react": {
+      "source": "https://registry.npmjs.org/%40emoji-mart%2Freact",
+      "tags": {
+        "latest": "1.1.1"
+      },
+      "latest": "1.1.1",
+      "peers": {
+        "react": "^16.8 || ^17 || ^18",
+        "emoji-mart": "^5.2"
+      },
+      "repository": {
+        "url": "git+https://github.com/missive/emoji-mart.git",
+        "type": "git",
+        "directory": "packages/emoji-mart-react"
+      },
+      "license": "MIT"
+    },
+    "@emoji-mart/data": {
+      "source": "https://registry.npmjs.org/%40emoji-mart%2Fdata",
+      "tags": {
+        "latest": "1.2.1"
+      },
+      "latest": "1.2.1",
+      "repository": {
+        "url": "git+https://github.com/missive/emoji-mart.git",
+        "type": "git",
+        "directory": "packages/emoji-mart-data"
+      },
+      "license": "MIT"
+    },
+    "@hookform/resolvers": {
+      "source": "https://registry.npmjs.org/%40hookform%2Fresolvers",
+      "tags": {
+        "next": "1.0.0-rc.2",
+        "beta": "2.0.0-beta.17",
+        "release-1.x": "1.3.8",
+        "latest": "5.9.1"
+      },
+      "latest": "5.9.1",
+      "peers": {
+        "ajv": "^8.12.0",
+        "joi": "^17.0.0 || ^18.0.0",
+        "yup": "^1.0.0",
+        "zod": "^3.25.0 || ^4.0.0",
+        "vest": ">=6.0.0",
+        "fp-ts": "^2.7.0",
+        "io-ts": "^2.0.0",
+        "effect": "^3.10.3",
+        "arktype": "^2.0.0",
+        "valibot": ">=0.31.0 || ^1.0.0-beta.4 || ^1.0.0-rc",
+        "typanion": "^3.3.2",
+        "ajv-errors": "^3.0.0",
+        "ajv-formats": "^2.1.1",
+        "superstruct": ">=0.12.0",
+        "@vinejs/vine": "^2.0.0 || ^3.0.0 || ^4.0.0",
+        "ata-validator": "^1.2.0",
+        "computed-types": "^1.0.0",
+        "nope-validator": ">=0.12.0",
+        "class-validator": ">=0.12.0",
+        "react-hook-form": "^7.55.0",
+        "@typeschema/main": ">=0.13.7",
+        "@sinclair/typebox": ">=0.25.24",
+        "class-transformer": ">=0.4.0",
+        "fluentvalidation-ts": "^3.0.0",
+        "@standard-schema/spec": "^1.0.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/react-hook-form/resolvers.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "@livekit/components-react": {
+      "source": "https://registry.npmjs.org/%40livekit%2Fcomponents-react",
+      "tags": {
+        "agents-sdk": "0.0.0-agents-sdk-20251113151554",
+        "rpc-prototype": "0.0.0-rpc-prototype-20260325170031",
+        "latest": "2.9.24"
+      },
+      "latest": "2.9.24",
+      "engines": {
+        "node": ">=18"
+      },
+      "peers": {
+        "react": ">=18",
+        "tslib": "^2.6.2",
+        "react-dom": ">=18",
+        "livekit-client": "^2.20.1",
+        "@livekit/krisp-noise-filter": "^0.2.12 || ^0.3.0 || ^0.4.0"
+      },
+      "repository": {
+        "url": "https://github.com/livekit/components-js.git",
+        "type": "git",
+        "directory": "/packages/react"
+      },
+      "license": "Apache-2.0"
+    },
+    "@livekit/krisp-noise-filter": {
+      "source": "https://registry.npmjs.org/%40livekit%2Fkrisp-noise-filter",
+      "tags": {
+        "latest": "0.4.5"
+      },
+      "latest": "0.4.5",
+      "peers": {
+        "livekit-client": "^2.18.7"
+      },
+      "license": "SEE LICENSE IN https://livekit.io/legal/terms-of-service"
+    },
+    "@prisma/adapter-pg": {
+      "source": "https://registry.npmjs.org/%40prisma%2Fadapter-pg",
+      "tags": {
+        "early-access": "5.11.0",
+        "prev": "6.19.3",
+        "patch-dev": "7.9.1-dev.1",
+        "integration": "7.10.0-integration-fix-prisma-publish-token.1",
+        "latest": "7.10.0",
+        "dev": "8.1.0-dev.7"
+      },
+      "latest": "7.10.0",
+      "repository": {
+        "url": "https://github.com/prisma/prisma.git",
+        "type": "git",
+        "directory": "packages/adapter-pg"
+      },
+      "license": "Apache-2.0"
+    },
+    "@prisma/client": {
+      "source": "https://registry.npmjs.org/%40prisma%2Fclient",
+      "tags": {
+        "turso": "5.4.0-dev.61",
+        "early-access": "5.12.0-dev.21",
+        "typed-sql": "5.19.0-integration-feat-typed-sql.14",
+        "prev": "6.19.3",
+        "patch-dev": "7.9.1-dev.1",
+        "integration": "7.10.0-integration-fix-prisma-publish-token.1",
+        "latest": "7.10.0",
+        "dev": "8.1.0-dev.7"
+      },
+      "latest": "7.10.0",
+      "engines": {
+        "node": "^20.19 || ^22.12 || >=24.0"
+      },
+      "peers": {
+        "prisma": "*",
+        "typescript": ">=5.4.0"
+      },
+      "repository": {
+        "url": "https://github.com/prisma/prisma.git",
+        "type": "git",
+        "directory": "packages/client"
+      },
+      "license": "Apache-2.0"
+    },
+    "@prisma/instrumentation": {
+      "source": "https://registry.npmjs.org/%40prisma%2Finstrumentation",
+      "tags": {
+        "prev": "6.19.3",
+        "patch-dev": "7.9.1-dev.1",
+        "integration": "7.10.0-integration-fix-prisma-publish-token.1",
+        "latest": "7.10.0",
+        "dev": "8.1.0-dev.7"
+      },
+      "latest": "7.10.0",
+      "peers": {
+        "@opentelemetry/api": "^1.8"
+      },
+      "repository": {
+        "url": "https://github.com/prisma/prisma.git",
+        "type": "git",
+        "directory": "packages/instrumentation"
+      },
+      "license": "Apache-2.0"
+    },
+    "@sentry/nextjs": {
+      "source": "https://registry.npmjs.org/%40sentry%2Fnextjs",
+      "tags": {
+        "v7": "7.120.4",
+        "v9": "9.47.1",
+        "v8": "8.55.2",
+        "latest": "10.75.0",
+        "next": "11.0.0-rc.0"
+      },
+      "latest": "10.75.0",
+      "engines": {
+        "node": ">=18"
+      },
+      "peers": {
+        "next": "^13.2.0 || ^14.0 || ^15.0.0-rc.0 || ^16.0.0-0"
+      },
+      "repository": {
+        "url": "git://github.com/getsentry/sentry-javascript.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "@socket.io/redis-adapter": {
+      "source": "https://registry.npmjs.org/%40socket.io%2Fredis-adapter",
+      "tags": {
+        "latest": "8.3.0"
+      },
+      "latest": "8.3.0",
+      "engines": {
+        "node": ">=10.0.0"
+      },
+      "peers": {
+        "socket.io-adapter": "^2.5.4"
+      },
+      "repository": {
+        "url": "git+ssh://git@github.com/socketio/socket.io-redis-adapter.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "@tanstack/react-virtual": {
+      "source": "https://registry.npmjs.org/%40tanstack%2Freact-virtual",
+      "tags": {
+        "alpha": "3.0.0-alpha.2",
+        "beta": "3.0.0-beta.68",
+        "latest": "3.14.13"
+      },
+      "latest": "3.14.13",
+      "peers": {
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/TanStack/virtual.git",
+        "type": "git",
+        "directory": "packages/react-virtual"
+      },
+      "license": "MIT"
+    },
+    "@tauri-apps/api": {
+      "source": "https://registry.npmjs.org/%40tauri-apps%2Fapi",
+      "tags": {
+        "next": "3.0.0-alpha.0",
+        "latest": "2.11.1"
+      },
+      "latest": "2.11.1",
+      "repository": {
+        "url": "git+https://github.com/tauri-apps/tauri.git",
+        "type": "git"
+      },
+      "license": "Apache-2.0 OR MIT"
+    },
+    "bcryptjs": {
+      "source": "https://registry.npmjs.org/bcryptjs",
+      "tags": {
+        "latest": "3.0.3"
+      },
+      "latest": "3.0.3",
+      "repository": {
+        "url": "git+https://github.com/dcodeIO/bcrypt.js.git",
+        "type": "url"
+      },
+      "license": "BSD-3-Clause"
+    },
+    "emoji-mart": {
+      "source": "https://registry.npmjs.org/emoji-mart",
+      "tags": {
+        "latest": "5.6.0"
+      },
+      "latest": "5.6.0",
+      "repository": {
+        "url": "git+https://github.com/missive/emoji-mart.git",
+        "type": "git",
+        "directory": "packages/emoji-mart"
+      },
+      "license": "MIT"
+    },
+    "clsx": {
+      "source": "https://registry.npmjs.org/clsx",
+      "tags": {
+        "next": "2.0.0-next.0",
+        "latest": "2.1.1"
+      },
+      "latest": "2.1.1",
+      "engines": {
+        "node": ">=6"
+      },
+      "repository": {
+        "url": "git+https://github.com/lukeed/clsx.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "framer-motion": {
+      "source": "https://registry.npmjs.org/framer-motion",
+      "tags": {
+        "alpha": "5.0.0-alpha.22",
+        "rc": "5.3.0-rc.1",
+        "beta": "5.5.6-beta.0",
+        "canary": "13.1.1-alpha.0",
+        "latest": "13.4.0"
+      },
+      "latest": "13.4.0",
+      "peers": {
+        "react": "^18.0.0 || ^19.0.0",
+        "react-dom": "^18.0.0 || ^19.0.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/motiondivision/motion.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "ioredis": {
+      "source": "https://registry.npmjs.org/ioredis",
+      "tags": {
+        "next": "5.0.4",
+        "v4-beta": "4.30.2-v4-beta.1",
+        "release-v4": "4.31.0",
+        "latest": "6.0.0",
+        "beta": "6.0.0-beta.1"
+      },
+      "latest": "6.0.0",
+      "engines": {
+        "node": ">=20.0.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/redis/ioredis.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "jose": {
+      "source": "https://registry.npmjs.org/jose",
+      "tags": {
+        "latest": "6.2.12"
+      },
+      "latest": "6.2.12",
+      "repository": {
+        "url": "git+https://github.com/panva/jose.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "livekit-server-sdk": {
+      "source": "https://registry.npmjs.org/livekit-server-sdk",
+      "tags": {
+        "latest": "2.19.1"
+      },
+      "latest": "2.19.1",
+      "engines": {
+        "node": ">=19"
+      },
+      "repository": {
+        "url": "git+https://github.com/livekit/node-sdks.git",
+        "type": "git",
+        "directory": "packages/livekit-server-sdk"
+      },
+      "license": "Apache-2.0"
+    },
+    "lucide-react": {
+      "source": "https://registry.npmjs.org/lucide-react",
+      "tags": {
+        "beta": "0.266.0-beta.0",
+        "dev": "0.554.0-rc.0",
+        "next": "1.3.0",
+        "latest": "1.47.0"
+      },
+      "latest": "1.47.0",
+      "peers": {
+        "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0"
+      },
+      "repository": {
+        "url": "https://github.com/lucide-icons/lucide.git",
+        "type": "git",
+        "directory": "packages/lucide-react"
+      },
+      "license": "ISC"
+    },
+    "next": {
+      "source": "https://registry.npmjs.org/next",
+      "tags": {
+        "next-11": "11.1.4",
+        "next-12-2-6": "12.2.6",
+        "next-14-1": "14.1.1",
+        "rc": "15.0.0-rc.1",
+        "next-13": "13.5.11",
+        "next-12-3-2": "12.3.7",
+        "beta": "16.0.0-beta.0",
+        "next-14": "14.2.35",
+        "next-15-3": "15.3.9",
+        "next-15-2": "15.2.9",
+        "next-15-0": "15.1.12",
+        "next-15-0-0": "15.0.8",
+        "preview": "16.3.0-preview.10",
+        "backport": "15.5.25",
+        "latest": "16.3.5",
+        "canary": "16.4.0-canary.37"
+      },
+      "latest": "16.3.5",
+      "engines": {
+        "node": ">=20.9.0"
+      },
+      "peers": {
+        "sass": "^1.3.0",
+        "react": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0",
+        "react-dom": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0",
+        "@playwright/test": "^1.51.1",
+        "@opentelemetry/api": "^1.1.0",
+        "babel-plugin-react-compiler": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/vercel/next.js.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "next-themes": {
+      "source": "https://registry.npmjs.org/next-themes",
+      "tags": {
+        "beta": "0.4.3-beta.0",
+        "latest": "0.4.6"
+      },
+      "latest": "0.4.6",
+      "peers": {
+        "react": "^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc",
+        "react-dom": "^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc"
+      },
+      "repository": {
+        "url": "git+https://github.com/pacocoursey/next-themes.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "next-auth": {
+      "source": "https://registry.npmjs.org/next-auth",
+      "tags": {
+        "canary": "3.24.0-canary.0",
+        "next": "4.0.0-next.26",
+        "next-auth-3": "3.29.10",
+        "experimental": "0.0.0-manual.2824fa11",
+        "latest": "4.24.15",
+        "beta": "5.0.0-beta.32"
+      },
+      "latest": "4.24.15",
+      "peers": {
+        "next": "^12.2.5 || ^13 || ^14 || ^15 || ^16",
+        "react": "^17.0.2 || ^18 || ^19",
+        "react-dom": "^17.0.2 || ^18 || ^19",
+        "@auth/core": "0.34.3",
+        "nodemailer": "^7.0.7"
+      },
+      "repository": {
+        "url": "git+https://github.com/nextauthjs/next-auth.git",
+        "type": "git"
+      },
+      "license": "ISC"
+    },
+    "pg": {
+      "source": "https://registry.npmjs.org/pg",
+      "tags": {
+        "beta": "8.14.2-alpha.1",
+        "latest": "8.23.0"
+      },
+      "latest": "8.23.0",
+      "engines": {
+        "node": ">= 16.0.0"
+      },
+      "peers": {
+        "pg-native": ">=3.0.1"
+      },
+      "repository": {
+        "url": "git://github.com/brianc/node-postgres.git",
+        "type": "git",
+        "directory": "packages/pg"
+      },
+      "license": "MIT"
+    },
+    "parse5": {
+      "source": "https://registry.npmjs.org/parse5",
+      "tags": {
+        "test": "4.0.0-test",
+        "latest": "8.0.1"
+      },
+      "latest": "8.0.1",
+      "repository": {
+        "url": "git://github.com/inikulin/parse5.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "qrcode": {
+      "source": "https://registry.npmjs.org/qrcode",
+      "tags": {
+        "beta": "0.8.2",
+        "latest": "1.5.4"
+      },
+      "latest": "1.5.4",
+      "engines": {
+        "node": ">=10.13.0"
+      },
+      "repository": {
+        "url": "git://github.com/soldair/node-qrcode.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "react-hook-form": {
+      "source": "https://registry.npmjs.org/react-hook-form",
+      "tags": {
+        "next": "7.60.0-next.0",
+        "alpha": "8.0.0-alpha.5",
+        "beta": "8.0.0-beta.3",
+        "latest": "7.88.0"
+      },
+      "latest": "7.88.0",
+      "engines": {
+        "node": ">=18.0.0"
+      },
+      "peers": {
+        "react": "^16.8.0 || ^17 || ^18 || ^19"
+      },
+      "repository": {
+        "url": "git+https://github.com/react-hook-form/react-hook-form.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "react-markdown": {
+      "source": "https://registry.npmjs.org/react-markdown",
+      "tags": {
+        "next": "3.0.0-rc4",
+        "latest": "10.1.0"
+      },
+      "latest": "10.1.0",
+      "peers": {
+        "react": ">=18",
+        "@types/react": ">=18"
+      },
+      "repository": {
+        "url": "git+https://github.com/remarkjs/react-markdown.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "socket.io": {
+      "source": "https://registry.npmjs.org/socket.io",
+      "tags": {
+        "beta": "3.0.0-rc4",
+        "alpha": "4.6.0-alpha1",
+        "v2-latest": "2.5.1",
+        "latest": "4.8.3"
+      },
+      "latest": "4.8.3",
+      "engines": {
+        "node": ">=10.2.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/socketio/socket.io.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "resend": {
+      "source": "https://registry.npmjs.org/resend",
+      "tags": {
+        "preview-topics": "4.7.0-preview-topics.2",
+        "preview-templates": "6.1.2-preview-templates.1",
+        "preview-batch": "6.5.2-batch.0",
+        "canary": "6.18.0-canary.0",
+        "preview-headless-dashboard": "6.19.0-preview-headless-dashboard.7",
+        "preview": "6.28.0-preview-inboxes.0",
+        "latest": "6.28.1",
+        "preview-inboxes": "6.28.1-preview-inboxes.0"
+      },
+      "latest": "6.28.1",
+      "engines": {
+        "node": ">=20"
+      },
+      "peers": {
+        "@react-email/render": "*"
+      },
+      "repository": {
+        "url": "git+https://github.com/resend/resend-node.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "tailwind-merge": {
+      "source": "https://registry.npmjs.org/tailwind-merge",
+      "tags": {
+        "tailwind-merge-2": "2.6.1",
+        "latest": "3.7.0",
+        "dev": "3.7.0-dev.7fcb814ea439b749aa18b72415b0e21837811853"
+      },
+      "latest": "3.7.0",
+      "repository": {
+        "url": "https://github.com/dcastil/tailwind-merge.git",
+        "type": "git",
+        "directory": "packages/tailwind-merge"
+      },
+      "license": "MIT"
+    },
+    "zod": {
+      "source": "https://registry.npmjs.org/zod",
+      "tags": {
+        "next": "3.25.0-beta.20250519T094321",
+        "alpha": "3.25.68-alpha.11",
+        "beta": "4.1.13-beta.0",
+        "canary": "4.5.0-canary.20260828T171753",
+        "latest": "4.6.5"
+      },
+      "latest": "4.6.5",
+      "repository": {
+        "url": "git+https://github.com/colinhacks/zod.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "@tailwindcss/postcss": {
+      "source": "https://registry.npmjs.org/%40tailwindcss%2Fpostcss",
+      "tags": {
+        "internal": "0.0.0-internal.b2586d4e",
+        "next": "4.0.0",
+        "latest": "4.3.3",
+        "insiders": "0.0.0-insiders.41d9cae"
+      },
+      "latest": "4.3.3",
+      "repository": {
+        "url": "https://github.com/tailwindlabs/tailwindcss.git",
+        "type": "git",
+        "directory": "packages/@tailwindcss-postcss"
+      },
+      "license": "MIT"
+    },
+    "@axe-core/playwright": {
+      "source": "https://registry.npmjs.org/%40axe-core%2Fplaywright",
+      "tags": {
+        "rc": "4.13.1-20a98d8.0",
+        "latest": "4.13.0",
+        "next": "4.13.1-0bcb185.0.sha-0bcb185"
+      },
+      "latest": "4.13.0",
+      "peers": {
+        "playwright-core": ">= 1.0.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/dequelabs/axe-core-npm.git",
+        "type": "git"
+      },
+      "license": "MPL-2.0"
+    },
+    "@types/react-dom": {
+      "source": "https://registry.npmjs.org/%40types%2Freact-dom",
+      "tags": {
+        "ts2.0": "0.14.20",
+        "ts2.1": "15.5.0",
+        "ts2.2": "15.5.0",
+        "ts2.4": "16.0.3",
+        "ts2.5": "16.0.3",
+        "ts2.3": "16.0.3",
+        "ts2.7": "16.0.6",
+        "ts2.6": "16.0.6",
+        "ts2.8": "16.9.7",
+        "ts3.0": "16.9.8",
+        "ts3.1": "16.9.8",
+        "ts2.9": "16.9.8",
+        "ts3.2": "16.9.9",
+        "ts3.3": "17.0.0",
+        "ts3.4": "17.0.1",
+        "ts3.5": "17.0.5",
+        "ts3.6": "17.0.9",
+        "ts3.7": "17.0.11",
+        "ts3.8": "17.0.11",
+        "ts3.9": "18.0.5",
+        "ts4.0": "18.0.6",
+        "ts4.1": "18.0.9",
+        "ts4.2": "18.0.11",
+        "ts4.3": "18.2.7",
+        "ts4.4": "18.2.7",
+        "ts4.5": "18.2.17",
+        "ts4.6": "18.2.21",
+        "ts4.7": "18.3.0",
+        "ts4.9": "18.3.1",
+        "ts4.8": "18.3.1",
+        "ts5.0": "19.0.4",
+        "ts5.1": "19.1.7",
+        "ts5.5": "19.2.3",
+        "ts5.4": "19.2.3",
+        "ts5.2": "19.2.3",
+        "ts5.3": "19.2.3",
+        "ts5.7": "19.3.0",
+        "ts6.0": "19.3.0",
+        "ts5.8": "19.3.0",
+        "latest": "19.3.0",
+        "ts5.9": "19.3.0",
+        "ts5.6": "19.3.0"
+      },
+      "latest": "19.3.0",
+      "peers": {
+        "@types/react": "^19.3.0"
+      },
+      "repository": {
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "type": "git",
+        "directory": "types/react-dom"
+      },
+      "license": "MIT"
+    },
+    "@next/eslint-plugin-next": {
+      "source": "https://registry.npmjs.org/%40next%2Feslint-plugin-next",
+      "tags": {
+        "next-11": "11.1.4",
+        "next-12-2-6": "12.2.6",
+        "next-14-1": "14.1.1",
+        "rc": "15.0.0-rc.1",
+        "next-13": "13.5.11",
+        "next-12-3-2": "12.3.7",
+        "beta": "16.0.0-beta.0",
+        "next-14": "14.2.35",
+        "next-15-3": "15.3.9",
+        "next-15-2": "15.2.9",
+        "next-15-0": "15.1.12",
+        "next-15-0-0": "15.0.8",
+        "preview": "16.3.0-preview.10",
+        "backport": "15.5.25",
+        "latest": "16.3.5",
+        "canary": "16.4.0-canary.37"
+      },
+      "latest": "16.3.5",
+      "repository": {
+        "url": "git+https://github.com/vercel/next.js.git",
+        "directory": "packages/eslint-plugin-next"
+      },
+      "license": "MIT"
+    },
+    "remark-gfm": {
+      "source": "https://registry.npmjs.org/remark-gfm",
+      "tags": {
+        "latest": "4.0.1"
+      },
+      "latest": "4.0.1",
+      "repository": {
+        "url": "git+https://github.com/remarkjs/remark-gfm.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "@next/bundle-analyzer": {
+      "source": "https://registry.npmjs.org/%40next%2Fbundle-analyzer",
+      "tags": {
+        "next-11": "11.1.4",
+        "next-12-2-6": "12.2.6",
+        "next-14-1": "14.1.1",
+        "rc": "15.0.0-rc.1",
+        "next-13": "13.5.11",
+        "next-12-3-2": "12.3.7",
+        "beta": "16.0.0-beta.0",
+        "next-14": "14.2.35",
+        "next-15-3": "15.3.9",
+        "next-15-2": "15.2.9",
+        "next-15-0": "15.1.12",
+        "next-15-0-0": "15.0.8",
+        "preview": "16.3.0-preview.10",
+        "backport": "15.5.25",
+        "latest": "16.3.5",
+        "canary": "16.4.0-canary.37"
+      },
+      "latest": "16.3.5",
+      "repository": {
+        "url": "git+https://github.com/vercel/next.js.git",
+        "directory": "packages/next-bundle-analyzer"
+      },
+      "license": "MIT"
+    },
+    "babel-plugin-react-compiler": {
+      "source": "https://registry.npmjs.org/babel-plugin-react-compiler",
+      "tags": {
+        "beta": "19.0.0-beta-af1b7da-20250417",
+        "rc": "19.1.0-rc.3",
+        "latest": "1.0.0",
+        "experimental": "0.0.0-experimental-a1856f3-20260507"
+      },
+      "latest": "1.0.0",
+      "repository": {
+        "url": "git+https://github.com/facebook/react.git",
+        "type": "git",
+        "directory": "compiler/packages/babel-plugin-react-compiler"
+      },
+      "license": "MIT"
+    },
+    "c8": {
+      "source": "https://registry.npmjs.org/c8",
+      "tags": {
+        "experimental": "7.0.0-alpha.0",
+        "latest": "12.0.0",
+        "next": "12.0.0"
+      },
+      "latest": "12.0.0",
+      "engines": {
+        "node": "^20.19.0 || ^22.12.0 || >=23"
+      },
+      "peers": {
+        "monocart-coverage-reports": "^2"
+      },
+      "repository": {
+        "url": "git+ssh://git@github.com/bcoe/c8.git",
+        "type": "git"
+      },
+      "license": "ISC"
+    },
+    "esbuild": {
+      "source": "https://registry.npmjs.org/esbuild",
+      "tags": {
+        "latest": "0.28.2"
+      },
+      "latest": "0.28.2",
+      "engines": {
+        "node": ">=18"
+      },
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "@types/qrcode": {
+      "source": "https://registry.npmjs.org/%40types%2Fqrcode",
+      "tags": {
+        "ts2.0": "1.3.3",
+        "ts2.8": "1.3.4",
+        "ts2.1": "1.3.4",
+        "ts2.2": "1.3.4",
+        "ts2.3": "1.3.4",
+        "ts2.4": "1.3.4",
+        "ts2.5": "1.3.4",
+        "ts2.6": "1.3.4",
+        "ts2.7": "1.3.4",
+        "ts2.9": "1.3.4",
+        "ts3.0": "1.3.5",
+        "ts3.1": "1.3.5",
+        "ts3.2": "1.3.5",
+        "ts3.3": "1.3.5",
+        "ts3.4": "1.4.0",
+        "ts3.5": "1.4.0",
+        "ts3.6": "1.4.1",
+        "ts3.7": "1.4.1",
+        "ts3.9": "1.4.2",
+        "ts3.8": "1.4.2",
+        "ts4.2": "1.5.0",
+        "ts4.1": "1.5.0",
+        "ts4.0": "1.5.0",
+        "ts4.4": "1.5.2",
+        "ts4.3": "1.5.2",
+        "ts5.1": "1.5.5",
+        "ts6.0": "1.5.6",
+        "ts4.5": "1.5.5",
+        "ts4.6": "1.5.5",
+        "ts4.7": "1.5.5",
+        "ts4.8": "1.5.5",
+        "ts4.9": "1.5.5",
+        "ts5.0": "1.5.5",
+        "ts5.7": "1.5.6",
+        "ts5.8": "1.5.6",
+        "ts5.6": "1.5.6",
+        "ts5.9": "1.5.6",
+        "ts5.3": "1.5.6",
+        "ts5.2": "1.5.6",
+        "ts5.5": "1.5.6",
+        "latest": "1.5.6",
+        "ts5.4": "1.5.6"
+      },
+      "latest": "1.5.6",
+      "peers": {},
+      "repository": {
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "type": "git",
+        "directory": "types/qrcode"
+      },
+      "license": "MIT"
+    },
+    "postcss": {
+      "source": "https://registry.npmjs.org/postcss",
+      "tags": {
+        "latest": "8.5.28"
+      },
+      "latest": "8.5.28",
+      "engines": {
+        "node": "^10 || ^12 || >=14"
+      },
+      "repository": {
+        "url": "git+https://github.com/postcss/postcss.git",
+        "type": "git"
+      },
+      "license": "MIT"
+    },
+    "tailwindcss": {
+      "source": "https://registry.npmjs.org/tailwindcss",
+      "tags": {
+        "next": "4.0.0",
+        "v3-lts": "3.4.19",
+        "latest": "4.3.3",
+        "insiders": "0.0.0-insiders.41d9cae"
+      },
+      "latest": "4.3.3",
+      "repository": {
+        "url": "https://github.com/tailwindlabs/tailwindcss.git",
+        "type": "git",
+        "directory": "packages/tailwindcss"
+      },
+      "license": "MIT"
+    },
+    "pnpm": {
+      "source": "https://registry.npmjs.org/pnpm",
+      "tags": {
+        "latest-1": "1.43.1",
+        "latest-2": "2.25.7",
+        "latest-3": "3.8.1",
+        "latest-4": "4.14.4",
+        "latest-5": "5.18.10",
+        "dev": "6.23.7-202112041634",
+        "pr4475": "0.0.0-pr4475.1",
+        "next-6": "6.35.1",
+        "latest-6": "6.35.1",
+        "latest-7": "7.33.5",
+        "next-7": "7.33.7",
+        "latest-8": "8.15.9",
+        "next-8": "8.15.9",
+        "next-9": "9.15.9",
+        "latest-9": "9.15.9",
+        "next-10": "10.34.5",
+        "latest-10": "10.34.5",
+        "latest-11": "11.27.1",
+        "latest": "12.5.1",
+        "latest-12": "12.5.1",
+        "next-12": "12.5.1",
+        "next-11": "11.27.1"
+      },
+      "latest": "12.5.1",
+      "engines": {
+        "node": ">=18.*"
+      },
+      "repository": {
+        "url": "https://github.com/pnpm/pnpm",
+        "type": "git",
+        "directory": "pnpm/npm/pnpm"
+      },
+      "license": "MIT"
+    },
+    "dotenv": {
+      "source": "https://registry.npmjs.org/dotenv",
+      "tags": {
+        "latest": "18.0.1"
+      },
+      "latest": "18.0.1",
+      "engines": {
+        "node": ">=12"
+      },
+      "repository": {
+        "url": "git://github.com/motdotla/dotenv.git",
+        "type": "git"
+      },
+      "license": "BSD-2-Clause"
+    },
+    "class-variance-authority": {
+      "source": "https://registry.npmjs.org/class-variance-authority",
+      "tags": {
+        "latest": "0.7.1",
+        "canary": "0.7.1-canary.2"
+      },
+      "latest": "0.7.1",
+      "repository": {
+        "url": "git+https://github.com/joe-bell/cva.git",
+        "type": "git"
+      },
+      "license": "Apache-2.0"
+    },
+    "prisma": {
+      "source": "https://registry.npmjs.org/prisma",
+      "tags": {
+        "turso": "5.4.0-dev.61",
+        "early-access": "5.12.0-dev.21",
+        "optimize": "5.17.0-dev.33",
+        "typed-sql": "5.19.0-integration-feat-typed-sql.14",
+        "patch-dev": "7.9.1-dev.1",
+        "integration": "7.10.0-integration-fix-prisma-publish-token.1",
+        "next": "8.0.0-rc.10",
+        "prev": "7.10.0",
+        "latest": "8.0.0-rc.15",
+        "dev": "8.0.0-rc.15-dev.109"
+      },
+      "latest": "8.0.0-rc.15",
+      "engines": {
+        "node": ">=22.18.0"
+      },
+      "repository": {
+        "url": "https://github.com/prisma/prisma-cli.git",
+        "type": "git",
+        "directory": "packages/prisma"
+      },
+      "license": "Apache-2.0"
+    },
+    "@types/pg": {
+      "source": "https://registry.npmjs.org/%40types%2Fpg",
+      "tags": {
+        "ts2.0": "7.11.0",
+        "ts2.2": "7.11.0",
+        "ts2.1": "7.11.0",
+        "ts2.3": "7.11.2",
+        "ts2.5": "7.11.2",
+        "ts2.7": "7.11.2",
+        "ts2.6": "7.11.2",
+        "ts2.4": "7.11.2",
+        "ts2.9": "7.14.3",
+        "ts2.8": "7.14.3",
+        "ts3.0": "7.14.4",
+        "ts3.1": "7.14.4",
+        "ts3.3": "7.14.7",
+        "ts3.2": "7.14.7",
+        "ts3.4": "7.14.11",
+        "ts3.5": "8.6.0",
+        "ts3.7": "8.6.1",
+        "ts3.6": "8.6.1",
+        "ts3.8": "8.6.4",
+        "ts3.9": "8.6.5",
+        "ts4.1": "8.6.5",
+        "ts4.0": "8.6.5",
+        "ts4.2": "8.6.6",
+        "ts4.3": "8.10.2",
+        "ts4.4": "8.10.2",
+        "ts4.5": "8.10.9",
+        "ts4.6": "8.11.2",
+        "ts4.7": "8.11.6",
+        "ts4.8": "8.11.10",
+        "ts4.9": "8.11.10",
+        "ts5.0": "8.11.11",
+        "ts5.1": "8.15.5",
+        "ts5.5": "8.20.0",
+        "ts5.2": "8.20.0",
+        "ts5.3": "8.20.0",
+        "ts5.4": "8.20.0",
+        "ts5.8": "8.23.1",
+        "ts5.7": "8.23.1",
+        "ts5.9": "8.23.1",
+        "latest": "8.23.1",
+        "ts5.6": "8.23.1",
+        "ts6.0": "8.23.1"
+      },
+      "latest": "8.23.1",
+      "peers": {},
+      "repository": {
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "type": "git",
+        "directory": "types/pg"
+      },
+      "license": "MIT"
+    },
+    "eas-cli": {
+      "source": "https://registry.npmjs.org/eas-cli",
+      "tags": {
+        "alpha": "0.16.1-alpha.0",
+        "next": "7.1.0",
+        "latest-eas-build": "21.5.0",
+        "latest-eas-build-staging": "21.5.0",
+        "latest": "24.7.0"
+      },
+      "latest": "24.7.0",
+      "engines": {
+        "node": "^20.18.3 || >=22.0.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/eas-cli.git",
+        "type": "git",
+        "directory": "packages/eas-cli"
+      },
+      "license": "MIT"
+    },
+    "expo-doctor": {
+      "source": "https://registry.npmjs.org/expo-doctor",
+      "tags": {
+        "sdk-50": "1.3.0",
+        "sdk-51": "1.6.1",
+        "canary-sdk-55": "1.19.0-canary-20260429-a5e59cf",
+        "canary-sdk-56": "2.0.0-canary-20260701-9100865",
+        "sdk-55": "1.18.25",
+        "latest": "1.20.4",
+        "sdk-56": "1.19.12",
+        "canary": "2.0.0-canary-20260909-ea7a89a",
+        "next": "1.21.1"
+      },
+      "latest": "1.20.4",
+      "engines": {
+        "node": "^20.19.4 || ^22.13.0 || ^24.3.0 || >= 25.0.0"
+      },
+      "repository": {
+        "url": "git+https://github.com/expo/expo.git",
+        "type": "git",
+        "directory": "packages/expo-doctor"
+      },
+      "license": "MIT"
+    }
+  },
+  "overrides": {
+    "@xmldom/xmldom@0.8.13": "0.8.15",
+    "@xmldom/xmldom@0.9.10": "0.9.12",
+    "brace-expansion@1.1.14": "5.0.12",
+    "brace-expansion@2.1.0": "5.0.12",
+    "brace-expansion@5.0.5": "5.0.12",
+    "browserslist@4.28.2": "4.29.0",
+    "decode-uri-component@0.2.2": "0.5.0",
+    "deepmerge-ts": "8.0.2",
+    "esbuild": "0.28.2",
+    "effect": "^3.22.2",
+    "engine.io@6.6.6": "6.6.10",
+    "find-my-way": "9.9.0",
+    "fast-uri@3.1.3": "3.1.6",
+    "fast-uri@3.1.4": "3.1.6",
+    "js-yaml@3.15.0": "3.15.2",
+    "js-yaml@4.2.0": "4.3.2",
+    "mysql2@3.15.3": "3.24.4",
+    "nanoid@3.3.17": "3.3.18",
+    "postcss": "8.5.28",
+    "sharp@0.34.5": "0.35.4",
+    "socket.io-parser@4.2.6": "4.2.7",
+    "svix": "^1.92.2",
+    "uuid": "^11.1.1",
+    "valibot": "1.5.0",
+    "ws@7.5.10": "7.5.11",
+    "ws@8.18.3": "8.21.3",
+    "ws@8.20.1": "8.21.3",
+    "@opentelemetry/core": "^2.11.0",
+    "@opentelemetry/resources": "^2.11.0",
+    "@opentelemetry/sdk-trace-base": "^2.11.0"
+  },
+  "patches": {
+    "@auth/core@0.41.3": "patches/@auth__core@0.41.3.patch",
+    "@livekit/react-native-webrtc@144.1.2": "patches/@livekit__react-native-webrtc@144.1.2.patch",
+    "brace-expansion@5.0.12": "patches/brace-expansion@5.0.12.patch",
+    "next-auth@5.0.0-beta.32": "patches/next-auth@5.0.0-beta.32.patch"
+  },
+  "lockedPackageCount": 1669
+}

@@ -1,0 +1,762 @@
+{
+  "checkedAt": "2026-09-21T10:25:14.272920+00:00",
+  "cargoDirect": {
+    "open": {
+      "name": "open",
+      "declared": [
+        {
+          "scope": "desktop/dependencies",
+          "declared": "5"
+        }
+      ],
+      "locked": ["5.4.4"],
+      "latestStable": "5.4.4",
+      "latest": "5.4.4",
+      "rustVersion": "1.62",
+      "released": "2026-09-10T04:08:21.519593Z",
+      "repository": "https://github.com/Byron/open-rs",
+      "source": "https://crates.io/api/v1/crates/open"
+    },
+    "sentry": {
+      "name": "sentry",
+      "declared": [
+        {
+          "scope": "desktop/dependencies",
+          "declared": {
+            "version": "0.49",
+            "default-features": false,
+            "features": ["backtrace", "contexts", "panic", "reqwest", "rustls"]
+          }
+        }
+      ],
+      "locked": ["0.49.2"],
+      "latestStable": "0.49.2",
+      "latest": "0.49.2",
+      "rustVersion": "1.88",
+      "released": "2026-08-26T14:42:50.483766Z",
+      "repository": "https://github.com/getsentry/sentry-rust",
+      "source": "https://crates.io/api/v1/crates/sentry"
+    },
+    "serde": {
+      "name": "serde",
+      "declared": [
+        {
+          "scope": "desktop/dependencies",
+          "declared": {
+            "version": "1",
+            "features": ["derive"]
+          }
+        }
+      ],
+      "locked": ["1.0.229"],
+      "latestStable": "1.0.229",
+      "latest": "1.0.229",
+      "rustVersion": "1.56",
+      "released": "2026-07-18T23:05:13.266456Z",
+      "repository": "https://github.com/serde-rs/serde",
+      "source": "https://crates.io/api/v1/crates/serde"
+    },
+    "serde_json": {
+      "name": "serde_json",
+      "declared": [
+        {
+          "scope": "desktop/dependencies",
+          "declared": "1"
+        }
+      ],
+      "locked": ["1.0.151"],
+      "latestStable": "1.0.151",
+      "latest": "1.0.151",
+      "rustVersion": "1.71",
+      "released": "2026-07-20T05:54:44.078083Z",
+      "repository": "https://github.com/serde-rs/json",
+      "source": "https://crates.io/api/v1/crates/serde_json"
+    },
+    "sha2": {
+      "name": "sha2",
+      "declared": [
+        {
+          "scope": "desktop/dependencies",
+          "declared": "0.10"
+        }
+      ],
+      "locked": ["0.10.9"],
+      "latestStable": "0.11.0",
+      "latest": "0.11.0",
+      "rustVersion": "1.85",
+      "released": "2026-03-25T15:05:27.949444Z",
+      "repository": "https://github.com/RustCrypto/hashes",
+      "source": "https://crates.io/api/v1/crates/sha2"
+    },
+    "sysinfo": {
+      "name": "sysinfo",
+      "declared": [
+        {
+          "scope": "desktop/dependencies",
+          "declared": {
+            "version": "0.39.6",
+            "default-features": false,
+            "features": ["system"]
+          }
+        }
+      ],
+      "locked": ["0.39.6"],
+      "latestStable": "0.39.6",
+      "latest": "0.39.6",
+      "rustVersion": "1.95",
+      "released": "2026-07-09T10:46:59.210840Z",
+      "repository": "https://github.com/GuillaumeGomez/sysinfo",
+      "source": "https://crates.io/api/v1/crates/sysinfo"
+    },
+    "tauri": {
+      "name": "tauri",
+      "declared": [
+        {
+          "scope": "desktop/dependencies",
+          "declared": {
+            "version": "2",
+            "features": ["macos-private-api", "tray-icon"]
+          }
+        }
+      ],
+      "locked": ["2.11.5"],
+      "latestStable": "2.11.6",
+      "latest": "2.11.6",
+      "rustVersion": "1.77.2",
+      "released": "2026-09-19T23:47:51.959344Z",
+      "repository": "https://github.com/tauri-apps/tauri",
+      "source": "https://crates.io/api/v1/crates/tauri"
+    },
+    "tauri-plugin-notification": {
+      "name": "tauri-plugin-notification",
+      "declared": [
+        {
+          "scope": "desktop/dependencies",
+          "declared": "2.4.0"
+        }
+      ],
+      "locked": ["2.4.0"],
+      "latestStable": "2.4.0",
+      "latest": "3.0.0-alpha.0",
+      "rustVersion": "1.77.2",
+      "released": "2026-08-31T11:20:45.421265Z",
+      "repository": "https://github.com/tauri-apps/plugins-workspace",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-notification"
+    },
+    "url": {
+      "name": "url",
+      "declared": [
+        {
+          "scope": "desktop/dependencies",
+          "declared": "2"
+        }
+      ],
+      "locked": ["2.5.8"],
+      "latestStable": "2.5.8",
+      "latest": "2.5.8",
+      "rustVersion": "1.63",
+      "released": "2026-01-05T22:14:31.414927Z",
+      "repository": "https://github.com/servo/rust-url",
+      "source": "https://crates.io/api/v1/crates/url"
+    },
+    "tauri-build": {
+      "name": "tauri-build",
+      "declared": [
+        {
+          "scope": "desktop/build-dependencies",
+          "declared": {
+            "version": "2",
+            "features": []
+          }
+        }
+      ],
+      "locked": ["2.6.3"],
+      "latestStable": "2.6.3",
+      "latest": "3.0.0-alpha.0",
+      "rustVersion": "1.77.2",
+      "released": "2026-06-17T13:45:31.588957Z",
+      "repository": "https://github.com/tauri-apps/tauri",
+      "source": "https://crates.io/api/v1/crates/tauri-build"
+    },
+    "webview2-com": {
+      "name": "webview2-com",
+      "declared": [
+        {
+          "scope": "cfg(windows)/dependencies",
+          "declared": "0.38.2"
+        }
+      ],
+      "locked": ["0.38.2"],
+      "latestStable": "0.39.1",
+      "latest": "0.39.1",
+      "rustVersion": "1.82",
+      "released": "2026-03-11T06:54:35.239990Z",
+      "repository": "https://github.com/wravery/webview2-rs",
+      "source": "https://crates.io/api/v1/crates/webview2-com"
+    },
+    "windows": {
+      "name": "windows",
+      "declared": [
+        {
+          "scope": "cfg(windows)/dependencies",
+          "declared": {
+            "version": "0.61",
+            "features": [
+              "Data_Xml_Dom",
+              "UI_Notifications",
+              "Win32_System_Registry",
+              "Win32_System_WinRT",
+              "Win32_Security",
+              "Graphics_Capture",
+              "Win32_UI_Shell",
+              "Win32_System_DataExchange",
+              "Win32_System_Memory"
+            ]
+          }
+        }
+      ],
+      "locked": ["0.61.3", "0.62.2"],
+      "latestStable": "0.62.2",
+      "latest": "0.62.2",
+      "rustVersion": "1.82",
+      "released": "2025-10-06T19:19:49.704461Z",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "source": "https://crates.io/api/v1/crates/windows"
+    },
+    "windows-sys": {
+      "name": "windows-sys",
+      "declared": [
+        {
+          "scope": "cfg(windows)/dependencies",
+          "declared": {
+            "version": "0.61",
+            "features": [
+              "Win32_Foundation",
+              "Win32_Graphics_Dwm",
+              "Win32_Storage_FileSystem",
+              "Win32_System_Threading",
+              "Win32_UI_WindowsAndMessaging"
+            ]
+          }
+        }
+      ],
+      "locked": ["0.45.0", "0.52.0", "0.59.0", "0.60.2", "0.61.2"],
+      "latestStable": "0.61.2",
+      "latest": "0.61.2",
+      "rustVersion": "1.71",
+      "released": "2025-10-06T19:18:30.163595Z",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "source": "https://crates.io/api/v1/crates/windows-sys"
+    },
+    "tauri-plugin-deep-link": {
+      "name": "tauri-plugin-deep-link",
+      "declared": [
+        {
+          "scope": "cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))/dependencies",
+          "declared": "2"
+        }
+      ],
+      "locked": ["2.4.10"],
+      "latestStable": "2.4.10",
+      "latest": "3.0.0-alpha.0",
+      "rustVersion": "1.77.2",
+      "released": "2026-08-31T11:18:55.348979Z",
+      "repository": "https://github.com/tauri-apps/plugins-workspace",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-deep-link"
+    },
+    "tauri-plugin-single-instance": {
+      "name": "tauri-plugin-single-instance",
+      "declared": [
+        {
+          "scope": "cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))/dependencies",
+          "declared": {
+            "version": "2",
+            "features": ["deep-link"]
+          }
+        }
+      ],
+      "locked": ["2.4.4"],
+      "latestStable": "2.4.5",
+      "latest": "2.4.5",
+      "rustVersion": "1.77.2",
+      "released": "2026-09-20T01:34:37.249961Z",
+      "repository": "https://github.com/tauri-apps/plugins-workspace",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-single-instance"
+    },
+    "tauri-plugin-window-state": {
+      "name": "tauri-plugin-window-state",
+      "declared": [
+        {
+          "scope": "cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))/dependencies",
+          "declared": "2.4.1"
+        }
+      ],
+      "locked": ["2.4.1"],
+      "latestStable": "2.4.1",
+      "latest": "3.0.0-alpha.0",
+      "rustVersion": "1.77.2",
+      "released": "2025-10-27T10:38:01.270045Z",
+      "repository": "https://github.com/tauri-apps/plugins-workspace",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-window-state"
+    },
+    "tauri-plugin-autostart": {
+      "name": "tauri-plugin-autostart",
+      "declared": [
+        {
+          "scope": "cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))/dependencies",
+          "declared": "2.5.1"
+        }
+      ],
+      "locked": ["2.5.1"],
+      "latestStable": "2.5.1",
+      "latest": "3.0.0-alpha.0",
+      "rustVersion": "1.77.2",
+      "released": "2025-10-27T10:32:03.908191Z",
+      "repository": "https://github.com/tauri-apps/plugins-workspace",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-autostart"
+    },
+    "tauri-plugin-global-shortcut": {
+      "name": "tauri-plugin-global-shortcut",
+      "declared": [
+        {
+          "scope": "cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))/dependencies",
+          "declared": "2.3.1"
+        }
+      ],
+      "locked": ["2.3.2"],
+      "latestStable": "2.3.2",
+      "latest": "3.0.0-alpha.0",
+      "rustVersion": "1.77.2",
+      "released": "2026-05-28T10:07:26.767023Z",
+      "repository": "https://github.com/tauri-apps/plugins-workspace",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-global-shortcut"
+    },
+    "tauri-plugin-updater": {
+      "name": "tauri-plugin-updater",
+      "declared": [
+        {
+          "scope": "cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))/dependencies",
+          "declared": "2.11.0"
+        }
+      ],
+      "locked": ["2.11.0"],
+      "latestStable": "2.12.0",
+      "latest": "2.12.0",
+      "rustVersion": "1.77.2",
+      "released": "2026-09-20T01:34:40.751330Z",
+      "repository": "https://github.com/tauri-apps/plugins-workspace",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-updater"
+    },
+    "glib": {
+      "name": "glib",
+      "declared": [
+        {
+          "scope": "cfg(target_os = \"linux\")/dev-dependencies",
+          "declared": "0.18.5"
+        }
+      ],
+      "locked": ["0.18.5"],
+      "latestStable": "0.22.10",
+      "latest": "0.22.10",
+      "rustVersion": "1.92",
+      "released": "2026-09-19T17:30:03.048601Z",
+      "repository": "https://github.com/gtk-rs/gtk-rs-core",
+      "source": "https://crates.io/api/v1/crates/glib"
+    },
+    "cargo-audit": {
+      "name": "cargo-audit",
+      "declared": [],
+      "locked": [],
+      "latestStable": "0.22.2",
+      "latest": "0.22.2",
+      "rustVersion": "1.88",
+      "released": "2026-06-05T12:33:04.440539Z",
+      "repository": "https://github.com/rustsec/rustsec",
+      "source": "https://crates.io/api/v1/crates/cargo-audit"
+    },
+    "sccache": {
+      "name": "sccache",
+      "declared": [],
+      "locked": [],
+      "latestStable": "0.18.0",
+      "latest": "0.18.0",
+      "rustVersion": "1.91.0",
+      "released": "2026-09-16T14:34:17.177895Z",
+      "repository": "https://github.com/mozilla/sccache/",
+      "source": "https://crates.io/api/v1/crates/sccache"
+    }
+  },
+  "cargoLockedCount": 600,
+  "actions": {
+    "actions/checkout": {
+      "repository": "actions/checkout",
+      "pins": [
+        {
+          "sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "label": "v7.0.1",
+          "file": ".github/workflows/ci.yml",
+          "line": 43
+        }
+      ]
+    },
+    "pnpm/action-setup": {
+      "repository": "pnpm/action-setup",
+      "pins": [
+        {
+          "sha": "ea17c68df8912ef543352723c149a84f56e3d413",
+          "label": "v6.1.0",
+          "file": ".github/workflows/ci.yml",
+          "line": 48
+        }
+      ]
+    },
+    "actions/setup-node": {
+      "repository": "actions/setup-node",
+      "pins": [
+        {
+          "sha": "820762786026740c76f36085b0efc47a31fe5020",
+          "label": "v7.0.0",
+          "file": ".github/workflows/ci.yml",
+          "line": 51
+        }
+      ]
+    },
+    "actions/upload-artifact": {
+      "repository": "actions/upload-artifact",
+      "pins": [
+        {
+          "sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "label": "v7.0.1",
+          "file": ".github/workflows/ci.yml",
+          "line": 130
+        }
+      ]
+    },
+    "gitleaks/gitleaks-action": {
+      "repository": "gitleaks/gitleaks-action",
+      "pins": [
+        {
+          "sha": "e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e",
+          "label": "v3.0.0",
+          "file": ".github/workflows/ci.yml",
+          "line": 185
+        }
+      ]
+    },
+    "dtolnay/rust-toolchain": {
+      "repository": "dtolnay/rust-toolchain",
+      "pins": [
+        {
+          "sha": "6bed0761d98439e5a578e2877258200ad565ba87",
+          "label": "stable",
+          "file": ".github/workflows/ci.yml",
+          "line": 358
+        }
+      ]
+    },
+    "Swatinem/rust-cache": {
+      "repository": "Swatinem/rust-cache",
+      "pins": [
+        {
+          "sha": "6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "label": "v2.9.2",
+          "file": ".github/workflows/ci.yml",
+          "line": 363
+        }
+      ]
+    },
+    "actions/cache": {
+      "repository": "actions/cache",
+      "pins": [
+        {
+          "sha": "55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+          "label": "v6.1.0",
+          "file": ".github/workflows/ci.yml",
+          "line": 891
+        }
+      ]
+    },
+    "actions/download-artifact": {
+      "repository": "actions/download-artifact",
+      "pins": [
+        {
+          "sha": "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+          "label": "v8.0.1",
+          "file": ".github/workflows/desktop-release.yml",
+          "line": 682
+        }
+      ]
+    },
+    "actions/github-script": {
+      "repository": "actions/github-script",
+      "pins": [
+        {
+          "sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+          "label": "v9.0.0",
+          "file": ".github/workflows/mobile-redesign-device-gate-nightly.yml",
+          "line": 57
+        }
+      ]
+    },
+    "actions/setup-java": {
+      "repository": "actions/setup-java",
+      "pins": [
+        {
+          "sha": "de7274f081f381c8f8158605e0321c36c376e2e6",
+          "label": "v6.0.1",
+          "file": ".github/workflows/mobile-release.yml",
+          "line": 94
+        }
+      ]
+    }
+  },
+  "releases": {
+    "actions/checkout": {
+      "tag": "v7.0.1",
+      "published": "2026-07-20T15:10:05Z",
+      "url": "https://github.com/actions/checkout/releases/tag/v7.0.1",
+      "body": "## What's Changed\r\n* skip running unsafe pr check if input is default by @aiqiaoy in https://github.com/actions/checkout/pull/2518\r\n* trim only ascii whitespace for branch by @aiqiaoy in https://github.com/actions/checkout/pull/2521\r\n* escape values passed to --unset by @aiqiaoy in https://github.com/actions/checkout/pull/2530\r\n* Various dependency updates \r\n\r\n**Full Changelog**: https://github.com/actions/checkout/compare/v7...v7.0.1",
+      "target": "main"
+    },
+    "pnpm/action-setup": {
+      "tag": "v6.1.0",
+      "published": "2026-09-05T07:31:28Z",
+      "url": "https://github.com/pnpm/action-setup/releases/tag/v6.1.0",
+      "body": "## What's Changed\r\n* feat: support pnpm v12 by @zkochan in https://github.com/pnpm/action-setup/pull/288\r\n\r\n\r\n**Full Changelog**: https://github.com/pnpm/action-setup/compare/v6.0.10...v6.1.0",
+      "target": "master"
+    },
+    "actions/setup-node": {
+      "tag": "v7.0.0",
+      "published": "2026-07-14T02:46:05Z",
+      "url": "https://github.com/actions/setup-node/releases/tag/v7.0.0",
+      "body": "## What's Changed\r\n\r\n### Enhancements:\r\n* Add cache-primary-key and cache-matched-key as outputs by @gowridurgad in https://github.com/actions/setup-node/pull/1577\r\n* Migrate to ESM and upgrade dependencies by @gowridurgad in https://github.com/actions/setup-node/pull/1574\r\n\r\n### Bug fixes:\r\n* Remove dummy NODE_AUTH_TOKEN export by @gowridurgad in https://github.com/actions/setup-node/pull/1558\r\n* Only use `mirrorToken` in `getManifest` if it's provided by @deiga in https://github.com/actions/setup-node/pull/1548\r\n\r\n### Documentation updates:\r\n* Add documentation for publishing to npm with Trusted Publisher (OIDC) by @chiranjib-swain in https://github.com/actions/setup-node/pull/1536\r\n* docs: Update restore-only cache documentation by @priya-kinthali in https://github.com/actions/setup-node/pull/1550\r\n* docs: Update caching recommendations to mitigate cache poisoning risks by @chiranjib-swain in https://github.com/actions/setup-node/pull/1567\r\n\r\n### Dependency update:\r\n* Upgrade @actions/cache to 5.1.0, log cache write denied by @jasongin in https://github.com/actions/setup-node/pull/1569\r\n\r\n## New Contributors\r\n* @chiranjib-swain made their first contribution in https://github.com/actions/setup-node/pull/1536\r\n* @deiga made their first contribution in https://github.com/actions/setup-node/pull/1548\r\n* @jasongin made their first contribution in https://github.com/actions/setup-node/pull/1569\r\n\r\n**Full Changelog**: https://github.com/actions/setup-node/compare/v6...v7.0.0",
+      "target": "main"
+    },
+    "actions/upload-artifact": {
+      "tag": "v7.0.1",
+      "published": "2026-04-10T17:31:14Z",
+      "url": "https://github.com/actions/upload-artifact/releases/tag/v7.0.1",
+      "body": "## What's Changed\r\n* Update the readme with direct upload details by @danwkennedy in https://github.com/actions/upload-artifact/pull/795\r\n* Readme: bump all the example versions to v7 by @danwkennedy in https://github.com/actions/upload-artifact/pull/796\r\n* Include changes in typespec/ts-http-runtime 0.3.5 by @yacaovsnc in https://github.com/actions/upload-artifact/pull/797\r\n\r\n\r\n**Full Changelog**: https://github.com/actions/upload-artifact/compare/v7...v7.0.1",
+      "target": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+    },
+    "gitleaks/gitleaks-action": {
+      "tag": "v3.0.0",
+      "published": "2026-05-30T21:42:15Z",
+      "url": "https://github.com/gitleaks/gitleaks-action/releases/tag/v3.0.0",
+      "body": "## What's changed\n\ngitleaks-action v3 migrates the runtime from Node 20 to Node 24. **No changes to inputs, outputs, or behavior.** Update your workflow from `gitleaks/gitleaks-action@v2` to `gitleaks/gitleaks-action@v3`.\n\n### Migration\n\n```yaml\n# Before\n- uses: gitleaks/gitleaks-action@v2\n\n# After\n- uses: gitleaks/gitleaks-action@v3\n```\n\n### Why\n\nGitHub is deprecating the Node 20 runtime for Actions:\n\n- **June 2, 2026:** GitHub flips the runner default to Node 24. Workflows using `gitleaks-action@v2` (Node 20) will still run, but only if `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true` is set as an environment variable.\n- **September 16, 2026:** Node 20 is removed from GitHub-hosted runners entirely. `gitleaks-action@v2` stops working regardless of any opt-out flag.\n\n### Changes\n\n- `action.yml`: runtime `node20` \u2192 `node24`\n- `@actions/core`: 1.10.0 \u2192 1.11.1\n- `dist/` rebuilt\n- Example workflows updated to `actions/checkout@v6` and `gitleaks-action@v3`\n- README updated with v3 migration guide\n\n### Self-hosted runners\n\nIf you use self-hosted runners, ensure your runner version is `>= v2.327.1` (required for Node 24 support).",
+      "target": "master"
+    },
+    "dtolnay/rust-toolchain": {
+      "tag": "v1",
+      "published": "2022-07-15T18:16:27Z",
+      "url": "https://github.com/dtolnay/rust-toolchain/releases/tag/v1",
+      "body": "",
+      "target": "master"
+    },
+    "Swatinem/rust-cache": {
+      "tag": "v2.9.2",
+      "published": "2026-08-06T06:26:27Z",
+      "url": "https://github.com/Swatinem/rust-cache/releases/tag/v2.9.2",
+      "body": "## What's Changed\r\n* Typofix by @23Skidoo in https://github.com/Swatinem/rust-cache/pull/316\r\n* fix: include target names in build/ and .fingerprint/ cleanup by @eitsupi in https://github.com/Swatinem/rust-cache/pull/317\r\n* fix: include cdylib/rlib/dylib/staticlib targets in build and fingerprint cleanup by @eitsupi in https://github.com/Swatinem/rust-cache/pull/320\r\n* Scan content of `$CARGO_HOME/bin` on restore instead of relying on `cargo install` metadata  by @clechasseur in https://github.com/Swatinem/rust-cache/pull/325\r\n* docs: Update checkout action version to latest by @sondrelg in https://github.com/Swatinem/rust-cache/pull/345\r\n* Fix Windows cache path validation after Rollup migration by @eitsupi in https://github.com/Swatinem/rust-cache/pull/355\r\n* fix: support Cargo V2 build dir layout by @claytonwramsey in https://github.com/Swatinem/rust-cache/pull/371\r\n\r\n## New Contributors\r\n* @23Skidoo made their first contribution in https://github.com/Swatinem/rust-cache/pull/316\r\n* @eitsupi made their first contribution in https://github.com/Swatinem/rust-cache/pull/317\r\n* @clechasseur made their first contribution in https://github.com/Swatinem/rust-cache/pull/325\r\n* @sondrelg made their first contribution in https://github.com/Swatinem/rust-cache/pull/345\r\n* @claytonwramsey made their first contribution in https://github.com/Swatinem/rust-cache/pull/371\r\n\r\n**Full Changelog**: https://github.com/Swatinem/rust-cache/compare/v2.9.1...v2.9.2",
+      "target": "master"
+    },
+    "actions/cache": {
+      "tag": "v6.1.0",
+      "published": "2026-06-26T19:17:06Z",
+      "url": "https://github.com/actions/cache/releases/tag/v6.1.0",
+      "body": "## What's Changed\r\n* Bump @actions/cache to v6.1.0 - handle read-only cache access by @jasongin in https://github.com/actions/cache/pull/1768\r\n\r\n\r\n**Full Changelog**: https://github.com/actions/cache/compare/v6...v6.1.0",
+      "target": "main"
+    },
+    "actions/download-artifact": {
+      "tag": "v8.0.1",
+      "published": "2026-03-11T15:44:25Z",
+      "url": "https://github.com/actions/download-artifact/releases/tag/v8.0.1",
+      "body": "## What's Changed\r\n\r\n* Support for CJK characters in the artifact name by @danwkennedy in https://github.com/actions/download-artifact/pull/471\r\n* Add a regression test for artifact name + content-type mismatches by @danwkennedy in https://github.com/actions/download-artifact/pull/472\r\n\r\n**Full Changelog**: https://github.com/actions/download-artifact/compare/v8...v8.0.1",
+      "target": "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"
+    },
+    "actions/github-script": {
+      "tag": "v9.0.0",
+      "published": "2026-04-09T22:57:15Z",
+      "url": "https://github.com/actions/github-script/releases/tag/v9.0.0",
+      "body": "**New features:**\r\n\r\n- **`getOctokit` factory function** \u2014 Available directly in the script context. Create additional authenticated Octokit clients with different tokens for multi-token workflows, GitHub App tokens, and cross-org access. See [Creating additional clients with `getOctokit`](https://github.com/actions/github-script#creating-additional-clients-with-getoctokit) for details and examples.\r\n- **Orchestration ID in user-agent** \u2014 The `ACTIONS_ORCHESTRATION_ID` environment variable is automatically appended to the user-agent string for request tracing.\r\n\r\n**Breaking changes:**\r\n\r\n- **`require('@actions/github')` no longer works in scripts.** The upgrade to `@actions/github` v9 (ESM-only) means `require('@actions/github')` will fail at runtime. If you previously used patterns like `const { getOctokit } = require('@actions/github')` to create secondary clients, use the new injected `getOctokit` function instead \u2014 it's available directly in the script context with no imports needed.\r\n- `getOctokit` is now an injected function parameter. Scripts that declare `const getOctokit = ...` or `let getOctokit = ...` will get a `SyntaxError` because JavaScript does not allow `const`/`let` redeclaration of function parameters. Use the injected `getOctokit` directly, or use `var getOctokit = ...` if you need to redeclare it.\r\n- If your script accesses other `@actions/github` internals beyond the standard `github`/`octokit` client, you may need to update those references for v9 compatibility.\r\n\r\n## What's Changed\r\n* Add ACTIONS_ORCHESTRATION_ID to user-agent string by @Copilot in https://github.com/actions/github-script/pull/695\r\n* ci: use deployment: false for integration test environments by @salmanmkc in https://github.com/actions/github-script/pull/712\r\n* feat!: add getOctokit to script context, upgrade @actions/github v9, @octokit/core v7, and related packages by @salmanmkc in https://github.com/actions/github-script/pull/700\r\n\r\n## New Contributors\r\n* @Copilot made their first contribution in https://github.com/actions/github-script/pull/695\r\n\r\n**Full Changelog**: https://github.com/actions/github-script/compare/v8.0.0...v9.0.0\r\n",
+      "target": "main"
+    },
+    "actions/setup-java": {
+      "tag": "v6.0.1",
+      "published": "2026-09-09T12:10:42Z",
+      "url": "https://github.com/actions/setup-java/releases/tag/v6.0.1",
+      "body": "## What's Changed\r\n* Fix failing GitHub Actions job for temurin 17 by @brunoborges with @Copilot in https://github.com/actions/setup-java/pull/1259\r\n* Fix Temurin EA E2E signature verification by @brunoborges with @Copilot in https://github.com/actions/setup-java/pull/1260\r\n* Fix Alpine GPG verification failures and support multiple keys by @brunoborges in https://github.com/actions/setup-java/pull/1262\r\n* Fix import-safe checks when scripts are run from a path with symlinks by @otaconix in https://github.com/actions/setup-java/pull/1265\r\n* Avoid macOS GPG socket overflow on long runner paths by @brunoborges with @Copilot in https://github.com/actions/setup-java/pull/1266\r\n* Complete v6 release highlights in README by @brunoborges in https://github.com/actions/setup-java/pull/1254\r\n* Group and slow routine Dependabot updates by @brunoborges in https://github.com/actions/setup-java/pull/1255\r\n* chore(deps-dev): update eslint and globals by @dependabot[bot] in https://github.com/actions/setup-java/pull/1256\r\n\r\n## New Contributors\r\n* @otaconix made their first contribution in https://github.com/actions/setup-java/pull/1265\r\n\r\n**Full Changelog**: https://github.com/actions/setup-java/compare/v6.0.0...v6.0.1",
+      "target": "main"
+    },
+    "rust-lang/rust": {
+      "tag": "1.98.1",
+      "published": "2026-09-03T13:14:07Z",
+      "url": "https://github.com/rust-lang/rust/releases/tag/1.98.1",
+      "body": "<a id=\"1.98.1\"></a>\n\n- [rustc: fix miscompilation in generating vtables](https://github.com/rust-lang/rust/issues/161441)\n",
+      "target": "main"
+    },
+    "rhysd/actionlint": {
+      "tag": "v1.7.12",
+      "published": "2026-03-30T17:49:21Z",
+      "url": "https://github.com/rhysd/actionlint/releases/tag/v1.7.12",
+      "body": "- Support the [`timezone` configuration in `on.schedule`](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onschedule) with checks for IANA timezone string. See the [documentation](https://github.com/rhysd/actionlint/blob/main/docs/checks.md#check-cron-syntax-and-timezone) for more details. Note that actionlint starts to embed the timezone database in the executables from this version so the binary sizes slightly increase. (#641, thanks @martincostello)\r\n  ```yaml\r\n  on:\r\n    schedule:\r\n      # ERROR: The timezone is not a valid IANA timezone string\r\n      - cron: '*/5 * * * *'\r\n        timezone: 'Asia/Somewhere'\r\n  ```\r\n- Support the [`jobs.<job_name>.environment.deployment` configuration](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/control-deployments#using-environments-without-deployments). (#639, thanks @springmeyer)\r\n- Support the [`macos-26-intel` runner label](https://github.blog/changelog/2026-02-26-macos-26-is-now-generally-available-for-github-hosted-runners/). (#629, thanks @hugovk)\r\n- Fix the outdated [table of webhook activity types](https://github.com/rhysd/actionlint/blob/main/all_webhooks.go) by rebuilding the [script to scrape the table](https://github.com/rhysd/actionlint/tree/main/scripts/generate-webhook-events) from scratch.\r\n- Support Go 1.26 and drop the support for Go 1.24. Now supported versions are 1.25 and 1.26.\r\n- Tests are run on arm64 Windows in CI.\r\n- Update the popular actions data set to the latest.",
+      "target": "main"
+    },
+    "gitleaks/gitleaks": {
+      "tag": "v8.30.1",
+      "published": "2026-03-21T02:17:58Z",
+      "url": "https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1",
+      "body": "## Changelog\r\n* 83d9cd684c87d95d656c1458ef04895a7f1cbd8e update goreleaser\r\n* 8d1f98c7967eb1e79cb44ac6241a124e145d2165 Removed unnecessary functions from report template (#2040)\r\n* ca20267a84aa1fa2c2a9c1a13cdb50cafb48eeb0 its the simple things (#2020)\r\n* b66ac75e4fa93d86d78fccd6e2f36d2c0698b2a2 build: switch to Go 1.24 (#2002)\r\n",
+      "target": "master"
+    },
+    "semgrep/semgrep": {
+      "tag": "v1.177.0",
+      "published": "2026-09-10T19:37:56Z",
+      "url": "https://github.com/semgrep/semgrep/releases/tag/v1.177.0",
+      "body": "## [1.177.0](https://github.com/semgrep/semgrep/releases/tag/v1.177.0) - 2026-09-10\n\n### ### Added\n\n- Added native Supply Chain support for Bazel workspaces using `rules_jvm_external`. Semgrep now recognizes a `maven_install.json` pinned lockfile (versions `0.1.0` and `3`, as emitted by rules_jvm_external 3.x through current) paired with a `MODULE.bazel` (or legacy `WORKSPACE` / `WORKSPACE.bazel`) marker as a Maven-ecosystem subproject, and attributes findings to the workspace root rather than the lockfile's directory. Workspace-declared root artifacts are identified via `__INPUT_ARTIFACTS_HASH` for accurate direct-vs-transitive classification; dependencies are emitted with `Unknown` transitivity when that field is not available. This is the first milestone of native Bazel coverage; broader ecosystem support (`rules_python`, `rules_go`, `rules_js`) and Bazel-aware reachability attribution follow. (SC-2008)\n- Several performance improvements for regex-only rules where the underlying\n  regex are inefficient to run on our default regex engine (currently PCRE2). For\n  example, a rule matching `FOOBAR(a+)\\1` will skip any file that does not\n  contain `FOOBAR` without running the regex. (scrt-979)\n\n### ### Changed\n\n- Prefilter conditions now evaluate their cheap string predicates before their\n  expensive regex predicates. Since evaluation short-circuits, a file that a\n  string check already rules in or out no longer pays for regex predicates\n  (which is what a pattern's prefilter falls back to when no literal substring\n  can be extracted from it, and which can be slow on files with very long\n  lines). (prefilter-rank-conjuncts)\n- Supply Chain scans can report dependencies from their Gradle module build files instead of the root manifest. This behavior is disabled by default during rollout and can be tested with `--x-gradle-module-attribution`. Enabling it can change finding IDs because finding paths change; the ID calculation is unchanged. (SC-2560)\n\n### ### Fixed\n\n- Speed up `semgrep ci` filtering when a deployment has many triage-ignored findings. (triage-ignored-performance)\n- Semgrep no longer crashes with an OCaml stack trace when a proxy environment\n  variable holds an unusable value. `HTTP_PROXY`, `HTTPS_PROXY`, or `ALL_PROXY`\n  set to an empty value is now ignored with a warning, and the scan\n  proceeds without a proxy. A non-empty value that is not a usable proxy URL\n  now exits with an error message, with any credentials in the URL\n  redacted, instead of failing inside the HTTP client.\n\n  Semgrep also now adds the missing scheme to a proxy URL supplied\n  without one; `https` for `HTTPS_PROXY and `http` otherwise. (ENGINE-2208)\n- Supply Chain: lockfileless Gradle scans now report a \"Resource Inaccessible\"\n  resolution error when a repository refuses a request (for example a 401 from a\n  private registry), instead of exiting successfully with a silently incomplete\n  dependency list. (sc-3358)\n\n### ### Infra/Release Changes\n\n- Improves shutdown time during scans with --trace. (otel-shutdown-flush)\n",
+      "target": "develop"
+    },
+    "livekit/livekit": {
+      "tag": "v1.13.7",
+      "published": "2026-09-14T04:51:58Z",
+      "url": "https://github.com/livekit/livekit/releases/tag/v1.13.7",
+      "body": "### Added\r\n\r\n- Participant kind agent details (#4809)\r\n- report a reason on room-ended telemetry (#4815)\r\n- telemetry: support roomID change for a participant (#4816)\r\n- log telemetry guard details (#4817)\r\n- ingress: add opt-in support for udp:// URL pull ingress (#4810)\r\n- Support VP9/AV1 simulcast (#4830)\r\n- add test-server support for compressed join requests (#4834)\r\n- wire psrpc bus compression into the message bus constructor (#4844)\r\n- turn: accept PROXY protocol on the TCP listener (#4852)\r\n- telemetry: add visibility into stats worker reference underflow (#4856)\r\n- rtc: add GetSubscribedDataTracks to LocalParticipant (#4862)\r\n\r\n### Changed\r\n\r\n- Skip the docker-backed service tests when there is no docker (#4799)\r\n- Wait for the callbacks these tests assert on. (#4803)\r\n- utils: make Median generic, overflow-safe, and add tests (#4553)\r\n- warp log (#4811)\r\n- Remove duplication within cpuload and sysload (#4818)\r\n- Update github.com/livekit/protocol digest to a469dd4 (#4820)\r\n- update ice fork for warp (#4824)\r\n- Move data track packet serialization to protocol (#4829)\r\n- Update README to include snippet about Agents (#4808)\r\n- protocol update for SDP unmarshal hardening (#4836)\r\n- Update golang Docker tag to v1.26.7 (#4846)\r\n- README rewrite (#4837)\r\n\r\n### Fixed\r\n\r\n- Set up track info properly for dummy receiver. (#4807)\r\n- Do not escape the ICE server URI in the WHIP Link header (#4795)\r\n- fix: hold signal messages until the ReconnectResponse goes out (#4827)\r\n- Fix/reconcile data track subscription deadlock (#4843)\r\n- telemetry: drop unused getCPUStats, unblocking darwin builds without cgo (#4841)\r\n- update psrpc for subscription close goroutine leak fix (#4859)\r\n- telemetry: do not recreate a stats worker for a released guard (#4860)\r\n- Get participant by authed identity in WHIP participant service. (#4861)",
+      "target": "master"
+    },
+    "Cisco-Talos/clamav": {
+      "tag": "clamav-1.5.4",
+      "published": "2026-08-07T15:40:34Z",
+      "url": "https://github.com/Cisco-Talos/clamav/releases/tag/clamav-1.5.4",
+      "body": "ClamAV 1.5.4 is a patch release with the following fixes:\r\n\r\n- [CVE-2026-20337](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2026-20337):\r\n  Fixed ZIP catalogue capacity tracking that could write beyond a heap\r\n  allocation while indexing local file headers.\r\n\r\n  This issue affects ClamAV 1.5.0 through 1.5.3.\r\n  The fix is included in 1.5.4.\r\n\r\n  Thank you to Kevin Stubbings of the GitHub Security Lab team for identifying\r\n  this issue.\r\n\r\n- [CVE-2026-20345](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2026-20345):\r\n  Fixed an indexing error while converting GPT partition names that could\r\n  read or write beyond a stack-allocated partition entry.\r\n\r\n  This issue affects ClamAV 0.98.2 through 1.5.3.\r\n  The fix is included in 1.4.6 and 1.5.4.\r\n\r\n  Thank you to Atuin - Automated Vulnerability Discovery Engine, Tianchu Chen\r\n  of Tencent Xuanwu Lab for identifying this issue.\r\n\r\n- [CVE-2026-20339](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2026-20339):\r\n  Fixed an integer overflow in the PESpin unpacker that could allocate an\r\n  undersized buffer and then write beyond it while rebuilding a PE file.\r\n\r\n  This issue affects ClamAV 0.90 through 1.5.3.\r\n  The fix is included in 1.4.6 and 1.5.4.\r\n\r\n  Thank you to Feng Xue and, independently, Yazdan Soltani for identifying\r\n  this issue.\r\n\r\n- [CVE-2026-20338](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2026-20338):\r\n  Fixed ownership handling while merging ZIP catalogue records that could\r\n  cause an invalid free while scanning a malformed archive.\r\n\r\n  This issue affects ClamAV 1.5.0 through 1.5.3.\r\n  The fix is included in 1.5.4.\r\n\r\n  Thank you to Daggolu Rakesh and, independently, Yazdan Soltani for\r\n  identifying this issue.\r\n\r\n- [CVE-2026-20346](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2026-20346):\r\n  Fixed an integer underflow in the PDF parser that could cause a crash while\r\n  reading a malformed hex string.\r\n\r\n  This issue affects ClamAV 1.4.5 and earlier, and ClamAV 1.5.0 through\r\n  1.5.3.\r\n  The fix is included in 1.4.6 and 1.5.4.\r\n\r\n  Thank you to Tristan (@TristanInSec) for identifying this issue.\r\n\r\n- [CVE-2026-20347](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2026-20347):\r\n  Fixed undefined behavior and integer overflow in the Mach-O parser that\r\n  could cause a crash while scanning a malformed Mach-O file.\r\n\r\n  This issue affects ClamAV 1.4.5 and earlier, and ClamAV 1.5.0 through\r\n  1.5.3.\r\n  The fix is included in 1.4.6 and 1.5.4.\r\n\r\n  Thank you to Tristan (@TristanInSec) for identifying this issue.\r\n\r\n- [CVE-2026-20348](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2026-20348):\r\n  Fixed XAR parser size handling that could request an excessive allocation\r\n  or exceed scan limits while decompressing a malformed table of contents.\r\n\r\n  This issue affects ClamAV 0.98.1 through 1.5.3.\r\n  The fix is included in 1.4.6 and 1.5.4.\r\n\r\n  Thank you to leduckhuong for identifying this issue.\r\n\r\n- [CVE-2025-8088](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2025-8088):\r\n  Adopted the upstream UnRAR project fix in ClamAV's bundled UnRAR library.\r\n  The fix rejects path separators in NTFS alternate data stream names to\r\n  prevent extraction outside ClamAV's temporary scan directory on Windows.\r\n\r\n  This issue affects ClamAV 0.101.0 through 1.5.3.\r\n  The fix is included in 1.4.6 and 1.5.4.\r\n\r\n  Thank you to Yazdan Soltani for identifying that this issue affects ClamAV.\r\n\r\n- Fixed thread-safety issues in the `clamd` STATS command that could disclose\r\n  process memory or crash the daemon while scans and STATS requests run\r\n  concurrently. Also fixed partial socket-write handling used for large STATS\r\n  responses.\r\n\r\n  This issue affects ClamAV 0.95 through 1.5.3.\r\n  The fix is included in 1.4.6 and 1.5.4.\r\n\r\n- FreeBSD: Restored support for safe quarantine move and remove actions while\r\n  preserving protection against source-path replacement races.\r\n\r\n  This issue affects ClamAV 1.4.5 and 1.5.3.\r\n  The fix is included in 1.4.6 and 1.5.4.\r\n\r\n- Fixed an OpenSSL library-context leak in legacy hashing helpers when a\r\n  requested message digest cannot be fetched, such as when the default\r\n  provider is unavailable in a FIPS-enabled environment.\r\n\r\n  This issue affects ClamAV 1.5.0 through 1.5.3.\r\n  The fix is included in 1.5.4.\r\n\r\n- Upgraded the Rust `crossbeam-epoch` dependency to resolve the\r\n  RUSTSEC-2026-0204 advisory.",
+      "target": "main"
+    },
+    "redis/redis": {
+      "tag": "8.10.2",
+      "published": "2026-09-17T15:06:56Z",
+      "url": "https://github.com/redis/redis/releases/tag/8.10.2",
+      "body": "Update urgency: `SECURITY`: There are security fixes in the release.\r\n\r\n### Security fixes\r\n\r\n- #15673 Commands queued in a transaction could still access keys whose ACL permissions were revoked before the transaction was executed\r\n- #15722 The cluster bus protocol has no authentication of its own unless `tls-cluster` is enabled, so any host able to reach a node's bus port could join the cluster and threaten it. A cluster node now warns at startup when its bus port is left unauthenticated, and the new `cluster-bus-port-protected-mode` option (default `no`) makes refusing to run in that state an explicit choice: set it to `yes` and the node starts only when `tls-cluster` authenticates the bus\r\n- TimeSeries: Prevented Redis from crashing when adding samples to a compressed Time Series key restored from a malformed RDB payload\r\n- RedisSearch: KNN queries on indexes with very long vector field names could cause the server to crash\r\n- Vector Sets: Deeply nested JSON used in Vector Set queries could cause the server to crash",
+      "target": "8.10"
+    },
+    "mobile-dev-inc/Maestro": {
+      "tag": "cli-2.10.0",
+      "published": "2026-08-31T17:15:09Z",
+      "url": "https://github.com/mobile-dev-inc/Maestro/releases/tag/cli-2.10.0",
+      "body": "[See changelog in the CHANGELOG.md file][link]\n\n[link]: https://github.com/mobile-dev-inc/maestro/blob/main/CHANGELOG.md#2100",
+      "target": "main"
+    },
+    "aws/aws-cli": {
+      "error": "HTTP Error 404: Not Found",
+      "source": "https://api.github.com/repos/aws/aws-cli/releases/latest"
+    },
+    "tauri-apps/tauri": {
+      "tag": "tauri-cli-v2.11.5",
+      "published": "2026-09-19T23:50:09Z",
+      "url": "https://github.com/tauri-apps/tauri/releases/tag/tauri-cli-v2.11.5",
+      "body": "<details>\n<summary><em><h4>Cargo Audit</h4></em></summary>\n\n```\nFetching advisory database from `https://github.com/RustSec/advisory-db.git`\n      Loaded 1251 security advisories (from /home/runner/.cargo/advisory-db)\n    Updating crates.io index\n    Scanning Cargo.lock for vulnerabilities (1075 crate dependencies)\nCrate:     fxhash\nVersion:   0.2.1\nWarning:   unmaintained\nTitle:     fxhash - no longer maintained\nDate:      2025-09-05\nID:        RUSTSEC-2025-0057\nURL:       https://rustsec.org/advisories/RUSTSEC-2025-0057\n\nCrate:     paste\nVersion:   1.0.15\nWarning:   unmaintained\nTitle:     paste - no longer maintained\nDate:      2024-10-07\nID:        RUSTSEC-2024-0436\nURL:       https://rustsec.org/advisories/RUSTSEC-2024-0436\n\nCrate:     rustls-pemfile\nVersion:   1.0.4\nWarning:   unmaintained\nTitle:     rustls-pemfile is unmaintained\nDate:      2025-11-28\nID:        RUSTSEC-2025-0134\nURL:       https://rustsec.org/advisories/RUSTSEC-2025-0134\n\nCrate:     rustls-pemfile\nVersion:   2.2.0\nWarning:   unmaintained\nTitle:     rustls-pemfile is unmaintained\nDate:      2025-11-28\nID:        RUSTSEC-2025-0134\nURL:       https://rustsec.org/advisories/RUSTSEC-2025-0134\n\nCrate:     rustybuzz\nVersion:   0.20.1\nWarning:   unmaintained\nTitle:     `rustybuzz` is unmaintained\nDate:      2026-07-11\nID:        RUSTSEC-2026-0206\nURL:       https://rustsec.org/advisories/RUSTSEC-2026-0206\n\nCrate:     ttf-parser\nVersion:   0.25.1\nWarning:   unmaintained\nTitle:     `ttf-parser` is unmaintained\nDate:      2026-06-28\nID:        RUSTSEC-2026-0192\nURL:       https://rustsec.org/advisories/RUSTSEC-2026-0192\n\nCrate:     unic-char-property\nVersion:   0.9.0\nWarning:   unmaintained\nTitle:     `unic-char-property` is unmaintained\nDate:      2025-10-18\nID:        RUSTSEC-2025-0081\nURL:       https://rustsec.org/advisories/RUSTSEC-2025-0081\n\nCrate:     unic-char-range\nVersion:   0.9.0\nWarning:   unmaintained\nTitle:     `unic-char-range` is unmaintained\nDate:      2025-10-18\nID:        RUSTSEC-2025-0075\nURL:       https://rustsec.org/advisories/RUSTSEC-2025-0075\n\nCrate:     unic-common\nVersion:   0.9.0\nWarning:   unmaintained\nTitle:     `unic-common` is unmaintained\nDate:      2025-10-18\nID:        RUSTSEC-2025-0080\nURL:       https://rustsec.org/advisories/RUSTSEC-2025-0080\n\nCrate:     unic-ucd-ident\nVersion:   0.9.0\nWarning:   unmaintained\nTitle:     `unic-ucd-ident` is unmaintained\nDate:      2025-10-18\nID:        RUSTSEC-2025-0100\nURL:       https://rustsec.org/advisories/RUSTSEC-2025-0100\n\nCrate:     unic-ucd-version\nVersion:   0.9.0\nWarning:   unmaintained\nTitle:     `unic-ucd-version` is unmaintained\nDate:      2025-10-18\nID:        RUSTSEC-2025-0098\nURL:       https://rustsec.org/advisories/RUSTSEC-2025-0098\n\nCrate:     anyhow\nVersion:   1.0.95\nWarning:   unsound\nTitle:     Unsoundness in `Error::downcast_mut()`\nDate:      2026-06-25\nID:        RUSTSEC-2026-0190\nURL:       https://rustsec.org/advisories/RUSTSEC-2026-0190\n\nCrate:     scc\nVersion:   2.4.0\nWarning:   unsound\nTitle:     `Array::insert` violates exception safety if compare function panics, leading to potential Double-Free\nDate:      2026-07-06\nID:        RUSTSEC-2026-0205\nURL:       https://rustsec.org/advisories/RUSTSEC-2026-0205\n\nCrate:     spin\nVersion:   0.9.8\nWarning:   yanked\n\nwarning: 14 allowed warnings found\n```\n\n</details>\n\n## [2.11.5]\n\n### Security fixes\n\n- [`5a87bab12`](https://www.github.com/tauri-apps/tauri/commit/5a87bab122e82de23dccf42968d49a0f0b7f09d0) Record the app version in the trusted comment of updater signatures, so a signed artifact is bound to the version it was released as.\n    \n    An update endpoint response is not signed, and the signature only covers the downloaded artifact, so the announced `version` on its own does not prove which release the `url` and `signature` point at. minisign covers the trusted comment with its global signature, which lets the updater plugin compare the two and reject a response that pairs a version number with a different release. Enable `requireSignedVersion` in the updater plugin configuration to enforce this.\n    \n    `tauri build` fills the version in automatically, and `tauri plugin add updater` now enables `requireSignedVersion` for the project it is adding the plugin to. `tauri signer sign` gains an `--app-version` flag for signing updater artifacts by hand, and warns when it is omitted.\n\n<details>\n<summary><em><h4>Cargo Publish</h4></em></summary>\n\n```\nUpdating crates.io index\n   Packaging tauri-cli v2.11.5 (/home/runner/work/tauri/tauri/crates/tauri-cli)\n    Updating crates.io index\nwarning: package `spin v0.9.8` in Cargo.lock is yanked in registry `crates-io`\n  |\n  = help: consider updating to a version that is not yanked\n    Packaged 277 files, 3.5MiB (2.2MiB compressed)\n   Verifying tauri-cli v2.11.5 (/home/runner/work/tauri/tauri/crates/tauri-cli)\n Downloading crates ...\n  Downloaded aead v0.5.2\n  Downloaded route-recognizer v0.3.1\n  Downloaded roxmltree v0.20.0\n  Downloaded serde_fmt v1.0.3\n  Downloaded curve25519-dalek-derive v0.1.1\n  Downloaded num v0.4.3\n  Downloaded arg_enum_proc_macro v0.3.4\n  Downloaded bytecount v0.6.8\n  Downloaded ctr v0.9.2\n  Downloaded scroll_derive v0.12.0\n  Downloaded bitfield v0.14.0\n  Downloaded built v0.7.5\n  Downloaded notify-types v2.0.0\n  Downloaded rtoolbox v0.0.2\n  Downloaded assert-unchecked v0.1.2\n  Downloaded base16ct v0.2.0\n  Downloaded outref v0.5.1\n  Downloaded scrypt v0.11.0\n  Downloaded serde-value v0.7.0\n  Downloaded num-cmp v0.1.0\n  Downloaded aligned-vec v0.5.0\n  Downloaded data-encoding v2.6.0\n  Downloaded num-derive v0.4.2\n  Downloaded rustversion v1.0.19\n  Downloaded seq-macro v0.3.5\n  Downloaded arrayref v0.3.9\n  Downloaded ocb3 v0.1.0\n  Downloaded openssl-probe v0.2.0\n  Downloaded anstyle-query v1.1.2\n  Downloaded ar v0.9.0\n  Downloaded crc24 v0.1.6\n  Downloaded ordered-float v2.10.1\n  Downloaded aes-kw v0.2.1\n  Downloaded bit_field v0.10.2\n  Downloaded os_pipe v1.2.3\n  Downloaded oxc_allocator v0.36.0\n  Downloaded oxc_ast_macros v0.36.0\n  Downloaded avif-serialize v0.8.2\n  Downloaded block-padding v0.3.3\n  Downloaded borrow-or-share v0.2.2\n  Downloaded castaway v0.2.3\n  Downloaded cfg_aliases v0.2.1\n  Downloaded common-path v1.0.0\n  Downloaded cpio v0.4.1\n  Downloaded oxc_estree v0.36.0\n  Downloaded scroll v0.12.0\n  Downloaded arrayvec v0.7.6\n  Downloaded crossbeam-deque v0.8.6\n  Downloaded dbl v0.3.2\n  Downloaded derive_builder_core v0.20.2\n  Downloaded signature v2.2.0\n  Downloaded num-iter v0.1.45\n  Downloaded opaque-debug v0.3.1\n  Downloaded byteorder-lite v0.1.0\n  Downloaded ctrlc v3.4.5\n  Downloaded num-complex v0.4.6\n  Downloaded num-integer v0.1.46\n  Downloaded num-modular v0.6.1\n  Downloaded num-order v1.2.0\n  Downloaded num-rational v0.4.2\n  Downloaded oxc-miette-derive v1.0.2\n  Downloaded oxc_diagnostics v0.36.0\n  Downloaded sec1 v0.7.3\n  Downloaded serde_path_to_error v0.1.16\n  Downloaded shared_child v1.1.1\n  Downloaded shared_thread v0.2.0\n  Downloaded anstream v0.6.18\n  Downloaded anstyle v1.0.10\n  Downloaded anstyle-parse v0.2.6\n  Downloaded argon2 v0.5.3\n  Downloaded base64ct v1.6.0\n  Downloaded clap_lex v0.7.4\n  Downloaded color_quant v1.1.0\n  Downloaded core_maths v0.1.0\n  Downloaded cow-utils v0.1.3\n  Downloaded env_home v0.1.0\n  Downloaded colorchoice v1.0.3\n  Downloaded salsa20 v0.10.2\n  Downloaded sha1_smol v1.0.1\n  Downloaded socks v0.3.4\n  Downloaded async-trait v0.1.88\n  Downloaded axum-core v0.5.2\n  Downloaded blake2 v0.10.6\n  Downloaded blowfish v0.9.1\n  Downloaded buffer-redux v1.0.2\n  Downloaded cipher v0.4.4\n  Downloaded clap v4.5.26\n  Downloaded clap_derive v4.5.24\n  Downloaded dashmap v6.1.0\n  Downloaded data-url v0.3.1\n  Downloaded enum-display-derive v0.1.1\n  Downloaded neli-proc-macros v0.1.3\n  Downloaded num_enum_derive v0.7.3\n  Downloaded phf_macros v0.11.3\n  Downloaded rand_core v0.6.4\n  Downloaded rand_core v0.9.3\n  Downloaded ref-cast v1.0.23\n  Downloaded ref-cast-impl v1.0.23\n  Downloaded rfc6979 v0.4.0\n  Downloaded rustls-native-certs v0.8.3\n  Downloaded rustls-pki-types v1.13.2\n  Downloaded shell-words v1.1.0\n  Downloaded av1-grain v0.2.3\n  Downloaded os_info v3.9.2\n  Downloaded owo-colors v4.1.0\n  Downloaded pico-args v0.5.0\n  Downloaded profiling v1.0.16\n  Downloaded quick-error v2.0.1\n  Downloaded ravif v0.11.11\n  Downloaded serde_urlencoded v0.7.1\n  Downloaded sha1 v0.10.6\n  Downloaded sigchld v0.2.4\n  Downloaded simd_helpers v0.1.0\n  Downloaded cast5 v0.11.1\n  Downloaded cfb-mode v0.8.2\n  Downloaded clap_complete v4.5.42\n  Downloaded colored v2.2.0\n  Downloaded derive_builder v0.20.2\n  Downloaded ff v0.13.0\n  Downloaded ghash v0.5.1\n  Downloaded inout v0.1.3\n  Downloaded iter-read v1.1.0\n  Downloaded lebe v0.5.2\n  Downloaded md-5 v0.10.6\n  Downloaded md5 v0.8.0\n  Downloaded noop_proc_macro v0.3.0\n  Downloaded num_enum v0.7.3\n  Downloaded oxc_span v0.36.0\n  Downloaded pbkdf2 v0.12.2\n  Downloaded phf_generator v0.11.3\n  Downloaded rand_chacha v0.3.1\n  Downloaded smawk v0.3.2\n  Downloaded tinyvec_macros v0.1.1\n  Downloaded ahash v0.8.11\n  Downloaded bitstream-io v2.3.0\n  Downloaded cmac v0.7.2\n  Downloaded group v0.13.0\n  Downloaded loop9 v0.1.5\n  Downloaded notify-debouncer-full v0.6.0\n  Downloaded oxc_index v0.36.0\n  Downloaded phf v0.11.3\n  Downloaded phf_shared v0.11.3\n  Downloaded plain v0.2.3\n  Downloaded profiling-procmacros v1.0.16\n  Downloaded rand_chacha v0.9.0\n  Downloaded rgb v0.8.50\n  Downloaded ripemd v0.1.3\n  Downloaded rpassword v7.4.0\n  Downloaded rustls-platform-verifier v0.6.2\n  Downloaded simplecss v0.2.2\n  Downloaded std_prelude v0.2.12\n  Downloaded sval_fmt v2.13.2\n  Downloaded unicode-linebreak v0.1.5\n  Downloaded unicode-vo v0.1.0\n  Downloaded unicode-xid v0.2.6\n  Downloaded universal-hash v0.5.1\n  Downloaded zstd v0.13.2\n  Downloaded base64 v0.13.1\n  Downloaded bumpalo v3.16.0\n  Downloaded bytemuck v1.21.0\n  Downloaded bzip2 v0.4.4\n  Downloaded camellia v0.1.0\n  Downloaded compact_str v0.8.1\n  Downloaded console v0.15.10\n  Downloaded crypto-bigint v0.5.5\n  Downloaded der v0.7.9\n  Downloaded elliptic-curve v0.13.8\n  Downloaded fraction v0.15.3\n  Downloaded half v2.4.1\n  Downloaded num-bigint-dig v0.8.6\n  Downloaded oxc_syntax v0.36.0\n  Downloaded password-hash v0.5.0\n  Downloaded paste v1.0.15\n  Downloaded path_abs v0.5.1\n  Downloaded pem-rfc7468 v0.7.0\n  Downloaded pest_derive v2.7.15\n  Downloaded pest_generator v2.7.15\n  Downloaded pest_meta v2.7.15\n  Downloaded pin-project-internal v1.1.8\n  Downloaded pkcs1 v0.7.5\n  Downloaded pkcs8 v0.10.2\n  Downloaded polyval v0.6.2\n  Downloaded ppv-lite86 v0.2.20\n  Downloaded primeorder v0.13.6\n  Downloaded rand_core v0.5.1\n  Downloaded referencing v0.33.0\n  Downloaded rsa v0.9.10\n  Downloaded signal-hook v0.3.18\n  Downloaded slotmap v1.0.7\n  Downloaded soketto v0.8.1\n  Downloaded spin v0.9.8\n  Downloaded spki v0.7.3\n  Downloaded toml v1.0.6+spec-1.1.0\n  Downloaded unicode-ccc v0.4.0\n  Downloaded unicode-script v0.5.7\n  Downloaded zstd-safe v7.2.1\n  Downloaded aes v0.8.4\n  Downloaded aes-gcm v0.10.3\n  Downloaded const-oid v0.9.6\n  Downloaded either v1.13.0\n  Downloaded email_address v0.2.9\n  Downloaded fluent-uri v0.3.2\n  Downloaded fontconfig-parser v0.5.7\n  Downloaded freedesktop_entry_parser v2.0.1\n  Downloaded futures v0.3.31\n  Downloaded gif v0.13.1\n  Downloaded globset v0.4.15\n  Downloaded hmac v0.12.1\n  Downloaded home v0.5.9\n  Downloaded http-body v1.0.1\n  Downloaded http-body-util v0.1.2\n  Downloaded httpdate v1.0.3\n  Downloaded humantime v2.1.0\n  Downloaded idea v0.5.1\n  Downloaded itertools v0.12.1\n  Downloaded maybe-rayon v0.1.1\n  Downloaded nom v8.0.0\n  Downloaded notify v8.2.0\n  Downloaded oxc-miette v1.0.2\n  Downloaded oxc_regular_expression v0.36.0\n  Downloaded pin-project v1.1.8\n  Downloaded qoi v0.4.1\n  Downloaded rayon-core v1.12.1\n  Downloaded resvg v0.45.0\n  Downloaded tungstenite v0.26.2\n  Downloaded unicode-bidi-mirroring v0.4.0\n  Downloaded unicode-id-start v1.3.1\n  Downloaded value-bag-sval2 v1.12.0\n  Downloaded vlq v0.5.1\n  Downloaded wasm-bindgen-macro v0.2.125\n  Downloaded wasm-bindgen-shared v0.2.125\n  Downloaded x448 v0.6.0\n  Downloaded xattr v1.4.0\n  Downloaded xmlwriter v0.1.0\n  Downloaded zeroize_derive v1.4.2\n  Downloaded axum v0.8.4\n  Downloaded clap_builder v4.5.26\n  Downloaded css-color v0.2.8\n  Downloaded derive_builder_macro v0.20.2\n  Downloaded elf v0.7.4\n  Downloaded futures-timer v3.0.3\n  Downloaded handlebars v6.3.0\n  Downloaded httparse v1.9.5\n  Downloaded ignore v0.4.23\n  Downloaded image-webp v0.2.0\n  Downloaded num-bigint v0.4.6\n  Downloaded p256 v0.13.2\n  Downloaded rand v0.8.6\n  Downloaded rand v0.9.4\n  Downloaded strict-num v0.1.1\n  Downloaded sublime_fuzzy v0.7.0\n  Downloaded sval_dynamic v2.13.2\n  Downloaded sval_json v2.13.2\n  Downloaded sval_ref v2.13.2\n  Downloaded sval_serde v2.13.2\n  Downloaded tower v0.5.2\n  Downloaded tracing-core v0.1.33\n  Downloaded unicode-properties v0.1.3\n  Downloaded vsimd v0.8.0\n  Downloaded wasm-bindgen v0.2.125\n  Downloaded weezl v0.1.8\n  Downloaded which v8.0.0\n  Downloaded x25519-dalek v2.0.1\n  Downloaded xz2 v0.1.7\n  Downloaded zerocopy-derive v0.7.35\n  Downloaded zeroize v1.8.1\n  Downloaded zopfli v0.8.1\n  Downloaded zune-core v0.4.12\n  Downloaded zune-inflate v0.2.54\n  Downloaded dialoguer v0.11.0\n  Downloaded file-id v0.2.3\n  Downloaded fontdb v0.23.0\n  Downloaded goblin v0.9.3\n  Downloaded hashbrown v0.14.5\n  Downloaded imagesize v0.13.0\n  Downloaded jsonschema v0.33.0\n  Downloaded oxc_ast v0.36.0\n  Downloaded oxc_parser v0.36.0\n  Downloaded p521 v0.13.3\n  Downloaded pest v2.7.15\n  Downloaded rpm v0.16.0\n  Downloaded rustybuzz v0.20.1\n  Downloaded stfu8 v0.2.7\n  Downloaded sval v2.13.2\n  Downloaded sval_buffer v2.13.2\n  Downloaded sval_nested v2.13.2\n  Downloaded svgtypes v0.15.3\n  Downloaded tempfile v3.15.0\n  Downloaded terminal_size v0.2.6\n  Downloaded ureq v3.1.4\n  Downloaded wasm-bindgen-macro-support v0.2.125\n  Downloaded zlib-rs v0.5.0\n  Downloaded cargo-mobile2 v0.22.4\n  Downloaded curve25519-dalek v4.1.3\n  Downloaded derive_more v1.0.0\n  Downloaded derive_more-impl v1.0.0\n  Downloaded des v0.8.1\n  Downloaded hkdf v0.12.4\n  Downloaded hyper v1.8.1\n  Downloaded hyper-util v0.1.19\n  Downloaded image v0.25.5\n  Downloaded io-lifetimes v1.0.11\n  Downloaded itertools v0.13.0\n  Downloaded java-properties v2.0.0\n  Downloaded rayon v1.10.0\n  Downloaded rustix v0.37.28\n  Downloaded rustix v0.38.43\n  Downloaded tar v0.4.46\n  Downloaded textwrap v0.16.1\n  Downloaded tiny-skia-path v0.11.4\n  Downloaded tokio-stream v0.1.17\n  Downloaded ttf-parser v0.25.1\n  Downloaded unicode-width v0.1.14\n  Downloaded unicode-width v0.2.0\n  Downloaded zerocopy v0.7.35\n  Downloaded zip v4.0.0\n  Downloaded bstr v1.11.3\n  Downloaded dsa v0.6.3\n  Downloaded eax v0.5.0\n  Downloaded jsonrpsee-server v0.24.7\n  Downloaded p384 v0.13.0\n  Downloaded rustix v1.0.7\n  Downloaded tauri-icns v0.1.0\n  Downloaded tinyvec v1.8.1\n  Downloaded tokio-tungstenite v0.26.2\n  Downloaded twofish v0.7.1\n  Downloaded uuid-simd v0.8.0\n  Downloaded v_frame v0.3.8\n  Downloaded webpki-roots v1.0.5\n  Downloaded deunicode v1.6.0\n  Downloaded duct v1.1.1\n  Downloaded ed25519 v2.2.3\n  Downloaded english-numbers v0.3.3\n  Downloaded enum-primitive-derive v0.3.0\n  Downloaded env_filter v0.1.3\n  Downloaded include_dir v0.7.4\n  Downloaded include_dir_macros v0.7.4\n  Downloaded jsonrpsee-types v0.24.7\n  Downloaded jsonrpsee-ws-client v0.24.7\n  Downloaded tauri-bundler v2.9.4\n  Downloaded tiny-skia v0.11.4\n  Downloaded toml_datetime v1.0.0+spec-1.1.0\n  Downloaded tracing-attributes v0.1.28\n  Downloaded ureq-proto v0.5.3\n  Downloaded value-bag v1.12.0\n  Downloaded value-bag-serde1 v1.12.0\n  Downloaded ecdsa v0.16.9\n  Downloaded env_logger v0.11.6\n  Downloaded errno v0.3.10\n  Downloaded filetime v0.2.25\n  Downloaded float-cmp v0.9.0\n  Downloaded inotify v0.11.0\n  Downloaded is_terminal_polyfill v1.70.1\n  Downloaded nonmax v0.5.5\n  Downloaded tokio-util v0.7.13\n  Downloaded toml_edit v0.25.4+spec-1.1.0\n  Downloaded tracing v0.1.41\n  Downloaded ucd-trie v0.1.7\n  Downloaded unicode-bidi v0.3.18\n  Downloaded zune-jpeg v0.4.14\n  Downloaded imgref v1.11.0\n  Downloaded inotify-sys v0.1.5\n  Downloaded json5 v0.4.1\n  Downloaded jsonrpsee v0.24.7\n  Downloaded usvg v0.45.0\n  Downloaded k256 v0.13.4\n  Downloaded minimal-lexical v0.2.1\n  Downloaded ed25519-dalek v2.1.1\n  Downloaded jsonrpsee-client-transport v0.24.7\n  Downloaded bzip2-sys v0.1.11+1.0.8\n  Downloaded tower v0.4.13\n  Downloaded fancy-regex v0.16.1\n  Downloaded ed448-goldilocks v0.7.2\n  Downloaded exr v1.73.0\n  Downloaded fiat-crypto v0.1.20\n  Downloaded keccak v0.1.6\n  Downloaded lockfree-object-pool v0.1.6\n  Downloaded magic_string v0.3.4\n  Downloaded jobserver v0.1.32\n  Downloaded libz-rs-sys v0.5.0\n  Downloaded matchit v0.8.4\n  Downloaded jsonrpsee-core v0.24.7\n  Downloaded local-ip-address v0.6.3\n  Downloaded neli v0.6.4\n  Downloaded kurbo v0.11.1\n  Downloaded libm v0.2.11\n  Downloaded zstd-sys v2.0.13+zstd.1.5.6\n  Downloaded sha3 v0.10.8\n  Downloaded minisign v0.7.3\n  Downloaded nom v7.1.3\n  Downloaded lzma-sys v0.1.20\n  Downloaded jpeg-decoder v0.3.1\n  Downloaded linux-raw-sys v0.4.15\n  Downloaded nix v0.29.0\n  Downloaded encoding_rs v0.8.35\n  Downloaded rav1e v0.7.1\n  Downloaded pgp v0.14.2\n  Downloaded tiff v0.9.1\n  Downloaded linux-raw-sys v0.3.8\n  Downloaded linux-raw-sys v0.9.4\n   Compiling proc-macro2 v1.0.106\n   Compiling libc v0.2.178\n   Compiling typenum v1.20.0\n   Compiling generic-array v0.14.7\n   Compiling subtle v2.6.1\n   Compiling value-bag v1.12.0\n   Compiling log v0.4.29\n   Compiling quote v1.0.38\n   Compiling serde_core v1.0.228\n   Compiling syn v2.0.117\n   Compiling const-oid v0.9.6\n   Compiling smallvec v1.13.2\n   Compiling serde v1.0.228\n   Compiling libm v0.2.11\n   Compiling getrandom v0.2.15\n   Compiling rand_core v0.6.4\n   Compiling cpufeatures v0.2.16\n   Compiling num-traits v0.2.19\n   Compiling jobserver v0.1.32\n   Compiling bitflags v2.7.0\n   Compiling cc v1.2.51\n   Compiling stable_deref_trait v1.2.0\n   Compiling serde_json v1.0.145\n   Compiling futures-core v0.3.31\n   Compiling futures-sink v0.3.31\n   Compiling base64ct v1.6.0\n   Compiling parking_lot_core v0.9.10\n   Compiling simd-adler32 v0.3.7\n   Compiling futures-io v0.3.31\n   Compiling num-integer v0.1.46\n   Compiling phf_shared v0.13.1\n   Compiling synstructure v0.13.1\n   Compiling crossbeam-utils v0.8.21\n   Compiling pem-rfc7468 v0.7.0\n   Compiling strsim v0.11.1\n   Compiling phf_generator v0.13.1\n   Compiling futures-channel v0.3.31\n   Compiling mio v1.0.3\n   Compiling adler2 v2.0.0\n   Compiling httparse v1.9.5\n   Compiling miniz_oxide v0.8.8\n   Compiling crc32fast v1.4.2\n   Compiling zlib-rs v0.5.0\n   Compiling zeroize_derive v1.4.2\n   Compiling serde_derive v1.0.228\n   Compiling zerocopy-derive v0.7.35\n   Compiling zeroize v1.8.1\n   Compiling thiserror-impl v1.0.69\n   Compiling crypto-common v0.1.6\n   Compiling block-buffer v0.10.4\n   Compiling digest v0.10.7\n   Compiling zerocopy v0.7.35\n   Compiling thiserror v1.0.69\n   Compiling inout v0.1.3\n   Compiling zerofrom-derive v0.1.5\n   Compiling cipher v0.4.4\n   Compiling ppv-lite86 v0.2.20\n   Compiling yoke-derive v0.7.5\n   Compiling zerofrom v0.1.5\n   Compiling zerovec-derive v0.10.3\n   Compiling yoke v0.7.5\n   Compiling displaydoc v0.2.5\n   Compiling hmac v0.12.1\n   Compiling der v0.7.9\n   Compiling zerovec v0.10.4\n   Compiling libz-rs-sys v0.5.0\n   Compiling thiserror-impl v2.0.12\n   Compiling futures-macro v0.3.31\n   Compiling tinystr v0.7.6\n   Compiling spki v0.7.3\n   Compiling icu_provider_macros v1.5.0\n   Compiling pkcs8 v0.10.2\n   Compiling icu_locid v1.5.0\n   Compiling tokio-macros v2.5.0\n   Compiling parking_lot v0.12.3\n   Compiling socket2 v0.5.8\n   Compiling aho-corasick v1.1.3\n   Compiling futures-task v0.3.31\n   Compiling rustc-hash v2.1.1\n   Compiling futures-util v0.3.31\n   Compiling darling_core v0.20.10\n   Compiling tokio v1.45.1\n   Compiling regex-automata v0.4.9\n   Compiling icu_provider v1.5.0\n   Compiling thiserror v2.0.12\n   Compiling flate2 v1.1.1\n   Compiling rand_chacha v0.3.1\n   Compiling tracing-attributes v0.1.28\n   Compiling tracing-core v0.1.33\n   Compiling io-lifetimes v1.0.11\n   Compiling crossbeam-epoch v0.9.21\n   Compiling tracing v0.1.41\n   Compiling icu_locid_transform v1.5.0\n   Compiling rand v0.8.6\n   Compiling darling_macro v0.20.10\n   Compiling icu_collections v1.5.0\n   Compiling signature v2.2.0\n   Compiling sha1 v0.10.6\n   Compiling num-bigint v0.4.6\n   Compiling new_debug_unreachable v1.0.6\n   Compiling rustix v0.37.28\n   Compiling spin v0.9.8\n   Compiling icu_properties v1.5.1\n   Compiling lazy_static v1.5.0\n   Compiling darling v0.20.10\n   Compiling sha2 v0.10.8\n   Compiling phf_codegen v0.13.1\n   Compiling ff v0.13.0\n   Compiling linux-raw-sys v0.3.8\n   Compiling rustversion v1.0.19\n   Compiling base16ct v0.2.0\n   Compiling arrayvec v0.7.6\n   Compiling utf-8 v0.7.6\n   Compiling sec1 v0.7.3\n   Compiling group v0.13.0\n   Compiling icu_normalizer v1.5.0\n   Compiling crossbeam-deque v0.8.6\n   Compiling tokio-util v0.7.13\n   Compiling hkdf v0.12.4\n   Compiling crypto-bigint v0.5.5\n   Compiling http-body v1.0.1\n   Compiling bytemuck v1.21.0\n   Compiling getrandom v0.3.3\n   Compiling allocator-api2 v0.2.21\n   Compiling terminal_size v0.2.6\n   Compiling idna_adapter v1.2.0\n   Compiling num-rational v0.4.2\n   Compiling bumpalo v3.16.0\n   Compiling regex v1.11.1\n   Compiling elliptic-curve v0.13.8\n   Compiling form_urlencoded v1.2.1\n   Compiling rfc6979 v0.4.0\n   Compiling phf_macros v0.13.1\n   Compiling ring v0.17.14\n   Compiling num-iter v0.1.45\n   Compiling smawk v0.3.2\n   Compiling rayon-core v1.12.1\n   Compiling either v1.13.0\n   Compiling owo-colors v4.1.0\n   Compiling unicode-width v0.2.0\n   Compiling unicode-linebreak v0.1.5\n   Compiling ucd-trie v0.1.7\n   Compiling unicode-width v0.1.14\n   Compiling pest v2.7.15\n   Compiling phf v0.13.1\n   Compiling textwrap v0.16.1\n   Compiling idna v1.0.3\n   Compiling rustc_version v0.4.1\n   Compiling rustls-pki-types v1.13.2\n   Compiling string_cache_codegen v0.6.1\n   Compiling syn v1.0.109\n   Compiling precomputed-hash v0.1.1\n   Compiling minimal-lexical v0.2.1\n   Compiling sha1_smol v1.0.1\n   Compiling uuid v1.11.0\n   Compiling nom v7.1.3\n   Compiling web_atoms v0.2.3\n   Compiling pest_meta v2.7.15\n   Compiling curve25519-dalek v4.1.3\n   Compiling ecdsa v0.16.9\n   Compiling http-body-util v0.1.2\n   Compiling derive_builder_core v0.20.2\n   Compiling ctr v0.9.2\n   Compiling aead v0.5.2\n   Compiling universal-hash v0.5.1\n   Compiling pin-project-internal v1.1.8\n   Compiling oxc-miette-derive v1.0.2\n   Compiling zstd-sys v2.0.13+zstd.1.5.6\n   Compiling phf_shared v0.11.3\n   Compiling opaque-debug v0.3.1\n   Compiling winnow v0.7.14\n   Compiling tower-service v0.3.3\n   Compiling rustix v0.38.43\n   Compiling num-bigint-dig v0.8.6\n   Compiling toml_datetime v0.6.8\n   Compiling untrusted v0.9.0\n   Compiling toml_edit v0.19.15\n   Compiling oxc-miette v1.0.2\n   Compiling toml_parser v1.0.9+spec-1.1.0\n   Compiling polyval v0.6.2\n   Compiling phf_generator v0.11.3\n   Compiling pin-project v1.1.8\n   Compiling derive_builder_macro v0.20.2\n   Compiling pest_generator v2.7.15\n   Compiling string_cache v0.9.0\n   Compiling url v2.5.4\n   Compiling primeorder v0.13.6\n   Compiling castaway v0.2.3\n   Compiling aes v0.8.4\n   Compiling curve25519-dalek-derive v0.1.1\n   Compiling fdeflate v0.3.7\n   Compiling serde_spanned v1.0.4\n   Compiling bstr v1.11.3\n   Compiling paste v1.0.15\n   Compiling aligned-vec v0.5.0\n   Compiling rustls v0.23.45\n   Compiling built v0.7.5\n   Compiling utf8parse v0.2.2\n   Compiling static_assertions v1.1.0\n   Compiling linux-raw-sys v0.4.15\n   Compiling tower-layer v0.3.3\n   Compiling signal-hook v0.3.18\n   Compiling dtoa v1.0.9\n   Compiling bit-vec v0.8.0\n   Compiling atomic-waker v1.1.2\n   Compiling toml_writer v1.0.6+spec-1.1.0\n   Compiling bit-set v0.8.0\n   Compiling h2 v0.4.19\n   Compiling dtoa-short v0.3.5\n   Compiling rav1e v0.7.1\n   Compiling compact_str v0.8.1\n   Compiling anstyle-parse v0.2.6\n   Compiling v_frame v0.3.8\n   Compiling png v0.17.16\n   Compiling pest_derive v2.7.15\n   Compiling derive_builder v0.20.2\n   Compiling phf_macros v0.11.3\n   Compiling ghash v0.5.1\n   Compiling proc-macro-crate v1.3.1\n   Compiling rustls-webpki v0.103.15\n   Compiling rayon v1.10.0\n   Compiling rand_core v0.9.3\n   Compiling oxc_allocator v0.36.0\n   Compiling tokio-stream v0.1.17\n   Compiling tendril v0.5.0\n   Compiling selectors v0.36.1\n   Compiling futures v0.3.31\n   Compiling jsonrpsee-types v0.24.7\n   Compiling dbl v0.3.2\n   Compiling num-derive v0.4.2\n   Compiling oxc_ast_macros v0.36.0\n   Compiling cssparser-macros v0.6.1\n   Compiling derive_more-impl v2.0.1\n   Compiling async-trait v0.1.88\n   Compiling profiling-procmacros v1.0.16\n   Compiling lzma-sys v0.1.20\n   Compiling bzip2-sys v0.1.11+1.0.8\n   Compiling num-complex v0.4.6\n   Compiling core_maths v0.1.0\n   Compiling os_pipe v1.2.3\n   Compiling signal-hook-registry v1.4.2\n   Compiling slotmap v1.0.7\n   Compiling oxc_estree v0.36.0\n   Compiling anstyle v1.0.10\n   Compiling unicode-xid v0.2.6\n   Compiling futures-timer v3.0.3\n   Compiling crc24 v0.1.6\n   Compiling httpdate v1.0.3\n   Compiling hex v0.4.3\n   Compiling quick-error v2.0.1\n   Compiling float-cmp v0.9.0\n   Compiling ref-cast v1.0.23\n   Compiling openssl-probe v0.2.0\n   Compiling anstyle-query v1.1.2\n   Compiling weezl v0.1.8\n   Compiling is_terminal_polyfill v1.70.1\n   Compiling rustix v1.0.7\n   Compiling fiat-crypto v0.1.20\n   Compiling colorchoice v1.0.3\n   Compiling zstd-safe v7.2.1\n   Compiling anstream v0.6.18\n   Compiling rustls-native-certs v0.8.3\n   Compiling strict-num v0.1.1\n   Compiling hyper v1.8.1\n   Compiling jsonrpsee-core v0.24.7\n   Compiling derive_more-impl v1.0.0\n   Compiling oxc_span v0.36.0\n   Compiling num v0.4.3\n   Compiling ttf-parser v0.25.1\n   Compiling phf v0.11.3\n   Compiling profiling v1.0.16\n   Compiling derive_more v2.0.1\n   Compiling maybe-rayon v0.1.1\n   Compiling cssparser v0.36.0\n   Compiling ed448-goldilocks v0.7.2\n   Compiling cmac v0.7.2\n   Compiling soketto v0.8.1\n   Compiling markup5ever v0.38.0\n   Compiling rand_chacha v0.9.0\n   Compiling num_enum_derive v0.7.3\n   Compiling aes-gcm v0.10.3\n   Compiling av1-grain v0.2.3\n   Compiling itertools v0.12.1\n   Compiling rgb v0.8.50\n   Compiling ed25519 v2.2.3\n   Compiling pkcs1 v0.7.5\n   Compiling blake2 v0.10.6\n   Compiling ref-cast-impl v1.0.23\n   Compiling arg_enum_proc_macro v0.3.4\n   Compiling serde_derive_internals v0.29.1\n   Compiling password-hash v0.5.0\n   Compiling servo_arc v0.4.3\n   Compiling simd_helpers v0.1.0\n   Compiling ahash v0.8.11\n   Compiling rand_core v0.5.1\n   Compiling cfg_aliases v0.2.1\n   Compiling arrayref v0.3.9\n   Compiling hashbrown v0.14.5\n   Compiling num-modular v0.6.1\n   Compiling color_quant v1.1.0\n   Compiling unicode-id-start v1.3.1\n   Compiling linux-raw-sys v0.9.4\n   Compiling byteorder-lite v0.1.0\n   Compiling tinyvec_macros v0.1.1\n   Compiling keccak v0.1.6\n   Compiling iana-time-zone v0.1.61\n   Compiling imgref v1.11.0\n   Compiling bitstream-io v2.3.0\n   Compiling zune-core v0.4.12\n   Compiling roxmltree v0.20.0\n   Compiling schemars v0.8.21\n   Compiling noop_proc_macro v0.3.0\n   Compiling zune-jpeg v0.4.14\n   Compiling fontconfig-parser v0.5.7\n   Compiling loop9 v0.1.5\n   Compiling time v0.3.37\n   Compiling sha3 v0.10.8\n   Compiling image-webp v0.2.0\n   Compiling chrono v0.4.41\n   Compiling tinyvec v1.8.1\n   Compiling dashmap v6.1.0\n   Compiling num-order v1.2.0\n   Compiling gif v0.13.1\n   Compiling schemars_derive v0.8.21\n   Compiling tiny-skia-path v0.11.4\n   Compiling x448 v0.6.0\n   Compiling nix v0.29.0\n   Compiling argon2 v0.5.3\n   Compiling rustls-platform-verifier v0.6.2\n   Compiling rsa v0.9.10\n   Compiling ed25519-dalek v2.1.1\n   Compiling erased-serde v0.4.9\n   Compiling num_enum v0.7.3\n   Compiling rand v0.9.4\n   Compiling html5ever v0.38.0\n   Compiling eax v0.5.0\n   Compiling derive_more v1.0.0\n   Compiling sigchld v0.2.4\n   Compiling hyper-util v0.1.19\n   Compiling dsa v0.6.3\n   Compiling x25519-dalek v2.0.1\n   Compiling aes-kw v0.2.1\n   Compiling p384 v0.13.0\n   Compiling p521 v0.13.3\n   Compiling p256 v0.13.2\n   Compiling oxc_diagnostics v0.36.0\n   Compiling ocb3 v0.1.0\n   Compiling k256 v0.13.4\n   Compiling cfb v0.7.3\n   Compiling webpki-roots v1.0.5\n   Compiling kurbo v0.11.1\n   Compiling avif-serialize v0.8.2\n   Compiling serde_with_macros v3.12.0\n   Compiling sha1-checked v0.10.0\n   Compiling jsonptr v0.6.3\n   Compiling cfb-mode v0.8.2\n   Compiling idea v0.5.1\n   Compiling blowfish v0.9.1\n   Compiling twofish v0.7.1\n   Compiling cast5 v0.11.1\n   Compiling camellia v0.1.0\n   Compiling des v0.8.1\n   Compiling ripemd v0.1.3\n   Compiling md-5 v0.10.6\n   Compiling block-padding v0.3.3\n   Compiling ureq-proto v0.5.3\n   Compiling scroll_derive v0.12.0\n   Compiling serialize-to-javascript-impl v0.1.2\n   Compiling zune-inflate v0.2.54\n   Compiling toml_datetime v1.0.0+spec-1.1.0\n   Compiling toml_datetime v0.7.5+spec-1.1.0\n   Compiling inotify-sys v0.1.5\n   Compiling socks v0.3.4\n   Compiling memmap2 v0.9.11\n   Compiling buffer-redux v1.0.2\n   Compiling half v2.4.1\n   Compiling lockfree-object-pool v0.1.6\n   Compiling unicode-properties v0.1.3\n   Compiling borrow-or-share v0.2.2\n   Compiling sync_wrapper v1.0.2\n   Compiling data-encoding v2.6.0\n   Compiling unicode-ccc v0.4.0\n   Compiling bit_field v0.10.2\n   Compiling unicode-bidi-mirroring v0.4.0\n   Compiling foldhash v0.2.0\n   Compiling lebe v0.5.2\n   Compiling dyn-clone v1.0.17\n   Compiling nonmax v0.5.5\n   Compiling clap_lex v0.7.4\n   Compiling jpeg-decoder v0.3.1\n   Compiling env_home v0.1.0\n   Compiling fastrand v2.3.0\n   Compiling oxc_index v0.36.0\n   Compiling bitfield v0.14.0\n   Compiling unicode-script v0.5.7\n   Compiling assert-unchecked v0.1.2\n   Compiling iter-read v1.1.0\n   Compiling dirs-sys v0.5.0\n   Compiling pgp v0.14.2\n   Compiling rustybuzz v0.20.1\n   Compiling oxc_syntax v0.36.0\n   Compiling tiff v0.9.1\n   Compiling tempfile v3.15.0\n   Compiling which v8.0.0\n   Compiling clap_builder v4.5.26\n   Compiling exr v1.73.0\n   Compiling neli-proc-macros v0.1.3\n   Compiling tungstenite v0.26.2\n   Compiling dom_query v0.27.0\n   Compiling zopfli v0.8.1\n   Compiling fluent-uri v0.3.2\n   Compiling fontdb v0.23.0\n   Compiling ureq v3.1.4\n   Compiling plist v1.7.0\n   Compiling toml v0.9.12+spec-1.1.0\n   Compiling inotify v0.11.0\n   Compiling scroll v0.12.0\n   Compiling serialize-to-javascript v0.1.2\n   Compiling serde_with v3.12.0\n   Compiling json-patch v3.0.1\n   Compiling svgtypes v0.15.3\n   Compiling ravif v0.11.11\n   Compiling infer v0.19.0\n   Compiling oxc_regular_expression v0.36.0\n   Compiling enum-primitive-derive v0.3.0\n   Compiling urlpattern v0.3.0\n   Compiling zstd v0.13.2\n   Compiling shared_child v1.1.1\n   Compiling xz2 v0.1.7\n   Compiling serde-untagged v0.1.6\n   Compiling bzip2 v0.4.4\n   Compiling handlebars v6.3.0\n   Compiling clap_derive v4.5.24\n   Compiling json5 v0.4.1\n   Compiling xattr v1.4.0\n   Compiling enum-display-derive v0.1.1\n   Compiling tower v0.4.13\n   Compiling globset v0.4.15\n   Compiling itertools v0.13.0\n   Compiling qoi v0.4.1\n   Compiling pbkdf2 v0.12.2\n   Compiling salsa20 v0.10.2\n   Compiling filetime v0.2.25\n   Compiling rtoolbox v0.0.2\n   Compiling simplecss v0.2.2\n   Compiling nom v8.0.0\n   Compiling encoding_rs v0.8.35\n   Compiling plain v0.2.3\n   Compiling data-url v0.3.1\n   Compiling pico-args v0.5.0\n   Compiling unicode-bidi v0.3.18\n   Compiling stfu8 v0.2.7\n   Compiling imagesize v0.13.0\n   Compiling std_prelude v0.2.12\n   Compiling notify-types v2.0.0\n   Compiling outref v0.5.1\n   Compiling cargo-mobile2 v0.22.4\n   Compiling unicode-vo v0.1.0\n   Compiling route-recognizer v0.3.1\n   Compiling vsimd v0.8.0\n   Compiling cpio v0.4.1\n   Compiling shared_thread v0.2.0\n   Compiling cow-utils v0.1.3\n   Compiling xmlwriter v0.1.0\n   Compiling uuid-simd v0.8.0\n   Compiling oxc_ast v0.36.0\n   Compiling usvg v0.45.0\n   Compiling freedesktop_entry_parser v2.0.1\n   Compiling duct v1.1.1\n   Compiling rpm v0.16.0\n   Compiling jsonrpsee-server v0.24.7\n   Compiling tauri-utils v2.9.3\n   Compiling notify v8.2.0\n   Compiling path_abs v0.5.1\n   Compiling axum-core v0.5.2\n   Compiling java-properties v2.0.0\n   Compiling goblin v0.9.3\n   Compiling rpassword v7.4.0\n   Compiling tar v0.4.46\n   Compiling scrypt v0.11.0\n   Compiling image v0.25.5\n   Compiling ignore v0.4.23\n   Compiling clap v4.5.26\n   Compiling referencing v0.33.0\n   Compiling zip v4.0.0\n   Compiling tokio-tungstenite v0.26.2\n   Compiling neli v0.6.4\n   Compiling dirs v6.0.0\n   Compiling tower v0.5.2\n   Compiling toml v1.0.6+spec-1.1.0\n   Compiling tiny-skia v0.11.4\n   Compiling jsonrpsee-client-transport v0.24.7\n   Compiling fraction v0.15.3\n   Compiling fancy-regex v0.16.1\n   Compiling console v0.15.10\n   Compiling serde_urlencoded v0.7.1\n   Compiling env_filter v0.1.3\n   Compiling colored v2.2.0\n   Compiling serde_path_to_error v0.1.16\n   Compiling email_address v0.2.9\n   Compiling ordered-float v2.10.1\n   Compiling include_dir_macros v0.7.4\n   Compiling vlq v0.5.1\n   Compiling md5 v0.8.0\n   Compiling matchit v0.8.4\n   Compiling tauri-cli v2.11.5 (/home/runner/work/tauri/tauri/target/package/tauri-cli-2.11.5)\n   Compiling home v0.5.9\n   Compiling seq-macro v0.3.5\n   Compiling file-id v0.2.3\n   Compiling english-numbers v0.3.3\n   Compiling bytecount v0.6.8\n   Compiling deunicode v1.6.0\n   Compiling shell-words v1.1.0\n   Compiling num-cmp v0.1.0\n   Compiling base64 v0.13.1\n   Compiling ar v0.9.0\n   Compiling humantime v2.1.0\n   Compiling jsonschema v0.33.0\n   Compiling tauri-bundler v2.9.4\n   Compiling env_logger v0.11.6\n   Compiling magic_string v0.3.4\n   Compiling dialoguer v0.11.0\n   Compiling oxc_parser v0.36.0\n   Compiling notify-debouncer-full v0.6.0\n   Compiling axum v0.8.4\n   Compiling include_dir v0.7.4\n   Compiling serde-value v0.7.0\n   Compiling resvg v0.45.0\n   Compiling jsonrpsee-ws-client v0.24.7\n   Compiling local-ip-address v0.6.3\n   Compiling ctrlc v3.4.5\n   Compiling clap_complete v4.5.42\n   Compiling minisign v0.7.3\n   Compiling jsonrpsee v0.24.7\n   Compiling toml_edit v0.25.4+spec-1.1.0\n   Compiling tauri-icns v0.1.0\n   Compiling os_info v3.9.2\n   Compiling elf v0.7.4\n   Compiling sublime_fuzzy v0.7.0\n   Compiling css-color v0.2.8\n   Compiling common-path v1.0.0\n    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2m 06s\n   Uploading tauri-cli v2.11.5 (/home/runner/work/tauri/tauri/crates/tauri-cli)\n    Uploaded tauri-cli v2.11.5 to registry `crates-io`\nnote: waiting for tauri-cli v2.11.5 to be available at registry `crates-io`\nhelp: you may press ctrl-c to skip waiting; the crate should be available shortly\n   Published tauri-cli v2.11.5 at registry `crates-io`\n```\n\n</details>\n\n",
+      "target": "9452ddee5ebefd9b678a94ff003521379df6c9ae"
+    },
+    "Shopify/flash-list": {
+      "tag": "v2.3.2",
+      "published": "2026-06-10T06:05:22Z",
+      "url": "https://github.com/Shopify/flash-list/releases/tag/v2.3.2",
+      "body": "## What's Changed\r\n* fix(recycling): disable removeClippedSubviews to prevent Android crash by @shopify-github-actions-access[bot] in https://github.com/Shopify/flash-list/pull/2202\r\n* fix: scroll to index autoscroll race by @isekovanic in https://github.com/Shopify/flash-list/pull/2290\r\n* feat(sticky-headers): configure sticky header zIndex by @GurkarnSD in https://github.com/Shopify/flash-list/pull/2311\r\n\r\n## New Contributors\r\n* @isekovanic made their first contribution in https://github.com/Shopify/flash-list/pull/2290\r\n* @GurkarnSD made their first contribution in https://github.com/Shopify/flash-list/pull/2311\r\n\r\n**Full Changelog**: https://github.com/Shopify/flash-list/compare/v2.3.1...v2.3.2",
+      "target": "main"
+    },
+    "livekit/client-sdk-react-native": {
+      "tag": "@livekit/react-native@3.0.0",
+      "published": "2026-09-11T18:11:19Z",
+      "url": "https://github.com/livekit/client-sdk-react-native/releases/tag/%40livekit/react-native%403.0.0",
+      "body": "### Major Changes\n\n- Move to the LiveKit prefixed WebRTC builds: `io.github.webrtc-sdk:android-prefixed` on Android and the `LiveKitWebRTC` pod on iOS. This prevents collisions against any other WebRTC implementations. - [#455](https://github.com/livekit/client-sdk-react-native/pull/455) ([@davidliu](https://github.com/davidliu))\n\n  Apps that only use the JavaScript API need no changes.\n\n  Native integrations must migrate to the prefixed symbols:\n  - Android: `org.webrtc.*` becomes `livekit.org.webrtc.*`.\n    Custom `-keep class org.webrtc.**` ProGuard rules must be updated to `livekit.org.webrtc.**`.\n  - iOS: types gain an `LK` prefix (`RTCAudioRenderer` becomes `LKRTCAudioRenderer`, `RTCAudioBuffer` becomes `LKRTCAudioBuffer`, and so on).\n\n### Minor Changes\n\n- iOS: align the default `playAndRecord` presets with the LiveKit Swift SDK. - [#455](https://github.com/livekit/client-sdk-react-native/pull/455) ([@davidliu](https://github.com/davidliu))\n\n  The duplex (recording) presets now request `mixWithOthers`, `allowBluetooth`,\n  `allowBluetoothA2DP` and `allowAirPlay`, matching `playAndRecordOptions` in the\n  Swift SDK. Previously only `allowBluetooth` and `mixWithOthers` were requested,\n  so A2DP output devices and AirPlay routes were unavailable during a call on this\n  platform but available on others.\n\n  When `preferSpeakerOutput` is set, `defaultToSpeaker` is now requested as well.\n  The `videoChat` mode implies a speaker route, but iOS may rewrite the mode when\n  Voice Processing I/O is instantiated - the Swift SDK observed it switching to\n  `voiceChat`, which routes to the receiver. Requesting the option explicitly\n  keeps the speaker route across that rewrite.\n\n  This affects the defaults used by `setupIOSAudioManagement` and the deprecated\n  `getDefaultAppleAudioConfigurationForMode`. A custom `IOSAudioSessionPolicy` or\n  `AppleAudioConfiguration` is unaffected - those supply their own options.\n\n- iOS: pick the audio session mode based on Apple Voice Processing I/O state. - [#455](https://github.com/livekit/client-sdk-react-native/pull/455) ([@davidliu](https://github.com/davidliu))\n\n  iOS applies a reduced, call-tuned speaker gain while capture is active under the\n  `voiceChat`/`videoChat` session modes. Apple Voice Processing I/O compensates\n  with its own loudness stage, so with VPIO off remote audio played back\n  noticeably quieter.\n\n  `LiveKitWebRTC` 144.7559.15 reports the resolved VPIO state to the audio device\n  module's `willEnableEngine` hook. The default recording configuration now uses\n  that: with VPIO running it keeps `voiceChat`/`videoChat` as before, and with VPIO\n  off (for example after `AudioDeviceModule.setVoiceProcessingEnabled(false)`) it\n  switches to the `default` mode, which keeps media gain. That mode routes to the\n  receiver, so `preferSpeakerOutput` is expressed through the `defaultToSpeaker`\n  category option instead of the implicit routing the chat modes provide. This\n  matches what the LiveKit Swift SDK already does.\n\n  `IOSAudioSessionPolicy` gains an optional `recordingWithoutVoiceProcessing`\n  configuration for the VPIO-off case. Policies that omit it keep using their\n  `recording` configuration for both, so existing setups are unaffected.\n  `AudioEngineConfigurationState`, passed to the deprecated\n  `setupIOSAudioManagement` callback form, gains a matching\n  `isVoiceProcessingEnabled` field.\n\n  Requires `@livekit/react-native-webrtc` with the five-argument `willEnableEngine`\n  delegate method. Older versions crash with an unrecognized selector when the\n  audio engine first enables.",
+      "target": "main"
+    },
+    "livekit/react-native-webrtc": {
+      "error": "HTTP Error 404: Not Found",
+      "source": "https://api.github.com/repos/livekit/react-native-webrtc/releases/latest"
+    },
+    "getsentry/sentry-javascript": {
+      "tag": "10.75.0",
+      "published": "2026-09-16T15:04:44Z",
+      "url": "https://github.com/getsentry/sentry-javascript/releases/tag/10.75.0",
+      "body": "### Important Changes\n\n- **feat(v10/effect): Capture errors through the Effect v4 `ErrorReporter` API ([#24445](https://github.com/getsentry/sentry-javascript/pull/24445))**\n\n  On Effect v4, `Sentry.effectLayer` now registers a Sentry `ErrorReporter`. Failures that pass through `Effect.withErrorReporting`, `ErrorReporter.report` or the built-in HTTP and RPC reporting boundaries are captured automatically, with `ErrorReporter.ignore`, `ErrorReporter.severity` and `ErrorReporter.attributes` annotations respected. Nothing changes on Effect v3.\n\n### Other Changes\n\n- feat(v10/core): Accept a `CollectBehavior` shorthand for `dataCollection.httpHeaders` ([#24339](https://github.com/getsentry/sentry-javascript/pull/24339))\n- fix(v10/browser): Release the XHR `virtualError` once the request completed ([#24307](https://github.com/getsentry/sentry-javascript/pull/24307))\n- fix(v10/browser-utils): Skip nullish LCP entries in vendored web-vitals ([#24349](https://github.com/getsentry/sentry-javascript/pull/24349))\n- fix(v10/bundler-plugins): Stamp debug IDs onto emitted source maps when `disable-upload` is set ([#24332](https://github.com/getsentry/sentry-javascript/pull/24332))\n- fix(v10/core): Don't instrument the SDK's own envelope requests ([#24276](https://github.com/getsentry/sentry-javascript/pull/24276))\n- fix(v10/nextjs): Only include emitted chunk directories in Turbopack sourcemap upload ([#24295](https://github.com/getsentry/sentry-javascript/pull/24295))\n- fix(v10/nitro): Import from nitro/h3 instead of h3 directly ([#24444](https://github.com/getsentry/sentry-javascript/pull/24444))\n- fix(v10/node-core): Don't recurse in logAndExitProcess on a broken stdio pipe ([#24353](https://github.com/getsentry/sentry-javascript/pull/24353))\n- fix(v10/nuxt): Detect Nitro version via the app's Nuxt dependency chain ([#24025](https://github.com/getsentry/sentry-javascript/pull/24025))\n- fix(v10/replay): Don't rewrite already-emitted nodes when syncing mirror attributes ([#23588](https://github.com/getsentry/sentry-javascript/pull/23588))\r\n\r\n## Bundle size \ud83d\udce6 \r\n\r\n| Path                                                                       | Size              |\n| -------------------------------------------------------------------------- | ----------------- |\n| @sentry/browser                                                            | 27.18 KB  |\n| @sentry/browser - with treeshaking flags                                   | 25.66 KB  |\n| @sentry/browser (incl. Tracing)                                            | 45.6 KB   |\n| @sentry/browser (incl. Tracing + Span Streaming)                           | 47.34 KB  |\n| @sentry/browser (incl. Tracing, Profiling)                                 | 50.24 KB  |\n| @sentry/browser (incl. Tracing, Replay)                                    | 83.99 KB  |\n| @sentry/browser (incl. Tracing, Replay) - with treeshaking flags           | 73.84 KB  |\n| @sentry/browser (incl. Tracing, Replay with Canvas)                        | 88.6 KB   |\n| @sentry/browser (incl. Tracing, Replay, Feedback)                          | 100.94 KB |\n| @sentry/browser (incl. Feedback)                                           | 43.94 KB  |\n| @sentry/browser (incl. sendFeedback)                                       | 31.87 KB  |\n| @sentry/browser (incl. FeedbackAsync)                                      | 36.88 KB  |\n| @sentry/browser (incl. Metrics)                                            | 28.25 KB  |\n| @sentry/browser (incl. Logs)                                               | 28.47 KB  |\n| @sentry/browser (incl. Metrics & Logs)                                     | 29.15 KB  |\n| @sentry/react                                                              | 28.93 KB  |\n| @sentry/react (incl. Tracing)                                              | 47.81 KB  |\n| @sentry/vue                                                                | 32.47 KB  |\n| @sentry/vue (incl. Tracing)                                                | 47.55 KB  |\n| @sentry/svelte                                                             | 27.21 KB  |\n| CDN Bundle                                                                 | 29.53 KB  |\n| CDN Bundle (incl. Tracing)                                                 | 47.52 KB  |\n| CDN Bundle (incl. Logs, Metrics)                                           | 31.07 KB  |\n| CDN Bundle (incl. Tracing, Logs, Metrics)                                  | 48.81 KB  |\n| CDN Bundle (incl. Replay, Logs, Metrics)                                   | 69.49 KB  |\n| CDN Bundle (incl. Tracing, Replay)                                         | 84.22 KB  |\n| CDN Bundle (incl. Tracing, Replay, Logs, Metrics)                          | 85.5 KB   |\n| CDN Bundle (incl. Tracing, Replay, Feedback)                               | 89.87 KB  |\n| CDN Bundle (incl. Tracing, Replay, Feedback, Logs, Metrics)                | 91.15 KB  |\n| CDN Bundle - uncompressed                                                  | 87.93 KB  |\n| CDN Bundle (incl. Tracing) - uncompressed                                  | 143.41 KB |\n| CDN Bundle (incl. Logs, Metrics) - uncompressed                            | 92.53 KB  |\n| CDN Bundle (incl. Tracing, Logs, Metrics) - uncompressed                   | 147.3 KB  |\n| CDN Bundle (incl. Replay, Logs, Metrics) - uncompressed                    | 214.56 KB |\n| CDN Bundle (incl. Tracing, Replay) - uncompressed                          | 260.04 KB |\n| CDN Bundle (incl. Tracing, Replay, Logs, Metrics) - uncompressed           | 263.91 KB |\n| CDN Bundle (incl. Tracing, Replay, Feedback) - uncompressed                | 273.42 KB |\n| CDN Bundle (incl. Tracing, Replay, Feedback, Logs, Metrics) - uncompressed | 277.28 KB |\n| @sentry/nextjs (client)                                                    | 50.31 KB  |\n| @sentry/sveltekit (client)                                                 | 46.02 KB  |\n| @sentry/core/server                                                        | 78.95 KB  |\n| @sentry/core/browser                                                       | 65.45 KB  |\n| @sentry/node-core                                                          | 62.03 KB  |\n| @sentry/node                                                               | 123.25 KB |\n| @sentry/node (incl. diagnostics channel injection)                         | 166.36 KB |\n| @sentry/node/import (ESM hook with diagnostics-channel injection)          | 166 B     |\n| @sentry/node/light                                                         | 50.45 KB  |\n| @sentry/node - without tracing                                             | 73.49 KB  |\n| @sentry/aws-serverless                                                     | 82.5 KB   |\n| @sentry/cloudflare (withSentry) - minified                                 | 198.2 KB  |\n| @sentry/cloudflare (withSentry)                                            | 488.15 KB |",
+      "target": "9ffb58c0a25b83de61490280333f98eda5366914"
+    },
+    "getsentry/sentry-react-native": {
+      "tag": "8.27.0",
+      "published": "2026-09-17T10:55:01Z",
+      "url": "https://github.com/getsentry/sentry-react-native/releases/tag/8.27.0",
+      "body": "> [!WARNING]\n> iOS native crashes now set `mechanism.synthetic`, taking the mach/signal name out of the grouping hash. Expect a one-time regrouping as your app adopts this version.\n\n### Features\n\n- Add Session Replay runtime controls to start, stop, and manage recording manually ([#6703](https://github.com/getsentry/sentry-react-native/pull/6703))\n  - Use `Sentry.getReplay()` to access the active replay and control it at runtime with the same API on iOS, Android, and Web:\n\n    ```js\n    const replay = Sentry.getReplay();\n    replay?.start(); // start recording a session replay\n    replay?.startBuffering(); // start recording in buffering mode\n    replay?.stop(); // stop recording\n    replay?.pause(); // pause recording (no-op on Web)\n    replay?.resume(); // resume a paused recording (no-op on Web)\n    replay?.flush(); // flush the buffered replay to Sentry\n    ```\n\n- Add per-class Session Replay masking via `maskedViewClasses` / `unmaskedViewClasses` on `mobileReplayIntegration` ([#6725](https://github.com/getsentry/sentry-react-native/pull/6725))\n- Add experimental `avoidForegroundResumeHang` (iOS) to `mobileReplayIntegration` to work around a fatal App Hang that can occur when Session Replay resumes capture on returning to the foreground with a heavy view hierarchy on screen ([#6727](https://github.com/getsentry/sentry-react-native/pull/6727))\n\n### Fixes\n\n- Prevent a fatal `JavaCallback was already settled` crash from `getNewScreenTimeToDisplay` under rapid navigation on Android ([#6722](https://github.com/getsentry/sentry-react-native/pull/6722))\n- Mask React Native `<Image>` in Session Replay on the iOS New Architecture when `maskAllImages` is enabled ([#6726](https://github.com/getsentry/sentry-react-native/pull/6726))\n- Background root spans (app-start, expo-updates) no longer overwrite the native propagation context of an active navigation trace ([#6720](https://github.com/getsentry/sentry-react-native/pull/6720))\n- Honor the host app's pinned `ndkVersion` on Android instead of letting AGP download its own default NDK for the module's native code ([#6724](https://github.com/getsentry/sentry-react-native/pull/6724))\n\n### Dependencies\n\n- Bump CLI from v3.7.0 to v3.8.0 ([#6734](https://github.com/getsentry/sentry-react-native/pull/6734))\n  - [changelog](https://github.com/getsentry/sentry-cli/blob/master/CHANGELOG.md#380)\n  - [diff](https://github.com/getsentry/sentry-cli/compare/3.7.0...3.8.0)\n- Bump JavaScript SDK from v10.74.0 to v10.75.0 ([#6733](https://github.com/getsentry/sentry-react-native/pull/6733))\n  - [changelog](https://github.com/getsentry/sentry-javascript/blob/develop/CHANGELOG.md#10750)\n  - [diff](https://github.com/getsentry/sentry-javascript/compare/10.74.0...10.75.0)\n- Bump Android SDK from v8.56.0 to v8.57.0 ([#6732](https://github.com/getsentry/sentry-react-native/pull/6732))\n  - [changelog](https://github.com/getsentry/sentry-java/blob/main/CHANGELOG.md#8570)\n  - [diff](https://github.com/getsentry/sentry-java/compare/8.56.0...8.57.0)\n- Bump Cocoa SDK from v9.28.0 to v9.29.0 ([#6736](https://github.com/getsentry/sentry-react-native/pull/6736))\n  - [changelog](https://github.com/getsentry/sentry-cocoa/blob/main/CHANGELOG.md#9290)\n  - [diff](https://github.com/getsentry/sentry-cocoa/compare/9.28.0...9.29.0)",
+      "target": "ff9f65539196db11d97aba4c08c81fbb0818214f"
+    },
+    "vercel/turborepo": {
+      "tag": "v2.11.2",
+      "published": "2026-09-18T21:07:28Z",
+      "url": "https://github.com/vercel/turborepo/releases/tag/v2.11.2",
+      "body": "<!-- Release notes generated using configuration in .github/release.yml at v2.11.2 -->\n\n## What's Changed\n### Changelog\n* chore: Release Turborepo 2.11.1 by @github-actions[bot] in https://github.com/vercel/turborepo/pull/14104\n* fix: Restore repeatable CLI flags by @anthonyshew in https://github.com/vercel/turborepo/pull/14106\n\n\n**Full Changelog**: https://github.com/vercel/turborepo/compare/v2.11.1...v2.11.2",
+      "target": "main"
+    }
+  },
+  "node": {
+    "latest": {
+      "version": "v26.9.0",
+      "date": "2026-09-16",
+      "files": [
+        "aix-ppc64",
+        "headers",
+        "linux-arm64",
+        "linux-ppc64le",
+        "linux-s390x",
+        "linux-x64",
+        "linux-x64-musl",
+        "osx-arm64-tar",
+        "osx-x64-pkg",
+        "osx-x64-tar",
+        "src",
+        "win-arm64-7z",
+        "win-arm64-zip",
+        "win-x64-7z",
+        "win-x64-exe",
+        "win-x64-msi",
+        "win-x64-zip"
+      ],
+      "npm": "11.19.1",
+      "v8": "14.6.202.34",
+      "uv": "1.52.1",
+      "zlib": "1.3.2.1-motley",
+      "openssl": "3.5.8",
+      "modules": "147",
+      "lts": false,
+      "security": false
+    },
+    "lts24": {
+      "version": "v24.21.0",
+      "date": "2026-09-07",
+      "files": [
+        "aix-ppc64",
+        "headers",
+        "linux-arm64",
+        "linux-ppc64le",
+        "linux-s390x",
+        "linux-x64",
+        "linux-x64-musl",
+        "osx-arm64-tar",
+        "osx-x64-pkg",
+        "osx-x64-tar",
+        "src",
+        "win-arm64-7z",
+        "win-arm64-zip",
+        "win-x64-7z",
+        "win-x64-exe",
+        "win-x64-msi",
+        "win-x64-zip"
+      ],
+      "npm": "11.19.0",
+      "v8": "13.6.233.17",
+      "uv": "1.52.1",
+      "zlib": "1.3.2.1-motley",
+      "openssl": "3.5.8",
+      "modules": "137",
+      "lts": "Krypton",
+      "security": false
+    }
+  }
+}
