@@ -25,11 +25,11 @@
     "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
-    "@types/node": "^24.13.4",
+    "@types/node": "^26.6.2",
     "@types/react": "19.3.0",
-    "prettier": "3.9.6",
+    "prettier": "3.9.8",
     "react": "19.3.0",
-    "tsx": "^4.23.13",
+    "tsx": "^4.23.15",
     "typescript": "catalog:"
   },
   "peerDependencies": {

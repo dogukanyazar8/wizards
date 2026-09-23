@@ -912,6 +912,17 @@ fn desktop_sentry_options(environment: String) -> sentry::ClientOptions {
         .environment(environment)
         .maybe_release(sentry::release_name!())
         .send_default_pii(false)
+        .add_integration(desktop_minidump_integration())
+}
+
+/// Native çökmeler (erişim ihlali, abort) panic hook'una hiç ulaşmaz. Minidump
+/// integration'ı bu binary'yi crash reporter süreci olarak yeniden başlatır ve
+/// dump'ı Sentry'ye ek olarak gönderir. Deep link ve OAuth handoff URL'leri
+/// komut satırından geldiği için argümanlar crash reporter'a aktarılmaz.
+fn desktop_minidump_integration() -> sentry::integrations::minidump::MinidumpIntegration {
+    sentry::integrations::minidump::MinidumpIntegration::new()
+        .crashes_dir(std::env::temp_dir().join("whispr-desktop").join("crashes"))
+        .inherit_args(false)
 }
 
 pub fn run() {
@@ -923,6 +934,9 @@ pub fn run() {
     // Sentry: derleme zamanında gömülen DSN yoksa tamamen kapalı (no-op).
     // Guard, run() bloğu boyunca (uygulama ömrü) canlı tutulur; panic
     // integration'ı sentry::init içinde varsayılan olarak kurulur.
+    // Minidump integration'ı bu çağrıda crash reporter sürecini başlatır; o süreç
+    // aynı binary'dir ve sentry::init'ten geri dönmez. Bu yüzden init, Tauri
+    // builder'dan ve yan etkili her koddan önce kalmalı.
     let _sentry_guard = option_env!("WHISPR_DESKTOP_SENTRY_DSN")
         .filter(|dsn| !dsn.trim().is_empty())
         .map(|dsn| sentry::init((dsn, desktop_sentry_options(desktop_release_ring.clone()))));
@@ -5616,6 +5630,16 @@ mod tests {
         assert_eq!(options.environment.as_deref(), Some("uat"));
         assert_eq!(options.release, sentry::release_name!());
         assert!(!options.send_default_pii);
+    }
+
+    #[test]
+    fn desktop_sentry_options_capture_native_crashes_as_minidumps() {
+        let options = desktop_sentry_options("uat".to_string());
+
+        assert!(options
+            .integrations
+            .iter()
+            .any(|integration| integration.name() == "minidump"));
     }
 
     #[test]

@@ -21,8 +21,8 @@ Yeni Windows bilgisayarda sıfırdan kurulum için ana kaynak:
 
 ## Kilitli araç sürümleri
 
-- Node.js: `24.21.0`; destek aralığı `>=24.21.0 <25`
-- pnpm: `12.4.2`
+- Node.js: `26.10.0`; destek aralığı `>=26.10.0 <27`
+- pnpm: `12.5.1`
 - Paket yöneticisi: Corepack üzerinden pnpm
 
 Sürümleri tahmin etmeyin. `.nvmrc`, kök `package.json` ve `pnpm-lock.yaml` kaynak gerçektir.

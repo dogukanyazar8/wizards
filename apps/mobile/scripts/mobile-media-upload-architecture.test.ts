@@ -36,7 +36,7 @@ describe("mobile media upload architecture", () => {
     // so a screen that never uploads never loads them.
     assert.match(moduleSource, /require\("expo-image-manipulator"\)/);
     assert.doesNotMatch(pickerSource, /from "expo-image-manipulator"/);
-    assert.equal(packageJson.dependencies?.["expo-image-manipulator"], "~57.0.17");
+    assert.equal(packageJson.dependencies?.["expo-image-manipulator"], "~57.0.19");
     // Images are shrunk before they are uploaded, in the format the plan chose,
     // and an image that is already small is left byte-for-byte alone.
     assert.match(pickerSource, /optimizeMobileImageForUpload\(/);

@@ -12,7 +12,7 @@
 # Build and publish: see docker/ci/README.md. The published digest belongs in
 # docker/ci/IMAGE and is checked by the local VM CI contract.
 
-FROM node:24.21.0-bookworm-slim
+FROM node:26.10.0-bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
     COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
@@ -52,7 +52,7 @@ RUN apt-get update \
 
 # pnpm comes from the repository's packageManager pin, not from npm -g.
 RUN corepack enable \
-  && corepack prepare pnpm@12.4.2 --activate \
+  && corepack prepare pnpm@12.5.1 --activate \
   && pnpm --version \
   && chmod -R a+rX "${COREPACK_HOME}"
 

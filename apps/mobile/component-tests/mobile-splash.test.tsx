@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react-native";
+import { fireEvent, render } from "@testing-library/react-native";
 
 import { lightTheme } from "../src/design/themes";
 import { mobileCopy } from "../src/locale/mobile-copy";
@@ -85,6 +85,17 @@ describe("MobileSplashScreen", () => {
 
     expect(view.getByText(copy.splashStateSessionExpiredTitle)).toBeTruthy();
     expect(view.getByText(copy.splashStateSessionExpiredAction)).toBeTruthy();
+  });
+
+  it("durum düğmesine basınca eylemi çalıştırır", async () => {
+    // Kapı `onAction` geçmeyi unuttuğunda düğme yine çiziliyor ama hiçbir şey
+    // yapmıyordu; basış yolunun kendisi bu yüzden test edilir.
+    const onAction = jest.fn();
+    const view = await renderSplash({ onAction, state: "slow" });
+
+    await fireEvent.press(view.getByTestId("mobile-splash-action"));
+
+    expect(onAction).toHaveBeenCalledTimes(1);
   });
 
   it("kökü canlı bölge olarak işaretler", async () => {

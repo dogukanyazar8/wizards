@@ -596,20 +596,53 @@ function Wait-ForAndroidDeviceBoot {
   throw "Android device $DeviceId did not finish boot readiness within $TimeoutSeconds seconds. Details: $details"
 }
 
-function Stop-GradleDaemons {
-  param([string]$GradleWrapperPath, [string]$WorkingDirectory)
+function Stop-ManagedBuildJvms {
+  param([string]$GradleUserHome)
 
-  if (-not (Test-Path -LiteralPath $GradleWrapperPath)) {
+  if ([string]::IsNullOrWhiteSpace($GradleUserHome)) {
     return
   }
 
-  Push-Location $WorkingDirectory
-  try {
-    Write-Host "> $GradleWrapperPath --stop" -ForegroundColor DarkGray
-    & $GradleWrapperPath "--stop" | Out-Host
-  } finally {
-    Pop-Location
+  # `gradlew --stop` never reaches the Kotlin compile daemon: it is a separate JVM
+  # that outlives the Gradle daemon and keeps compiled class jars open, so the next
+  # build fails with "Unable to delete file ... classes.jar". Only JVMs launched
+  # from the managed Gradle user home are stopped; other Gradle, Kotlin or Android
+  # Studio daemons on the machine are left alone.
+  $managedHome = [System.IO.Path]::GetFullPath($GradleUserHome).TrimEnd("\") + "\"
+  $managedJvms = @(
+    Get-CimInstance Win32_Process -Filter "Name='java.exe'" -ErrorAction SilentlyContinue |
+      Where-Object {
+        $_.CommandLine -and
+        $_.CommandLine.IndexOf($managedHome, [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -and
+        $_.CommandLine -match "KotlinCompileDaemon|GradleDaemon"
+      }
+  )
+
+  foreach ($jvm in $managedJvms) {
+    Write-Host "Stopping managed build JVM $($jvm.ProcessId)" -ForegroundColor DarkGray
+    Stop-Process -Id $jvm.ProcessId -Force -ErrorAction SilentlyContinue
   }
+
+  # File handles are only released once the process is gone.
+  if ($managedJvms.Count -gt 0) {
+    Wait-Process -Id @($managedJvms | ForEach-Object { $_.ProcessId }) -Timeout 30 -ErrorAction SilentlyContinue
+  }
+}
+
+function Stop-GradleDaemons {
+  param([string]$GradleWrapperPath, [string]$WorkingDirectory)
+
+  if (Test-Path -LiteralPath $GradleWrapperPath) {
+    Push-Location $WorkingDirectory
+    try {
+      Write-Host "> $GradleWrapperPath --stop" -ForegroundColor DarkGray
+      & $GradleWrapperPath "--stop" | Out-Host
+    } finally {
+      Pop-Location
+    }
+  }
+
+  Stop-ManagedBuildJvms -GradleUserHome $env:GRADLE_USER_HOME
 }
 
 function Remove-DirectoryIfPresent {
@@ -767,16 +800,20 @@ function Invoke-PnpmInstallWithRecovery {
   )
 
   $previousCi = $env:CI
+  $previousVirtualStoreMaxLength = $env:pnpm_config_virtual_store_dir_max_length
   try {
     # CI mode makes the staged dependency layout deterministic and non-interactive.
     $env:CI = "true"
+    # pnpm 12 ignores `--config.virtual-store-dir-max-length` and falls back to its
+    # default (60); the environment variable is the form it honors. The short
+    # length keeps native build paths under the Windows limit.
+    $env:pnpm_config_virtual_store_dir_max_length = [string]$PnpmVirtualStoreMaxLength
     $requiresForcedReinstall = $false
     try {
       Invoke-CommandChecked -Command "corepack" -Arguments @(
         "pnpm",
         "--config.store-dir=$PhysicalStoreDir",
         "--config.virtual-store-dir=$PhysicalVirtualStoreDir",
-        "--config.virtual-store-dir-max-length=$PnpmVirtualStoreMaxLength",
         "install",
         "--frozen-lockfile"
       ) -WorkingDirectory $WorkingDirectory
@@ -795,7 +832,6 @@ function Invoke-PnpmInstallWithRecovery {
         "pnpm",
         "--config.store-dir=$PhysicalStoreDir",
         "--config.virtual-store-dir=$PhysicalVirtualStoreDir",
-        "--config.virtual-store-dir-max-length=$PnpmVirtualStoreMaxLength",
         "install",
         "--force",
         "--frozen-lockfile"
@@ -804,13 +840,19 @@ function Invoke-PnpmInstallWithRecovery {
 
     if (-not (Test-WhisprUatPnpmLayout -WorkingDirectory $WorkingDirectory -ExpectedVirtualStoreDir $PhysicalVirtualStoreDir -ExpectedVirtualStoreMaxLength $PnpmVirtualStoreMaxLength)) {
       $actualVirtualStoreDir = Get-WhisprUatPnpmVirtualStoreDir -WorkingDirectory $WorkingDirectory
-      throw "Managed pnpm layout is stale or incomplete after forced recovery. Expected virtual store: $PhysicalVirtualStoreDir; actual virtual store: $actualVirtualStoreDir"
+      $actualVirtualStoreMaxLength = Get-WhisprUatPnpmVirtualStoreMaxLength -WorkingDirectory $WorkingDirectory
+      throw "Managed pnpm layout is stale or incomplete after forced recovery. Expected virtual store: $PhysicalVirtualStoreDir; actual virtual store: $actualVirtualStoreDir; expected max length: $PnpmVirtualStoreMaxLength; actual max length: $actualVirtualStoreMaxLength"
     }
   } finally {
     if ($null -eq $previousCi) {
       Remove-Item Env:CI -ErrorAction SilentlyContinue
     } else {
       $env:CI = $previousCi
+    }
+    if ($null -eq $previousVirtualStoreMaxLength) {
+      Remove-Item Env:pnpm_config_virtual_store_dir_max_length -ErrorAction SilentlyContinue
+    } else {
+      $env:pnpm_config_virtual_store_dir_max_length = $previousVirtualStoreMaxLength
     }
   }
 }
@@ -887,6 +929,13 @@ function Invoke-GradleBuildWithRetry {
     [string]$AndroidRoot,
     [string]$VirtualStoreDir
   )
+
+  # Incremental packaging is the only state in which `:app:packageDebug` ran the
+  # Gradle daemon out of heap (OutOfMemoryError inside ApkFlinger, reading the
+  # changed entries of a 170 MB APK). The retry only recovered because it drops
+  # that state first, so every build starts from it instead of stumbling into the
+  # incremental path and paying for a second Gradle run.
+  Reset-AndroidPackagingState -AndroidRoot $AndroidRoot
 
   try {
     Invoke-CommandChecked -Command $GradleWrapperPath -Arguments $GradleArguments -WorkingDirectory $WorkingDirectory

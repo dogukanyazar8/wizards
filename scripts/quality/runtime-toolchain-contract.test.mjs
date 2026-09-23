@@ -5,11 +5,11 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
-const expectedNodeVersion = "24.21.0";
-const expectedNodeRange = `>=${expectedNodeVersion} <25`;
-const expectedPackageManager = "pnpm@12.4.2";
-const expectedNodeTypes = "^24.13.4";
-const expectedNode24ActionPins = {
+const expectedNodeVersion = "26.10.0";
+const expectedNodeRange = `>=${expectedNodeVersion} <${Number(expectedNodeVersion.split(".")[0]) + 1}`;
+const expectedPackageManager = "pnpm@12.5.1";
+const expectedNodeTypes = "^26.6.2";
+const expectedNodeActionPins = {
   "actions/checkout": {
     sha: "3d3c42e5aac5ba805825da76410c181273ba90b1",
     tag: "v7.0.1",
@@ -132,7 +132,7 @@ test("actionlint uses the repository's checksum-verified command", () => {
 });
 
 test("Turbo is pinned to the reviewed toolchain release", () => {
-  assert.equal(readJson("package.json").devDependencies?.turbo, "2.10.13");
+  assert.equal(readJson("package.json").devDependencies?.turbo, "2.11.2");
 });
 
 test("stable typecheck generates Prisma before Turbo can replay cached tasks", () => {
@@ -219,7 +219,7 @@ test("CI pins supported Node 24 action runtimes to reviewed releases", () => {
   assert.ok(actionReferences.length > 0, "CI must use reviewed JavaScript actions");
 
   for (const [, action, sha, tag] of actionReferences) {
-    const expected = expectedNode24ActionPins[action];
+    const expected = expectedNodeActionPins[action];
     assert.ok(expected, `unexpected action pin: ${action}`);
     assert.equal(sha, expected.sha, `${action} must use its reviewed immutable SHA`);
     assert.equal(tag, expected.tag, `${action} tag comment must match its immutable SHA`);
@@ -227,7 +227,7 @@ test("CI pins supported Node 24 action runtimes to reviewed releases", () => {
 
   assert.deepEqual(
     [...new Set(actionReferences.map(([, action]) => action))].sort(),
-    Object.keys(expectedNode24ActionPins).sort(),
+    Object.keys(expectedNodeActionPins).sort(),
   );
 });
 
@@ -331,7 +331,7 @@ test("Node 22 native compatibility runs manually on the GitHub-hosted Linux runn
   const workflow = readText(join(".github", "workflows", "ci.yml"));
   const compatibilityJob = readWorkflowJob(workflow, "node22-compatibility");
   const installRuntimeIndex = compatibilityJob.indexOf(
-    "- name: Setup Node.js 24 dependency installation runtime",
+    "- name: Setup Node.js 26 dependency installation runtime",
   );
   const installDependenciesIndex = compatibilityJob.indexOf("- name: Install dependencies");
   const compatibilityRuntimeIndex = compatibilityJob.indexOf(

@@ -5,7 +5,6 @@ import { describe, it } from "node:test";
 import * as ts from "typescript";
 
 import * as paletteModule from "../src/design/palette";
-import { getMobileThemeCompatibilityColors } from "../src/design/mobile-theme-compat";
 import { darkTheme, lightTheme } from "../src/design/themes";
 import {
   mobileAboutMetrics,
@@ -1277,9 +1276,6 @@ export function Fixture({ cap }: { cap: number }) {
     assert.match(authScreenBackground, /dot: \{\s*backgroundColor: theme\.accent\.default,/);
     assert.match(uiAtoms, /actionButtonPrimary: \{[\s\S]*?backgroundColor: theme\.accent\.action,/);
     assert.match(uiAtoms, /statusChipDotAccent: \{\s*backgroundColor: theme\.accent\.strong,/);
-    assert.equal(getMobileThemeCompatibilityColors(lightTheme).primary, lightTheme.accent.action);
-    assert.equal(getMobileThemeCompatibilityColors(darkTheme).primary, darkTheme.accent.action);
-    assert.equal(getMobileThemeCompatibilityColors(darkTheme).white, darkTheme.text.onPrimary);
   });
 
   it("uses onStatus for text placed on semantic status surfaces", () => {

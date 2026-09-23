@@ -343,7 +343,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
-      - name: Setup Node.js 24 dependency installation runtime
+      - name: Setup Node.js 26 dependency installation runtime
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
@@ -414,7 +414,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       redis:
-        image: redis:8.10.1-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
+        image: redis:8.10.2-alpine@sha256:72cedd9603038893af961e90ac5e1a1a0d8377d5e338dbdad8fe284ea25de18f
         ports:
           - 6379:6379
         options: >-
@@ -565,7 +565,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       redis:
-        image: redis:8.10.1-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
+        image: redis:8.10.2-alpine@sha256:72cedd9603038893af961e90ac5e1a1a0d8377d5e338dbdad8fe284ea25de18f
         ports:
           - 6379:6379
         options: >-
@@ -661,7 +661,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       redis:
-        image: redis:8.10.1-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
+        image: redis:8.10.2-alpine@sha256:72cedd9603038893af961e90ac5e1a1a0d8377d5e338dbdad8fe284ea25de18f
         ports:
           - 6379:6379
         options: >-
@@ -760,7 +760,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       redis:
-        image: redis:8.10.1-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
+        image: redis:8.10.2-alpine@sha256:72cedd9603038893af961e90ac5e1a1a0d8377d5e338dbdad8fe284ea25de18f
         ports:
           - 6379:6379
         options: >-

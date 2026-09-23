@@ -3,9 +3,9 @@
   "private": true,
   "version": "0.9.1",
   "engines": {
-    "node": ">=24.21.0 <25"
+    "node": ">=26.10.0 <27"
   },
-  "packageManager": "pnpm@12.4.2",
+  "packageManager": "pnpm@12.5.1",
   "scripts": {
     "dev": "turbo dev",
     "dev:clear-auth-rate-limits": "pnpm --filter @wizards/web dev:clear-auth-rate-limits",
@@ -36,8 +36,8 @@
   },
   "devDependencies": {
     "@typescript/native": "catalog:",
-    "prettier": "3.9.6",
-    "turbo": "2.10.13",
+    "prettier": "3.9.8",
+    "turbo": "2.11.2",
     "typescript": "catalog:"
   }
 }

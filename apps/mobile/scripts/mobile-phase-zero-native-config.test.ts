@@ -131,7 +131,12 @@ test("build-only Android APK scripts do not require or mutate a connected device
   assert.match(buildScript, /"virtual-store-dir-max-length"\s*=\s*\$VirtualStoreMaxLength/);
   assert.match(buildScript, /"--config\.store-dir=\$PhysicalStoreDir"/);
   assert.match(buildScript, /"--config\.virtual-store-dir=\$PhysicalVirtualStoreDir"/);
-  assert.match(buildScript, /"--config\.virtual-store-dir-max-length=\$PnpmVirtualStoreMaxLength"/);
+  // pnpm 12 ignores the CLI form; the managed install passes the length through the environment.
+  assert.doesNotMatch(buildScript, /"--config\.virtual-store-dir-max-length=/);
+  assert.match(
+    buildScript,
+    /\$env:pnpm_config_virtual_store_dir_max_length = \[string\]\$PnpmVirtualStoreMaxLength/,
+  );
   assert.match(buildScript, /\$env:GRADLE_USER_HOME\s*=\s*\$gradleUserHome/);
   assert.match(buildScript, /"--force",\s*"--frozen-lockfile"/);
   assert.match(buildScript, /\$env:CI\s*=\s*"true"/);
@@ -159,7 +164,7 @@ test("release bundling declares and validates the Expo Babel preset directly", (
 test("release source-map upload declares and validates the Sentry CLI directly", () => {
   const buildScript = readFileSync(join(root, "scripts", "build-android-uat.ps1"), "utf8");
 
-  assert.equal(packageJson.dependencies["@sentry/cli"], "3.7.0");
+  assert.equal(packageJson.dependencies["@sentry/cli"], "3.8.0");
   assert.match(buildScript, /require\.resolve\('@sentry\/cli\/package\.json'\)/);
   assert.match(buildScript, /@sentry\\cli\\bin\\sentry-cli/);
 });

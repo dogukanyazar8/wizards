@@ -37,13 +37,23 @@ describe("mobile Gradle memory config", () => {
         };
       };
     };
-    const gradleJvmArgs = config._internal.modResults.android.gradleProperties.filter(
-      (property) => property.type === "property" && property.key === "org.gradle.jvmargs",
+    const jvmArgProperties = config._internal.modResults.android.gradleProperties.filter(
+      (property) =>
+        property.type === "property" &&
+        (property.key === "org.gradle.jvmargs" || property.key === "kotlin.daemon.jvmargs"),
     );
 
-    assert.deepEqual(gradleJvmArgs, [
+    // `:app:packageDebug` ran out of heap at 2 GB while packaging the two-ABI APK.
+    // The Kotlin daemon inherits the Gradle arguments unless set, so it stays pinned
+    // at its previous 2 GB and only the Gradle daemon grows.
+    assert.deepEqual(jvmArgProperties, [
       {
         key: "org.gradle.jvmargs",
+        type: "property",
+        value: "-Xmx4096m -XX:MaxMetaspaceSize=1024m",
+      },
+      {
+        key: "kotlin.daemon.jvmargs",
         type: "property",
         value: "-Xmx2048m -XX:MaxMetaspaceSize=1024m",
       },

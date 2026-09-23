@@ -10,7 +10,10 @@ describe("mobile Phase 3 social contract", () => {
     const dmInbox = read("../src/app/screens/dm-inbox.tsx");
     const friends = read("../src/social/friends-hub.tsx");
     const account = read("../src/social/social-account-screens.tsx");
-    const sources = `${dm}\n${dmInbox}\n${friends}\n${account}`;
+    // Profil düzenleme ekranı `mobile-profile-edit-screen.tsx`e taşındı; eski
+    // `social-account-screens` kopyası kaldırıldı, sözleşme canlı ekrandan okunur.
+    const profileEdit = read("../src/social/mobile-profile-edit-screen.tsx");
+    const sources = `${dm}\n${dmInbox}\n${friends}\n${account}\n${profileEdit}`;
     // 9d replaced the username submit form with live search plus per-row actions.
     // §2 "1c" then folded that search into the tab band and dropped the invite
     // card, so the requests tab is the three groups the design draws and nothing
@@ -46,12 +49,18 @@ describe("mobile Phase 3 social contract", () => {
   });
 
   it("uses the bounded M2 avatar upload and claim contract without a direct profile mutation", () => {
-    const account = read("../src/social/social-account-screens.tsx");
+    const profileEdit = read("../src/social/mobile-profile-edit-screen.tsx");
     const avatarEditor = read("../src/social/mobile-profile-avatar-editor.tsx");
-    assert.match(account, /MobileProfileAvatarEditor/);
+    // Canlı ekran avatarı kendi içinde `useMobileImageUpload` ile yüklüyor; editör
+    // bileşeni aynı sınırlı sözleşmeyi ayrı yüzey olarak koruyor.
+    assert.match(profileEdit, /useMobileImageUpload/);
+    assert.match(profileEdit, /purpose: target === "avatar" \? "profile-avatar"/);
     assert.match(avatarEditor, /useMobileImageUpload/);
     assert.match(avatarEditor, /purpose: "profile-avatar"/);
     assert.match(avatarEditor, /patchMobileProfileAvatarCaches/);
-    assert.equal(/fetch\(|requestJson\([^)]*avatar/i.test(`${account}\n${avatarEditor}`), false);
+    assert.equal(
+      /fetch\(|requestJson\([^)]*avatar/i.test(`${profileEdit}\n${avatarEditor}`),
+      false,
+    );
   });
 });

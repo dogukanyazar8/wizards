@@ -19,7 +19,7 @@ describe("desktop Cargo security baseline", () => {
 
     assert.match(
       manifest,
-      /^sentry\s*=\s*\{\s*version\s*=\s*"0\.49"/m,
+      /^sentry\s*=\s*\{\s*version\s*=\s*"0\.49(?:\.\d+)?"/m,
       "Sentry must remain on the maintained 0.49 release line",
     );
     assert.doesNotMatch(
