@@ -150,7 +150,7 @@ describe("AppNavPanel", () => {
   it("draws the five navigation rows as real links", () => {
     const html = renderPanel();
 
-    for (const [href, label] of [
+    for (const [href = "", label = ""] of [
       ["/home", "Ana Sayfa"],
       ["/messages", "Mesajlar"],
       ["/mentions", "Bahsedilmeler"],
@@ -158,7 +158,7 @@ describe("AppNavPanel", () => {
       ["/discover", "Keşfet"],
     ]) {
       assert.match(html, new RegExp(`<a[^>]*href="${href}"`), href);
-      assert.ok(html.includes(label!), label);
+      assert.ok(html.includes(label), label);
     }
 
     assert.doesNotMatch(html, /<div[^>]*onclick/i);

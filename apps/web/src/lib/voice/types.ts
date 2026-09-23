@@ -31,10 +31,6 @@ export interface VoiceChannelStateDTO {
   participants: VoiceStateParticipantDTO[];
 }
 
-export interface VoiceStatesResponse {
-  states: VoiceChannelStateDTO[];
-}
-
 export interface VoiceStateMutationResponse {
   channelId: string;
   participants: VoiceStateParticipantDTO[];
@@ -91,7 +87,5 @@ export const VoiceStatesQuerySchema = z.object({
   serverId: z.string().min(1),
 });
 
-export type DeleteVoiceStateBody = z.infer<typeof DeleteVoiceStateBodySchema>;
 export type HeartbeatVoiceStateBody = z.infer<typeof HeartbeatVoiceStateBodySchema>;
 export type UpsertVoiceStateBody = z.infer<typeof UpsertVoiceStateBodySchema>;
-export type VoiceStatesQuery = z.infer<typeof VoiceStatesQuerySchema>;

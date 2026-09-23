@@ -12,8 +12,8 @@ export default async function AdminServersPage({ searchParams }: AdminServersPag
   const params = await searchParams;
   const query = params?.query?.slice(0, 120);
   const filters: AdminServersFilters = query ? { query } : {};
-  const [admin, result, snapshot, auditTrail] = await Promise.all([
-    requireAdminModule("server.read"),
+  const admin = await requireAdminModule("server.read");
+  const [result, snapshot, auditTrail] = await Promise.all([
     listAdminServers({
       ...(params?.page ? { page: params.page } : {}),
       ...(filters.query ? { query: filters.query } : {}),

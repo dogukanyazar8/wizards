@@ -640,17 +640,6 @@ export function mapDMMessagePayload(
   ) as DMMessagePayload;
 }
 
-export async function mapDMMessagePayloadWithReactions(
-  message: RawDMMessage,
-  viewerId?: string | null,
-): Promise<DMMessagePayload> {
-  const [reactionsByMessageId, threadSummaryByMessageId] = await Promise.all([
-    getDMReactionMap([message.id]),
-    getDMThreadSummaryMap([message.id]),
-  ]);
-  return mapDMMessagePayload(message, reactionsByMessageId, threadSummaryByMessageId, viewerId);
-}
-
 function getDeletedMessageLabelForLocale(locale: string | null | undefined) {
   return translate(normalizeAppLocale(locale), "dm.message.deleted");
 }
@@ -1440,11 +1429,12 @@ export async function listDMMessages(
       : Promise.resolve(null),
   ]);
 
-  const payloads = [...pageMessages]
-    .reverse()
-    .map((message) =>
-      mapDMMessagePayload(message, reactionsByMessageId, threadSummaryByMessageId, userId),
-    );
+  const payloads = [...pageMessages].reverse().map((message) => ({
+    ...mapDMMessagePayload(message, reactionsByMessageId, threadSummaryByMessageId, userId),
+    ...(userId === message.userId && message.clientNonce
+      ? { clientNonce: message.clientNonce }
+      : {}),
+  }));
 
   return {
     messages: readStates ? attachGroupReadReceipt(payloads, userId, readStates) : payloads,
@@ -2012,14 +2002,6 @@ export async function deleteDMMessage(
     placeholderExpiresAt: null,
     status: "deleted",
   };
-}
-
-export async function toggleDMReaction(
-  messageId: string,
-  userId: string,
-  emoji: string,
-): Promise<MessageReaction[]> {
-  return setDMReaction(messageId, userId, emoji, undefined);
 }
 
 export async function setDMReaction(

@@ -395,9 +395,6 @@ export function reduceMessagesScreen(
 export const FriendsSortSchema = z.enum(["status", "name", "recent"]);
 export type FriendsSort = z.infer<typeof FriendsSortSchema>;
 
-/** The control's menu, in the order §4 lists it. */
-export const FRIENDS_SORTS = ["status", "name", "recent"] as const;
-
 export const FriendsSortRequestSchema = z.object({ sort: FriendsSortSchema }).strict();
 
 /** `?dmTab=online` was a tab until this package; it now lands on "Tümü". */
@@ -520,8 +517,6 @@ export const MessageSearchPageSchema = z.object({
 });
 
 export type ConversationRowDTO = z.infer<typeof ConversationRowDTOSchema>;
-export type FriendRowDTO = z.infer<typeof FriendRowDTOSchema>;
-export type FriendCounters = z.infer<typeof FriendCountersSchema>;
 export type FriendSuggestionDTO = z.infer<typeof FriendSuggestionDTOSchema>;
 export type PinnedMessageDTO = z.infer<typeof PinnedMessageDTOSchema>;
 export type MessageSearchFilter = z.infer<typeof MessageSearchFilterSchema>;

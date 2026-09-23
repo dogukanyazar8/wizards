@@ -34,7 +34,3 @@ export function recordMobileFault(error: unknown, now: Date = new Date()): void 
 export function readMobileFaultLog(): readonly MobileFeedbackFault[] {
   return faults;
 }
-
-export function clearMobileFaultLog(): void {
-  faults = [];
-}

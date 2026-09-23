@@ -384,12 +384,6 @@ const MOBILE_REALTIME_PAYLOAD_PARSERS = {
 
 type MobileValidatedRealtimeEventName = keyof typeof MOBILE_REALTIME_PAYLOAD_PARSERS;
 
-export function isMobileRealtimeServerEventName(
-  value: string,
-): value is MobileRealtimeServerEventName {
-  return (MOBILE_REALTIME_SERVER_EVENTS as readonly string[]).includes(value);
-}
-
 export function isMobileRealtimeValidatedPayloadEvent(
   eventName: MobileRealtimeServerEventName,
 ): eventName is MobileValidatedRealtimeEventName {

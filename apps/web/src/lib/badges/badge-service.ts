@@ -440,22 +440,6 @@ export function deliverBadgeEarnedNotification(input: {
   });
 }
 
-export async function notifyBadgeEarned(input: {
-  badge: BadgeId;
-  notifier?: BadgeNotificationDependencies;
-  store?: BadgeStore;
-  tier: number;
-  userId: string;
-}): Promise<void> {
-  const notification = await createBadgeEarnedNotification(input);
-
-  deliverBadgeEarnedNotification({
-    notification,
-    ...(input.notifier === undefined ? {} : { notifier: input.notifier }),
-    userId: input.userId,
-  });
-}
-
 export type ReadUserBadgesArgs = {
   userId: string;
   now?: Date;

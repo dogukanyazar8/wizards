@@ -192,7 +192,6 @@ export const DiscoverQuerySchema = z.object({
   sort: DiscoverSortKeySchema.default("popular"),
 });
 export type DiscoverQuery = z.infer<typeof DiscoverQuerySchema>;
-export type DiscoverQueryInput = z.input<typeof DiscoverQuerySchema>;
 
 /**
  * Sayfa zarfı tek biçimdir: `{ items, nextCursor }`. Dört şerit de aynı sentinel'i
@@ -215,7 +214,6 @@ export const DiscoverServerPageSchema = pageOf(DiscoverServerSchema).extend({
   categories: z.array(DiscoverCategorySchema),
   featured: DiscoverServerSchema.nullable(),
 });
-export type DiscoverServerPage = z.infer<typeof DiscoverServerPageSchema>;
 
 export const DiscoverPersonPageSchema = pageOf(DiscoverPersonSchema);
 export type DiscoverPersonPage = z.infer<typeof DiscoverPersonPageSchema>;

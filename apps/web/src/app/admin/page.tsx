@@ -20,8 +20,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const params = await searchParams;
   const days = normalizeDashboardDays(params?.days);
   const now = new Date();
-  const [admin, activity, overview, servers] = await Promise.all([
-    requireAdminModule("dashboard.read"),
+  const admin = await requireAdminModule("dashboard.read");
+  const [activity, overview, servers] = await Promise.all([
     getAdminActivitySnapshot(days),
     getAdminOverviewSnapshot(days),
     getAdminServersSnapshot(days),

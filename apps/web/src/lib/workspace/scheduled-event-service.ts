@@ -168,14 +168,6 @@ export async function getUpcomingServerScheduledEventWithDatabase(
   return row ? buildServerScheduledEvent(row as ServerScheduledEventSource) : null;
 }
 
-export async function getUpcomingServerScheduledEvent(
-  serverId: string,
-  viewerId: string | null,
-): Promise<ServerScheduledEvent | null> {
-  const { prisma } = await import("@wizards/db");
-  return getUpcomingServerScheduledEventWithDatabase(prisma, serverId, viewerId);
-}
-
 /**
  * A channel from another server would otherwise be bindable to this server's
  * event, which is both a leak (the name comes back in the payload) and a join

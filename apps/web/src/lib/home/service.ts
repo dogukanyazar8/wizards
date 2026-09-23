@@ -1,4 +1,4 @@
-import { ChannelType, prisma, type PrismaClient } from "@wizards/db";
+import { ChannelType, type PrismaClient } from "@wizards/db";
 
 import { readPresenceState } from "@/lib/presence";
 import {
@@ -205,8 +205,4 @@ export async function resolveHomeChannelAccess(
   const visible = await listVisibleChannelIds(userId, serverIds, ChannelType.TEXT, resolve);
 
   return { serverIds, textChannelIds: visible.all };
-}
-
-export function getHomeDatabase(): PrismaClient {
-  return prisma;
 }

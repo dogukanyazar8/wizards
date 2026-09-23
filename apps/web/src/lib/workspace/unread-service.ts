@@ -448,27 +448,6 @@ export async function emitServerUnreadUpdatesToUser(
   return counts;
 }
 
-export async function getServerMentionCountsBatch(userIds: string[], serverId: string) {
-  const uniqueUserIds = normalizeUserIds(userIds);
-  const visibleChannelIdsByUser = await getVisibleTextChannelIdsByUser(uniqueUserIds, serverId);
-
-  return getServerMentionCountsBatchForVisibleChannels(
-    uniqueUserIds,
-    serverId,
-    visibleChannelIdsByUser,
-  );
-}
-
-async function getServerMentionCountsBatchForVisibleChannels(
-  userIds: string[],
-  serverId: string,
-  visibleChannelIdsByUser: Map<string, string[]>,
-) {
-  const groups = groupUsersByVisibleChannelIds(visibleChannelIdsByUser);
-
-  return getServerMentionCountsBatchForVisibleChannelGroups(userIds, serverId, groups);
-}
-
 async function getServerMentionCountsBatchForVisibleChannelGroups(
   userIds: string[],
   serverId: string,
@@ -509,27 +488,6 @@ async function getServerMentionCountsBatchForVisibleChannelGroups(
 export async function getServerUnreadCount(userId: string, serverId: string) {
   const unreadCounts = await getServerUnreadCounts(userId, [serverId]);
   return unreadCounts.get(serverId) ?? 0;
-}
-
-export async function getServerUnreadCountsBatch(userIds: string[], serverId: string) {
-  const uniqueUserIds = normalizeUserIds(userIds);
-  const visibleChannelIdsByUser = await getVisibleTextChannelIdsByUser(uniqueUserIds, serverId);
-
-  return getServerUnreadCountsBatchForVisibleChannels(
-    uniqueUserIds,
-    serverId,
-    visibleChannelIdsByUser,
-  );
-}
-
-async function getServerUnreadCountsBatchForVisibleChannels(
-  userIds: string[],
-  serverId: string,
-  visibleChannelIdsByUser: Map<string, string[]>,
-) {
-  const groups = groupUsersByVisibleChannelIds(visibleChannelIdsByUser);
-
-  return getServerUnreadCountsBatchForVisibleChannelGroups(userIds, serverId, groups);
 }
 
 async function getServerUnreadCountsBatchForVisibleChannelGroups(

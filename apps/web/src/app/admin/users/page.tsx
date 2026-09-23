@@ -25,8 +25,8 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
       ? { verified: params.verified }
       : {}),
   };
-  const [admin, result] = await Promise.all([
-    requireAdminModule("user.read"),
+  const admin = await requireAdminModule("user.read");
+  const [result] = await Promise.all([
     listAdminUsers({
       banned: parseAdminBoolean(filters.banned ?? null),
       ...(params?.page ? { page: params.page } : {}),

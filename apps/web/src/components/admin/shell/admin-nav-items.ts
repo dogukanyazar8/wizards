@@ -168,7 +168,3 @@ export function getVisibleAdminNavGroups(role: AdminRole): AdminNavGroup[] {
     items: group.items.filter((item) => adminRoleHasCapability(role, item.capability)),
   })).filter((group) => group.items.length > 0);
 }
-
-export function findAdminNavItemByKey(key: string) {
-  return ADMIN_NAV_GROUPS.flatMap((group) => group.items).find((item) => item.key === key) ?? null;
-}

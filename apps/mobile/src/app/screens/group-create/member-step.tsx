@@ -2,7 +2,6 @@ import { FlashList } from "@shopify/flash-list";
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import {
-  GROUP_DM_MAX_PARTICIPANTS,
   canAdvanceToIdentity,
   getGroupSelectionCount,
   isGroupSelectionFull,
@@ -382,6 +381,3 @@ export function MobileGroupMemberStepFooter({
     </View>
   );
 }
-
-/** 2b §1's `3/32`. The ceiling is the conversation's, creator included. */
-export const GROUP_CREATE_MAX_LABEL = String(GROUP_DM_MAX_PARTICIPANTS);

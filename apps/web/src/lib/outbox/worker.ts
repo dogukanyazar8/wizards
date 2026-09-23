@@ -235,7 +235,3 @@ export async function stopOutboxWorker({
   lastCleanupAt = 0;
   lastFocusSweepAt = 0;
 }
-
-export function stopOutboxWorkerForTests() {
-  return stopOutboxWorker({ timeoutMs: 0 });
-}

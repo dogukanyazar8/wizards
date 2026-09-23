@@ -489,11 +489,6 @@ async function readRevisionMap(keys: string[]) {
   return new Map(keys.map((key, index) => [key, parseVersion(values[index] ?? null)]));
 }
 
-export async function samplePermissionCacheRevisions(serverId: string, userId: string) {
-  const revisions = await samplePermissionCacheRevisionsForUsers(serverId, [userId]);
-  return revisions.get(userId) ?? { memberVersion: "0", serverVersion: "0" };
-}
-
 export async function samplePermissionCacheRevisionsForUsers(serverId: string, userIds: string[]) {
   const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
   const serverKey = serverVersionKey(serverId);

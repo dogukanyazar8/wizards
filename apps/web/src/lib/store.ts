@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { requireBrowserLocalStorage } from "@/lib/browser-local-storage";
 import {
   DEFAULT_CHANNEL_SIDEBAR_WIDTH,
   LEGACY_DEFAULT_MAIN_PANEL_WIDTH,
@@ -1166,7 +1167,7 @@ export const useAppStore = create<AppState>()(
         serverRailIconSize: state.serverRailIconSize,
         serverRailWidth: state.serverRailWidth,
       }),
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => requireBrowserLocalStorage()),
       version: 13,
     },
   ),

@@ -33,7 +33,6 @@ export const RESPONSIVE_SHELL_SIZES = {
 } as const;
 
 export type ResponsiveLayoutMode = "desktop" | "mobile" | "tablet";
-export type ResponsiveNavigationSurface = "chat" | "info-drawer" | "settings" | "workspace-drawer";
 
 export function getResponsiveLayoutMode(width: number): ResponsiveLayoutMode {
   if (width <= RESPONSIVE_BREAKPOINTS.mobileMax) {

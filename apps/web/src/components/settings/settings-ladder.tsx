@@ -101,19 +101,6 @@ export function SettingsDirtyRegistryProvider({
   );
 }
 
-/** Kirli profil alanı tutan bölüm bunu çağırır; kabuk yoksa (yalıtılmış test) sessizdir. */
-export function useRegisterSettingsDirtyHandlers(handlers: SettingsDirtyHandlers): void {
-  const register = useContext(SettingsDirtyRegistryContext);
-
-  useEffect(() => {
-    if (!register) return;
-
-    register(handlers);
-
-    return () => register(null);
-  }, [handlers, register]);
-}
-
 /**
  * Kutu ↔ kabuk raporu — F1 dikişi.
  *

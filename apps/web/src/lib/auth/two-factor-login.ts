@@ -25,9 +25,6 @@ import { logError } from "@/lib/logger";
  * dönüşümü var.
  */
 
-export type TwoFactorLoginStatus =
-  "challengeExpired" | "codeInvalid" | "accountLocked" | "unavailable" | "ok";
-
 export type TwoFactorLoginResult =
   | {
       email: string;

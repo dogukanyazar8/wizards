@@ -198,12 +198,3 @@ export const AUTH_STATUS_CATALOG: Readonly<Record<AuthStatusId, AuthStatusDefini
 } as const;
 
 export const AUTH_STATUS_IDS = Object.keys(AUTH_STATUS_CATALOG) as AuthStatusId[];
-
-export function getAuthStatus(id: AuthStatusId): AuthStatusDefinition {
-  return AUTH_STATUS_CATALOG[id];
-}
-
-/** SPEC §8 — bir durumun hangi gösterim seviyesinde çizileceği. */
-export function getAuthStatusLevel(id: AuthStatusId): AuthStatusLevel {
-  return AUTH_STATUS_CATALOG[id].level;
-}

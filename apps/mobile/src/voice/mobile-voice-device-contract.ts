@@ -4,7 +4,6 @@ import {
   type MobileScreenShareQualityId,
 } from "./mobile-screen-share";
 
-export type MobileVoiceDeviceKind = "audioinput" | "audiooutput";
 export type MobileVoiceOutputLabelKey =
   "bluetooth" | "default" | "earpiece" | "headset" | "other" | "speaker";
 

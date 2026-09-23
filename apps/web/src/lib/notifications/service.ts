@@ -29,27 +29,6 @@ import {
 import { resolveQuietHoursTimeZone } from "./quiet-hours";
 import type { NotificationDTO, NotificationPageDTO, NotificationPanelQuery } from "./types";
 
-type NotificationRow = Prisma.NotificationGetPayload<{
-  select: {
-    id: true;
-    type: true;
-    body: true;
-    actionUrl: true;
-    readAt: true;
-    createdAt: true;
-    metadata: true;
-  };
-}>;
-
-type UserRow = Prisma.UserGetPayload<{
-  select: {
-    id: true;
-    username: true;
-    displayName: true;
-    avatarUrl: true;
-  };
-}>;
-
 const VISIBLE_NOTIFICATION_TYPES: NotificationType[] = [
   "BADGE",
   "FEEDBACK",
@@ -802,31 +781,4 @@ export async function markAllReadWithCounts(
 /** Ş2 öncesinden kalan imza — mobil uç sayacı okumuyor. */
 export async function markAllRead(userId: string): Promise<void> {
   await markAllReadWithCounts(userId);
-}
-
-export async function serializeNotificationToDTO(
-  notification: NotificationRow,
-  userMap: Map<string, UserRow>,
-): Promise<NotificationDTO> {
-  const meta = (notification.metadata as Record<string, unknown>) ?? {};
-  const senderId = (meta.senderId as string) || "";
-  const actor = userMap.get(senderId) ?? null;
-
-  return {
-    id: notification.id,
-    type: notification.type as VisibleNotificationType,
-    actor: actor
-      ? {
-          id: actor.id,
-          username: actor.username,
-          displayName: actor.displayName,
-          avatarUrl: actor.avatarUrl,
-        }
-      : null,
-    message: notification.body,
-    actionUrl: notification.actionUrl,
-    readAt: notification.readAt?.toISOString() ?? null,
-    createdAt: notification.createdAt.toISOString(),
-    meta: (meta as Record<string, string>) || undefined,
-  };
 }

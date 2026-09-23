@@ -3,7 +3,8 @@ import { requireAdminModule } from "@/lib/admin/module-access";
 import { listAdminBugReports } from "@/lib/support/admin-support-service";
 
 export default async function AdminSupportPage() {
-  const [, result] = await Promise.all([requireAdminModule("support.read"), listAdminBugReports()]);
+  await requireAdminModule("support.read");
+  const [result] = await Promise.all([listAdminBugReports()]);
 
   return <AdminSupportReports reports={result.reports} />;
 }

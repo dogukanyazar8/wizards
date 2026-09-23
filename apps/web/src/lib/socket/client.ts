@@ -30,7 +30,7 @@ export function getSocket(): Socket<ServerToClientEvents, ClientToServerEvents> 
     const options = {
       auth: getClientAttributionAuth(),
       autoConnect: false,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       withCredentials: true,

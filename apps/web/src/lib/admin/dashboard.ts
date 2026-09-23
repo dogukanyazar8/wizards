@@ -1,5 +1,5 @@
 import { prisma, type AdminRole } from "@wizards/db";
-import { resetAdminSnapshotCacheForTests, withSnapshotCache } from "@/lib/admin/snapshots/cache";
+import { withSnapshotCache } from "@/lib/admin/snapshots/cache";
 import type { AdminSnapshotClient } from "@/lib/admin/snapshots/client";
 import { composeAdminDashboardSnapshot } from "@/lib/admin/snapshots";
 import { normalizeDashboardDays } from "@/lib/admin/snapshots/shared";
@@ -10,12 +10,6 @@ export {
   getDashboardDateRange,
   normalizeDashboardDays,
 } from "@/lib/admin/snapshots/shared";
-
-export type AdminDashboardSnapshot = Awaited<ReturnType<typeof getAdminDashboardSnapshotUncached>>;
-
-export function resetAdminDashboardSnapshotCacheForTests() {
-  resetAdminSnapshotCacheForTests();
-}
 
 /**
  * Full-page payload: every module slice at once. Module routes load only the

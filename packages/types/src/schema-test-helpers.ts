@@ -22,7 +22,11 @@ export function assertAccepts<TSchema extends ZodType>(
   value: unknown,
 ): output<TSchema> {
   const result = schema.safeParse(value);
-  assert.ok(result.success, result.success ? undefined : result.error.message);
+  // Node 26's assert types drop `undefined` from the message parameter, so the
+  // failure message is passed on the failing branch instead.
+  if (!result.success) {
+    assert.fail(result.error.message);
+  }
   return result.data;
 }
 

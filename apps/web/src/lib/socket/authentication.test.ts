@@ -68,13 +68,17 @@ describe("socket authentication", () => {
       checkGlobalRevocation: async () => true,
       loadUser,
     });
-    const unavailable = await authenticateWebSocketToken(token, {
-      checkAuthSession: async () => {
-        throw new Error("database unavailable");
-      },
-      checkGlobalRevocation: async () => false,
-      loadUser,
-    });
+    await assert.rejects(
+      () =>
+        authenticateWebSocketToken(token, {
+          checkAuthSession: async () => {
+            throw new Error("database unavailable");
+          },
+          checkGlobalRevocation: async () => false,
+          loadUser,
+        }),
+      { message: "Session verification temporarily unavailable" },
+    );
     const revokedToken = await authenticateWebSocketToken(
       { ...token, revoked: true },
       {
@@ -86,7 +90,6 @@ describe("socket authentication", () => {
 
     assert.equal(durableRevoked, null);
     assert.equal(globallyRevoked, null);
-    assert.equal(unavailable, null);
     assert.equal(revokedToken, null);
   });
 

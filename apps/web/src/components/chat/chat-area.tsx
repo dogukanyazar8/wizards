@@ -89,6 +89,7 @@ import {
   resolveChannelCategoryName,
 } from "@/lib/servers/channel-access-count";
 import { toChannelPinnedMessages, type ChannelPinCursor } from "@/lib/servers/channel-pins";
+import { createMessageSendTracker } from "@/lib/messages/send-tracker";
 import { RESPONSIVE_SHELL_SIZES } from "@/lib/responsive";
 
 interface ChatAreaProps {
@@ -211,17 +212,13 @@ function MessagePollSlot({ poll }: { poll: PollDTO }) {
   );
 }
 
-let optimisticMessageSequence = 0;
-
 /**
  * The id an optimistic bubble is rendered under, and the `clientNonce` the send
- * carries so the server can hand it back on the author's own echo. The counter
- * is what makes it a key: two sends inside the same millisecond would otherwise
- * share an id, and the echo for one would land in the other's bubble.
+ * carries through retries. It must be unique across tabs and devices, since
+ * server-side deduplication is scoped to the author, not to this component.
  */
 function createOptimisticMessageId(): string {
-  optimisticMessageSequence += 1;
-  return `${OPTIMISTIC_MESSAGE_PREFIX}${Date.now()}-${optimisticMessageSequence}`;
+  return `${OPTIMISTIC_MESSAGE_PREFIX}${crypto.randomUUID()}`;
 }
 
 function buildOptimisticMessage(input: {
@@ -466,7 +463,15 @@ function ChatAreaContent({
     });
   };
   const pendingMessagesRef = useRef<Map<string, PendingMessagePayload>>(new Map());
-  const pendingOrderRef = useRef<string[]>([]);
+  const sendTracker = useMemo(() => createMessageSendTracker(socket), [socket]);
+  useEffect(() => () => sendTracker.dispose(), [sendTracker]);
+  const forgetPending = useCallback(
+    (nonce: string) => {
+      pendingMessagesRef.current.delete(nonce);
+      sendTracker.confirm(nonce);
+    },
+    [sendTracker],
+  );
   const searchButtonRef = useRef<HTMLButtonElement | null>(null);
   const [replyTo, setReplyTo] = useState<{
     id: string;
@@ -644,8 +649,7 @@ function ChatAreaContent({
 
   const removeOptimisticMessage = useCallback(
     (messageId: string) => {
-      pendingMessagesRef.current.delete(messageId);
-      pendingOrderRef.current = pendingOrderRef.current.filter((id) => id !== messageId);
+      forgetPending(messageId);
 
       queryClient.setQueryData<MessagePages>(queryKey, (current) => {
         if (!current) {
@@ -661,7 +665,7 @@ function ChatAreaContent({
         };
       });
     },
-    [queryClient, queryKey],
+    [forgetPending, queryClient, queryKey],
   );
 
   const markOptimisticMessageFailed = useCallback(
@@ -719,61 +723,6 @@ function ChatAreaContent({
   );
 
   useEffect(() => {
-    const failLatestOptimisticMessage = (errorMessage?: string) => {
-      const latestPendingId = [...pendingOrderRef.current]
-        .reverse()
-        .find((id) => pendingMessagesRef.current.has(id));
-
-      if (!latestPendingId) {
-        return;
-      }
-
-      markOptimisticMessageFailed(latestPendingId, errorMessage);
-    };
-
-    if (mode === "channel") {
-      const handleError = (data: { code: string; message: string }) => {
-        if (
-          data.code === "MESSAGE_SEND_ERROR" ||
-          data.code === "MESSAGE_VALIDATION_ERROR" ||
-          data.code === "MESSAGE_TOO_LONG" ||
-          data.code === "VALIDATION_ERROR" ||
-          data.code === "INVALID_ATTACHMENT" ||
-          data.code === "RATE_LIMIT" ||
-          data.code === "RATE_LIMIT_UNAVAILABLE" ||
-          data.code === "CHANNEL_LOCKED" ||
-          data.code === "FILE_UPLOADS_DISABLED" ||
-          data.code === "GIFS_DISABLED" ||
-          data.code === "FORBIDDEN" ||
-          data.code === "NOT_A_MEMBER" ||
-          data.code === "CHANNEL_NOT_FOUND"
-        ) {
-          failLatestOptimisticMessage(data.message);
-        }
-      };
-
-      socket.on("error", handleError);
-      return () => {
-        socket.off("error", handleError);
-      };
-    }
-
-    const handleDMError = (data?: { message?: string }) => {
-      failLatestOptimisticMessage(data?.message);
-    };
-
-    socket.on("dm:error", handleDMError);
-    return () => {
-      socket.off("dm:error", handleDMError);
-    };
-  }, [markOptimisticMessageFailed, mode, socket]);
-
-  useEffect(() => {
-    const forgetPending = (tempId: string) => {
-      pendingMessagesRef.current.delete(tempId);
-      pendingOrderRef.current = pendingOrderRef.current.filter((id) => id !== tempId);
-    };
-
     const clearConfirmedPending = (message: {
       attachments?: Array<{ id: string }>;
       author?: { id: string };
@@ -831,7 +780,87 @@ function ChatAreaContent({
     return () => {
       socket.off("dm:message:new", handleDMMessage);
     };
-  }, [conversationId, currentUserId, mode, socket]);
+  }, [conversationId, currentUserId, forgetPending, mode, socket]);
+
+  useEffect(
+    () =>
+      queryClient.getQueryCache().subscribe((event) => {
+        if (
+          !pendingMessagesRef.current.size ||
+          !event.query ||
+          event.query.queryKey.length !== queryKey.length ||
+          !queryKey.every((part, index) => event.query.queryKey[index] === part)
+        )
+          return;
+        const data = event.query.state.data as MessagePages | undefined;
+        for (const page of data?.pages ?? []) {
+          for (const message of page.messages) {
+            if (
+              message.author.id === currentUserId &&
+              message.clientNonce &&
+              message.id !== message.clientNonce
+            ) {
+              forgetPending(message.clientNonce);
+            }
+          }
+        }
+      }),
+    [currentUserId, forgetPending, queryClient, queryKey],
+  );
+
+  const sendPendingMessage = useCallback(
+    (payload: PendingMessagePayload) => {
+      sendTracker.send(
+        mode,
+        conversationId,
+        {
+          clientNonce: payload.tempId,
+          content: payload.content,
+          attachments: payload.attachments,
+          ...(payload.replyToId ? { replyToId: payload.replyToId } : {}),
+        },
+        (result) => {
+          if (!result.ok) {
+            markOptimisticMessageFailed(payload.tempId, result.message);
+            return;
+          }
+          forgetPending(payload.tempId);
+          // Normally the author's echo has already retired this callback. If only
+          // the ack arrived, reconcile its canonical id and fetch the stored row.
+          queryClient.setQueryData<MessagePages>(
+            queryKey,
+            (current) =>
+              current && {
+                ...current,
+                pages: current.pages.map((page) => ({
+                  ...page,
+                  messages: page.messages.map((message) =>
+                    message.id === payload.tempId
+                      ? {
+                          ...message,
+                          id: result.messageId,
+                          deliveryStatus: undefined,
+                          errorMessage: undefined,
+                        }
+                      : message,
+                  ),
+                })),
+              },
+          );
+          void queryClient.invalidateQueries({ exact: true, queryKey });
+        },
+      );
+    },
+    [
+      conversationId,
+      forgetPending,
+      markOptimisticMessageFailed,
+      mode,
+      queryClient,
+      queryKey,
+      sendTracker,
+    ],
+  );
 
   const handleSend = async (
     content: string,
@@ -849,7 +878,6 @@ function ChatAreaContent({
       tempId,
     };
     pendingMessagesRef.current.set(tempId, payload);
-    pendingOrderRef.current = [...pendingOrderRef.current, tempId].slice(-20);
 
     await queryClient.cancelQueries({ exact: true, queryKey });
 
@@ -869,23 +897,7 @@ function ChatAreaContent({
       ),
     );
 
-    if (mode === "channel") {
-      socket.emit("message:send", {
-        channelId: conversationId,
-        clientNonce: tempId,
-        content,
-        attachments,
-        ...(replyToId ? { replyToId } : {}),
-      });
-    } else {
-      socket.emit("dm:message:send", {
-        clientNonce: tempId,
-        conversationId,
-        content,
-        attachments,
-        ...(replyToId ? { replyToId } : {}),
-      });
-    }
+    sendPendingMessage(payload);
 
     setReplyTo(null);
   };
@@ -900,29 +912,9 @@ function ChatAreaContent({
 
       markOptimisticMessageSending(messageId);
 
-      // The retry keeps the bubble it is retrying, so it keeps that bubble's id
-      // as its nonce — the echo has to come back to the row the reader is
-      // watching, not to a new one.
-      if (mode === "channel") {
-        socket.emit("message:send", {
-          channelId: conversationId,
-          clientNonce: messageId,
-          content: payload.content,
-          attachments: payload.attachments,
-          ...(payload.replyToId ? { replyToId: payload.replyToId } : {}),
-        });
-        return;
-      }
-
-      socket.emit("dm:message:send", {
-        clientNonce: messageId,
-        conversationId,
-        content: payload.content,
-        attachments: payload.attachments,
-        ...(payload.replyToId ? { replyToId: payload.replyToId } : {}),
-      });
+      sendPendingMessage(payload);
     },
-    [conversationId, markOptimisticMessageSending, mode, removeOptimisticMessage, socket],
+    [markOptimisticMessageSending, removeOptimisticMessage, sendPendingMessage],
   );
 
   const isChannelReadOnly =

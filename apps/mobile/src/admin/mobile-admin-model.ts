@@ -13,8 +13,6 @@ export { MOBILE_ADMIN_RESOLUTION_MAX_LENGTH };
 /** The only three things the phone may do with a case. */
 export const MOBILE_ADMIN_ACTIONS = ["claim", "dismiss", "escalate"] as const;
 
-export type MobileAdminAction = (typeof MOBILE_ADMIN_ACTIONS)[number];
-
 export type MobileAdminPriorityTone = "critical" | "high" | "muted" | "normal";
 
 export function formatMobileAdminCaseNumber(publicNumber: number): string {

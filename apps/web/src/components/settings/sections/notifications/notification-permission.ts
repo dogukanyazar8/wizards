@@ -70,12 +70,6 @@ export function refreshNotificationPermission(): NotifPermission {
   return next;
 }
 
-/** Yalnız testler için: kutu modül seviyesinde yaşıyor ve testler arası sızmamalı. */
-export function resetNotificationPermissionForTests(): void {
-  snapshot = "unknown";
-  listeners.clear();
-}
-
 export const notificationPermissionStore = {
   getServerSnapshot,
   getSnapshot,

@@ -18,7 +18,6 @@ import {
   type CreateServerInviteInput,
   type ServerBanInput,
   type ServerMemberTimeoutInput,
-  type CreateServerScheduledEventInput,
   type CreateWorkspaceRoleInput,
   type ServerIconTone,
   type ServerScheduledEvent,
@@ -31,7 +30,6 @@ import {
   type WorkspaceChannel,
   type WorkspaceChannelPermissionSettings,
   type WorkspaceMemberFilter,
-  type WorkspaceRole,
   type WorkspaceServerDetail,
   type WorkspaceServerSummary,
 } from "@wizards/types";
@@ -81,10 +79,6 @@ const WorkspaceChannelPinnedMessagesResponseSchema = z.object({
 
 const WorkspaceChannelPinResponseSchema = z.object({
   message: ChatMessageSchema,
-});
-
-const WorkspaceRolesResponseSchema = z.object({
-  roles: z.array(WorkspaceRoleSchema),
 });
 
 const WorkspaceRoleResponseSchema = z.object({
@@ -314,20 +308,6 @@ export async function updateServerRequest(
   });
 }
 
-/**
- * Ş1 §5. Üç ince sarmalayıcı, tek uç: swatch satırı, yavaş mod çip grubu ve
- * Tehlike bölgesi kendi alanlarını adlarıyla yazsın diye. `iconColor: null`
- * seçimi geri alır (deterministik türetmeye dönüş), alanı atlamaz.
- */
-export async function updateServerAppearance(serverId: string, iconColor: ServerIconTone | null) {
-  return updateServerRequest(serverId, { iconColor });
-}
-
-/** Sunucu geneli yavaş mod; kanalda geçerli olan `max(server, channel)`. */
-export async function updateServerSlowMode(serverId: string, slowModeDelay: number) {
-  return updateServerRequest(serverId, { slowModeDelay });
-}
-
 export async function transferServerOwnership(serverId: string, newOwnerUserId: string) {
   return requestJson<{ newOwnerUserId: string; success: true }>(
     `/api/v1/servers/${serverId}/transfer-ownership`,
@@ -368,11 +348,6 @@ export async function addServerMemberRequest(serverId: string, username: string)
     body: { username },
     method: "POST",
   });
-}
-
-export async function fetchWorkspaceRoles(serverId: string): Promise<WorkspaceRole[]> {
-  const payload = await requestJson<unknown>(`/api/v1/servers/${serverId}/roles`);
-  return WorkspaceRolesResponseSchema.parse(payload).roles;
 }
 
 export async function createWorkspaceRoleRequest(
@@ -480,10 +455,6 @@ export async function clearChannelMessagesRequest(channelId: string) {
       method: "DELETE",
     },
   );
-}
-
-export async function fetchChannelPinnedMessages(channelId: string) {
-  return (await fetchChannelPinnedMessagesPage(channelId)).messages;
 }
 
 export async function fetchChannelPinnedMessagesPage(channelId: string, cursor?: ChannelPinCursor) {
@@ -755,16 +726,6 @@ export async function listServerEventsRequest(serverId: string, includePast = fa
   );
 }
 
-export async function createServerEventRequest(
-  serverId: string,
-  input: CreateServerScheduledEventInput,
-) {
-  return requestJson<{ event: ServerScheduledEvent }>(`/api/v1/servers/${serverId}/events`, {
-    body: input,
-    method: "POST",
-  });
-}
-
 export async function updateServerEventRequest(
   serverId: string,
   eventId: string,
@@ -781,16 +742,5 @@ export async function cancelServerEventRequest(serverId: string, eventId: string
   return requestJson<{ event: ServerScheduledEvent }>(
     `/api/v1/servers/${serverId}/events/${eventId}`,
     { method: "DELETE" },
-  );
-}
-
-export async function setServerEventInterestRequest(
-  serverId: string,
-  eventId: string,
-  interested: boolean,
-) {
-  return requestJson<{ event: ServerScheduledEvent }>(
-    `/api/v1/servers/${serverId}/events/${eventId}/interest`,
-    { body: { interested }, method: "POST" },
   );
 }

@@ -12,8 +12,6 @@ export const GroupIconUploadInputSchema = z
   })
   .strict();
 
-export type GroupIconUploadInput = z.infer<typeof GroupIconUploadInputSchema>;
-
 export type GroupIconUploadDependencies = {
   loadConversation(
     conversationId: string,

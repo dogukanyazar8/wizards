@@ -579,7 +579,3 @@ export const GroupPinMessageRequestSchema = z
  * the dismisser has never seen.
  */
 export const GroupPinDismissRequestSchema = GroupPinMessageRequestSchema;
-
-export type ConversationNotifyRequest = z.infer<typeof ConversationNotifyRequestSchema>;
-export type ConversationPinRequest = z.infer<typeof ConversationPinRequestSchema>;
-export type GroupPinMessageRequest = z.infer<typeof GroupPinMessageRequestSchema>;

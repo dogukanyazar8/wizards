@@ -3,11 +3,9 @@ import type { AppSocketServer } from "@/lib/socket/runtime";
 /**
  * What a rolling deploy owes the clients it is about to drop.
  *
- * Without this the process died mid-connection: every socket saw a transport
- * error instead of a close, reconnected into the *old* pod's dying socket, and
- * the gap between the last event it received and the first after reconnect was
- * silent data loss. Telling them to reconnect first is what turns a deploy into a
- * reconnect rather than a hole.
+ * Close the transport through Server.close(), without a terminal namespace
+ * DISCONNECT packet. Clients retain their normal reconnection backoff; missed
+ * events are reconciled by the client after the next authenticated connection.
  */
 export const SOCKET_DRAIN_GRACE_MS = 5_000;
 
@@ -36,17 +34,7 @@ export async function drainSocketServer(
     return { closedSockets: 0, status: "no-server" };
   }
 
-  const connected = server.sockets?.sockets;
-  let closedSockets = 0;
-
-  if (connected) {
-    for (const socket of connected.values()) {
-      // `true` closes the underlying transport: the client sees a clean close and
-      // reconnects on its own backoff instead of waiting for a timeout.
-      socket.disconnect(true);
-      closedSockets += 1;
-    }
-  }
+  const closedSockets = server.sockets?.sockets.size ?? 0;
 
   const closed = new Promise<"drained">((resolve) => {
     server.close(() => resolve("drained"));

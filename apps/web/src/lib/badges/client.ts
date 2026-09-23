@@ -3,10 +3,8 @@
 import {
   BADGE_QUERY_STALE_TIME_MS,
   BADGE_RARITY_STALE_TIME_MS,
-  BadgeRarityResponseSchema,
   OwnBadgesResponseSchema,
   UserBadgesResponseSchema,
-  type BadgeRarityResponse,
   type OwnBadgesResponse,
   type UserBadgesResponse,
 } from "@wizards/types";
@@ -46,8 +44,4 @@ export async function fetchUserBadges(userId: string): Promise<UserBadgesRespons
 
 export async function fetchOwnBadges(): Promise<OwnBadgesResponse> {
   return OwnBadgesResponseSchema.parse(await requestJson("/api/v1/users/me/badges"));
-}
-
-export async function fetchBadgeRarity(): Promise<BadgeRarityResponse> {
-  return BadgeRarityResponseSchema.parse(await requestJson("/api/v1/badges/rarity"));
 }

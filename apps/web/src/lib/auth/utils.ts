@@ -52,10 +52,6 @@ export async function getCurrentUserForSession(session: AuthSession) {
   return loadUserById(userId);
 }
 
-export async function getCurrentUser(session?: AuthSession) {
-  return getCurrentUserForSession(session ?? (await loadAuthSession()));
-}
-
 export async function requireAuth() {
   const session = await loadAuthSession();
 

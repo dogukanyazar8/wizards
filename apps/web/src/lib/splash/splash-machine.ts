@@ -6,6 +6,7 @@ import {
   SPLASH_REALTIME_GRACE_MS,
   SPLASH_SLOW_AFTER_MS,
   type SplashRuntimeInput,
+  type SplashStateId,
   type SplashStepId,
 } from "@wizards/types";
 
@@ -45,6 +46,21 @@ export function getNextSplashStep(
   input: SplashRuntimeInput,
 ): SplashStepId {
   return advanceSplashStep(previousStep, getSplashStep(input));
+}
+
+export type SplashActionKind = "reload" | "retry";
+
+/**
+ * Durum düğmesinin ne yapacağı (SPEC §7).
+ *
+ * `Bağlantı yok` **yenilemez**: çevrimdışı bir `location.reload()` tarayıcının
+ * hata sayfasını açar ve kullanıcı uygulamayı tümüyle kaybeder; orada yapılacak
+ * tek iş açılış sorgularını yeniden denemektir. Kalan durumlarda sayfa yenilenir —
+ * `Uzun sürüyor` için istenen budur, `Oturum bitti` içinse yenileme zaten giriş
+ * ekranına düşer.
+ */
+export function getSplashActionKind(state: SplashStateId): SplashActionKind {
+  return state === "offline" ? "retry" : "reload";
 }
 
 /** Yanıp sönmeyi engelleyen 600 ms'den kalan süre (SPEC §8). */

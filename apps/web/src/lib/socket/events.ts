@@ -130,8 +130,20 @@ export interface VoiceAudioLevelPayload {
 export type MessageSendAck =
   { messageId: string; ok: true } | { code: string; message: string; ok: false };
 
+export const SOCKET_SESSION_CHECK_UNAVAILABLE = "SESSION_CHECK_UNAVAILABLE";
+export type ConversationJoinAck = { ok: boolean };
+
+// Socket.IO 4's timeout decorator cannot infer an optional trailing callback.
+// This client-only view requires the callbacks at sites that actually send one;
+// the wire/server contract remains compatible with clients that omit them.
+export type AcknowledgedClientToServerEvents = {
+  [Event in "channel:join" | "dm:join" | "message:send" | "dm:message:send"]: (
+    ...args: Required<Parameters<ClientToServerEvents[Event]>>
+  ) => void;
+};
+
 export interface ClientToServerEvents {
-  "channel:join": (channelId: string) => void;
+  "channel:join": (channelId: string, acknowledge?: (result: ConversationJoinAck) => void) => void;
   "channel:leave": (channelId: string) => void;
   "message:send": (
     data: {
@@ -155,7 +167,7 @@ export interface ClientToServerEvents {
   "message:unreact": (data: { messageId: string; emoji: string }) => void;
   "typing:start": (channelId: string) => void;
   "typing:stop": (channelId: string) => void;
-  "dm:join": (conversationId: string) => void;
+  "dm:join": (conversationId: string, acknowledge?: (result: ConversationJoinAck) => void) => void;
   "dm:leave": (conversationId: string) => void;
   "dm:message:send": (
     data: {

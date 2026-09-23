@@ -20,8 +20,8 @@ export default async function AdminModerationPage({ searchParams }: AdminModerat
   const scope = normalizeScope(params?.scope);
   const page = Number.parseInt(params?.page ?? "1", 10);
   const now = new Date();
-  const [admin, result, stats] = await Promise.all([
-    requireAdminModule("case.read"),
+  const admin = await requireAdminModule("case.read");
+  const [result, stats] = await Promise.all([
     listModerationCases({ page: Number.isFinite(page) ? page : 1, scope }),
     getModerationQueueStats(now),
   ]);

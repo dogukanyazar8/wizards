@@ -562,5 +562,3 @@ export const MENTIONS_METRICS = {
     primaryShadow: { x: 0, y: 10, blur: 22, spread: -14 },
   },
 } as const;
-
-export type MentionsMetrics = typeof MENTIONS_METRICS;

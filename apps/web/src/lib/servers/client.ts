@@ -1,9 +1,4 @@
-import {
-  ServerDiscoveryPageSchema,
-  ServerPublicProfileSchema,
-  type ServerDiscoveryPage,
-  type ServerPublicProfile,
-} from "@wizards/types";
+import { ServerPublicProfileSchema, type ServerPublicProfile } from "@wizards/types";
 
 export class ServerProfileClientError extends Error {
   constructor(
@@ -62,52 +57,11 @@ export class ServerDiscoveryClientError extends Error {
   }
 }
 
-/** @deprecated Legacy `/api/v1/servers/discover` cache key; use `discoverQueryKeys.servers`. */
-export const serverDiscoveryQueryKeys = {
-  list: (query: string) => ["server-discovery", query] as const,
-};
-
 export type ServerDiscoveryPageParams = {
   cursor?: string;
   limit?: number;
   query?: string;
 };
-
-/**
- * Client-side counterpart to the retained legacy `GET /api/v1/servers/discover` route.
- * @deprecated Use `fetchDiscoverServers` from `lib/discover/client` for new web UI.
- */
-export async function fetchServerDiscoveryPage(
-  params: ServerDiscoveryPageParams = {},
-): Promise<ServerDiscoveryPage> {
-  const search = new URLSearchParams();
-  if (params.cursor) {
-    search.set("cursor", params.cursor);
-  }
-  if (params.limit) {
-    search.set("limit", String(params.limit));
-  }
-  if (params.query) {
-    search.set("query", params.query);
-  }
-
-  const queryString = search.size > 0 ? `?${search.toString()}` : "";
-  const response = await fetch(`/api/v1/servers/discover${queryString}`);
-  const payload = (await response.json().catch(() => null)) as {
-    code?: string;
-    error?: string;
-  } | null;
-
-  if (!response.ok) {
-    throw new ServerDiscoveryClientError(
-      payload?.error ?? "Request failed",
-      response.status,
-      payload?.code,
-    );
-  }
-
-  return ServerDiscoveryPageSchema.parse(payload);
-}
 
 /**
  * Client-side counterpart to `POST /api/v1/servers/[serverId]/join`

@@ -6,9 +6,64 @@ import {
   appendMessage,
   OPTIMISTIC_MESSAGE_PREFIX,
   patchMessageAuthors,
+  reconcileMessageSnapshot,
   type MessagePages,
   updateAuthorPresence,
 } from "./use-messages";
+
+describe("message snapshot reconciliation", () => {
+  it("keeps pending/failed messages, removes nonce-confirmed bubbles and preserves concurrent events", () => {
+    const old = makeMessage({ id: "old", content: "before" });
+    const removed = makeMessage({ id: "removed" });
+    const baseline = makePages([old, removed]);
+    const current = makePages([
+      { ...old, content: "edited during fetch" },
+      makeMessage({ id: "new-event" }),
+      makeMessage({ id: "optimistic-pending", deliveryStatus: "sending" }),
+      makeMessage({ id: "optimistic-failed", deliveryStatus: "failed" }),
+      makeMessage({ id: "optimistic-confirmed", deliveryStatus: "sending" }),
+    ]);
+    const remote = makePages([
+      old,
+      removed,
+      makeMessage({ id: "missed" }),
+      makeMessage({ id: "confirmed", clientNonce: "optimistic-confirmed" }),
+    ]);
+    const result = reconcileMessageSnapshot(baseline, current, remote);
+    assert.deepEqual(
+      new Set(messageIds(result)),
+      new Set([
+        "old",
+        "new-event",
+        "optimistic-pending",
+        "optimistic-failed",
+        "missed",
+        "confirmed",
+      ]),
+    );
+    assert.equal(
+      result.pages[0]?.messages.find((m) => m.id === "old")?.content,
+      "edited during fetch",
+    );
+  });
+
+  it("accepts remote edits/deletes and does not resurrect a remotely removed message on a presence update", () => {
+    const old = makeMessage({ id: "old" });
+    const deleted = makeMessage({ id: "deleted" });
+    const baseline = makePages([old, deleted]);
+    const current = makePages([
+      old,
+      { ...deleted, author: { ...deleted.author, status: "ONLINE" } },
+    ]);
+    const result = reconcileMessageSnapshot(
+      baseline,
+      current,
+      makePages([{ ...old, content: "remote edit" }]),
+    );
+    assert.deepEqual(messageIds(result), ["old"]);
+    assert.equal(result.pages[0]?.messages[0]?.content, "remote edit");
+  });
+});
 
 function makeMessage(overrides: Partial<ChatMessage> & { id: string }): ChatMessage {
   return {

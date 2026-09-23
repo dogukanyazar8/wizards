@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { requireBrowserLocalStorage } from "@/lib/browser-local-storage";
 import { normalizeVoiceLayout, type VoiceLayout } from "./voice-layout";
 
 type VoiceLayoutState = { layout: VoiceLayout; setLayout: (layout: VoiceLayout) => void };
@@ -13,7 +14,7 @@ export const useVoiceLayout = create<VoiceLayoutState>()(
     }),
     {
       name: "whispr-voice-layout",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => requireBrowserLocalStorage()),
       partialize: (state) => ({ layout: state.layout }),
       merge: (saved, current) => ({
         ...current,

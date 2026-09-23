@@ -8,6 +8,7 @@ import type { AppSocketServer } from "@/lib/socket/runtime";
 export const SOCKET_SESSION_REVALIDATION_INTERVAL_MS = 30_000;
 
 type RevalidationSocket = {
+  conn: { close(): unknown };
   data: {
     authSessionClientType?: "MOBILE" | "WEB";
     authSessionId?: string;
@@ -92,7 +93,16 @@ export async function revalidateSocketSessions(
     sessions = await options.loadSessions(sessionIds);
   } catch (error) {
     logError("[socket] Session revalidation unavailable; disconnecting local sockets", error);
-    for (const socket of socketSnapshot) disconnectSocket(socket);
+    for (const socket of socketSnapshot) {
+      // Fail closed immediately, but permit a fresh authenticated handshake.
+      // Revocation below still sends a terminal namespace disconnect.
+      try {
+        socket.conn.close();
+      } catch (closeError) {
+        logError("[socket] Failed to close unavailable session transport", closeError);
+        disconnectSocket(socket);
+      }
+    }
     return;
   }
 

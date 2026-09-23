@@ -1,4 +1,13 @@
 import { parseAuthSessionIdentity, validateAuthSessionToken } from "@/lib/auth/session-revocation";
+import { SOCKET_SESSION_CHECK_UNAVAILABLE } from "./events";
+
+export class SocketAuthenticationUnavailableError extends Error {
+  readonly data = { code: SOCKET_SESSION_CHECK_UNAVAILABLE };
+
+  constructor() {
+    super("Session verification temporarily unavailable");
+  }
+}
 
 export type SocketAuthUser = {
   customStatus: string | null;
@@ -48,13 +57,27 @@ export async function authenticateWebSocketToken(
     return null;
   }
 
-  const userPromise = options.loadUser(identity.userId);
+  // Attach the rejection handler immediately: the parallel session checks may
+  // take longer than a failing user lookup.
+  const userPromise = options.loadUser(identity.userId).then(
+    (user) => ({ user, unavailable: false }),
+    () => ({ user: null, unavailable: true }),
+  );
   const validation = await validateAuthSessionToken(token, {
     checkAuthSession: options.checkAuthSession,
     checkGlobalRevocation: (userId, startedAtSeconds) =>
-      options.checkGlobalRevocation(userId, startedAtSeconds, () => userPromise),
+      options.checkGlobalRevocation(userId, startedAtSeconds, async () => {
+        const result = await userPromise;
+        if (result.unavailable) throw new SocketAuthenticationUnavailableError();
+        return result.user;
+      }),
   });
-  const user = await userPromise.catch(() => null);
+  const { user, unavailable } = await userPromise;
+
+  if (validation.status === "revoked") return null;
+  if (validation.status === "unavailable" || unavailable) {
+    throw new SocketAuthenticationUnavailableError();
+  }
 
   if (validation.status !== "active" || !isActiveSocketAuthUser(user)) {
     return null;

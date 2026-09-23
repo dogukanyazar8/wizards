@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ScrollView, Text, TextInput, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 
 import { Avatar, BottomSheet, Button, ListRow } from "../app/components/kit";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
@@ -9,7 +9,6 @@ import type { MobileTheme } from "../design/themes";
 import { mobileNavigationRef } from "../navigation/mobile-navigation-ref";
 import { useMobileFriendsQuery, useMobileSocialMutations } from "./mobile-social-query";
 import type { MobileFriendPresenceStatus } from "./mobile-social-client";
-import { MobileProfileAvatarEditor } from "./mobile-profile-avatar-editor";
 import { mobileCopy } from "../locale/mobile-copy";
 
 const createStyles = (theme: MobileTheme) => ({
@@ -93,64 +92,6 @@ export function SocialAccountQuickActions() {
         </View>
       </BottomSheet>
     </View>
-  );
-}
-
-/**
- * Superseded by MobileProfileEditScreen, which follows the settings design language.
- * Kept for the avatar-editor contract tests until those move to the new screen.
- */
-export function ProfileEditScreen({ onBack }: { onBack(): void }) {
-  const { apiClient, replaceSessionUser, session } = useMobileAuth();
-  const { locale } = useMobileLocaleRuntime();
-  const styles = useThemedStyles(createStyles);
-  const t = mobileCopy[locale];
-  const mutations = useMobileSocialMutations(apiClient);
-  const [displayName, setDisplayName] = useState(session?.user.displayName ?? "");
-  const [username, setUsername] = useState(session?.user.username ?? "");
-  return (
-    <ScrollView
-      style={styles.root}
-      contentContainerStyle={styles.content}
-      testID="mobile-profile-edit-screen"
-    >
-      <Text style={styles.title}>{t.socialAccountTitle}</Text>
-      <MobileProfileAvatarEditor
-        replaceSessionUser={replaceSessionUser}
-        user={session?.user ?? null}
-      />
-      <View style={styles.form}>
-        <TextInput
-          accessibilityLabel={t.socialAccountDisplayName}
-          onChangeText={setDisplayName}
-          placeholder={t.socialAccountDisplayName}
-          style={styles.input}
-          value={displayName}
-          testID="mobile-profile-display-name"
-        />
-        <TextInput
-          accessibilityLabel={t.socialAccountUsername}
-          autoCapitalize="none"
-          onChangeText={setUsername}
-          placeholder={t.socialAccountUsername}
-          style={styles.input}
-          value={username}
-          testID="mobile-profile-username"
-        />
-      </View>
-      <Button
-        busy={mutations.updateProfile.isPending}
-        disabled={username.trim().length < 2}
-        label={t.socialAccountSave}
-        onPress={() =>
-          void mutations.updateProfile
-            .mutateAsync({ displayName, username: username.trim() })
-            .then(onBack)
-        }
-        testID="mobile-profile-save"
-      />
-      <Button label={t.socialAccountBack} variant="ghost" onPress={onBack} />
-    </ScrollView>
   );
 }
 

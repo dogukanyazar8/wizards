@@ -15,7 +15,6 @@ import React, {
   type ReactNode,
 } from "react";
 import {
-  ConnectionQuality,
   ConnectionState,
   type LocalVideoTrack,
   type RemoteVideoTrack,
@@ -32,7 +31,6 @@ import {
   PhoneOff,
   RotateCcw,
   Settings2,
-  Users,
   Video,
   VideoOff,
   Volume2,
@@ -41,7 +39,6 @@ import {
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
-  type NoiseFilterTier,
   type VoiceCameraStatus,
   type VoiceParticipantViewModel,
   type VoiceScreenShareViewModel,
@@ -99,110 +96,6 @@ export type VoiceSignalStatus = {
   strength: 0 | 1 | 2 | 3;
   tone: VoiceSignalTone;
 };
-
-export const VOICE_SIGNAL_BAR_CLASSES = ["h-1.5", "h-2.5", "h-3.5"] as const;
-
-export function getVoiceSignalStatus({
-  connectionQuality,
-  connectionState,
-  hasRoom,
-}: {
-  connectionQuality: ConnectionQuality;
-  connectionState: ConnectionState;
-  hasRoom: boolean;
-}): VoiceSignalStatus {
-  if (!hasRoom || connectionState === ConnectionState.Disconnected) {
-    return {
-      labelKey: "voice.room.signalOffline",
-      strength: 0,
-      tone: "muted",
-    };
-  }
-
-  if (connectionState === ConnectionState.Connecting) {
-    return {
-      isLoading: true,
-      labelKey: "voice.room.signalChecking",
-      strength: 1,
-      tone: "primary",
-    };
-  }
-
-  if (isReconnectState(connectionState)) {
-    return {
-      isLoading: true,
-      labelKey: "voice.room.signalReconnecting",
-      strength: 1,
-      tone: "warning",
-    };
-  }
-
-  switch (connectionQuality) {
-    case ConnectionQuality.Excellent:
-      return {
-        labelKey: "voice.room.signalExcellent",
-        strength: 3,
-        tone: "success",
-      };
-    case ConnectionQuality.Good:
-      return {
-        labelKey: "voice.room.signalGood",
-        strength: 2,
-        tone: "primary",
-      };
-    case ConnectionQuality.Poor:
-      return {
-        labelKey: "voice.room.signalPoor",
-        strength: 1,
-        tone: "warning",
-      };
-    case ConnectionQuality.Lost:
-      return {
-        labelKey: "voice.room.signalLost",
-        strength: 0,
-        tone: "danger",
-      };
-    case ConnectionQuality.Unknown:
-    default:
-      return {
-        isLoading: true,
-        labelKey: "voice.room.signalChecking",
-        strength: 1,
-        tone: "primary",
-      };
-  }
-}
-
-export function getVoiceSignalToneClass(tone: VoiceSignalTone) {
-  switch (tone) {
-    case "danger":
-      return "border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.08)] text-[hsl(var(--danger))]";
-    case "muted":
-      return "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.58)] text-app-muted";
-    case "success":
-      return "border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.12)] text-[hsl(var(--success))]";
-    case "warning":
-      return "border-[hsl(var(--warning)/0.26)] bg-[hsl(var(--warning)/0.10)] text-[hsl(var(--warning))]";
-    case "primary":
-    default:
-      return "border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.10)] text-[hsl(var(--primary))]";
-  }
-}
-
-export function getKrispQualityLabelKey(tier: NoiseFilterTier) {
-  switch (tier) {
-    case "krisp_high":
-      return "voice.room.krispQualityHigh";
-    case "krisp_medium":
-      return "voice.room.krispQualityMedium";
-    case "krisp_low":
-      return "voice.room.krispQualityLow";
-    case "browser_native":
-    case "off":
-    default:
-      return null;
-  }
-}
 
 export function getSpeakingClass(isSpeaking: boolean) {
   return isSpeaking
@@ -658,27 +551,6 @@ export function VoiceParticipantTile({
         </div>
       )}
     </article>
-  );
-}
-
-export function VoiceEmptyState() {
-  const { t } = useI18n();
-
-  return (
-    <div
-      className="flex min-h-[22rem] items-center justify-center rounded-[30px] border border-dashed border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.32)] p-8 text-center"
-      data-testid="voice-empty-state"
-    >
-      <div className="max-w-sm">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] border border-[hsl(var(--primary)/0.22)] bg-[hsl(var(--primary)/0.10)] text-[hsl(var(--primary))]">
-          <Users className="h-6 w-6" />
-        </div>
-        <p className="mt-4 text-base font-semibold text-app-foreground">
-          {t("voice.room.emptyTitle")}
-        </p>
-        <p className="mt-2 text-sm text-app-muted">{t("voice.room.emptyDescription")}</p>
-      </div>
-    </div>
   );
 }
 

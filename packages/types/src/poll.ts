@@ -24,9 +24,6 @@ export const POLL_OPTION_MAX_LENGTH = 80;
 export const PollDurationSchema = z.enum(["1h", "24h", "3d"]);
 export type PollDuration = z.infer<typeof PollDurationSchema>;
 
-/** §8's segment, in the order it draws them. */
-export const POLL_DURATIONS = ["1h", "24h", "3d"] as const;
-
 /** Minutes each segment resolves to. The server does the arithmetic, not the client. */
 export const POLL_DURATION_MINUTES: Readonly<Record<PollDuration, number>> = Object.freeze({
   "1h": 60,
@@ -153,8 +150,6 @@ export const PollVoteRequestSchema = z
     optionIds: z.array(z.string().min(1)).max(POLL_MAX_OPTIONS),
   })
   .strict();
-
-export type PollVoteRequest = z.infer<typeof PollVoteRequestSchema>;
 
 // ---------------------------------------------------------------------------
 // Read contract

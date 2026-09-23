@@ -1,7 +1,5 @@
 import {
   advanceSplashStep,
-  SPLASH_REALTIME_GRACE_MS,
-  SPLASH_SLOW_AFTER_MS,
   type SplashStateId,
   type SplashStepId,
   type SplashUpdateProgress,
@@ -169,8 +167,3 @@ export function pickMobileSplashTipKey(random: number): (typeof MOBILE_SPLASH_TI
     MOBILE_SPLASH_TIP_COPY[0]
   );
 }
-
-export const MOBILE_SPLASH_TIMINGS = {
-  realtimeGraceMs: SPLASH_REALTIME_GRACE_MS,
-  slowAfterMs: SPLASH_SLOW_AFTER_MS,
-} as const;

@@ -253,16 +253,19 @@ export function registerDMHandlers(
     );
   }
 
-  socket.on("dm:join", async (rawConversationId: string) => {
+  socket.on("dm:join", async (rawConversationId, acknowledge) => {
     try {
       const conversationId = parseSocketPayload(SocketIdSchema, rawConversationId);
       if (!(await isDMParticipant(userId, conversationId))) {
+        acknowledge?.({ ok: false });
         emitDMError("FORBIDDEN", "You are not allowed to join this DM");
         return;
       }
 
-      socket.join(`dm:${conversationId}`);
+      await socket.join(`dm:${conversationId}`);
+      acknowledge?.({ ok: socket.connected !== false });
     } catch (error) {
+      acknowledge?.({ ok: false });
       emitSafeDMError("FORBIDDEN", "Unable to join this DM.", error);
     }
   });

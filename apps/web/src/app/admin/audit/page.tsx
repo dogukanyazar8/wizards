@@ -13,10 +13,8 @@ function normalizeAuditFilter(value: string | undefined): AdminAuditFilter {
 export default async function AdminAuditPage({ searchParams }: AdminAuditPageProps) {
   const params = await searchParams;
   const filter = normalizeAuditFilter(params?.filter);
-  const [, snapshot] = await Promise.all([
-    requireAdminModule("audit.read"),
-    getAdminAuditSnapshot(),
-  ]);
+  await requireAdminModule("audit.read");
+  const [snapshot] = await Promise.all([getAdminAuditSnapshot()]);
 
   return <AdminAudit filter={filter} snapshot={snapshot} />;
 }

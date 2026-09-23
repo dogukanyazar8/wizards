@@ -58,7 +58,6 @@ export const MentionAuthorSchema = z.object({
   avatarUrl: z.string().nullable().optional(),
   initials: z.string().min(1).max(2),
 });
-export type MentionAuthor = z.infer<typeof MentionAuthorSchema>;
 
 /** Bahsetmenin geldiği yer: sunucu + kanal ya da bir konuşma. */
 export const MentionSourceSchema = z.discriminatedUnion("type", [

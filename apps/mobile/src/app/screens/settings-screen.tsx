@@ -9,11 +9,9 @@ import {
   copy,
   getMobileNoiseSuppressionLabel,
   getMobileFeatureEvidence,
-  getMobileInviteReadiness,
   getMobilePermissionEvidence,
   getMobilePermissionNativeMetadata,
   getMobileReleaseEvidence,
-  getMobileSessionEvidence,
   getMobileStoreEvidence,
   mobilePackageJson,
   mobileProductionReadinessSummary,
@@ -33,7 +31,6 @@ import {
   type MobileBootstrapViewState,
   type MobileDeepLinkParseResult,
   type MobileIoniconName,
-  type MobileInviteReadiness,
   type MobileLocale,
   type MobileMediaRuntimeState,
   type MobilePermissionIntentId,
@@ -42,7 +39,6 @@ import {
   type MobileSessionDiagnostics,
   type MobileSettingsEvidenceItem,
   type MobileSyncHealthSummary,
-  type MobileSyncSnapshot,
   type MobileVoiceInputMode,
   type ReactNode,
 } from "../mobile-root-screen-shared";
@@ -51,11 +47,9 @@ import {
   ActionButton,
   AvatarMark,
   BootstrapStateNotice,
-  DiagnosticPill,
   MetricMiniPill,
   MetricTile,
   MobileSyncHealthBanner,
-  MobileSyncStatusCard,
   ScreenShell,
 } from "../components/ui-atoms";
 import { formatMobileMediaAssetMeta } from "../components/media-primitives";
@@ -75,7 +69,6 @@ import { useToast } from "../components/kit/toast";
 import { Avatar } from "../components/kit/avatar";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
-import { useMobileWorkspaceLayoutPreference } from "../providers/mobile-workspace-layout-provider";
 import type { MobileFriendPresenceStatus } from "../../social/mobile-social-client";
 import { summarizeOwnBadges, type MobileLegalDocumentId } from "@wizards/types";
 import { MobileCachedImage } from "../components/mobile-cached-image";
@@ -703,99 +696,6 @@ export function SettingsSessionActionCard({
   );
 }
 
-export function SettingsMobileOverviewCard({
-  bootstrapState,
-  diagnostics,
-  lastDeepLink,
-  permissionSummary,
-}: {
-  bootstrapState: MobileBootstrapViewState;
-  diagnostics: MobileSessionDiagnostics;
-  lastDeepLink: MobileDeepLinkParseResult | null;
-  permissionSummary: MobilePermissionSummary;
-}) {
-  const hasHealthySession = diagnostics.hasSession && !diagnostics.isExpired;
-  const messagesFeature =
-    bootstrapState.status === "ready" ? bootstrapState.payload.features.messages : null;
-  const messageSearchFeature =
-    bootstrapState.status === "ready" ? bootstrapState.payload.features.messageSearch : null;
-  const notificationsFeature =
-    bootstrapState.status === "ready" ? bootstrapState.payload.features.pushNotifications : null;
-  const voiceFeature =
-    bootstrapState.status === "ready" ? bootstrapState.payload.features.voice : null;
-  const invitesFeature =
-    bootstrapState.status === "ready" ? bootstrapState.payload.features.invites : null;
-  const deepLinkStatus = getDeepLinkStatusLabel(lastDeepLink);
-  const inviteReadiness = getMobileInviteReadiness({
-    invitesFeature,
-    lastDeepLink,
-  });
-  const rows: NativeSettingsRowItem[] = [
-    {
-      description: hasHealthySession
-        ? copy.settingsMobileSessionHealthy
-        : copy.settingsMobileSessionActionRequired,
-      id: "session",
-      label: copy.settingsMobileSessionTitle,
-      tone: hasHealthySession ? "success" : "warning",
-      value: hasHealthySession ? copy.settingsReadyLabel : copy.settingsMissingLabel,
-    },
-    {
-      description: messagesFeature?.reason ?? copy.settingsMobileMessagingDescription,
-      id: "messages",
-      label: copy.settingsMobileMessagingTitle,
-      tone: getFeatureStatusTone(messagesFeature?.status),
-      value: getFeatureStatusLabel(messagesFeature?.status),
-    },
-    {
-      description: messageSearchFeature?.reason ?? copy.settingsMobileSearchDescription,
-      id: "message-search",
-      label: copy.settingsMobileSearchTitle,
-      tone: getFeatureStatusTone(messageSearchFeature?.status),
-      value: getFeatureStatusLabel(messageSearchFeature?.status),
-    },
-    {
-      description:
-        notificationsFeature?.reason ??
-        `${permissionSummary.needsUserAction} ${copy.settingsMobilePermissionNeedsActionSuffix}`,
-      id: "notifications",
-      label: copy.settingsMobileNotificationsTitle,
-      tone: getFeatureStatusTone(notificationsFeature?.status),
-      value: getFeatureStatusLabel(notificationsFeature?.status),
-    },
-    {
-      description: voiceFeature?.reason ?? copy.settingsMobileVoiceDescription,
-      id: "voice",
-      label: copy.settingsMobileVoiceTitle,
-      tone: getFeatureStatusTone(voiceFeature?.status),
-      value: getFeatureStatusLabel(voiceFeature?.status),
-    },
-    {
-      description: getInviteReadinessDescription(inviteReadiness),
-      id: "invites",
-      label: copy.settingsMobileInvitesTitle,
-      tone: getInviteReadinessTone(inviteReadiness),
-      value: getInviteReadinessValue(inviteReadiness),
-    },
-    {
-      description: deepLinkStatus.description,
-      id: "deep-link",
-      label: copy.settingsMobileDeepLinkTitle,
-      tone: lastDeepLink?.ok === false ? "warning" : "success",
-      value: lastDeepLink?.ok === false ? copy.settingsPendingLabel : copy.settingsReadyLabel,
-    },
-  ];
-
-  return (
-    <SettingsSection
-      description={copy.settingsMobileOverviewDescription}
-      title={copy.settingsMobileOverviewTitle}
-    >
-      <NativeSettingsList rows={rows} />
-    </SettingsSection>
-  );
-}
-
 export function SettingsSupportLegalCard({
   onOpenCookies,
   onOpenPrivacyPolicy,
@@ -1145,37 +1045,6 @@ export function NativeSettingsList({ rows }: { rows: readonly NativeSettingsRowI
   );
 }
 
-function getFeatureStatusLabel(
-  status: MobileBootstrapPayload["features"]["messages"]["status"] | undefined,
-) {
-  switch (status) {
-    case "available":
-      return copy.settingsFeatureAvailable;
-    case "disabled":
-      return copy.settingsFeatureDisabled;
-    case "requires-native-permission":
-    case "requires-server-contract":
-      return copy.settingsPendingLabel;
-    default:
-      return copy.settingsPendingLabel;
-  }
-}
-
-function getFeatureStatusTone(
-  status: MobileBootstrapPayload["features"]["messages"]["status"] | undefined,
-): NativeSettingsRowTone {
-  switch (status) {
-    case "available":
-      return "success";
-    case "disabled":
-      return "neutral";
-    case "requires-native-permission":
-    case "requires-server-contract":
-    default:
-      return "warning";
-  }
-}
-
 function getPermissionStatusLabel(status: MobilePermissionReadiness["status"]) {
   switch (status) {
     case "granted":
@@ -1218,28 +1087,6 @@ function isSettingsPermissionActionDisabled(status: MobilePermissionReadiness["s
   return status === "granted" || status === "blocked" || status === "denied";
 }
 
-export function SettingsSecurityCard({
-  diagnostics,
-  lastDeepLink,
-}: {
-  diagnostics: MobileSessionDiagnostics;
-  lastDeepLink: MobileDeepLinkParseResult | null;
-}) {
-  const styles = useSettingsScreenStyles();
-  const evidence = getMobileSessionEvidence(diagnostics, getSettingsEvidenceLabels());
-
-  return (
-    <SettingsSection
-      description={copy.settingsSecurityDescription}
-      title={copy.settingsSecurityTitle}
-    >
-      <SettingsEvidenceGrid items={evidence} />
-      <DeepLinkStatusCard result={lastDeepLink} />
-      <Text style={styles.settingsFootnote}>{copy.settingsNoSensitiveData}</Text>
-    </SettingsSection>
-  );
-}
-
 export function SettingsFeatureReadinessCard({
   features,
 }: {
@@ -1274,31 +1121,6 @@ export function SettingsPermissionEvidenceCard({ summary }: { summary: MobilePer
     >
       <SettingsEvidenceGrid items={evidence} />
     </SettingsSection>
-  );
-}
-
-export function DeveloperDiagnosticsCard({
-  bootstrapSyncState,
-}: {
-  bootstrapSyncState: MobileSyncSnapshot;
-}) {
-  const styles = useSettingsScreenStyles();
-  return (
-    <View style={styles.developerSection}>
-      <View style={styles.developerSectionHeader}>
-        <Text style={styles.environmentLabel}>{copy.settingsDeveloperTitle}</Text>
-        <Text style={styles.contractDescription}>{copy.settingsDeveloperDescription}</Text>
-      </View>
-      <MobileSyncStatusCard
-        items={[{ label: copy.syncBootstrapLabel, snapshot: bootstrapSyncState }]}
-      />
-      <EnvironmentCard />
-      <BootstrapContractCard />
-      <ReleaseReadinessCard />
-      <StoreReadinessCard />
-      <ProductionReadinessCard />
-      <MobileQualityGateCard />
-    </View>
   );
 }
 
@@ -1471,57 +1293,6 @@ export function SettingsAppearanceSelector() {
                   styles.settingsLocaleOptionLabel,
                   isSelected && styles.settingsLocaleOptionLabelSelected,
                 ]}
-              >
-                {option.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
-export function SettingsWorkspaceLayoutSelector() {
-  const styles = useSettingsScreenStyles();
-  const { layout, setLayout } = useMobileWorkspaceLayoutPreference();
-  const options = [
-    { id: "rail" as const, label: copy.settingsWorkspaceLayoutRailOption },
-    { id: "compact" as const, label: copy.settingsWorkspaceLayoutCompactOption },
-  ];
-
-  return (
-    <View
-      accessibilityLabel={copy.settingsWorkspaceLayoutLabel}
-      accessibilityRole="radiogroup"
-      style={styles.settingsLocaleControl}
-      testID="mobile-settings-workspace-layout-control"
-    >
-      <Text maxFontSizeMultiplier={2} style={styles.settingsLocaleDescription}>
-        {copy.settingsWorkspaceLayoutDescription}
-      </Text>
-      <View style={styles.settingsLocaleOptions}>
-        {options.map((option) => {
-          const selected = layout === option.id;
-          return (
-            <Pressable
-              accessibilityLabel={option.label}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: selected }}
-              key={option.id}
-              onPress={() => setLayout(option.id)}
-              style={({ pressed }) => [
-                styles.settingsLocaleOption,
-                selected && styles.settingsLocaleOptionSelected,
-                pressed && styles.actionButtonPressed,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.settingsLocaleOptionLabel,
-                  selected && styles.settingsLocaleOptionLabelSelected,
-                ]}
-                numberOfLines={1}
               >
                 {option.label}
               </Text>
@@ -1882,23 +1653,6 @@ export function MobileQualityGateCard() {
   );
 }
 
-export function SessionDiagnostics({ diagnostics }: { diagnostics: MobileSessionDiagnostics }) {
-  const styles = useSettingsScreenStyles();
-  return (
-    <View style={styles.diagnosticsRow}>
-      <DiagnosticPill
-        label={copy.settingsSessionLabel}
-        value={diagnostics.hasSession ? copy.settingsReadyLabel : copy.settingsMissingLabel}
-      />
-      <DiagnosticPill label={copy.settingsScopeCountLabel} value={String(diagnostics.scopeCount)} />
-      <DiagnosticPill
-        label={copy.settingsRefreshTokenLabel}
-        value={diagnostics.hasRefreshToken ? copy.settingsReadyLabel : copy.settingsMissingLabel}
-      />
-    </View>
-  );
-}
-
 export function DeepLinkStatusCard({ result }: { result: MobileDeepLinkParseResult | null }) {
   const styles = useSettingsScreenStyles();
   const statusLabel = getDeepLinkStatusLabel(result);
@@ -1916,56 +1670,6 @@ export function DeepLinkStatusCard({ result }: { result: MobileDeepLinkParseResu
       </View>
     </View>
   );
-}
-
-function getInviteReadinessDescription(readiness: MobileInviteReadiness): string {
-  switch (readiness.reason) {
-    case "ready":
-      return copy.inviteReadinessReady;
-    case "disabled":
-      return copy.inviteReadinessDisabled;
-    case "missing-feature":
-      return copy.inviteReadinessMissingFeature;
-    case "server-contract-required":
-      return copy.inviteReadinessServerPending;
-    case "unsafe-link":
-      return copy.inviteReadinessUnsafe;
-    case "not-an-invite":
-    default:
-      return copy.inviteReadinessIdle;
-  }
-}
-
-function getInviteReadinessTone(readiness: MobileInviteReadiness): NativeSettingsRowItem["tone"] {
-  if (readiness.reason === "ready") {
-    return "success";
-  }
-
-  if (readiness.reason === "unsafe-link") {
-    return "danger";
-  }
-
-  if (readiness.reason === "server-contract-required" || readiness.reason === "missing-feature") {
-    return "warning";
-  }
-
-  return "neutral";
-}
-
-function getInviteReadinessValue(readiness: MobileInviteReadiness): string {
-  if (readiness.reason === "ready") {
-    return copy.settingsReadyLabel;
-  }
-
-  if (readiness.reason === "not-an-invite") {
-    return copy.settingsMissingLabel;
-  }
-
-  if (readiness.reason === "disabled") {
-    return copy.settingsFeatureDisabled;
-  }
-
-  return copy.settingsPendingLabel;
 }
 
 function getDeepLinkStatusLabel(result: MobileDeepLinkParseResult | null) {

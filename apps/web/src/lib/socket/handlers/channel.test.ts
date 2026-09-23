@@ -6,7 +6,11 @@ import { registerChannelHandlers } from "./channel";
 
 describe("socket channel handlers", () => {
   it("keeps the channel viewer Redis set in sync on join and leave", async () => {
-    const handlers = new Map<string, (payload: unknown) => Promise<void>>();
+    const handlers = new Map<
+      string,
+      (payload: unknown, ack?: (result: { ok: boolean }) => void) => Promise<void>
+    >();
+    const acknowledgements: boolean[] = [];
     const redisCalls: Array<{ command: string; key: string; userId: string }> = [];
     const joined: string[] = [];
     const left: string[] = [];
@@ -41,11 +45,12 @@ describe("socket channel handlers", () => {
       requireChannelPermission: async () => ({ channel: { serverId: "server-1" } }) as never,
     });
 
-    await handlers.get("channel:join")!("channel-1");
+    await handlers.get("channel:join")!("channel-1", (result) => acknowledgements.push(result.ok));
     await handlers.get("channel:leave")!("channel-1");
 
     assert.deepEqual(joined, ["channel-1", "server:server-1"]);
     assert.deepEqual(left, ["channel-1"]);
+    assert.deepEqual(acknowledgements, [true]);
     assert.deepEqual(redisCalls, [
       { command: "sadd", key: "channel:channel-1:viewers", userId: "user-1" },
       { command: "srem", key: "channel:channel-1:viewers", userId: "user-1" },

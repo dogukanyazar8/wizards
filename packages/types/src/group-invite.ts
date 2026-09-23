@@ -46,8 +46,6 @@ export function isGroupInviteCode(value: string): boolean {
 /** K2: the toggle is the whole request. The code is never client-supplied. */
 export const GroupInviteSettingsRequestSchema = z.object({ enabled: z.boolean() }).strict();
 
-export type GroupInviteSettingsRequest = z.infer<typeof GroupInviteSettingsRequestSchema>;
-
 /** Why an invite row itself cannot be used, independent of who is asking. */
 export type GroupInviteBlockReason = "disabled" | "expired" | "exhausted";
 

@@ -24,7 +24,6 @@ export const ANONYMOUS_CLIENT_HEALTH_KINDS = [
  * `valueMs` column so the existing startup percentiles keep reading it.
  */
 export const CLIENT_HEALTH_UNITS = ["ms", "fps", "kbps", "count", "pct"] as const;
-export type ClientHealthUnit = (typeof CLIENT_HEALTH_UNITS)[number];
 /** Generous ceiling for any unit; a 4K60 share tops out near 24 000 kbps. */
 export const CLIENT_HEALTH_MAX_VALUE = 1_000_000;
 

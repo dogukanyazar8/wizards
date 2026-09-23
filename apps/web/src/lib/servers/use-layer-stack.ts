@@ -59,11 +59,6 @@ function getServerSnapshot(): ServerLayerStack {
   return EMPTY_LAYER_STACK;
 }
 
-/** Test ve `resetSessionUiState` için: yığını sıfırlar. */
-export function resetServerLayerStack(): void {
-  emit(EMPTY_LAYER_STACK);
-}
-
 export type UseLayerStackOptions = {
   /** Yüzeyin kimliği; yığındaki kaydın anahtarı. */
   id: string;
@@ -146,12 +141,4 @@ export function useLayerStack({ id, kind, onClose, open }: UseLayerStackOptions)
     isTop,
     zIndex: layerZIndex(kind),
   };
-}
-
-/**
- * Yığını yalnız **okuyan** yüzeyler için. Ayarlar kaplaması, üstünde pencere varken kendi
- * `Esc`'ini ve odak tuzağını bırakmak zorunda; bunu öğrenmek için katman açmasına gerek yok.
- */
-export function useIsTopLayer(id: string): boolean {
-  return isTopLayer(useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot), id);
 }

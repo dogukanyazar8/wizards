@@ -215,5 +215,3 @@ export function createLoginLockout(overrides: Partial<LoginLockoutDependencies> 
     },
   };
 }
-
-export const loginLockout = createLoginLockout();

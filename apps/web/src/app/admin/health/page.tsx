@@ -10,10 +10,8 @@ type AdminHealthPageProps = {
 export default async function AdminHealthPage({ searchParams }: AdminHealthPageProps) {
   const params = await searchParams;
   const days = normalizeDashboardDays(params?.days);
-  const [, snapshot] = await Promise.all([
-    requireAdminModule("health.read"),
-    loadAdminHealthSnapshot({ days, now: new Date() }),
-  ]);
+  await requireAdminModule("health.read");
+  const [snapshot] = await Promise.all([loadAdminHealthSnapshot({ days, now: new Date() })]);
 
   return <AdminHealth snapshot={snapshot} />;
 }

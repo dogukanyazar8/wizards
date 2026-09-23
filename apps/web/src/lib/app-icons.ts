@@ -40,10 +40,6 @@ export const APP_ICON_OPTIONS = [
 
 export type AppIconId = (typeof APP_ICON_OPTIONS)[number]["id"];
 
-export function isAppIconId(value: unknown): value is AppIconId {
-  return typeof value === "string" && APP_ICON_OPTIONS.some((option) => option.id === value);
-}
-
 export function getAppIconById(iconId: string | null | undefined) {
   return (
     APP_ICON_OPTIONS.find((option) => option.id === iconId) ??

@@ -141,8 +141,6 @@ export const defaultEventRealtimePublisher = {
     publishEventUpdated(payload, getSocketServer(), { isPublic: isPublic ?? false }),
 };
 
-export type EventRealtimePublisher = typeof defaultEventRealtimePublisher;
-
 // ---------------------------------------------------------------------------
 // Saf yamalar (istemci)
 // ---------------------------------------------------------------------------

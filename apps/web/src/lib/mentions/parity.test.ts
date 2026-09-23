@@ -82,7 +82,6 @@ describe("mentions parity — eski Ana Sayfa bahsetme hattı", () => {
     const oldServiceTest = new URL("../home/mentions-service.test.ts", import.meta.url);
     const client = readFileSync(new URL("../home/client.ts", import.meta.url), "utf8");
     const types = readFileSync(new URL("../home/types.ts", import.meta.url), "utf8");
-    const sideScreens = readFileSync(new URL("../home/side-screens.ts", import.meta.url), "utf8");
 
     assert.equal(existsSync(oldService), false);
     assert.equal(existsSync(oldServiceTest), false);
@@ -91,6 +90,5 @@ describe("mentions parity — eski Ana Sayfa bahsetme hattı", () => {
       types,
       /MentionsResponseSchema|HomeMentionItemSchema|MentionsQuerySchema|MentionsFilterSchema/u,
     );
-    assert.doesNotMatch(sideScreens, /parseMentionsFilter/u);
   });
 });

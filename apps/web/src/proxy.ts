@@ -199,6 +199,8 @@ function isProtectedRoute(pathname: string): boolean {
   // It never changes an email; completion requires the original authenticated session.
   if (pathname === "/settings/email-change/google") return false;
   return (
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/") ||
     pathname === "/channels" ||
     pathname.startsWith("/channels/") ||
     pathname === "/settings" ||

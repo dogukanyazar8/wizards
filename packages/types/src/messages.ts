@@ -250,7 +250,6 @@ export const EditMessageInputSchema = z.object({
   content: z.string().min(1).max(MESSAGE_CONTENT_HARD_LIMIT),
 });
 
-export type MessageAuthor = z.infer<typeof MessageAuthorSchema>;
 export type MessageReaction = z.infer<typeof MessageReactionSchema>;
 export type AttachmentScanStatus = z.infer<typeof AttachmentScanStatusSchema>;
 export type MessageAttachment = z.infer<typeof MessageAttachmentSchema>;
@@ -261,9 +260,6 @@ export type ReplyTo = z.infer<typeof ReplyToSchema>;
 export type ChatMessageType = z.infer<typeof ChatMessageTypeSchema>;
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 export type MessagesResponse = z.infer<typeof MessagesResponseSchema>;
-export type MessageSearchScope = z.infer<typeof MessageSearchScopeSchema>;
 export type MessageSearchResult = z.infer<typeof MessageSearchResultSchema>;
 export type MessageSearchResponse = z.infer<typeof MessageSearchResponseSchema>;
 export type ThreadFollowState = z.infer<typeof ThreadFollowStateSchema>;
-export type SendMessageInput = z.infer<typeof SendMessageInputSchema>;
-export type EditMessageInput = z.infer<typeof EditMessageInputSchema>;

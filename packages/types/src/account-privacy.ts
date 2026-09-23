@@ -28,5 +28,3 @@ export const AccountDeletionRequestSchema = z
   .strict();
 
 export type AccountDeletionPreflight = z.infer<typeof AccountDeletionPreflightSchema>;
-export type AccountDeletionReauthMethod = z.infer<typeof AccountDeletionReauthMethodSchema>;
-export type AccountDeletionRequest = z.infer<typeof AccountDeletionRequestSchema>;

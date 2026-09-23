@@ -249,15 +249,3 @@ export function startDisappearingMessageWorker({
 
   return true;
 }
-
-export async function stopDisappearingMessageWorker() {
-  if (workerTimer) {
-    clearInterval(workerTimer);
-    workerTimer = null;
-  }
-
-  const sweep = currentSweep;
-  if (sweep) {
-    await sweep;
-  }
-}

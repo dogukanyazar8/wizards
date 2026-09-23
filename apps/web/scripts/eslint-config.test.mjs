@@ -28,7 +28,7 @@ test("React Compiler diagnostics are loaded as errors by the flat config", async
     assert.doesNotMatch(source, new RegExp(`"${rule}": 0`));
   }
 
-  assert.match(packageJson.devDependencies.eslint, /^\^?10\.10\.0$/u);
+  assert.match(packageJson.devDependencies.eslint, /^\^?10\.11\.0$/u);
   assert.equal(packageJson.devDependencies["@eslint/js"], undefined);
   assert.equal(packageJson.devDependencies["@next/eslint-plugin-next"], "16.3.5");
   assert.match(packageJson.devDependencies["eslint-plugin-react-hooks"], /^\^?7\.1\.1$/u);

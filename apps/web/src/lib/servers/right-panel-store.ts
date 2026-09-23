@@ -60,11 +60,6 @@ export function setServerRightPanelContent(next: ServerRightPanelContent): void 
   emit(next);
 }
 
-/** Test ve rota değişimi için: seçim üye listesine döner. */
-export function resetServerRightPanelContent(): void {
-  emit(DEFAULT_CONTENT);
-}
-
 export function useServerRightPanelContent(): ServerRightPanelContent {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

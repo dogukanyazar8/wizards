@@ -36,27 +36,6 @@ export async function getMobileUserNote(scope: MobileUserNoteScope): Promise<str
 }
 
 /**
- * Reads several notes at once for the profile payload. Kept separate from the
- * single read so the profile query does not grow an N+1 when it later returns
- * notes for a list of people.
- */
-export async function getMobileUserNotes(input: {
-  readonly authorId: string;
-  readonly subjectIds: readonly string[];
-}): Promise<Map<string, string>> {
-  if (input.subjectIds.length === 0) {
-    return new Map();
-  }
-
-  const notes = await prisma.userNote.findMany({
-    select: { body: true, subjectId: true },
-    where: { authorId: input.authorId, subjectId: { in: [...input.subjectIds] } },
-  });
-
-  return new Map(notes.map((note) => [note.subjectId, note.body]));
-}
-
-/**
  * Saves or clears the viewer's note. A null body deletes the row rather than
  * storing an empty string, so "no note" has exactly one representation and the
  * 1c card never has to tell them apart.

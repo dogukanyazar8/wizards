@@ -127,7 +127,6 @@ export function getScreenShareBitrateKbps(
 
 export const SCREEN_SHARE_STREAM_KINDS = ["screen", "window", "game"] as const;
 export const ScreenShareStreamKindSchema = z.enum(SCREEN_SHARE_STREAM_KINDS);
-export type ScreenShareStreamKind = z.infer<typeof ScreenShareStreamKindSchema>;
 
 export const SCREEN_SHARE_STREAM_LABEL_MAX_LENGTH = 64;
 export const SCREEN_SHARE_GAME_ID_MAX_LENGTH = 128;

@@ -1427,5 +1427,3 @@ export const MESSAGES_METRICS = {
     jumpHighlight: 1.2,
   },
 } as const;
-
-export type MessagesMetrics = typeof MESSAGES_METRICS;

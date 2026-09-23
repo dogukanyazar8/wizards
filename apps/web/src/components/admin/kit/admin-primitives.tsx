@@ -153,31 +153,6 @@ export function AdminMiniStat({
   );
 }
 
-export function AdminChip({
-  children,
-  onClick,
-  selected = false,
-}: {
-  children: ReactNode;
-  onClick?: () => void;
-  selected?: boolean;
-}) {
-  return (
-    <button
-      className={cn(
-        "rounded-[12px] border px-3 py-[7px] text-[12.5px] font-semibold transition-colors",
-        selected
-          ? "border-transparent bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
-          : "text-[hsl(var(--text-secondary))] border-[hsl(var(--border)/0.7)] bg-transparent hover:bg-[var(--surface-hover)]",
-      )}
-      onClick={onClick}
-      type="button"
-    >
-      {children}
-    </button>
-  );
-}
-
 /** Bars are drawn by hand: a chart library cannot be themed by token alone. */
 export function AdminBarChart({
   bars,

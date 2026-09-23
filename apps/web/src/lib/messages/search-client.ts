@@ -12,12 +12,6 @@ type SearchMessagesOptions = {
   to?: string | null;
 };
 
-export const messageSearchQueryKeys = {
-  root: ["messages", "search"] as const,
-  search: (mode: "channel" | "dm", conversationId: string, query: string) =>
-    ["messages", "search", mode, conversationId, query] as const,
-};
-
 export async function searchMessages({
   author,
   conversationId,

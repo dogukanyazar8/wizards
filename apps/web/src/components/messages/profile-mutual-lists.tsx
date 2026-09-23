@@ -322,28 +322,3 @@ export function ProfileMutualFriends({
 
 export type ProfileMutualListsProps = ProfileMutualServersProps &
   Omit<ProfileMutualFriendsProps, "failed" | "loading">;
-
-/**
- * İki bölüm, SPEC sırasıyla: sunucular önce, arkadaşlar sonra.
- */
-export function ProfileMutualLists({
-  failed,
-  friends,
-  loading,
-  onSelect,
-  servers,
-  total,
-}: ProfileMutualListsProps) {
-  return (
-    <>
-      <ProfileMutualServers failed={failed} loading={loading} servers={servers} />
-      <ProfileMutualFriends
-        failed={failed}
-        friends={friends}
-        loading={loading}
-        onSelect={onSelect}
-        total={total}
-      />
-    </>
-  );
-}

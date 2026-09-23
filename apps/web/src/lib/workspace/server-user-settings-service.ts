@@ -166,16 +166,3 @@ export async function listServerUserSettingsWithDatabase(
 
   return new Map(rows.map((row) => [row.serverId, buildServerUserSettings(row)]));
 }
-
-export async function getServerUserSettingsWithDatabase(
-  database: PrismaClient,
-  userId: string,
-  serverId: string,
-): Promise<ServerUserSettings> {
-  const row = await database.userServerSettings.findUnique({
-    select: SERVER_USER_SETTINGS_SELECT,
-    where: { userId_serverId: { serverId, userId } },
-  });
-
-  return buildServerUserSettings(row);
-}

@@ -461,14 +461,6 @@ export async function getServerPublicProfileWithDatabase(
   return buildServerPublicProfile(source, viewer);
 }
 
-export async function getServerPublicProfile(
-  serverId: string,
-  viewerId: string | null,
-): Promise<ServerPublicProfile> {
-  const { prisma } = await import("@wizards/db");
-  return getServerPublicProfileWithDatabase(prisma, serverId, viewerId);
-}
-
 /**
  * The S2 profile card's access rule: visible when `isPublic || discoverable
  * || viewer is a member`, otherwise 404 — never 403, so a private server's

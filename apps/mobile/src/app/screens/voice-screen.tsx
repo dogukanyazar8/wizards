@@ -22,7 +22,6 @@ import {
   Text,
   View,
   copy,
-  summarizeMobileVoiceRuntimeState,
   useEffect,
   useMemo,
   useState,
@@ -35,7 +34,6 @@ import {
   type MobileVoiceInviteSendState,
   type MobileVoiceRoomParticipant,
   type MobileVoiceRoomState,
-  type MobileVoiceRuntimeState,
 } from "../mobile-root-screen-shared";
 import { ActionButton, AvatarMark } from "../components/ui-atoms";
 import { Avatar } from "../components/kit/avatar";
@@ -1633,93 +1631,6 @@ export function ActiveVoiceRoomControl({
   );
 }
 
-export function VoiceRuntimeCard({
-  onRequestPermission,
-  state,
-}: {
-  state: MobileVoiceRuntimeState;
-  onRequestPermission(): Promise<void>;
-}) {
-  const styles = useVoiceScreenStyles();
-  const summary = summarizeMobileVoiceRuntimeState(state);
-  const text = getMobileVoiceRuntimeText(state);
-  const canRequest =
-    summary.actionEnabled && state.status !== "native-module-pending" && state.status !== "blocked";
-
-  return (
-    <View
-      style={[
-        styles.notificationRuntimeCard,
-        summary.requiresNativeModule && styles.notificationRuntimeCardReady,
-        summary.isTerminalFailure && styles.notificationRuntimeCardWarning,
-      ]}
-    >
-      <View style={styles.notificationRuntimeHeader}>
-        <View style={styles.notificationRuntimeIcon}>
-          <Text style={styles.notificationRuntimeIconText}>V</Text>
-        </View>
-        <View style={styles.notificationRuntimeText}>
-          <Text style={styles.environmentLabel}>{copy.voiceSetupEyebrow}</Text>
-          <Text style={styles.notificationRuntimeTitle}>{text.title}</Text>
-          <Text style={styles.notificationRuntimeDescription}>{text.description}</Text>
-        </View>
-      </View>
-      {state.errorMessage ? (
-        <Text style={styles.notificationRuntimeError} numberOfLines={2}>
-          {state.errorMessage}
-        </Text>
-      ) : null}
-      <ActionButton
-        disabled={!canRequest}
-        label={state.status === "checking" ? copy.voiceSetupCheckingAction : copy.voiceSetupAction}
-        onPress={() => {
-          void onRequestPermission();
-        }}
-        variant={summary.isTerminalFailure ? "secondary" : "primary"}
-      />
-      <Text style={styles.notificationRuntimeFootnote}>{copy.voiceSetupFootnote}</Text>
-    </View>
-  );
-}
-
-function getMobileVoiceRuntimeText(state: MobileVoiceRuntimeState) {
-  switch (state.status) {
-    case "checking":
-      return {
-        description: copy.voiceSetupCheckingDescription,
-        title: copy.voiceSetupCheckingTitle,
-      };
-    case "native-module-pending":
-    case "ready":
-      return {
-        description: copy.voiceSetupNativePendingDescription,
-        title: copy.voiceSetupNativePendingTitle,
-      };
-    case "denied":
-      return {
-        description: copy.voiceSetupDeniedDescription,
-        title: copy.voiceSetupDeniedTitle,
-      };
-    case "blocked":
-      return {
-        description: copy.voiceSetupBlockedDescription,
-        title: copy.voiceSetupBlockedTitle,
-      };
-    case "error":
-    case "unavailable":
-      return {
-        description: copy.voiceSetupUnavailableDescription,
-        title: copy.voiceSetupUnavailableTitle,
-      };
-    case "not-requested":
-    default:
-      return {
-        description: copy.voiceSetupDescription,
-        title: copy.voiceSetupTitle,
-      };
-  }
-}
-
 function isScreenShareBusy(room: MobileVoiceRoomState): boolean {
   return room.screenShareStatus === "starting" || room.screenShareStatus === "stopping";
 }
@@ -2237,38 +2148,6 @@ export function MobileVoiceParticipantRow({
   );
 }
 
-export function MobileVoiceParticipantGroup({
-  emptyLabel,
-  participants,
-  title,
-}: {
-  emptyLabel: string;
-  participants: readonly MobileVoiceRoomParticipant[];
-  title: string;
-}) {
-  const styles = useVoiceScreenStyles();
-  return (
-    <View style={styles.mobileVoiceSectionCard}>
-      <View style={styles.mobileVoiceSectionHeader}>
-        <Text style={styles.mobileVoiceSectionTitle}>{title}</Text>
-        <Text style={styles.mobileVoiceSectionCount}>{participants.length}</Text>
-      </View>
-      {participants.length > 0 ? (
-        <View style={styles.mobileVoiceParticipantList}>
-          {participants.map((participant) => (
-            <MobileVoiceParticipantRow
-              key={`${title}:${participant.userId}`}
-              participant={participant}
-            />
-          ))}
-        </View>
-      ) : (
-        <Text style={styles.mobileVoiceEmptyText}>{emptyLabel}</Text>
-      )}
-    </View>
-  );
-}
-
 function getMobileVoiceInviteSendLabel(state: MobileVoiceInviteSendState | undefined) {
   if (!state) {
     return copy.voiceInviteAction;
@@ -2403,90 +2282,6 @@ function MobileVoiceInviteCandidateRow({
           {label}
         </Text>
       </View>
-    </Pressable>
-  );
-}
-
-export function MobileVoiceInfoRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: MobileIoniconName;
-  label: string;
-  value: string;
-}) {
-  const theme = useVoiceRoomTheme();
-  const styles = useVoiceScreenStyles();
-  return (
-    <View style={styles.mobileVoiceInfoRow}>
-      <Ionicons name={icon} size={18} color={theme.text.muted} />
-      <Text style={styles.mobileVoiceInfoLabel}>{label}</Text>
-      <Text style={styles.mobileVoiceInfoValue} numberOfLines={1}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-export function MobileVoiceControlButton({
-  disabled = false,
-  icon,
-  isActive = false,
-  label,
-  onPress,
-  testID,
-  tone = "neutral",
-}: {
-  disabled?: boolean;
-  icon: MobileIoniconName;
-  isActive?: boolean;
-  label: string;
-  onPress(): void;
-  testID?: string;
-  tone?: "danger" | "neutral" | "primary";
-}) {
-  const theme = useVoiceRoomTheme();
-  const styles = useVoiceScreenStyles();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled, selected: isActive }}
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.mobileVoiceControlButton,
-        tone === "primary" && styles.mobileVoiceControlButtonPrimary,
-        tone === "danger" && styles.mobileVoiceControlButtonDanger,
-        isActive && styles.mobileVoiceControlButtonActive,
-        disabled && styles.mobileVoiceControlButtonDisabled,
-        pressed && !disabled && styles.actionButtonPressed,
-      ]}
-      testID={testID}
-    >
-      <Ionicons
-        name={icon}
-        size={21}
-        color={
-          tone === "primary"
-            ? theme.text.onPrimary
-            : tone === "danger"
-              ? theme.status.danger
-              : theme.text.primary
-        }
-      />
-      <Text
-        style={[
-          styles.mobileVoiceControlLabel,
-          tone === "primary" && styles.mobileVoiceControlLabelPrimary,
-          tone === "danger" && styles.mobileVoiceControlLabelDanger,
-          disabled && styles.mobileVoiceControlLabelDisabled,
-        ]}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
     </Pressable>
   );
 }

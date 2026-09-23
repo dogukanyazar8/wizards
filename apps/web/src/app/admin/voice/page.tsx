@@ -4,10 +4,8 @@ import { loadAdminVoiceSnapshot } from "@/lib/admin/snapshots/voice";
 
 export default async function AdminVoicePage() {
   const now = new Date();
-  const [, snapshot] = await Promise.all([
-    requireAdminModule("dashboard.read"),
-    loadAdminVoiceSnapshot({ days: 1, now }),
-  ]);
+  await requireAdminModule("dashboard.read");
+  const [snapshot] = await Promise.all([loadAdminVoiceSnapshot({ days: 1, now })]);
 
   return <AdminVoice snapshot={snapshot} />;
 }

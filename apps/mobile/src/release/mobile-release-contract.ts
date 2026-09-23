@@ -1,4 +1,3 @@
-import { MOBILE_ENVIRONMENTS, type MobileEnvironmentName } from "../config/environment";
 import {
   validateMobileStoreReadiness,
   type MobileStoreReadinessResult,
@@ -12,7 +11,6 @@ import {
 export const MOBILE_RELEASE_PROFILES = ["development", "uat", "production"] as const;
 
 export type MobileReleaseProfileName = (typeof MOBILE_RELEASE_PROFILES)[number];
-export type MobileReleasePlatform = "android" | "ios";
 
 export type MobileReleaseBudget = {
   label: string;
@@ -236,12 +234,4 @@ export function validateMobileReleaseContract({
     storeReadiness,
     warnings: Array.from(new Set(warnings)),
   };
-}
-
-export function assertKnownMobileEnvironment(
-  value: string,
-): asserts value is MobileEnvironmentName {
-  if (!MOBILE_ENVIRONMENTS.includes(value as MobileEnvironmentName)) {
-    throw new Error(`Unknown mobile environment '${value}'.`);
-  }
 }

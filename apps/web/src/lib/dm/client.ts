@@ -9,19 +9,14 @@ import {
   type DMNotifyLevel,
   type GroupDMCreateRequest,
   type GroupDMSettingsUpdateRequest,
-  type GroupDMUpdateRequest,
-  type GroupMemberRoleUpdateRequest,
 } from "@wizards/types";
 import type { FriendPresenceUpdateDto } from "@/lib/friends/types";
 import {
   DMConversationsPageResponseSchema,
-  DMConversationsResponseSchema,
   DMMessagesResponseSchema,
   DMThreadMessagesResponseSchema,
-  DMMutualServersResponseSchema,
   type DMConversationsPageResponse,
   type DMMessagesResponse,
-  type DMMutualServersResponse,
   type DMThreadMessagesResponse,
 } from "@/lib/dm/types";
 import {
@@ -323,89 +318,6 @@ export function applyDMConversationPresenceUpdateToPageData(
   };
 }
 
-export function removeDMConversationFromCache(
-  conversations: DMConversationDTO[] | undefined,
-  conversationId: string,
-) {
-  if (!conversations) {
-    return conversations;
-  }
-
-  return conversations.filter((conversation) => conversation.id !== conversationId);
-}
-
-export function markDMConversationAsReadInCache(
-  conversations: DMConversationDTO[] | undefined,
-  conversationId: string,
-  currentUserId: string,
-) {
-  if (!conversations) {
-    return conversations;
-  }
-
-  return conversations.map((conversation) =>
-    conversation.id === conversationId
-      ? withUnreadCount(conversation, currentUserId, 0)
-      : conversation,
-  );
-}
-
-export function markDMConversationAsUnreadInCache(
-  conversations: DMConversationDTO[] | undefined,
-  conversationId: string,
-  currentUserId: string,
-) {
-  if (!conversations) {
-    return conversations;
-  }
-
-  return conversations.map((conversation) =>
-    conversation.id === conversationId
-      ? withUnreadCount(conversation, currentUserId, 1)
-      : conversation,
-  );
-}
-
-export function applyDMConversationUpdate(
-  conversations: DMConversationDTO[] | undefined,
-  conversation: DMConversationDTO,
-  currentUserId: string,
-  activeConversationId: string | null,
-) {
-  const normalizedConversation =
-    activeConversationId === conversation.id
-      ? withUnreadCount(conversation, currentUserId, 0)
-      : conversation;
-
-  return upsertDMConversation(conversations, normalizedConversation);
-}
-
-export function applyDMConversationPresenceUpdate(
-  conversations: DMConversationDTO[] | undefined,
-  update: FriendPresenceUpdateDto,
-) {
-  if (!conversations) {
-    return conversations;
-  }
-
-  return conversations.map((conversation) => ({
-    ...conversation,
-    participants: conversation.participants.map((participant) =>
-      participant.userId === update.userId
-        ? {
-            ...participant,
-            status: update.status,
-            customStatus: update.customStatus,
-            presence: {
-              status: update.status,
-              customStatus: update.customStatus,
-            },
-          }
-        : participant,
-    ),
-  }));
-}
-
 export function findOtherParticipant(conversation: DMConversationDTO, currentUserId: string) {
   return (
     conversation.participants.find((participant) => participant.userId !== currentUserId) ??
@@ -441,11 +353,6 @@ export function getConversationPreview(
   return `${normalizedPreview.slice(0, maxLength)}...`;
 }
 
-export async function fetchDMConversations() {
-  const payload = await requestJson<unknown>("/api/v1/dm");
-  return DMConversationsResponseSchema.parse(payload);
-}
-
 export async function fetchDMConversationsPage(cursor?: string) {
   const url = new URL("/api/v1/dm", window.location.origin);
   url.searchParams.set("paginated", "1");
@@ -462,13 +369,6 @@ export async function fetchDMConversationsPage(cursor?: string) {
 export async function fetchDMConversation(conversationId: string) {
   const payload = await requestJson<unknown>(`/api/v1/dm/${conversationId}`);
   return DMConversationDTOSchema.parse(payload);
-}
-
-export async function fetchDMMutualServers(userId: string): Promise<DMMutualServersResponse> {
-  const payload = await requestJson<unknown>(
-    `/api/v1/dm/users/${encodeURIComponent(userId)}/mutual-servers`,
-  );
-  return DMMutualServersResponseSchema.parse(payload);
 }
 
 export async function createDMConversationRequest(userId: string) {
@@ -503,18 +403,6 @@ export async function addGroupMembersRequest(conversationId: string, userIds: re
   return GroupDMConversationResponseSchema.parse(payload).conversation;
 }
 
-export async function updateGroupConversationRequest(
-  conversationId: string,
-  patch: GroupDMUpdateRequest,
-) {
-  const payload = await requestJson<unknown>(
-    `/api/v1/dm/groups/${encodeURIComponent(conversationId)}`,
-    { method: "PATCH", body: patch },
-  );
-
-  return GroupDMConversationResponseSchema.parse(payload).conversation;
-}
-
 /**
  * Removing yourself is how leaving is spelled; the route routes it either way.
  *
@@ -541,14 +429,6 @@ export async function removeGroupMemberRequest(
  * caller; the endpoints are the same, so the two clients cannot drift.
  * ------------------------------------------------------------------------- */
 
-export async function readGroupConversationRequest(conversationId: string) {
-  const payload = await requestJson<unknown>(
-    `/api/v1/dm/groups/${encodeURIComponent(conversationId)}`,
-  );
-
-  return GroupDMConversationResponseSchema.parse(payload).conversation;
-}
-
 export async function updateGroupSettingsRequest(
   conversationId: string,
   patch: GroupDMSettingsUpdateRequest,
@@ -561,40 +441,10 @@ export async function updateGroupSettingsRequest(
   return GroupDMConversationResponseSchema.parse(payload).conversation;
 }
 
-export async function updateGroupMemberRoleRequest(
-  conversationId: string,
-  userId: string,
-  patch: GroupMemberRoleUpdateRequest,
-) {
-  const payload = await requestJson<unknown>(
-    `/api/v1/dm/groups/${encodeURIComponent(conversationId)}/members/${encodeURIComponent(userId)}`,
-    { method: "PATCH", body: patch },
-  );
-
-  return GroupDMConversationResponseSchema.parse(payload).conversation;
-}
-
-export async function readGroupInviteRequest(conversationId: string) {
-  const payload = await requestJson<unknown>(
-    `/api/v1/dm/groups/${encodeURIComponent(conversationId)}/invite`,
-  );
-
-  return GroupInviteResponseSchema.parse(payload).invite;
-}
-
 export async function setGroupInviteEnabledRequest(conversationId: string, enabled: boolean) {
   const payload = await requestJson<unknown>(
     `/api/v1/dm/groups/${encodeURIComponent(conversationId)}/invite`,
     { method: "PATCH", body: { enabled } },
-  );
-
-  return GroupInviteResponseSchema.parse(payload).invite;
-}
-
-export async function rotateGroupInviteRequest(conversationId: string) {
-  const payload = await requestJson<unknown>(
-    `/api/v1/dm/groups/${encodeURIComponent(conversationId)}/invite/rotate`,
-    { method: "POST" },
   );
 
   return GroupInviteResponseSchema.parse(payload).invite;
@@ -635,14 +485,18 @@ export async function setDMConversationMutedRequest(conversationId: string, mute
   });
 }
 
-export async function fetchDMMessages(conversationId: string, cursor?: string) {
+export async function fetchDMMessages(
+  conversationId: string,
+  cursor?: string,
+  { signal }: { signal?: AbortSignal } = {},
+) {
   const url = new URL(`/api/v1/dm/${conversationId}/messages`, window.location.origin);
 
   if (cursor) {
     url.searchParams.set("cursor", cursor);
   }
 
-  const payload = await requestJson<DMMessagesResponse>(url.toString());
+  const payload = await requestJson<DMMessagesResponse>(url.toString(), signal ? { signal } : {});
   return DMMessagesResponseSchema.parse(payload);
 }
 

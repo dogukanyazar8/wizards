@@ -174,7 +174,6 @@ export const MobileRoadmapItemIdParamsSchema = z
 
 export type MobileFeedbackSubmitRequest = z.infer<typeof MobileFeedbackSubmitRequestSchema>;
 export type MobileFeedbackSummary = z.infer<typeof MobileFeedbackSummarySchema>;
-export type MobileFeedbackAttachment = z.infer<typeof MobileFeedbackAttachmentSchema>;
 export type MobileRoadmapItem = z.infer<typeof MobileRoadmapItemSchema>;
 export type MobileFeedbackListItem = z.infer<typeof MobileFeedbackListItemSchema>;
 export type MobileFeedbackListResponse = z.infer<typeof MobileFeedbackListResponseSchema>;

@@ -664,11 +664,3 @@ export async function exportAdminActivityCsv(
     "",
   ].join("\n");
 }
-
-export function getAssignableAdminRoles(actorRole: AdminRole) {
-  if (actorRole !== "OWNER") {
-    return [];
-  }
-
-  return ["ADMIN", "SUPPORT", "ANALYST", "MODERATOR"] satisfies AdminRole[];
-}

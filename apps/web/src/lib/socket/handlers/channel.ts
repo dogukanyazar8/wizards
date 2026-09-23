@@ -57,7 +57,7 @@ export function registerChannelHandlers(
   const joinedChannelIds = (ctx.socket.data.channelViewerIds ??= new Set<string>());
   const isDisconnected = () => ctx.socket.connected === false;
 
-  ctx.socket.on("channel:join", async (rawChannelId: string) => {
+  ctx.socket.on("channel:join", async (rawChannelId, acknowledge) => {
     try {
       const channelId = parseSocketPayload(SocketIdSchema, rawChannelId);
       const { channel } = await requireChannelPermission(
@@ -71,11 +71,12 @@ export function registerChannelHandlers(
       );
 
       if (isDisconnected()) {
+        acknowledge?.({ ok: false });
         return;
       }
 
-      ctx.socket.join(channelId);
-      ctx.socket.join(`server:${channel.serverId}`);
+      await ctx.socket.join(channelId);
+      await ctx.socket.join(`server:${channel.serverId}`);
       joinedChannelIds.add(channelId);
       try {
         const key = buildChannelViewersKey(channelId);
@@ -89,7 +90,9 @@ export function registerChannelHandlers(
         // Viewer membership is derived state. Joining the real Socket.IO room
         // remains authoritative when Redis is temporarily unavailable.
       }
+      acknowledge?.({ ok: !isDisconnected() });
     } catch (error) {
+      acknowledge?.({ ok: false });
       emitSocketError("CHANNEL_JOIN_ERROR", "Unable to join channel.", error);
     }
   });

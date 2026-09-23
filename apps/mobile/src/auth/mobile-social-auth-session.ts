@@ -7,8 +7,6 @@ import type { MobileDeepLinkParseResult } from "../deep-link/mobile-deep-links";
  */
 export const MOBILE_SOCIAL_AUTH_REDIRECT_URL = "whispr://oauth";
 
-export type MobileSocialAuthSessionResultType = "cancel" | "dismiss" | "locked" | "opened";
-
 export interface MobileSocialAuthSessionRawResult {
   readonly type: string;
   readonly url?: string | null;

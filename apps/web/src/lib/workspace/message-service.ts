@@ -420,9 +420,14 @@ export async function getChannelMessages(
   const hasMore = messages.length > limit;
   const pageMessages = hasMore ? messages.slice(0, limit) : messages;
   const summaries = await getThreadSummaryMap(pageMessages.map((message) => message.id));
-  const formatted = pageMessages.map((message) =>
-    mapRawMessage(message, summaries.get(message.id), viewerId),
-  );
+  const formatted = pageMessages.map((message) => ({
+    ...mapRawMessage(message, summaries.get(message.id), viewerId),
+    // Recovery metadata belongs only in the author's history response. Shared
+    // realtime payloads also use mapRawMessage and must not inherit this nonce.
+    ...(viewerId === message.userId && message.clientNonce
+      ? { clientNonce: message.clientNonce }
+      : {}),
+  }));
   const nextCursor = hasMore ? pageMessages[pageMessages.length - 1]?.id : undefined;
 
   return {

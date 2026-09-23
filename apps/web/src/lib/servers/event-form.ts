@@ -53,8 +53,6 @@ export const SERVER_EVENT_INITIAL_STATE: ServerEventFormState = {
   startTime: "",
 };
 
-export type ServerEventFieldKey = "date" | "endTime" | "name" | "startTime";
-
 /** Ayağın gösterebileceği tek hata: bitiş başlangıçtan önce (ya da ona eşit). */
 export type ServerEventErrorCode = "endBeforeStart" | "invalidDate" | "invalidTime";
 

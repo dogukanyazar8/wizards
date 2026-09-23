@@ -1,6 +1,5 @@
 import { jsonError } from "@/lib/api";
-import { enforceApiRateLimit, type ApiRateLimitAction } from "@/lib/api-rate-limit";
-import { requireApiUserId } from "@/lib/auth/api";
+import { type ApiRateLimitAction } from "@/lib/api-rate-limit";
 import { createServerTimingForRequest } from "@/lib/server-timing";
 
 /**
@@ -20,11 +19,6 @@ import { createServerTimingForRequest } from "@/lib/server-timing";
 export type HomeRouteContext = {
   authenticate: () => Promise<string>;
   enforceRateLimit: (userId: string, action: ApiRateLimitAction) => Promise<void>;
-};
-
-export const defaultHomeRouteContext: HomeRouteContext = {
-  authenticate: () => requireApiUserId(),
-  enforceRateLimit: enforceApiRateLimit,
 };
 
 export async function runHomeRoute<TPayload>(

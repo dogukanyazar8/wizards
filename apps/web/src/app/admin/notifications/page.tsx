@@ -5,10 +5,8 @@ import { requireAdminModule } from "@/lib/admin/module-access";
 import { listAdminCampaigns } from "@/lib/admin/snapshots/campaigns";
 
 export default async function AdminNotificationsPage() {
-  const [admin, campaigns] = await Promise.all([
-    requireAdminModule("campaign.read"),
-    listAdminCampaigns(),
-  ]);
+  const admin = await requireAdminModule("campaign.read");
+  const [campaigns] = await Promise.all([listAdminCampaigns()]);
 
   return (
     <AdminCampaigns

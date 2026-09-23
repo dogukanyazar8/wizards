@@ -148,22 +148,6 @@ export function selectInviteNoticeKey(
     : "server.modal.invite.notice.readyExpiring";
 }
 
-/**
- * "Yetkisiz kullanıcıya pencere açılmaz" (Ş9 §1, 00 §5) — pasifleştirme yeterli değil.
- *
- * Uçtaki kural iki parçalı: `MANAGE_INVITES` biti **ve** `canAddMembers(accessLevel,
- * allowMemberAdds)`. İkinci parça istemcide birebir hesaplanabiliyor; birinci parça rol
- * bitlerinden geliyor ve sunucu özetinde taşınmıyor, bu yüzden burada değerlendirilmez —
- * kapı yine uçta kapanır, pencere yalnız kesin bilinen "üye davet edemez" halinde hiç
- * açılmaz.
- */
-export function canCreateServerInvite(server: {
-  readonly accessLevel: "OWNER" | "ADMIN" | "MEMBER";
-  readonly allowMemberAdds: boolean;
-}): boolean {
-  return server.accessLevel !== "MEMBER" || server.allowMemberAdds;
-}
-
 export type InviteFriendCandidate = {
   readonly avatarUrl: string | null;
   readonly displayName: string;

@@ -282,4 +282,3 @@ export const createSharedStyles = (theme: MobileTheme) => {
 };
 
 export const sharedStyles = StyleSheet.create(createSharedStyles(lightTheme));
-export const styles = sharedStyles;

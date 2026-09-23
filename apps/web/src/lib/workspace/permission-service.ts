@@ -32,7 +32,6 @@ import {
   hasAnyPermission,
   hasPermission,
   requireChannelPermission,
-  requireServerPermission,
   resolveChannelPermissions,
 } from "@/lib/workspace/permissions";
 
@@ -252,20 +251,6 @@ export async function getServerPermissionContext(
       membership.roles.map((entry) => entry.role),
     ),
     userId,
-  };
-}
-
-export async function requireServerPermissionForUser(
-  userId: string,
-  serverId: string,
-  permission: PermissionKey | PermissionValue,
-) {
-  const context = await getServerPermissionContext(userId, serverId);
-  const permissions = requireServerPermission(context, permission);
-
-  return {
-    context,
-    permissions,
   };
 }
 
@@ -703,27 +688,6 @@ export async function filterUserIdsByChannelPermission(
   }
 
   return uniqueUserIds.filter((userId) => allowedUserIds.has(userId));
-}
-
-export async function listUserIdsWithChannelPermission(
-  channelId: string,
-  permission: PermissionKey | PermissionValue = PermissionBits.VIEW_CHANNEL,
-) {
-  const channel = await getChannelPermissionTarget(channelId);
-  const memberships = await prisma.serverMember.findMany({
-    where: {
-      serverId: channel.serverId,
-    },
-    select: {
-      userId: true,
-    },
-  });
-
-  return filterUserIdsByChannelPermission(
-    channelId,
-    memberships.map((membership) => membership.userId),
-    permission,
-  );
 }
 
 export async function listChannelIdsForUsersWithPermission(

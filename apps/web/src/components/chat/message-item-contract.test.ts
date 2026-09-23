@@ -216,7 +216,7 @@ describe("memo karşılaştırması", () => {
       assert.equal(
         areMessageItemPropsEqual(makeProps(), { ...makeProps(), ...patch }),
         false,
-        Object.keys(patch)[0],
+        Object.keys(patch).join(", "),
       );
     }
   });

@@ -6,10 +6,8 @@ import { requireAdminModule } from "@/lib/admin/module-access";
 import { listClusterSuggestions } from "@/lib/feedback/cluster-service";
 
 export default async function AdminFeedbackPage() {
-  const [admin, suggestions] = await Promise.all([
-    requireAdminModule("feedback.read"),
-    listClusterSuggestions(),
-  ]);
+  const admin = await requireAdminModule("feedback.read");
+  const [suggestions] = await Promise.all([listClusterSuggestions()]);
   const canManage = adminRoleHasCapability(admin.role, "feedback.write");
 
   return (

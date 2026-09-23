@@ -10,6 +10,8 @@ type TestSocket = {
   };
   disconnect(close: boolean): void;
   disconnected: boolean;
+  transportClosed: boolean;
+  conn: { close(): void };
 };
 
 type TestSession = {
@@ -31,14 +33,22 @@ function createSocket(
   authSessionId: string,
   authSessionClientType: "MOBILE" | "WEB" = "WEB",
 ): TestSocket {
-  return {
+  const socket: TestSocket = {
     data: { authSessionClientType, authSessionId, userId },
     disconnect(close) {
       assert.equal(close, true);
       this.disconnected = true;
     },
     disconnected: false,
+    transportClosed: false,
+    conn: {
+      close() {
+        socket.disconnected = true;
+        socket.transportClosed = true;
+      },
+    },
   };
+  return socket;
 }
 
 function createSession(
@@ -157,5 +167,11 @@ describe("socket session revalidation", () => {
 
     assert.equal(first.disconnected, true);
     assert.equal(second.disconnected, true);
+    assert.equal(
+      first.transportClosed,
+      true,
+      "fail closed but allow a new authenticated handshake",
+    );
+    assert.equal(second.transportClosed, true);
   });
 });

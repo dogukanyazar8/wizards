@@ -61,7 +61,6 @@ describe("admin visual contract", () => {
       "AdminBarChart",
       "AdminProgress",
       "AdminToggle",
-      "AdminChip",
       "AdminPulseDot",
     ]) {
       assert.match(primitives, new RegExp(`export function ${component}\\b`, "u"));

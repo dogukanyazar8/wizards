@@ -208,9 +208,4 @@ export function getMobileHelpSearchQueryOptions(
   });
 }
 
-export function useMobileHelpSearchQuery(client: MobileApiClient, query: string, enabled = true) {
-  const debouncedQuery = useDebouncedValue(query, MOBILE_HELP_SEARCH_DEBOUNCE_MS);
-  return useQuery(getMobileHelpSearchQueryOptions(client, debouncedQuery, enabled));
-}
-
 export type { MobileHelpCategory, MobileReleaseChannel };

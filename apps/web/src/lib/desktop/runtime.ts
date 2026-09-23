@@ -84,10 +84,6 @@ export function isWhisprDesktopUpdaterEnabled() {
   return Boolean(isWhisprDesktopRuntime() && window.__WHISPR_DESKTOP__?.features?.updater);
 }
 
-export function getWhisprDesktopReleaseRing() {
-  return window.__WHISPR_DESKTOP__?.releaseRing ?? "uat";
-}
-
 async function runDesktopWindowStep(step: () => Promise<void>) {
   try {
     await step();

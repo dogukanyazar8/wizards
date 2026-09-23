@@ -56,7 +56,6 @@ export const AppNotificationSourceSchema = z.object({
   channel: z.string().optional(),
   actorId: z.string().optional(),
 });
-export type AppNotificationSource = z.infer<typeof AppNotificationSourceSchema>;
 
 /** SPEC §7 `AppNotification`. */
 export const AppNotificationSchema = z.object({
@@ -169,7 +168,6 @@ export type NotificationTypes = z.infer<typeof NotificationTypesSchema>;
  * the key and reporting success for a change it never made.
  */
 export const NotificationTypesPatchSchema = z.strictObject(notificationTypeShape).partial();
-export type NotificationTypesPatch = z.infer<typeof NotificationTypesPatchSchema>;
 
 /** Referans `na1`, `na2`, `na3`. */
 export const NotifSurfacesSchema = z.object({
@@ -177,7 +175,6 @@ export const NotifSurfacesSchema = z.object({
   systemWhileOpen: z.boolean(),
   badge: z.boolean(),
 });
-export type NotifSurfaces = z.infer<typeof NotifSurfacesSchema>;
 
 /** Referans `nd1`, `nd2`, `nd3`, `nd4`. */
 export const NotifDeliverySchema = z.object({
@@ -186,7 +183,6 @@ export const NotifDeliverySchema = z.object({
   push: z.boolean(),
   email: z.boolean(),
 });
-export type NotifDelivery = z.infer<typeof NotifDeliverySchema>;
 
 /**
  * Referans `nq1`–`nq5`. `start` / `end` are `HH:mm` in 24-hour form; `start > end` is the
@@ -208,7 +204,6 @@ export const NotifSoundSchema = z.object({
   profile: SoundProfileSchema,
   volume: z.number().int().min(0).max(100),
 });
-export type NotifSound = z.infer<typeof NotifSoundSchema>;
 
 export const NOTIFICATION_SOUND_KEYS = ["notification", "call", "join", "leave"] as const;
 export type NotificationSoundKey = (typeof NOTIFICATION_SOUND_KEYS)[number];
@@ -219,7 +214,6 @@ export const NotifSoundsSchema = z.object({
   join: NotifSoundSchema,
   leave: NotifSoundSchema,
 });
-export type NotifSounds = z.infer<typeof NotifSoundsSchema>;
 
 /**
  * Referans `np1`–`np5`. `showContent` is the in-app toast's message text and is **not**
@@ -232,7 +226,6 @@ export const NotifPanelPrefsSchema = z.object({
   showContent: z.boolean(),
   showSource: z.boolean(),
 });
-export type NotifPanelPrefs = z.infer<typeof NotifPanelPrefsSchema>;
 
 /** K4 — an exception's own notification level. Not a free string. */
 export const NotificationExceptionLevelSchema = z.enum(["all", "mentions", "nothing"]);
@@ -385,7 +378,6 @@ export type AccountConnection = z.infer<typeof AccountConnectionSchema>;
 // ---------------------------------------------------------------------------
 
 export const PresenceStatusSchema = z.enum(["online", "idle", "dnd", "invisible"]);
-export type PresenceStatus = z.infer<typeof PresenceStatusSchema>;
 
 /** Referans `px` — when a custom status clears itself. */
 export const CustomStatusExpirySchema = z.enum(["1h", "4h", "today", "never", "30m"]);
@@ -398,7 +390,6 @@ export const ProfileStatusSchema = z.object({
   expiresIn: CustomStatusExpirySchema,
   expiresAt: z.string().nullable(),
 });
-export type ProfileStatus = z.infer<typeof ProfileStatusSchema>;
 
 export const SettingsProfileSchema = z.object({
   displayName: z.string(),
@@ -408,7 +399,6 @@ export const SettingsProfileSchema = z.object({
   bannerUrl: z.string().nullable(),
   status: ProfileStatusSchema,
 });
-export type SettingsProfile = z.infer<typeof SettingsProfileSchema>;
 
 export const SettingsAccountSchema = z.object({
   email: z.string(),
@@ -434,7 +424,6 @@ export const SettingsPrivacySchema = z.object({
   allowGroupInvites: z.boolean(),
   showReadReceipts: z.boolean(),
 });
-export type SettingsPrivacy = z.infer<typeof SettingsPrivacySchema>;
 
 /** Referans `l1`–`l4`. */
 export const SettingsLocaleSchema = z.object({
@@ -444,7 +433,6 @@ export const SettingsLocaleSchema = z.object({
   dateFormat: z.enum(["system", "ddmmyyyy", "mmddyyyy", "yyyymmdd"]),
   timeFormat: z.enum(["system", "12h", "24h"]),
 });
-export type SettingsLocale = z.infer<typeof SettingsLocaleSchema>;
 
 export const SettingsSecuritySchema = z.object({
   twoFactor: z.boolean(),
@@ -455,14 +443,12 @@ export const SettingsSecuritySchema = z.object({
   sessions: z.array(AccountSessionSchema),
   events: z.array(SecurityEventSchema),
 });
-export type SettingsSecurity = z.infer<typeof SettingsSecuritySchema>;
 
 export const SettingsBadgeSchema = z.object({
   key: z.string(),
   category: z.string(),
   earned: z.boolean(),
 });
-export type SettingsBadge = z.infer<typeof SettingsBadgeSchema>;
 
 /** Referans `p1`–`p7` — the Ses işleme group. */
 export const AudioProcessingSchema = z.object({
@@ -474,7 +460,6 @@ export const AudioProcessingSchema = z.object({
   krisp: z.boolean(),
   noiseFilter: z.enum(["layered", "krisp", "browser"]),
 });
-export type AudioProcessing = z.infer<typeof AudioProcessingSchema>;
 
 /** Referans `i1`–`i6`, `u1`–`u3`. */
 export const SettingsAudioSchema = z.object({
@@ -486,7 +471,6 @@ export const SettingsAudioSchema = z.object({
   outputVolume: z.number().int().min(0).max(100),
   processing: AudioProcessingSchema,
 });
-export type SettingsAudio = z.infer<typeof SettingsAudioSchema>;
 
 /** SPEC §5.2 — `permission` reuses the notification permission ladder, `unknown` included. */
 export const SettingsCameraSchema = z.object({
@@ -494,7 +478,6 @@ export const SettingsCameraSchema = z.object({
   blur: z.boolean(),
   permission: NotifPermissionSchema,
 });
-export type SettingsCamera = z.infer<typeof SettingsCameraSchema>;
 
 /** Referans `e1`–`e5`. */
 export const SettingsScreenShareSchema = z.object({
@@ -504,14 +487,12 @@ export const SettingsScreenShareSchema = z.object({
   excludeSelf: z.boolean(),
   allowSourceSwitch: z.boolean(),
 });
-export type SettingsScreenShare = z.infer<typeof SettingsScreenShareSchema>;
 
 export const SettingsAvSchema = z.object({
   audio: SettingsAudioSchema,
   camera: SettingsCameraSchema,
   screenShare: SettingsScreenShareSchema,
 });
-export type SettingsAv = z.infer<typeof SettingsAvSchema>;
 
 /**
  * Referans `v1`–`v6`. `v7` (`Hareketi azalt`) and `v8` (`Text-to-speech`) are **not** here:
@@ -526,7 +507,6 @@ export const SettingsMediaSchema = z.object({
   animatedEmoji: z.boolean(),
   stickerAnimation: z.enum(["always", "interaction", "never"]),
 });
-export type SettingsMedia = z.infer<typeof SettingsMediaSchema>;
 
 /** Referans `y1`–`y5`. */
 export const SettingsLayoutSchema = z.object({
@@ -536,7 +516,6 @@ export const SettingsLayoutSchema = z.object({
   mainContentWidth: z.number().int().min(70).max(100),
   showMemberPanelByDefault: z.boolean(),
 });
-export type SettingsLayout = z.infer<typeof SettingsLayoutSchema>;
 
 /**
  * Referans `x1`–`x7`. `reduceMotion` and `textToSpeech` are the single source the Medya tab's
@@ -555,7 +534,6 @@ export const SettingsA11ySchema = z.object({
   screenReaderDescriptions: z.boolean(),
   followSystem: z.boolean(),
 });
-export type SettingsA11y = z.infer<typeof SettingsA11ySchema>;
 
 /** Referans `t1`, `t2`, `m1`–`m4`, `n1`. */
 export const SettingsAppearanceSchema = z.object({
@@ -570,7 +548,6 @@ export const SettingsAppearanceSchema = z.object({
   appIcon: z.string(),
   a11y: SettingsA11ySchema,
 });
-export type SettingsAppearance = z.infer<typeof SettingsAppearanceSchema>;
 
 /**
  * K7 — one global shortcut assignment. `conflict` is the result of a **real** registration
@@ -594,7 +571,6 @@ export const DesktopOverlaySchema = z.object({
   autoDetectGames: z.boolean(),
   perGameCount: z.number().int().nonnegative(),
 });
-export type DesktopOverlay = z.infer<typeof DesktopOverlaySchema>;
 
 /** SPEC §5.5 İzinler — five rows, each on the same three-state ladder plus `unknown`. */
 export const DesktopPermissionsSchema = z.object({
@@ -615,7 +591,6 @@ export const DesktopUpdatesSchema = z.object({
   lastCheck: z.string().nullable(),
   upToDate: z.boolean(),
 });
-export type DesktopUpdates = z.infer<typeof DesktopUpdatesSchema>;
 
 /** Hesapla taşınabilen `w4`–`w7` plus the four blocks. Device-only `w1`/`w2` native dosyadadır. */
 export const SettingsDesktopSchema = z.object({
@@ -629,7 +604,6 @@ export const SettingsDesktopSchema = z.object({
   permissions: DesktopPermissionsSchema,
   updates: DesktopUpdatesSchema,
 });
-export type SettingsDesktop = z.infer<typeof SettingsDesktopSchema>;
 
 /**
  * SPEC §7 `UserSettings` — everything the window reads in one shape.

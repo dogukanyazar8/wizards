@@ -38,8 +38,6 @@ export const VoiceWaveformSchema = z
   .array(z.number().int().min(0).max(VOICE_MESSAGE_MAX_AMPLITUDE))
   .max(VOICE_MESSAGE_WAVEFORM_BUCKETS);
 
-export type VoiceWaveform = z.infer<typeof VoiceWaveformSchema>;
-
 /** `[0, 100, 42]` → `"0,100,42"`. */
 export function serializeWaveform(waveform: readonly number[]): string {
   return VoiceWaveformSchema.parse([...waveform]).join(",");

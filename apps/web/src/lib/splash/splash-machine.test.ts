@@ -12,6 +12,7 @@ import {
   getNextSplashPhase,
   getNextSplashStep,
   getRemainingSplashVisibilityMs,
+  getSplashActionKind,
   getSplashPhaseAfterFadeOut,
   getSplashState,
   getSplashStep,
@@ -182,6 +183,21 @@ describe("splash phase", () => {
 
     assert.equal(shouldShowSplash("showing"), true);
     assert.equal(shouldShowSplash("hiding"), false);
+  });
+});
+
+describe("getSplashActionKind", () => {
+  it("çevrimdışıyken sayfayı yenilemez, yalnız yeniden dener", () => {
+    // `location.reload()` çevrimdışıyken tarayıcının hata sayfasını açar ve
+    // kullanıcı uygulamayı tümüyle kaybeder.
+    assert.equal(getSplashActionKind("offline"), "retry");
+  });
+
+  it("kalan durumlarda sayfayı yeniler", () => {
+    assert.equal(getSplashActionKind("slow"), "reload");
+    assert.equal(getSplashActionKind("sessionExpired"), "reload");
+    assert.equal(getSplashActionKind("updating"), "reload");
+    assert.equal(getSplashActionKind("loading"), "reload");
   });
 });
 

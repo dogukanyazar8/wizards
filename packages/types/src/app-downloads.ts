@@ -27,7 +27,6 @@ export const DownloadDeliverySchema = z.enum(["direct", "store", "testflight"]);
 
 export type DownloadEnvironment = z.infer<typeof DownloadEnvironmentSchema>;
 export type DownloadPlatform = z.infer<typeof DownloadPlatformSchema>;
-export type DownloadDelivery = z.infer<typeof DownloadDeliverySchema>;
 
 /** SPEC §B.4/§B.5 kart sırası. Sıralama sunucuda sabittir, DB'ye bırakılmaz. */
 export const DOWNLOAD_DESKTOP_PLATFORMS = ["windows", "macos", "linux"] as const;
@@ -98,7 +97,6 @@ export const AppDownloadsResponseSchema = z
   })
   .strict();
 
-export type DownloadLocalizedLabel = z.infer<typeof DownloadLocalizedLabelSchema>;
 export type DownloadArtifact = z.infer<typeof DownloadArtifactSchema>;
 export type DownloadSection = z.infer<typeof DownloadSectionSchema>;
 export type DownloadCatalog = z.infer<typeof DownloadCatalogSchema>;

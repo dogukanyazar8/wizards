@@ -48,16 +48,3 @@ export function profileTintSurface(tint: ProfileTint): string {
 export function profileTintForeground(tint: ProfileTint): string {
   return tint === "neutral" ? "hsl(var(--text-secondary))" : `hsl(var(${TINT_TOKEN[tint]}))`;
 }
-
-/**
- * Solid fill — the group identity tile and the presence ring, which sit on the token
- * itself rather than on a tint of it.
- */
-export function profileTintSolid(tint: ProfileTint): string {
-  return `hsl(var(${TINT_TOKEN[tint]}))`;
-}
-
-/** A ring or border derived from the same tint, at an explicit opacity. */
-export function profileTintAlpha(tint: ProfileTint, alpha: number): string {
-  return `hsl(var(${TINT_TOKEN[tint]})/${alpha})`;
-}

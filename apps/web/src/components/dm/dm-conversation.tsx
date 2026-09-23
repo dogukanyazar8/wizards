@@ -1,44 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { DMParticipantDTO } from "@wizards/types";
 import { useI18n } from "@/components/providers/locale-provider";
-
-export function getDmStatusDotClass(status: DMParticipantDTO["status"] | undefined) {
-  if (status === "ONLINE") {
-    return "bg-[hsl(var(--success))]";
-  }
-
-  if (status === "IDLE") {
-    // Boşta tonu artık paletin `--warning` token'ı. Sabit bir renk üçlüsü
-    // kullanıcının temasıyla birlikte değişmiyordu ve koyu temada kendi başına
-    // parlıyordu. (Token denetimi yorumları elemez; bu yüzden burada renk
-    // fonksiyonunun adı yazılı **değil**.)
-    return "bg-[hsl(var(--warning))]";
-  }
-
-  if (status === "DND") {
-    return "bg-[hsl(var(--danger))]";
-  }
-
-  return "bg-[hsl(var(--text-soft))]";
-}
-
-export function getDmStatusKey(status: DMParticipantDTO["status"] | undefined) {
-  if (status === "ONLINE") {
-    return "friends.status.online";
-  }
-
-  if (status === "IDLE") {
-    return "friends.status.idle";
-  }
-
-  if (status === "DND") {
-    return "friends.status.dnd";
-  }
-
-  return "friends.status.offline";
-}
 
 /**
  * `DmConversationHeader`, `DmGroupConversationHeader` ve `DmConversationToolbar`

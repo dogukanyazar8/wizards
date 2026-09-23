@@ -47,10 +47,6 @@ const DEFAULT_PUBLIC_ENV: Record<
 
 export const DEFAULT_MOBILE_COMMUNITY_INVITE_SLUG = "whispr-community";
 
-export function getDefaultMobilePublicEnv(environment: MobileEnvironmentName) {
-  return DEFAULT_PUBLIC_ENV[environment];
-}
-
 export function normalizeMobileEnvironment(
   value: string | undefined,
   isDevelopment = typeof __DEV__ !== "undefined" && __DEV__,

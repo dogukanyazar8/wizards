@@ -9,7 +9,7 @@
  * kullanılır ve yalnız genişlik farkı burada durur.
  */
 
-import { REPORT_METRICS, hairline, pxToRem } from "@/lib/support/report-metrics";
+import { hairline, pxToRem } from "@/lib/support/report-metrics";
 
 export { hairline, pxToRem };
 
@@ -125,5 +125,3 @@ export const DOWNLOAD_METRICS = {
     primaryPaddingX: 18,
   },
 } as const;
-
-export const DOWNLOAD_SHARED_METRICS = REPORT_METRICS;

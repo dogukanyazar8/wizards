@@ -152,12 +152,8 @@ export const ResetPasswordSchema = z
 
 export type LoginInput = z.infer<typeof LoginSchema>;
 export type LoginFormInput = z.input<typeof LoginSchema>;
-export type LoginCredentialsInput = z.infer<typeof LoginCredentialsSchema>;
 export type TwoFactorChallengeInput = z.infer<typeof TwoFactorChallengeSchema>;
-export type TwoFactorChallengeFormInput = z.input<typeof TwoFactorChallengeSchema>;
 export type BackupCodeChallengeInput = z.infer<typeof BackupCodeChallengeSchema>;
-export type EmailVerificationCodeInput = z.infer<typeof EmailVerificationCodeSchema>;
-export type ResendVerificationInput = z.infer<typeof ResendVerificationSchema>;
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;

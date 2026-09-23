@@ -44,7 +44,7 @@ test("production build launches a native pnpm executable directly", () => {
   assert.deepEqual(
     buildPnpmInvocation(
       { npm_execpath: "/mise/installs/pnpm/12.4.2/pnpm" },
-      "/mise/installs/node/24.21.0/bin/node",
+      "/mise/installs/node/26.10.0/bin/node",
     ),
     {
       command: "/mise/installs/pnpm/12.4.2/pnpm",

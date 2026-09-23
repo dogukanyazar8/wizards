@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { requireBrowserLocalStorage } from "@/lib/browser-local-storage";
 
 export const SOUND_EFFECTS_STORAGE_KEY = "wizards-sounds";
 export const MIN_SOUND_VOLUME = 0;
@@ -31,8 +32,6 @@ export const SOUND_EFFECT_PATHS = {
   voiceJoin: SOUND_PROFILE_PATHS[DEFAULT_SOUND_EFFECT_PROFILES.voiceJoin],
   voiceLeave: SOUND_PROFILE_PATHS[DEFAULT_SOUND_EFFECT_PROFILES.voiceLeave],
 } as const;
-
-export const SOUND_PROFILE_OPTIONS = Object.keys(SOUND_PROFILE_PATHS) as SoundProfileKey[];
 
 export type SoundEffectKey = keyof typeof SOUND_EFFECT_PATHS;
 
@@ -172,7 +171,7 @@ export const useSoundStore = create<SoundStoreState>()(
         voiceLeaveSoundFile: state.voiceLeaveSoundFile,
         voiceLeaveVolume: state.voiceLeaveVolume,
       }),
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => requireBrowserLocalStorage()),
       version: 1,
     },
   ),

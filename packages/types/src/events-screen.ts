@@ -151,7 +151,6 @@ export const EventHostSchema = z.object({
   initials: z.string().min(1).max(2),
   avatarUrl: z.string().nullable(),
 });
-export type EventHost = z.infer<typeof EventHostSchema>;
 
 export const EventReminderSchema = z.object({
   enabled: z.boolean(),
@@ -250,7 +249,6 @@ export const EventsQuerySchema = z.object({
   cursor: z.string().min(1).optional(),
   limit: z.number().int().min(1).max(100).optional(),
 });
-export type EventsQuery = z.infer<typeof EventsQuerySchema>;
 
 export const EventsListResponseSchema = z.object({
   items: z.array(WhisprEventSchema),
@@ -268,7 +266,6 @@ export const EventDetailSchema = WhisprEventSchema.extend({
   /** K10 — `Yayına katıl` CTA'sının gideceği yer. Karşılığı yoksa `null`. */
   joinHref: z.string().nullable(),
 });
-export type EventDetail = z.infer<typeof EventDetailSchema>;
 
 // ---------------------------------------------------------------------------
 // Yazma

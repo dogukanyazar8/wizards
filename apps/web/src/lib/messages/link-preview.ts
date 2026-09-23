@@ -422,7 +422,17 @@ export function createPublicLookup(resolveHost: ResolveHost): LookupFunction {
 
         const selectedAddress = addresses[0];
         if (!selectedAddress) {
-          callback(new ApiError("This link cannot be previewed.", 400, "BLOCKED_URL"), "", 0);
+          // Node 26's ErrnoException requires a `code`; ApiError declares it optional
+          // even though this call always supplies one.
+          callback(
+            new ApiError(
+              "This link cannot be previewed.",
+              400,
+              "BLOCKED_URL",
+            ) as NodeJS.ErrnoException,
+            "",
+            0,
+          );
           return;
         }
 

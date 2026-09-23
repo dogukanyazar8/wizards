@@ -166,7 +166,11 @@ describe("Hesabım — sayım", () => {
 
     for (const [key, Tab] of Object.entries(TABS)) {
       const markup = render(Tab);
-      const tab = section.tabs.find((entry) => entry.key === key);
+      // Node 26's assert types make the narrowed `section` circular here unless the
+      // lookup result carries its own annotation.
+      const tab: (typeof section.tabs)[number] | undefined = section.tabs.find(
+        (entry) => entry.key === key,
+      );
 
       assert.ok(tab, `${key} sekmesi ağaçta yok`);
 

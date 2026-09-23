@@ -384,7 +384,7 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://github.com/expo/expo/tree/main/packages/@expo/cli",
         name: "@expo/cli",
-        version: "57.0.24",
+        version: "57.0.26",
       },
       {
         homepage: "https://github.com/expo/code-signing-certificates/tree/main#readme",
@@ -505,7 +505,7 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://docs.expo.dev/routing/introduction/",
         name: "@expo/router-server",
-        version: "57.0.9",
+        version: "57.0.10",
       },
       {
         homepage: "https://github.com/expo/expo/tree/main/packages/@expo/schema-utils#readme",
@@ -595,7 +595,7 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://github.com/livekit/react-native-webrtc",
         name: "@livekit/react-native-webrtc",
-        version: "144.1.2",
+        version: "144.2.0",
       },
       {
         homepage: "https://github.com/react-native-async-storage/async-storage#readme",
@@ -684,7 +684,7 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://github.com/react-navigation/react-navigation#readme",
         name: "@react-navigation/bottom-tabs",
-        version: "7.19.1",
+        version: "7.19.2",
       },
       {
         homepage: "https://reactnavigation.org",
@@ -694,7 +694,7 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://reactnavigation.org",
         name: "@react-navigation/elements",
-        version: "2.9.42",
+        version: "2.9.43",
       },
       {
         homepage: "https://reactnavigation.org",
@@ -704,7 +704,7 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://github.com/software-mansion/react-native-screens#readme",
         name: "@react-navigation/native-stack",
-        version: "7.19.1",
+        version: "7.19.2",
       },
       {
         homepage: "https://reactnavigation.org/docs/custom-routers/",
@@ -714,19 +714,19 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://github.com/getsentry/sentry-javascript/tree/master/packages/browser",
         name: "@sentry/browser",
-        version: "10.74.0",
+        version: "10.75.0",
       },
       {
         homepage:
           "https://github.com/getsentry/sentry-javascript/tree/master/packages/browser-utils",
         name: "@sentry/browser-utils",
-        version: "10.74.0",
+        version: "10.75.0",
       },
       {
         homepage:
           "https://github.com/getsentry/sentry-javascript/tree/main/packages/bundler-plugins",
         name: "@sentry/bundler-plugins",
-        version: "10.74.0",
+        version: "10.75.0",
       },
       {
         homepage: "https://github.com/getsentry/sentry-conventions#readme",
@@ -736,43 +736,43 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://github.com/getsentry/sentry-javascript/tree/master/packages/core",
         name: "@sentry/core",
-        version: "10.74.0",
+        version: "10.75.0",
       },
       {
         homepage:
           "https://github.com/getsentry/sentry-react-native/tree/main/packages/expo-upload-sourcemaps",
         name: "@sentry/expo-upload-sourcemaps",
-        version: "8.26.0",
+        version: "8.27.0",
       },
       {
         homepage: "https://github.com/getsentry/sentry-javascript/tree/master/packages/feedback",
         name: "@sentry/feedback",
-        version: "10.74.0",
+        version: "10.75.0",
       },
       {
         homepage: "https://github.com/getsentry/sentry-javascript/tree/master/packages/react",
         name: "@sentry/react",
-        version: "10.74.0",
+        version: "10.75.0",
       },
       {
         homepage: "https://github.com/getsentry/sentry-react-native",
         name: "@sentry/react-native",
-        version: "8.26.0",
+        version: "8.27.0",
       },
       {
         homepage: "https://docs.sentry.io/platforms/javascript/session-replay/",
         name: "@sentry/replay",
-        version: "10.74.0",
+        version: "10.75.0",
       },
       {
         homepage: "https://docs.sentry.io/platforms/javascript/session-replay/",
         name: "@sentry/replay-canvas",
-        version: "10.74.0",
+        version: "10.75.0",
       },
       {
         homepage: "https://shopify.github.io/flash-list/",
         name: "@shopify/flash-list",
-        version: "2.0.2",
+        version: "2.3.2",
       },
       {
         homepage: "https://github.com/sinclairzx81/typebox-legacy#readme",
@@ -792,27 +792,27 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://tanstack.com/query",
         name: "@tanstack/query-async-storage-persister",
-        version: "5.102.8",
+        version: "5.103.2",
       },
       {
         homepage: "https://tanstack.com/query",
         name: "@tanstack/query-core",
-        version: "5.102.8",
+        version: "5.103.2",
       },
       {
         homepage: "https://tanstack.com/query",
         name: "@tanstack/query-persist-client-core",
-        version: "5.102.8",
+        version: "5.103.2",
       },
       {
         homepage: "https://tanstack.com/query",
         name: "@tanstack/react-query",
-        version: "5.102.8",
+        version: "5.103.2",
       },
       {
         homepage: "https://tanstack.com/query",
         name: "@tanstack/react-query-persist-client",
-        version: "5.102.8",
+        version: "5.103.2",
       },
       {
         homepage:
@@ -1018,7 +1018,7 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://github.com/expo/expo/tree/main/packages/babel-preset-expo#readme",
         name: "babel-preset-expo",
-        version: "57.0.11",
+        version: "57.0.12",
       },
       {
         homepage: "https://github.com/jaulz/badgin",
@@ -1380,7 +1380,7 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://github.com/expo/expo/tree/main/packages/expo",
         name: "expo",
-        version: "57.0.22",
+        version: "57.0.24",
       },
       {
         homepage: "https://docs.expo.dev/versions/latest/sdk/application/",
@@ -1390,7 +1390,7 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://docs.expo.dev/versions/latest/sdk/asset/",
         name: "expo-asset",
-        version: "57.0.17",
+        version: "57.0.18",
       },
       {
         homepage: "https://docs.expo.dev/versions/latest/sdk/audio/",
@@ -1410,7 +1410,7 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://docs.expo.dev/versions/latest/sdk/constants/",
         name: "expo-constants",
-        version: "57.0.18",
+        version: "57.0.19",
       },
       {
         homepage: "https://docs.expo.dev/versions/latest/sdk/crypto/",
@@ -1480,12 +1480,12 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://docs.expo.dev/versions/latest/sdk/imagemanipulator/",
         name: "expo-image-manipulator",
-        version: "57.0.17",
+        version: "57.0.19",
       },
       {
         homepage: "https://docs.expo.dev/versions/latest/sdk/imagepicker/",
         name: "expo-image-picker",
-        version: "57.0.17",
+        version: "57.0.19",
       },
       {
         homepage: "https://docs.expo.dev/versions/latest/sdk/intent-launcher/",
@@ -1545,7 +1545,7 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://docs.expo.dev/versions/latest/sdk/notifications/",
         name: "expo-notifications",
-        version: "57.0.18",
+        version: "57.0.20",
       },
       {
         homepage: "https://docs.expo.dev/versions/latest/sdk/screen-orientation/",
@@ -1585,7 +1585,7 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://docs.expo.dev/versions/latest/sdk/updates/",
         name: "expo-updates",
-        version: "57.0.22",
+        version: "57.0.23",
       },
       {
         homepage: "https://docs.expo.dev",
@@ -3167,7 +3167,7 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://github.com/livekit/client-sdk-react-native#readme",
         name: "@livekit/react-native",
-        version: "2.12.0",
+        version: "3.0.0",
       },
       {
         homepage: "https://github.com/livekit/client-sdk-react-native-expo-plugin#readme",
@@ -3499,7 +3499,7 @@ export const MOBILE_OPEN_SOURCE_LICENSE_GROUPS: readonly MobileOpenSourceLicense
       {
         homepage: "https://docs.sentry.io/hosted/learn/cli/",
         name: "@sentry/cli",
-        version: "2.58.6, 3.7.0",
+        version: "2.58.6, 3.8.0",
       },
     ],
   },

@@ -18,8 +18,8 @@ export default async function AdminAnalyticsPage({ searchParams }: AdminAnalytic
   const params = await searchParams;
   const days = normalizeDashboardDays(params?.days);
   const platform = normalizePlatform(params?.platform);
-  const [, snapshot] = await Promise.all([
-    requireAdminModule("dashboard.read"),
+  await requireAdminModule("dashboard.read");
+  const [snapshot] = await Promise.all([
     loadAdminAnalyticsSnapshot({ days, now: new Date() }, platform),
   ]);
 

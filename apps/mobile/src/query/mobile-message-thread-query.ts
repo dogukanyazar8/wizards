@@ -39,11 +39,3 @@ export function getMobileDMMessageThreadQueryOptions(
     queryKey: mobileQueryKeys.dmThread(conversationId, messageId),
   });
 }
-
-export function useMobileDMMessageThreadQuery(
-  client: MobileApiClient,
-  conversationId: string,
-  messageId: string,
-) {
-  return useQuery(getMobileDMMessageThreadQueryOptions(client, conversationId, messageId));
-}

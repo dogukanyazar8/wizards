@@ -10,8 +10,8 @@ export default async function AdminReleasesPage({
   searchParams: Promise<{ page?: string; product?: string; channel?: string; status?: string }>;
 }) {
   const query = await searchParams;
-  const [admin, result, downloads] = await Promise.all([
-    requireAdminModule("release.read"),
+  const admin = await requireAdminModule("release.read");
+  const [result, downloads] = await Promise.all([
     listAdminReleases(Number(query.page ?? 1), query),
     listAdminDownloadArtifacts(),
   ]);

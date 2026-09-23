@@ -479,12 +479,10 @@ export const DEFAULT_NOTIFICATION_LIMIT = 5;
 export const MIN_NOTIFICATION_LIMIT = 3;
 export const MAX_NOTIFICATION_LIMIT = 20;
 export const NOTIFICATION_LIMIT_STEP = 1;
-export const NOTIFICATION_LIMIT_OPTIONS = [3, 5, 10, 15, 20] as const;
 export const DEFAULT_NOTIFICATION_POPUP_TIMEOUT_SECONDS = 10;
 export const MIN_NOTIFICATION_POPUP_TIMEOUT_SECONDS = 5;
 export const MAX_NOTIFICATION_POPUP_TIMEOUT_SECONDS = 30;
 export const NOTIFICATION_POPUP_TIMEOUT_STEP = 5;
-export const NOTIFICATION_POPUP_TIMEOUT_OPTIONS = [5, 10, 15, 20, 30] as const;
 export const APP_THEME_STORAGE_KEY = "wizards-theme";
 
 const WIZARDS_THEME_CLASS_NAMES = Array.from(
@@ -554,14 +552,6 @@ export function readStoredServerRailWidth() {
   return clampServerRailWidth(parsedValue);
 }
 
-export function writeStoredServerRailWidth(value: number) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(SERVER_RAIL_WIDTH_STORAGE_KEY, String(clampServerRailWidth(value)));
-}
-
 export function clampChannelSidebarWidth(value: number) {
   return Math.min(MAX_CHANNEL_SIDEBAR_WIDTH, Math.max(MIN_CHANNEL_SIDEBAR_WIDTH, value));
 }
@@ -583,17 +573,6 @@ export function readStoredChannelSidebarWidth() {
   }
 
   return clampChannelSidebarWidth(parsedValue);
-}
-
-export function writeStoredChannelSidebarWidth(value: number) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(
-    CHANNEL_SIDEBAR_WIDTH_STORAGE_KEY,
-    String(clampChannelSidebarWidth(value)),
-  );
 }
 
 function clampNotificationLimit(value: number) {
@@ -622,17 +601,6 @@ export function readStoredNotificationLimit() {
   return clampNotificationLimit(parsedValue);
 }
 
-export function writeStoredNotificationLimit(value: number) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(
-    NOTIFICATION_LIMIT_STORAGE_KEY,
-    String(clampNotificationLimit(value)),
-  );
-}
-
 export function readStoredNotificationAutoClose() {
   if (typeof window === "undefined") {
     return true;
@@ -640,23 +608,4 @@ export function readStoredNotificationAutoClose() {
 
   const rawValue = window.localStorage.getItem(NOTIFICATION_AUTO_CLOSE_STORAGE_KEY);
   return rawValue !== "false";
-}
-
-export function writeStoredNotificationAutoClose(value: boolean) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(NOTIFICATION_AUTO_CLOSE_STORAGE_KEY, String(value));
-}
-
-export function clearLegacyAppearanceStorage() {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.removeItem(SERVER_RAIL_WIDTH_STORAGE_KEY);
-  window.localStorage.removeItem(CHANNEL_SIDEBAR_WIDTH_STORAGE_KEY);
-  window.localStorage.removeItem(NOTIFICATION_LIMIT_STORAGE_KEY);
-  window.localStorage.removeItem(NOTIFICATION_AUTO_CLOSE_STORAGE_KEY);
 }

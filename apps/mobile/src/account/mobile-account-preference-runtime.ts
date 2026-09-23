@@ -1,7 +1,5 @@
 import {
   ACCOUNT_PREFERENCES_DEFAULT,
-  formatAccountDate,
-  formatAccountDateTime,
   formatAccountTime,
   getSystemTimeZone,
   type AccountPreferences,
@@ -57,40 +55,12 @@ function resolvedConfig(fallbackLocale = "tr-TR"): MobileAccountPreferenceRuntim
   );
 }
 
-export function formatMobileAccountRuntimeDate(
-  value: Date | number | string,
-  fallbackLocale?: string,
-): string {
-  const config = resolvedConfig(fallbackLocale);
-  return formatAccountDate(value, {
-    dateFormat: config.preferences.dateFormat,
-    locale: config.locale,
-    systemTimeZone: config.systemTimeZone,
-    timeZone: config.preferences.timeZone,
-  });
-}
-
 export function formatMobileAccountRuntimeTime(
   value: Date | number | string,
   fallbackLocale?: string,
 ): string {
   const config = resolvedConfig(fallbackLocale);
   const formatted = formatAccountTime(value, {
-    locale: config.locale,
-    systemTimeZone: config.systemTimeZone,
-    timeFormat: config.preferences.timeFormat,
-    timeZone: config.preferences.timeZone,
-  });
-  return formatted === "—" ? "" : formatted;
-}
-
-export function formatMobileAccountRuntimeDateTime(
-  value: Date | number | string,
-  fallbackLocale?: string,
-): string {
-  const config = resolvedConfig(fallbackLocale);
-  const formatted = formatAccountDateTime(value, {
-    dateFormat: config.preferences.dateFormat,
     locale: config.locale,
     systemTimeZone: config.systemTimeZone,
     timeFormat: config.preferences.timeFormat,

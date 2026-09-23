@@ -35,7 +35,6 @@ export type BugReportClientPlatform = z.infer<typeof BugReportClientPlatformSche
  * yüzden raporun kanal alanına girmeden önce çevrilir.
  */
 export const DesktopReleaseRingSchema = z.enum(["stable", "production", "uat"]);
-export type DesktopReleaseRing = z.infer<typeof DesktopReleaseRingSchema>;
 
 /**
  * Bilinmeyen bir halka `stable`'a düşer: rapor kanalsız kalmaktansa en yaygın

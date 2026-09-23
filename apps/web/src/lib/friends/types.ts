@@ -168,6 +168,3 @@ export const FriendRequestIdParamsSchema = z.object({
 export const FriendUserIdParamsSchema = z.object({
   userId: z.string().min(1),
 });
-
-export type FriendRequestBody = z.infer<typeof FriendRequestBodySchema>;
-export type FriendRequestAction = z.infer<typeof FriendRequestActionSchema>;

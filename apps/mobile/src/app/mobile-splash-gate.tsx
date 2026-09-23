@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { StyleSheet, useColorScheme, View } from "react-native";
 import {
   formatSplashVersionLine,
@@ -131,6 +131,30 @@ export function MobileSplashGate({ children }: { readonly children: ReactNode })
     return () => clearTimeout(unmountTimer);
   }, [visible]);
 
+  /*
+   * SPEC-SPLASH §7 durum düğmesi.
+   *
+   * Mobilde "uygulamayı yeniden başlat" diye bir yol yok (paketi yeniden yükleyen
+   * API yalnız geliştirme kipinde çalışır), o yüzden düğme açılışın kendisini
+   * yeniden koşar: bootstrap sorgusu tekrar denenir, soket ayağa kaldırılır.
+   * Oturum bittiyse beklenecek bir şey kalmamıştır — yapılacak iş perdeyi kaldırıp
+   * arkada duran giriş ekranını açmaktır.
+   *
+   * Sayaç **sıfırlanmaz**: `elapsedMs` soketin 20 sn tavanını da besliyor; geri
+   * alınsaydı düğmeye basan kullanıcı açılışı bir tur daha geciktirirdi.
+   */
+  const { refetch: refetchBootstrap } = bootstrapQuery;
+  const { reconnect: reconnectRealtime } = realtime;
+  const handleAction = useCallback(() => {
+    if (sessionExpired) {
+      setVisible(false);
+      return;
+    }
+
+    void refetchBootstrap();
+    reconnectRealtime();
+  }, [reconnectRealtime, refetchBootstrap, sessionExpired]);
+
   const theme = getMobileTheme("system", colorScheme);
   const environment = resolveSplashEnvironment(getMobileAppReleaseChannel());
   const version = getMobileAppVersion();
@@ -151,6 +175,7 @@ export function MobileSplashGate({ children }: { readonly children: ReactNode })
                 : activeMobileCopy.splashEnvUat
             }
             environmentTone={environment}
+            onAction={handleAction}
             state={state}
             step={step}
             theme={theme}

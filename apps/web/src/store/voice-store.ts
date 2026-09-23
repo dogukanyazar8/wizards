@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { requireBrowserLocalStorage } from "@/lib/browser-local-storage";
 import type { ScreenShareQualityId } from "@/lib/voice/screen-share";
 import {
   DEFAULT_DESKTOP_GAME_OVERLAY_ANCHOR,
@@ -1119,7 +1120,7 @@ export const useVoiceStore = create<VoiceStoreState>()(
       merge: mergePersistedVoiceState,
       name: VOICE_PREFERENCES_STORAGE_KEY,
       partialize: partializeVoiceState,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => requireBrowserLocalStorage()),
     },
   ),
 );

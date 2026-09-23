@@ -9,10 +9,8 @@ type AdminReleasePageProps = {
 
 export default async function AdminReleasePage({ params }: AdminReleasePageProps) {
   const { releaseId } = await params;
-  const [admin, result] = await Promise.all([
-    requireAdminModule("release.read"),
-    getAdminRelease(releaseId),
-  ]);
+  const admin = await requireAdminModule("release.read");
+  const [result] = await Promise.all([getAdminRelease(releaseId)]);
 
   return (
     <AdminReleaseEditor

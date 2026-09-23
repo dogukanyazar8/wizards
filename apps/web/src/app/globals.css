@@ -1869,17 +1869,6 @@ h4 {
     overflow-y: auto;
     overscroll-behavior-y: contain;
   }
-
-  .app-rail {
-    border-color: hsl(var(--border) / 0.82);
-    background-color: hsl(var(--surface-rail) / 0.92);
-  }
-
-  .app-sidebar {
-    border-color: hsl(var(--border) / 0.82);
-    background-color: hsl(var(--surface-panel) / 0.88);
-  }
-
   .app-panel {
     border-color: hsl(var(--border) / 0.82);
     background-color: hsl(var(--surface-card) / 0.88);
@@ -1959,17 +1948,6 @@ h4 {
     background-color: hsl(var(--surface-base));
     background-image: none;
   }
-
-  .whispr-channel-shell .app-rail {
-    border-color: hsl(var(--border) / 0.44);
-    background: linear-gradient(
-      180deg,
-      hsl(var(--surface-card) / 0.62),
-      hsl(var(--surface-soft) / 0.24)
-    );
-    box-shadow: inset -1px 0 0 hsl(var(--background) / 0.34);
-  }
-
   .whispr-channel-shell [data-testid="channel-sidebar"] {
     border-color: hsl(var(--border) / 0.44);
     background:
@@ -2058,64 +2036,26 @@ h4 {
       0 16px 38px hsl(var(--primary) / 0.1);
     outline: none;
   }
-
-  .app-button-primary {
-    background-color: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
-  }
-
-  .app-button-primary:hover {
-    filter: brightness(1.04);
-  }
-
   .app-badge-accent {
     border-color: hsl(var(--primary) / 0.18);
     background-color: hsl(var(--primary) / 0.12);
     color: hsl(var(--primary));
   }
-
-  .app-badge-success {
-    border-color: hsl(var(--success) / 0.2);
-    background-color: hsl(var(--success) / 0.12);
-    color: hsl(var(--success));
-  }
-
   .app-badge-danger {
     border-color: hsl(var(--danger) / 0.28);
     background-color: hsl(var(--danger) / 0.14);
     color: hsl(var(--danger));
   }
-
-  .app-badge-warning {
-    border-color: hsl(var(--warning) / 0.2);
-    background-color: hsl(var(--warning) / 0.12);
-    color: hsl(var(--warning));
-  }
-
   .app-danger {
     border-color: hsl(var(--danger) / 0.28);
     background-color: hsl(var(--danger) / 0.14);
     color: hsl(var(--danger));
   }
-
-  .app-inline-alert {
-    border-color: hsl(var(--border-color) / 0.82);
-    background-color: hsl(var(--bg-tertiary) / 0.88);
-    color: hsl(var(--text-primary));
-  }
-
   .app-success {
     border-color: hsl(var(--success) / 0.22);
     background-color: hsl(var(--success) / 0.12);
     color: hsl(var(--success-foreground));
   }
-
-  .app-warning {
-    border-color: hsl(var(--warning) / 0.22);
-    background-color: hsl(var(--warning) / 0.12);
-    color: hsl(var(--warning));
-  }
-
   .text-app-foreground {
     color: hsl(var(--foreground));
   }
@@ -2159,11 +2099,6 @@ h4 {
   .bg-app-surface-soft {
     background-color: hsl(var(--surface-soft));
   }
-
-  .bg-app-muted {
-    background-color: hsl(var(--text-muted));
-  }
-
   .border-app-border {
     border-color: hsl(var(--border));
   }
@@ -2523,7 +2458,6 @@ h4 {
   .modern-status-row,
   .modern-achievement-card,
   .modern-notification-card,
-  .modern-typing-card,
   .modern-trust-card {
     display: flex;
     align-items: center;
@@ -2576,7 +2510,6 @@ h4 {
   .modern-progress-card h3,
   .modern-achievement-card strong,
   .modern-notification-card strong,
-  .modern-match-card strong,
   .modern-trust-card strong {
     color: var(--tx);
     font-size: clamp(11.5px, 0.82vw, 13.5px);
@@ -2587,8 +2520,7 @@ h4 {
   .modern-message-card span,
   .modern-status-row span,
   .modern-achievement-card strong,
-  .modern-notification-card strong,
-  .modern-match-card strong {
+  .modern-notification-card strong {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2600,9 +2532,7 @@ h4 {
   .modern-achievement-card p,
   .modern-notification-card p,
   .modern-progress-row,
-  .modern-match-card p,
-  .modern-trust-card p,
-  .modern-typing-card p {
+  .modern-trust-card p {
     color: var(--ts);
     font-size: clamp(10px, 0.68vw, 11.5px);
     line-height: 1.28;
@@ -2615,8 +2545,7 @@ h4 {
   }
 
   .modern-status-list,
-  .modern-progress-card,
-  .modern-combined-card {
+  .modern-progress-card {
     display: grid;
     gap: 5px;
   }
@@ -2693,49 +2622,6 @@ h4 {
     border-radius: inherit;
     background: linear-gradient(90deg, #4f46e5, #06b6d4);
   }
-
-  .modern-typing-card span {
-    display: inline-flex;
-    gap: 4px;
-  }
-
-  .modern-typing-card i {
-    height: 5px;
-    width: 5px;
-    border-radius: 999px;
-    background: #818cf8;
-    animation: modern-typing-dot 1.4s ease infinite;
-  }
-
-  .modern-typing-card i:nth-child(2) {
-    animation-delay: 0.16s;
-  }
-
-  .modern-typing-card i:nth-child(3) {
-    animation-delay: 0.32s;
-  }
-
-  .modern-match-card {
-    display: grid;
-    gap: 5px;
-  }
-
-  .modern-match-card > div {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-  }
-
-  .modern-match-card span {
-    border-radius: 999px;
-    background: rgba(248, 113, 113, 0.16);
-    color: #fca5a5;
-    padding: 3px 7px;
-    font-size: 10px;
-    font-weight: 800;
-  }
-
   .modern-trust-card {
     align-items: flex-start;
     border-radius: 18px;
@@ -2875,7 +2761,6 @@ h4 {
     .modern-float-card,
     .modern-column-dot,
     .modern-login-feature-chip span,
-    .modern-typing-card i,
     .whispr-logo-icon-animated .whispr-logo-bar {
       animation: none;
       transform: none;

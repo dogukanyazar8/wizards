@@ -1,5 +1,4 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
-const WEEK_MS = 7 * DAY_MS;
 
 export type CohortUser = {
   createdAt: Date;
@@ -86,5 +85,3 @@ export function buildCohortTable(users: CohortUser[], activity: CohortActivity[]
 export function getCohortRetentionPercent(retained: number, signups: number) {
   return signups === 0 ? null : Math.round((retained / signups) * 1000) / 10;
 }
-
-export const COHORT_WINDOW_MS = WEEK_MS;

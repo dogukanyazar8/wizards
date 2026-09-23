@@ -54,6 +54,7 @@ import { useUnreadCounters } from "@/hooks/use-unread-counters";
 import { usePresenceActivity } from "@/hooks/use-presence-activity";
 import { useBodyScrollLock, useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import type { ShellReadinessRoute } from "@/lib/app-startup/readiness";
+import { getSplashActionKind } from "@/lib/splash/splash-machine";
 import type { NotificationSocketPayload, UserProfileUpdatedPayload } from "@/lib/socket/events";
 import { useAppStore } from "@/lib/store";
 import {
@@ -1228,7 +1229,12 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     holdDismiss: holdSplashForDesktopWindow,
     ...(desktopStartupStep ? { initialStep: desktopStartupStep } : {}),
     dmConversationsLoading: dmConversationsQuery.isLoading && !dmConversationsQuery.data,
-    layoutSettingsLoaded: layoutSettingsQuery.isSuccess && Boolean(layoutSettings),
+    // Aşama **yanıtla** biter, başarıyla değil. `isSuccess` beklemek bu sorguyu
+    // kalıcı bir duvara çeviriyordu: `staleTime: Infinity` + `refetchOnMount: false`
+    // yüzünden hata bir daha hiç denenmiyor, açılış ekranı da hiç kapanmıyordu.
+    // Ayarlar gelmezse kabuk varsayılanlarla açılır (`layoutSettings ?? null`
+    // yolları zaten bunu bekliyor); açılmayan bir kabuk ise hiçbir şey göstermez.
+    layoutSettingsLoaded: layoutSettingsQuery.isFetched,
     realtimeConnected: socketConnected,
     route: shellReadinessRoute,
     // Kabuk yalnız oturum açmış kullanıcıya çizilir; 401 buraya gelmeden auth
@@ -1249,6 +1255,28 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       setDesktopStartupPromoted(true);
     });
   }, [holdSplashForDesktopWindow, readiness.isSettled]);
+
+  /*
+   * SPEC-SPLASH §7 durum düğmesi.
+   *
+   * Kabuk `updating`/`sessionExpired` üretmez (indirme masaüstünün işi, 401'i auth
+   * katmanı yakalar), geriye iki eylem kalır: çevrimdışıyken **yalnız** açılış
+   * sorguları yeniden denenir, kalan her durumda sayfa yenilenir. Karar
+   * `splash-machine`de, çünkü "çevrimdışıyken yenileme" kuralı bir gerekçedir,
+   * bir satır içi koşul değil.
+   *
+   * Kimlik `readiness.state` değişince değişir; saniyelik sayaç tiklerinde değil.
+   */
+  const splashActionKind = getSplashActionKind(readiness.state);
+  const handleSplashAction = React.useCallback(() => {
+    if (splashActionKind === "retry") {
+      void queryClient.refetchQueries({ queryKey: settingsQueryKeys.layout });
+      void queryClient.refetchQueries({ queryKey: workspaceQueryKeys.servers });
+      return;
+    }
+
+    window.location.reload();
+  }, [queryClient, splashActionKind]);
 
   const removeServerAccess = React.useCallback(
     (serverId: string) => {
@@ -1612,6 +1640,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
               <SplashScreen
                 className="transition-opacity duration-[180ms] ease-out motion-reduce:transition-none"
                 completed={readiness.completed}
+                onAction={handleSplashAction}
                 state={readiness.state}
                 step={readiness.step}
                 surface={isDesktopRuntime ? "desktop" : "web"}

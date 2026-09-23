@@ -11,8 +11,6 @@ export const MOBILE_BOTTOM_TAB_IDS = [
   "settings",
 ] as const satisfies readonly MobileTabId[];
 
-export type MobileBottomTabId = (typeof MOBILE_BOTTOM_TAB_IDS)[number];
-
 export interface MobileTabDescriptor {
   readonly id: MobileTabId;
   readonly requiresSession: boolean;

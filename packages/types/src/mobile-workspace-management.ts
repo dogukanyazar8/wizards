@@ -580,7 +580,6 @@ export const MobileChannelHistoryClearResponseSchema = z
   .strict();
 
 export type MobileMediaUploadPurpose = z.infer<typeof MobileMediaUploadPurposeSchema>;
-export type MobileMediaUploadContentType = z.infer<typeof MobileMediaUploadContentTypeSchema>;
 export type MobileMediaUploadIntent = z.infer<typeof MobileMediaUploadIntentSchema>;
 export type MobileMediaUploadCompletionResponse = z.infer<
   typeof MobileMediaUploadCompletionResponseSchema
@@ -588,26 +587,8 @@ export type MobileMediaUploadCompletionResponse = z.infer<
 export type MobileMediaClaimRequest = z.infer<typeof MobileMediaClaimRequestSchema>;
 export type MobileMediaClaimResponse = z.infer<typeof MobileMediaClaimResponseSchema>;
 export type MobileServerCapabilities = z.infer<typeof MobileServerCapabilitiesSchema>;
-export type MobileServerSettingsUpdatedEvent = z.infer<
-  typeof MobileServerSettingsUpdatedEventSchema
->;
-export type MobileServerMembershipAddedEvent = z.infer<
-  typeof MobileServerMembershipAddedEventSchema
->;
-export type MobileServerMembershipRemovedEvent = z.infer<
-  typeof MobileServerMembershipRemovedEventSchema
->;
-export type MobileMessageHistoryClearedEvent = z.infer<
-  typeof MobileMessageHistoryClearedEventSchema
->;
 export type MobilePresenceUpdateEvent = z.infer<typeof MobilePresenceUpdateEventSchema>;
 export type MobileUserProfileUpdatedEvent = z.infer<typeof MobileUserProfileUpdatedEventSchema>;
-export type MobileServerIdParams = z.infer<typeof MobileServerIdParamsSchema>;
-export type MobileServerCategoryParams = z.infer<typeof MobileServerCategoryParamsSchema>;
-export type MobileServerEventParams = z.infer<typeof MobileServerEventParamsSchema>;
-export type MobileServerScheduledEventsQuery = z.infer<
-  typeof MobileServerScheduledEventsQuerySchema
->;
 export type MobileServerScheduledEventsResponse = z.infer<
   typeof MobileServerScheduledEventsResponseSchema
 >;
@@ -617,10 +598,6 @@ export type MobileServerScheduledEventResponse = z.infer<
 export type MobileServerUserSettingsResponse = z.infer<
   typeof MobileServerUserSettingsResponseSchema
 >;
-export type MobileServerChannelParams = z.infer<typeof MobileServerChannelParamsSchema>;
-export type MobileServerMemberParams = z.infer<typeof MobileServerMemberParamsSchema>;
-export type MobileChannelIdParams = z.infer<typeof MobileChannelIdParamsSchema>;
-export type MobileServerRoleParams = z.infer<typeof MobileServerRoleParamsSchema>;
 export type MobileManagedWorkspaceServerDetailResponse = z.infer<
   typeof MobileManagedWorkspaceServerDetailResponseSchema
 >;
@@ -628,54 +605,33 @@ export type MobileServerCreateRequest = z.input<typeof MobileServerCreateRequest
 export type MobileServerCreateResponse = z.infer<typeof MobileServerCreateResponseSchema>;
 export type MobileServerJoinRequest = z.infer<typeof MobileServerJoinRequestSchema>;
 export type MobileServerJoinResponse = z.infer<typeof MobileServerJoinResponseSchema>;
-export type MobileServerUpdateRequest = z.infer<typeof MobileServerUpdateRequestSchema>;
-export type MobileServerDeleteRequest = z.infer<typeof MobileServerDeleteRequestSchema>;
 export type MobileServerInviteCreateRequest = z.infer<typeof MobileServerInviteCreateRequestSchema>;
 export type MobileServerInvite = z.infer<typeof MobileServerInviteSchema>;
 export type MobileServerInviteCreateResponse = z.infer<
   typeof MobileServerInviteCreateResponseSchema
 >;
 export type MobileServerInvitesResponse = z.infer<typeof MobileServerInvitesResponseSchema>;
-export type MobileServerInviteParams = z.infer<typeof MobileServerInviteParamsSchema>;
 export type MobileServerInviteSheetFriend = z.infer<typeof MobileServerInviteSheetFriendSchema>;
 export type MobileServerPendingInvite = z.infer<typeof MobileServerPendingInviteSchema>;
 export type MobileServerInviteSheetResponse = z.infer<typeof MobileServerInviteSheetResponseSchema>;
-export type MobileServerTargetedInviteCreateRequest = z.infer<
-  typeof MobileServerTargetedInviteCreateRequestSchema
->;
 export type MobileServerTargetedInviteCreateResponse = z.infer<
   typeof MobileServerTargetedInviteCreateResponseSchema
 >;
-export type MobileServerInviteLinkUpdateRequest = z.infer<
-  typeof MobileServerInviteLinkUpdateRequestSchema
->;
 export type MobileServerInviteQrResponse = z.infer<typeof MobileServerInviteQrResponseSchema>;
-export type MobileServerInviteCodeParams = z.infer<typeof MobileServerInviteCodeParamsSchema>;
 export type MobileServerInviteDeclineResponse = z.infer<
   typeof MobileServerInviteDeclineResponseSchema
 >;
-export type MobileCategoryCreateRequest = z.infer<typeof MobileCategoryCreateRequestSchema>;
 export type MobileCategoryCreateResponse = z.infer<typeof MobileCategoryCreateResponseSchema>;
-export type MobileCategoryUpdateRequest = z.infer<typeof MobileCategoryUpdateRequestSchema>;
-export type MobileChannelCreateRequest = z.infer<typeof MobileChannelCreateRequestSchema>;
 export type MobileChannelCreateResponse = z.infer<typeof MobileChannelCreateResponseSchema>;
-export type MobileChannelUpdateRequest = z.infer<typeof MobileChannelUpdateRequestSchema>;
-export type MobileServerMembersQuery = z.infer<typeof MobileServerMembersQuerySchema>;
-export type MobileServerMemberActions = z.infer<typeof MobileServerMemberActionsSchema>;
 export type MobileServerMember = z.infer<typeof MobileServerMemberSchema>;
 export type MobileServerMembersResponse = z.infer<typeof MobileServerMembersResponseSchema>;
-export type MobileAssignableRole = z.infer<typeof MobileAssignableRoleSchema>;
 export type MobileAssignableRolesResponse = z.infer<typeof MobileAssignableRolesResponseSchema>;
-export type MobileServerRoleOverview = z.infer<typeof MobileServerRoleOverviewSchema>;
 export type MobilePermissionKey = z.infer<typeof MobilePermissionKeySchema>;
 export type MobileServerRole = z.infer<typeof MobileServerRoleSchema>;
 export type MobileRoleMutationResponse = z.infer<typeof MobileRoleMutationResponseSchema>;
-export type MobileRoleCreateRequest = z.infer<typeof MobileRoleCreateRequestSchema>;
-export type MobileRoleUpdateRequest = z.infer<typeof MobileRoleUpdateRequestSchema>;
 export type MobileServerRoleOverviewResponse = z.infer<
   typeof MobileServerRoleOverviewResponseSchema
 >;
-export type MobileMemberRolesUpdateRequest = z.infer<typeof MobileMemberRolesUpdateRequestSchema>;
 export type MobileMutationSuccessResponse = z.infer<typeof MobileMutationSuccessResponseSchema>;
 export type MobileChannelHistoryClearResponse = z.infer<
   typeof MobileChannelHistoryClearResponseSchema

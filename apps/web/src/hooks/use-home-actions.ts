@@ -46,8 +46,6 @@ export type HomeCardErrorKey = keyof typeof ERROR_TEXT;
 /** Mevcut web geri bildirim şeridiyle aynı ömür (`friends-view.tsx`). */
 const NOTICE_LIFETIME_MS = 5_000;
 
-export type HomeActions = ReturnType<typeof useHomeActions>;
-
 export function useHomeActions(input: {
   awaitingLimit: number;
   /** Faz 6 — Gelen kutusu filtreliyken iyimser yazım **kendi** sayfasını yamalar. */

@@ -24,7 +24,6 @@ export const SplashStepStatusSchema = z.enum(["done", "current", "pending"]);
 export type SplashStepId = z.infer<typeof SplashStepIdSchema>;
 export type SplashStateId = z.infer<typeof SplashStateIdSchema>;
 export type SplashEnvironment = z.infer<typeof SplashEnvironmentSchema>;
-export type SplashSurface = z.infer<typeof SplashSurfaceSchema>;
 export type SplashStepStatus = z.infer<typeof SplashStepStatusSchema>;
 
 /**

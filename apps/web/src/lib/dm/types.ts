@@ -97,8 +97,4 @@ export const DMConversationsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
-export type CreateDMBody = z.infer<typeof CreateDMBodySchema>;
-export type DMConversationsQuery = z.infer<typeof DMConversationsQuerySchema>;
-export type DMMessagesQuery = z.infer<typeof DMMessagesQuerySchema>;
-export type SetDMMutedBody = z.infer<typeof SetDMMutedBodySchema>;
 export type { DMConversationDTO, DMParticipantDTO };

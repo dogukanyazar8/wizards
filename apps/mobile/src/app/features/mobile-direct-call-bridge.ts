@@ -22,10 +22,6 @@ export function setMobileDirectCallStarter(next: MobileDirectCallStarter | null)
   };
 }
 
-export function hasMobileDirectCallStarter(): boolean {
-  return starter !== null;
-}
-
 /**
  * Faz 5 §B5. The same slot for the other verb: entering a call that is already
  * running. 2d's "Katıl" banner and any other surface outside the shell reach the

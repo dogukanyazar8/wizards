@@ -24,6 +24,7 @@ import { createHandlerContext } from "@/lib/socket/context";
 import {
   authenticateMobileSocketToken,
   authenticateWebSocketToken,
+  SocketAuthenticationUnavailableError,
   type SocketAuthUser,
 } from "@/lib/socket/authentication";
 import { registerSocketHandlers } from "@/lib/socket/handlers";
@@ -585,8 +586,10 @@ export function initSocketServer(httpServer: HTTPServer) {
 
       assignSocketUserData(socket, webAuthentication);
       next();
-    } catch {
-      next(new Error("Unauthorized"));
+    } catch (error) {
+      next(
+        error instanceof SocketAuthenticationUnavailableError ? error : new Error("Unauthorized"),
+      );
     }
   });
 

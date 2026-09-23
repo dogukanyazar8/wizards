@@ -2009,5 +2009,3 @@ export const SHARED_SHELL_METRICS = {
   shellMinWidth: HOME_METRICS.shell.minWidth,
   shellMinHeight: HOME_METRICS.shell.minHeight,
 } as const;
-
-export type ServerMetrics = typeof SERVER_METRICS;

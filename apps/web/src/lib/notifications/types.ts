@@ -33,19 +33,6 @@ export interface NotificationDTO {
   meta?: Record<string, string>;
 }
 
-export interface NotificationsListResponse {
-  notifications: NotificationDTO[];
-  unreadCount: number;
-}
-
-/**
- * Zil menüsünün (Ş11'e kadar yaşayan) eski sorgusu. `tab` **taşımaz**; onu taşıyan istek
- * panel sayfasını alır (`NotificationPanelQuerySchema`).
- */
-export const NotificationsQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(20).default(5),
-});
-
 export const NotificationIdParamsSchema = z.object({
   id: z.string().uuid(),
 });
@@ -99,5 +86,3 @@ export const NotificationUnreadCountResponseSchema = z.object({
   count: z.number().int().nonnegative(),
   counts: NotifUnreadCountsSchema,
 });
-
-export type NotificationUnreadCountResponse = z.infer<typeof NotificationUnreadCountResponseSchema>;

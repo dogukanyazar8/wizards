@@ -1223,5 +1223,3 @@ export const SETTINGS_METRICS = {
     switchSeconds: 0.18,
   },
 } as const;
-
-export type SettingsMetrics = typeof SETTINGS_METRICS;
