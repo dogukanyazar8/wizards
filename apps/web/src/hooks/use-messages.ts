@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef } from "react";
+import {
+  useInfiniteQuery,
+  useQueryClient,
+  replaceEqualDeep,
+  type InfiniteData,
+} from "@tanstack/react-query";
 import type {
   ChatMessage,
   DMMessagePayload,
@@ -13,6 +18,8 @@ import type {
 import { fetchDMMessages } from "@/lib/dm/client";
 import type { FriendPresenceUpdateDto } from "@/lib/friends/types";
 import type { UserProfileUpdatedPayload } from "@/lib/socket/events";
+import type { AcknowledgedClientToServerEvents, ServerToClientEvents } from "@/lib/socket/events";
+import type { Socket } from "socket.io-client";
 import { useSocket } from "./use-socket";
 
 export type MessageMode = "channel" | "dm";
@@ -27,6 +34,66 @@ export type MessagePages = InfiniteData<MessagePageResponse, string | undefined>
 
 export function getMessagesQueryKey(mode: MessageMode, conversationId: string) {
   return ["messages", mode, conversationId] as const;
+}
+
+/** Keep only changes made locally while a snapshot was in flight. Blindly
+ * unioning old server rows would resurrect remote deletions. */
+export function reconcileMessageSnapshot(
+  baseline: MessagePages | undefined,
+  current: MessagePages | undefined,
+  snapshot: MessagePages,
+): MessagePages {
+  if (!current || snapshot.pages.length === 0) return snapshot;
+  const before = new Map(
+    baseline?.pages.flatMap((page) =>
+      page.messages.map((message) => [message.id, message] as const),
+    ),
+  );
+  const now = new Map(
+    current.pages.flatMap((page) => page.messages.map((message) => [message.id, message] as const)),
+  );
+  const confirmed = new Set(
+    snapshot.pages.flatMap((page) =>
+      page.messages.flatMap((message) => (message.clientNonce ? [message.clientNonce] : [])),
+    ),
+  );
+  const seen = new Set<string>();
+  const pages = snapshot.pages.map((page) => ({
+    ...page,
+    messages: page.messages.flatMap((message) => {
+      if (
+        seen.has(message.id) ||
+        (before.has(message.id) && !now.has(message.id)) ||
+        confirmed.has(message.id)
+      )
+        return [];
+      seen.add(message.id);
+      const initial = before.get(message.id);
+      const latest = now.get(message.id);
+      if (!initial || !latest || latest === initial) return [message];
+      const changes = Object.fromEntries(
+        Object.keys(latest)
+          .filter((key) => latest[key as keyof ChatMessage] !== initial[key as keyof ChatMessage])
+          .map((key) => [key, latest[key as keyof ChatMessage]]),
+      );
+      return [{ ...message, ...changes }];
+    }),
+  }));
+  const additions = [...now.values()].filter(
+    (message) =>
+      !seen.has(message.id) &&
+      !confirmed.has(message.id) &&
+      (isOptimisticMessageId(message.id) || !before.has(message.id)),
+  );
+  if (additions.length) {
+    pages[0] = {
+      ...pages[0]!,
+      messages: [...pages[0]!.messages, ...additions].sort(
+        (a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+      ),
+    };
+  }
+  return { ...snapshot, pages };
 }
 
 export function patchMessageAuthors(
@@ -98,6 +165,7 @@ function mapDMAttachments(message: DMMessagePayload): MessageAttachment[] {
 export function mapDMMessageToChatMessage(message: DMMessagePayload): ChatMessage {
   return {
     id: message.id,
+    ...(message.clientNonce ? { clientNonce: message.clientNonce } : {}),
     channelId: message.conversationId,
     author: {
       id: message.author.id,
@@ -171,9 +239,9 @@ function isConfirmedOptimisticMessage(candidate: ChatMessage, message: ChatMessa
 }
 
 /**
- * The nonce belongs to one delivery, not to the message. Left in the cache it
- * would differ from the copy the next fetch brings back, so an unchanged message
- * would look changed and re-render its row for nothing.
+ * An echo's nonce has served its purpose after matching the optimistic bubble.
+ * History snapshots retain their own author nonce until subscribers can retire
+ * pending sends whose echo and acknowledgement were both lost.
  */
 function withoutClientNonce(message: ChatMessage): ChatMessage {
   if (message.clientNonce === undefined) {
@@ -406,13 +474,33 @@ export function updateAuthorPresence(
   return changed ? { ...old, pages } : old;
 }
 
-async function fetchChannelMessages(channelId: string, cursor?: string) {
+/**
+ * The newest first-page request behind each conversation's snapshot. A join only
+ * needs a fresh read when that snapshot may predate the connection now delivering
+ * live events: channel messages reach a joined viewer directly and other online
+ * members as `channel:messages:stale`, and DM messages always reach every
+ * participant's user room. A snapshot requested on this connection for this view
+ * is therefore already complete.
+ */
+type SnapshotRequest = { readonly sequence: number; readonly socketId: string | undefined };
+const snapshotRequests = new Map<string, SnapshotRequest>();
+let snapshotSequence = 0;
+
+function getSnapshotRequestKey(mode: MessageMode, conversationId: string) {
+  return `${mode}:${conversationId}`;
+}
+
+async function fetchChannelMessages(
+  channelId: string,
+  cursor: string | undefined,
+  signal: AbortSignal,
+) {
   const url = new URL(`/api/v1/channels/${channelId}/messages`, window.location.origin);
   if (cursor) {
     url.searchParams.set("before", cursor);
   }
 
-  const response = await fetch(url);
+  const response = await fetch(url, { signal });
   if (!response.ok) {
     throw new Error("Failed to fetch messages");
   }
@@ -426,19 +514,42 @@ export function useMessages(mode: MessageMode, conversationId: string) {
   // Effects subscribe with this key. A fresh array per render tears down and
   // reattaches every message listener even when the conversation is unchanged.
   const queryKey = useMemo(() => getMessagesQueryKey(mode, conversationId), [mode, conversationId]);
+  const snapshotBaselines = useRef(new WeakMap<MessagePageResponse, MessagePages | undefined>());
 
   const query = useInfiniteQuery({
     queryKey,
-    queryFn: async ({ pageParam }) => {
-      if (mode === "channel") {
-        return (await fetchChannelMessages(conversationId, pageParam)) as MessagePageResponse;
+    queryFn: async ({ pageParam, signal }) => {
+      if (pageParam === undefined) {
+        snapshotRequests.set(getSnapshotRequestKey(mode, conversationId), {
+          sequence: ++snapshotSequence,
+          socketId: socket.connected ? socket.id : undefined,
+        });
       }
-
-      const payload = await fetchDMMessages(conversationId, pageParam);
-      return {
-        messages: payload.messages.map(mapDMMessageToChatMessage),
-        nextCursor: payload.nextCursor,
-      } satisfies MessagePageResponse;
+      const baseline = queryClient.getQueryData<MessagePages>(queryKey);
+      let page: MessagePageResponse;
+      if (mode === "channel") {
+        const payload = await fetchChannelMessages(conversationId, pageParam, signal);
+        page = { ...payload, nextCursor: payload.nextCursor ?? null };
+      } else {
+        const payload = await fetchDMMessages(conversationId, pageParam, { signal });
+        page = {
+          messages: payload.messages.map(mapDMMessageToChatMessage),
+          nextCursor: payload.nextCursor ?? null,
+        };
+      }
+      snapshotBaselines.current.set(page, baseline);
+      return page;
+    },
+    structuralSharing: (oldData, newData) => {
+      const snapshot = newData as MessagePages;
+      const fetched = snapshot.pages.filter((page) => snapshotBaselines.current.has(page));
+      if (!fetched.length) return replaceEqualDeep(oldData, newData);
+      const baseline = snapshotBaselines.current.get(fetched[0]!);
+      fetched.forEach((page) => snapshotBaselines.current.delete(page));
+      return replaceEqualDeep(
+        oldData,
+        reconcileMessageSnapshot(baseline, oldData as MessagePages | undefined, snapshot),
+      );
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
@@ -581,20 +692,67 @@ export function useMessages(mode: MessageMode, conversationId: string) {
   }, [conversationId, mode, queryClient, queryKey, socket]);
 
   useEffect(() => {
+    let generation = 0;
+    let hasJoined = false;
+    const requestKey = getSnapshotRequestKey(mode, conversationId);
+    // A read already running when this view mounted was started for it; a
+    // cached snapshot from an earlier visit was not.
+    const viewStartSequence =
+      queryClient.getQueryState(queryKey)?.fetchStatus === "fetching"
+        ? (snapshotRequests.get(requestKey)?.sequence ?? 0)
+        : snapshotSequence + 1;
     const joinConversation = () => {
+      if (!socket.connected) return;
+      const attempt = ++generation;
+      const socketId = socket.id;
+      const isCurrent = () => attempt === generation && socket.connected && socket.id === socketId;
+      const acknowledgedSocket = socket as Socket<
+        ServerToClientEvents,
+        AcknowledgedClientToServerEvents
+      >;
+      const joined = async (error: Error | null, result?: { ok: boolean }) => {
+        if (!isCurrent()) return;
+        // Older servers do not acknowledge joins. Their timeout still gets a
+        // snapshot; an explicit authorization refusal must not trigger a read.
+        if (!error && !result?.ok) return;
+        const reconnect = hasJoined;
+        hasJoined = true;
+        const snapshot = snapshotRequests.get(requestKey);
+        if (
+          !reconnect &&
+          snapshot !== undefined &&
+          snapshot.sequence >= viewStartSequence &&
+          snapshot.socketId === socketId
+        ) {
+          return;
+        }
+        if (queryClient.getQueryState(queryKey)?.fetchStatus === "fetching") {
+          if (reconnect) {
+            // Started on the connection that just dropped.
+            await queryClient.cancelQueries({ exact: true, queryKey }, { revert: false });
+          } else {
+            // Let the reader see the snapshot already on its way, then refresh it.
+            await queryClient.refetchQueries({ exact: true, queryKey }, { cancelRefetch: false });
+          }
+          if (!isCurrent()) return;
+        }
+        await queryClient.invalidateQueries({ exact: true, queryKey });
+      };
       if (mode === "channel") {
-        socket.emit("channel:join", conversationId);
+        acknowledgedSocket.timeout(10_000).emit("channel:join", conversationId, joined);
         return;
       }
 
-      socket.emit("dm:join", conversationId);
+      acknowledgedSocket.timeout(10_000).emit("dm:join", conversationId, joined);
     };
 
     joinConversation();
     socket.on("connect", joinConversation);
 
     return () => {
+      generation++;
       socket.off("connect", joinConversation);
+      if (!socket.connected) return;
 
       if (mode === "channel") {
         socket.emit("channel:leave", conversationId);
@@ -603,7 +761,7 @@ export function useMessages(mode: MessageMode, conversationId: string) {
 
       socket.emit("dm:leave", conversationId);
     };
-  }, [conversationId, mode, socket]);
+  }, [conversationId, mode, queryClient, queryKey, socket]);
 
   return query;
 }
