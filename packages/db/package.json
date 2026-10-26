@@ -28,17 +28,17 @@
     "format": "node ../../scripts/quality/prettier-changed.mjs --scope packages/db"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "7.10.0",
-    "@prisma/client": "7.10.0",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
     "bcryptjs": "^3.0.3",
-    "pg": "^8.23.0"
+    "pg": "^8.23.1"
   },
   "devDependencies": {
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.5",
     "@types/pg": "^8.23.1",
     "dotenv": "^17.4.2",
-    "prettier": "3.9.8",
-    "prisma": "7.10.0",
+    "prettier": "3.9.10",
+    "prisma": "7.10.1",
     "tsx": "^4.23.15",
     "typescript": "catalog:"
   }
